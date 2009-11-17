@@ -45,19 +45,19 @@ MODULE cp_dbcsr_operations
        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_pgrid_equal, dbcsr_mutable_new, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_row_block_sizes, dbcsr_valid_index
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mutable_new, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
        dbcsr_distribute, dbcsr_filter, dbcsr_get_block, dbcsr_get_block_p, &
-       dbcsr_get_tmp_block2d, dbcsr_mult_e_ec_m, dbcsr_new_transposed, &
-       dbcsr_norm, dbcsr_put_block, dbcsr_redistribute, dbcsr_remove_block, &
-       dbcsr_replace_blocks, dbcsr_replicate_all, dbcsr_reserve_block2d, &
-       dbcsr_scale, dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_get_tmp_block2d, dbcsr_mult_m_e_e, dbcsr_new_transposed, &
+       dbcsr_norm, dbcsr_put_block, dbcsr_remove_block, dbcsr_replace_blocks, &
+       dbcsr_replicate_all, dbcsr_reserve_block2d, dbcsr_scale, &
+       dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
-       dbcsr_array_type, dbcsr_distribution_obj, &
+       dbcsr_2d_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
        dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
        dbcsr_obj, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
@@ -66,14 +66,13 @@ MODULE cp_dbcsr_operations
   USE dbcsr_util,                      ONLY: &
        add_work_coordinate, convert_sizes_to_offsets, create_bl_distribution, &
        dbcsr_add_wm_from_matrix, dbcsr_checksum, dbcsr_create, &
-       dbcsr_create_col_image_dist, dbcsr_create_dist_block_cyclic, &
-       dbcsr_create_dist_elemental, dbcsr_create_dist_fullest, &
-       dbcsr_create_dist_r_rot, dbcsr_create_dist_r_unrot, &
+       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_elemental, &
+       dbcsr_create_dist_fullest, dbcsr_create_dist_r_rot, &
+       dbcsr_create_dist_r_unrot, dbcsr_create_image_dist, &
        dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, &
-       dbcsr_finalize, dbcsr_find_column, dbcsr_make_col_images, &
-       dbcsr_make_index_canonical, dbcsr_set_debug, &
-       dbcsr_transpose_distribution, dbcsr_verify_matrix, dbcsr_work_create, &
-       swap
+       dbcsr_finalize, dbcsr_find_column, dbcsr_get_stored_coordinates, &
+       dbcsr_make_images, dbcsr_make_index_canonical, dbcsr_print, &
+       dbcsr_set_debug, dbcsr_verify_matrix, dbcsr_work_create, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -244,7 +243,6 @@ CONTAINS
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
                 CYCLE
              END IF
-
              NULLIFY(block)
              IF(symmetry==dbcsr_type_normal) THEN
                 CALL dbcsr_add_block_node(matrix=matrix,&
@@ -332,9 +330,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: old_blk_p
     LOGICAL                                  :: keep_sparsity, new_product, &
                                                 new_right
-    TYPE(dbcsr_array_type)                   :: ms_left
-    TYPE(dbcsr_distribution_obj)             :: dist_right, dist_tmp
-    TYPE(dbcsr_imagedistribution_type)       :: rdist_left
+    TYPE(dbcsr_2d_array_type)                :: m2s_left, m2s_right
+    TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
     TYPE(dbcsr_obj)                          :: matrix_right, product_matrix
 
 !TYPE(dbcsr_distribution_obj)             :: dist_left, dist_right
@@ -350,51 +347,23 @@ CONTAINS
     ENDIF
     keep_sparsity = .FALSE.
     IF (PRESENT (retain_sparsity)) keep_sparsity=retain_sparsity
-    !write(*,*)'========== MULTIPLICATION ========================'
-    !call dbcsr_print (matrix_a)
-    !call dbcsr_print (matrix_b)
-    !call dbcsr_print (matrix_c)
-    !write(*,*)'dist a'
-    !call dbcsr_print_dist (dbcsr_distribution (matrix_a))
-    !write(*,*)'dist b'
-    !call dbcsr_print_dist (dbcsr_distribution (matrix_b))
-    !write(*,*)'dist c'
-    !call dbcsr_print_dist (dbcsr_distribution (matrix_c))
-    ! Normalize right matrix
-    IF (.NOT. array_equality (&
-         dbcsr_distribution_col_dist (dbcsr_distribution (matrix_c)),&
-         dbcsr_distribution_col_dist (dbcsr_distribution (matrix_b)))) THEN
-       new_right = .TRUE.
-       CALL dbcsr_distribution_new (dist_right,&
-            dbcsr_distribution_mp (dbcsr_distribution (matrix_b)),&
-            dbcsr_distribution_row_dist (dbcsr_distribution (matrix_b)),&
-            dbcsr_distribution_col_dist (dbcsr_distribution (matrix_c)))
-       CALL dbcsr_init (matrix_right)
-       IF (.not.dbcsr_mp_pgrid_equal (&
-            dbcsr_distribution_mp (dist_right),&
-            dbcsr_distribution_mp (dist_right))) THEN
-          dist_tmp = dist_right
-          CALL dbcsr_transpose_distribution (dist_right, dist_tmp)
-          CALL dbcsr_distribution_release (dist_tmp)
-          !WRITE(*,*)routineN//' Redistributing(1)'
-          CALL dbcsr_create (matrix_right, "Redistributed "//matrix_b%m%name,&
-               dist_right, dbcsr_type_normal, dbcsr_col_block_sizes (matrix_b),&
-               dbcsr_row_block_sizes (matrix_b),&
-               data_type=dbcsr_get_data_type (matrix_b), special=.TRUE.)
-       ELSE
-          !WRITE(*,*)routineN//' Redistributing(2)'
-          CALL dbcsr_create (matrix_right, "Redistributed "//matrix_b%m%name,&
-               dist_right, dbcsr_type_normal, dbcsr_row_block_sizes (matrix_b),&
-               dbcsr_col_block_sizes (matrix_b),&
-               data_type=dbcsr_get_data_type (matrix_b), special=.TRUE.)
-       ENDIF
-       CALL dbcsr_distribution_release (dist_right)
-       CALL dbcsr_finalize (matrix_right)
-       CALL dbcsr_redistribute (matrix_b, matrix_right)
-    ELSE
-       matrix_right = matrix_b
-       new_right = .FALSE.
+    IF (dbg) THEN
+       WRITE(*,*)'========== MULTIPLICATION ========================'
+       CALL dbcsr_verify_matrix (matrix_a)
+       CALL dbcsr_verify_matrix (matrix_b)
+       CALL dbcsr_verify_matrix (matrix_c)
+       CALL dbcsr_print (matrix_a)
+       CALL dbcsr_print (matrix_b)
+       CALL dbcsr_print (matrix_c)
+       !WRITE(*,*)'dist a'
+       !CALL dbcsr_print_dist (dbcsr_distribution (matrix_a))
+       !WRITE(*,*)'dist b'
+       !CALL dbcsr_print_dist (dbcsr_distribution (matrix_b))
+       !WRITE(*,*)'dist c'
+       !CALL dbcsr_print_dist (dbcsr_distribution (matrix_c))
     ENDIF
+    matrix_right = matrix_b
+    new_right = .FALSE.
 
     IF (beta .NE. 1.0_dp) THEN
        !IF (PRESENT (last_column)) THEN
@@ -433,10 +402,6 @@ CONTAINS
     !$ nthreads = OMP_GET_NUM_THREADS ()
     CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
     ! CP2k does not follow conventions, so always copy the data
-    !CALL cp_assert (beta.eq.0 .OR. beta.eq.1, cp_fatal_level,&
-    !     cp_unimplemented_error_nr, routineN,&
-    !     "CP2K only supports beta=0 or beta=1!")
-    !
     !IF (beta .NE. 0.0_dp) THEN
        !call dbcsr_print (product_matrix)
        i = 1
@@ -505,7 +470,9 @@ CONTAINS
     IF (f_row .EQ. 1) f_row = 0
     IF (l_row .EQ. dbcsr_nfullrows_total(matrix_a)) l_row = 0
     IF (f_col .EQ. 1) f_col = 0
-    IF (l_col .EQ. dbcsr_nfullcols_total(matrix_b)) l_col = 0
+    IF (l_col .EQ. dbcsr_nfullcols_total(matrix_b) .AND. &
+         dbcsr_nfullcols_total(matrix_b) .EQ.&
+         dbcsr_nfullcols_total(product_matrix)) l_col = 0
     IF (f_k .EQ. 1) f_k = 0
     IF (l_k .EQ. dbcsr_nfullcols_total(matrix_a)) l_k = 0
     !IF (l_k .NE. 0) WRITE(*,*)'Limiting last k',l_k
@@ -521,26 +488,38 @@ CONTAINS
     CALL cp_assert (f_col .LE. l_col, cp_fatal_level,&
          cp_wrong_args_error, routineN, "Last col smaller than first col")
     !
-    CALL dbcsr_create_col_image_dist (rdist_left,&
-         dbcsr_distribution_row_dist (matrix_a%m%dist), matrix_b%m%dist)
-    CALL dbcsr_make_col_images(matrix_a, ms_left, rdist_left, error)
+    CALL dbcsr_create_image_dist (rdist_right, matrix_b%m%dist,&
+         match_row_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_a%m%dist)),&
+         match_col_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (product_matrix%m%dist)),&
+         match_col_pdist = array_data (dbcsr_distribution_col_dist (product_matrix%m%dist)))
+    CALL dbcsr_create_image_dist (rdist_left, matrix_a%m%dist,&
+         match_row_pdist = array_data (dbcsr_distribution_row_dist (matrix_c%m%dist)),&
+         match_row_nbins = dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_c%m%dist)),&
+         match_col_pdist = array_data (dbcsr_distribution_row_dist (rdist_right%main)),&
+         match_col_idist = array_data (rdist_right%row_image),&
+         match_col_nbins = dbcsr_mp_nprows (dbcsr_distribution_mp(matrix_b%m%dist)))
+    CALL dbcsr_make_images (matrix_b, m2s_right, rdist_right,&
+         predistribute="R", error=error)
+    CALL dbcsr_make_images (matrix_a, m2s_left, rdist_left,&
+         predistribute="L", error=error)
     IF (dbg) THEN
-       DO i = 1, SIZE (ms_left%mats)
-          CALL dbcsr_verify_matrix(ms_left%mats(i), error)
+       DO i = 1, SIZE (m2s_right%mats,1)
+          CALL dbcsr_verify_matrix(m2s_right%mats(i,1), error)
+          CALL dbcsr_print(m2s_right%mats(i,1),nodata=.TRUE.)
+       ENDDO
+       DO i = 1, SIZE (m2s_left%mats,2)
+          CALL dbcsr_verify_matrix(m2s_left%mats(1,i), error)
+          CALL dbcsr_print(m2s_left%mats(1,i),nodata=.TRUE.)
        ENDDO
     ENDIF
     !
     IF (PRESENT (flop)) flop = 0
     my_flop = 0
-    IF (path .GE. 0) THEN
-       CALL dbcsr_mult_e_ec_m (ms_left, matrix_right, product_matrix,&
-            (/ f_row, l_row, f_col, l_col, f_k, l_k /),&
-            alpha_d=alpha, beta_d=beta, retain_sparsity=retain_sparsity,&
-            error=error, flop=my_flop)
-       IF (PRESENT (flop)) flop = my_flop
-    ELSE
-       IF (PRESENT (flop)) flop = 0
-    ENDIF
+    CALL dbcsr_mult_m_e_e (m2s_left, m2s_right, product_matrix,&
+         (/ f_row, l_row, f_col, l_col, f_k, l_k /),&
+         alpha_d=alpha, beta_d=beta, retain_sparsity=retain_sparsity,&
+         error=error, flop=my_flop)
+    IF (PRESENT (flop)) flop = my_flop
     !
     IF (new_right) CALL dbcsr_release (matrix_right)
     CALL dbcsr_distribution_no_threads (product_matrix%m%dist)
@@ -554,18 +533,16 @@ CONTAINS
     ELSE
        matrix_c = product_matrix
     ENDIF
-    !IF (PRESENT (last_column)) THEN
-    !   IF (last_column.eq.12 .AND. dbcsr_nfullcols_total (matrix_c).eq.17) THEN
-    !        write(*,*)'product matrix='
-    !        call dbcsr_print (matrix_c)
-    !     ENDIF
-    !ENDIF
-    !call dbcsr_print (matrix_c)
-    !tmp = dbcsr_ssum (matrix_c)
-    !write(*,*)routineN//" sum of product", tmp
+    IF (dbg) THEN
+       CALL dbcsr_print (matrix_c)
+    ENDIF
     CALL dbcsr_destroy_image_dist (rdist_left)
-    CALL dbcsr_destroy_array (ms_left)
+    CALL dbcsr_destroy_image_dist (rdist_right)
+    CALL dbcsr_destroy_array (m2s_left)
+    CALL dbcsr_destroy_array (m2s_right)
     ! Perform multiplication
+    IF (dbg) &
+         CALL dbcsr_verify_matrix (matrix_c)
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_sm_sm_multiply
 
@@ -2443,11 +2420,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_block_node', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: existed, is_there
+    INTEGER                                  :: c, p, r
+    LOGICAL                                  :: dbg, existed, is_there, tr
 
 !   ---------------------------------------------------------------------------
 !    CALL cp_assert (matrix%m%work_mutable, cp_warning_level, cp_caller_error,&
 !         routineN, "Mutable not defined upon DBCSR creation, forcing its use.")
+
+    dbg = .FALSE.
 
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_create (matrix)
@@ -2465,6 +2445,15 @@ CONTAINS
     !write(*,*) 'add_block_node: block_row',block_row,' block_col',block_col
     CALL dbcsr_reserve_block2d (matrix, block_row, block_col, block,&
          existed=existed)
+!
+    IF (dbg) THEN
+       r = block_row ; c = block_col
+       CALL dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
+       CALL cp_assert (p .EQ. dbcsr_mp_mynode (dbcsr_distribution_mp (&
+            matrix%m%dist)),&
+            cp_warning_level, cp_internal_error, routineN,&
+            "Adding non-local element", error=error)
+    ENDIF
     CALL cp_assert (.NOT.existed, cp_warning_level, cp_wrong_args_error,&
          routineN, "You should not add existing blocks according to old API.")
     IF(.NOT.is_there) block(:,:) = 0.0_dp

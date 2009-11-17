@@ -41,10 +41,14 @@ MODULE dbcsr_operations
                                              real_8,&
                                              sp
   USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: &
-       mp_allgather, mp_alltoall, mp_bcast, mp_isendrecv, mp_max, mp_rma_get, &
-       mp_sum, mp_wait, mp_window_create, mp_window_destroy, mp_window_fence, &
-       mp_window_type
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_alltoall,&
+                                             mp_bcast,&
+                                             mp_irecv,&
+                                             mp_isend,&
+                                             mp_max,&
+                                             mp_sum,&
+                                             mp_waitall
 
   !$ USE OMP_LIB
   USE termination,                     ONLY: stop_memory,&
@@ -57,7 +61,7 @@ MODULE dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
-  PUBLIC :: dbcsr_mult_e_ec_m, dbcsr_trace, dbcsr_add_on_diag,&
+  PUBLIC :: dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, &
             dbcsr_set_diag, dbcsr_get_block, dbcsr_get_block_p,&
             dbcsr_get_block_diag,&
@@ -170,12 +174,10 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Multiplies two DBCSR matrices using non-RMA transfers.
+!> \brief Multiplies two DBCSR matrices
 !>
-!> All matrices have the same processor grid distribution.
-!>
-!> \param[in] left_set             set of left column images
-!> \param[in] right_matrix         right matrix
+!> \param[in] left_set             set of imaged left matrices
+!> \param[in] right_set            set of imaged right matrices
 !> \param[out] product             DBCSR product matrix
 !> \param[in] submatrix_selection  select submatrix
 !> \param[in,out] error            cp2k error
@@ -186,54 +188,74 @@ CONTAINS
 !>                                 factor
 !> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mult_e_ec_m (left_set, right_matrix, product_matrix,&
+  SUBROUTINE dbcsr_mult_m_e_e (left_set, right_set, product_matrix,&
        submatrix_selection, error, retain_sparsity, alpha_d, beta_d, flop)
-    TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
-    TYPE(dbcsr_obj), INTENT(IN)              :: right_matrix
+    TYPE(dbcsr_2d_array_type), &
+      INTENT(INOUT), TARGET                  :: left_set, right_set
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
-    INTEGER, DIMENSION(6), INTENT(in)        :: submatrix_selection
+    INTEGER, DIMENSION(6), INTENT(IN)        :: submatrix_selection
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_d, beta_d
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mult_e_ec_m', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mult_m_e_e', &
       routineP = moduleN//':'//routineN
+    CHARACTER(LEN=80), PARAMETER :: &
+      fdata = '(A,1X,I4,"(",2(I3),"x",2(I3),")","(",I3,"x",I3,")")', fxfer = &
+      '(A,1X,I4,"->",I4,2(1X,"(",I3,"x",I3,")"),1X,"IM (",I3,"x",I3,")"))'
+    INTEGER, PARAMETER                       :: idata = 1, imeta = 2
 
-    INTEGER :: debug_level, i, img, ithread, left_dst_image, left_dst_p, &
-      left_dst_pcol, left_dst_prow, left_multiplicity, left_mypcol, &
-      left_myprow, left_nimages, left_npcols, left_nprows, left_p_recv, &
-      left_p_send, left_src_image, left_src_p, left_src_pcol, left_src_prow, &
-      mp_group, mult, mynode, mypcol, myprow, myt_mult, nblks, npcols, &
-      nprows, nthreads, numnodes, nze, output_unit, right_data_rr, &
-      right_data_sr, right_dst_p, right_dst_prow, right_index_rr, &
-      right_index_sr, right_mypcol, right_myprow, right_npcols, right_nprows, &
-      right_p_recv, right_p_send, right_prow_i, right_src_p, &
-      right_src_p_calc, right_src_prow, timing_handle
+    INTEGER :: debug_level, i, ithread, left_col_image, left_col_mult, &
+      left_col_nimages, left_col_v_offset, left_dst_icol, left_dst_irow, &
+      left_dst_p, left_dst_pcol, left_dst_prow, left_dst_v_col, &
+      left_dst_v_row, left_recv_icol, left_recv_irow, left_recv_p, &
+      left_recv_pcol, left_recv_prow, left_recv_v_col, left_recv_v_row, &
+      left_row_image, left_row_mult, left_row_nimages, left_send_icol, &
+      left_send_irow, left_send_p, left_send_pcol, left_send_prow, &
+      left_send_v_col, left_send_v_row, left_src_icol, left_src_irow, &
+      left_src_p, left_src_pcol, left_src_prow, left_src_v_col, &
+      left_src_v_row, max_nblks, max_nze, metronome
+    INTEGER :: min_nimages, mp_group, mynode, nsteps_k, nthreads, numnodes, &
+      nvirt_k, output_unit, right_col_image, right_col_mult, &
+      right_col_nimages, right_dst_icol, right_dst_irow, right_dst_p, &
+      right_dst_pcol, right_dst_prow, right_dst_v_col, right_dst_v_row, &
+      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
+      right_recv_prow, right_recv_v_col, right_recv_v_row, right_row_image, &
+      right_row_mult, right_row_nimages, right_row_v_offset, right_send_icol, &
+      right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
+      right_send_v_col, right_send_v_row, right_src_icol, right_src_irow, &
+      right_src_p, right_src_pcol
+    INTEGER :: right_src_prow, right_src_v_col, right_src_v_row, &
+      timing_handle, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: left_data_rr, left_data_sr, &
-                                                left_index_rr, left_index_sr
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: infos
+    INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
+      left_index_rr, left_index_sr, right_data_rr, right_data_sr, &
+      right_index_rr, right_index_sr
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_sizes, my_sizes, &
+                                                right_sizes
+    INTEGER, ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: all_sizes
     INTEGER, DIMENSION(:), POINTER           :: left_index_rp, left_index_sp, &
                                                 right_index_rp, right_index_sp
-    INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, pgrid, right_pgrid
+    INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
+                                                right_pgrid
     LOGICAL                                  :: ionode
-    REAL(KIND=dp)                            :: t_all, t_dgemm, trun, trun_t, &
-                                                tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: my_waits
+    REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
+                                                trun, trun_t, tstart, tstop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_rp, left_data_sp, &
                                                 right_data_rp, right_data_sp
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
-    TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
-    TYPE(dbcsr_data_obj)                     :: right_matrix_data
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_obj), POINTER                 :: product_matrix_p, &
-                                                rbuffer_calc, rbuffer_comm
-    TYPE(dbcsr_obj), TARGET                  :: rbuffer_1, rbuffer_2
+    TYPE(dbcsr_2d_array_type), POINTER       :: left_buffer_calc, &
+                                                left_buffer_comm, &
+                                                right_buffer_calc, &
+                                                right_buffer_comm
+    TYPE(dbcsr_2d_array_type), TARGET        :: left_buffer_1, left_buffer_2, &
+                                                right_buffer_1, right_buffer_2
+    TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
+                                                right_mp_obj
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -242,28 +264,12 @@ CONTAINS
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
     IF (dbg) debug_level = 2
-    IF (dbcsr_mp_nprows (dbcsr_distribution_mp (right_matrix%m%dist)) .NE.&
-         dbcsr_mp_npcols (dbcsr_distribution_mp (right_matrix%m%dist))) THEN
-       CALL dbcsr_mult_e_ec_m_rma (left_set, right_matrix,&
-            product_matrix, submatrix_selection, error=error,&
-            alpha_d=alpha_d, beta_d=beta_d, retain_sparsity=retain_sparsity,&
-            flop=flop_total)
-       IF (PRESENT (flop)) flop = flop_total
-       RETURN
-    ENDIF
     CALL timeset (routineN, timing_handle)
-    product_matrix_p => product_matrix
-    !!$OMP PARALLEL DEFAULT (SHARED) &
-    !!$OMP          PRIVATE (myt_mult, right_prow_i, ithread)
-    nthreads = 1
-    ithread = 0
-    !$ ithread = OMP_GET_THREAD_NUM ()
-    !$OMP MASTER
-    !$ nthreads = OMP_GET_NUM_THREADS ()
+    ithread= 0 ; nthreads = 1
+    !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     IF (.NOT. ASSOCIATED (product_matrix%m%wms)) THEN
        CALL dbcsr_work_create(product_matrix, n=nthreads, error=error)
     ENDIF
-    !$OMP FLUSH (product_matrix)
     logger => cp_error_get_logger (error)
     ionode = logger%para_env%mepos == logger%para_env%source
     output_unit = 0
@@ -272,33 +278,52 @@ CONTAINS
     t_dgemm = 0.0_dp ; t_all = 0.0_dp
     flop_total = 0
     trun_t = m_walltime ()
-    left_nimages = left_set%image_dist%col_decimation
-    left_multiplicity = left_set%image_dist%col_multiplicity
-    CALL bcsr_assert (debug_level,&
-         SIZE (left_set%mats) .EQ. left_set%image_dist%row_decimation,&
-         routineP, "Declared images not equal to present images")
-    mp_obj = dbcsr_distribution_mp (dbcsr_distribution (product_matrix))
-    numnodes = dbcsr_mp_numnodes (mp_obj)
-    mynode = dbcsr_mp_mynode (mp_obj)
-    myprow = dbcsr_mp_myprow (mp_obj)
-    mypcol = dbcsr_mp_mypcol (mp_obj)
-    npcols = dbcsr_mp_npcols (mp_obj)
-    nprows = dbcsr_mp_nprows (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
-    pgrid => dbcsr_mp_pgrid (mp_obj)
-    left_myprow = myprow
-    left_mypcol = mypcol
-    left_nprows = nprows
-    left_npcols = npcols
-    left_pgrid => pgrid
-    right_myprow = myprow
-    right_mypcol = mypcol
-    right_nprows = nprows
-    right_npcols = npcols
-    right_pgrid => pgrid
-    CALL bcsr_assert (debug_level,&
-         left_multiplicity * npcols .EQ. left_nimages*nprows, routineP,&
-         "Mulitplicity and image  mismatch with processer grid.")
+    ! Set up variables
+    left_row_nimages =  left_set%image_dist%row_decimation
+    left_row_mult =     left_set%image_dist%row_multiplicity
+    left_col_nimages =  left_set%image_dist%col_decimation
+    left_col_mult =     left_set%image_dist%col_multiplicity
+    right_row_nimages = right_set%image_dist%row_decimation
+    right_row_mult =    right_set%image_dist%row_multiplicity
+    right_col_nimages = right_set%image_dist%col_decimation
+    right_col_mult =    right_set%image_dist%col_multiplicity
+    left_mp_obj = dbcsr_distribution_mp (left_set%image_dist%main)
+    right_mp_obj = dbcsr_distribution_mp (right_set%image_dist%main)
+    product_mp_obj = dbcsr_distribution_mp (product_matrix%m%dist)
+    numnodes = dbcsr_mp_numnodes (product_mp_obj)
+    mynode = dbcsr_mp_mynode (product_mp_obj)
+    mp_group = dbcsr_mp_group (product_mp_obj)
+    left_pgrid => dbcsr_mp_pgrid (left_mp_obj)
+    right_pgrid => dbcsr_mp_pgrid (right_mp_obj)
+    product_pgrid => dbcsr_mp_pgrid (product_mp_obj)
+    ! Dummy checks
+    ! left/right matching
+    CALL cp_assert (left_col_nimages .EQ. right_row_mult&
+         .AND. left_col_mult .EQ. right_row_nimages, cp_fatal_level,&
+         cp_internal_error, routineN, "Left/Right image mismatch", error=error)
+    CALL cp_assert (left_col_nimages * dbcsr_mp_npcols (left_mp_obj) &
+         .EQ. right_row_nimages * dbcsr_mp_nprows (right_mp_obj), &
+         cp_fatal_level, cp_internal_error, routineN,&
+         "Left/Right total mismatch", error=error)
+    ! product/left matching
+    CALL cp_assert (left_row_mult * dbcsr_mp_nprows (product_mp_obj) &
+         .EQ. left_row_nimages * dbcsr_mp_nprows (left_mp_obj), &
+         cp_fatal_level, cp_internal_error, routineN,&
+         "Product/Left total mismatch", error=error)
+    ! product/left matching
+    CALL cp_assert (right_col_mult * dbcsr_mp_npcols (product_mp_obj) &
+         .EQ. right_col_nimages * dbcsr_mp_npcols (right_mp_obj), &
+         cp_fatal_level, cp_internal_error, routineN,&
+         "Product/Right total mismatch", error=error)
+    ! Limitations
+    CALL cp_assert (left_row_nimages.eq.1 .AND. left_row_mult.eq.1,&
+         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
+         "Product/Left matrix process grid mismatch", error=error)
+    CALL cp_assert (right_col_nimages.eq.1 .AND. right_col_mult.eq.1,&
+         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
+         "Product/Right matrix process grid mismatch", error=error)
+    !
+    ! Setup product work areas
     DO i = 1, nthreads
        CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
             MAX(product_matrix%m%wms(i)%datasize,&
@@ -312,345 +337,477 @@ CONTAINS
        CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
 
-       !left_data_rp => dbcsr_get_data_p (product_matrix%m%wms(i)%data_area, 0.0_dp)
-       !left_data_rp(:) = 0.0_dp
-
     ENDDO
-    DBG 'pgrid shape', SHAPE (pgrid)
-    IF (dbg .AND. mynode .EQ. 0) THEN
-       WRITE(*,*) 'left images, multiplicity', left_nimages, left_multiplicity
-    ENDIF
-    ALLOCATE (my_sizes(4, left_nimages))
-    my_sizes(:,:) = 0
-    DO img = 1, left_nimages
-       my_sizes(1, img) = dbcsr_get_data_size (left_set%mats(img)%m%data_area)
-       my_sizes(2, img) = SIZE (left_set%mats(img)%m%index)
+    !
+    ! Exchange size data
+    ALLOCATE (my_sizes(4, MAX (left_row_nimages, right_row_nimages),&
+         MAX (left_col_nimages, right_col_nimages)))
+    my_sizes(:,:,:) = 0
+    DO left_row_image = 1, left_row_nimages
+       DO left_col_image = 1, left_col_nimages
+          my_sizes(idata, left_row_image, left_col_image) &
+               = dbcsr_get_data_size (&
+               left_set%mats(left_row_image, left_col_image)%m%data_area)
+          my_sizes(imeta, left_row_image, left_col_image) = SIZE (&
+               left_set%mats(left_row_image, left_col_image)%m%index)
+       ENDDO
     ENDDO
-    my_sizes(3, 1) = dbcsr_get_data_size (right_matrix%m%data_area)
-    my_sizes(4, 1) = SIZE (right_matrix%m%index)
-    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
-    DO i = 1, 4
-       DBG 'my sizes', my_sizes(i,:)
+    DO right_row_image = 1, right_row_nimages
+       DO right_col_image = 1, right_col_nimages
+          my_sizes(idata+2, right_row_image, right_col_image) &
+               = dbcsr_get_data_size (&
+               right_set%mats(right_row_image, right_col_image)%m%data_area)
+          my_sizes(imeta+2, right_row_image, right_col_image) = SIZE (&
+               right_set%mats(right_row_image, right_col_image)%m%index)
+       ENDDO
     ENDDO
+    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2),&
+         LBOUND(my_sizes,3):UBOUND(my_sizes,3), 0:numnodes-1))
     CALL mp_allgather(my_sizes, all_sizes, mp_group)
-    nblks = MAXVAL (all_sizes (2, :, :))
-    nze = MAXVAL (all_sizes(1, :, :))
-    DBG 'data sizes', all_sizes
-    ! Setup the buffer matrices
-    ALLOCATE (lbuffer_1%mats(left_multiplicity))
-    ALLOCATE (lbuffer_2%mats(left_multiplicity))
-    ALLOCATE (left_data_sr(left_multiplicity), left_data_rr(left_multiplicity))
-    ALLOCATE (left_index_sr(left_multiplicity), left_index_rr(left_multiplicity))
-    DO mult = 1, left_multiplicity
-       CALL dbcsr_init (lbuffer_1%mats(mult), error)
-       CALL dbcsr_create (lbuffer_1%mats(mult),&
-            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, &
-            dbcsr_type_normal, left_set%mats(1)%m%row_blk_size, &
-            left_set%mats(1)%m%col_blk_size, nblks, nze, special=.FALSE., &
-            error=error)
-            lbuffer_1%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
-       CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%m%data_area,&
-            MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
-       !CALL ensure_array_size (lbuffer_1%mats(mult)%m%data,&
-       !     ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
-       !     special=.FALSE., error=error)
-       CALL ensure_array_size (lbuffer_1%mats(mult)%m%index,&
-            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
-            special=.FALSE., error=error)
-       !
-       CALL dbcsr_init (lbuffer_2%mats(mult), error)
-       CALL dbcsr_create (lbuffer_2%mats(mult),&
-            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, &
-            dbcsr_type_normal, left_set%mats(1)%m%row_blk_size, &
-            left_set%mats(1)%m%col_blk_size, nblks, nze, special=.FALSE., &
-            error=error)
-            lbuffer_2%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
-       CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%m%data_area,&
-            MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
-       !CALL ensure_array_size (lbuffer_2%mats(mult)%m%data,&
-       !     ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
-       !     special=.FALSE., error=error)
-       CALL ensure_array_size (lbuffer_2%mats(mult)%m%index,&
-            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
-            special=.FALSE., error=error)
+    !
+    !
+    ! The main transfer loop goes through the virtual
+    ! rows/columns. They are grouped together according to the process
+    ! coordinate with the smallest number of images.
+    min_nimages = MIN (left_col_nimages, right_row_nimages)
+    nvirt_k = dbcsr_mp_npcols(left_mp_obj) * left_col_nimages
+    nsteps_k = nvirt_k / min_nimages
+    left_col_v_offset = MOD (dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages,&
+         left_col_mult)
+    right_row_v_offset = MOD (dbcsr_mp_myprow(right_mp_obj)*right_row_nimages,&
+         right_row_mult)
+    !
+    ! Translate the all_sizes to account for pre-distribution
+    ALLOCATE (left_sizes(2, 0:dbcsr_mp_nprows(left_mp_obj)*left_row_nimages-1, 0:nvirt_k-1))
+    left_sizes = -1
+    DO left_src_pcol = 0, dbcsr_mp_npcols(left_mp_obj)-1
+       DO left_col_image = 1, left_col_nimages
+          DO left_src_prow = 0, dbcsr_mp_nprows(left_mp_obj)-1
+             left_src_p = left_pgrid (left_src_prow, left_src_pcol)
+             DO left_row_image = 1, left_row_nimages
+                left_src_v_row = left_src_prow*left_row_nimages + left_row_image-1
+                left_src_v_col = left_src_pcol*left_col_nimages + left_col_image-1
+                ! Rewind the column
+                left_src_v_col = left_src_v_col + left_src_prow*left_col_mult
+                left_src_v_col = absmod(left_src_v_col + nvirt_k, nvirt_k)
+                left_sizes(idata, left_src_v_row, left_src_v_col) = all_sizes(&
+                     idata, left_row_image, left_col_image, left_src_p)
+                left_sizes(imeta, left_src_v_row, left_src_v_col) = all_sizes(&
+                     imeta, left_row_image, left_col_image, left_src_p)
+             ENDDO
+          ENDDO
+       ENDDO
     ENDDO
-    lbuffer_calc => lbuffer_1
-    lbuffer_comm => lbuffer_2
+    !write(*,*)"left sizes"
+    !write(*,'(2(1X,I7))')left_sizes
+    ALLOCATE (right_sizes(2, 0:nvirt_k-1, 0:dbcsr_mp_npcols(right_mp_obj)*right_col_nimages-1))
+    right_sizes = -1
+    DO right_src_pcol = 0, dbcsr_mp_npcols(right_mp_obj)-1
+       DO right_col_image = 1, right_col_nimages
+          DO right_src_prow = 0, dbcsr_mp_nprows(right_mp_obj)-1
+             right_src_p = right_pgrid (right_src_prow, right_src_pcol)
+             DO right_row_image = 1, right_row_nimages
+                right_src_v_row = right_src_prow*right_row_nimages + right_row_image-1
+                right_src_v_col = right_src_pcol*right_col_nimages + right_col_image-1
+                ! Rewind the row
+                right_src_v_row = right_src_v_row + right_src_pcol*right_row_mult
+                right_src_v_row = absmod(right_src_v_row + nvirt_k, nvirt_k)
+                right_sizes(idata, right_src_v_row, right_src_v_col) =&
+                     all_sizes(&
+                     idata+2, right_row_image, right_col_image, right_src_p)
+                right_sizes(imeta, right_src_v_row, right_src_v_col) =&
+                     all_sizes(&
+                     imeta+2, right_row_image, right_col_image, right_src_p)
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDDO
+    !write(*,*)"right sizes"
+    !write(*,'(2(1X,I7))')right_sizes
+    !
+    ! Setup the left buffer matrices
+    max_nblks = MAXVAL (all_sizes (imeta, :, :, :))
+    max_nze = MAXVAL (all_sizes(idata, :, :, :))
+    CALL setup_buffer_matrices (left_buffer_1, left_row_mult, left_col_nimages,&
+         left_set%mats(1,1), index_size=max_nblks,&
+         data_size=max_nze, error=error)
+    CALL setup_buffer_matrices (left_buffer_2, left_row_mult, left_col_nimages,&
+         left_set%mats(1,1), index_size=max_nblks,&
+         data_size=max_nze, error=error)
+    !left_buffer_calc => left_buffer_1
+    left_buffer_calc => left_set
+    left_buffer_comm => left_buffer_2
+    ALLOCATE (left_data_sr  (left_row_nimages, left_col_nimages))
+    ALLOCATE (left_index_sr (left_row_nimages, left_col_nimages))
+    ALLOCATE (left_data_rr  (left_row_mult, left_col_nimages))
+    ALLOCATE (left_index_rr (left_row_mult, left_col_nimages))
     ! Setup buffers for right matrix
-    nblks = MAXVAL (all_sizes (4, 1, :))
-    nze = MAXVAL (all_sizes(3, 1, :))
-    right_matrix_data = right_matrix%m%data_area
-    CALL dbcsr_data_ensure_size (right_matrix_data,&
-         MAX(dbcsr_get_data_size(right_matrix_data), 0))
-    CALL dbcsr_init (rbuffer_1, error)
-    CALL dbcsr_create (rbuffer_1,&
-         'rbuffer1'//right_matrix%m%name, right_matrix%m%dist,&
-         dbcsr_type_normal, &
-         right_matrix%m%row_blk_size,&
-         right_matrix%m%col_blk_size,&
-         0, 0, special=.FALSE., error=error)
-         rbuffer_1%m%sym_negation = right_matrix%m%sym_negation
-    CALL dbcsr_data_ensure_size (rbuffer_1%m%data_area,&
-         MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
-    !CALL ensure_array_size (rbuffer_1%data,&
-    !     ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-    !     error=error)
-    CALL ensure_array_size (rbuffer_1%m%index,&
-         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
+    max_nblks = MAXVAL (all_sizes (imeta+2, :,:,:))
+    max_nze = MAXVAL (all_sizes(idata+2, :,:,:))
+    CALL setup_buffer_matrices (right_buffer_1, right_row_nimages, right_col_mult,&
+         right_set%mats(1,1), index_size=max_nblks, data_size=max_nze,&
          error=error)
-    !
-    CALL dbcsr_init (rbuffer_2, error)
-    CALL dbcsr_create (rbuffer_2,&
-         'rbuffer2'//right_matrix%m%name, right_matrix%m%dist,&
-         dbcsr_type_normal,&
-         right_matrix%m%row_blk_size,&
-         right_matrix%m%col_blk_size,&
-         0, 0, special=.FALSE., error=error)
-         rbuffer_2%m%sym_negation = right_matrix%m%sym_negation
-    CALL dbcsr_data_ensure_size (rbuffer_2%m%data_area,&
-         MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
-    !CALL ensure_array_size (rbuffer_2%data,&
-    !     ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-    !     error=error)
-    CALL ensure_array_size (rbuffer_2%m%index,&
-         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
+    CALL setup_buffer_matrices (right_buffer_2, right_row_nimages, right_col_mult,&
+         right_set%mats(1,1), index_size=max_nblks, data_size=max_nze,&
          error=error)
-    rbuffer_calc => rbuffer_1
-    rbuffer_comm => rbuffer_2
+    !right_buffer_calc => right_buffer_1
+    right_buffer_calc => right_set
+    right_buffer_comm => right_buffer_2
+    ALLOCATE (right_data_sr  (right_row_nimages, right_col_nimages))
+    ALLOCATE (right_index_sr (right_row_nimages, right_col_nimages))
+    ALLOCATE (right_data_rr  (right_row_nimages, right_col_mult))
+    ALLOCATE (right_index_rr (right_row_nimages, right_col_mult))
     !
-    ! To which processor we normally send
-    right_p_send = right_pgrid (MOD (right_nprows&
-         + right_myprow - 1, right_nprows),&
-         right_mypcol)
-    ! From which processor we normally receive.
-    right_p_recv = right_pgrid (MOD (&
-         right_myprow + 1, right_nprows),&
-         right_mypcol)
-    ! Do the actual transfers and call local multiplication
-    ALLOCATE (my_waits(4, 0:right_nprows))
-    my_waits(:,:) = 0
-    !$OMP FLUSH (right_nprows)
-    !$OMP END MASTER
-    !$OMP BARRIER
-    !WRITE(*,*)ithread,'going zwischen',0,right_nprows
-    k_index: DO right_prow_i = 0, right_nprows
-       !$OMP MASTER
-       ! Right matrix
-       ! right_src_prow is the matrix "source" processor (as if a
-       ! direct mpi_get) would be called.
-       right_src_prow = MOD (&
-            right_prow_i+right_myprow + right_mypcol/left_multiplicity,&
-            right_nprows)
-       ! right_dst_prow is the matrix "destination" processor (i.e.,
-       ! the matrix data that we currently have)
-       right_dst_prow = MOD ( right_prow_i - 1 + left_multiplicity*right_nprows&
-            + right_myprow + right_mypcol/left_multiplicity,&
-            right_nprows)
-       DBG 'RIGHT_PROW from/to', right_prow_i, right_src_prow
+    ALLOCATE (infos (numnodes-1))
+    !
+    ! In the first loop iteration, the data is fetched from the
+    ! sources. In the remaining iterations, the data are exchanged
+    ! among neighbors.
+    grouped_k_index: DO metronome = 1, nsteps_k
+       IF (dbg) WRITE(*,'(1X,A,3(1X,A,1X,I5))')routineN,&
+            "step",metronome,&
+            "first k",metronome*min_nimages,&
+            "last k",(metronome+1)*min_nimages-1
+       ! Wait for right matrix transfer completion. Wait in all but
+       ! the first loop iteration.
+       wait_right: IF (metronome .GT. 1) THEN
+          IF (dbg) WRITE (*,'(1X,A)')routineN//" waiting for right"
+          CALL mp_waitall (right_data_sr)
+          CALL mp_waitall (right_data_rr)
+          CALL mp_waitall (right_index_sr)
+          CALL mp_waitall (right_index_rr)
+       ENDIF wait_right
+       ! Right matrix transfer. Transfer in all but the last loop
+       ! iteration.
+       xfer_right: IF (metronome .LT. nsteps_k) THEN
+          DO v_ki = 0, right_row_nimages-1
+             v_k = metronome*min_nimages + v_ki
+             ! Calculate the process to send to.
+             right_send_v_row = v_ki &
+                  + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
+                  - min_nimages
+             right_send_v_row = MOD (right_send_v_row + nvirt_k, nvirt_k)
+             right_send_prow = right_send_v_row / right_row_nimages
+             right_send_irow = MOD (right_send_v_row, right_row_nimages)
+             CALL dbcsr_assert (&
+                  right_send_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong right send prow")
+
+             right_send_pcol = dbcsr_mp_mypcol(right_mp_obj)
+             right_send_icol = 1
+             right_send_v_col = dbcsr_mp_mypcol(right_mp_obj)
+             ! Calculate which data I send.
+             right_dst_v_row = v_k &
+                  + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
+                  + dbcsr_mp_mypcol(right_mp_obj)*right_row_mult &
+                  - min_nimages
+             right_dst_v_row = MOD (right_dst_v_row + nvirt_k, nvirt_k)
+             right_dst_prow = right_dst_v_row / right_row_nimages
+             right_dst_irow = 1 + MOD (right_dst_v_row, right_row_nimages)
+             CALL dbcsr_assert(&
+                  right_dst_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong right dst prow")
+             CALL dbcsr_assert(&
+                  right_dst_irow, "LE", right_row_nimages,&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong right dst row image")
+             right_dst_pcol = dbcsr_mp_mypcol(right_mp_obj)
+             right_dst_icol = 1
+             right_dst_v_col =&
+                  dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
+             !
+             right_dst_p = right_pgrid(right_dst_prow, right_dst_pcol)
+             right_data_sp => pointer_view (&
+                  dbcsr_get_data_p (right_buffer_calc%mats(&
+                  v_ki+1, 1&
+                  )%m%data_area, 0.0_dp),&
+                  1, right_sizes(idata, right_dst_v_row, right_dst_v_col))
+             right_index_sp => right_buffer_calc%mats(&
+                  v_ki+1, 1&
+                  )%m%index(1:&
+                  right_sizes(imeta, right_dst_v_row, right_dst_v_col))
+             !
+             ! Calculate the process to receive from
+             right_recv_v_row = v_ki &
+                  + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
+                  + min_nimages
+             right_recv_v_row = MOD(right_recv_v_row + nvirt_k, nvirt_k)
+             right_recv_prow = right_recv_v_row / right_row_nimages
+             right_recv_irow = MOD(right_recv_v_row, right_row_nimages)
+             CALL dbcsr_assert (&
+                  right_recv_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong right receive prow")
+             right_recv_pcol = dbcsr_mp_mypcol (right_mp_obj)
+             right_recv_icol = 1
+             right_recv_v_col = dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
+             ! Calculate which data I receive
+             right_src_v_row = v_k &
+                  + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
+                  + dbcsr_mp_mypcol(right_mp_obj)*right_row_mult
+             right_src_v_row = MOD (right_src_v_row, nvirt_k)
+             right_src_prow = right_src_v_row / right_row_nimages
+             right_src_irow = 1 + MOD (right_src_v_row, right_row_nimages)
+             CALL dbcsr_assert(&
+                  right_src_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong right src prow")
+             CALL dbcsr_assert(&
+                  right_src_irow, "LE", right_row_nimages,&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong right src row image")
+             right_src_pcol = dbcsr_mp_mypcol(right_mp_obj)
+             right_src_icol = 1
+             right_src_v_col = dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
+             !
+             right_src_p = right_pgrid(right_src_prow, right_src_pcol)
+             right_data_rp => pointer_view (&
+                  dbcsr_get_data_p (right_buffer_comm%mats(&
+                     v_ki+1, 1&
+                  )%m%data_area, 0.0_dp),&
+                  1, right_sizes(idata, right_src_v_row, right_src_v_col))
+             right_index_rp => right_buffer_comm%mats(&
+                     v_ki+1, 1&
+                  )%m%index(1:&
+                     right_sizes(imeta, right_src_v_row, right_src_v_col))
+             !
+             right_send_p = right_pgrid (right_send_prow, right_send_pcol)
+             right_recv_p = right_pgrid (right_recv_prow, right_recv_pcol)
+             IF (dbg) THEN
+                CALL all_print (right_send_p, "R SEND P", product_mp_obj)
+                CALL all_print (right_recv_p, "R RECV P", product_mp_obj)
+                CALL all_print (right_src_p, "R SRC P ", product_mp_obj)
+                CALL all_print (right_dst_p, "R DST P ", product_mp_obj)
+                WRITE(*,fxfer)"SEND RIGHT",mynode,right_send_p,&
+                     dbcsr_mp_myprow(right_mp_obj),dbcsr_mp_mypcol(right_mp_obj),&
+                     right_send_prow, right_send_pcol,&
+                     right_send_v_row, right_send_v_col
+                WRITE(*,fdata)"WHAT RIGHT",right_dst_p,&
+                     right_dst_prow, right_dst_irow,&
+                     right_dst_pcol, right_dst_icol
+                WRITE(*,fxfer)"RECV RIGHT",right_recv_p,mynode,&
+                     right_recv_prow, right_recv_pcol,&
+                     dbcsr_mp_myprow(right_mp_obj),dbcsr_mp_mypcol(right_mp_obj),&
+                     right_recv_v_row, right_recv_v_col
+                WRITE(*,fdata)"WHAT RIGHT",right_src_p,&
+                     right_src_prow, right_src_irow,&
+                     right_src_pcol, right_src_icol
+             ENDIF
+             IF (dbg) &
+                  WRITE(*,fdata)"CALC RIGHT",right_dst_p,&
+                  right_dst_prow, right_dst_irow,&
+                  right_dst_pcol, right_dst_icol,&
+                  right_dst_v_row, right_dst_v_col
+             CALL mp_isend (right_data_sp, right_send_p,&
+                  mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+             CALL mp_irecv (right_data_rp, right_recv_p,&
+                  mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+             CALL mp_isend (right_index_sp, right_send_p,&
+                  mp_group, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
+             CALL mp_irecv (right_index_rp, right_recv_p,&
+                  mp_group, right_index_rr(v_ki+1, 1), tag=right_src_v_row)
+          ENDDO
+       ENDIF xfer_right
        !
-       ! No wait in first loop iteration.
-       IF (right_prow_i .GT. 0) THEN
-          DBG 'It', right_prow_i,'waiting for right'
-          my_waits(1, right_prow_i) = m_walltime()
-          CALL mp_wait (right_data_sr)
-          CALL mp_wait (right_index_sr)
-          my_waits(1, right_prow_i) = m_walltime() - my_waits(1, right_prow_i)
-          my_waits(2, right_prow_i) = m_walltime()
-          CALL mp_wait (right_data_rr)
-          CALL mp_wait (right_index_rr)
-          my_waits(2, right_prow_i) = m_walltime() - my_waits(2, right_prow_i)
-       ENDIF
-       !
-       ! No fetches in the last loop
-       xfer_case_right: IF (right_prow_i .LT. right_nprows) THEN
-          ! First time the meaning of "send" is different
-          IF (right_prow_i .EQ. 0) THEN
-             right_dst_prow = MOD (left_multiplicity*right_nprows&
-                  + right_myprow - right_mypcol/left_multiplicity,&
-             right_nprows)
-          ENDIF
-          right_src_p = right_pgrid (right_src_prow, right_mypcol)
-          right_dst_p = right_pgrid (right_dst_prow, right_mypcol)
-          IF (dbg) WRITE(*,'(1X,A,I4,A,"(",I3,",",I3,") sizes",I7,I7)')&
-               routineN//' Getting RIGHT matrix from',right_src_p,&
-               ' pgrid coor ',right_src_prow, right_mypcol,&
-               all_sizes(3:4, 1, right_src_p)
-          IF (dbg) WRITE(*,'(1X,A,I4,A,"(",I3,",",I3,") sizes",I7,I7)')&
-               routineN//' Sending RIGHT matrix to  ',right_dst_p,&
-               ' pgrid coor ',right_dst_prow, right_mypcol,&
-               all_sizes(3:4, 1, right_dst_p)
-          right_data_rp => pointer_view (&
-               dbcsr_get_data_p (rbuffer_comm%m%data_area, 0.0_dp),&
-               1, all_sizes(3,1,right_src_p))
-          right_index_rp => rbuffer_comm%m%index(1:all_sizes(4,1,right_src_p))
-          right_data_sp => pointer_view (&
-               dbcsr_get_data_p (rbuffer_calc%m%data_area, 0.0_dp),&
-               1, all_sizes(3,1,right_dst_p))
-          right_index_sp => rbuffer_calc%m%index(1:all_sizes(4,1,right_dst_p))
-          IF (right_prow_i .EQ. 0) THEN
-             CALL mp_isendrecv (dbcsr_get_data_p (right_matrix%m%data_area, 0.0_dp),&
-                  right_dst_p,&
-                  right_data_rp, right_src_p, &
-                  mp_group, right_data_sr, right_data_rr, tag=3)
-             CALL mp_isendrecv (right_matrix%m%index, right_dst_p, &
-                  right_index_rp,  right_src_p,&
-                  mp_group, right_index_sr, right_index_rr, tag=4)
-          ELSE
-             CALL mp_isendrecv (right_data_sp, right_p_send,&
-                  right_data_rp, right_p_recv, &
-                  mp_group, right_data_sr, right_data_rr, tag=3)
-             CALL mp_isendrecv (right_index_sp, right_p_send, &
-                  right_index_rp,  right_p_recv,&
-                  mp_group, right_index_sr, right_index_rr, tag=4)
-          ENDIF
-       ENDIF xfer_case_right
-       ! No calculations in the first loop
-       calc_case_right: IF (right_prow_i .GT. 0) THEN
-          IF (all_sizes(4, 1, right_src_p_calc) .EQ. 0) THEN
-             DBG 'ZERO SIZED INDEX'
-          ENDIF
-          CALL dbcsr_repoint_index (rbuffer_calc%m)
+       ! Repoint indices of right matrices
+       calc_case_right: IF (metronome .GT. 1) THEN
+          DO v_ki = 0, right_row_nimages-1
+             CALL dbcsr_repoint_index (right_buffer_calc%mats(v_ki+1,1)%m)
+             right_buffer_calc%mats(v_ki+1,1)%m%valid = .TRUE.
+          ENDDO
        ENDIF calc_case_right
        !
-       ! No waits in first loop iteration.
-       right_src_p_calc = right_src_p
-       IF (right_prow_i .GT. 0) THEN
-          ! Now we transfer/multiply with the left matrix
-          DO mult = 1, left_multiplicity
-             DBG 'It', right_prow_i,'waiting for left, multiplicity', mult
-             my_waits(3, right_prow_i) = m_walltime()
-             CALL mp_wait (left_data_sr(mult))
-             CALL mp_wait (left_index_sr(mult))
-             my_waits(3, right_prow_i) = m_walltime() - my_waits(3, right_prow_i)
-             my_waits(4, right_prow_i) = m_walltime()
-             CALL mp_wait (left_data_rr(mult))
-             CALL mp_wait (left_index_rr(mult))
-             my_waits(4, right_prow_i) = m_walltime() - my_waits(4, right_prow_i)
-          ENDDO
-       ENDIF
-       left_src_prow = left_myprow
-       left_dst_prow = left_myprow
-       left_src_image = 1 + MOD (right_src_prow, left_nimages)
-       left_dst_image = 1 + MOD (right_dst_prow, left_nimages)
-       xfer_case_left: IF (right_prow_i .LT. nprows) THEN
-          DO mult = 1, left_multiplicity
-             !left_src_pcol = INT (right_src_prow / left_nimages)&
-             !     + (mult-1)*(right_nprows/left_nimages)
-             !left_dst_pcol = INT (right_dst_prow / left_nimages)&
-             !     + (mult-1)*(right_nprows/left_nimages)
-             
-             !left_dst_pcol = MOD ((right_src_prow-1) / left_nimages&
-             !     + (mult-1)*(right_nprows/left_nimages)&
-             !     +left_npcols, left_npcols)
-             left_src_pcol = MOD (&
-                  right_prow_i+right_myprow + right_mypcol/left_multiplicity&
-                  + right_nprows,&
-                  left_npcols)
-             left_dst_pcol = MOD (&
-                  right_prow_i-1+right_myprow + right_mypcol/left_multiplicity&
-                  + left_npcols,&
-                  left_npcols)
-             ! First time "dst" has a different meaning.
-             IF (right_prow_i .EQ. 0) THEN
-                left_dst_pcol = MOD (left_multiplicity*right_nprows&
-                     - right_myprow + right_mypcol/left_multiplicity,&
-                     right_nprows)
-                !left_dst_pcol = INT (right_dst_prow / left_nimages)&
-                !     + (mult-1)*(right_nprows/left_nimages)
-             ENDIF
-             !left_src_pcol = right_src_prow
-             !left_dst_pcol = right_dst_prow
-             left_src_p = left_pgrid (left_src_prow, left_src_pcol)
+       ! Wait for left matrix transfer completion. Wait in all but
+       ! the first loop iteration.
+       wait_left: IF (metronome .GT. 1) THEN
+          IF (dbg) WRITE (*,'(1X,A)')routineN//" waiting for left"
+          CALL mp_waitall (left_data_sr)
+          CALL mp_waitall (left_data_rr)
+          CALL mp_waitall (left_index_sr)
+          CALL mp_waitall (left_index_rr)
+       ENDIF wait_left
+       ! Left matrix transfer. Transfer in all but the last loop
+       ! iteration.
+       xfer_left: IF (metronome .LT. nsteps_k) THEN
+          DO v_ki = 0, left_col_nimages-1
+             v_k = metronome*min_nimages + v_ki
+             ! Calculate the process to send to.
+             left_send_prow = dbcsr_mp_myprow(left_mp_obj)
+             left_send_irow = 1
+             left_send_v_row = dbcsr_mp_myprow(left_mp_obj)
+             !
+             left_send_v_col = dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
+                  - min_nimages + v_ki
+             left_send_v_col = MOD (left_send_v_col + nvirt_k, nvirt_k)
+             left_send_pcol = left_send_v_col / left_col_nimages
+             left_send_icol = 1
+             CALL dbcsr_assert (&
+                  left_send_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong left send pcol")
+             ! Calculate which data I send.
+             left_dst_prow = dbcsr_mp_myprow(left_mp_obj)
+             left_dst_irow = 1
+             left_dst_v_row = dbcsr_mp_myprow(left_mp_obj)*left_row_nimages
+             !
+             left_dst_v_col = v_k &
+                  + dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
+                  + dbcsr_mp_myprow(left_mp_obj)*left_col_mult &
+                  - min_nimages
+             left_dst_v_col = MOD (left_dst_v_col + nvirt_k, nvirt_k)
+             left_dst_pcol = left_dst_v_col / left_col_nimages
+             left_dst_icol = 1 + MOD (left_dst_v_col, left_col_nimages)
+             CALL dbcsr_assert(&
+                  left_dst_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong left dst pcol")
+             CALL dbcsr_assert(&
+                  left_dst_icol, "LE", left_col_nimages,&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong left dst col image")
+             !
              left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
-             left_p_send = left_pgrid (left_myprow,&
-                  MOD (left_mypcol - 1+left_npcols, left_npcols))
-             left_p_recv = left_pgrid (left_myprow,&
-                  MOD (left_mypcol + 1, left_npcols))
-             IF (dbg) WRITE(*,'(1X,A,I4,A,I3,A,"(",I3,",",I3,")")')&
-                  routineN//' Getting LEFT matrix from',left_src_p,&
-                  ' image',left_src_image,&
-                  ' pgrid coor ',left_src_prow, left_src_pcol
-             IF (dbg) WRITE(*,'(1X,A,I4,A,I3,A,"(",I3,",",I3,")")')&
-                  routineN//' Sending LEFT matrix to  ',left_dst_p,&
-                  ' image',left_dst_image,&
-                  ' pgrid coor ',left_dst_prow, left_dst_pcol
-             left_data_rp => pointer_view (&
-                     dbcsr_get_data_p (lbuffer_comm%mats(mult)%m%data_area, 0.0_dp),&
-                     1, all_sizes(1, left_src_image, left_src_p))
-             left_index_rp => lbuffer_comm%mats(mult)%m%index(&
-                  1:all_sizes(2, left_src_image, left_src_p))
              left_data_sp => pointer_view (&
-                     dbcsr_get_data_p (lbuffer_calc%mats(mult)%m%data_area, 0.0_dp),&
-                     1, all_sizes(1, left_dst_image, left_dst_p))
-             left_index_sp => lbuffer_calc%mats(mult)%m%index(&
-                  1:all_sizes(2, left_dst_image, left_dst_p))
-             IF (right_prow_i .EQ. 0) THEN
-                CALL mp_isendrecv (&
-                     dbcsr_get_data_p (left_set%mats(mult)%m%data_area, 0.0_dp),&
-                     left_dst_p,&
-                     left_data_rp, left_src_p, mp_group,&
-                     left_data_sr(mult), left_data_rr (mult), tag=1)
-                CALL mp_isendrecv (left_set%mats(mult)%m%index, left_dst_p,&
-                     left_index_rp, left_src_p, mp_group,&
-                     left_index_sr(mult), left_index_rr (mult), tag=2)
-             ELSE
-                CALL mp_isendrecv (left_data_sp, left_p_send,&
-                     left_data_rp, left_p_recv, mp_group,&
-                     left_data_sr(mult), left_data_rr (mult), tag=1)
-                CALL mp_isendrecv (left_index_sp, left_p_send,&
-                     left_index_rp, left_p_recv, mp_group,&
-                     left_index_sr(mult), left_index_rr (mult), tag=2)
+                  dbcsr_get_data_p (left_buffer_calc%mats(&
+                     1, v_ki+1&
+                  )%m%data_area, 0.0_dp),&
+                  1, left_sizes(idata, left_dst_v_row, left_dst_v_col))
+             left_index_sp => left_buffer_calc%mats(&
+                     1, v_ki+1&
+                  )%m%index(1:&
+                     left_sizes(imeta, left_dst_v_row, left_dst_v_col))
+             !
+             ! Calculate the process to receive from
+             left_recv_prow = dbcsr_mp_myprow (left_mp_obj)
+             left_recv_irow = 1
+             left_recv_v_row = dbcsr_mp_myprow (left_mp_obj)
+             !
+             left_recv_v_col = dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
+                  + min_nimages + v_ki
+             left_recv_v_col = MOD(left_recv_v_col + nvirt_k, nvirt_k)
+             left_recv_pcol = left_recv_v_col / left_col_nimages
+             left_recv_icol = 1
+             CALL dbcsr_assert (&
+                  left_recv_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong receive pcol")
+             ! Calculate which data I receive
+             left_src_prow = dbcsr_mp_myprow (left_mp_obj)
+             left_src_irow = 1
+             left_src_v_row = dbcsr_mp_myprow(left_mp_obj)*left_row_nimages
+             !
+             left_src_v_col = v_k &
+                  !+ dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
+                  !+ dbcsr_mp_mypcol(right_mp_obj)*right_row_mult
+                  + dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
+                  + dbcsr_mp_myprow(left_mp_obj)*left_col_mult
+             left_src_v_col = MOD(left_src_v_col, nvirt_k)
+             left_src_pcol = left_src_v_col / left_col_nimages
+             left_src_icol = 1 + MOD (left_src_v_col, left_col_nimages)
+             CALL dbcsr_assert(&
+                  left_src_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong left src pcol")
+             CALL dbcsr_assert(&
+                  left_src_icol, "LE", left_col_nimages,&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Wrong left src column image")
+             !
+             left_src_p = left_pgrid (left_src_prow, left_src_pcol)
+             left_data_rp => pointer_view (&
+                  dbcsr_get_data_p (left_buffer_comm%mats(&
+                     1, v_ki+1&
+                  )%m%data_area, 0.0_dp),&
+                  1, left_sizes(idata, left_src_v_row, left_src_v_col))
+             left_index_rp => left_buffer_comm%mats(&
+                     1, v_ki+1&
+                  )%m%index(1:&
+                     left_sizes(imeta, left_src_v_row, left_src_v_col))
+             !
+             left_send_p = left_pgrid (left_send_prow, left_send_pcol)
+             left_recv_p = left_pgrid (left_recv_prow, left_recv_pcol)
+             IF (dbg) THEN
+                CALL all_print (left_send_p, "L SEND P", product_mp_obj)
+                CALL all_print (left_recv_p, "L RECV P", product_mp_obj)
+                CALL all_print (left_src_p, "L SRC P ", product_mp_obj)
+                CALL all_print (left_dst_p, "L DST P ", product_mp_obj)
+                WRITE(*,fxfer)"SEND LEFT ",mynode,left_send_p,&
+                     left_send_prow, left_send_pcol,&
+                     dbcsr_mp_myprow(left_mp_obj),dbcsr_mp_mypcol(left_mp_obj),&
+                     left_send_v_row, left_send_v_col
+                WRITE(*,fdata)"WHAT LEFT ",left_dst_p,&
+                     left_dst_prow, left_dst_irow,&
+                     left_dst_pcol, left_dst_icol
+                WRITE(*,fxfer)"RECV LEFT ",left_recv_p,mynode,&
+                     left_recv_prow,left_recv_pcol,&
+                     dbcsr_mp_myprow(left_mp_obj),dbcsr_mp_mypcol(left_mp_obj),&
+                     left_recv_v_row, left_recv_v_col
+                WRITE(*,fdata)"WHAT LEFT ",left_src_p,&
+                     left_src_prow, left_src_irow,&
+                     left_src_pcol, left_src_icol
              ENDIF
+             IF (dbg) &
+                  WRITE(*,fdata)"CALC LEFT ",left_dst_p,&
+                  left_dst_prow, left_dst_irow,&
+                  left_dst_pcol, left_dst_icol,&
+                  left_dst_v_row, left_dst_v_col
+             CALL mp_isend (left_data_sp, left_send_p,&
+                  mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+             CALL mp_irecv (left_data_rp, left_recv_p,&
+                  mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+             CALL mp_isend (left_index_sp, left_send_p,&
+                  mp_group, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
+             CALL mp_irecv (left_index_rp, left_recv_p,&
+                  mp_group, left_index_rr(1, v_ki+1), tag=left_src_v_col)
           ENDDO
-       ENDIF xfer_case_left
-       !$OMP END MASTER
-       !$OMP BARRIER
-       calc_case_left: IF (right_prow_i .GT. 0) THEN
-             !left_src_p_calc = left_pgrid (left_prow, right_prow-1)
-          DO myt_mult = 1, left_multiplicity
-             !$OMP MASTER
-             mult = myt_mult
-             CALL dbcsr_repoint_index (lbuffer_calc%mats(myt_mult)%m)
+       ENDIF xfer_left
+       !
+       ! Repoint indices of left matrices and do the multiplications.
+       calc_case_left: IF (metronome .GT. 0) THEN
+          IF (metronome .GT. 1) THEN
+             DO v_ki = 0, left_col_nimages-1
+                CALL dbcsr_repoint_index (left_buffer_calc%mats(1,v_ki+1)%m)
+                left_buffer_calc%mats(1, v_ki+1)%m%valid=.TRUE.
+             ENDDO
+          ENDIF
+          DO v_ki = 0, min_nimages-1
+             IF (dbg) THEN
+                CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE.)
+                CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE.)
+             ENDIF
              tstart = m_walltime ()
-             !$OMP END MASTER
-             !$OMP BARRIER
-             !WRITE(*,*)ithread,'running local multiply', right_prow_i, myt_mult, nthreads
-             CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(myt_mult)%m, rbuffer_calc%m,&
-                  product_matrix_p%m, submatrix_box=submatrix_selection,&
+             CALL dbcsr_nn_mult_lin(&
+                  left_buffer_calc%mats(1, v_ki+1)%m,&
+                  right_buffer_calc%mats(v_ki+1, 1)%m,&
+                  product_matrix%m, submatrix_box=submatrix_selection,&
                   retain_sparsity=retain_sparsity,&
                   alpha_d=alpha_d,&
                   flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm)
-             !$OMP BARRIER
-             !$OMP MASTER
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
              IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
-             !IF (dbg .AND. tstop-tstart .NE. 0) THEN
              IF (ionode .AND. detailed_timing) THEN
                 WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
                      "Segment Local Multiplication time ",tstop-tstart," and ",&
                      (REAL(flop_single, dp)/1000000.0_dp)/(tstop-tstart),&
                      " MFLOPS", REAL(flop_single), "FLOP"
              ENDIF
-             !ENDIF
              trun = trun + (tstop - tstart)
-             !$OMP END MASTER
           ENDDO
        ENDIF calc_case_left
-       !$OMP BARRIER
-       !$OMP MASTER
-       CALL dbcsr_switch_sets (lbuffer_calc, lbuffer_comm)
-       CALL dbcsr_switch_m_ptrs (rbuffer_calc%m, rbuffer_comm%m)
-       !$OMP END MASTER
-       !$BARRIER
-    ENDDO k_index
-    !$BARRIER
-    !$OMP MASTER
+       IF (metronome .EQ. 1) THEN
+          left_buffer_calc => left_buffer_1
+          right_buffer_calc => right_buffer_1
+       ENDIF
+       CALL dbcsr_switch_sets (left_buffer_calc, left_buffer_comm)
+       CALL dbcsr_switch_sets (right_buffer_calc, right_buffer_comm)
+    ENDDO grouped_k_index
     trun_t = m_walltime () - trun_t
     IF (trun_t .EQ. 0) trun_t = 0.000001_dp
     IF (trun .EQ. 0) trun = 0.000001_dp
-    !IF (dbg) THEN
     IF (ionode .AND. detailed_timing) THEN
        WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
             "  Total Local Multiplication time ",trun,"and ",&
@@ -664,759 +821,79 @@ CONTAINS
             (REAL(flop_total, dp)/1000000.0_dp)/trun_t,&
             "MFLOPS"
     ENDIF
-    !ENDIF
     !
-    CALL dbcsr_destroy (rbuffer_1, force=.TRUE.)
-    CALL dbcsr_destroy (rbuffer_2, force=.TRUE.)
-    CALL dbcsr_destroy_array (lbuffer_1)
-    CALL dbcsr_destroy_array (lbuffer_2)
+    CALL dbcsr_destroy_array (right_buffer_1)
+    CALL dbcsr_destroy_array (right_buffer_2)
+    CALL dbcsr_destroy_array (left_buffer_1)
+    CALL dbcsr_destroy_array (left_buffer_2)
     DEALLOCATE (my_sizes)
     !
-    !$OMP END MASTER
-    !!$OMP END PARALLEL
     CALL dbcsr_finalize(product_matrix)
     !
+    IF (dbg) THEN
+       checksum = dbcsr_checksum (product_matrix, error=error)
+       IF (ionode) THEN
+          WRITE(output_unit,'(1X,A,1X,F9.4)')"Product Checksum=",checksum
+       ENDIF
+    ENDIF
+    !
     IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
-  END SUBROUTINE dbcsr_mult_e_ec_m
+  END SUBROUTINE dbcsr_mult_m_e_e
 
 
+  SUBROUTINE setup_buffer_matrices (buffer_set, buff_rows, buff_cols,&
+       source_matrix, index_size, data_size, error)
+    TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: buffer_set
+    INTEGER, INTENT(IN)                      :: buff_rows, buff_cols
+    TYPE(dbcsr_obj), INTENT(IN)              :: source_matrix
+    INTEGER, INTENT(IN)                      :: index_size, data_size
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-! *****************************************************************************
-!> \brief Multiplies two DBCSR matrices with general RMA.
-!>
-!> All matrices have the same processor grid distribution and column images
-!> in the left matrix are used to match the processor grid to the
-!> right matrix rows.
-!>
-!> \param[in] left_set             set of left column images
-!> \param[in] right_matrix         right matrix
-!> \param[out] product             DBCSR product matrix
-!> \param[in] submatrix_selection  select submatrix
-!> \param[in,out] error            cp2k error
-!> \param[in] retain_sparsity      (optional) retain the sparsity of the
-!>                                 existing product matrix, default is no
-!> \param[in] alpha_d              (optional) product multiplication factor
-!> \param[in] beta_d               (optional) existing target multiplication
-!>                                 factor
-!> \param[out] flop                (optional) effective flop
-! *****************************************************************************
-  SUBROUTINE dbcsr_mult_e_ec_m_rma (left_set, right_matrix, product_matrix,&
-       submatrix_selection, error, retain_sparsity, alpha_d, beta_d, flop)
-    TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
-    TYPE(dbcsr_obj), INTENT(IN)              :: right_matrix
-    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
-    INTEGER, DIMENSION(6), INTENT(in)        :: submatrix_selection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_d, beta_d
-    INTEGER(KIND=int_8), INTENT(OUT), &
-      OPTIONAL                               :: flop
+    INTEGER                                  :: col_image, row_image
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mult_e_ec_m_rma', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: debug_level, i, img, ithread, left_multiplicity, left_mypcol, &
-      left_myprow, left_nimages, left_npcols, left_nprows, left_src_image, &
-      left_src_p_calc, left_src_p_comm, left_src_pcol, left_src_prow, &
-      left_virt_src_pcol, mp_group, mult, mynode, mypcol, myprow, nblks, &
-      npcols, nprows, nthreads, numnodes, nze, output_unit, right_mypcol, &
-      right_myprow, right_npcols, right_nprows, right_prow_i, &
-      right_src_p_calc, right_src_p_comm, right_src_prow, timing_handle
-    INTEGER(KIND=int_8)                      :: flop_single, flop_total
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
-    INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, pgrid, right_pgrid
-    LOGICAL                                  :: ionode
-    REAL(KIND=dp)                            :: t_all, t_dgemm, trun, trun_t, &
-                                                tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: my_waits
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
-    TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
-    TYPE(dbcsr_data_obj)                     :: data_modifier
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_obj), POINTER                 :: product_matrix_p, &
-                                                rbuffer_calc, rbuffer_comm
-    TYPE(dbcsr_obj), TARGET                  :: rbuffer_1, rbuffer_2
-    TYPE(mp_window_type)                     :: right_data_window, &
-                                                right_index_window
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    debug_level=0
-    t_all = 0.0_dp
-    t_dgemm = 0.0_dp
-    IF (dbg) debug_level = 2
-    CALL timeset (routineN, timing_handle)
-    product_matrix_p => product_matrix
-    logger => cp_error_get_logger (error)
-    ionode = logger%para_env%mepos == logger%para_env%source
-    output_unit = 0
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr (logger)
-    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
-    t_dgemm = 0.0_dp ; t_all = 0.0_dp
-    flop_total = 0
-    trun_t = m_walltime ()
-    left_nimages = left_set%image_dist%col_decimation
-    left_multiplicity = left_set%image_dist%col_multiplicity
-    CALL bcsr_assert (debug_level,&
-         SIZE (left_set%mats) .EQ. left_set%image_dist%row_decimation,&
-         routineP, "Declared images not equal to present images")
-    mp_obj = dbcsr_distribution_mp (product_matrix%m%dist)
-    numnodes = dbcsr_mp_numnodes (mp_obj)
-    mynode = dbcsr_mp_mynode (mp_obj)
-    myprow = dbcsr_mp_myprow (mp_obj)
-    mypcol = dbcsr_mp_mypcol (mp_obj)
-    npcols = dbcsr_mp_npcols (mp_obj)
-    nprows = dbcsr_mp_nprows (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
-    pgrid => dbcsr_mp_pgrid (mp_obj)
-    left_myprow = myprow
-    left_mypcol = mypcol
-    left_nprows = nprows
-    left_npcols = npcols
-    left_pgrid => pgrid
-    right_myprow = myprow
-    right_mypcol = mypcol
-    right_nprows = nprows
-    right_npcols = npcols
-    right_pgrid => pgrid
-    CALL bcsr_assert (debug_level,&
-         left_multiplicity * npcols .EQ. left_nimages*nprows, routineP,&
-         "Mulitplicity and image  mismatch with processer grid.")
-    nthreads = 1
-    ithread = 0
-    !!$ ithread = OMP_GET_THREAD_NUM ()
-    !!$ nthreads = OMP_GET_NUM_THREADS ()
-    IF (.NOT. ASSOCIATED (product_matrix%m%wms)) THEN
-       CALL dbcsr_work_create(product_matrix, n=nthreads, error=error)
-    ENDIF
-    DO i = 1, nthreads
-       CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
-            MAX(product_matrix%m%wms(i)%datasize,&
-            dbcsr_nfullrows_local (product_matrix)&
-            *dbcsr_nfullcols_local (product_matrix)))
-            !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%m%nfullcols_local))
-       CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%m%wms(i)%col_i,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-
-       !left_data_rp => dbcsr_get_data_p (product_matrix%m%wms(i)%data_area, 0.0_dp)
-       !left_data_rp(:) = 0.0_dp
-
-    ENDDO
-    DBG 'pgrid shape', SHAPE (pgrid)
-    DBG 'left images, multiplicity', left_nimages, left_multiplicity
-    ALLOCATE (left_set%data_windows(left_nimages))
-    ALLOCATE (left_set%index_windows(left_nimages))
-    ALLOCATE (my_sizes(4, left_nimages))
-    my_sizes(:,:) = 0
-    DO img = 1, left_nimages
-       my_sizes(1, img) = dbcsr_get_data_size (left_set%mats(img)%m%data_area)
-       my_sizes(2, img) = SIZE (left_set%mats(img)%m%index)
-       data_modifier = left_set%mats(img)%m%data_area
-       CALL dbcsr_data_ensure_size (data_modifier, 0)
-    ENDDO
-    my_sizes(3, 1) = dbcsr_get_data_size (right_matrix%m%data_area)
-    my_sizes(4, 1) = SIZE (right_matrix%m%index)
-    data_modifier = right_matrix%m%data_area
-    CALL dbcsr_data_ensure_size (data_modifier, 0)
-    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
-    DO i = 1, 4
-       DBG 'my sizes', my_sizes(i,:)
-    ENDDO
-    CALL mp_allgather(my_sizes, all_sizes, mp_group)
-    nblks = MAXVAL (all_sizes (2, :, :))
-    nze = MAXVAL (all_sizes(1, :, :))
-    DBG 'data sizes', all_sizes
-    ! Setup the buffer matrices
-    DO img = 1, left_nimages
-       CALL mp_window_create (left_set%data_windows(img),&
-            dbcsr_get_data_p (left_set%mats(img)%m%data_area, 0.0_dp), gid=mp_group)
-       CALL mp_window_create (left_set%index_windows(img),&
-            left_set%mats(img)%m%index, gid=mp_group)
-    ENDDO
-    ALLOCATE (lbuffer_1%mats(left_multiplicity))
-    ALLOCATE (lbuffer_2%mats(left_multiplicity))
-    DO mult = 1, left_multiplicity
-       CALL dbcsr_init (lbuffer_1%mats(mult), error)
-       CALL dbcsr_create (lbuffer_1%mats(mult),&
-            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, &
-            dbcsr_type_normal, left_set%mats(1)%m%row_blk_size, &
-            left_set%mats(1)%m%col_blk_size, nblks, nze, special=.FALSE., &
-            error=error)
-            lbuffer_1%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
-       CALL dbcsr_data_ensure_size (lbuffer_1%mats(mult)%m%data_area,&
-            MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
-       !CALL ensure_array_size (lbuffer_1%mats(mult)%m%data,&
-       !     ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
-       !     special=.FALSE., error=error)
-       CALL ensure_array_size (lbuffer_1%mats(mult)%m%index,&
-            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
-            special=.FALSE., error=error)
-       !
-       CALL dbcsr_init (lbuffer_2%mats(mult), error)
-       CALL dbcsr_create (lbuffer_2%mats(mult),&
-            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, &
-            dbcsr_type_normal, left_set%mats(1)%m%row_blk_size, &
-            left_set%mats(1)%m%col_blk_size, nblks, nze, special=.FALSE., &
-            error=error)
-            lbuffer_2%mats(mult)%m%sym_negation = left_set%mats(1)%m%sym_negation
-       CALL dbcsr_data_ensure_size (lbuffer_2%mats(mult)%m%data_area,&
-            MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.)
-       !CALL ensure_array_size (lbuffer_2%mats(mult)%m%data,&
-       !     ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
-       !     special=.FALSE., error=error)
-       CALL ensure_array_size (lbuffer_2%mats(mult)%m%index,&
-            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
-            special=.FALSE., error=error)
-    ENDDO
-    lbuffer_calc => lbuffer_1
-    lbuffer_comm => lbuffer_2
-    ! Setup buffers for right matrix
-    nblks = MAXVAL (all_sizes (4, 1, :))
-    nze = MAXVAL (all_sizes(3, 1, :))
-    CALL dbcsr_init (rbuffer_1, error)
-    CALL dbcsr_create (rbuffer_1,&
-         'rbuffer1'//right_matrix%m%name, right_matrix%m%dist,&
-         dbcsr_type_normal,&
-         right_matrix%m%row_blk_size,&
-         right_matrix%m%col_blk_size,&
-         0, 0, special=.FALSE., error=error)
-         rbuffer_1%m%sym_negation = right_matrix%m%sym_negation
-    CALL dbcsr_data_ensure_size (rbuffer_1%m%data_area,&
-         MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
-    !CALL ensure_array_size (rbuffer_1%data,&
-    !     ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-    !     error=error)
-    CALL ensure_array_size (rbuffer_1%m%index,&
-         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-         error=error)
-    !
-    CALL dbcsr_init (rbuffer_2, error)
-    CALL dbcsr_create (rbuffer_2,&
-         'rbuffer2'//right_matrix%m%name, right_matrix%m%dist,&
-         dbcsr_type_normal,&
-         right_matrix%m%row_blk_size,&
-         right_matrix%m%col_blk_size,&
-         0, 0, special=.FALSE., error=error)
-         rbuffer_2%m%sym_negation = right_matrix%m%sym_negation
-    CALL dbcsr_data_ensure_size (rbuffer_2%m%data_area,&
-         MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE.)
-    !CALL ensure_array_size (rbuffer_2%data,&
-    !     ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-    !     error=error)
-    CALL ensure_array_size (rbuffer_2%m%index,&
-         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-         error=error)
-    ! Create windows for the right matrices
-    CALL mp_window_create (right_data_window,&
-         dbcsr_get_data_p (right_matrix%m%data_area, 0.0_dp), gid=mp_group)
-    CALL mp_window_create (right_index_window, right_matrix%m%index, gid=mp_group)
-    rbuffer_calc => rbuffer_1
-    rbuffer_comm => rbuffer_2
-    !
-    ! Do the actual transfers and call local multiplication
-    ALLOCATE (my_waits(4, 0:right_nprows))
-    my_waits(:,:) = 0
-    k_index: DO right_prow_i = 0, right_nprows
-       ! Right matrix
-       right_src_prow = MOD (right_prow_i+right_myprow+right_mypcol,&
-            right_nprows)
-       DBG 'RIGHT_PROW from/to', right_prow_i, right_src_prow
-       my_waits(1, right_prow_i) = m_walltime()
-       CALL mp_window_fence (right_data_window,&
-            nothing_stored=.TRUE., no_put_follows=.TRUE.)
-       my_waits(1, right_prow_i) = m_walltime() - my_waits(1, right_prow_i)
-       my_waits(2, right_prow_i) = m_walltime()
-       CALL mp_window_fence (right_index_window,&
-            nothing_stored=.TRUE., no_put_follows=.TRUE.)
-       my_waits(2, right_prow_i) = m_walltime() - my_waits(2, right_prow_i)
-       ! No fetches in the last loop
-       xfer_case_right: IF (right_prow_i .LT. right_nprows) THEN
-          right_src_p_comm = right_pgrid (right_src_prow, right_mypcol)
-          IF (dbg) WRITE(*,'(1X,A,"(",I3,",",I3,")")')&
-               routineN//' Getting RIGHT matrix from pgrid coor ',&
-               right_src_prow, right_mypcol
-          IF (dbg) WRITE(*,'(1X,A,I4,A,"(",I3,",",I3,") sizes",I7,I7)')&
-               routineN//' Getting RIGHT matrix from',right_src_p_comm,&
-               ' pgrid coor ',right_src_prow, right_mypcol,&
-               all_sizes(3:4, 1, right_src_p_comm)
-          CALL mp_rma_get (right_data_window,&
-               right_src_p_comm, 0, all_sizes(3, 1, right_src_p_comm),&
-               dbcsr_get_data_p (rbuffer_comm%m%data_area, 0.0_dp))
-          CALL mp_rma_get (right_index_window,&
-               right_src_p_comm, 0, all_sizes(4, 1, right_src_p_comm),&
-               rbuffer_comm%m%index)
-       ENDIF xfer_case_right
-       ! No calculations in the first loop
-       calc_case_right: IF (right_prow_i .GT. 0) THEN
-          IF (all_sizes(4, 1, right_src_p_calc) .EQ. 0) THEN
-             DBG 'ZERO SIZED INDEX'
-          ENDIF
-          CALL dbcsr_repoint_index (rbuffer_calc%m)
-       ENDIF calc_case_right
-       ! Now we transfer/multiply with the left matrix
-       right_src_p_calc = right_src_p_comm
-       DO left_src_image = 1, left_nimages
-          my_waits(3, right_prow_i) = m_walltime()
-          !CALL dbcsr_sleep (10.0_dp)
-          CALL mp_window_fence (left_set%data_windows(left_src_image),&
-            nothing_stored=.TRUE., no_put_follows=.TRUE.)
-          my_waits(3, right_prow_i) = m_walltime() - my_waits(3, right_prow_i)
-          my_waits(4, right_prow_i) = m_walltime()
-          !CALL dbcsr_sleep (10.0_dp)
-          CALL mp_window_fence (left_set%index_windows(left_src_image),&
-            nothing_stored=.TRUE., no_put_follows=.TRUE.)
-       my_waits(4, right_prow_i) = m_walltime() - my_waits(4, right_prow_i)
+    ALLOCATE (buffer_set%mats(buff_rows, buff_cols))
+    DO row_image = 1, buff_rows
+       DO col_image = 1, buff_cols
+          CALL dbcsr_init(buffer_set%mats(row_image, col_image), error)
+          CALL dbcsr_create(buffer_set%mats(row_image, col_image),&
+               "Buffer of "//source_matrix%m%name,&
+               dbcsr_distribution (source_matrix),&
+               dbcsr_get_matrix_type (source_matrix),&
+               dbcsr_row_block_sizes (source_matrix),&
+               dbcsr_col_block_sizes (source_matrix),&
+               nblks=index_size, nze=data_size, special=.TRUE.,&
+               error=error)
+          CALL dbcsr_data_ensure_size (&
+               buffer_set%mats(row_image, col_image)%m%data_area,&
+               data_size, nocopy=.TRUE.)
+          CALL ensure_array_size (&
+               buffer_set%mats(row_image, col_image)%m%index,&
+               ub=index_size, nocopy=.TRUE., special=.TRUE.,&
+               error=error)
+          buffer_set%mats(row_image, col_image)%m%sym_negation&
+               = source_matrix%m%sym_negation
        ENDDO
-       left_src_prow = left_myprow
-       !left_src_image = 1 + MOD (right_src_prow, left_nimages)
-       xfer_case_left: IF (right_prow_i .LT. nprows) THEN
-          DO mult = 1, left_multiplicity
-             left_virt_src_pcol = right_src_prow*left_multiplicity+mult-1
-             left_src_pcol = INT (left_virt_src_pcol / left_nimages)
-             left_src_image = 1 + MOD (left_virt_src_pcol, left_nimages)
-             IF (dbg) WRITE(*,'(1X,A,I3,A,"(",I3,",",I3,")")')&
-                  routineN//' Getting LEFT matrix image',left_src_image,&
-                  ' pgrid coor ',left_src_prow, left_src_pcol
-             left_src_p_comm = left_pgrid (left_src_prow, left_src_pcol)
-             IF (dbg) WRITE(*,'(1X,A,I4,A,I3,A,"(",I3,",",I3,")")')&
-                  routineN//' Getting LEFT matrix from',left_src_p_comm,&
-                  ' image',left_src_image,&
-                  ' pgrid coor ',left_src_prow, left_src_pcol
-             CALL mp_rma_get (left_set%data_windows(left_src_image),&
-                  left_src_p_comm, 0,&
-                  all_sizes(1, left_src_image, left_src_p_comm),&
-                  dbcsr_get_data_p (lbuffer_comm%mats(mult)%m%data_area, 0.0_dp))
-             CALL mp_rma_get (left_set%index_windows(left_src_image),&
-                  left_src_p_comm, 0,&
-                  all_sizes(2, left_src_image, left_src_p_comm),&
-                  lbuffer_comm%mats(mult)%m%index)
-          ENDDO
-       ENDIF xfer_case_left
-       calc_case_left: IF (right_prow_i .GT. 0) THEN
-             !left_src_p_calc == left_pgrid (left_prow, right_prow-1)
-          DO mult = 1, left_multiplicity
-             CALL dbcsr_repoint_index (lbuffer_calc%mats(mult)%m)
-             tstart = m_walltime ()
-             CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult)%m, rbuffer_calc%m,&
-                  product_matrix_p%m, submatrix_box=submatrix_selection,&
-                  retain_sparsity=retain_sparsity,&
-                  alpha_d=alpha_d,&
-                  flop=flop_single,&
-                  t_all=t_all, t_dgemm=t_dgemm)
-             flop_total = flop_total + flop_single
-             tstop = m_walltime ()
-             IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
-             !IF (dbg .AND. tstop-tstart .NE. 0) THEN
-             IF (ionode .AND. detailed_timing) THEN
-                WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
-                     "Segment Local Multiplication time ",tstop-tstart," and ",&
-                     (REAL(flop_single, dp)/1000000.0_dp)/(tstop-tstart),&
-                     " MFLOPS", REAL(flop_single), "FLOP"
-             ENDIF
-             !ENDIF
-             trun = trun + (tstop - tstart)
-          ENDDO
-       ENDIF calc_case_left
-       left_src_p_calc = left_src_p_comm
-       CALL dbcsr_switch_sets (lbuffer_calc, lbuffer_comm)
-       CALL dbcsr_switch_m_ptrs (rbuffer_calc%m, rbuffer_comm%m)
-    ENDDO k_index
-    trun_t = m_walltime () - trun_t
-    IF (trun_t .EQ. 0) trun_t = 0.000001_dp
-    IF (trun .EQ. 0) trun = 0.000001_dp
-    !IF (dbg) THEN
-    IF (ionode .AND. detailed_timing) THEN
-       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
-            "  Total Local Multiplication time ",trun,"and ",&
-            (REAL(flop_total, dp)/1000000.0_dp)/trun,&
-            "MFLOPS"
-       WRITE(output_unit,'(1X,A,F9.4,1X,A,F9.4,1X,F9.4,"%")')&
-            "  Total Local DGEMM time          ",t_dgemm,&
-            "index time ", t_all - t_dgemm, 100.0_dp*(t_all-t_dgemm)/t_all
-       WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
-            "        Total Multiplication time ",trun_t,"and ",&
-            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,&
-            "MFLOPS"
-    ENDIF
-    !ENDIF
-    DO img = 1, left_nimages
-       CALL mp_window_destroy (left_set%data_windows(img))
-       CALL mp_window_destroy (left_set%index_windows(img))
     ENDDO
-    DEALLOCATE (left_set%data_windows)
-    DEALLOCATE (left_set%index_windows)
-    CALL mp_window_destroy (right_data_window)
-    CALL mp_window_destroy (right_index_window)
-    !
-    CALL dbcsr_destroy (rbuffer_1, force=.TRUE.)
-    CALL dbcsr_destroy (rbuffer_2, force=.TRUE.)
-    CALL dbcsr_destroy_array (lbuffer_1)
-    CALL dbcsr_destroy_array (lbuffer_2)
-    DEALLOCATE (my_sizes)
-    !
-    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE.)
-    !
-    IF (PRESENT (flop)) flop = flop_total
-    CALL timestop (timing_handle)
-  END SUBROUTINE dbcsr_mult_e_ec_m_rma
+  END SUBROUTINE setup_buffer_matrices
 
+  SUBROUTINE all_print (val, desc, mp)
+    INTEGER, INTENT(IN)                      :: val
+    CHARACTER(LEN=*), INTENT(IN)             :: desc
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp
 
-!! *****************************************************************************
-!!> \brief Multiplies two DBCSR matrices.
-!!> \param[in] left_set             set of left images
-!!> \param[in] right_matrix         right matrix
-!!> \param[out] product             DBCSR product workmatrix
-!!> \param[in,out] error            cp2k error
-!!> \param[out] flop                (optional) effective flop
-!! *****************************************************************************
-!  SUBROUTINE dbcsr_multiply_from_left (left_set, right_matrix, product_matrix,&
-!       error, flop)
-!    TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
-!    TYPE(dbcsr_type), INTENT(IN)             :: right_matrix
-!    TYPE(dbcsr_type), INTENT(INOUT)          :: product_matrix
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
-!    INTEGER(KIND=int_8), INTENT(OUT), &
-!      OPTIONAL                               :: flop
+    CHARACTER(LEN=80)                        :: fmt
+    INTEGER                                  :: n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: infos
+
 !
-!    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_from_left', &
-!      routineP = moduleN//':'//routineN
-!
-!    INTEGER :: debug_level, entries, i, img, left_image, left_images, &
-!      left_multiplicity, left_nprows, left_prow, left_src_p_calc, &
-!      left_src_p_comm, mp_group, mult, mynode, mypcol, myprow, nblks, npcols, &
-!      nprows, numnodes, nze, output_unit, right_nprows, right_prow, &
-!      right_prow_i, right_src_p_calc, right_src_p_comm, timing_handle
-!    INTEGER(KIND=int_8)                      :: flop_single, flop_total
-!    INTEGER(KIND=int_8), ALLOCATABLE, &
-!      DIMENSION(:)                           :: keys
-!    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
-!    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
-!    INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
-!                                                right_pgrid
-!    REAL(KIND=dp)                            :: trun, trun_t, tstart, tstop
-!    REAL(KIND=dp), ALLOCATABLE, &
-!      DIMENSION(:, :)                        :: my_waits
-!    REAL(KIND=dp), ALLOCATABLE, &
-!      DIMENSION(:, :, :)                     :: all_waits
-!    TYPE(cp_logger_type), POINTER            :: logger
-!    TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
-!    TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
-!    TYPE(dbcsr_mp_obj)                       :: mp_obj
-!    TYPE(dbcsr_type), POINTER                :: rbuffer_calc, rbuffer_comm
-!    TYPE(dbcsr_type), TARGET                 :: rbuffer_1, rbuffer_2
-!    TYPE(mp_window_type)                     :: right_data_window, &
-!                                                right_index_window
-!
-!    DEBUG_HEADER
-!!   ---------------------------------------------------------------------------
-!    DEBUG_BODY
-!    debug_level=0
-!    IF (dbg) debug_level = 2
-!    IF (dbcsr_mp_pgrid_equal (dbcsr_distribution_mp (left_set%image_dist%main),&
-!         dbcsr_distribution_mp (right_matrix%dist))) THEN
-!       CALL dbcsr_multiply_from_left_sqpg (left_set, right_matrix,&
-!            product_matrix, error, flop=flop_total)
-!       IF (PRESENT (flop)) flop = flop_total
-!       RETURN
-!    ENDIF
-!    CALL timeset (routineN, timing_handle)
-!    CALL btree_new (product_matrix%w%tree)
-!    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
-!    flop_total = 0
-!    trun_t = m_walltime ()
-!    left_images = SIZE (left_set%mats)
-!    CALL bcsr_assert (debug_level,&
-!         left_images .EQ. left_set%image_dist%row_decimation, routineP,&
-!         "Non-compatible images")
-!    left_multiplicity = left_set%image_dist%row_multiplicity
-!    mp_obj = dbcsr_distribution_mp (product_matrix%dist)
-!    numnodes = dbcsr_mp_numnodes (mp_obj)
-!    mynode = dbcsr_mp_mynode (mp_obj)
-!    myprow = dbcsr_mp_myprow (mp_obj)
-!    mypcol = dbcsr_mp_mypcol (mp_obj)
-!    npcols = dbcsr_mp_npcols (mp_obj)
-!    nprows = dbcsr_mp_nprows (mp_obj)
-!    mp_group = dbcsr_mp_group (mp_obj)
-!    product_pgrid => dbcsr_mp_pgrid (mp_obj)
-!    left_pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (&
-!         left_set%image_dist%main))
-!    left_nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (&
-!         left_set%image_dist%main))
-!    right_pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (&
-!         right_matrix%dist))
-!    DBG 'product pgrid shape', SHAPE (dbcsr_mp_pgrid (mp_obj))
-!    DBG 'left pgrid shape', SHAPE (left_pgrid),';',left_nprows,left_images
-!    DBG 'right pgrid shape', SHAPE (right_pgrid)
-!    DBG 'left images, multiplicity', left_images, left_multiplicity
-!    CALL bcsr_assert (debug_level,&
-!         left_multiplicity * npcols .EQ. left_nprows, routineP,&
-!         "Mulitplicity mismatch and processer grid.")
-!    ALLOCATE (left_set%data_windows(left_images))
-!    ALLOCATE (left_set%index_windows(left_images))
-!    ALLOCATE (my_sizes(4, left_images))
-!    my_sizes(:,:) = 0
-!    DO img = 1, left_images
-!       my_sizes(1, img) = SIZE (left_set%mats(img)%data)
-!       my_sizes(2, img) = SIZE (left_set%mats(img)%index)
-!    ENDDO
-!    my_sizes(3, 1) = SIZE (right_matrix%data)
-!    my_sizes(4, 1) = SIZE (right_matrix%index)
-!    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
-!    DO i = 1, 4
-!       DBG 'my sizes', my_sizes(i,:)
-!    ENDDO
-!    CALL mp_allgather(my_sizes, all_sizes, mp_group)
-!    nblks = MAXVAL (all_sizes (2, :, :))
-!    nze = MAXVAL (all_sizes(1, :, :))
-!    DBG 'data sizes', all_sizes
-!    ! Setup the buffer matrices
-!    DO img = 1, left_images
-!       CALL mp_window_create (left_set%data_windows(img),&
-!            left_set%mats(img)%data, gid=mp_group)
-!       CALL mp_window_create (left_set%index_windows(img),&
-!            left_set%mats(img)%index, gid=mp_group)
-!    ENDDO
-!    ALLOCATE (lbuffer_1%mats(left_multiplicity))
-!    ALLOCATE (lbuffer_2%mats(left_multiplicity))
-!    DO mult = 1, left_multiplicity
-!       CALL dbcsr_init (lbuffer_1%mats(mult), error)
-!       CALL dbcsr_create (lbuffer_1%mats(mult),&
-!            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
-!            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
-!            nblks, nze, special=.FALSE., error=error)
-!       CALL ensure_array_size (lbuffer_1%mats(mult)%data,&
-!            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
-!            special=.FALSE., error=error)
-!       CALL ensure_array_size (lbuffer_1%mats(mult)%index,&
-!            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
-!            special=.FALSE., error=error)
-!       !
-!       CALL dbcsr_init (lbuffer_2%mats(mult), error)
-!       CALL dbcsr_create (lbuffer_2%mats(mult),&
-!            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
-!            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
-!            nblks, nze, special=.FALSE., error=error)
-!       CALL ensure_array_size (lbuffer_2%mats(mult)%data,&
-!            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
-!            special=.FALSE., error=error)
-!       CALL ensure_array_size (lbuffer_2%mats(mult)%index,&
-!            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
-!            special=.FALSE., error=error)
-!    ENDDO
-!    lbuffer_calc => lbuffer_1
-!    lbuffer_comm => lbuffer_2
-!    ! Setup buffers for right matrix
-!    nblks = MAXVAL (all_sizes (4, 1, :))
-!    nze = MAXVAL (all_sizes(3, 1, :))
-!    CALL dbcsr_init (rbuffer_1, error)
-!    CALL dbcsr_create (rbuffer_1,&
-!         'rbuffer1'//right_matrix%name, right_matrix%dist,&
-!         'N',&
-!         right_matrix%row_blk_size,&
-!         right_matrix%col_blk_size,&
-!         0, 0, special=.FALSE., error=error)
-!    CALL ensure_array_size (rbuffer_1%data,&
-!         ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-!         error=error)
-!    CALL ensure_array_size (rbuffer_1%index,&
-!         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-!         error=error)
-!    !
-!    CALL dbcsr_init (rbuffer_2, error)
-!    CALL dbcsr_create (rbuffer_2,&
-!         'rbuffer2'//right_matrix%name, right_matrix%dist,&
-!         'N',&
-!         right_matrix%row_blk_size,&
-!         right_matrix%col_blk_size,&
-!         0, 0, special=.FALSE., error=error)
-!    CALL ensure_array_size (rbuffer_2%data,&
-!         ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-!         error=error)
-!    CALL ensure_array_size (rbuffer_2%index,&
-!         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-!         error=error)
-!    ! Create windows for the right matrices
-!    DBG 'RIGHT data win size', SIZE (right_matrix%data)
-!    DBG 'RIGHT indx win size', SIZE (right_matrix%index)
-!    CALL mp_window_create (right_data_window, right_matrix%data, gid=mp_group)
-!    CALL mp_window_create (right_index_window, right_matrix%index, gid=mp_group)
-!    rbuffer_calc => rbuffer_1
-!    rbuffer_comm => rbuffer_2
-!    !
-!    right_nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (&
-!         right_matrix%dist))
-!    right_src_p_calc = -7
-!    left_src_p_calc = -7
-!    ! Do the actual transfers and call local multiplication
-!    ALLOCATE (my_waits(4, 0:right_nprows))
-!    my_waits(:,:) = 0
-!    k_index: DO right_prow_i = 0, right_nprows
-!       ! Right matrix
-!       right_prow = MOD (right_prow_i+myprow+mypcol, right_nprows)
-!       DBG 'RIGHT_PROW from/to', right_prow_i, right_prow, myprow, right_nprows
-!       my_waits(1, right_prow_i) = m_walltime()
-!       !CALL dbcsr_sleep (10.0_dp)
-!       CALL mp_window_fence (right_data_window,&
-!            nothing_stored=.TRUE., no_put_follows=.TRUE.)
-!       my_waits(1, right_prow_i) = m_walltime() - my_waits(1, right_prow_i)
-!       my_waits(2, right_prow_i) = m_walltime()
-!       !CALL dbcsr_sleep (10.0_dp)
-!       CALL mp_window_fence (right_index_window,&
-!            nothing_stored=.TRUE., no_put_follows=.TRUE.)
-!       my_waits(2, right_prow_i) = m_walltime() - my_waits(2, right_prow_i)
-!       ! No fetches in the last loop
-!       xfer_case_right: IF (right_prow_i .LT. right_nprows) THEN
-!          right_src_p_comm = right_pgrid (right_prow, mypcol)
-!          IF (dbg) WRITE(*,'(1X,A,"(",I3,",",I3,")")')&
-!               routineN//' Getting RIGHT matrix from pgrid coor ',&
-!               right_prow, mypcol
-!          IF (dbg) WRITE(*,'(1X,A,I4,A,"(",I3,",",I3,") sizes",I7,I7)')&
-!               routineN//' Getting RIGHT matrix from',right_src_p_comm,&
-!               ' pgrid coor ',right_prow, mypcol,&
-!               all_sizes(3:4, 1, right_src_p_comm)
-!          CALL mp_rma_get (right_data_window,&
-!               right_src_p_comm, 0, all_sizes(3, 1, right_src_p_comm),&
-!               rbuffer_comm%data)
-!          CALL mp_rma_get (right_index_window,&
-!               right_src_p_comm, 0, all_sizes(4, 1, right_src_p_comm),&
-!               rbuffer_comm%index)
-!       ENDIF xfer_case_right
-!       ! No calculations in the first loop
-!       calc_case_right: IF (right_prow_i .GT. 0) THEN
-!          IF (all_sizes(4, 1, right_src_p_calc) .EQ. 0) THEN
-!             DBG 'ZERO SIZED INDEX'
-!          ENDIF
-!          CALL dbcsr_repoint_index (rbuffer_calc, error=error)
-!       ENDIF calc_case_right
-!       ! Now we transfer/multiply with the left matrix
-!       right_src_p_calc = right_src_p_comm
-!       DO left_image = 1, left_images
-!          my_waits(3, right_prow_i) = m_walltime()
-!          !CALL dbcsr_sleep (10.0_dp)
-!          CALL mp_window_fence (left_set%data_windows(left_image),&
-!            nothing_stored=.TRUE., no_put_follows=.TRUE.)
-!          my_waits(3, right_prow_i) = m_walltime() - my_waits(3, right_prow_i)
-!          my_waits(4, right_prow_i) = m_walltime()
-!          !CALL dbcsr_sleep (10.0_dp)
-!          CALL mp_window_fence (left_set%index_windows(left_image),&
-!            nothing_stored=.TRUE., no_put_follows=.TRUE.)
-!       my_waits(4, right_prow_i) = m_walltime() - my_waits(4, right_prow_i)
-!       ENDDO
-!       left_prow = myprow / left_images
-!       left_image = 1 + MOD (myprow, left_images)
-!       xfer_case_left: IF (right_prow_i .LT. right_nprows) THEN
-!          DO mult = 1, left_multiplicity
-!             IF (dbg) WRITE(*,'(1X,A,I3,A,"(",I3,",",I3,")")')&
-!                  routineN//' Getting LEFT matrix image',left_image,&
-!                  ' pgrid coor ',left_prow, right_prow
-!             IF (dbg) THEN
-!                WRITE(*,*)routineP//'left pgrid shape', SHAPE (left_pgrid),';'
-!                WRITE(*,*)routineP, left_prow,&
-!                     (mult-1)*(left_nprows/left_multiplicity),&
-!                     '=>',left_prow + (mult-1)*(left_nprows/left_multiplicity)
-!             ENDIF
-!             left_src_p_comm = left_pgrid (&
-!                  left_prow + (mult-1)*(left_nprows/left_multiplicity),&
-!                  right_prow)
-!             IF (dbg) WRITE(*,'(1X,A,I4,A,I3,A,"(",I3,",",I3,")")')&
-!                  routineN//' Getting LEFT matrix from',left_src_p_comm,&
-!                  ' image',left_image,&
-!                  ' pgrid coor ',left_prow, right_prow
-!             CALL mp_rma_get (left_set%data_windows(left_image),&
-!                  left_src_p_comm, 0,&
-!                  all_sizes(1, left_image, left_src_p_comm),&
-!                  lbuffer_comm%mats(mult)%data)
-!             CALL mp_rma_get (left_set%index_windows(left_image),&
-!                  left_src_p_comm, 0,&
-!                  all_sizes(2, left_image, left_src_p_comm),&
-!                  lbuffer_comm%mats(mult)%index)
-!          ENDDO
-!       ENDIF xfer_case_left
-!       calc_case_left: IF (right_prow_i .GT. 0) THEN
-!             !left_src_p_calc = left_pgrid (left_prow, right_prow-1)
-!          DO mult = 1, left_multiplicity
-!             CALL dbcsr_repoint_index (lbuffer_calc%mats(mult), error=error)
-!             tstart = m_walltime ()
-!             CALL dbcsr_nn_mult(lbuffer_calc%mats(mult), rbuffer_calc,&
-!                  product_matrix, error, flop=flop_single)
-!             flop_total = flop_total + flop_single
-!             tstop = m_walltime ()
-!             IF (dbg .AND. tstop-tstart .NE. 0) THEN
-!                DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-!                     (REAL(flop_total, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
-!             ENDIF
-!             trun = trun + (tstop - tstart)
-!          ENDDO
-!       ENDIF calc_case_left
-!       left_src_p_calc = left_src_p_comm
-!       CALL dbcsr_switch_sets (lbuffer_calc, lbuffer_comm)
-!       CALL dbcsr_switch_m_ptrs (rbuffer_calc, rbuffer_comm)
-!    ENDDO k_index
-!    trun_t = m_walltime () - trun_t
-!    IF (trun_t .EQ. 0) trun_t = 0.001_dp
-!    IF (dbg .AND. detailed_timing) THEN
-!       WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
-!            routineN//' Total Local Multiplication time',&
-!            trun_t,' and',&
-!            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,' MFLOPS',flop_total
-!    ENDIF
-!    DO img = 1, left_images
-!       CALL mp_window_destroy (left_set%data_windows(img))
-!       CALL mp_window_destroy (left_set%index_windows(img))
-!    ENDDO
-!    DEALLOCATE (left_set%data_windows)
-!    DEALLOCATE (left_set%index_windows)
-!    CALL mp_window_destroy (right_data_window)
-!    CALL mp_window_destroy (right_index_window)
-!    !
-!    CALL dbcsr_destroy (rbuffer_1, error)
-!    CALL dbcsr_destroy (rbuffer_2, error)
-!    CALL dbcsr_destroy_array (lbuffer_1, error)
-!    CALL dbcsr_destroy_array (lbuffer_2, error)
-!    DEALLOCATE (my_sizes)
-!    !
-!    IF (dbg) THEN
-!       ALLOCATE (all_waits(4, 0:right_nprows, 0:numnodes-1))
-!       CALL mp_allgather (my_waits, all_waits, mp_group)
-!       logger => cp_error_get_logger (error)
-!       IF (logger%para_env%mepos == logger%para_env%source) THEN
-!          output_unit = cp_logger_get_default_unit_nr (logger)
-!          WRITE(output_unit,'(A)')"Waiting times per place per step"
-!          DO right_prow_i = 0, right_nprows
-!             WRITE(output_unit,'(4(F9.4),5X,4(F9.4))')&
-!                  (MAXVAL(all_waits(i,right_prow_i,:)), i=1, 4),&
-!                  (SUM(all_waits(i,right_prow_i,:))/numnodes, i=1, 4)
-!             WRITE(*,'(A,I4)')"Step ", right_prow_i
-!             DO i = 0, numnodes-1
-!                WRITE(*,'(I4,1X,4(F9.4))')i, all_waits(:, right_prow_i, i)
-!             ENDDO
-!          ENDDO
-!       ENDIF
-!    ENDIF
-!    !
-!    entries = btree_get_entries (product_matrix%w%tree)
-!    CALL ensure_array_size (product_matrix%w%blk_p, ub=entries, error=error)
-!    ALLOCATE (keys (entries))
-!    CALL btree_delete (product_matrix%w%tree, keys, product_matrix%w%blk_p)
-!    CALL ensure_array_size(product_matrix%w%row_i, ub=entries, error=error)
-!    CALL ensure_array_size(product_matrix%w%col_i, ub=entries, error=error)
-!    CALL dbcsr_unpack_i8_2i4 (keys, product_matrix%w%row_i,&
-!         product_matrix%w%col_i)
-!    DEALLOCATE (keys)
-!    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error=error)
-!    !
-!    IF (PRESENT (flop)) flop = flop_total
-!    CALL timestop (timing_handle)
-!  END SUBROUTINE dbcsr_multiply_from_left
+
+    n = dbcsr_mp_numnodes (mp)
+    WRITE(fmt,'("(1X,A,",I5,"(1X,I4))")')n
+    ALLOCATE (infos(n))
+    CALL mp_allgather(val, infos, dbcsr_mp_group(mp))
+    WRITE(*,fmt)desc,infos
+  END SUBROUTINE all_print
 
 
 ! *****************************************************************************
@@ -1441,9 +918,9 @@ CONTAINS
 !> \param[in,out] set1p, set2p
 ! *****************************************************************************
   SUBROUTINE dbcsr_switch_sets (set1p, set2p)
-    TYPE(dbcsr_array_type), POINTER          :: set1p, set2p
+    TYPE(dbcsr_2d_array_type), POINTER       :: set1p, set2p
 
-    TYPE(dbcsr_array_type), POINTER          :: tmp_set
+    TYPE(dbcsr_2d_array_type), POINTER       :: tmp_set
 
 !   ---------------------------------------------------------------------------
 
@@ -1469,271 +946,6 @@ CONTAINS
   END SUBROUTINE make_tag
 
 
-!! *****************************************************************************
-!!> \brief Multiplies two DBCSR matrices, using the current local data.
-!!> \param[in] left, right     left and right DBCSR matrices
-!!> \param[in,out] product     resulting DBCSR product matrix
-!!> \param[in,out] wm          DBCSR product working matrix
-!!> \param[in,out] error       cp2k error
-!!> \param[out] flop           (optional) number of effective double-precision
-!!>                            floating point operations performed
-!! *****************************************************************************
-!  SUBROUTINE dbcsr_nn_mult(left, right, product, error, flop)
-!    TYPE(dbcsr_type), INTENT(IN)             :: left, right
-!    TYPE(dbcsr_type), INTENT(INOUT)          :: product
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
-!    INTEGER(KIND=int_8), INTENT(OUT), &
-!      OPTIONAL                               :: flop
-!
-!    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult', &
-!      routineP = moduleN//':'//routineN
-!    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp, &
-!                                                beta_add = 1.0_dp, &
-!                                                beta_new = 0.0_dp
-!
-!    CHARACTER                                :: a_type, b_type
-!    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: left_data_z, right_data_z
-!    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: left_data_c, right_data_c
-!    INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
-!      a_nze, a_row, a_row_log, a_row_size, a_row_size_logical, b_blk, b_col, &
-!      b_col_size, b_nze, b_row, b_row_size, c_blk, c_blk_p, c_col, c_nze, &
-!      c_row, lda, ldb, ldc, num_symmetries, stat, symmetry, timing_handle
-!    INTEGER(KIND=int_4)                      :: offset
-!    INTEGER(KIND=int_8)                      :: coordinate, lflop
-!    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps
-!    INTEGER, DIMENSION(:), POINTER           :: left_col_blk_size, &
-!                                                left_row_blk_size, &
-!                                                right_col_blk_size, &
-!                                                right_row_blk_size
-!    LOGICAL                                  :: block_exists, tr_a, tr_b
-!    REAL(KIND=dp)                            :: beta, tstart, tstop
-!    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data, b_data, c_data, &
-!                                                left_data_d, right_data_d
-!    REAL(KIND=sp), DIMENSION(:), POINTER     :: left_data_r, right_data_r
-!    TYPE(dbcsr_work_type)                    :: wm
-!
-!    !$ INTEGER                           :: ithread, nthreads
-!    !$ INTEGER(KIND=omp_lock_kind)       :: data_lock, index_lock
-!    DEBUG_HEADER
-!!   ---------------------------------------------------------------------------
-!    DEBUG_BODY
-!    CALL timeset(routineN, timing_handle)
-!    wm = product%wms(1)
-!    DBG "Doing NN matrix multiplication",left%name,' x ',right%name
-!    DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
-!    ! c_blk_ps contains the block pointers in the product's current row
-!    !.!ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
-!    !IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
-!    !     product%nblkcols_total)
-!    lflop = 0
-!    num_symmetries = 1
-!    left_row_blk_size => array_data (left%row_blk_size)
-!    left_col_blk_size => array_data (left%col_blk_size)
-!    right_row_blk_size => array_data (right%row_blk_size)
-!    right_col_blk_size => array_data (right%col_blk_size)
-!    SELECT CASE (left%data_type)
-!    CASE ('r')
-!       CALL dbcsr_get_data (left%data_area, left_data_r)
-!       CALL dbcsr_get_data (right%data_area, right_data_r)
-!    CASE ('R')
-!       CALL dbcsr_get_data (left%data_area, left_data_d)
-!       CALL dbcsr_get_data (right%data_area, right_data_d)
-!    CASE ('c')
-!       CALL dbcsr_get_data (left%data_area, left_data_c)
-!       CALL dbcsr_get_data (right%data_area, right_data_c)
-!    CASE ('C')
-!       CALL dbcsr_get_data (left%data_area, left_data_z)
-!       CALL dbcsr_get_data (right%data_area, right_data_z)
-!    END SELECT
-!    c_blk_p = wm%datasize + 1
-!    DBG 'A rows:',left%nblkrows_total
-!    IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
-!    CALL dbcsr_data_ensure_size(wm%data_area,&
-!         MAX(wm%datasize,left%nfullrows_total*right%nfullcols_total))
-!    !CALL ensure_array_size(wm%data,&
-!    !     ub=MAX(wm%datasize,left%nfullrows_total*right%nfullcols_total), error=error)
-!       !CALL ensure_array_size(wm%data,&
-!       !     ub=wm%datasize+a_row_size*right%nfullcols_total &
-!       !     * MAX(1, (left%nblkrows_total-a_row)/4), error=error)
-!    !$OMP PARALLEL DEFAULT (SHARED) PRIVATE(a_row, a_col, a_blk,&
-!    !$OMP                                   b_row, b_col, b_blk,&
-!    !$OMP                                   c_row, c_col, c_blk,&
-!    !$OMP                                   a_row_log, a_col_log,&
-!    !$OMP                                   a_row_size_logical,&
-!    !$OMP                                   a_col_size_logical,&
-!    !$OMP                                   a_row_size, a_col_size, a_nze,&
-!    !$OMP                                   b_row_size, b_col_size, b_nze, c_nze,&
-!    !$OMP                                   lda, ldb, ldc,&
-!    !$OMP                                   tr_a, tr_b,&
-!    !$OMP                                   c_blk_ps,&
-!    !$OMP                                   a_data, b_data, c_data,&
-!    !$OMP                                   beta,&
-!    !$OMP                                   a_type, b_type,&
-!    !$OMP                                   symmetry,&
-!    !$OMP                                   coordinate,&
-!    !$OMP                                   offset,&
-!    !$OMP                                   block_exists,&
-!    !$OMP                                   tstart, tstop,&
-!    !$OMP                                   ithread)&
-!    !$OMP          REDUCTION (+: lflop)
-!    !
-!    !$ CALL OMP_INIT_LOCK (index_lock)
-!    !$ CALL OMP_INIT_LOCK (data_lock)
-!    !$ ithread = OMP_GET_THREAD_NUM ()
-!    !!$ WRITE (*,*)"Hello! I'm thread number", ithread
-!    !$OMP SINGLE
-!    !$ nthreads = OMP_GET_NUM_THREADS ()
-!    !!$ WRITE (*,*)'And there are', nthreads, 'threads, from', ithread
-!    !$OMP FLUSH (nthreads)
-!    !$OMP END SINGLE
-!    ! c_blk_ps contains the block pointers in the product's current row
-!    ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
-!    IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
-!         product%nblkcols_total)
-!    !
-!    !$OMP DO
-!    DO a_row = 1, left%nblkrows_total
-!       a_row_log = a_row
-!       DBG 'A row', a_row,' with #cols=',left%row_p(a_row+1)-left%row_p(a_row)
-!       a_row_size = left_row_blk_size(a_row) ! stored
-!       c_blk_ps(:) = 0
-!       DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
-!          DO symmetry = 1, num_symmetries
-!             a_col = left%col_i(a_blk)
-!             IF (a_col .EQ. a_row .AND. symmetry .GT. 1) CYCLE
-!             a_col_size = left_col_blk_size(a_col) !stored
-!             a_row_log = a_row
-!             a_col_log = a_col
-!             a_row_size_logical = a_row_size
-!             a_col_size_logical = a_col_size
-!             lda = a_row_size
-!             ! For regular symmetric matrices
-!             IF (symmetry .GT. 1) THEN
-!                CALL swap (a_row_log, a_col_log)
-!                CALL swap (a_row_size_logical, a_col_size_logical)
-!                tr_a = .TRUE.
-!                a_type = 'T'
-!             ELSE
-!                tr_a = .FALSE.
-!                a_type = 'N'
-!             ENDIF
-!             DBG 'A col', a_col, '=>',a_col_log
-!             b_row = a_col_log
-!             c_row = a_row_log
-!             a_nze = a_row_size * a_col_size
-!             a_data => left_data_d(ABS(left%blk_p(a_blk))&
-!                  :ABS(left%blk_p(a_blk))+a_nze-1)
-!             !a_data => left%data(ABS(left%blk_p(a_blk))&
-!             !     :ABS(left%blk_p(a_blk))+a_nze-1)
-!             b_row_size = a_col_size_logical
-!             ! For index-augmented matrices.
-!             IF (left%blk_p(a_blk) .LT. 0) THEN
-!                lda = a_col_size
-!                a_type = 'T'
-!             ENDIF
-!             DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
-!                b_col = right%col_i(b_blk)
-!                c_col = b_col
-!                DBG 'B col', b_col
-!                b_col_size = right_col_blk_size(b_col)
-!                b_nze = b_row_size * b_col_size
-!                b_data => right_data_d(&
-!                     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
-!                !b_data => right%data(&
-!                !     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
-!                IF (right%blk_p(b_blk) .LT. 0) THEN
-!                   b_type = 'T'
-!                   ldb = b_col_size
-!                ELSE
-!                   b_type = 'N'
-!                   ldb = b_row_size
-!                ENDIF
-!                c_nze = a_row_size * b_col_size
-!                ! If this c column does not yet exist, "allocate" it.
-!                coordinate = make_coordinate_tuple (c_row, c_col)
-!                IF (c_blk_ps(c_col) .EQ. 0 .AND. .NOT. tr_a) THEN
-!                   CALL btree_find (wm%tree, coordinate, offset, block_exists)
-!                ELSE
-!                   block_exists = .TRUE.
-!                   offset = c_blk_ps(c_col)
-!                ENDIF
-!                IF (.NOT. block_exists) THEN
-!                   !.!CALL add_work_coordinate(wm, c_row, c_col, c_blk_p, error=error)
-!                   !$ CALL OMP_SET_LOCK (data_lock)
-!                   offset = c_blk_p
-!                   c_blk_p = c_blk_p + c_nze
-!                   wm%datasize = wm%datasize + c_nze
-!                   wm%lastblk = wm%lastblk + 1
-!                   !$ CALL OMP_UNSET_LOCK (data_lock)
-!                   CALL btree_add (wm%tree, coordinate, offset, block_exists,&
-!                        existing_value = offset)
-!                   !CALL btree_verify (index)
-!                   IF (block_exists) THEN
-!                      IF (dbg) WRITE(*,*)routineP//' EXISTS'
-!                      ! We can not rewind c_blk_p!
-!                      !$OMP ATOMIC
-!                      wm%datasize = wm%datasize - c_nze
-!                      !$OMP ATOMIC
-!                      wm%lastblk = wm%lastblk - 1
-!                   ENDIF
-!                   c_blk_ps(c_col) = offset
-!                   beta = beta_new
-!                ELSE
-!                   beta = beta_add
-!                ENDIF
-!                !offset = 1 + ithread * 4096
-!                !.!c_data => wm%data(c_blk_ps(c_col):c_blk_ps(c_col)+c_nze-1)
-!                DBG 'offset:',offset,offset+c_nze-1,'of',wm%datasize,'ex',block_exists
-!                !% CALL OMP_SET_LOCK (data_lock)
-!                c_data => pointer_view (&
-!                     dbcsr_get_data_p (wm%data_area, 0.0_dp),&
-!                     offset, offset+c_nze-1)
-!                !c_data => wm%data(offset:offset+c_nze-1)
-!                !% CALL OMP_UNSET_LOCK (data_lock)
-!                IF (dbg) WRITE(*,&
-!                     "(1X,A,A1,1X,A1,A,I6,A,F4.1,' (',I3,',',I3,')=(',I3,',',I3,')x(',I3,',',I3,')')")&
-!                                !routineN//' DGEMM ',a_type,b_type,' at',c_blk_ps(c_col),' beta=', beta,&
-!                     routineN//' DGEMM ',a_type,b_type,' at',offset,' beta=', beta,&
-!                     c_row,c_col,a_row,a_col,b_row,b_col
-!                CALL DGEMM(a_type, b_type,&
-!                     a_row_size_logical, b_col_size, a_col_size_logical,&
-!                     alpha,&
-!                     a_data, lda,&
-!                     b_data, ldb, beta,&
-!                     c_data, a_row_size_logical)
-!                !write(6,*)'NEWTIME',a_row_size,b_col_size,a_col_size,t2-t1,&
-!                !     REAL(t2-t1)/(REAL(2*a_row_size*b_col_size*a_col_size))
-!                lflop = lflop + a_row_size * b_col_size * a_col_size * 2
-!             ENDDO ! b
-!          ENDDO ! symmetry
-!       ENDDO ! a_col
-!    ENDDO ! a_row
-!
-!!    !$OMP END DO
-!    !$ CALL OMP_DESTROY_LOCK (index_lock)
-!    !$ CALL OMP_DESTROY_LOCK (data_lock)
-!    DEALLOCATE (c_blk_ps)
-!    !$OMP END PARALLEL
-!    ELSE
-!       DBG 'One of the matrices is empty!'
-!    ENDIF
-!    IF (dbg) CALL btree_verify (wm%tree)
-!    !DEALLOCATE (c_blk_ps)
-!    !WRITE(*,*)'NEW TOTAL TIME', nanotot, REAL(nanotot)/(2.3*REAL(10**6)),'ms'
-!    DBG "Post-mult blk sizes, data", wm%lastblk, wm%datasize
-!    !dbg = .TRUE.
-!    IF (dbg .AND. detailed_timing) THEN
-!       tstop = m_walltime ()
-!       IF (tstop-tstart .NE. 0) THEN
-!          DBG tstop-tstart,'s',&
-!               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
-!       ENDIF
-!    ENDIF
-!    IF (PRESENT (flop)) flop = lflop
-!    product%wms(1) = wm
-!    CALL timestop(timing_handle)
-!  END SUBROUTINE dbcsr_nn_mult
-
 
   ELEMENTAL FUNCTION make_coordinate_tuple (most, least) RESULT (tuple)
     INTEGER, INTENT(IN)                      :: most, least
@@ -1744,456 +956,6 @@ CONTAINS
     tuple = most
     tuple = IOR (ISHFT(tuple, 32), INT(least, int_8))
   END FUNCTION make_coordinate_tuple
-
-
-!! *****************************************************************************
-!!> \brief Multiplies two DBCSR matrices with square processor grids.
-!!> \param[in] left_set             set of left images
-!!> \param[in] right_matrix         right matrix
-!!> \param[out] product             DBCSR product workmatrix
-!!> \param[in,out] error            cp2k error
-!!> \param[out] flop                (optional) effective flop
-!! *****************************************************************************
-!  SUBROUTINE dbcsr_multiply_from_left_sqpg (left_set, right_matrix,&
-!       product_matrix, error, flop)
-!    TYPE(dbcsr_array_type), INTENT(INOUT)    :: left_set
-!    TYPE(dbcsr_type), INTENT(IN)             :: right_matrix
-!    TYPE(dbcsr_type), INTENT(INOUT)          :: product_matrix
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
-!    INTEGER(KIND=int_8), INTENT(OUT), &
-!      OPTIONAL                               :: flop
-!
-!    CHARACTER(len=*), PARAMETER :: &
-!      routineN = 'dbcsr_multiply_from_left_sqpg', &
-!      routineP = moduleN//':'//routineN
-!
-!    INTEGER :: debug_level, i, img, left_dst_p, left_dst_pcol, left_dst_prow, &
-!      left_image, left_images, left_multiplicity, left_mypcol, left_myprow, &
-!      left_npcols, left_nprows, left_p_recv, left_p_send, left_src_p, &
-!      left_src_pcol, left_src_prow, mp_group, mult, mynode, mypcol, myprow, &
-!      nblks, npcols, nprows, numnodes, nze, right_data_rr, right_data_sr, &
-!      right_dst_p, right_dst_prow, right_index_rr, right_index_sr, &
-!      right_mypcol, right_myprow, right_npcols, right_nprows, right_p_recv, &
-!      right_p_send, right_prow_i, right_src_p, right_src_prow, tag, &
-!      timing_handle
-!    INTEGER(KIND=int_8)                      :: flop_single, flop_total
-!    INTEGER, ALLOCATABLE, DIMENSION(:)       :: left_data_rr, left_data_sr, &
-!                                                left_index_rr, left_index_sr
-!    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: my_sizes
-!    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: all_sizes
-!    INTEGER, DIMENSION(:), POINTER           :: left_index_rp, left_index_sp, &
-!                                                right_index_rp, right_index_sp
-!    INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
-!                                                right_pgrid
-!    REAL(KIND=dp)                            :: t_all, t_dgemm, trun, trun_t, &
-!                                                tstart, tstop
-!    REAL(KIND=dp), ALLOCATABLE, &
-!      DIMENSION(:, :)                        :: my_waits
-!    REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_rp, left_data_sp, &
-!                                                right_data_rp, right_data_sp
-!    TYPE(dbcsr_array_type), POINTER          :: lbuffer_calc, lbuffer_comm
-!    TYPE(dbcsr_array_type), TARGET           :: lbuffer_1, lbuffer_2
-!    TYPE(dbcsr_mp_obj)                       :: left_mp, mp_obj, right_mp
-!    TYPE(dbcsr_type), POINTER                :: rbuffer_calc, rbuffer_comm
-!    TYPE(dbcsr_type), TARGET                 :: rbuffer_1, rbuffer_2
-!
-!    DEBUG_HEADER
-!!   ---------------------------------------------------------------------------
-!    DEBUG_BODY
-!    debug_level=0
-!    IF (dbg) debug_level = 2
-!    CALL timeset (routineN, timing_handle)
-!    t_all = 0.0_dp
-!    t_dgemm = 0.0_dp
-!    CALL btree_new (product_matrix%w%tree)
-!    tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
-!    flop_total = 0
-!    trun_t = m_walltime ()
-!    left_images = SIZE (left_set%mats)
-!    CALL bcsr_assert (debug_level,&
-!         left_images .EQ. left_set%image_dist%row_decimation, routineP,&
-!         "Non-compatible images")
-!    left_multiplicity = left_set%image_dist%row_multiplicity
-!    mp_obj = dbcsr_distribution_mp (product_matrix%dist)
-!    mp_group = dbcsr_mp_group (mp_obj)
-!    left_mp = dbcsr_distribution_mp (left_set%image_dist%main)
-!    right_mp = dbcsr_distribution_mp (right_matrix%dist)
-!    numnodes = dbcsr_mp_numnodes (mp_obj)
-!    mynode = dbcsr_mp_mynode (mp_obj)
-!    myprow = dbcsr_mp_myprow (mp_obj)
-!    mypcol = dbcsr_mp_mypcol (mp_obj)
-!    npcols = dbcsr_mp_npcols (mp_obj)
-!    nprows = dbcsr_mp_nprows (mp_obj)
-!    product_pgrid => dbcsr_mp_pgrid (mp_obj)
-!    right_myprow = dbcsr_mp_myprow (right_mp)
-!    right_mypcol = dbcsr_mp_mypcol (right_mp)
-!    right_nprows = dbcsr_mp_nprows (right_mp)
-!    right_npcols = dbcsr_mp_npcols (right_mp)
-!    right_pgrid => dbcsr_mp_pgrid (right_mp)
-!    left_pgrid => dbcsr_mp_pgrid (left_mp)
-!    left_myprow = dbcsr_mp_myprow (left_mp)
-!    left_mypcol = dbcsr_mp_mypcol (left_mp)
-!    left_nprows = dbcsr_mp_nprows (left_mp)
-!    left_npcols = dbcsr_mp_npcols (left_mp)
-!    CALL ensure_array_size(product_matrix%w%row_i,&
-!         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
-!    CALL ensure_array_size(product_matrix%w%col_i,&
-!         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
-!    CALL ensure_array_size(product_matrix%w%blk_p,&
-!         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
-!    CALL ensure_array_size(product_matrix%w%blk_d,&
-!         ub=product_matrix%nblkcols_total*product_matrix%nblkrows_total, error=error)
-!    DBG 'product pgrid shape', SHAPE (dbcsr_mp_pgrid (mp_obj))
-!    DBG 'left pgrid shape', SHAPE (left_pgrid),';',left_nprows,left_images
-!    DBG 'right pgrid shape', SHAPE (right_pgrid)
-!    DBG 'left images, multiplicity', left_images, left_multiplicity
-!    CALL bcsr_assert (debug_level, left_npcols .EQ. right_nprows, routineP,&
-!         "Left and right matrix processor grid dimension mismatch")
-!    CALL bcsr_assert (debug_level,&
-!         left_multiplicity * npcols .EQ. left_nprows, routineP,&
-!         "Mulitplicity mismatch and processer grid.")
-!    DBG 'left pgrid =', left_pgrid
-!    DBG 'right pgrid =', right_pgrid
-!    ALLOCATE (left_set%data_windows(left_images))
-!    ALLOCATE (left_set%index_windows(left_images))
-!    ALLOCATE (my_sizes(4, left_images))
-!    my_sizes(:,:) = 0
-!    DO img = 1, left_images
-!       my_sizes(1, img) = SIZE (left_set%mats(img)%data)
-!       my_sizes(2, img) = SIZE (left_set%mats(img)%index)
-!    ENDDO
-!    my_sizes(3, 1) = SIZE (right_matrix%data)
-!    my_sizes(4, 1) = SIZE (right_matrix%index)
-!    ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2), 0:numnodes-1))
-!    DO i = 1, 4
-!       DBG 'my sizes', my_sizes(i,:)
-!    ENDDO
-!    CALL mp_allgather(my_sizes, all_sizes, mp_group)
-!    nblks = MAXVAL (all_sizes (2, :, :))
-!    nze = MAXVAL (all_sizes(1, :, :))
-!    DBG 'data sizes', all_sizes
-!    !! Setup the buffer matrices
-!    !DO img = 1, left_images
-!    !   CALL mp_window_create (left_set%data_windows(img),&
-!    !        left_set%mats(img)%data, gid=mp_group)
-!    !   CALL mp_window_create (left_set%index_windows(img),&
-!    !        left_set%mats(img)%index, gid=mp_group)
-!    !ENDDO
-!    ALLOCATE (lbuffer_1%mats(left_multiplicity))
-!    ALLOCATE (lbuffer_2%mats(left_multiplicity))
-!    ALLOCATE (left_data_sr(left_multiplicity), left_data_rr(left_multiplicity))
-!    ALLOCATE (left_index_sr(left_multiplicity), left_index_rr(left_multiplicity))
-!    DO mult = 1, left_multiplicity
-!       CALL dbcsr_init (lbuffer_1%mats(mult), error)
-!       CALL dbcsr_create (lbuffer_1%mats(mult),&
-!            'lbufferl1'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
-!            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
-!            nblks, nze, special=.FALSE., error=error)
-!       CALL ensure_array_size (lbuffer_1%mats(mult)%data,&
-!            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
-!            special=.FALSE., error=error)
-!       CALL ensure_array_size (lbuffer_1%mats(mult)%index,&
-!            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
-!            special=.FALSE., error=error)
-!       !
-!       CALL dbcsr_init (lbuffer_2%mats(mult), error)
-!       CALL dbcsr_create (lbuffer_2%mats(mult),&
-!            'lbuffer2'//left_set%mats(1)%m%name, left_set%mats(1)%m%dist, 'N',&
-!            left_set%mats(1)%m%row_blk_size, left_set%mats(1)%m%col_blk_size,&
-!            nblks, nze, special=.FALSE., error=error)
-!       CALL ensure_array_size (lbuffer_2%mats(mult)%data,&
-!            ub=MAXVAL (all_sizes(1, :, :)), nocopy=.TRUE.,&
-!            special=.FALSE., error=error)
-!       CALL ensure_array_size (lbuffer_2%mats(mult)%index,&
-!            ub=MAXVAL (all_sizes(2, :, :)), nocopy=.TRUE.,&
-!            special=.FALSE., error=error)
-!    ENDDO
-!    lbuffer_calc => lbuffer_1
-!    lbuffer_comm => lbuffer_2
-!    ! Setup buffers for right matrix
-!    nblks = MAXVAL (all_sizes (4, 1, :))
-!    nze = MAXVAL (all_sizes(3, 1, :))
-!    CALL dbcsr_init (rbuffer_1, error)
-!    CALL dbcsr_create (rbuffer_1,&
-!         'rbuffer1'//right_matrix%name, right_matrix%dist,&
-!         'N',&
-!         right_matrix%row_blk_size,&
-!         right_matrix%col_blk_size,&
-!         0, 0, special=.FALSE., error=error)
-!    CALL ensure_array_size (rbuffer_1%data,&
-!         ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-!         error=error)
-!    CALL ensure_array_size (rbuffer_1%index,&
-!         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-!         error=error)
-!    !
-!    CALL dbcsr_init (rbuffer_2, error)
-!    CALL dbcsr_create (rbuffer_2,&
-!         'rbuffer2'//right_matrix%name, right_matrix%dist,&
-!         'N',&
-!         right_matrix%row_blk_size,&
-!         right_matrix%col_blk_size,&
-!         0, 0, special=.FALSE., error=error)
-!    CALL ensure_array_size (rbuffer_2%data,&
-!         ub=MAXVAL (all_sizes(3, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-!         error=error)
-!    CALL ensure_array_size (rbuffer_2%index,&
-!         ub=MAXVAL (all_sizes(4, 1, :)), nocopy=.TRUE., special=.FALSE.,&
-!         error=error)
-!    ! Create windows for the right matrices
-!    DBG 'RIGHT data win size', SIZE (right_matrix%data)
-!    DBG 'RIGHT indx win size', SIZE (right_matrix%index)
-!    !CALL mp_window_create (right_data_window, right_matrix%data, gid=mp_group)
-!    !CALL mp_window_create (right_index_window, right_matrix%index, gid=mp_group)
-!    rbuffer_calc => rbuffer_1
-!    rbuffer_comm => rbuffer_2
-!    ! To which processor we normally send
-!    right_p_send = right_pgrid (MOD (right_nprows&
-!         + right_myprow - 1, right_nprows),&
-!         right_mypcol)
-!    ! From which processor we normally receive.
-!    right_p_recv = right_pgrid (MOD (&
-!         right_myprow + 1, right_nprows),&
-!         right_mypcol)
-!    !
-!    ! Do the actual transfers and call local multiplication
-!    ALLOCATE (my_waits(4, 0:right_nprows))
-!    my_waits(:,:) = 0    
-!    k_index: DO right_prow_i = 0, right_nprows
-!       ! Right matrix
-!       !
-!       ! right_src_prow is the matrix "source" processor (as if a
-!       ! direct mpi_get) would be called.
-!       right_src_prow = MOD ( right_prow_i &
-!            + right_myprow + right_mypcol/left_multiplicity, right_nprows)
-!       ! right_dst_prow is the matrix "destination" processor (i.e.,
-!       ! the matrix data that we currently have)
-!       right_dst_prow = MOD ( right_prow_i - 1 + 4*right_nprows&
-!            + right_myprow + right_mypcol/left_multiplicity, right_nprows)
-!
-!       DBG 'RIGHT_PROW from/to', right_prow_i, right_src_prow, right_dst_prow,&
-!            myprow, right_nprows
-!       ! No wait in first loop iteration.
-!       IF (right_prow_i .GT. 0) THEN
-!          DBG 'It', right_prow_i,'waiting for right'
-!          my_waits(1, right_prow_i) = m_walltime()
-!          CALL mp_wait (right_data_sr)
-!          CALL mp_wait (right_index_sr)
-!          my_waits(1, right_prow_i) = m_walltime() - my_waits(1, right_prow_i)
-!          my_waits(2, right_prow_i) = m_walltime()
-!          CALL mp_wait (right_data_rr)
-!          CALL mp_wait (right_index_rr)
-!          my_waits(2, right_prow_i) = m_walltime() - my_waits(2, right_prow_i)
-!       ENDIF
-!       ! No fetches in the last loop
-!       xfer_case_right: IF (right_prow_i .LT. right_nprows) THEN
-!          ! First time the meaning of "send" is different
-!          IF (right_prow_i .EQ. 0) THEN
-!             right_dst_prow = MOD (4*right_nprows&
-!                  + right_myprow - right_mypcol/left_multiplicity, right_nprows)
-!          ENDIF
-!          right_src_p = right_pgrid (right_src_prow, right_mypcol)
-!          right_dst_p = right_pgrid (right_dst_prow, right_mypcol)
-!          IF (dbg) WRITE(*,'(1X,A,"(",I3,",",I3,")")')&
-!               routineN//' Getting RIGHT matrix pgrid coor ',&
-!               right_src_prow, mypcol
-!          IF (dbg) WRITE(*,'(1X,A,"(",I3,",",I3,")")')&
-!               routineN//' Sending RIGHT matrix pgrid coor ',&
-!               right_dst_prow, mypcol
-!          IF (dbg) WRITE(*,'(1X,A,I4,A,"(",I3,",",I3,") sizes",I7,I7)')&
-!               routineN//' Getting RIGHT matrix from',right_src_p,&
-!               ' pgrid coor ',right_src_prow, mypcol
-!          IF (dbg) WRITE(*,'(1X,A,I4,A,"(",I3,",",I3,") sizes",I7,I7)')&
-!               routineN//' Sending RIGHT matrix to  ',right_dst_p,&
-!               ' pgrid coor ',right_dst_prow, mypcol
-!          IF (dbg) WRITE(*,'(1X,A,2(I4,1X),A,2(I4,1X))')routineN//" Right src ",&
-!               right_src_p, all_sizes(3, 1, right_src_p),&
-!               " dst", right_dst_p,SIZE(right_matrix%data)
-!          right_data_rp => rbuffer_comm%data(1:all_sizes(3,1,right_src_p))
-!          right_index_rp => rbuffer_comm%index(1:all_sizes(4,1,right_src_p))
-!          right_data_sp => rbuffer_calc%data(1:all_sizes(3,1,right_dst_p))
-!          right_index_sp => rbuffer_calc%index(1:all_sizes(4,1,right_dst_p))
-!          IF (right_prow_i .EQ. 0) THEN
-!             CALL mp_isendrecv (right_matrix%data, right_dst_p,&
-!                  right_data_rp, right_src_p, &
-!                  mp_group, right_data_sr, right_data_rr, tag=3)
-!             CALL mp_isendrecv (right_matrix%index, right_dst_p, &
-!                  right_index_rp,  right_src_p,&
-!                  mp_group, right_index_sr, right_index_rr, tag=4)
-!          ELSE
-!             CALL mp_isendrecv (right_data_sp, right_p_send,&
-!                  right_data_rp, right_p_recv, &
-!                  mp_group, right_data_sr, right_data_rr, tag=3)
-!             CALL mp_isendrecv (right_index_sp, right_p_send, &
-!                  right_index_rp,  right_p_recv,&
-!                  mp_group, right_index_sr, right_index_rr, tag=4)
-!          ENDIF
-!       ENDIF xfer_case_right
-!       ! No calculations in the first loop
-!       calc_case_right: IF (right_prow_i .GT. 0) THEN
-!          CALL dbcsr_repoint_index (rbuffer_calc, error=error)
-!       ENDIF calc_case_right
-!       ! No waits in first loop iteration.
-!       IF (right_prow_i .GT. 0) THEN
-!          ! Now we transfer/multiply with the left matrix
-!          DO mult = 1, left_multiplicity
-!             DBG 'It', right_prow_i,'waiting for left, multiplicity', mult
-!             my_waits(3, right_prow_i) = m_walltime()
-!             CALL mp_wait (left_data_sr(mult))
-!             CALL mp_wait (left_index_sr(mult))
-!             my_waits(3, right_prow_i) = m_walltime() - my_waits(3, right_prow_i)
-!             my_waits(4, right_prow_i) = m_walltime()
-!             CALL mp_wait (left_data_rr(mult))
-!             CALL mp_wait (left_index_rr(mult))
-!             my_waits(4, right_prow_i) = m_walltime() - my_waits(4, right_prow_i)
-!          ENDDO
-!       ENDIF
-!       left_image = 1 + MOD (right_myprow, left_images)
-!       xfer_case_left: IF (right_prow_i .LT. right_nprows) THEN
-!          DO mult = 1, left_multiplicity
-!             left_src_prow = (myprow / left_images)
-!             left_src_prow = left_src_prow&
-!                  + (mult-1)*(left_nprows/left_multiplicity)
-!             left_dst_prow = (myprow / left_images)
-!             left_dst_prow = left_dst_prow&
-!                  + (mult-1)*(left_nprows/left_multiplicity)
-!             !left_dst_prow = left_src_prow
-!             !!+...left_myprow/left_multiplicity
-!             left_src_pcol = MOD ( right_prow_i&
-!                  + left_mypcol + (myprow/left_images), left_npcols)
-!             left_dst_pcol = MOD ( right_prow_i-1&
-!                  + left_mypcol + (myprow/left_images), left_npcols)
-!             !left_dst_pcol = MOD (-right_prow_i + 4*left_npcols&
-!             !     + left_mypcol - (myprow/left_images), left_npcols)
-!             IF (right_prow_i .EQ. 0) THEN
-!                left_dst_pcol = MOD (4*left_npcols&
-!                     + left_mypcol - (myprow/left_images), left_npcols)
-!             ENDIF
-!             !
-!             IF (dbg) WRITE(*,'(1X,A,I3,A,"(",I3,",",I3,")")')&
-!                  routineN//' Getting LEFT matrix image',left_image,&
-!                  ' pgrid coor ',left_src_prow, left_src_pcol
-!             IF (dbg) WRITE(*,'(1X,A,I3,A,"(",I3,",",I3,")")')&
-!                  routineN//' Sending LEFT matrix image',left_image,&
-!                  ' pgrid coor ',left_dst_prow, left_dst_pcol
-!             left_src_p = left_pgrid (left_src_prow, left_src_pcol)
-!             left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
-!             !
-!             left_p_send = left_pgrid (left_src_prow,&
-!                  MOD (left_mypcol - 1+left_npcols, left_npcols))
-!             left_p_recv = left_pgrid (left_src_prow,&
-!                  MOD (left_mypcol + 1, left_npcols))
-!             !
-!             !
-!             IF (dbg) WRITE(*,'(1X,A,I4,A,I3,A,"(",I3,",",I3,")")')&
-!                  routineN//' Getting LEFT matrix from',left_src_p,&
-!                  ' image',left_image,&
-!                  ' pgrid coor ',left_src_prow, left_src_pcol
-!             IF (dbg) WRITE(*,'(1X,A,I4,A,I3,A,"(",I3,",",I3,")")')&
-!                  routineN//' Sending LEFT matrix to  ',left_dst_p,&
-!                  ' image',left_image,&
-!                  ' pgrid coor ',left_dst_prow, left_dst_pcol
-!             IF (dbg) WRITE(*,'(1X,A,I4,A,I4,A,I4)')routineN//"  Left mult. ",&
-!                  mult," src ", left_src_p, " dst ",right_dst_p
-!             left_data_rp => lbuffer_comm%mats(mult)%data(&
-!                  1:all_sizes(1, left_image, left_src_p))
-!             left_index_rp => lbuffer_comm%mats(mult)%index(&
-!                  1:all_sizes(2, left_image, left_src_p))
-!             left_data_sp => lbuffer_calc%mats(mult)%data(&
-!                  1:all_sizes(1, left_image, left_dst_p))
-!             left_index_sp => lbuffer_calc%mats(mult)%index(&
-!                  1:all_sizes(2, left_image, left_dst_p))
-!             IF (right_prow_i .EQ. 0) THEN
-!                CALL mp_isendrecv (left_set%mats(mult)%data, left_dst_p,&
-!                     left_data_rp, left_src_p, mp_group,&
-!                     left_data_sr(mult), left_data_rr (mult), tag=1)
-!                CALL mp_isendrecv (left_set%mats(mult)%index, left_dst_p,&
-!                     left_index_rp, left_src_p, mp_group,&
-!                     left_index_sr(mult), left_index_rr (mult), tag=2)
-!             ELSE
-!                CALL mp_isendrecv (left_data_sp, left_p_send,&
-!                     left_data_rp, left_p_recv, mp_group,&
-!                     left_data_sr(mult), left_data_rr (mult), tag=1)
-!                CALL mp_isendrecv (left_index_sp, left_p_send,&
-!                     left_index_rp, left_p_recv, mp_group,&
-!                     left_index_sr(mult), left_index_rr (mult), tag=2)
-!             ENDIF
-!          ENDDO
-!       ENDIF xfer_case_left
-!       calc_case_left: IF (right_prow_i .GT. 0) THEN
-!          DO mult = 1, left_multiplicity
-!             CALL dbcsr_repoint_index (lbuffer_calc%mats(mult), error=error)
-!             tstart = m_walltime ()
-!             CALL dbcsr_nn_mult_lin(lbuffer_calc%mats(mult), rbuffer_calc,&
-!                  product_matrix, error, flop=flop_single,&
-!                  t_all=t_all, t_dgemm=t_dgemm)
-!             flop_total = flop_total + flop_single
-!             tstop = m_walltime ()
-!             IF (tstop-tstart .NE. 0 .AND. detailed_timing) THEN
-!                DBG 'Segment Local Multiplication time',tstop-tstart,'and',&
-!                     (REAL(flop_total, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
-!             ENDIF
-!             trun = trun + (tstop - tstart)
-!          ENDDO
-!       ENDIF calc_case_left
-!       CALL dbcsr_switch_sets (lbuffer_calc, lbuffer_comm)
-!       CALL dbcsr_switch_m_ptrs (rbuffer_calc, rbuffer_comm)
-!    ENDDO k_index
-!    trun_t = m_walltime () - trun_t
-!    IF (trun_t .EQ. 0) trun_t = 0.001_dp
-!    IF (dbg .AND. detailed_timing) THEN
-!       WRITE(*,'(1X,A,F9.3,A,F9.3,A,I9)')&
-!            routineN//' Total Local Multiplication time',&
-!            trun_t,' and',&
-!            (REAL(flop_total, dp)/1000000.0_dp)/trun_t,' MFLOPS',flop_total
-!    ENDIF
-!    !DO img = 1, left_images
-!    !   CALL mp_window_destroy (left_set%data_windows(img))
-!    !   CALL mp_window_destroy (left_set%index_windows(img))
-!    !ENDDO
-!    DEALLOCATE (left_set%data_windows)
-!    DEALLOCATE (left_set%index_windows)
-!    !CALL mp_window_destroy (right_data_window)
-!    !CALL mp_window_destroy (right_index_window)
-!    !
-!    CALL dbcsr_destroy (rbuffer_1, error)
-!    CALL dbcsr_destroy (rbuffer_2, error)
-!    CALL dbcsr_destroy_array (lbuffer_1, error)
-!    CALL dbcsr_destroy_array (lbuffer_2, error)
-!    DEALLOCATE (my_sizes)
-!    !
-!    !ALLOCATE (all_waits(4, 0:right_nprows, 0:numnodes-1))
-!    !CALL mp_allgather (my_waits, all_waits, mp_group)
-!    !logger => cp_error_get_logger (error)
-!    !IF (logger%para_env%mepos == logger%para_env%source) THEN
-!    !   output_unit = cp_logger_get_default_unit_nr (logger)
-!    !   WRITE(output_unit,'(A)')"Waiting times per place per step"
-!    !   DO right_prow_i = 0, right_nprows
-!    !      WRITE(output_unit,'(4(F9.4),5X,4(F9.4))')&
-!    !           (MAXVAL(all_waits(i,right_prow_i,:)), i=1, 4),&
-!    !           (SUM(all_waits(i,right_prow_i,:))/numnodes, i=1, 4)
-!    !      WRITE(*,'(A,I4)')"Step ", right_prow_i
-!    !      DO i = 0, numnodes-1
-!    !         WRITE(*,'(I4,1X,4(F9.4))')i, all_waits(:, right_prow_i, i)
-!    !      ENDDO
-!    !   ENDDO
-!    !ENDIF
-!    !
-!    !entries = btree_get_entries (product_matrix%w%tree)
-!    !CALL ensure_array_size (product_matrix%w%blk_p, ub=entries, error=error)
-!    !ALLOCATE (keys (entries))
-!    !CALL btree_delete (product_matrix%w%tree, keys, product_matrix%w%blk_p)
-!    !CALL ensure_array_size(product_matrix%w%row_i, ub=entries, error=error)
-!    !CALL ensure_array_size(product_matrix%w%col_i, ub=entries, error=error)
-!    !CALL dbcsr_unpack_i8_2i4 (keys, product_matrix%w%row_i,&
-!    !     product_matrix%w%col_i)
-!    !DEALLOCATE (keys)
-!    !CALL mp_sync (mp_group)
-!    CALL dbcsr_finalize(product_matrix, .TRUE., .FALSE., error=error)
-!    !
-!    IF (PRESENT (flop)) flop = flop_total
-!    CALL timestop (timing_handle)
-!  END SUBROUTINE dbcsr_multiply_from_left_sqpg
 
 
 ! *****************************************************************************

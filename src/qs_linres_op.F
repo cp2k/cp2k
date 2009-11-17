@@ -147,7 +147,7 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_all
+      DIMENSION(:), POINTER                  :: sab_all, sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: lr_section
@@ -181,6 +181,7 @@ CONTAINS
                     para_env=para_env, &
                     particle_set=particle_set, &
                     sab_all=sab_all,&
+                    sab_orb=sab_orb,&
                     distribution_2d=distribution_2d,&
                     error=error)
 
@@ -320,7 +321,7 @@ CONTAINS
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
     CALL cp_dbcsr_add_dist2d (op_ao(1)%matrix%m, distribution_2d, error)
-    CALL dbcsr_alloc_block_from_nbl(op_ao(1)%matrix,sab_all,error=error)
+    CALL dbcsr_alloc_block_from_nbl(op_ao(1)%matrix,sab_orb,error=error)
     CALL dbcsr_set(op_ao(1)%matrix,0.0_dp,error=error)
 
     DO idir=2,3

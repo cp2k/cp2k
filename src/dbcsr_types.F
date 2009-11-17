@@ -36,6 +36,7 @@ MODULE dbcsr_types
             dbcsr_data_obj,&
             dbcsr_data_area_type,&
             dbcsr_work_type,&
+            dbcsr_2d_array_type,&
             dbcsr_array_type,&
             dbcsr_mp_obj, dbcsr_mp_type,&
             dbcsr_distribution_obj, dbcsr_distribution_type,&
@@ -432,5 +433,16 @@ MODULE dbcsr_types
      TYPE(mp_window_type), DIMENSION(:), POINTER :: data_windows, index_windows
      TYPE(dbcsr_imagedistribution_type) :: image_dist
   END TYPE dbcsr_array_type
+
+! *****************************************************************************
+!> \brief A 2-d array of DBCSR matrices
+!> \var mats        the matrices
+!> \var data_windows, index_windows     RMA windows
+!> \var image_dist  image distribution
+! *****************************************************************************
+  TYPE dbcsr_2d_array_type
+     TYPE(dbcsr_obj), DIMENSION(:,:), POINTER :: mats
+     TYPE(dbcsr_imagedistribution_type) :: image_dist
+  END TYPE dbcsr_2d_array_type
 
 END MODULE dbcsr_types

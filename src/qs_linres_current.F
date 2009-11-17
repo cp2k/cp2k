@@ -644,8 +644,9 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, den_found, den_tr, distributed_rs_grids, &
-      do_igaim, failure, map_consistent, my_minimum_image, my_soft
+    LOGICAL :: atom_pair_changed, den_found, den_found_a, den_tr, &
+      distributed_rs_grids, do_igaim, failure, map_consistent, &
+      my_minimum_image, my_soft
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_current, my_gauge, my_rho
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
@@ -956,7 +957,7 @@ CONTAINS
                 bcol = jatom
 
                 CALL dbcsr_get_block_p(matrix=mat_a,row=brow,col=bcol,&
-                     block=jp_block_a,tr=den_tr,found=den_found)
+                     block=jp_block_a,tr=den_tr,found=den_found_a)
                 CALL dbcsr_get_block_p(matrix=mat_b,row=brow,col=bcol,&
                      block=jp_block_b,tr=den_tr,found=den_found)
                 CALL dbcsr_get_block_p(matrix=mat_c,row=brow,col=bcol,&
