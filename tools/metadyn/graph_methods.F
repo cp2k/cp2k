@@ -158,8 +158,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dp_grid, x0
     INTEGER, INTENT(IN)                      :: ndw
 
-    INTEGER                                  :: i, id, j, k, nacc, ntrials, &
-                                                pnt, iter
+    INTEGER                                  :: i, id, iter, j, k, nacc, &
+                                                ntrials, pnt
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: history
     INTEGER, DIMENSION(:), POINTER           :: pos, pos0
     INTEGER, DIMENSION(ndim)                 :: Dpos, ntrust

@@ -35,16 +35,16 @@ PROGRAM graph
   INTEGER                                  :: argcount, coor, i, id, ip, &
                                               it, iw, ix, ncount, ndim, &
                                               ndw, nf, nfes, ngauss, nh, &
-                                              nprd, nt, nt_p, nwr, stat
+                                              nprd, nt, nt_p, nwr, stat, j
   INTEGER, POINTER                         :: i_map(:), idw(:), ind(:), &
                                               inds(:), iperd(:), iprd(:), &
                                               ngrid(:), nn(:,:), nn_max(:), &
                                               tmp(:)
   LOGICAL                                  :: fix, l_cp2k, l_dp, l_fmin, &
                                               l_grid, l_math, l_orac, &
-                                              l_pmin, lstride
+                                              l_pmin, lstride, l_cpmd
   REAL(KIND=dp)                            :: diff, dp2, dum, eps_cut, ss, &
-                                              x0w(3), xfw(3)
+                                              x0w(3), xfw(3), delta_s_glob
   REAL(KIND=dp), POINTER :: delta_s(:,:), dp_cut(:), dp_grid(:), fes(:), &
     gauss(:,:), minima(:,:), ss0(:,:), tmpr(:), ww(:), x0(:), xf(:)
 
@@ -63,6 +63,7 @@ PROGRAM graph
   l_dp    = .FALSE.
   l_orac  = .FALSE.
   l_cp2k  = .FALSE.
+  l_cpmd  = .FALSE.
   l_math  = .FALSE.
   l_fmin  = .FALSE.
   l_pmin  = .FALSE.
@@ -85,6 +86,9 @@ PROGRAM graph
      WRITE(iw,*)'[-out    filename]'
      WRITE(iw,*)'[-orac]              (If energies are written in orac intern units)'
      WRITE(iw,*)'[-cp2k]              (Specify if a CP2K restart file is provided)'
+     WRITE(iw,*)'[-cpmd]              (Specify if CPMD colvar_mtd and parvar_mtd are provided)'
+     WRITE(iw,*)'                     (With CPMD you do not need to specify -file, parvar_mtd and'
+     WRITE(iw,*)'                      colvar_mtd are expected to be present in the working directory)'
      WRITE(iw,*)'[-mathlab]           (File storing FES in Mathlab format. Default format Gnuplot)'
      WRITE(iw,*)'[-find-minima]       (Tries to finds all minima in the computed FES)'
      WRITE(iw,*)'[-find-path]         (Finds MEP between all minima (found) in the computed FES)'
@@ -133,6 +137,10 @@ PROGRAM graph
         l_cp2k=.TRUE.
      ENDIF
 
+     IF (INDEX(wq_char,'-cpmd').NE.0)THEN
+        l_cpmd=.TRUE.
+     ENDIF
+
      IF (INDEX(wq_char,'-find-minima').NE.0)THEN
         l_fmin=.TRUE.
      ENDIF
@@ -145,7 +153,13 @@ PROGRAM graph
         l_math=.TRUE.
      ENDIF
   END DO
-  IF (l_cp2k) l_orac = .FALSE.
+  IF (COUNT((/l_orac,l_cp2k,l_cpmd/))/=1) &
+       STOP "Error! You've to specify either ORAC, CP2K or CPMD!!"
+
+  ! For CPMD move filename to colvar_mtd
+  IF (l_cpmd) THEN
+     file = "colvar_mtd"
+  END IF
 
   ! Initializing random numbers
   CALL RANDOM_SEED()
@@ -286,7 +300,6 @@ PROGRAM graph
         i_map(id)=ix
      ENDIF
   ENDDO
-  i_map=ndim-i_map+1
 
   ! Tag the periodic COLVAR according the new internal order
   DO id=1,nprd
@@ -311,13 +324,17 @@ PROGRAM graph
      ngrid=100
   END IF
 
+  ! Revert the order so we can perform averages (when projecting FES) more
+  ! efficiently
+  i_map=ndim-i_map+1
+
   WRITE(iw,'(/,70("*"))')
   WRITE(iw,'("FES|",T7,A,/)')"Parsing file:   <"//TRIM(file)//">"
 
   OPEN(10,file=file,status='old')
-  IF (l_cp2k) THEN
+  IF      (l_cp2k)            THEN
      CALL get_val_res(unit=10,section="&METADYN",keyword="NHILLS_START_VAL", i_val=nt)
-  ELSE
+  ELSE IF (l_orac.OR.l_cpmd)  THEN
      nt=0
      DO WHILE (.TRUE.)
         READ(10,*,END=100,ERR=100)dum
@@ -347,7 +364,7 @@ PROGRAM graph
   ALLOCATE( dp_cut(ndim)     , stat=stat )
   IF (stat/=0) STOP "Allocation Error"
 
-  IF (l_cp2k) THEN
+  IF      (l_cp2k) THEN
      CALL get_val_res(unit=10,section="&METADYN",subsection="&SPAWNED_HILLS_POS")
      DO i = 1, nt
         READ(10,*)(ss0(i_map(id),i),id=1,ndim)
@@ -360,10 +377,18 @@ PROGRAM graph
      DO i = 1, nt
         READ(10,*)ww(i)
      END DO
-  ELSE
+  ELSE IF (l_orac) THEN
      DO i = 1, nt
         READ(10,*)dum,(ss0(i_map(id),i),id=1,ndim),(delta_s(i_map(id),i),id=1,ndim),ww(i)
      END DO
+  ELSE IF (l_cpmd) THEN
+     OPEN(11,file="parvar_mtd",status='old')
+     DO i = 1, nt
+        READ(10,*)dum,(ss0(i_map(id),i),id=1,ndim)
+        READ(11,*)dum,dum,delta_s_glob,ww(i)
+        delta_s(:,i)=delta_s_glob
+     END DO
+     CLOSE(11)
   END IF
   CLOSE(10)
 
@@ -428,8 +453,9 @@ PROGRAM graph
      active_label = "(NO MAPPED)"
      IF (iperd(i)/=0) per_label = "(PERIODIC)"
      IF (it<=ndw)     active_label = "(   MAPPED)"
+     j = MINLOC((i_map-i)**2,1)
      WRITE(iw,'("FES|",T7,"COLVAR # ",i3," ::",5x,"(",f7.3," ,",f7.3,")",T48,A,T60,A)')&
-          i_map(i),x0(i),xf(i),TRIM(per_label),TRIM(active_label)
+          j,x0(i),xf(i),TRIM(per_label),TRIM(active_label)
   END DO
   WRITE(iw,'("FES|",T7,a15,5x,7i7)'   )"NGRID        ::",(ngrid(id),id=ndim,ndim-ndw+1,-1)
   WRITE(iw,'("FES|",T7,a15,5x,5f7.3)' )"DX           ::",(dp_grid(id),id=ndim,ndim-ndw+1,-1)
