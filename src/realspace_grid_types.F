@@ -1572,40 +1572,42 @@ CONTAINS
        recv_buf = 0
 
        ! do packing
-       j=0
+!$omp parallel do default(none), &
+!$omp             private(k,z,y,x), &
+!$omp             shared(pw,rs,send_tasks,send_buf,send_disps)
        DO i = 0, rs % desc % group_size - 1
           k=0
           DO z = send_tasks(i,5) , send_tasks(i,6)
              DO y = send_tasks(i,3) , send_tasks(i,4)
                 DO x = send_tasks(i,1) , send_tasks(i,2)
-                   j=j+1
                    k=k+1
-                   send_buf(j)= pw % cr3d (x,y,z)
+                   send_buf(send_disps(i) + k)= pw % cr3d (x,y,z)
                 ENDDO
              ENDDO
           ENDDO
-          CPPrecondition(send_sizes(i)==k,cp_failure_level,routineP,error,failure)
        ENDDO
+!$omp end parallel do
 
        ! do the communication
 
        CALL mp_alltoall(send_buf, send_sizes, send_disps, recv_buf, recv_sizes, recv_disps, rs % desc % group)
 
        ! do unpacking
-       j=0
+!$omp parallel do default(none), &
+!$omp             private(k,z,y,x), &
+!$omp             shared(rs,recv_tasks,recv_buf,recv_disps)
        DO i = 0, rs % desc % group_size - 1
           k=0
           DO z = recv_tasks(i,5) , recv_tasks(i,6)
              DO y = recv_tasks(i,3) , recv_tasks(i,4)
                 DO x = recv_tasks(i,1) , recv_tasks(i,2)
-                   j=j+1
                    k=k+1
-                   rs % r (x,y,z) = recv_buf(j) 
+                   rs % r (x,y,z) = recv_buf(recv_disps(i) + k) 
                 ENDDO
              ENDDO
           ENDDO
-          CPPrecondition(recv_sizes(i)==k,cp_failure_level,routineP,error,failure)
        ENDDO
+!$omp end parallel do
 
        DEALLOCATE ( send_buf, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
