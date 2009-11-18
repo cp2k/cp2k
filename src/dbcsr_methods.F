@@ -94,6 +94,8 @@ MODULE dbcsr_methods
             dbcsr_mutable_release, dbcsr_mutable_hold,&
             dbcsr_mutable_instantiated
 
+  PUBLIC :: dbcsr_modify_lock, dbcsr_modify_unlock
+
   PRIVATE
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
@@ -391,6 +393,7 @@ CONTAINS
           CALL array_release (matrix%m%col_blk_size)
           CALL dbcsr_distribution_release(matrix%m%dist)
           matrix%m%valid = .FALSE.
+!$        CALL OMP_DESTROY_LOCK (matrix%m%modification_lock)
           CALL dbcsr_init (matrix%m)
        ENDIF
     ENDIF
@@ -443,6 +446,48 @@ CONTAINS
        ENDDO column_loop
     ENDIF
   END SUBROUTINE dbcsr_mp_new
+
+! *****************************************************************************
+!> \brief Locks the DBCSR data structure for modification.
+!> \param[in,out] matrix      the matrix to lock
+! *****************************************************************************
+  SUBROUTINE dbcsr_modify_lock (matrix)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+
+    !$ CALL OMP_SET_LOCK (matrix%m%modification_lock)
+  END SUBROUTINE dbcsr_modify_lock
+
+
+! *****************************************************************************
+!> \brief Releases the modification lock on a DBCSR data structure.
+!> \param[in,out] matrix      the matrix to lock
+! *****************************************************************************
+  SUBROUTINE dbcsr_modify_unlock (matrix)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+
+    !$ CALL OMP_UNSET_LOCK (matrix%m%modification_lock)
+  END SUBROUTINE dbcsr_modify_unlock
+
+! *****************************************************************************
+!> \brief Locks the DBCSR data structure for reading.
+!> \param[in,out] matrix      the matrix to lock
+! *****************************************************************************
+  SUBROUTINE dbcsr_read_lock (matrix)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+
+    !$ CALL OMP_SET_LOCK (matrix%m%modification_lock)
+  END SUBROUTINE dbcsr_read_lock
+
+! *****************************************************************************
+!> \brief Releases the reading lock on a DBCSR data structure.
+!> \param[in,out] matrix      the matrix to lock
+! *****************************************************************************
+  SUBROUTINE dbcsr_read_unlock (matrix)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+
+    !$ CALL OMP_UNSET_LOCK (matrix%m%modification_lock)
+  END SUBROUTINE dbcsr_read_unlock
+
 
 ! *****************************************************************************
 !> \brief Marks another use of the mp_env

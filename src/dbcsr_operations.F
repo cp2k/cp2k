@@ -267,9 +267,10 @@ CONTAINS
     CALL timeset (routineN, timing_handle)
     ithread= 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
-    IF (.NOT. ASSOCIATED (product_matrix%m%wms)) THEN
-       CALL dbcsr_work_create(product_matrix, n=nthreads, error=error)
-    ENDIF
+    !IF (.NOT. ASSOCIATED (product_matrix%m%wms)) THEN
+       CALL dbcsr_work_create(product_matrix, n=nthreads, error=error,&
+            work_mutable=.FALSE.)
+    !ENDIF
     logger => cp_error_get_logger (error)
     ionode = logger%para_env%mepos == logger%para_env%source
     output_unit = 0
@@ -3635,7 +3636,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ! Now fill in the data.
     CALL dbcsr_work_create(replicated,&
             SUM(recv_count(1,:)),&
-            SUM(recv_count(2,:)))
+            SUM(recv_count(2,:)), n=1)
     !DBG 'send disps data',sd_disp
     !DBG 'send disps meta',sm_disp
     !DBG 'recv disps data',rd_disp
@@ -4448,7 +4449,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ! Now fill in the data.
     CALL dbcsr_work_create(redist,&
             SUM(recv_count(1,:)),&
-            SUM(recv_count(2,:)), work_mutable=.FALSE.)
+            SUM(recv_count(2,:)), work_mutable=.FALSE., n=1)
     !
     DBG 'send disps data',sd_disp
     DBG 'send disps meta',sm_disp
@@ -4867,7 +4868,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ! Now fill in the data.
     CALL dbcsr_work_create(desm,&
             SUM(recv_count(1,:)),&
-            SUM(recv_count(2,:)), error=error)
+            SUM(recv_count(2,:)), error=error, n=1)
     !DBG 'send disps data',sd_disp
     !DBG 'send disps meta',sm_disp
     !DBG 'recv disps data',rd_disp

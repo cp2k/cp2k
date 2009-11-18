@@ -210,7 +210,7 @@
     INTEGER                                  :: rsize, csize,&
                                                 blk, last_blk, nze, offset,&
                                                 frst_blk, stored_row,&
-                                                stored_col
+                                                stored_col, iw
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     TYPE(btree_2d_data_s)          :: data_block
     LOGICAL                                  :: stored_tr
@@ -247,13 +247,15 @@
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
+       iw = 1
+!$     iw = omp_get_thread_num ()+1
        IF (dbcsr_use_mutable (matrix%m)) THEN
-          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(1)%mutable)) THEN
-             CALL dbcsr_mutable_new(matrix%m%wms(1)%mutable,&
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
                   dbcsr_get_data_type(matrix))
           ENDIF
           CALL btree_get_s (&
-               matrix%m%wms(1)%mutable%m%btree_s,&
+               matrix%m%wms(iw)%mutable%m%btree_s,&
                make_coordinate_tuple(stored_row, stored_col),&
                data_block, found)
           IF (found) THEN
@@ -296,7 +298,7 @@
     INTEGER                                  :: rsize, csize,&
                                                 blk, last_blk, nze, offset,&
                                                 frst_blk, stored_row,&
-                                                stored_col
+                                                stored_col, iw
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     TYPE(btree_2d_data_s)          :: data_block
     LOGICAL                                  :: stored_tr
@@ -330,16 +332,18 @@
 #endif
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
+       iw = 1
+!$     iw = omp_get_thread_num()+1
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
        IF (dbcsr_use_mutable (matrix%m)) THEN
-          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(1)%mutable)) THEN
-             CALL dbcsr_mutable_new(matrix%m%wms(1)%mutable,&
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
                   dbcsr_get_data_type(matrix))
           ENDIF
           CALL btree_get_s (&
-               matrix%m%wms(1)%mutable%m%btree_s,&
+               matrix%m%wms(iw)%mutable%m%btree_s,&
                make_coordinate_tuple(stored_row, stored_col),&
                data_block, found)
           IF (found) THEN
@@ -377,7 +381,7 @@
     INTEGER                                  :: blk, csize, frst_blk, &
                                                 last_blk, nze, offset, &
                                                 rsize, stored_row,&
-                                                stored_col
+                                                stored_col, iw
     LOGICAL                                  :: stored_tr
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     TYPE(btree_2d_data_s)          :: data_block
@@ -412,18 +416,20 @@
           ENDIF
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
+       iw = 1
+!$     iw = omp_get_thread_num()+1
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
        IF (dbcsr_use_mutable (matrix%m)) THEN
           CALL btree_get_s (&
-               matrix%m%wms(1)%mutable%m%btree_s,&
+               matrix%m%wms(iw)%mutable%m%btree_s,&
                make_coordinate_tuple(stored_row, stored_col),&
                data_block, found)
           IF (found) THEN
              IF (tr .EQV. data_block%tr) THEN
                 !CALL scopy(nze,&
-                !     data_block%p(1,1) 1, block(1), 1)
+                !     data_block%p(1,1) 1, block(iw), 1)
                 block(:) = RESHAPE (data_block%p(:,:), (/SIZE(data_block%p)/))
              ELSE
                 IF (data_block%tr) CALL swap (rsize, csize)
@@ -522,7 +528,8 @@
     INTEGER                                  :: blk, col_size, frst_blk, &
                                                 last_blk, nze, offset, &
                                                 row_size, blk_p,&
-                                                stored_row, stored_col
+                                                stored_row, stored_col, i,&
+                                                iw
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found, gift, tr, tr2
     REAL(kind=real_4), DIMENSION(:,:), POINTER         :: original_block
@@ -547,11 +554,12 @@
        tr = .FALSE.
     ENDIF
     CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
+    !@@@
+    !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
+    !     cp_caller_error, routineN, "Work matrices not prepared")
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_work_create (matrix)
+       CALL dbcsr_work_create (matrix, work_mutable=.TRUE.)
        matrix%m%valid = .FALSE.
-       CALL dbcsr_mutable_new (matrix%m%wms(1)%mutable,&
-            dbcsr_get_data_type (matrix))
     ENDIF
 
     NULLIFY (data_block%p)
@@ -563,13 +571,15 @@
     ENDIF
     data_block%tr = tr
 
-    CALL btree_add_s (matrix%m%wms(1)%mutable%m%btree_s,&
+    iw = 1
+!$  iw = omp_get_thread_num()+1
+    CALL btree_add_s (matrix%m%wms(iw)%mutable%m%btree_s,&
          make_coordinate_tuple(stored_row, stored_col),&
          data_block, found, data_block2)
 
     IF (.NOT. found) THEN
-       matrix%m%wms(1)%lastblk = matrix%m%wms(1)%lastblk + 1
-       matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + row_size*col_size
+       matrix%m%wms(iw)%lastblk = matrix%m%wms(iw)%lastblk + 1
+       matrix%m%wms(iw)%datasize = matrix%m%wms(iw)%datasize + row_size*col_size
     ELSE
        IF (.NOT. gift) THEN
           DEALLOCATE (data_block%p)
@@ -604,7 +614,7 @@
       routineP = moduleN//':'//routineN
 
     TYPE(btree_2d_data_s)          :: data_block
-    INTEGER                                  :: stored_row, stored_col
+    INTEGER                                  :: stored_row, stored_col, iw
 
 !   ---------------------------------------------------------------------------
 
@@ -617,7 +627,9 @@
     stored_row = row ; stored_col = col
     tr = .FALSE.
     CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
-    CALL btree_get_s (matrix%m%wms(1)%mutable%m%btree_s,&
+    iw = 1
+!$  iw = omp_get_thread_num()+1
+    CALL btree_get_s (matrix%m%wms(iw)%mutable%m%btree_s,&
          make_coordinate_tuple(stored_row, stored_col),&
          data_block, found)
 
@@ -705,7 +717,8 @@
     INTEGER                                  :: blk, col_size, frst_blk, &
                                                 last_blk, nze, offset, &
                                                 row_size, blk_p,&
-                                                stored_row, stored_col
+                                                stored_row, stored_col,&
+                                                iw
     LOGICAL                                  :: found, tr, do_sum
     REAL(kind=real_4), DIMENSION(:), POINTER           :: block_1d
 
@@ -764,28 +777,33 @@
           ENDIF
        ENDIF
     ELSE
+       !!@@@
+       !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
+       !     cp_caller_error, routineN, "Work matrices not prepared")
        IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
           CALL dbcsr_work_create (matrix, nblks_guess=1,&
                sizedata_guess=SIZE(block))
        ENDIF
-       blk_p = matrix%m%wms(1)%datasize + 1
-       IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(1))) THEN
+       iw = 1
+!$     iw = omp_get_thread_num()+1
+       blk_p = matrix%m%wms(iw)%datasize + 1
+       IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(iw))) THEN
           IF (tr) blk_p = -blk_p
-          CALL add_work_coordinate (matrix%m%wms(1), row, col, blk_p)
-          CALL dbcsr_data_ensure_size (matrix%m%wms(1)%data_area,&
-               matrix%m%wms(1)%datasize+SIZE(block))
-          CALL addto_array (matrix%m%wms(1)%data_area, block, ABS(blk_p))
+          CALL add_work_coordinate (matrix%m%wms(iw), row, col, blk_p)
+          CALL dbcsr_data_ensure_size (matrix%m%wms(iw)%data_area,&
+               matrix%m%wms(iw)%datasize+SIZE(block))
+          CALL addto_array (matrix%m%wms(iw)%data_area, block, ABS(blk_p))
        ELSE
           ALLOCATE (data_block%p (row_size, col_size))
           data_block%p(:,:) = RESHAPE (block, (/row_size, col_size/))
           data_block%tr = tr
-          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(1)%mutable)) THEN
-             CALL dbcsr_mutable_new(matrix%m%wms(1)%mutable,&
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
                   dbcsr_get_data_type(matrix))
           ENDIF
           IF (.NOT. do_sum) THEN
              CALL btree_add_s (&
-                  matrix%m%wms(1)%mutable%m%btree_s,&
+                  matrix%m%wms(iw)%mutable%m%btree_s,&
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.TRUE.)
              IF (found) THEN
@@ -796,7 +814,7 @@
              ENDIF
           ELSE
              CALL btree_add_s (&
-                  matrix%m%wms(1)%mutable%m%btree_s,&
+                  matrix%m%wms(iw)%mutable%m%btree_s,&
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.FALSE.)
              IF (found) THEN
@@ -805,11 +823,11 @@
              ENDIF
           ENDIF
           IF (.NOT. found) THEN
-             matrix%m%wms(1)%lastblk = matrix%m%wms(1)%lastblk + 1
+             matrix%m%wms(iw)%lastblk = matrix%m%wms(iw)%lastblk + 1
           ENDIF
        ENDIF
        IF (.NOT. found) THEN
-          matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + SIZE (block)
+          matrix%m%wms(iw)%datasize = matrix%m%wms(iw)%datasize + SIZE (block)
        ELSE
        ENDIF
        matrix%m%valid = .FALSE.

@@ -46,10 +46,11 @@ MODULE dbcsr_util
        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_init, &
        dbcsr_is_initialized, dbcsr_iterator_blocks_left, &
        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_mp_group, dbcsr_mp_new, dbcsr_mp_new_transposed, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_release, dbcsr_mutable_destroy, dbcsr_mutable_init, &
-       dbcsr_mutable_instantiated, dbcsr_mutable_release, dbcsr_valid_index
+       dbcsr_modify_lock, dbcsr_modify_unlock, dbcsr_mp_group, dbcsr_mp_new, &
+       dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
+       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
+       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_array_type, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_imagedistribution_type, dbcsr_iterator, &
@@ -886,6 +887,7 @@ CONTAINS
             cp_wrong_args_error, routineP, "Invalid matrix type.")
     END SELECT
     matrix%m%matrix_type = mt
+!$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
   END SUBROUTINE dbcsr_create
 
 
@@ -957,7 +959,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iw, nw
+    INTEGER                                  :: iw, nw, ow
+    LOGICAL                                  :: wms_new, wms_realloc
+    TYPE(dbcsr_work_type), DIMENSION(:), &
+      POINTER                                :: wms
 
 !   ---------------------------------------------------------------------------
 
@@ -968,17 +973,48 @@ CONTAINS
        nw = n
     ELSE
        nw = 1
+!$     nw = omp_get_max_threads()
     ENDIF
-    CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
-         cp_caller_error, routineN, "Work matrices already exist")
+!$  CALL dbcsr_modify_lock (matrix)
+    wms_new = .NOT. ASSOCIATED (matrix%m%wms)
+    wms_realloc = .FALSE.
+    nw = 1
+!$    nw = omp_get_max_threads()
+    IF (ASSOCIATED (matrix%m%wms)) THEN
+       ow = SIZE(matrix%m%wms)
+       CALL cp_assert (ow .GE. nw, cp_warning_level,&
+            cp_internal_error, routineN,&
+            "Number of work matrices less than threads.")
+       IF (ow .LT. nw) wms_realloc = .TRUE.
+    ENDIF
     IF (PRESENT (work_mutable)) THEN
        matrix%m%work_mutable = work_mutable
     ENDIF
-    ALLOCATE (matrix%m%wms(nw))
-    DO iw = 1, nw
-       CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-            nblks_guess=nblks_guess, sizedata_guess=sizedata_guess)
-    END DO
+    IF (wms_realloc) THEN
+       ALLOCATE (wms(nw))
+       wms(1:ow) = matrix%m%wms(1:ow)
+       DEALLOCATE (matrix%m%wms)
+       matrix%m%wms => wms
+       DO iw = ow+1, nw
+          CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
+               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess)
+          IF (matrix%m%work_mutable) &
+               CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
+               dbcsr_get_data_type (matrix))
+       END DO
+    ENDIF
+    IF (wms_new) THEN
+       ALLOCATE (matrix%m%wms(nw))
+       DO iw = 1, nw
+          CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
+               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess)
+          IF (matrix%m%work_mutable) &
+               CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
+               dbcsr_get_data_type (matrix))
+       END DO
+    ENDIF
+!$OMP FLUSH (matrix)
+!$  CALL dbcsr_modify_unlock (matrix)
   END SUBROUTINE dbcsr_work_create
 
 
@@ -1155,7 +1191,8 @@ CONTAINS
     ENDIF
     IF (n .EQ. 0) THEN
        ! Just create it
-       CALL dbcsr_work_create (matrix, matrix%m%nblks, matrix%m%nze, n=nwms)
+       CALL dbcsr_work_create (matrix, matrix%m%nblks, matrix%m%nze, n=nwms,&
+            work_mutable=.FALSE.)
        CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m, nwms=nwms,&
             offset=0)
     ELSE
@@ -3677,8 +3714,11 @@ CONTAINS
     CALL timeset(routineN, timing_handle)
     DO i = 1, SIZE (matrix%wms)
        IF (.NOT. dbcsr_wm_use_mutable (matrix%wms(i))) THEN
-          CALL dbcsr_sort_indices (matrix%wms(i)%lastblk, matrix%wms(i)%row_i,&
-               matrix%wms(i)%col_i, matrix%wms(i)%blk_p)
+          IF (matrix%wms(i)%lastblk .GT. 0) THEN
+             CALL dbcsr_sort_indices (matrix%wms(i)%lastblk,&
+                  matrix%wms(i)%row_i,&
+                  matrix%wms(i)%col_i, matrix%wms(i)%blk_p)
+          ENDIF
        ENDIF
     ENDDO
     CALL timestop(timing_handle)
@@ -3929,7 +3969,8 @@ CONTAINS
     DO i = 1, nwms
        tree_based(i) = dbcsr_wm_use_mutable (matrix%wms(i))
        IF (tree_based(i)) THEN
-          IF (dbg) WRITE(*,'(1X,A,I5,A)')"Work matrix",i,"has mutable data"
+          IF (dbg) WRITE(*,'(1X,A,I5,A)')routineN//" Work matrix",i,&
+               " has mutable data"
           ! srt = .TRUE. ! Not needed because of the copy
           treesize = btree_size_d(matrix%wms(i)%mutable%m%btree_d)
           IF (dbg) WRITE(*,*)routineN//" Declared size",matrix%wms(i)%lastblk,&

@@ -24,6 +24,8 @@ MODULE dbcsr_types
                                              real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_window_type
+
+  !$ USE OMP_LIB
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -357,6 +359,7 @@ MODULE dbcsr_types
      TYPE(dbcsr_distribution_obj)       :: dist
      INTEGER                 :: refcount
      LOGICAL                 :: work_mutable
+!$   INTEGER(KIND=omp_lock_kind) :: modification_lock
   END TYPE dbcsr_type
 
   INTEGER, PARAMETER :: dbcsr_magic_number = 879546213

@@ -45,7 +45,7 @@ MODULE cp_dbcsr_operations
        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mutable_new, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
        dbcsr_valid_index
@@ -2420,7 +2420,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_block_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: c, p, r
+    INTEGER                                  :: c, ithread, p, r
     LOGICAL                                  :: dbg, existed, is_there, tr
 
 !   ---------------------------------------------------------------------------
@@ -2429,13 +2429,13 @@ CONTAINS
 
     dbg = .FALSE.
 
+    ithread = 0
+!$  ithread = omp_get_thread_num()
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_work_create (matrix)
+       CALL dbcsr_work_create (matrix, work_mutable=.TRUE.)
        matrix%m%valid = .FALSE.
-       CALL dbcsr_mutable_new (matrix%m%wms(1)%mutable,&
-            dbcsr_get_data_type (matrix))
     ENDIF
-    CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms(1)%row_i), cp_warning_level,&
+    CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms(ithread+1)%row_i), cp_warning_level,&
          cp_unimplemented_error_nr, routineN,&
          "Data loss due to no conversion of appendable to mutable data")
     is_there = ASSOCIATED(block)
@@ -2854,7 +2854,8 @@ END FUNCTION cp_dbcsr_get_id_nr
     fm_block_sp => fm%local_data_sp
 
     CALL dbcsr_work_create (bc_mat, nblks_guess=nblkrows_local*nblkcols_local,&
-         sizedata_guess=nfullrows_local*nfullcols_local, work_mutable=.FALSE.)
+         sizedata_guess=nfullrows_local*nfullcols_local, work_mutable=.FALSE.,&
+         n=1)
     blk_p = 1
     bc_rows: DO row_l = 1, nblkrows_local
        row = local_rows (row_l)

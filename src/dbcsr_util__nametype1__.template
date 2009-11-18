@@ -31,7 +31,7 @@
     CALL cp_assert ([dkind1] .EQ. matrix%m%data_type, cp_failure_level,&
          cp_caller_error, routineN, "Datatype mismatch.")
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_work_create (matrix, error=error)
+       CALL dbcsr_work_create (matrix, error=error, n=1)
     ENDIF
     row_blk_size => array_data (matrix%m%row_blk_size)
     CALL dbcsr_get_info (matrix, local_rows = local_rows,&
