@@ -2187,18 +2187,14 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: data_z
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: data_c
     INTEGER                                  :: a_blk, a_col, a_col_size, &
-                                                a_nze, a_offset, a_row, &
-                                                a_row_size, i, last_col, &
-                                                timing_handle
+                                                a_nze, a_row, a_row_size, i, &
+                                                last_col, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start, m_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: do_scale, limit_col, right, tr
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: data_r
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -2223,16 +2219,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ALLOCATE (col_end(SIZE (col_blk_size)))
        CALL convert_sizes_to_offsets(col_blk_size, col_start, col_end)
     ENDIF
-    SELECT CASE (matrix_a%m%data_type)
-    CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (matrix_a%m%data_area, data_r)
-    CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (matrix_a%m%data_area, data_d)
-    CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (matrix_a%m%data_area, data_c)
-    CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (matrix_a%m%data_area, data_z)
-    END SELECT
     !
     ! set vars
     right = .TRUE.
@@ -2290,15 +2276,13 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF(do_scale) THEN
        CALL dbcsr_iterator_start(iter, matrix_a)
        iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
-          CALL dbcsr_iterator_next_block(iter, a_row, a_col, a_blk, tr, a_offset)
-          a_row_size = row_blk_size(a_row)
-          a_col_size = col_blk_size(a_col)
+          CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_d, tr, a_blk,&
+               row_size=a_row_size, col_size=a_col_size)
           a_nze = a_row_size * a_col_size
           IF (a_nze .EQ. 0) CYCLE ! Skip empty blocks
           !
           ! let's scale
           IF(PRESENT(alpha_scalar)) THEN
-             !a_data = a_data * alpha_scalar
              SELECT CASE (dbcsr_get_data_type(matrix_a))
                 !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
@@ -2307,13 +2291,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 IF (limit_col) THEN
                    IF (col_start(a_col) .LE. last_col) THEN
                       i = MIN(last_col, col_end(a_col)) - col_start(a_col) + 1
-                      CALL dscal(a_row_size*i, alpha_scalar,&
-                           data_d(a_offset), 1)
+                      CALL dscal(a_row_size*i, alpha_scalar, data_d(1), 1)
                    ELSE
                       ! Nothing to do, the block is beyond the boundry.
                    ENDIF
                 ELSE
-                   CALL dscal(a_nze,alpha_scalar,data_d(a_offset),1)
+                   CALL dscal(a_nze,alpha_scalar,data_d(1),1)
                 ENDIF
                 !CASE (dbcsr_type_complex_4)
                 !CASE (dbcsr_type_complex_8)
@@ -2343,10 +2326,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                    !CASE (dbcsr_type_real_4)
                 CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
-                        &     1.0_dp,data_d(a_offset),a_row_size,&
+                        &     1.0_dp,data_d(1),a_row_size,&
                         &            alpha_matrix(m_offset(a_col)),a_col_size,&
                         &     0.0_dp,buff,a_row_size)
-                   CALL dcopy(a_nze,buff,1,data_d(a_offset),1)
+                   CALL dcopy(a_nze,buff,1,data_d(1),1)
                    !CASE (dbcsr_type_complex_4)
                    !CASE (dbcsr_type_complex_8)
                 CASE default
@@ -2360,9 +2343,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
                         &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
-                        &            data_d(a_offset),a_row_size,&
+                        &            data_d(1),a_row_size,&
                         &     0.0_dp,buff,a_row_size)
-                   CALL dcopy(a_nze,buff,1,data_d(a_offset),1)
+                   CALL dcopy(a_nze,buff,1,data_d(1),1)
                    !CASE (dbcsr_type_complex_4)
                    !CASE (dbcsr_type_complex_8)
                 CASE default
@@ -3158,7 +3141,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL dbcsr_iterator_start(iter, matrix_b)
 
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, blk,&
+       CALL dbcsr_iterator_next_block(iter, row, col, blk=blk,&
             row_size=row_size, col_size=col_size)
        blk_nze = row_size * col_size
        IF(row.GT.col) CALL dbcsr_remove_block(matrix_b, row, col, blk_nze, blk)
