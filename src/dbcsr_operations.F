@@ -169,6 +169,13 @@ MODULE dbcsr_operations
 
   LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
 
+  TYPE dgemm_parameters
+     CHARACTER     :: type_a, type_b, type_c
+     INTEGER       :: lrows_a, lcols_a, lrows_b, lcols_b, lrows_c, lcols_c
+     INTEGER       :: last_k, last_n
+     REAL(KIND=dp) :: alpha, beta
+     INTEGER       :: offset_a, nze_a, offset_b, nze_b, offset_c, nze_c
+  END TYPE dgemm_parameters
 
 CONTAINS
 
@@ -268,7 +275,7 @@ CONTAINS
     ithread= 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     !IF (.NOT. ASSOCIATED (product_matrix%m%wms)) THEN
-       CALL dbcsr_work_create(product_matrix, n=nthreads, error=error,&
+       CALL dbcsr_work_create(product_matrix, error=error,&
             work_mutable=.FALSE.)
     !ENDIF
     logger => cp_error_get_logger (error)
@@ -991,28 +998,24 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: beta_add = 1.0_dp, &
                                                 beta_new = 0.0_dp
 
-    CHARACTER                                :: a_type, b_type, use_a_type, &
-                                                use_b_type
+    CHARACTER                                :: a_type, b_type
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: left_data_z, right_data_z
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: left_data_c, right_data_c
-    INTEGER :: a_blk, a_col, a_col_log, a_col_size, a_col_size_logical, &
-      a_nze, a_row, a_row_l, a_row_log, a_row_size, a_row_size_logical, &
-      b_blk, b_col, b_col_size, b_col_size_logical, b_nze, b_row, b_row_size, &
-      b_row_size_logical, c_blk_p, c_blk_pt, c_col, c_col_size_logical, &
-      c_nze, c_row, c_row_size_logical, clamp_k_len, clamp_k_offset, &
-      datasize, first_k, first_row, i, ithread, j, last_k, last_row, lastblk, &
-      lda, ldb, new_blk, new_row_blks, nlda, nldb, nthreads, old_blk, &
-      old_row_begin_blk, old_size, prev_b_col, row_begin_blk, row_blk, rpt, &
-      size_c_blk_ps, stat, submat_f_col, submat_f_row, submat_l_col, &
-      submat_l_row
-    INTEGER :: use_a_col_size, use_a_col_size_logical, use_a_offset, &
-      use_a_row_size, use_a_row_size_logical, use_b_col_size, &
-      use_b_col_size_logical, use_b_offset, use_b_row_size, &
-      use_b_row_size_logical, use_c_col_size_logical, use_c_nze, &
-      use_c_offset, use_c_row_size_logical, use_lda, use_ldb, use_nlda, &
-      use_nldb
+    INTEGER :: a_blk, a_col, a_col_logical, a_col_size, a_col_size_logical, &
+      a_nze, a_offset, a_row, a_row_l, a_row_logical, a_row_size, &
+      a_row_size_logical, b_blk, b_col, b_col_logical, b_col_size, &
+      b_col_size_logical, b_nze, b_offset, b_row, b_row_logical, b_row_size, &
+      b_row_size_logical, c_blk_p, c_blk_pt, c_col, c_col_logical, &
+      c_col_size, c_col_size_logical, c_nze, c_offset, c_row_logical, &
+      c_row_size, c_row_size_logical, clamp_k_len, datasize, first_k, &
+      first_row, first_working_sp, i, ithread, j, last_k, last_row, lastblk, &
+      new_blk, new_row_blks, nthreads, old_blk, old_row_begin_blk, old_size, &
+      row_begin_blk, row_blk
+    INTEGER :: rpt, size_c_blk_ps, stack_pointer, stat, submat_f_col, &
+      submat_f_row, submat_l_col, submat_l_row, this_right_limit, &
+      timing_handle
     INTEGER(KIND=int_4)                      :: offset
-    INTEGER(KIND=int_8)                      :: coordinate, lflop
+    INTEGER(KIND=int_8)                      :: coordinate, lflop, one_flop
     INTEGER, ALLOCATABLE, DIMENSION(:) :: c_blk_ps, c_blk_ps_p, &
       left_col_blk_end, left_col_blk_start, left_row_blk_end, &
       left_row_blk_start, right_col_blk_end, right_col_blk_start
@@ -1020,15 +1023,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: left_col_blk_size, left_local_rows, &
       left_row_blk_size, new_blk_p, new_col_i, new_row_i, &
       product_col_blk_size, right_col_blk_size, right_row_blk_size
-    LOGICAL :: accumulated_data_valid, block_exists, found, keep_sparsity, &
-      left_limit_rows, limit_k, right_limit_cols, start_fresh_extent, tr_a, &
-      tr_b, tr_p, use_accumulated_data, use_tr_p
+    LOGICAL :: block_exists, found, keep_sparsity, left_limit_rows, limit_k, &
+      right_limit_cols, tr_a, tr_b, tr_p
     REAL(KIND=dp)                            :: beta, epoch, mt_t_dgemm, &
-                                                my_alpha, my_beta, use_alpha, &
-                                                use_beta, which_beta
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, product_data_d, &
-                                                right_data_d
+                                                my_alpha, my_beta, which_beta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, right_data_d
     REAL(KIND=sp), DIMENSION(:), POINTER     :: left_data_r, right_data_r
+    TYPE(dgemm_parameters), DIMENSION(16)    :: dgemm_parameter_stack
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -1040,16 +1041,10 @@ CONTAINS
        !WRITE(*,*)routineN//" Retaining sparsity!"
        keep_sparsity = .TRUE.
     END IF
-    !CALL timeset(routineN, timing_handle)
-    !!$OMP END MASTER
-    ithread = 0
-    !$ ithread = OMP_GET_THREAD_NUM ()
-    nthreads = 1
-    !$ nthreads = OMP_GET_NUM_THREADS ()
+    CALL timeset(routineN, timing_handle)
+    ithread = 0 ; nthreads = 1
+    !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     !WRITE(*,*)'Hello! I am thread',ithread
-!  write(*,*)routineN//" got data", my_beta
-!  write(*,'(10(1X,F7.2))')dbcsr_get_data_p_d (&
-!                     product%wms(ithread+1)%data_area)
     epoch = m_walltime()
     DBG "Doing NN matrix multiplication",left%name,' x ',right%name
     DBG "Pre-mult blk sizes, data", product%wms(ithread+1)%lastblk,&
@@ -1062,12 +1057,15 @@ CONTAINS
     !left_thread_dist => array_data (dbcsr_distribution_thread_dist (product%dist))
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
     ! Submatrix handling
+    CALL cp_assert (submatrix_box(1) .EQ. 0,&
+         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
+         "Limiting first row not supported")
     CALL cp_assert (submatrix_box(3) .EQ. 0,&
-         cp_warning_level, cp_unimplemented_error_nr, routineN,&
-         "Limiting first column untested")
+         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
+         "Limiting first column not supported")
     CALL cp_assert (submatrix_box(5) .EQ. 0,&
-         cp_warning_level, cp_unimplemented_error_nr, routineN,&
-         "Limiting first k untested")
+         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
+         "Limiting first k not supported")
     left_limit_rows = MAXVAL (submatrix_box(1:2)) .GT. 0
     right_limit_cols = MAXVAL (submatrix_box(3:4)) .GT. 0
     limit_k = MAXVAL (submatrix_box(5:6)) .GT. 0
@@ -1124,18 +1122,7 @@ CONTAINS
     old_size = product%wms(ithread+1)%lastblk
     mt_t_dgemm = 0.0_dp
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
-    !IF (left%nfullrows_local*right%nfullcols_local .GT.&
-    !     dbcsr_get_data_size (product%wms(ithread+1)%data_area)) THEN
-    !   !!$OMP CRITICAL
-    !   !CALL dbcsr_data_ensure_size(product%wms(ithread+1)%data_area,&
-    !   !     MAX(product%wms(ithread+1)%datasize,&
-    !   !     left%nfullrows_local*right%nfullcols_local))
-    !   !!$OMP END CRITICAL
-    !   !CALL ensure_array_size(product%wms(1)%data,&
-    !   !     ub=MAX(product%wms(1)%datasize,&
-    !   !     left%nfullrows_local*right%nfullcols_local),&
-    !   !     error=error)
-    !ENDIF
+       !
     ALLOCATE (mt_row_processing(rpnslots, left%nblkrows_total))
     ALLOCATE (new_index (4, left%nfullrows_local*right%nfullcols_local))
     ! c_blk_ps contains the block pointers in the product's current row
@@ -1154,20 +1141,18 @@ CONTAINS
     mt_t_dgemm = 0.0_dp
     lflop = 0
     old_blk = 1
-    use_accumulated_data = .FALSE.
-    accumulated_data_valid = .FALSE.
+    first_working_sp = 1
+    stack_pointer = 0
     new_blk = 0
-    start_fresh_extent = .TRUE.
     !write(*,*)ithread,':',left_thread_dist
     rpt = CEILING (REAL(left%nblkrows_local) / REAL(nthreads))
     first_row = MIN (ithread*rpt+1, left%nblkrows_local)
     last_row = MIN ((ithread+1)*rpt, left%nblkrows_local)
     !write(*,*)ithread,'Doing rows', first_row, last_row
-    !DO a_row_l = first_row, last_row
     DO a_row_l = 1, left%nblkrows_local
        a_row = left_local_rows (a_row_l)
-       !write(*,*)ithread,'testing lrow',a_row_l,a_row
-       !DO a_row = 1, left%nblkrows_total
+       a_row_logical = a_row
+       IF (dbg) WRITE(*,*)routineN//" A row", a_row
        IF (left_limit_rows) THEN
           IF (left_row_blk_start (a_row) .GT. submat_l_row .OR.&
               left_row_blk_end (a_row) .LT. submat_f_row) THEN
@@ -1182,12 +1167,8 @@ CONTAINS
                   routineN, "Submatrix must encompass complete block rows")
           ENDIF
        ENDIF
-       a_row_log = a_row
-       DBG '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
-       DBG 'A row', a_row,' with #cols=',left%row_p(a_row+1)-left%row_p(a_row)
-       a_row_size_logical = left_row_blk_size(a_row) ! stored
+       a_row_size_logical = left_row_blk_size(a_row_logical) ! stored
        c_row_size_logical = a_row_size_logical
-       !c_blk_ps(:) = 0
        row_begin_blk = new_blk+1
        IF (old_blk .LE. old_size) THEN
           DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LT. a_row)
@@ -1213,21 +1194,10 @@ CONTAINS
                   product%wms(ithread+1)%blk_p(old_blk)
              c_col = product%wms(ithread+1)%col_i(old_blk)
              found = .FALSE.
-             !IF (keep_sparsity) THEN
-             !   ! Check to see whether the block exists in the
-             !   ! sparsity pattern.
-             !   tr = .FALSE.
-             !   CALL dbcsr_get_block_index (product, a_row, a_col,&
-             !        b_row, b_col, tr, found, i)
-             !ENDIF
-             !use_block: IF (.NOT. keep_sparsity) THEN
-                c_blk_ps(c_col)&
-                     = product%wms(ithread+1)%blk_p(old_blk)
-                size_c_blk_ps = size_c_blk_ps + 1
-                c_blk_ps_p(size_c_blk_ps) = product%wms(ithread+1)%col_i(old_blk)
-             !ELSEIF (dbg) THEN
-             !   WRITE(*,*)routineN//" Skipping sparse block", a_row, c_col
-             !ENDIF use_block
+             c_blk_ps(c_col)&
+                  = product%wms(ithread+1)%blk_p(old_blk)
+             size_c_blk_ps = size_c_blk_ps + 1
+             c_blk_ps_p(size_c_blk_ps) = product%wms(ithread+1)%col_i(old_blk)
              old_blk = old_blk+1
              IF (old_blk .GT. old_size) THEN
                 old_blk = old_blk-1
@@ -1239,21 +1209,36 @@ CONTAINS
        mt_row_processing(rpslot_addoffset, a_row) = new_blk+1
        new_row_blks = 0
        DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
+          IF (left%blk_p(a_blk) .EQ. 0) THEN
+             !write(*,*)"Skipping deleted block"
+             CYCLE
+          ENDIF
           row_blk = row_begin_blk
           old_blk = old_row_begin_blk
+          a_offset = ABS (left%blk_p(a_blk))
           a_col = left%col_i(a_blk)
+          IF (dbg) WRITE(*,*)routineN//" A col", a_col,";",a_row
+          a_row_logical = a_row
+          a_col_logical = a_col
+          a_col_size_logical = left_col_blk_size(a_col_logical)
+          a_row_size = a_row_size_logical
+          a_col_size = a_col_size_logical
+          tr_a = left%blk_p(a_blk) .LT. 0
+          a_type = blas_mat_type (tr_a)
+          IF (tr_a) CALL swap (a_row_size, a_col_size)
           IF (limit_k) THEN
-             IF (left_col_blk_start (a_col) .GT. last_k .OR.&
-                 left_col_blk_end (a_col) .LT. first_k) THEN
+             IF (left_col_blk_start (a_col_logical) .GT. last_k .OR.&
+                 left_col_blk_end (a_col_logical) .LT. first_k) THEN
                 !write(*,'(A,I5,"(",I5,"-",I5,") not in ",I5,"-",I5)')&
                 !     routineN//"Skipping a col", a_col,&
                 !     left_col_blk_start (a_col), left_col_blk_end (a_col),&
                 !     first_k, last_k
                 CYCLE
              ELSE
-                i = MAX (first_k, left_col_blk_start (a_col))
-                j = MIN (last_k, left_col_blk_end (a_col))
-                clamp_k_offset = i - left_col_blk_start (a_col)
+                !i = MAX (first_k, left_col_blk_start (a_col_logical))
+                i = left_col_blk_start(a_col_logical)
+                j = MIN (last_k, left_col_blk_end (a_col_logical))
+                !clamp_k_offset = i - left_col_blk_start (a_col_logical)
                 clamp_k_len = j - i + 1
                 !write(*,'(A,I5,"(",I5,"-",I5,") not in ",I5,"-",I5)')&
                 !     routineN//"Not skipping a col", a_col,&
@@ -1262,377 +1247,179 @@ CONTAINS
                 !write(*,*)routineN//" Clamping", clamp_k_offset, clamp_k_len
              ENDIF
           ENDIF
-          a_row_log = a_row
-          a_col_log = a_col
-          a_col_size_logical = left_col_blk_size(a_col_log) !stored
-          a_row_size = a_row_size_logical
-          a_col_size = a_col_size_logical
-          lda = a_row_size
-          nlda = a_col_size
-          tr_a = .FALSE.
-          a_type = 'N'
-          DBG '---------------'
-          DBG 'A col', a_col, '=>',a_col_log
-          b_row = a_col_log
-          c_row = a_row_log
+          b_row_logical = a_col_logical
+          b_row = b_row_logical
+          c_row_logical = a_row_logical
           a_nze = a_row_size_logical * a_col_size_logical
-          !a_data => left%data(ABS(left%blk_p(a_blk))&
-          !     :ABS(left%blk_p(a_blk))+a_nze-1)
           b_row_size_logical = a_col_size_logical
           c_row_size_logical = a_row_size_logical
-          ! Handle transposed blocks.
-          IF (left%blk_p(a_blk) .LT. 0) THEN
-             CALL swap (lda, nlda)
-             a_type = 'T'
-             CALL swap (a_row_size, a_col_size)
-          ENDIF
-          ldb = b_row_size_logical
-          start_fresh_extent = .TRUE.
-          DO b_blk = right%row_p(b_row)+1, right%row_p(b_row+1)
+          DO b_blk = right%row_p(b_row_logical)+1, right%row_p(b_row_logical+1)
+             IF (right%blk_p(b_blk) .EQ. 0) THEN
+                !write(*,*)"Skipping deleted block"
+                CYCLE
+             ENDIF
              b_col = right%col_i(b_blk)
+             IF (dbg) WRITE(*,*)routineN//" B col", b_col, ";",a_row, a_col
+             b_col_logical = b_col
+             b_offset = ABS (right%blk_p(b_blk))
              IF (right_limit_cols) THEN
-                IF (right_col_blk_start (b_col) .GT. submat_l_col .OR.&
-                    right_col_blk_end (b_col) .LT. submat_f_col) THEN
+                !IF (right_col_blk_start (b_col_logical) .GT. submat_l_col .OR.&
+                !    right_col_blk_end (b_col_logical) .LT. submat_f_col) THEN
+                IF (right_col_blk_start (b_col_logical) .GT. submat_l_col) THEN
                    !WRITE(*,*)"Skipping column", b_col
                    CYCLE
+                ELSEIF (right_col_blk_end(b_col_logical) .GT. submat_l_col) THEN
+                   this_right_limit =&
+                        submat_l_col - right_col_blk_start(b_col_logical) + 1
+                ELSE
+                   this_right_limit = 0
                 ENDIF
-             ENDIF
-             c_col = b_col
-             DBG 'B col', b_col
-             b_col_size_logical = right_col_blk_size(b_col)
-             IF (right_limit_cols) THEN
-                c_col_size_logical = product_col_blk_size(c_col)
-                !write(*,*)routineN//" c_col_size_log", c_col_size_logical, b_col_size_logical
              ELSE
-                c_col_size_logical = b_col_size_logical
+                this_right_limit = 0
              ENDIF
+             c_col_logical = b_col_logical
+             b_col_size_logical = right_col_blk_size(b_col_logical)
+             c_col_size_logical = product_col_blk_size(c_col_logical)
+             c_row_size = c_row_size_logical
+             c_col_size = c_col_size_logical
+             !
              b_col_size = b_col_size_logical
              b_nze = b_row_size_logical * b_col_size_logical
-             !b_data => right%data(&
-             !     ABS(right%blk_p(b_blk)):ABS(right%blk_p(b_blk))+b_nze-1)
              tr_b = right%blk_p(b_blk) .LT. 0
              b_row_size = b_row_size_logical
-             IF (right%blk_p(b_blk) .LT. 0) THEN
-                b_type = 'T'
-                b_col_size = b_row_size_logical
-                ldb = b_col_size_logical
-                nldb = b_row_size_logical
-                b_row_size = b_col_size_logical
-                !b_col_size = b_row_size_logical
-             ELSEIF (right%blk_p(b_blk) .GT. 0) THEN
-                b_type = 'N'
-                ldb = b_row_size_logical
-                nldb = b_col_size_logical
-             ELSE
-                b_type = '0'
-                ldb = 0
-                nldb = 0
-                !CYCLE
-             ENDIF
-             ! This must be adjusted afterwards so that if tr_b, then 
-             ! b_row_size retains the full value!
-             IF (right_limit_cols) THEN
-                b_col_size_logical =&
-                     MIN (right_col_blk_end (b_col), submat_l_col) &
-                     - MAX (right_col_blk_start (b_col), submat_f_col)+1
-                !write(*,*)routineN//" b_col_size_log", b_col_size_logical
-             ENDIF
+             b_type = blas_mat_type (tr_b)
+             IF (tr_b) CALL swap (b_col_size, b_row_size)
+             !
              c_nze = c_row_size_logical * c_col_size_logical
-             offset = ABS(c_blk_ps(c_col))
-             tr_p = c_blk_ps(c_col) .LT. 0
-             IF (tr_p) use_accumulated_data = .TRUE.
-             block_exists = c_blk_ps(c_col) .NE. 0
-             DBG "Found old?", block_exists, c_blk_ps(c_col), offset
+             offset = ABS(c_blk_ps(c_col_logical))
+             tr_p = c_blk_ps(c_col_logical) .LT. 0
+             IF (tr_p) CALL swap (c_row_size, c_col_size)
+             block_exists = c_blk_ps(c_col_logical) .NE. 0
+             DBG "Found old?", block_exists, c_blk_ps(c_col_logical), offset
              ! Try to find the current coordinate in the current row index
              sparsity_enforcement: IF &
-                  (keep_sparsity .AND. .NOT. block_exists .OR. b_type.eq.'0') THEN
-                use_accumulated_data = .TRUE.
-             ELSE
-                IF (.NOT. block_exists) THEN
-                   new_blk = new_blk+1
-                   new_index(1, new_blk) = c_row
-                   new_index(2, new_blk) = c_col
-                   new_index(3, new_blk) = c_blk_pt
-                   new_index(4, new_blk) = ithread+1
-                   new_row_blks = new_row_blks + 1
-                   DBG 'Adding coordinate', c_row, c_col, c_blk_p
-                   !write(*,*)routineN//' Adding coordinate', c_row, c_col, c_blk_p
-                   offset = c_blk_pt
-                   c_blk_pt = c_blk_pt + c_nze
-                   !WRITE(*,'("(",I4,"): ",A,1X,I7)')ithread,"GOT offset", offset
-                   datasize = datasize + c_nze
-                   lastblk = lastblk + 1
-                   c_blk_ps (c_col) = offset
-                   size_c_blk_ps = size_c_blk_ps + 1
-                   c_blk_ps_p(size_c_blk_ps) = c_col
-                   which_beta = beta_new
-                   tr_p = .FALSE.
-                ELSE
-                   DBG 'Using existing coordinate at', offset, tr_p
-                   !write(*,*)routineN//' Using existing coordinate at', offset,&
-                   !     pointer_view (dbcsr_get_data_p_d (&
-                   !     product%wms(ithread+1)%data_area),&
-                   !     offset, offset+c_nze-1)
-                   which_beta = beta_add
-                ENDIF
-                !DBG 'offset:',offset,offset+c_nze-1,'of',product%w%datasize,UBOUND(product%w%data),'ex',block_exists
-                !c_data => product%w%data(offset:offset+c_nze-1)
-                !IF (dbg) WRITE(*,&
-                !     "(1X,A,A1,1X,A1,A,I6,A,F4.1,' (',I3,',',I3,')=(',I3,',',I3,')x(',I3,',',I3,')')")&
-                !                   !routineN//' DGEMM ',a_type,b_type,' at',c_blk_ps(c_col),' beta=', beta,&
-                !     routineN//' DGEMM ',a_type,b_type,' at',offset,' beta=', beta,&
-                !     c_row,c_col,a_row,a_col,b_row,b_col
-                !
-                ! If we start afresh, then set the variables.
-                new_extent: IF (start_fresh_extent) THEN
-                   use_a_type = a_type
-                   use_b_type = b_type
-                   use_a_row_size = a_row_size
-                   use_a_col_size = a_col_size
-                   use_a_row_size_logical = a_row_size_logical
-                   use_a_col_size_logical = a_col_size_logical
-                   use_b_row_size = b_row_size
-                   use_b_col_size = b_col_size
-                   use_b_row_size_logical = b_row_size_logical
-                   use_b_col_size_logical = b_col_size_logical
-                   IF (right_limit_cols) THEN
-                      use_b_col_size_logical =&
-                           MIN (right_col_blk_end (b_col), submat_l_col) &
-                           - MAX (right_col_blk_start (b_col), submat_f_col)+1
-                      use_accumulated_data = .TRUE.
-                   ENDIF
-                   IF (.NOT. limit_k) THEN
-                      use_a_col_size_logical = a_col_size_logical
-                   ELSE
-                      use_a_col_size_logical = clamp_k_len
-                   ENDIF
-                   IF (use_a_type .EQ. 'T' .AND. left%sym_negation) THEN
-                      use_alpha = -my_alpha
-                   ELSE
-                      use_alpha = my_alpha
-                   ENDIF
-                   IF (use_b_type .EQ. 'T' .AND. right%sym_negation) THEN
-                      use_alpha = -use_alpha
-                   ENDIF
-                   IF (tr_p .AND. product%sym_negation) THEN
-                      use_alpha = -use_alpha
-                   ENDIF
-                   use_a_offset = ABS (left%blk_p(a_blk))
-                   use_lda = lda
-                   use_nlda = nlda
-                   use_b_offset = ABS (right%blk_p(b_blk))
-                   use_ldb = ldb
-                   use_nldb = nldb
-                   use_beta = which_beta
-                   use_c_offset = offset
-                   use_c_nze = use_c_row_size_logical * use_c_col_size_logical
-                   use_c_col_size_logical = c_col_size_logical
-                   use_c_row_size_logical = c_row_size_logical
-                   prev_b_col = b_col
-                   use_tr_p = tr_p
-                   start_fresh_extent = .FALSE.
-                   accumulated_data_valid = .TRUE.
-                   DBG "New extent", a_row_log, b_row, b_col, ';', a_blk, b_blk
-                ELSE
-                   use_accumulated_data = .TRUE.
-                   ! Check to see whether the right matrix row extent can
-                   ! be expanded: is the previous column of the extent
-                   ! directly before the current one?
-                   IF (b_blk .LE. right%row_p(b_row+1) &
-                        .AND. prev_b_col .EQ. b_col-1 .AND. b_type .EQ. 'N') THEN
-                      use_accumulated_data = .FALSE.
-                      prev_b_col = b_col
-                      DBG "Continuing at b_col", b_col
-                   ENDIF
-                   use_b_col_size_logical = use_b_col_size_logical + b_col_size_logical
-                   use_c_col_size_logical = use_c_col_size_logical + c_col_size_logical
-                ENDIF new_extent
-                end_of_row: IF (b_blk .EQ. right%row_p(b_row+1)) THEN
-                   use_accumulated_data = .TRUE.
-                ENDIF end_of_row
+                  (keep_sparsity .AND. .NOT. block_exists) THEN
+                !use_accumulated_data = .TRUE.
+                CYCLE
              ENDIF sparsity_enforcement
-!vw this doesnt work for right sparse matrix !
-!vw   flush_dgemm: IF (use_accumulated_data) THEN
-!vw reset to true for the moment !
-             flush_dgemm: IF (accumulated_data_valid) THEN
-!vw
-!
+             IF (.NOT. block_exists) THEN
+                new_blk = new_blk+1
+                new_index(1, new_blk) = c_row_logical
+                new_index(2, new_blk) = c_col_logical
+                new_index(3, new_blk) = c_blk_pt
+                new_index(4, new_blk) = ithread+1
+                new_row_blks = new_row_blks + 1
+                DBG 'Adding coordinate', c_row_logical, c_col_logical, c_blk_p
+                offset = c_blk_pt
+                c_blk_pt = c_blk_pt + c_nze
+                datasize = datasize + c_nze
+                lastblk = lastblk + 1
+                c_blk_ps (c_col_logical) = offset
+                size_c_blk_ps = size_c_blk_ps + 1
+                c_blk_ps_p(size_c_blk_ps) = c_col_logical
+                which_beta = beta_new
+                tr_p = .FALSE.
+             ELSE
+                DBG 'Using existing coordinate at', offset, tr_p
+                which_beta = beta_add
+             ENDIF
+             c_offset = offset
+             stack_pointer = stack_pointer + 1
+             dgemm_parameter_stack(stack_pointer)%type_a = a_type
+             dgemm_parameter_stack(stack_pointer)%type_b = b_type
+             dgemm_parameter_stack(stack_pointer)%type_c = blas_mat_type(tr_p)
+             dgemm_parameter_stack(stack_pointer)%lrows_a = a_row_size_logical
+             dgemm_parameter_stack(stack_pointer)%lcols_a = a_col_size_logical
+             dgemm_parameter_stack(stack_pointer)%lrows_b = b_row_size_logical
+             dgemm_parameter_stack(stack_pointer)%lcols_b = b_col_size_logical
+             dgemm_parameter_stack(stack_pointer)%lrows_c = c_row_size_logical
+             dgemm_parameter_stack(stack_pointer)%lcols_c = c_col_size_logical
+             dgemm_parameter_stack(stack_pointer)%offset_a = a_offset
+             dgemm_parameter_stack(stack_pointer)%nze_a = a_nze
+             dgemm_parameter_stack(stack_pointer)%offset_b = b_offset
+             dgemm_parameter_stack(stack_pointer)%nze_b = b_nze
+             dgemm_parameter_stack(stack_pointer)%offset_c = c_offset
+             dgemm_parameter_stack(stack_pointer)%nze_c = c_nze
+             dgemm_parameter_stack(stack_pointer)%beta = which_beta
+             IF (.NOT. limit_k) THEN
+                dgemm_parameter_stack(stack_pointer)%last_k = a_col_size_logical
+             ELSE
+                dgemm_parameter_stack(stack_pointer)%last_k = clamp_k_len
+             ENDIF
+             IF (right_limit_cols .AND. this_right_limit.gt.0) THEN
+                dgemm_parameter_stack(stack_pointer)%last_n = this_right_limit
+             ELSE
+                dgemm_parameter_stack(stack_pointer)%last_n = b_col_size_logical
+                ! assert b_col_size_logical .eq. c_col_size_logical
+             ENDIF
+             IF (a_type .EQ. 'T' .AND. left%sym_negation) THEN
+                dgemm_parameter_stack(stack_pointer)%alpha = -my_alpha
+             ELSE
+                dgemm_parameter_stack(stack_pointer)%alpha = my_alpha
+             ENDIF
+             IF (b_type .EQ. 'T' .AND. right%sym_negation) &
+                  dgemm_parameter_stack(stack_pointer)%alpha = &
+                  -dgemm_parameter_stack(stack_pointer)%alpha
+             IF (tr_p .AND. product%sym_negation) &
+                  dgemm_parameter_stack(stack_pointer)%alpha = &
+                  -dgemm_parameter_stack(stack_pointer)%alpha
+             i = UBOUND (dgemm_parameter_stack,1)
+             i = MIN (i, 3*i/4)
+             IF (stack_pointer .GE. i) THEN
+                CALL merge_dgemm_stack(dgemm_parameter_stack,&
+                     first_working_sp, stack_pointer)
+             ENDIF
+             IF (stack_pointer .GE. i) THEN
+                IF (dbg) WRITE(*,*)routineN//" Processing stack at", stack_pointer
                 mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
-                IF (dbg) WRITE(*,&
-                     "(1X,A,A1,1X,A1,A,I6,A,F4.1)")&
-                     routineN//' DGEMM ',use_a_type,use_b_type,&
-                     ' at',use_c_offset,' beta=', use_beta
-!WRITE(*,*) 'sum A',SUM(left_data_d(use_a_offset : use_a_offset + use_a_row_size_logical*use_a_col_size_logical-1))
-!WRITE(*,*) 'sum B',SUM(right_data_d(use_b_offset : use_b_offset + use_a_col_size_logical * use_b_col_size-1))
-!WRITE(*,*) 'sum C',SUM(pointer_view (dbcsr_get_data_p_d (&
-!                            product%wms(ithread+1)%data_area),&
-!                            use_c_offset, use_c_offset+c_nze-1) )
-                product_data_d => pointer_view (dbcsr_get_data_p_d (&
-                     product%wms(ithread+1)%data_area),&
-                     use_c_offset, use_c_offset+c_nze-1)
-                ! Avoid nagging compilers
-                IF (use_beta .EQ. 0.0_dp) THEN
-                   product_data_d(1&
-                        :use_c_row_size_logical*use_c_col_size_logical) = 0.0_dp
-                ENDIF
-                IF (.NOT. use_tr_p) THEN
-                   IF (dbg) &
-                        WRITE(*,'("NRC ",A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
-                        use_a_type, use_b_type,&
-                        use_c_row_size_logical,&
-                        use_c_col_size_logical,&
-                        use_a_col_size_logical,&
-                        use_alpha,&
-                        use_a_offset, use_a_row_size,&
-                        use_b_offset, use_b_row_size, use_beta,&
-                        use_c_offset,&
-                        use_c_row_size_logical
-                   use_c_col_size_logical = MIN(&
-                        use_b_col_size_logical,&
-                        use_c_col_size_logical)
-                   IF(use_c_row_size_logical.GT.0.AND.use_c_col_size_logical.GT.0&
-                        .AND.use_a_col_size_logical.GT.0) THEN
-                   CALL DGEMM(use_a_type, use_b_type,&
-                        use_c_row_size_logical, use_c_col_size_logical,&
-                        use_a_col_size_logical,&
-                        use_alpha,&
-                        left_data_d(use_a_offset), use_a_row_size,&
-                        right_data_d(use_b_offset), use_b_row_size, use_beta,&
-                        product_data_d,&
-                        use_c_row_size_logical)
-                   ENDIF
-                ELSE
-                   !WRITE(*,*)'Flipping'
-                   CALL flip_type (use_a_type)
-                   CALL flip_type (use_b_type)
-                   use_c_col_size_logical = MIN(&
-                        use_b_col_size_logical,&
-                        use_c_col_size_logical)
-                   IF (dbg) &
-                        WRITE(*,'("TRC ",A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
-                        use_b_type, use_a_type,&
-                        use_c_col_size_logical,&
-                        use_c_row_size_logical,&
-                        use_a_col_size_logical,&
-                        use_alpha,&
-                        use_b_offset, use_b_row_size,&
-                        use_a_offset, use_a_row_size, use_beta,&
-                        use_c_offset,&
-                        use_c_col_size_logical
-                   IF(use_c_col_size_logical.GT.0.AND.use_c_row_size_logical.GT.0&
-                        .AND.use_a_col_size_logical.GT.0) THEN
-                   CALL DGEMM(use_b_type, use_a_type,&
-                        use_c_col_size_logical, use_c_row_size_logical,&
-                        use_a_col_size_logical,&
-                        !use_a_row_size_logical, use_b_col_size,&
-                        !use_a_col_size_logical,&
-                        use_alpha,&
-                        !use_alpha,&
-                        right_data_d(use_b_offset), use_b_row_size,&
-                        !left_data_d(use_a_offset), use_lda,&
-                        left_data_d(use_a_offset), use_a_row_size, use_beta,&
-                        !right_data_d(use_b_offset), use_ldb, use_beta,&
-                        product_data_d,&
-                        use_c_col_size_logical)
-                        !use_a_row_size_logical)
-                   ENDIF
-                ENDIF
+                CALL process_dgemm_stack(dgemm_parameter_stack(1:stack_pointer),&
+                     stack_pointer,&
+                     left%data_area, right%data_area,&
+                     product%wms(ithread+1)%data_area,&
+                     one_flop)
                 mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
-                lflop = lflop + INT(use_a_row_size_logical, int_8)&
-                     * INT(use_b_col_size, int_8)&
-                     * INT(use_a_col_size_logical, int_8) * INT(2, int_8)
-             ENDIF flush_dgemm
-             reset_accumulation: IF (.TRUE.) THEN
-                accumulated_data_valid = .FALSE.
-                use_accumulated_data = .FALSE.
-                use_b_col_size = 0
-                start_fresh_extent = .TRUE.
-             ENDIF reset_accumulation
+                lflop = lflop + one_flop
+                stack_pointer = 0
+                first_working_sp = 1
+             ELSE
+                !WRITE(*,*)routineN//" Skipping DGEMM"
+             ENDIF
           ENDDO ! b
-          row_reset_accumulation: IF (.TRUE.) THEN
-             accumulated_data_valid = .FALSE.
-             use_accumulated_data = .FALSE.
-             use_b_col_size = 0
-             start_fresh_extent = .TRUE.
-          ENDIF row_reset_accumulation
+          ! Conclude the row, merge everything, and prepare for the new row.
+          CALL merge_dgemm_stack(dgemm_parameter_stack,&
+               first_working_sp, stack_pointer)
+          first_working_sp = stack_pointer+1
+          !IF (stack_pointer .GT. 0) THEN
+          !   CALL merge_dgemm_stack(dgemm_parameter_stack, 1, stack_pointer)
+          !   mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
+          !   CALL process_dgemm_stack(dgemm_parameter_stack(1:stack_pointer),&
+          !        stack_pointer,&
+          !        left%data_area, right%data_area,&
+          !        product%wms(ithread+1)%data_area,&
+          !        one_flop)
+          !   mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
+          !   lflop = lflop + one_flop
+          !   stack_pointer = 0
+          !   first_working_sp = 1
+          !ENDIF
        ENDDO ! a_col
        mt_row_processing(rpslot_owner, a_row) = ithread
        mt_row_processing(rpslot_addblks, a_row) = new_row_blks
-    ENDDO ! a_row Final flush This is a copy of the flush appearing in
-    ! the main loop. They should be factored out.
-    IF (accumulated_data_valid) THEN
+    ENDDO ! a_row
+    IF (stack_pointer .GT. 0) THEN
+       IF (dbg) WRITE(*,*)routineN//" Final processing at", stack_pointer
+       !CALL merge_dgemm_stack(dgemm_parameter_stack,&
+       !     first_working_sp, stack_pointer)
        mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
-       IF (dbg) WRITE(*,&
-            "(1X,A,A1,1X,A1,A,I6,A,F4.1)")&
-            routineN//' DGEMM ',use_a_type,use_b_type,&
-            ' at',use_c_offset,' beta=', use_beta
-       product_data_d => pointer_view (dbcsr_get_data_p_d (&
-            product%wms(ithread+1)%data_area),&
-            use_c_offset, use_c_offset+c_nze-1)
-       ! Avoid nagging compilers
-       IF (use_beta .EQ. 0.0_dp) THEN
-          product_data_d(1&
-               :use_c_row_size_logical*use_c_col_size_logical) = 0.0_dp
-       ENDIF
-       IF (.NOT. use_tr_p) THEN
-          IF (dbg) &
-               WRITE(*,'("NRC ",A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
-               use_a_type, use_b_type,&
-               use_c_row_size_logical,&
-               use_c_col_size_logical,&
-               use_a_col_size_logical,&
-               use_alpha,&
-               use_a_offset, use_a_row_size,&
-               use_b_offset, use_b_row_size, use_beta,&
-               use_c_offset,&
-               use_c_row_size_logical
-          use_c_col_size_logical = MIN(&
-               use_b_col_size_logical,&
-               use_c_col_size_logical)
-          CALL DGEMM(use_a_type, use_b_type,&
-               use_c_row_size_logical, use_c_col_size_logical,&
-               use_a_col_size_logical,&
-               use_alpha,&
-               left_data_d(use_a_offset), use_a_row_size,&
-               right_data_d(use_b_offset), use_b_row_size, use_beta,&
-               product_data_d,&
-               use_c_row_size_logical)
-       ELSE
-          CALL flip_type (use_a_type)
-          CALL flip_type (use_b_type)
-          IF (dbg) &
-               WRITE(*,'("TRC ",A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
-               use_b_type, use_a_type,&
-               use_c_col_size_logical,&
-               use_c_row_size_logical,&
-               use_a_col_size_logical,&
-               use_alpha,&
-               use_b_offset, use_b_row_size,&
-               use_a_offset, use_a_row_size, use_beta,&
-               use_c_offset,&
-               use_c_col_size_logical
-          use_c_col_size_logical = MIN(&
-               use_b_col_size_logical,&
-               use_c_col_size_logical)
-          CALL DGEMM(use_b_type, use_a_type,&
-               use_c_col_size_logical, use_c_row_size_logical,&
-               use_a_col_size_logical,&
-               !use_a_row_size_logical, use_b_col_size,&
-               !use_a_col_size_logical,&
-               use_alpha,&
-               !use_alpha,&
-               right_data_d(use_b_offset), use_b_row_size,&
-               !left_data_d(use_a_offset), use_lda,&
-               left_data_d(use_a_offset), use_a_row_size, use_beta,&
-               !right_data_d(use_b_offset), use_ldb, use_beta,&
-               product_data_d,&
-               use_c_col_size_logical)
-          !use_a_row_size_logical)
-       ENDIF
+       CALL process_dgemm_stack(dgemm_parameter_stack(1:stack_pointer),&
+            stack_pointer,&
+            left%data_area, right%data_area,&
+            product%wms(ithread+1)%data_area,&
+            one_flop)
        mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
-       lflop = lflop + INT(use_a_row_size_logical, int_8)&
-            * INT(use_b_col_size, int_8)&
-            * INT(use_a_col_size_logical, int_8) * INT(2, int_8)
+       lflop = lflop + one_flop
+       stack_pointer = 0
+       first_working_sp = 1
     ENDIF
     !
     DEALLOCATE (c_blk_ps, c_blk_ps_p)
@@ -1681,25 +1468,245 @@ CONTAINS
     t_all = t_all + (m_walltime() - epoch)
     t_dgemm = t_dgemm + mt_t_dgemm
     !WRITE(*,*)'Goodbye! I am thread',ithread
-    !!$OMP MASTER
-    !CALL timestop(timing_handle)
-    !!$OMP END MASTER
-    !!$BARRIER
+    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_nn_mult_lin
 
 
-  elemental SUBROUTINE flip_type (t)
-    CHARACTER, INTENT(INOUT)                 :: t
+  SUBROUTINE merge_dgemm_stack(params, first, n)
+    INTEGER, INTENT(INOUT)                   :: n, first
+    TYPE(dgemm_parameters), DIMENSION(1:n), &
+      INTENT(INOUT)                          :: params
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'merge_dgemm_stack', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: f, last, sp
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+
+    last = n
+    f = first
+    IF (dbg) WRITE(*,*)routineN//" merge attempt",first,"to",last
+    DO sp = last, f+1, -1
+       IF (dbg) THEN
+          WRITE(*,*)routineN//" testing merge of", sp, sp-1
+          CALL print_dgemm_parameters(params(sp))
+          CALL print_dgemm_parameters(params(sp-1))
+       ENDIF
+       IF (params(sp-1)%type_b .EQ. 'N'.AND. params(sp)%type_b .EQ. 'N' &
+            .AND. params(sp-1)%type_c .EQ. 'N' .AND. params(sp)%type_c .EQ. 'N'&
+            .AND. params(sp-1)%beta .EQ. params(sp)%beta &
+            .AND. params(sp-1)%alpha .EQ. params(sp)%alpha &
+            .AND. params(sp-1)%lcols_b .EQ. params(sp-1)%last_n &
+            .AND. params(sp-1)%lcols_c .EQ. params(sp-1)%last_n &
+            .AND. params(sp-1)%offset_b + params(sp-1)%nze_b .EQ. params(sp)%offset_b &
+            .AND. params(sp-1)%offset_c + params(sp-1)%nze_c .EQ. params(sp)%offset_c) THEN
+          IF (dbg) WRITE(*,*)routineN//" Merging into:"
+          params(sp-1)%last_n = params(sp-1)%last_n + params(sp)%last_n
+          params(sp-1)%lcols_b = params(sp-1)%lcols_b + params(sp)%lcols_b
+          params(sp-1)%lcols_c = params(sp-1)%lcols_c + params(sp)%lcols_c
+          params(sp-1)%nze_b = params(sp-1)%nze_b + params(sp)%nze_b
+          params(sp-1)%nze_c = params(sp-1)%nze_c + params(sp)%nze_c
+          params(sp)%type_c = '0'
+          IF (dbg) CALL print_dgemm_parameters(params(sp-1))
+          IF (n .GE. first) THEN
+             n = n - 1
+          ENDIF
+       ELSE
+          first = MAX(first, sp)
+          IF (dbg) WRITE(*,*)routineN//" New first is ",first
+       ENDIF
+    ENDDO
+    IF (dbg) WRITE(*,*)routineN//" The new first and n are ",first, n
+  END SUBROUTINE merge_dgemm_stack
+
+
+
+  SUBROUTINE process_dgemm_stack(params, n,&
+       left_data_area, right_data_area, product_data_area, lflop)
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(dgemm_parameters), DIMENSION(1:n), &
+      INTENT(IN)                             :: params
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: left_data_area, &
+                                                right_data_area
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: product_data_area
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: lflop
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'process_dgemm_stack', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: c, lda, ldb, ldc, r, sp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, product_data_d, &
+                                                right_data_d
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+
+    IF (PRESENT (lflop)) lflop = INT(0, int_8)
+    DO sp = 1, n
+       IF (dbg) WRITE(*,*)routineN//" Stack pointer", sp
+       IF (dbg) CALL print_dgemm_parameters(params(sp))
+       IF (params(sp)%type_c .EQ. '0') THEN
+          IF (dbg) WRITE(*,*)routineN//" Skipping", sp
+          CYCLE
+       ENDIF
+       IF (params(sp)%nze_c .EQ. 0&
+            .or.params(sp)%nze_a .EQ. 0&
+            .or.params(sp)%nze_b .EQ. 0) THEN
+          IF (dbg) WRITE(*,*)routineN//" Skipping empty blocks"
+          CYCLE
+       ENDIF
+       product_data_d => pointer_view (dbcsr_get_data_p_d (&
+            product_data_area),&
+            params(sp)%offset_c,&
+            params(sp)%offset_c+params(sp)%nze_c-1)
+       left_data_d => pointer_view (dbcsr_get_data_p_d (&
+            left_data_area),&
+            params(sp)%offset_a,&
+            params(sp)%offset_a+params(sp)%nze_a-1)
+       right_data_d => pointer_view (dbcsr_get_data_p_d (&
+            right_data_area),&
+            params(sp)%offset_b,&
+            params(sp)%offset_b+params(sp)%nze_b-1)
+       ! Avoid nagging compilers
+       IF (params(sp)%beta .EQ. 0.0_dp) THEN
+          IF (params(sp)%type_c .EQ. 'N'&
+               .OR. params(sp)%last_n .EQ. params(sp)%lcols_c) THEN
+             product_data_d(1&
+                  :params(sp)%lrows_c*params(sp)%last_n) = 0.0_dp
+          ELSE
+             ! It must be transposed.
+             FORALL (r = 1:params(sp)%lrows_c, c = 1:params(sp)%last_n)
+                product_data_d((r-1)*params(sp)%lcols_c+c) = 0.0_dp
+             END FORALL
+          ENDIF
+       ENDIF
+       IF (params(sp)%type_c .EQ. 'N') THEN
+          IF (dbg) &
+               WRITE(*,'("DGN",A,1X,A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
+               params(sp)%type_c,&
+               params(sp)%type_a, params(sp)%type_b,&
+               params(sp)%lrows_c, params(sp)%last_n,& !m, n
+               params(sp)%last_k,& ! k
+               params(sp)%alpha,&
+               params(sp)%offset_a, params(sp)%nze_a,&
+               params(sp)%offset_b, params(sp)%nze_b,&
+               params(sp)%beta,&
+               params(sp)%offset_c, params(sp)%nze_c
+          lda = select_n_or_t (params(sp)%type_a,&
+               params(sp)%lrows_a, params(sp)%lcols_a)
+          ldb = select_n_or_t (params(sp)%type_b,&
+               params(sp)%lrows_b, params(sp)%lcols_b)
+          ldc = select_n_or_t (params(sp)%type_c,&
+               params(sp)%lrows_c, params(sp)%lcols_c)
+          CALL DGEMM(params(sp)%type_a, params(sp)%type_b,&
+               params(sp)%lrows_c, params(sp)%last_n,& !m, n
+               params(sp)%last_k,& ! k
+               params(sp)%alpha,&
+               left_data_d, lda,&
+               right_data_d, ldb,&
+               params(sp)%beta,&
+               product_data_d, ldc)
+          IF (PRESENT (lflop)) &
+               lflop = lflop + INT(2, int_8) * &
+               INT(params(sp)%lrows_c &
+               * params(sp)%last_n * params(sp)%last_k, int_8)
+       ELSE
+          IF (dbg) &
+               WRITE(*,'("DGT",A,1X,A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
+               params(sp)%type_c,&
+               flip_type(params(sp)%type_a),&
+               flip_type(params(sp)%type_b),&
+               params(sp)%last_n, params(sp)%lcols_c,& !m, n (switched)
+               params(sp)%last_k,& ! k
+               params(sp)%alpha,&
+               params(sp)%offset_a, params(sp)%nze_a,&
+               params(sp)%offset_b, params(sp)%nze_b,&
+               params(sp)%beta,&
+               params(sp)%offset_c, params(sp)%nze_c
+          lda = select_n_or_t (params(sp)%type_a,&
+               params(sp)%lcols_a, params(sp)%lrows_a)
+          ldb = select_n_or_t (params(sp)%type_b,&
+               params(sp)%lcols_b, params(sp)%lrows_b)
+          ldc = select_n_or_t (params(sp)%type_c,&
+               params(sp)%lcols_c, params(sp)%lrows_c)
+          CALL DGEMM(flip_type(params(sp)%type_a),&
+               flip_type(params(sp)%type_b),&
+               params(sp)%last_n, params(sp)%lcols_c,& !m, n (switched)
+               params(sp)%last_k,& ! k
+               params(sp)%alpha,&
+               right_data_d, ldb,&
+               left_data_d, lda,&
+               params(sp)%beta,&
+               product_data_d, ldc)
+          IF (PRESENT (lflop)) &
+               lflop = lflop + INT(2, int_8) * &
+               INT(params(sp)%last_n &
+               * params(sp)%lcols_c * params(sp)%last_k, int_8)
+       ENDIF
+    ENDDO
+  END SUBROUTINE process_dgemm_stack
+
+  SUBROUTINE print_dgemm_parameters(params)
+    TYPE(dgemm_parameters), INTENT(in)       :: params
+
+    WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+         "DGEMM PARAMETERS",&
+         params%type_c,&
+         params%type_a, params%type_b,&
+         params%lrows_a, params%lcols_a,&
+         params%lrows_b, params%lcols_b,&
+         params%lrows_c, params%lcols_c,&
+         params%last_k, params%last_n,&
+         params%alpha, params%beta,&
+         params%offset_a, params%nze_a,&
+         params%offset_b, params%nze_b,&
+         params%offset_c, params%nze_c
+   END SUBROUTINE print_dgemm_parameters
+
+
+
+  ELEMENTAL FUNCTION blas_mat_type (t)
+    LOGICAL, INTENT(IN)                      :: t
+    CHARACTER                                :: blas_mat_type
+
+    IF (t) THEN
+       blas_mat_type = 'T'
+    ELSE
+       blas_mat_type = 'N'
+    ENDIF
+  END FUNCTION blas_mat_type
+
+
+  ELEMENTAL FUNCTION flip_type (t)
+    CHARACTER, INTENT(IN)                    :: t
+    CHARACTER                                :: flip_type
 
     SELECT CASE (t)
     CASE ('N')
-       t = 'T'
+       flip_type = 'T'
     CASE ('T')
-       t = 'N'
+       flip_type = 'N'
     CASE DEFAULT
-       t = '@'
+       flip_type = '@'
     END SELECT
-  END SUBROUTINE flip_type
+  END FUNCTION flip_type
+
+  ELEMENTAL FUNCTION select_n_or_t (t, n1, n2) RESULT (val)
+    CHARACTER, INTENT(in)                    :: t
+    INTEGER, INTENT(in)                      :: n1, n2
+    INTEGER                                  :: val
+
+    IF (t .EQ. 'N') THEN
+       val = n1
+    ELSE
+       val = n2
+    ENDIF
+  END FUNCTION select_n_or_t
 
 
 ! *****************************************************************************

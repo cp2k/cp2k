@@ -1799,10 +1799,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_block_size = 32
 
     INTEGER :: bin, blk_layer, element_stack, els, estimated_blocks, &
-      max_block_size = 32, max_blocks_per_bin, max_elements_per_bin, &
-      max_elements_per_block, nblks, stat
+      max_blocks_per_bin, max_elements_per_bin, max_elements_per_block, &
+      nblks, stat
     INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
 
     DEBUG_HEADER
