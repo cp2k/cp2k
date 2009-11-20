@@ -14,7 +14,8 @@ MODULE hfx_energy_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: cite_reference,&
-                                             guidon2008, guidon2009
+                                             guidon2008,&
+                                             guidon2009
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
@@ -409,19 +410,6 @@ MODULE hfx_energy_potential
     cache_size = memory_parameter%cache_size
     bits_max_val = memory_parameter%bits_max_val
 
-    maxval_container       => actual_x_data%maxval_container(1)
-    maxval_cache           => actual_x_data%maxval_cache(1)
-
-    integral_containers    => actual_x_data%integral_containers(:,1)
-    integral_caches        => actual_x_data%integral_caches(:,1)
-
-    maxval_container_disk       => actual_x_data%maxval_container_disk
-    maxval_cache_disk           => actual_x_data%maxval_cache_disk
-
-    integral_containers_disk    => actual_x_data%integral_containers_disk
-    integral_caches_disk        => actual_x_data%integral_caches_disk
-
-
     basis_parameter   => actual_x_data%basis_parameter
     basis_info        => actual_x_data%basis_info
 
@@ -660,6 +648,15 @@ MODULE hfx_energy_potential
     use_disk_storage = .FALSE.
     counter = 0_int_8
     do_disk_storage = memory_parameter%do_disk_storage
+    IF (do_disk_storage ) THEN
+      maxval_container_disk       => actual_x_data%maxval_container_disk
+      maxval_cache_disk           => actual_x_data%maxval_cache_disk
+
+      integral_containers_disk    => actual_x_data%integral_containers_disk
+      integral_caches_disk        => actual_x_data%integral_caches_disk
+    END IF
+
+
     IF(geometry_did_change) THEN
      memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter) 
     END IF
@@ -1024,12 +1021,13 @@ MODULE hfx_energy_potential
 !$OMP END MASTER
 !$OMP BARRIER
 
+    IF( my_bin_size > 0 ) THEN
+      maxval_container       => actual_x_data%maxval_container(1)
+      maxval_cache           => actual_x_data%maxval_cache(1)
 
-    maxval_container       => actual_x_data%maxval_container(1)
-    maxval_cache           => actual_x_data%maxval_cache(1)
-
-    integral_containers    => actual_x_data%integral_containers(:,1)
-    integral_caches        => actual_x_data%integral_caches(:,1)
+      integral_containers    => actual_x_data%integral_containers(:,1)
+      integral_caches        => actual_x_data%integral_caches(:,1)
+    END IF
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1627,18 +1625,6 @@ MODULE hfx_energy_potential
       CALL timestop(handle_bin)
 !$OMP END MASTER
     END DO !bin
-
-!    IF( .NOT. geometry_did_change) THEN
-!      my_process_id = para_env%mepos*n_threads + i_thread
-!      DO bin = 1,my_bin_size
-!        write(my_process_id + 10000, '(I8,I8,I16,2F12.6,I16)') my_process_id ,bin, &
-!                  actual_x_data%distribution_energy(bin)%istart,&
-!                  actual_x_data%distribution_energy(bin)%time_first_scf,&
-!                  actual_x_data%distribution_energy(bin)%time_other_scf,&
-!                  actual_x_data%distribution_energy(bin)%cost
-!      END DO
-!    END IF
-
 
 
 !$OMP BARRIER

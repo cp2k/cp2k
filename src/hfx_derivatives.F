@@ -758,11 +758,13 @@ MODULE hfx_derivatives
 !$OMP BARRIER
 
     IF(treat_forces_in_core) THEN
-      maxval_container       => actual_x_data%maxval_container_forces(1)
-      maxval_cache           => actual_x_data%maxval_cache_forces(1)
+      IF(my_bin_size > 0 ) THEN
+        maxval_container       => actual_x_data%maxval_container_forces(1)
+        maxval_cache           => actual_x_data%maxval_cache_forces(1)
 
-      integral_containers    => actual_x_data%integral_containers_forces(:,1)
-      integral_caches        => actual_x_data%integral_caches_forces(:,1)
+        integral_containers    => actual_x_data%integral_containers_forces(:,1)
+        integral_caches        => actual_x_data%integral_caches_forces(:,1)
+      END IF
     END IF
 
 
