@@ -1728,7 +1728,7 @@ CONTAINS
           ! let's copy the block
           pkd_vec(row) = pkd_vec(nblkrows_total+1)
           pkd_vec(nblkrows_total+1) = pkd_vec(nblkrows_total+1) + nze
-          IF(SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)) &
+          IF(SIZE(pkd_vec).LT.INT(pkd_vec(nblkrows_total+1))-1) &
                CALL stop_program(routineN,"SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)")
           CALL dcopy(nze,data_p(1),1,pkd_vec(INT(pkd_vec(row))),1)
        ENDDO
@@ -1748,7 +1748,7 @@ CONTAINS
           ! let's copy the block
           pkd_vec(col) = pkd_vec(nblkrows_total+1)
           pkd_vec(nblkrows_total+1) = pkd_vec(nblkrows_total+1) + nze
-          IF(SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)) &
+          IF(SIZE(pkd_vec).LT.INT(pkd_vec(nblkrows_total+1))-1) &
                CALL stop_program(routineN,"SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)")
           CALL dcopy(nze,data_p(1),1,pkd_vec(INT(pkd_vec(col))),1)
        ENDDO
