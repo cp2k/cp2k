@@ -16,7 +16,7 @@ MODULE hfx_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE bibliography,                    ONLY: cite_reference,&
-                                             guidon2008
+                                             guidon2008, guidon2009
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              plane_distance,&
@@ -476,6 +476,7 @@ MODULE hfx_types
 
     failure = .FALSE.
     CALL cite_reference(Guidon2008)
+    CALL cite_reference(Guidon2009)
     !! There might be 2 hf sections
     CALL section_vals_get(hfx_section,n_repetition=n_rep_hf,error=error)
     n_threads = 1

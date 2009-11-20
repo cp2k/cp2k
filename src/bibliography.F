@@ -55,7 +55,7 @@ MODULE bibliography
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
-             Ceriotti2009
+             Ceriotti2009,Guidon2009
 
 CONTAINS
 
@@ -1759,6 +1759,28 @@ CONTAINS
          "UT ISI:000244117400046",&
          "ER"),&
          DOI="10.1103/PhysRevLett.102.020601")
+
+    CALL add_reference(key=Guidon2009, ISI_record=s2a(&
+         "AU Guidon, M",&
+         "   Hutter, J",&
+         "   VandeVondele, J",&
+         "AF Guidon, Manuel",&
+         "   Hutter, Juerg",&
+         "   VandeVondele, Joost",&
+         "TI Robust Periodic Hartree-Fock Exchange for Large-Scale Simulations Using",&
+         "   Gaussian Basis Sets",&
+         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+         "SN 1549-9618",&
+         "PD NOV",&
+         "PY 2009",&
+         "VL 5",&
+         "IS 11",&
+         "BP 3010",&
+         "EP 3021",&
+         "DI 10.1021/ct900494g",&
+         "UT ISI:000271522500011",&
+         "ER"),&
+          DOI="10.1021/ct900494g")
 
   END SUBROUTINE add_all_references
 

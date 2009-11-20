@@ -14,7 +14,7 @@ MODULE hfx_energy_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: cite_reference,&
-                                             guidon2008
+                                             guidon2008, guidon2009
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
@@ -280,6 +280,7 @@ MODULE hfx_energy_potential
     rho_ao=>rho%rho_ao
 
     CALL cite_reference(Guidon2008)
+    CALL cite_reference(Guidon2009)
 
     ! ** This is not very clean, but effective. ispin can only be 2 if we do the beta spin part in core
     IF( ispin == 2 ) geometry_did_change = .FALSE.
