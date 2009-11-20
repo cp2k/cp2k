@@ -16,7 +16,8 @@ MODULE hfx_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE bibliography,                    ONLY: cite_reference,&
-                                             guidon2008, guidon2009
+                                             guidon2008,&
+                                             guidon2009
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              plane_distance,&

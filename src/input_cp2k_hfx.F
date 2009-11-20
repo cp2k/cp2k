@@ -10,7 +10,8 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE input_cp2k_hfx
-  USE bibliography,                    ONLY: Guidon2008, Guidon2009
+  USE bibliography,                    ONLY: Guidon2008,&
+                                             Guidon2009
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
