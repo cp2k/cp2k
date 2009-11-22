@@ -76,7 +76,7 @@ CONTAINS
     CHARACTER(len=2)                         :: elem
     CHARACTER(LEN=default_string_length)     :: pstring
     INTEGER                                  :: i, i1, i2, ielem, is, jd, jf, &
-                                                jp, js, k, l, mult, n
+                                                jp, js, k, l, mult, n, no
     LOGICAL                                  :: failure
     REAL(Kind=dp)                            :: e0, el, oo
 
@@ -87,52 +87,64 @@ CONTAINS
     CPPrecondition(ASSOCIATED(ostring),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ostring) > 0,cp_failure_level,routineP,error,failure)
 
+    no = SIZE(ostring)
+
     is = 1
     ! look for multiplicity
     mult = -1 !not specified
-    IF ( INDEX(ostring(is),"(") /= 0 ) THEN
-      i1 = INDEX(ostring(is),"(")
-      i2 = INDEX(ostring(is),")")
-      CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,error,failure)
-      elem = ostring(is)(i1+1:i2-1)
-      IF ( INDEX(elem,"HS") /= 0 ) THEN
-        mult=-2 !High spin
-      ELSE IF ( INDEX(elem,"LS") /= 0 ) THEN
-        mult=-3 !Low spin
-      ELSE
-        READ(elem,*) mult
+    IF ( is <= no ) THEN
+      IF ( INDEX(ostring(is),"(") /= 0 ) THEN
+        i1 = INDEX(ostring(is),"(")
+        i2 = INDEX(ostring(is),")")
+        CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,error,failure)
+        elem = ostring(is)(i1+1:i2-1)
+        IF ( INDEX(elem,"HS") /= 0 ) THEN
+          mult=-2 !High spin
+        ELSE IF ( INDEX(elem,"LS") /= 0 ) THEN
+          mult=-3 !Low spin
+        ELSE
+          READ(elem,*) mult
+        END IF
+        is=is+1
       END IF
-      is=is+1
     END IF
 
-    IF ( INDEX(ostring(is),"CORE") /= 0 ) is = is+1   !Pseudopotential detected
-    IF ( INDEX(ostring(is),"none") /= 0 ) is = is+1   !no electrons, used with CORE
-    IF ( INDEX(ostring(is),"[") /= 0 ) THEN
-      ! core occupation from element [XX]
-      i1 = INDEX(ostring(is),"[")
-      i2 = INDEX(ostring(is),"]")
-      CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,error,failure)
-      elem = ostring(is)(i1+1:i2-1)
-      ielem=0
-      DO k=1,nelem
-        IF(elem==ptable(k)%symbol) THEN
-          ielem=k
-          EXIT
-        END IF
-      END DO
-      CPAssert(ielem /= 0,cp_failure_level,routineP,error,failure)
-      DO l=0,3
-        el = 2._dp * (2._dp*REAL(l,dp) + 1._dp)
-        e0 = ptable(ielem)%e_conv(l)
-        DO k=1,10
-          occupation(l,k) = MIN(el,e0)
-          e0 = e0 - el
-          IF ( e0 <= 0._dp ) EXIT
-        END DO
-      END DO
-      is = is+1
+    IF ( is <= no ) THEN
+      IF ( INDEX(ostring(is),"CORE") /= 0 ) is = is+1   !Pseudopotential detected
     END IF
-    DO i=is,SIZE(ostring)
+    IF ( is <= no ) THEN
+      IF ( INDEX(ostring(is),"none") /= 0 ) is = is+1   !no electrons, used with CORE
+    END IF
+    IF ( is <= no ) THEN
+      IF ( INDEX(ostring(is),"[") /= 0 ) THEN
+        ! core occupation from element [XX]
+        i1 = INDEX(ostring(is),"[")
+        i2 = INDEX(ostring(is),"]")
+        CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,error,failure)
+        elem = ostring(is)(i1+1:i2-1)
+        ielem=0
+        DO k=1,nelem
+          IF(elem==ptable(k)%symbol) THEN
+            ielem=k
+            EXIT
+          END IF
+        END DO
+        CPAssert(ielem /= 0,cp_failure_level,routineP,error,failure)
+          DO l=0,3
+          el = 2._dp * (2._dp*REAL(l,dp) + 1._dp)
+          e0 = ptable(ielem)%e_conv(l)
+          DO k=1,10
+            occupation(l,k) = MIN(el,e0)
+            e0 = e0 - el
+            IF ( e0 <= 0._dp ) EXIT
+          END DO
+        END DO
+        is = is+1
+      END IF
+
+    END IF
+
+    DO i=is,no
       pstring = ostring(i)
       CALL uppercase(pstring)
       js = INDEX(pstring,"S")
