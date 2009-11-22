@@ -1025,8 +1025,8 @@ CONTAINS
       product_col_blk_size, right_col_blk_size, right_row_blk_size
     LOGICAL :: block_exists, found, keep_sparsity, left_limit_rows, limit_k, &
       right_limit_cols, tr_a, tr_b, tr_p
-    REAL(KIND=dp)                            :: beta, epoch, mt_t_dgemm, &
-                                                my_alpha, my_beta, which_beta
+    REAL(KIND=dp)                            :: epoch, mt_t_dgemm, my_alpha, &
+                                                my_beta, which_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, right_data_d
     REAL(KIND=sp), DIMENSION(:), POINTER     :: left_data_r, right_data_r
     TYPE(dgemm_parameters), DIMENSION(16)    :: dgemm_parameter_stack
