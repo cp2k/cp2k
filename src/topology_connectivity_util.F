@@ -8,13 +8,15 @@
 !> \par History
 !>     jgh (23-05-2004) Last atom of molecule information added
 ! *****************************************************************************
+
 MODULE topology_connectivity_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
   USE input_constants,                 ONLY: do_conn_g87,&
                                              do_conn_g96,&
-                                             do_ff_charmm
+                                             do_ff_charmm,&
+                                             do_ff_harmonic
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length
@@ -22,7 +24,7 @@ MODULE topology_connectivity_util
   USE molecule_kind_types,             ONLY: &
        allocate_molecule_kind_set, atom_type, bend_type, bond_type, &
        get_molecule_kind, impr_type, molecule_kind_type, onfo_type, &
-       set_molecule_kind, torsion_type, ub_type
+       opbend_type, set_molecule_kind, torsion_type, ub_type
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
                                              get_molecule,&
                                              local_molecule_type,&
@@ -49,6 +51,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief topology connectivity pack
+!> \History 11/2009 (Louis Vanduyhuys): added Out of Plane bends based on
+!>                                      impropers in topology
 ! *****************************************************************************
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
        topology,subsys_section,error)
@@ -88,6 +92,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
+    TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
@@ -100,7 +105,7 @@ CONTAINS
       output_unit= cp_logger_get_default_unit_nr(logger)
     ELSE
       output_unit = -1
-    END IF    
+    END IF
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
@@ -410,7 +415,7 @@ CONTAINS
        END IF
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + ibond*SIZE(molecule_kind%molecule_list)
-       
+
        ALLOCATE(bond_list(ibond),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ibond = 0
@@ -1030,6 +1035,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 14. Set the molecule_kind%[nimpr,impr_list] via set_molecule_kind
+    !     Also set the molecule_kind%[nopbend,opbend_list]
     !-----------------------------------------------------------------------------
     ! Allocate c_var_a, c_var_b, c_var_c, c_var_d, c_var_type
     CALL timeset(routineN//"_14_pre",handle2)
@@ -1115,41 +1121,56 @@ CONTAINS
     CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1, error)
     CALL find_bnd_typ(topology%nmol_type, map_cvars, map_cvar_mol, bnd_ctype, nvar2, error)
     DO i=1,topology%nmol_type
-       intra_imprs = 0
-       inter_imprs = 0
+       intra_imprs  = 0
+       inter_imprs  = 0
        IF (ALL(bnd_type(:,i)>0)) THEN
-          intra_imprs = bnd_type(2,i)-bnd_type(1,i)+1
+          intra_imprs  = bnd_type(2,i)-bnd_type(1,i)+1
        END IF
        IF (ALL(bnd_ctype(:,i)>0)) THEN
-          inter_imprs = bnd_ctype(2,i)-bnd_ctype(1,i)+1
+          inter_imprs  = bnd_ctype(2,i)-bnd_ctype(1,i)+1
        END IF
-       iimpr = intra_imprs+inter_imprs
+       iimpr   = intra_imprs+inter_imprs
        IF(iw>0) THEN
           WRITE(iw,*) "    Total number of imprs for molecule type ",i," :",iimpr
           WRITE(iw,*) "    intra (imprs inside  molecules) :: ",intra_imprs
           WRITE(iw,*) "    inter (imprs between molecules) :: ",inter_imprs
+          WRITE(iw,*) "    Total number of opbends for molecule type ",i," :",iimpr
+          WRITE(iw,*) "    intra (opbends inside  molecules) :: ",intra_imprs
+          WRITE(iw,*) "    inter (opbends between molecules) :: ",inter_imprs
        END IF
        molecule_kind => molecule_kind_set(i)
        nval_tot2 = nval_tot2 + iimpr*SIZE(molecule_kind%molecule_list)
        ALLOCATE(impr_list(iimpr),STAT=stat)
+       ALLOCATE(opbend_list(iimpr),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       iimpr = 0
+       iimpr  = 0
        DO j=bnd_type(1,i),bnd_type(2,i)
           IF (j==0) CYCLE
-          iimpr = iimpr + 1
+          iimpr  = iimpr + 1
           jind  = map_vars(j)
           first = first_list(map_atom_mol(conn_info%impr_a(jind)))
           impr_list(iimpr)%a=conn_info%impr_a(jind)-first+1
           impr_list(iimpr)%b=conn_info%impr_b(jind)-first+1
           impr_list(iimpr)%c=conn_info%impr_c(jind)-first+1
           impr_list(iimpr)%d=conn_info%impr_d(jind)-first+1
-          ! Set by default id_type to charmm and modify when handling the forcefield
+          ! Atom sequence for improper is A B C D in which A is central atom,
+          ! B is deviating atom and C & D are secondairy atoms. Atom sequence for
+          ! opbend is B D C A in which A is central atom, B is deviating. Hence
+          ! to create an opbend out of an improper, B and D need to be interchanged.
+          opbend_list(iimpr)%a=conn_info%impr_b(jind)-first+1
+          opbend_list(iimpr)%b=conn_info%impr_d(jind)-first+1
+          opbend_list(iimpr)%c=conn_info%impr_c(jind)-first+1
+          opbend_list(iimpr)%d=conn_info%impr_a(jind)-first+1
+          ! Set by default id_type of improper to charmm and modify when handling the forcefield
           impr_list(iimpr)%id_type = do_ff_charmm
+          ! Set by default id_type of opbend to harmonic and modify when handling the forcefield
+          opbend_list(iimpr)%id_type = do_ff_harmonic
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
              impr_list(iimpr)%itype   = conn_info%impr_type(jind)
           END IF
           !point this to the right impr_kind_type if using force field
           NULLIFY(impr_list(iimpr)%impr_kind)
+          NULLIFY(opbend_list(iimpr)%opbend_kind)
           IF(iw>0) THEN
              WRITE(iw,'(7X,A,I3,1X,A,I4,I4,I4,I4,1X,A,I4,I4,I4,I4)') &
                   "molecule_kind",i,"intra IMPR",&
@@ -1162,6 +1183,17 @@ CONTAINS
                   conn_info%impr_b(jind)-first+1,&
                   conn_info%impr_c(jind)-first+1,&
                   conn_info%impr_d(jind)-first+1
+             WRITE(iw,'(7X,A,I3,1X,A,I4,I4,I4,I4,1X,A,I4,I4,I4,I4)') &
+                  "molecule_kind",i,"intra OPBEND",&
+                  conn_info%impr_b(jind),&
+                  conn_info%impr_d(jind),&
+                  conn_info%impr_c(jind),&
+                  conn_info%impr_a(jind),&
+                  "offset number at",&
+                  conn_info%impr_b(jind)-first+1,&
+                  conn_info%impr_d(jind)-first+1,&
+                  conn_info%impr_c(jind)-first+1,&
+                  conn_info%impr_a(jind)-first+1
           END IF
        END DO
        DO j=bnd_ctype(1,i),bnd_ctype(2,i)
@@ -1174,13 +1206,20 @@ CONTAINS
           impr_list(iimpr)%b=c_var_b(jind)-first+1
           impr_list(iimpr)%c=c_var_c(jind)-first+1
           impr_list(iimpr)%d=c_var_d(jind)-first+1
-          ! Set by default id_type to charmm and modify when handling the forcefield
+          opbend_list(iimpr)%a=c_var_b(jind)-first+1
+          opbend_list(iimpr)%b=c_var_d(jind)-first+1
+          opbend_list(iimpr)%c=c_var_c(jind)-first+1
+          opbend_list(iimpr)%d=c_var_a(jind)-first+1
+          ! Set by default id_type of improper to charmm and modify when handling the forcefield
           impr_list(iimpr)%id_type = do_ff_charmm
+          ! Set by default id_type of opbend to harmonic and modify when handling the forcefield
+          opbend_list(iimpr)%id_type = do_ff_harmonic
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
              impr_list(iimpr)%itype   = c_var_type(jind)
           END IF
-          !point this to the right impr_kind_type if using force field
+          !point this to the right impr_kind_type and opbend_kind_type if using force field
           NULLIFY(impr_list(iimpr)%impr_kind)
+          NULLIFY(opbend_list(iimpr)%opbend_kind)
           IF(iw>0) THEN
              WRITE(iw,'(7X,A,I3,1X,A,I4,I4,I4,I4,1X,A,I4,I4,I4,I4)') &
                   "molecule_kind",i,"inter IMPR",&
@@ -1193,10 +1232,23 @@ CONTAINS
                   c_var_b(jind)-first+1,&
                   c_var_c(jind)-first+1,&
                   c_var_d(jind)-first+1
+             WRITE(iw,'(7X,A,I3,1X,A,I4,I4,I4,I4,1X,A,I4,I4,I4,I4)') &
+                  "molecule_kind",i,"inter OPBEND",&
+                  c_var_b(jind),&
+                  c_var_d(jind),&
+                  c_var_c(jind),&
+                  c_var_a(jind),&
+                  "offset number at",&
+                  c_var_b(jind)-first+1,&
+                  c_var_d(jind)-first+1,&
+                  c_var_c(jind)-first+1,&
+                  c_var_a(jind)-first+1
           END IF
        END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             nimpr=SIZE(impr_list),impr_list=impr_list)
+       CALL set_molecule_kind(molecule_kind=molecule_kind,&
+            nopbend=SIZE(opbend_list),opbend_list=opbend_list)
     END DO
     CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,error,failure)
     DEALLOCATE(map_var_mol,stat=stat)

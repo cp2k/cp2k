@@ -26,10 +26,11 @@ MODULE force_fields_all
   USE force_field_types,               ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
        allocate_impr_kind_set, allocate_onfo_kind_set, &
-       allocate_torsion_kind_set, allocate_ub_kind_set, amber_info_type, &
-       bend_kind_type, bond_kind_type, charmm_info_type, force_field_type, &
-       gromos_info_type, impr_kind_type, input_info_type, onfo_kind_type, &
-       torsion_kind_type, ub_kind_type
+       allocate_opbend_kind_set, allocate_torsion_kind_set, &
+       allocate_ub_kind_set, amber_info_type, bend_kind_type, bond_kind_type, &
+       charmm_info_type, force_field_type, gromos_info_type, impr_kind_type, &
+       input_info_type, onfo_kind_type, opbend_kind_type, torsion_kind_type, &
+       ub_kind_type
   USE input_constants,                 ONLY: do_ff_amber,&
                                              do_ff_charmm,&
                                              do_ff_g87,&
@@ -45,8 +46,8 @@ MODULE force_fields_all
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        bend_type, bond_type, get_molecule_kind, impr_type, &
-       molecule_kind_type, onfo_type, set_molecule_kind, shell_type, &
-       torsion_type, ub_type
+       molecule_kind_type, onfo_type, opbend_type, set_molecule_kind, &
+       shell_type, torsion_type, ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE pair_potential,                  ONLY: get_nonbond_storage,&
@@ -89,12 +90,14 @@ MODULE force_fields_all
             force_field_unique_ub,&
             force_field_unique_tors,&
             force_field_unique_impr,&
+            force_field_unique_opbend,&
             force_field_unique_onfo,&
             force_field_pack_bond,&
             force_field_pack_bend,&
             force_field_pack_ub,&
             force_field_pack_tors,&
             force_field_pack_impr,&
+            force_field_pack_opbend,&
             force_field_pack_ch,&
             force_field_pack_shell,&
             force_field_pack_sbe,&
@@ -645,10 +648,10 @@ CONTAINS
                      ((name_atm_b)==(name_atm_b2)) .AND. &
                      ((name_atm_c)==(name_atm_c2)) .AND. &
                      ((name_atm_d)==(name_atm_d2))) .OR. &
-                     (((name_atm_a)==(name_atm_d2)) .AND. &
-                     ((name_atm_b)==(name_atm_c2)) .AND. &
-                     ((name_atm_c)==(name_atm_b2)) .AND. &
-                     ((name_atm_d)==(name_atm_a2))) ) THEN
+                     (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2)) .AND. &
+                     ((name_atm_c)==(name_atm_d2)) .AND. &
+                     ((name_atm_d)==(name_atm_c2))) ) THEN
                    found = .TRUE.
                    map_impr_kind(j) = map_impr_kind(k)
                    EXIT
@@ -674,6 +677,133 @@ CONTAINS
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_unique_impr
+
+! *****************************************************************************
+!> \brief Determine the number of unique opbend kind and allocate opbend_kind_set
+!>        based on the present impropers. With each improper, there also
+!>        corresponds a opbend
+! *****************************************************************************
+  SUBROUTINE force_field_unique_opbend (particle_set, &
+       molecule_kind_set, molecule_set, ff_type, error)
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_opbend', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length) :: name_atm_a, name_atm_a2, &
+      name_atm_b, name_atm_b2, name_atm_c, name_atm_c2, name_atm_d, &
+      name_atm_d2
+    INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
+                                                counter, first, handle2, i, &
+                                                j, k, last, natom, nopbend, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    INTEGER, POINTER                         :: map_opbend_kind(:)
+    LOGICAL                                  :: failure, found
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(opbend_kind_type), DIMENSION(:), &
+      POINTER                                :: opbend_kind_set
+    TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle2)
+    DO i=1,SIZE(molecule_kind_set)
+       molecule_kind => molecule_kind_set(i)
+       CALL get_molecule_kind(molecule_kind=molecule_kind,&
+            molecule_list=molecule_list,&
+            natom=natom,&
+            nopbend=nopbend,opbend_list=opbend_list)
+       molecule=>molecule_set(molecule_list(1))
+       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+       IF(nopbend>0) THEN
+          ALLOCATE(map_opbend_kind(nopbend),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          counter=0
+         IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
+          DO j=1,nopbend
+            map_opbend_kind(j)=j
+          END DO
+          counter=nopbend
+         ELSE
+          DO j=1,nopbend
+             atm_a = opbend_list(j)%a
+             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  name=name_atm_a)
+             atm_b = opbend_list(j)%b
+             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  name=name_atm_b)
+             atm_c = opbend_list(j)%c
+             atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  name=name_atm_c)
+             atm_d = opbend_list(j)%d
+             atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  name=name_atm_d)
+             found = .FALSE.
+             DO k=1,j-1
+                atm_a = opbend_list(k)%a
+                atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                     name=name_atm_a2)
+                atm_b = opbend_list(k)%b
+                atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                     name=name_atm_b2)
+                atm_c = opbend_list(k)%c
+                atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                     name=name_atm_c2)
+                atm_d = opbend_list(k)%d
+                atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+                CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                     name=name_atm_d2)
+                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2)) .AND. &
+                     ((name_atm_c)==(name_atm_c2)) .AND. &
+                     ((name_atm_d)==(name_atm_d2))) .OR. &
+                     (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_c2)) .AND. &
+                     ((name_atm_c)==(name_atm_b2)) .AND. &
+                     ((name_atm_d)==(name_atm_d2))) ) THEN
+                   found = .TRUE.
+                   map_opbend_kind(j) = map_opbend_kind(k)
+                   EXIT
+                END IF
+             END DO
+             IF(.NOT.found) THEN
+                counter=counter+1
+                map_opbend_kind(j) = counter
+             END IF
+          END DO
+         END IF
+         NULLIFY(opbend_kind_set)
+         CALL allocate_opbend_kind_set(opbend_kind_set,counter,error)
+         DO j=1,nopbend
+            opbend_list(j)%opbend_kind => opbend_kind_set(map_opbend_kind(j))
+         END DO
+         CALL set_molecule_kind(molecule_kind=molecule_kind,&
+              opbend_kind_set=opbend_kind_set,opbend_list=opbend_list)
+         DEALLOCATE(map_opbend_kind,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END DO
+    CALL timestop(handle2)
+
+  END SUBROUTINE force_field_unique_opbend
 
 ! *****************************************************************************
 !> \brief Determine the number of unique onfo kind and allocate onfo_kind_set
@@ -1631,22 +1761,22 @@ CONTAINS
           IF(ASSOCIATED(inp_info%impr_a)) THEN
              DO k=1,SIZE(inp_info%impr_a)
                 IF( ((inp_info%impr_a(k))==(name_atm_a)) .AND. &
-                    ((inp_info%impr_d(k))==(name_atm_d)) .AND. &
+                    ((inp_info%impr_b(k))==(name_atm_b)) .AND. &
                     ((((inp_info%impr_c(k))==(name_atm_c)) .AND. &
-                     ((inp_info%impr_b(k))==(name_atm_b))) .OR. &
-                    (((inp_info%impr_c(k))==(name_atm_b)) .AND. &
-                     ((inp_info%impr_b(k))==(name_atm_c)))) ) THEN
+                     ((inp_info%impr_d(k))==(name_atm_d))) .OR. &
+                    (((inp_info%impr_c(k))==(name_atm_d)) .AND. &
+                     ((inp_info%impr_d(k))==(name_atm_c)))) ) THEN
                    impr_list(j)%impr_kind%id_type = inp_info%impr_kind(k)
                    impr_list(j)%impr_kind%k       = inp_info%impr_k(k)
                    IF ( ((inp_info%impr_c(k))==(name_atm_c)) .AND. &
-                      ((inp_info%impr_b(k))==(name_atm_b)) ) THEN
+                      ((inp_info%impr_d(k))==(name_atm_d)) ) THEN
                      impr_list(j)%impr_kind%phi0    = inp_info%impr_phi0(k)
                    ELSE
                      impr_list(j)%impr_kind%phi0    = -inp_info%impr_phi0(k)
                      ! alternative solutions:
-                     !  - swap impr_list(j)%c with impr_list(j)%b and
-                     !    name_atom_c with name_atom_b and
-                     !    atm_c with atm_b
+                     !  - swap impr_list(j)%c with impr_list(j)%d and
+                     !    name_atom_c with name_atom_d and
+                     !    atm_c with atm_d
                      !  - introduce impr_list(j)%impr_kind%sign. if one, the
                      !    sign of phi is not changed in mol_force.f90. if minus
                      !    one, the sign of phi is changed in mol_force.f90
@@ -1665,7 +1795,7 @@ CONTAINS
              CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
                                        atm2=TRIM(name_atm_b),&
                                        atm3=TRIM(name_atm_c),&
-                                       atm4=TRIM(name_atm_c),&
+                                       atm4=TRIM(name_atm_d),&
                                        type_name="Improper",&
                                        array=Ainfo,&
                                        error=error)
@@ -1688,6 +1818,138 @@ CONTAINS
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_impr
+
+! *****************************************************************************
+!> \brief Pack in opbend information needed for the force_field.
+!>        No loop over params for charmm, amber and gromos since these force
+!>        fields have no opbends
+!> \author Louis Vanduyfhuys
+! *****************************************************************************
+  SUBROUTINE force_field_pack_opbend (particle_set, molecule_kind_set, molecule_set, &
+       Ainfo, inp_info, error)
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: Ainfo
+    TYPE(input_info_type), POINTER           :: inp_info
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_opbend', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b, &
+                                                name_atm_c, name_atm_d
+    INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
+                                                first, handle2, i, j, k, &
+                                                last, natom, nopbend
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    LOGICAL                                  :: failure, found, only_qm
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
+
+    CALL timeset(routineN,handle2)
+    failure = .FALSE.
+
+    DO i=1,SIZE(molecule_kind_set)
+       molecule_kind => molecule_kind_set(i)
+       CALL get_molecule_kind(molecule_kind=molecule_kind,&
+            molecule_list=molecule_list,&
+            natom=natom,&
+            nopbend=nopbend,opbend_list=opbend_list)
+       molecule=>molecule_set(molecule_list(1))
+
+       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
+       DO j=1,nopbend
+          atm_a = opbend_list(j)%a
+          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               name=name_atm_a)
+          atm_b = opbend_list(j)%b
+          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               name=name_atm_b)
+          atm_c = opbend_list(j)%c
+          atomic_kind => particle_set(atm_c+first-1)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               name=name_atm_c)
+          atm_d = opbend_list(j)%d
+          atomic_kind => particle_set(atm_d+first-1)%atomic_kind
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               name=name_atm_d)
+          found = .FALSE.
+          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
+          CALL uppercase(name_atm_a)
+          CALL uppercase(name_atm_b)
+          CALL uppercase(name_atm_c)
+          CALL uppercase(name_atm_d)
+
+          ! always have the input param last to overwrite all the other ones
+          IF(ASSOCIATED(inp_info%opbend_a)) THEN
+             DO k=1,SIZE(inp_info%opbend_a)
+                IF( ((inp_info%opbend_a(k))==(name_atm_a)) .AND. &
+                    ((inp_info%opbend_d(k))==(name_atm_d)) .AND. &
+                    ((((inp_info%opbend_c(k))==(name_atm_c)) .AND. &
+                     ((inp_info%opbend_b(k))==(name_atm_b))) .OR. &
+                    (((inp_info%opbend_c(k))==(name_atm_b)) .AND. &
+                     ((inp_info%opbend_b(k))==(name_atm_c)))) ) THEN
+                   opbend_list(j)%opbend_kind%id_type = inp_info%opbend_kind(k)
+                   opbend_list(j)%opbend_kind%k       = inp_info%opbend_k(k)
+                   IF ( ((inp_info%opbend_c(k))==(name_atm_c)) .AND. &
+                      ((inp_info%opbend_b(k))==(name_atm_b)) ) THEN
+                     opbend_list(j)%opbend_kind%phi0    = inp_info%opbend_phi0(k)
+                   ELSE
+                     opbend_list(j)%opbend_kind%phi0    = -inp_info%opbend_phi0(k)
+                     ! alternative solutions:
+                     !  - swap opbend_list(j)%c with opbend_list(j)%b and
+                     !    name_atom_c with name_atom_b and
+                     !    atm_c with atm_b
+                     !  - introduce opbend_list(j)%opbend_kind%sign. if one, the
+                     !    sign of phi is not changed in mol_force.f90. if minus
+                     !    one, the sign of phi is changed in mol_force.f90
+
+                   END IF
+                   CALL issue_duplications(found,routineP, "Out of plane bend", name_atm_a, name_atm_b,&
+                        name_atm_c,name_atm_d, error=error)
+                   found = .TRUE.
+                   EXIT
+                END IF
+             END DO
+          END IF
+
+          IF(.NOT.found) THEN
+             CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
+                                       atm2=TRIM(name_atm_b),&
+                                       atm3=TRIM(name_atm_c),&
+                                       atm4=TRIM(name_atm_d),&
+                                       type_name="Out of plane bend",&
+                                       array=Ainfo,&
+                                       error=error)
+             opbend_list(j)%opbend_kind%k       = 0.0_dp
+             opbend_list(j)%opbend_kind%phi0    = 0.0_dp
+             opbend_list(j)%opbend_kind%id_type = do_ff_undef
+             opbend_list(j)%id_type             = do_ff_undef
+          END IF
+          !
+          ! QM/MM modifications
+          !
+          IF (only_qm) THEN
+             opbend_list(j)%opbend_kind%id_type = do_ff_undef
+             opbend_list(j)%id_type             = do_ff_undef
+          END IF
+
+       END DO
+       CALL set_molecule_kind(molecule_kind=molecule_kind,opbend_list=opbend_list)
+    END DO
+    CALL timestop(handle2)
+
+  END SUBROUTINE force_field_pack_opbend
 
 ! *****************************************************************************
 !> \brief Set up atomic_kind_set()%elp_potentail%qeff (PART 2) and shell potential
@@ -3001,6 +3263,21 @@ CPSourceFileRef,&
          ((atm1==my_atm1).AND.(atm2==my_atm4).AND.(atm3==my_atm2).AND.(atm4==my_atm3)).OR.&
          ((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm4).AND.(atm4==my_atm3)))&
          found = .TRUE.
+
+            CASE("Out of plane bend")
+                IF (INDEX(array(i)(21:39),"Out of plane bend")==0) CYCLE
+                my_atm1 = array(i)(41:44)
+                my_atm2 = array(i)(46:49)
+                my_atm3 = array(i)(51:54)
+                my_atm4 = array(i)(56:59)
+                CALL compress(my_atm1,.TRUE.)
+                CALL compress(my_atm2,.TRUE.)
+                CALL compress(my_atm3,.TRUE.)
+                CALL compress(my_atm4,.TRUE.)
+    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
+         ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm4)))&
+         found = .TRUE.
+
              CASE("Charge")
                 IF (INDEX(array(i)(21:39),"Charge")==0)   CYCLE
                 my_atm1 = array(i)(41:44)

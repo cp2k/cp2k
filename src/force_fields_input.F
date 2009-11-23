@@ -87,7 +87,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nimpr, &
-      nipbv, nlj, nshell, ntersoff, ntors, ntot, nubs, nwl
+      nipbv, nlj, nopbend, nshell, ntersoff, ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure, &
                                                 unique_spline
     REAL(KIND=dp)                            :: min_eps_spline_allowed
@@ -363,6 +363,22 @@ CPSourceFileRef,&
           CALL reallocate(inp_info%impr_phi0,1,nimpr)
           CALL read_improper_section(inp_info%impr_kind,inp_info%impr_a, inp_info%impr_b,&
                inp_info%impr_c,inp_info%impr_d,inp_info%impr_k,inp_info%impr_phi0,&
+               tmp_section, ntot, error )
+       END IF
+
+       tmp_section => section_vals_get_subs_vals(ff_section,"OPBEND",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nopbend,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%opbend_kind,1,nopbend)
+          CALL reallocate(inp_info%opbend_a,1,nopbend)
+          CALL reallocate(inp_info%opbend_b,1,nopbend)
+          CALL reallocate(inp_info%opbend_c,1,nopbend)
+          CALL reallocate(inp_info%opbend_d,1,nopbend)
+          CALL reallocate(inp_info%opbend_k,1,nopbend)
+          CALL reallocate(inp_info%opbend_phi0,1,nopbend)
+          CALL read_opbend_section(inp_info%opbend_kind,inp_info%opbend_a, inp_info%opbend_b,&
+               inp_info%opbend_c,inp_info%opbend_d,inp_info%opbend_k,inp_info%opbend_phi0,&
                tmp_section, ntot, error )
        END IF
     END IF
@@ -1340,6 +1356,48 @@ CPSourceFileRef,&
        CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=impr_phi0(start+isec),error=error)
     END DO
   END SUBROUTINE read_improper_section
+
+! *****************************************************************************
+!> \brief Reads the OPBEND section
+!> \author louis vanduyfhuys
+! *****************************************************************************
+  SUBROUTINE read_opbend_section(opbend_kind,opbend_a, opbend_b, opbend_c, opbend_d, opbend_k,&
+       opbend_phi0, section, start, error )
+    INTEGER, DIMENSION(:), POINTER           :: opbend_kind
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: opbend_a, opbend_b, opbend_c, &
+                                                opbend_d
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: opbend_k, opbend_phi0
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_opbend_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    NULLIFY( atm_names)
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,i_val=opbend_kind(start+isec),error=error)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       opbend_a(start+isec) = atm_names(1)
+       opbend_b(start+isec) = atm_names(2)
+       opbend_c(start+isec) = atm_names(3)
+       opbend_d(start+isec) = atm_names(4)
+       CALL uppercase(opbend_a(start+isec))
+       CALL uppercase(opbend_b(start+isec))
+       CALL uppercase(opbend_c(start+isec))
+       CALL uppercase(opbend_d(start+isec))
+       CALL section_vals_val_get(section,"K",i_rep_section=isec,r_val=opbend_k(start+isec),error=error)
+       CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=opbend_phi0(start+isec),error=error)
+    END DO
+  END SUBROUTINE read_opbend_section
 
 ! *****************************************************************************
 !> \brief Reads the force_field input section

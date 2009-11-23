@@ -29,20 +29,22 @@ MODULE force_fields_util
                                              fist_nonbond_env_type
   USE force_field_types,               ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
-       allocate_impr_kind_set, allocate_torsion_kind_set, &
-       allocate_ub_kind_set, amber_info_type, bend_kind_type, bond_kind_type, &
-       charmm_info_type, deallocate_bend_kind_set, deallocate_bond_kind_set, &
-       force_field_type, gromos_info_type, impr_kind_dealloc_ref, &
-       impr_kind_type, input_info_type, torsion_kind_dealloc_ref, &
+       allocate_impr_kind_set, allocate_opbend_kind_set, &
+       allocate_torsion_kind_set, allocate_ub_kind_set, amber_info_type, &
+       bend_kind_type, bond_kind_type, charmm_info_type, &
+       deallocate_bend_kind_set, deallocate_bond_kind_set, force_field_type, &
+       gromos_info_type, impr_kind_dealloc_ref, impr_kind_type, &
+       input_info_type, opbend_kind_type, torsion_kind_dealloc_ref, &
        torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
   USE force_fields_all,                ONLY: &
        force_field_pack_bend, force_field_pack_bond, force_field_pack_ch, &
-       force_field_pack_impr, force_field_pack_onfo, force_field_pack_pp, &
-       force_field_pack_ppse, force_field_pack_sbe, force_field_pack_shell, &
-       force_field_pack_sne, force_field_pack_tors, force_field_pack_ub, &
-       force_field_unique_bend, force_field_unique_bond, &
+       force_field_pack_impr, force_field_pack_onfo, force_field_pack_opbend, &
+       force_field_pack_pp, force_field_pack_ppse, force_field_pack_sbe, &
+       force_field_pack_shell, force_field_pack_sne, force_field_pack_tors, &
+       force_field_pack_ub, force_field_unique_bend, force_field_unique_bond, &
        force_field_unique_impr, force_field_unique_onfo, &
-       force_field_unique_tors, force_field_unique_ub
+       force_field_unique_opbend, force_field_unique_tors, &
+       force_field_unique_ub
   USE input_constants,                 ONLY: do_ff_undef
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -53,7 +55,8 @@ MODULE force_fields_util
   USE molecule_kind_types,             ONLY: &
        atom_type, bend_type, bond_type, colvar_constraint_type, &
        g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
-       impr_type, molecule_kind_type, set_molecule_kind, torsion_type, ub_type
+       impr_type, molecule_kind_type, opbend_type, set_molecule_kind, &
+       torsion_type, ub_type
   USE molecule_types_new,              ONLY: molecule_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
@@ -185,48 +188,61 @@ CONTAINS
          ff_type, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 6. Determine the number of unique onfo kind and allocate onfo_kind_set
+    ! 6. Determine the number of unique opbend kind and allocate opbend_kind_set
+    !-----------------------------------------------------------------------------
+    CALL force_field_unique_opbend (particle_set, molecule_kind_set, molecule_set, &
+         ff_type, error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 7. Determine the number of unique onfo kind and allocate onfo_kind_set
     !-----------------------------------------------------------------------------
     CALL force_field_unique_onfo (particle_set, molecule_kind_set,&
          molecule_set, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 7. Bonds
+    ! 8. Bonds
     !-----------------------------------------------------------------------------
     CALL force_field_pack_bond (particle_set, molecule_kind_set, molecule_set,   &
          fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 8. Bends
+    ! 9. Bends
     !-----------------------------------------------------------------------------
     CALL force_field_pack_bend (particle_set, molecule_kind_set, molecule_set,   &
          fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
     ! Give information and abort if any bond or angle parameter is missing..
-    CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)    
+    CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 9. Urey-Bradley
+    ! 10. Urey-Bradley
     !-----------------------------------------------------------------------------
     CALL force_field_pack_ub (particle_set, molecule_kind_set, molecule_set,     &
          Ainfo, chm_info, inp_info, iw, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 10. Torsions
+    ! 11. Torsions
     !-----------------------------------------------------------------------------
     CALL force_field_pack_tors (particle_set, molecule_kind_set, molecule_set,   &
          Ainfo, chm_info, inp_info, gro_info, amb_info, iw, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 11. Impropers
+    ! 12. Impropers
     !-----------------------------------------------------------------------------
     CALL force_field_pack_impr (particle_set, molecule_kind_set, molecule_set,   &
          Ainfo, chm_info, inp_info, gro_info, amb_info, error)
-    ! Give information only if any Urey-Bradley, Torsion or improper is missing
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 13. Out of plane bends
+    !-----------------------------------------------------------------------------
+    CALL force_field_pack_opbend (particle_set, molecule_kind_set, molecule_set, &
+       Ainfo, inp_info, error)
+
+    ! Give information only if any Urey-Bradley, Torsion, improper or opbend is missing
     ! continue calculation..
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 12. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
+    ! 14. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
     !-----------------------------------------------------------------------------
     CALL force_field_pack_ch  (atomic_kind_set, qmmm_env, fatal, iw, iw4,&
          Ainfo, my_qmmm, inp_info, error)
@@ -235,14 +251,14 @@ CONTAINS
     CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 13. Set up  Shell potential
+    ! 15. Set up  Shell potential
     !-----------------------------------------------------------------------------
     CALL force_field_pack_shell ( particle_set, atomic_kind_set,&
          molecule_kind_set, molecule_set, root_section, subsys_section,&
          shell_particle_set, core_particle_set, cell, iw, inp_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 14. Set spline_bond_env, use for ONFO interaction
+    ! 16. Set spline_bond_env, use for ONFO interaction
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded14) THEN
        NULLIFY(spline_bond_env)
@@ -253,14 +269,14 @@ CONTAINS
        CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
        !--------------------------------------------------------------------------
-       ! 14.(a) ONFO
+       ! 16.(a) ONFO
        !--------------------------------------------------------------------------
        CALL force_field_pack_onfo(particle_set, molecule_kind_set, molecule_set,&
             iw, potparm_bond, error)
     END IF
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 15. Set spline_nonbond_env
+    ! 17. Set spline_nonbond_env
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded) THEN
        CALL force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env, ewald_env, &
@@ -269,7 +285,7 @@ CONTAINS
        ! Give information and abort if any pair potential spline is missing..
        CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
-       ! 15.(a) create the pair potential spline environment
+       ! 17.(a) create the pair potential spline environment
        !--------------------------------------------------------------------------
        NULLIFY(spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env, &
             spline_sc_coul_env)
@@ -278,7 +294,7 @@ CONTAINS
             iw4, spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env,&
             spline_sc_coul_env, potparm_nonbond, do_zbl, error)
        !--------------------------------------------------------------------------
-       ! 15.(b) Setup of the pair potential spline environment (Evtl. Core/Shell)
+       ! 17.(b) Setup of the pair potential spline environment (Evtl. Core/Shell)
        !--------------------------------------------------------------------------
        CALL force_field_pack_pp (atomic_kind_set, spline_nonbond_env, spline_c_coul_env,&
             spline_cs_coul_env, spline_sc_coul_env, potparm_nonbond, shell_present,&
@@ -334,7 +350,7 @@ CONTAINS
           WRITE(output_unit,*)
           WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
                " WARNING: A non Critical ForceField parameter is missing! CP2K GOES!",&
-               " Non critical parameters are:Urey-Bradley,Torsions,Impropers and 1-4",&
+               " Non critical parameters are:Urey-Bradley,Torsions,Impropers, Opbends and 1-4",&
                " All missing parameters will not contribute to the potential energy!"
           IF (fatal.OR.iw>0) THEN
              WRITE(output_unit,*)
@@ -396,7 +412,7 @@ CONTAINS
     qeff_mol = 0.0_dp
     qeff_sum = 0.0_dp
     mass_sum = 0.0_dp
-    
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Sum of [qeff,mass] for each molecule_kind
@@ -418,7 +434,7 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,charge=qeff_mol,mass=mass_mol)
        IF(iw>0) WRITE(iw,*) "    Mol Kind ",TRIM(molname)," charge = ",qeff_mol
     END DO
-    
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Sum of [qeff,mass] for particle_set
@@ -434,7 +450,7 @@ CONTAINS
     END DO
     IF(iw>0) WRITE(iw,*) "    Total system charge = ",qeff_sum
     IF(iw>0) WRITE(iw,*) "    Total system mass   = ",mass_sum
-    
+
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
     CALL timestop(handle)
@@ -454,9 +470,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atm2_a, atm2_b, atm2_c, atm_a, atm_b, atm_c, atm_d, counter, &
-      handle, i, ibend, ibond, icolv, ig3x3, ig4x6, iimpr, ikind, itorsion, &
-      iub, iw, j, k, nbend, nbond, newkind, ng3x3, ng4x6, nimpr, ntorsion, &
-      nub, stat
+      handle, i, ibend, ibond, icolv, ig3x3, ig4x6, iimpr, ikind, iopbend, &
+      itorsion, iub, iw, j, k, nbend, nbond, newkind, ng3x3, ng4x6, nimpr, &
+      nopbend, ntorsion, nub, stat
     INTEGER, POINTER                         :: bad1(:), bad2(:)
     LOGICAL                                  :: failure, unsetme, valid_kind
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -479,6 +495,10 @@ CONTAINS
                                                 new_impr_kind_set
     TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list, new_impr_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(opbend_kind_type), DIMENSION(:), &
+      POINTER                                :: new_opbend_kind_set, &
+                                                opbend_kind_set
+    TYPE(opbend_type), DIMENSION(:), POINTER :: new_opbend_list, opbend_list
     TYPE(torsion_kind_type), DIMENSION(:), &
       POINTER                                :: new_torsion_kind_set, &
                                                 torsion_kind_set
@@ -1130,6 +1150,93 @@ CONTAINS
        END IF
     END DO
 
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 11. Count the number of UNSET opbends kinds there are
+    !-----------------------------------------------------------------------------
+    DO ikind=1,SIZE(molecule_kind_set)
+       molecule_kind => molecule_kind_set(ikind)
+       CALL get_molecule_kind(molecule_kind=molecule_kind,&
+            nopbend=nopbend,&
+            opbend_kind_set=opbend_kind_set,&
+            opbend_list=opbend_list)
+       IF(nopbend>0) THEN
+          IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") Old OPBEND Count: ",&
+               SIZE(opbend_list),SIZE(opbend_kind_set)
+          NULLIFY(bad1,bad2)
+          ALLOCATE(bad1(SIZE(opbend_kind_set)),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          bad1(:)=0
+          DO iopbend=1,SIZE(opbend_kind_set)
+             unsetme=.FALSE.
+             IF(opbend_kind_set(iopbend)%id_type==do_ff_undef) unsetme = .TRUE.
+             valid_kind=.FALSE.
+             DO i=1,SIZE(opbend_list)
+                IF(opbend_list(i)%id_type/=do_ff_undef.AND.&
+                     opbend_list(i)%opbend_kind%kind_number==iopbend) THEN
+                   valid_kind=.TRUE.
+                   EXIT
+                END IF
+             END DO
+             IF(.NOT.valid_kind) unsetme = .TRUE.
+             IF(unsetme) bad1(iopbend) = 1
+          END DO
+          IF(SUM(bad1)/=0) THEN
+             counter = SIZE(opbend_kind_set)-SUM(bad1)
+             CALL allocate_opbend_kind_set(new_opbend_kind_set,counter,error)
+             counter=0
+             DO iopbend=1,SIZE(opbend_kind_set)
+                IF(bad1(iopbend)==0) THEN
+                   counter=counter+1
+                   new_opbend_kind_set(counter)= opbend_kind_set(iopbend)
+                END IF
+             END DO
+             counter=0
+             ALLOCATE(bad2(SIZE(opbend_list)),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             bad2(:)=0
+             DO iopbend=1,SIZE(opbend_list)
+                unsetme = .FALSE.
+                IF(opbend_list(iopbend)%opbend_kind%id_type==do_ff_undef) unsetme = .TRUE.
+                IF(opbend_list(iopbend)%id_type==do_ff_undef)           unsetme = .TRUE.
+                IF(unsetme) bad2(iopbend) = 1
+             END DO
+             IF(SUM(bad2)/=0) THEN
+                counter = SIZE(opbend_list)-SUM(bad2)
+                ALLOCATE(new_opbend_list(counter),STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                counter=0
+                DO iopbend=1,SIZE(opbend_list)
+                   IF(bad2(iopbend)==0) THEN
+                      counter=counter+1
+                      new_opbend_list(counter) = opbend_list(iopbend)
+                      newkind = opbend_list(iopbend)%opbend_kind%kind_number
+                      newkind = newkind - SUM(bad1(1:newkind))
+                      new_opbend_list(counter)%opbend_kind => new_opbend_kind_set(newkind)
+                   END IF
+                END DO
+                CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                     nopbend=SIZE(new_opbend_list),&
+                     opbend_kind_set=new_opbend_kind_set,&
+                     opbend_list=new_opbend_list)
+                DO iopbend=1,SIZE(new_opbend_kind_set)
+                   new_opbend_kind_set(iopbend)%kind_number=iopbend
+                END DO
+             END IF
+             DEALLOCATE(bad2,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE(opbend_kind_set,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE(opbend_list,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") New OPBEND Count: ",&
+                  SIZE(new_opbend_list),SIZE(new_opbend_kind_set)
+          END IF
+          DEALLOCATE(bad1,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END DO
+
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     ! 12. Count the number of UNSET NONBOND14 kinds there are
@@ -1191,7 +1298,7 @@ CONTAINS
     ELSE
        CALL section_vals_val_get(gen_section,"VARIABLES",i_rep_section=irep,c_vals=my_var,error=error)
     END IF
-    IF (ASSOCIATED(my_var)) THEN 
+    IF (ASSOCIATED(my_var)) THEN
        mydim = SIZE(my_var)
     END IF
     IF (PRESENT(size_variables)) THEN
@@ -1243,7 +1350,7 @@ CONTAINS
     IF (mydim>0) THEN
        parameters(1:SIZE(my_var)) = my_var
        values(1:SIZE(my_var))     = 0.0_dp
-       IF (PRESENT(var_values)) THEN 
+       IF (PRESENT(var_values)) THEN
           CPPrecondition(SIZE(var_values)==SIZE(my_var),cp_failure_level,routineP,error,failure)
           values(1:SIZE(my_var)) = var_values
        END IF

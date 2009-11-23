@@ -32,7 +32,7 @@ MODULE force_field_types
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_field_types'
-  
+
 ! *** Define the derived structure types ***
 
 ! *****************************************************************************
@@ -72,6 +72,13 @@ MODULE force_field_types
      REAL(KIND = dp)                :: k,phi0
      INTEGER                        :: kind_number
   END TYPE impr_kind_type
+
+! *****************************************************************************
+  TYPE opbend_kind_type
+     INTEGER                        :: id_type
+     REAL(KIND = dp)                :: k,phi0
+     INTEGER                        :: kind_number
+  END TYPE opbend_kind_type
 
 ! *****************************************************************************
   TYPE onfo_kind_type
@@ -125,6 +132,13 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: impr_d(:)
     REAL(KIND=dp), POINTER                         :: impr_k(:)
     REAL(KIND=dp), POINTER                         :: impr_phi0(:)
+    INTEGER, POINTER                               :: opbend_kind(:)
+    CHARACTER (LEN=default_string_length), POINTER :: opbend_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: opbend_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: opbend_c(:)
+    CHARACTER (LEN=default_string_length), POINTER :: opbend_d(:)
+    REAL(KIND=dp), POINTER                         :: opbend_k(:)
+    REAL(KIND=dp), POINTER                         :: opbend_phi0(:)
     TYPE (pair_potential_p_type), POINTER          :: nonbonded
     TYPE (pair_potential_p_type), POINTER          :: nonbonded14
     TYPE (shell_p_type), DIMENSION(:), POINTER     :: shell_list
@@ -241,6 +255,7 @@ MODULE force_field_types
             allocate_ub_kind_set,&
             allocate_torsion_kind_set,&
             allocate_impr_kind_set,&
+            allocate_opbend_kind_set,&
             allocate_onfo_kind_set,&
             init_ff_type,&
             deallocate_ff_type,&
@@ -259,6 +274,7 @@ MODULE force_field_types
             onfo_kind_type,&
             onfo_kind_dealloc_ref,&
             torsion_kind_type,&
+            opbend_kind_type,&
             ub_kind_type,&
             ub_kind_dealloc_ref,&
             charmm_info_type,&
@@ -426,6 +442,34 @@ CONTAINS
   END SUBROUTINE allocate_impr_kind_set
 
 ! *****************************************************************************
+!> \brief Allocate and initialize a opbend kind set.
+! *****************************************************************************
+  SUBROUTINE allocate_opbend_kind_set(opbend_kind_set,nkind,error)
+
+    TYPE(opbend_kind_type), DIMENSION(:), &
+      POINTER                                :: opbend_kind_set
+    INTEGER, INTENT(IN)                      :: nkind
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_opbend_kind_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ikind, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    NULLIFY(opbend_kind_set)
+    ALLOCATE (opbend_kind_set(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+      opbend_kind_set(ikind)%id_type = do_ff_undef
+      opbend_kind_set(ikind)%k = 0.0_dp
+      opbend_kind_set(ikind)%phi0 = 0.0_dp
+      opbend_kind_set(ikind)%kind_number = ikind
+    END DO
+  END SUBROUTINE allocate_opbend_kind_set
+
+! *****************************************************************************
 !> \brief Allocate and initialize a onfo kind set.
 ! *****************************************************************************
   SUBROUTINE allocate_onfo_kind_set(onfo_kind_set,nkind,error)
@@ -469,7 +513,7 @@ CONTAINS
     failure = .FALSE.
 
     !-----------------------------------------------------------------------------
-    ! 1. Initialize 
+    ! 1. Initialize
     !-----------------------------------------------------------------------------
     NULLIFY(ff_type%inp_info,ff_type%chm_info,ff_type%amb_info,ff_type%gro_info)
     ALLOCATE(ff_type%inp_info,STAT=stat)
@@ -485,7 +529,7 @@ CONTAINS
     ! 2. Initialize and Nullify things in ff_type%inp_info
     !-----------------------------------------------------------------------------
     CALL init_inp_info(ff_type%inp_info)
-    
+
     !-----------------------------------------------------------------------------
     ! 3. Initialize and Nullify things in ff_type%chm_info
     !-----------------------------------------------------------------------------
@@ -500,7 +544,7 @@ CONTAINS
     ! 5. Initialize and Nullify things in ff_type%amb_info
     !-----------------------------------------------------------------------------
     CALL init_amber_info(ff_type%amb_info)
-    
+
   END SUBROUTINE init_ff_type
 
 ! *****************************************************************************
@@ -658,6 +702,13 @@ CONTAINS
     NULLIFY(inp_info%impr_d)
     NULLIFY(inp_info%impr_k)
     NULLIFY(inp_info%impr_phi0)
+    NULLIFY(inp_info%opbend_kind)
+    NULLIFY(inp_info%opbend_a)
+    NULLIFY(inp_info%opbend_b)
+    NULLIFY(inp_info%opbend_c)
+    NULLIFY(inp_info%opbend_d)
+    NULLIFY(inp_info%opbend_k)
+    NULLIFY(inp_info%opbend_phi0)
     NULLIFY(inp_info%nonbonded)
     NULLIFY(inp_info%nonbonded14)
     NULLIFY(inp_info%shell_list)
@@ -708,15 +759,15 @@ CONTAINS
     END IF
     IF(ASSOCIATED(ff_type%chm_info)) THEN
        DEALLOCATE(ff_type%chm_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(ff_type%gro_info)) THEN
        DEALLOCATE(ff_type%gro_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(ff_type%amb_info)) THEN
        DEALLOCATE(ff_type%amb_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE deallocate_ff_type
@@ -1244,6 +1295,34 @@ CONTAINS
        DEALLOCATE(inp_info%impr_phi0,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    IF(ASSOCIATED(inp_info%opbend_kind)) THEN
+       DEALLOCATE(inp_info%opbend_kind,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%opbend_a)) THEN
+       DEALLOCATE(inp_info%opbend_a,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%opbend_b)) THEN
+       DEALLOCATE(inp_info%opbend_b,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%opbend_c)) THEN
+       DEALLOCATE(inp_info%opbend_c,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%opbend_d)) THEN
+       DEALLOCATE(inp_info%opbend_d,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%opbend_k)) THEN
+       DEALLOCATE(inp_info%opbend_k,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%opbend_phi0)) THEN
+       DEALLOCATE(inp_info%opbend_phi0,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
     IF(ASSOCIATED(inp_info%nonbonded)) THEN
        CALL pair_potential_p_release(inp_info%nonbonded,error=error)
     END IF
@@ -1325,7 +1404,7 @@ CONTAINS
        DEALLOCATE(torsion_kind%phi0,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    
+
   END SUBROUTINE torsion_kind_dealloc_ref
 
 ! *****************************************************************************
@@ -1362,11 +1441,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-
     !
     ! Questa e' la migliore routine che mente umana abbia concepito! ;-)
-    ! 
-
+    !
   END SUBROUTINE impr_kind_dealloc_ref
 
 ! *****************************************************************************

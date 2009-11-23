@@ -8,7 +8,7 @@
 !>      circular dependencies
 !> \par History
 !>      02.2005 created [fawzi&Joost]
-!>      10.2008 Teodoro Laino [tlaino] - University of Zurich 
+!>      10.2008 Teodoro Laino [tlaino] - University of Zurich
 !>              Cleaned this file of all arrays of strings. Here must be kept
 !>              only integer/real global constants
 ! *****************************************************************************
@@ -44,7 +44,7 @@ MODULE input_constants
                                               do_ep=6,&
                                               do_mixed=7
 
-  ! QMMM 
+  ! QMMM
   REAL(KIND=dp), PARAMETER, PUBLIC         :: RADIUS_QMMM_DEFAULT = 0.80_dp,& ! Angstrom
                                               ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                               CHARGE_SCALE_FACTOR = 1.00_dp
@@ -58,31 +58,31 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: weight_type_unit=0,&
                                               weight_type_mass=1
 
-  ! Blacs type of distribution 
+  ! Blacs type of distribution
   INTEGER, PARAMETER, PUBLIC               :: BLACS_GRID_SQUARE = 1,&
                                               BLACS_GRID_ROW    = 2,&
                                               BLACS_GRID_COL    = 3
 
-  ! EWALD methods       
+  ! EWALD methods
   INTEGER, PARAMETER, PUBLIC               :: do_ewald_none=1,&
                                               do_ewald_ewald=2,&
                                               do_ewald_pme=3,&
                                               do_ewald_spme=4
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_constr_none=1,&
                                               do_constr_atomic=2,&
                                               do_constr_molec=3
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_cell_cp2k=1,&
                                               do_cell_xsc=2
 
   INTEGER, PARAMETER, PUBLIC               :: plane_def_atoms=0,&
-                                              plane_def_vec=1                                           
+                                              plane_def_vec=1
 
   INTEGER, PARAMETER, PUBLIC               :: do_rep_interleaved=0,&
-                                              do_rep_blocked=1                                           
+                                              do_rep_blocked=1
 
-  ! MD Ensemble                            
+  ! MD Ensemble
   INTEGER, PARAMETER, PUBLIC               :: nve_ensemble=1,&
                                               nvt_ensemble=2,&
                                               npt_i_ensemble=3,&
@@ -95,14 +95,14 @@ MODULE input_constants
                                               langevin_ensemble=10,&
                                               npe_f_ensemble=11,&
                                               npe_i_ensemble=12
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_thermo_same_as_part=100,&
                                               do_thermo_nose=101,&
                                               do_thermo_csvr=102,&
                                               do_thermo_gle=103
 
-                                           
-  ! Run Types                              
+
+  ! Run Types
   INTEGER, PARAMETER, PUBLIC               :: none_run=1,&
                                               energy_run=2,&
                                               energy_force_run=3,&
@@ -119,8 +119,8 @@ MODULE input_constants
                                               cell_opt_run=14,&
                                               real_time_propagation=15,&
                                               ehrenfest=16
-                                                   
-  ! Run Types of Atom Code                         
+
+  ! Run Types of Atom Code
   INTEGER, PARAMETER, PUBLIC               :: atom_no_run=1,&
                                               atom_energy_run=2,&
                                               atom_basis_run=3,&
@@ -238,10 +238,10 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed=0,&
                                               rsgrid_replicated=1,&
                                               rsgrid_automatic=2
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_par_atom=0,&
                                               do_par_grid=1
-  ! Thermostats                            
+  ! Thermostats
   INTEGER, PARAMETER, PUBLIC               :: do_thermo_no_communication=0,&
                                               do_thermo_communication=1,&
                                               do_thermo_only_master=2
@@ -249,25 +249,25 @@ MODULE input_constants
   ! pint coordinate transformations
   INTEGER, PARAMETER, PUBLIC               :: transformation_normal=1,&
                                               transformation_stage=2
-                                           
-  ! Free Energy methods                    
+
+  ! Free Energy methods
   INTEGER, PARAMETER, PUBLIC               :: do_fe_meta=0,&
                                               do_fe_ui=1,&
                                               do_fe_ac=2
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_wall_none=0,&
                                               do_wall_reflective=1,&
                                               do_wall_quadratic=2,&
                                               do_wall_quartic=3,&
                                               do_wall_gaussian=4
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_wall_p=0,&
                                               do_wall_m=1
-  ! Output formats                         
+  ! Output formats
   INTEGER, PARAMETER, PUBLIC               :: dump_atomic=1,&
                                               dump_xmol=2,&
                                               dump_dcd=3
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_qmmm_none=0,&
                                               do_qmmm_coulomb=1,&
                                               do_qmmm_gauss=2,&
@@ -280,7 +280,7 @@ MODULE input_constants
                                               do_qmmm_wall_none=0,&
                                               do_qmmm_wall_reflective=1,&
                                               do_qmmm_wall_quadratic=2
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_region_global=0, &
                                               do_region_molecule=1,&
                                               do_region_massive=2,&
@@ -305,7 +305,7 @@ MODULE input_constants
                                               do_coord_crd=4,&
                                               do_coord_cif=5,&
                                               do_coord_xtl=6
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_ff_undef=0,&
                                               do_ff_quartic=1,&
                                               do_ff_g96=2,&
@@ -316,30 +316,32 @@ MODULE input_constants
                                               do_ff_cubic=7,&
                                               do_ff_mixed_bend_stretch=8,&
                                               do_ff_amber=9,&
-                                              do_ff_mm3=10
-                                           
+                                              do_ff_mm2=10,&
+                                              do_ff_mm3=11,&
+                                              do_ff_mm4=12
+
   INTEGER, PARAMETER, PUBLIC               :: do_stress_none=0,&
                                               do_stress_analytical=1,&
                                               do_stress_numerical=2,&
                                               do_stress_diagonal_anal=3,&
                                               do_stress_diagonal_numer=4
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_mc_traditional=0,&
                                               do_mc_gemc_nvt=1,&
                                               do_mc_gemc_npt=2,&
                                               do_mc_virial=3
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_multipole_none=-1,&
                                               do_multipole_charge=0,&
                                               do_multipole_dipole=1,&
                                               do_multipole_quadrupole=2
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_loc_none=0,&
                                               do_loc_jacobi=1,&
                                               do_loc_crazy=2,&
                                               do_loc_direct=3,&
                                               do_loc_l1_norm_sd=4
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_loc_min=0,&
                                               do_loc_max=1,&
                                               op_loc_berry=0,&
@@ -361,12 +363,12 @@ MODULE input_constants
                                               orb_dx2=7,&
                                               orb_dy2=8,&
                                               orb_dz2=9
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: use_mom_ref_com=0,&
                                               use_mom_ref_coac=1,&
                                               use_mom_ref_user=2,&
                                               use_mom_ref_zero=3
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: current_gauge_r=1,&
                                               current_gauge_r_and_step_func=2,&
                                               current_gauge_atom=3,&
@@ -374,7 +376,7 @@ MODULE input_constants
                                               current_orb_center_common=2,&
                                               current_orb_center_atom=3,&
                                               current_orb_center_box=4
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
   INTEGER, PARAMETER, PUBLIC               :: ot_algo_taylor_or_diag=1,ot_algo_irac=2
   INTEGER, PARAMETER, PUBLIC               :: ot_chol_irac=1,ot_poly_irac=2,ot_lwdn_irac=3
@@ -392,7 +394,7 @@ MODULE input_constants
                                               ot_precond_solver_inv_chol=2,&
                                               ot_precond_solver_direct=3,&
                                               ot_precond_solver_sainv=4
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: diag_standard=1,&
                                               diag_ot=2, diag_block_krylov=3
 
@@ -404,22 +406,22 @@ MODULE input_constants
   INTEGER, PUBLIC, PARAMETER               :: default_lbfgs_method_id=1,&
                                               default_bfgs_method_id=2,&
                                               default_cg_method_id=3
-                                           
+
   INTEGER, PUBLIC, PARAMETER               :: default_minimization_method_id=1,&
                                               default_ts_method_id=2,&
                                               default_cell_method_id=3,&
                                               default_shellcore_method_id=4
-                                           
+
   INTEGER, PUBLIC, PARAMETER               :: none_ts_method_id=0,&
                                               default_dimer_method_id=1
-                                           
+
   INTEGER, PUBLIC, PARAMETER               :: do_first_rotation_step=0,&
                                               do_second_rotation_step=1,&
                                               do_third_rotation_step=2
-                                           
+
   INTEGER, PUBLIC, PARAMETER               :: default_cell_geo_opt_id=0,&
                                               default_cell_md_id=1
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: add_last_no=0,&
                                               add_last_numeric=1,&
                                               add_last_symbolic=2
@@ -428,7 +430,7 @@ MODULE input_constants
                                               medium_print_level=2,&
                                               high_print_level=3,&
                                               debug_print_level=4
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: xc_rho_no_smooth=0,&
                                               xc_rho_spline2_smooth=1,&
                                               xc_rho_spline3_smooth=2,&
@@ -464,7 +466,7 @@ MODULE input_constants
                                               sic_ad=3,&
                                               sic_eo=4
   INTEGER, PARAMETER, PUBLIC               :: sic_list_all=1,&
-                                              sic_list_unpaired=2 
+                                              sic_list_unpaired=2
   INTEGER, PARAMETER, PUBLIC               :: tddfpt_singlet=0,&
                                               tddfpt_triplet=1
   INTEGER, PARAMETER, PUBLIC               :: tddfpt_lanczos=0,&
@@ -479,7 +481,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: xc_vdw_fun_none=100,&
                                               xc_vdw_fun_pairpot=101
   INTEGER, PARAMETER, PUBLIC               :: vdw_pairpot_grimme=1
-  
+
   ! Input constants for relativistic calculations
   INTEGER, PARAMETER, PUBLIC               :: rel_none=0,&
                                               rel_dkh=1
@@ -488,17 +490,17 @@ MODULE input_constants
                                               rel_trans_atom=2
   INTEGER, PARAMETER, PUBLIC               :: rel_pot_full=0,&
                                               rel_pot_erfc=1
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_add=1,&
                                               do_remove=2
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: no_precond=0,&
                                               precond_spl3_aint=1,&
                                               precond_spl3_1=2,&
                                               precond_spl3_aint2=3,&
                                               precond_spl3_2=4,&
                                               precond_spl3_3=5
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: PERIODIC3D = 1000,&
                                               ANALYTIC2D = 1001,&
                                               ANALYTIC1D = 1002,&
@@ -516,7 +518,7 @@ MODULE input_constants
                                               WAVELET2D = 1401,&
                                               WAVELET1D = 1402,&
                                               WAVELET0D = 1403
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: use_none=0,&
                                               use_periodic = 1,&
                                               use_analytic = 2,&
@@ -524,10 +526,10 @@ MODULE input_constants
                                               use_hockney=5,&
                                               use_multipole=4,&
                                               use_wavelet=6
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: use_rs_grid=0,&
                                               use_gs_grid = 1
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: xgga_b88=101,&
                                               xgga_b88x=102,&
                                               xgga_pw86=103,&
@@ -556,7 +558,7 @@ MODULE input_constants
                                               c_pzvmc=214,&
                                               c_vwn=215,&
                                               cgga_pbe=216
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: ke_ol1=301,&
                                               ke_ol2=302,&
                                               ke_llp=303,&
@@ -568,18 +570,18 @@ MODULE input_constants
                                               ke_revpbe=309,&
                                               ke_tf=310,&
                                               ke_tfw=311
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: pw_orig=209,&
                                               pw_dmc=210,&
                                               pw_vmc=211
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: pz_orig=212,&
                                               pz_dmc=213,&
                                               pz_vmc=214
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: xc_b97_orig=401,&
                                               xc_b97_grimme=402
-                                              
+
   INTEGER, PARAMETER, PUBLIC               :: use_perd_x=0,&
                                               use_perd_y=1,&
                                               use_perd_z=2,&
@@ -588,7 +590,7 @@ MODULE input_constants
                                               use_perd_yz=5,&
                                               use_perd_xyz=6,&
                                               use_perd_none=7
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: do_clv_geo_center=0,&
                                               do_clv_fix_point =1,&
                                               do_clv_xyz       =0,&
@@ -598,22 +600,22 @@ MODULE input_constants
                                               do_clv_xy        =4,&
                                               do_clv_xz        =5,&
                                               do_clv_yz        =6
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: xc_pot_energy_none=0,&
                                               xc_pot_energy_xc_functional=1,&
                                               xc_pot_energy_sum_eigenvalues=2
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: xc_pot_none = 1000,&
                                               xc_pot_saop = 1001
-                                           
-  ! X-Ray spectra Calculation              
+
+  ! X-Ray spectra Calculation
   INTEGER, PARAMETER, PUBLIC               :: xas_none=0,&
                                               xas_tp_hh=1,&
                                               xas_tp_fh=2,&
                                               xes_tp_val=3,&
                                               xas_tp_xhh=4,&
                                               xas_tp_xfh=5,&
-                                              xas_dscf=6 
+                                              xas_dscf=6
   INTEGER, PARAMETER, PUBLIC               :: xas_1s_type=1,&
                                               xas_2s_type=2,&
                                               xas_2p_type=3,&
@@ -635,44 +637,44 @@ MODULE input_constants
                                               lr_chemshift=1,&
                                               lr_gtensor=2,&
                                               lr_current=3
-                                           
+
   INTEGER, PARAMETER, PUBLIC               :: xc_pbe_orig=11,&
                                               xc_rev_pbe=12
-                                           
-  ! EIP models                             
+
+  ! EIP models
   INTEGER, PARAMETER, PUBLIC               :: use_bazant_eip=1, &
                                               use_lenosky_eip=2
-                                           
-  ! ddapc restraint forms                  
+
+  ! ddapc restraint forms
   INTEGER, PARAMETER, PUBLIC               :: do_ddapc_restraint=773,&
                                               do_ddapc_constraint=774
-                                           
-  ! outer scf types                        
+
+  ! outer scf types
   INTEGER, PARAMETER, PUBLIC               :: outer_scf_ddapc_constraint=123, &
                                               outer_scf_s2_constraint=124,&
                                               outer_scf_becke_constraint=125, &
                                               outer_scf_scp=126, &
                                               outer_scf_none=127
-                                           
-  ! outer scf optimizers                   
+
+  ! outer scf optimizers
   INTEGER, PARAMETER, PUBLIC               :: outer_scf_optimizer_sd=1001, &
                                               outer_scf_optimizer_diis=1002, &
                                               outer_scf_optimizer_none=1003, &
                                               outer_scf_optimizer_bisect=1004
-                                           
-  ! s2 restraint forms                     
+
+  ! s2 restraint forms
   INTEGER, PARAMETER, PUBLIC               :: do_s2_restraint=872,&
                                               do_s2_constraint=873
-                                           
-  ! ROKS schemes                           
+
+  ! ROKS schemes
   INTEGER, PARAMETER, PUBLIC               :: general_roks   = 1,&
                                               high_spin_roks = 2
-                                           
-  !VWN xc functional flavours              
+
+  !VWN xc functional flavours
   INTEGER, PARAMETER, PUBLIC               :: do_vwn5=1,&
                                               do_vwn3=2
-                                           
-  ! mixing of force envs                   
+
+  ! mixing of force envs
   INTEGER, PARAMETER, PUBLIC               :: mix_linear_combination=701, &
                                               mix_minimum=702, &
                                               mix_coupled=703, &
@@ -686,8 +688,8 @@ MODULE input_constants
   ! optimization targets for distribution 2d
   INTEGER, PARAMETER, PUBLIC               :: opt_target_minimum=456, &
                                               opt_target_median=457
-                                           
-  ! HFX potential type                     
+
+  ! HFX potential type
   INTEGER, PARAMETER, PUBLIC               :: do_hfx_potential_coulomb=1,&
                                               do_hfx_potential_short=2,&
                                               do_hfx_potential_long=3,&
@@ -698,11 +700,11 @@ MODULE input_constants
                                               do_hfx_potential_truncated=8
   ! HFX periodic number of shells
   INTEGER, PARAMETER, PUBLIC               :: do_hfx_auto_shells = -1
-                                           
-  ! adiabatic hybrid type                  
+
+  ! adiabatic hybrid type
   INTEGER, PARAMETER, PUBLIC               :: do_adiabatic_hybrid_mcy3=1
-                                           
-  ! adiabatic model type                    
+
+  ! adiabatic model type
   INTEGER, PARAMETER, PUBLIC               :: do_adiabatic_model_pade=1
 
   ! HFX evaluation type
@@ -766,7 +768,7 @@ MODULE input_constants
                                               fftw_plan_patient=3, &
                                               fftw_plan_exhaustive=4
 
-  ! fftw will automatically be either FFTW2 or FFTW3 
+  ! fftw will automatically be either FFTW2 or FFTW3
 #if defined ( __FFTW2 )
   INTEGER, PARAMETER, PUBLIC               :: do_fft_fftw=do_fft_fftw2
 #else
@@ -797,5 +799,5 @@ MODULE input_constants
                                               gaussian_env=2, &
                                               ramp_env=3
 
-  
+
 END MODULE input_constants

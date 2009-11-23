@@ -82,10 +82,13 @@ MODULE fist_force
      REAL (KIND=dp)                           :: pot_manybody, pot_bend, pot_torsion
      REAL (KIND=dp)                           :: pot_nonbond, pot_g, pot_bond
      REAL (KIND=dp)                           :: pot_imptors, pot_onef, pot_urey_bradley
+     REAL (KIND=dp)                           :: pot_opbend
      REAL (KIND=dp), DIMENSION (:,:), POINTER :: f_nonbond, f_g, f_bond, f_bend,&
-                                                 f_torsion, f_imptors, f_onef, f_ub
+                                                 f_torsion, f_imptors, f_onef, f_ub,&
+                                                 f_opbend
      REAL (KIND=dp), DIMENSION (3,3)          :: pv_nonbond, pv_g, pv_bond, pv_onef, pv_ub,&
-                                                 pv_bend, pv_torsion, pv_imptors
+                                                 pv_bend, pv_torsion, pv_imptors,&
+                                                 pv_opbend
   END TYPE debug_variables_type
 
 CONTAINS
@@ -123,13 +126,13 @@ CONTAINS
                                                 failure, shell_model_ad, &
                                                 shell_present, use_virial
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
-      pot_manybody, pot_nonbond, pot_onef, pot_shell, pot_torsion, &
-      pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
+      pot_manybody, pot_nonbond, pot_onef, pot_opbend, pot_shell, &
+      pot_torsion, pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: f_nonbond, f_total, &
       fcore_nonbond, fcore_total, fg_coulomb, fgcore_coulomb, &
       fgshell_coulomb, fshell_nonbond, fshell_total
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
-      pv_imptors, pv_nonbond, pv_onef, pv_torsion, pv_urey_bradley
+      pv_imptors, pv_nonbond, pv_onef, pv_opbend, pv_torsion, pv_urey_bradley
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -234,13 +237,14 @@ CONTAINS
           core_particle_set ( i ) % f_embed  = 0.0_dp
        END DO
     ENDIF
-    
+
     IF (use_virial) THEN
        pv_bc            = 0.0_dp
        pv_bond          = 0.0_dp
        pv_bend          = 0.0_dp
        pv_torsion       = 0.0_dp
        pv_imptors       = 0.0_dp
+       pv_opbend        = 0.0_dp
        pv_onef          = 0.0_dp
        pv_urey_bradley  = 0.0_dp
        pv_nonbond       = 0.0_dp
@@ -253,6 +257,7 @@ CONTAINS
     pot_bond          = 0.0_dp
     pot_bend          = 0.0_dp
     pot_torsion       = 0.0_dp
+    pot_opbend        = 0.0_dp
     pot_imptors       = 0.0_dp
     pot_onef          = 0.0_dp
     pot_urey_bradley  = 0.0_dp
@@ -267,7 +272,7 @@ CONTAINS
        WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
     END IF
 
-    IF (fist_nonbond_env%do_nonbonded) THEN 
+    IF (fist_nonbond_env%do_nonbonded) THEN
        ! Compute density for EAM
        CALL density_nonbond ( fist_nonbond_env, particle_set, cell, para_env ,error=error)
 
@@ -326,8 +331,8 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE ( fgcore_coulomb(3, nshell), STAT=stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          fgshell_coulomb = 0.0_dp 
-          fgcore_coulomb  = 0.0_dp 
+          fgshell_coulomb = 0.0_dp
+          fgcore_coulomb  = 0.0_dp
        END IF
        IF(shell_present.AND.do_multipoles) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -439,7 +444,7 @@ CONTAINS
           CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, particle_set,&
                ewald_env, thermo%e_bonded, pv_bc, shell_particle_set=shell_particle_set,&
                core_particle_set=core_particle_set, cell=cell, use_virial=use_virial, error=error)
-          
+
        ELSE
           IF (.NOT. do_multipoles) THEN
              CALL bonded_correct_gaussian ( atomic_kind_set, local_particles,&
@@ -474,22 +479,23 @@ CONTAINS
     IF ( PRESENT ( debug ) ) THEN
        CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
             particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
-            pot_urey_bradley, pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond,&
-            pv_bend, pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, debug%f_bond,&
-            debug%f_bend, debug%f_torsion, debug%f_ub, debug%f_imptors,debug%f_onef,&
-            cell, use_virial, error )
+            pot_urey_bradley, pot_torsion, pot_imptors, pot_opbend, pot_onef, &
+            pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, pv_imptors, &
+            pv_opbend, pv_onef, debug%f_bond, debug%f_bend, debug%f_torsion, debug%f_ub, &
+            debug%f_imptors, debug%f_opbend, debug%f_onef, cell, use_virial, error )
+
     ELSE
        CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
             particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
-            pot_urey_bradley, pot_torsion, pot_imptors, pot_onef, pot_shell, pv_bond,&
-            pv_bend, pv_urey_bradley, pv_torsion, pv_imptors, pv_onef, cell=cell,&
-            use_virial=use_virial, error=error)
+            pot_urey_bradley, pot_torsion, pot_imptors, pot_opbend, pot_onef, &
+            pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, pv_imptors, &
+            pv_opbend, pv_onef, cell=cell, use_virial=use_virial, error=error)
     ENDIF
 
     IF (iw>0) THEN
        xdum1 = cp_unit_from_cp2k(pot_bond,"kcalmol",error=error)
        xdum2 = cp_unit_from_cp2k(pot_bend,"kcalmol",error=error)
-       xdum3 = cp_unit_from_cp2k(pot_torsion+pot_imptors,"kcalmol",error=error)
+       xdum3 = cp_unit_from_cp2k(pot_torsion+pot_imptors+pot_opbend,"kcalmol",error=error)
        WRITE(iw,'(1x,"BOND    = ",f13.4,2x,"ANGLE   = ",f13.4,2x,'//&
             '"DIHED      = ",f13.4)')xdum1, xdum2, xdum3
        xdum1 = cp_unit_from_cp2k(pot_onef,"kcalmol",error=error)
@@ -509,8 +515,8 @@ CONTAINS
     END IF
 
     ! add up all the potential energies
-    thermo%pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
-         pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
+    thermo%pot = pot_nonbond + pot_bond + pot_bend + pot_torsion +pot_opbend + &
+         pot_onef + pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
     CALL mp_sum ( thermo%pot, para_env%group )
     IF(shell_present) THEN
        thermo%harm_shell = pot_shell
@@ -598,7 +604,7 @@ CONTAINS
           WRITE(iw,'(3f15.9)')((fcore_total ( j, i ),j=1,3), i = 1, nshell)
        END IF
     END IF
-    
+
     IF (use_virial) THEN
        ! Add up all the pressure tensors
        IF ( ewald_type == do_ewald_none ) THEN
@@ -609,10 +615,10 @@ CONTAINS
           DO i = 1, 3
              ident(i, i) = 1.0_dp
           END DO
-          
+
           virial%pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_imptors + pv_urey_bradley + pv_bc
           CALL mp_sum (virial%pv_virial, para_env%group)
-          
+
           virial%pv_virial = virial%pv_virial + ident * thermo%e_neut
           virial%pv_virial = virial%pv_virial + pv_g
        END IF
@@ -689,16 +695,16 @@ CONTAINS
              ELSE
                 particle_set ( i )%f ( 1 ) = f_total ( 1, i )
                 particle_set ( i )%f ( 2 ) = f_total ( 2, i )
-                particle_set ( i )%f ( 3 ) = f_total ( 3, i ) 
+                particle_set ( i )%f ( 3 ) = f_total ( 3, i )
              END IF
           END DO
           DO i = 1,nshell
-             shell_particle_set(i)%f(1) = fshell_total(1,i) 
-             shell_particle_set(i)%f(2) = fshell_total(2,i) 
-             shell_particle_set(i)%f(3) = fshell_total(3,i) 
-             core_particle_set(i)%f(1) = fcore_total(1,i) 
-             core_particle_set(i)%f(2) = fcore_total(2,i) 
-             core_particle_set(i)%f(3) = fcore_total(3,i) 
+             shell_particle_set(i)%f(1) = fshell_total(1,i)
+             shell_particle_set(i)%f(2) = fshell_total(2,i)
+             shell_particle_set(i)%f(3) = fshell_total(3,i)
+             core_particle_set(i)%f(1) = fcore_total(1,i)
+             core_particle_set(i)%f(2) = fcore_total(2,i)
+             core_particle_set(i)%f(3) = fcore_total(3,i)
           END DO
        ELSEIF(shell_present .AND. .NOT. shell_model_ad) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -740,6 +746,8 @@ CONTAINS
        debug%pot_torsion = pot_torsion
        CALL mp_sum ( pot_imptors, para_env%group )
        debug%pot_imptors = pot_imptors
+       CALL mp_sum ( pot_opbend, para_env%group )
+       debug%pot_opbend = pot_opbend
        CALL mp_sum ( pot_onef, para_env%group )
        debug%pot_onef = pot_onef
        CALL mp_sum ( pot_urey_bradley, para_env%group )
@@ -844,7 +852,7 @@ END SUBROUTINE fist_force_control
 !>      possibly using the berry phase formalism
 !> \par History
 !>      [01.2006] created
-!>      [12.2007] tlaino - University of Zurich - debug and extended 
+!>      [12.2007] tlaino - University of Zurich - debug and extended
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE fist_dipole(fist_env, print_section, atomic_kind_set, particle_set, cell, unit_nr, error)
@@ -880,7 +888,7 @@ END SUBROUTINE fist_force_control
     description='[DIPOLE]'
     CALL section_vals_val_get(print_section,"DIPOLE%REF_POINT",r_vals=ref_point,error=error)
     CALL section_vals_val_get(print_section,"DIPOLE%PERIODIC",l_val=do_berry,error=error)
-    
+
     CALL get_reference_point(rcc,drcc,fist_env=fist_env,reference=reference,ref_point=ref_point,error=error)
 
     ! Dipole deriv will be the derivative of the Dipole (dM/dt=\sum e_j v_j)
@@ -896,7 +904,7 @@ END SUBROUTINE fist_force_control
        END DO
        ria  = twopi * MATMUL ( cell%h_inv, rcc )
        zphase  = CMPLX ( COS(ria), SIN(ria), dp )**charge_tot
-       
+
        dria = twopi * MATMUL ( cell%h_inv, drcc )
        dzphase = charge_tot * CMPLX ( -SIN(ria), COS(ria), dp )**(charge_tot-1.0_dp) * dria
 
@@ -905,7 +913,7 @@ END SUBROUTINE fist_force_control
        DO iparticle_kind = 1, SIZE(atomic_kind_set)
           atomic_kind => atomic_kind_set(iparticle_kind)
           CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q, atom_list=atom_list)
-          
+
           DO i = 1, SIZE(atom_list)
              ria = particle_set(atom_list(i))%r(:)
              ria = pbc(ria,cell)

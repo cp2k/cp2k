@@ -357,6 +357,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_OPBEND_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_DIPOLE_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -522,7 +526,7 @@ CONTAINS
     END IF
   END SUBROUTINE create_TORSION_section
 
-  ! *****************************************************************************
+! *****************************************************************************
 !> \brief This section specifies the improper torsion of the MM atoms
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
@@ -588,6 +592,75 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_IMPROPER_section
+
+! *****************************************************************************
+!> \brief This section specifies the out of plane bend of the MM atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author louis vanduyfhuys
+! *****************************************************************************
+  SUBROUTINE create_OPBEND_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_OPBEND_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="OPBEND",&
+            description="Specifies the out of plane bend potential of the MM system."//&
+            "(Only defined for atom quadruples which are also defined as an improper"//&
+            " pattern in the topology.)",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kinds involved in the opbend.",&
+            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", required=.TRUE., type_of_var=char_t,&
+            n_var=4, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword, name="KIND",&
+            description="Define the kind of out of plane bend potential",&
+            usage="KIND HARMONIC",&
+            enum_c_vals=s2a("HARMONIC","MM2","MM3","MM4"),&
+            enum_desc=s2a("Functional Form (HARMONIC): 0.5 * K * [ PHI - PHI0 ]**2",&
+                          "Functional Form (MM2|MM3|MM4): K * [ PHI - PHI0 ]**2",&
+                          "Functional Form (MM2|MM3|MM4): K * [ PHI - PHI0 ]**2",&
+                          "Functional Form (MM2|MM3|MM4): K * [ PHI - PHI0 ]**2"),&
+            enum_i_vals=(/ do_ff_harmonic,&
+                           do_ff_mm2,&
+                           do_ff_mm3,&
+                           do_ff_mm4/),&
+            default_i_val=do_ff_harmonic, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="Defines the force constant of the potential",&
+            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="hartree*rad^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PHI0",&
+            description="Defines the phase of the potential.",&
+            usage="PHI0 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="rad", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_OPBEND_section
 
 ! *****************************************************************************
 !> \brief This section specifies the bend of the MM atoms

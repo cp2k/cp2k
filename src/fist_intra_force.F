@@ -20,13 +20,15 @@ MODULE fist_intra_force
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
                                              force_imp_torsions,&
+                                             force_opbends,&
                                              force_torsions,&
                                              get_pv_bend,&
                                              get_pv_bond,&
                                              get_pv_torsion
   USE molecule_kind_types,             ONLY: &
        bend_type, bond_type, get_molecule_kind, impr_type, &
-       molecule_kind_type, onfo_type, shell_type, torsion_type, ub_type
+       molecule_kind_type, onfo_type, opbend_type, shell_type, torsion_type, &
+       ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -53,9 +55,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecules,&
        particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
-       pot_urey_bradley, pot_torsion, pot_imp_torsion, pot_onef, pot_shell, pv_bond,&
-       pv_bend, pv_urey_bradley, pv_torsion, pv_imp_torsion, pv_onef, f_bond,&
-       f_bend, f_torsion, f_ub, f_imptor, f_onef, cell, use_virial, error )
+       pot_urey_bradley, pot_torsion, pot_imp_torsion, pot_opbend, pot_onef, &
+       pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, pv_imp_torsion, &
+       pv_opbend, pv_onef, f_bond, f_bend, f_torsion, f_ub, f_imptor, f_opbend, &
+       f_onef, cell, use_virial, error )
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -63,17 +66,17 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : ), &
                                                 shell_particle_set( : ), &
                                                 core_particle_set( : )
-    REAL(KIND=dp), INTENT(INOUT)             :: pot_bond, pot_bend, &
-                                                pot_urey_bradley, &
-                                                pot_torsion, pot_imp_torsion, &
-                                                pot_onef, pot_shell
+    REAL(KIND=dp), INTENT(INOUT) :: pot_bond, pot_bend, pot_urey_bradley, &
+      pot_torsion, pot_imp_torsion, pot_opbend, pot_onef, pot_shell
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_bond, pv_bend, &
                                                 pv_urey_bradley, pv_torsion, &
-                                                pv_imp_torsion, pv_onef
+                                                pv_imp_torsion, pv_opbend, &
+                                                pv_onef
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: f_bond, f_bend, f_torsion, &
-                                                f_ub, f_imptor, f_onef
+                                                f_ub, f_imptor, f_opbend, &
+                                                f_onef
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -82,14 +85,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
-      index_a, index_b, index_c, index_d, ionef, ishell, itorsion, nbends, &
-      nbonds, nimptors, nkind, nmol_per_kind, nonefs, nshell, ntorsions, nub
+      index_a, index_b, index_c, index_d, ionef, iopbend, ishell, itorsion, &
+      nbends, nbonds, nimptors, nkind, nmol_per_kind, nonefs, nopbends, &
+      nshell, ntorsions, nub
     REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
       id32, is32, ism, isn, r0, rab2, rinv, rinv2, s32, sm, sn, theta
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, k1, k2, k3, &
-                                                k4, rij, t12, t32, t34, t43, &
-                                                tm, tn
+                                                k4, rij, t12, t32, t34, t41, &
+                                                t42, t43, tm, tn
     TYPE(bend_type), POINTER                 :: bend_list( : )
     TYPE(bond_type), POINTER                 :: bond_list( : )
     TYPE(cp_logger_type), POINTER            :: logger
@@ -97,6 +101,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(onfo_type), POINTER                 :: onef_list( : )
+    TYPE(opbend_type), POINTER               :: opbend_list( : )
     TYPE(shell_type), POINTER                :: shell_list( : )
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -114,15 +119,16 @@ CONTAINS
     IF ( PRESENT ( f_imptor)) f_imptor = 0.0_dp
     IF ( PRESENT ( f_ub)) f_ub = 0.0_dp
     IF ( PRESENT ( f_onef)) f_onef = 0.0_dp
-    
+
     pot_bond =  0.0_dp
     pot_bend =  0.0_dp
     pot_urey_bradley =  0.0_dp
     pot_torsion =  0.0_dp
     pot_imp_torsion =  0.0_dp
+    pot_opbend =0.0_dp
     pot_onef =  0.0_dp
     pot_shell =  0.0_dp
-    
+
     nkind = SIZE ( molecule_kind_set )
     MOL: DO ikind = 1, nkind
        nmol_per_kind = local_molecules % n_el ( ikind )
@@ -133,11 +139,11 @@ CONTAINS
           molecule_kind => molecule % molecule_kind
           CALL get_molecule_kind ( molecule_kind, nbend = nbends, nbond = nbonds,  &
                                    nimpr = nimptors, nub = nub, ntorsion = ntorsions, &
-                                   nonfo = nonefs, nshell=nshell, &
+                                   nopbend = nopbends, nonfo = nonefs, nshell=nshell, &
                                    bond_list = bond_list, ub_list = ub_list, &
                                    bend_list = bend_list, torsion_list = torsion_list, &
-                                   impr_list = impr_list, onfo_list = onef_list,&
-                                   shell_list=shell_list )
+                                   impr_list = impr_list, opbend_list = opbend_list, &
+                                   onfo_list = onef_list, shell_list=shell_list )
 
           CALL get_molecule ( molecule, first_atom=first_atom )
 
@@ -152,7 +158,7 @@ CONTAINS
                               bond_list ( ibond ) % bond_kind % cs, &
                               energy, fscalar)
              pot_bond = pot_bond + energy
-        
+
              particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1)  -rij(1) * fscalar
              particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2)  -rij(2) * fscalar
              particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3)  -rij(3) * fscalar
@@ -173,7 +179,7 @@ CONTAINS
                 f_bond(2,index_b) = f_bond(2,index_b) + rij(2)*fscalar
                 f_bond(3,index_b) = f_bond(3,index_b) + rij(3)*fscalar
              END IF
-             
+
           END DO BOND
 
           SHELL: DO ishell = 1, nshell
@@ -185,7 +191,7 @@ CONTAINS
              k1(1) = shell_list ( ishell ) % shell_kind % k_spring
              CALL force_bonds(do_ff_harmonic, rij, 0.0_dp, k1, 0.0_dp, energy, fscalar)
              pot_shell = pot_shell + energy
-             
+
              core_particle_set ( index_b )% f(1) = core_particle_set ( index_b ) % f(1)  -rij(1) * fscalar
              core_particle_set ( index_b )% f(2) = core_particle_set ( index_b ) % f(2)  -rij(2) * fscalar
              core_particle_set ( index_b )% f(3) = core_particle_set ( index_b ) % f(3)  -rij(3) * fscalar
@@ -220,9 +226,9 @@ CONTAINS
                 f_ub(:,index_a) = f_ub(:,index_a) - rij*fscalar
                 f_ub(:,index_b) = f_ub(:,index_b) + rij*fscalar
              END IF
-             
+
           END DO UREY_BRADLEY
-          
+
           BEND: DO ibend = 1, nbends
              index_a = bend_list ( ibend ) % a + first_atom - 1
              index_b = bend_list ( ibend ) % b + first_atom - 1
@@ -261,7 +267,7 @@ CONTAINS
              particle_set ( index_c )% f(1) = particle_set ( index_c ) % f(1) + g3(1) * fscalar
              particle_set ( index_c )% f(2) = particle_set ( index_c ) % f(2) + g3(2) * fscalar
              particle_set ( index_c )% f(3) = particle_set ( index_c ) % f(3) + g3(3) * fscalar
-             
+
              ! computing the pressure tensor
              k1 = fscalar*g1
              k3 = fscalar*g3
@@ -279,7 +285,7 @@ CONTAINS
              index_a = torsion_list ( itorsion ) % a + first_atom - 1
              index_b = torsion_list ( itorsion ) % b + first_atom - 1
              index_c = torsion_list ( itorsion ) % c + first_atom - 1
-             index_d = torsion_list ( itorsion ) % d + first_atom - 1        
+             index_d = torsion_list ( itorsion ) % d + first_atom - 1
              t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
              t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
              t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
@@ -324,13 +330,13 @@ CONTAINS
                 particle_set ( index_d )% f(1) = particle_set ( index_d ) % f(1) + gt4(1) * fscalar
                 particle_set ( index_d )% f(2) = particle_set ( index_d ) % f(2) + gt4(2) * fscalar
                 particle_set ( index_d )% f(3) = particle_set ( index_d ) % f(3) + gt4(3) * fscalar
-                
+
                 ! computing the pressure tensor
                 k1 = fscalar*gt1
                 k3 = fscalar*gt3
                 k4 = fscalar*gt4
                 IF (use_virial) CALL get_pv_torsion(k1,k3,k4,t12,t32,t43,pv_torsion)
-  
+
                 ! the contribution from the torsions. ONLY FOR DEBUG
                 IF ( PRESENT ( f_torsion)) THEN
                    f_torsion(:,index_a) = f_torsion(:,index_a) + fscalar*gt1
@@ -340,7 +346,7 @@ CONTAINS
                 END IF
              END DO
           END DO TORSION
-          
+
           IMP_TORSION: DO itorsion = 1, nimptors
              index_a = impr_list ( itorsion ) % a + first_atom - 1
              index_b = impr_list ( itorsion ) % b + first_atom - 1
@@ -388,7 +394,7 @@ CONTAINS
              particle_set ( index_d )% f(1) = particle_set ( index_d ) % f(1) + gt4(1) * fscalar
              particle_set ( index_d )% f(2) = particle_set ( index_d ) % f(2) + gt4(2) * fscalar
              particle_set ( index_d )% f(3) = particle_set ( index_d ) % f(3) + gt4(3) * fscalar
-             
+
              ! computing the pressure tensor
              k1 = fscalar*gt1
              k3 = fscalar*gt3
@@ -403,7 +409,72 @@ CONTAINS
                 f_imptor(:,index_d) = f_imptor(:,index_d) + fscalar*gt4
              END IF
           END DO IMP_TORSION
-          
+
+          OPBEND: DO iopbend = 1, nopbends
+             index_a = opbend_list ( iopbend ) % a + first_atom - 1
+             index_b = opbend_list ( iopbend ) % b + first_atom - 1
+             index_c = opbend_list ( iopbend ) % c + first_atom - 1
+             index_d = opbend_list ( iopbend ) % d + first_atom - 1
+
+             t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+             t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
+             t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
+             t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
+             t41 = particle_set ( index_d ) % r - particle_set ( index_a ) % r
+             t42 = pbc(t41+t12,cell)
+             t12 = pbc(t12,cell)
+             t32 = pbc(t32,cell)
+             t41 = pbc(t41,cell)
+             t43 = pbc(t43,cell)
+             ! tm = t32 x t12
+             tm(1) =  t32(2)*t12(3)-t12(2)*t32(3)
+             tm(2) = -t32(1)*t12(3)+t12(1)*t32(3)
+             tm(3) =  t32(1)*t12(2)-t12(1)*t32(2)
+             ! tn = - t41 x tm
+             tn(1) = -( t41(2)*tm(3)-tm(2)*t41(3))
+             tn(2) = -(-t41(1)*tm(3)+tm(1)*t41(3))
+             tn(3) = -( t41(1)*tm(2)-tm(1)*t41(2))
+             sm = SQRT ( DOT_PRODUCT(tm,tm) )
+             ism = 1.0_dp/sm
+             sn = SQRT ( DOT_PRODUCT(tn,tn) )
+             isn = 1.0_dp/sn
+             s32 = SQRT ( DOT_PRODUCT(t32,t32) )
+             is32 = 1.0_dp/s32
+             CALL force_opbends( opbend_list(iopbend)%opbend_kind%id_type, &
+                                      s32, is32,ism,isn,tm,tn, t41, t42, t43, &
+                                      opbend_list(iopbend)%opbend_kind%k, &
+                                      opbend_list(iopbend)%opbend_kind%phi0, &
+                                      gt1,gt2,gt3,gt4,energy,fscalar)
+             pot_opbend = pot_opbend + energy
+             particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) + gt1(1) * fscalar
+             particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) + gt1(2) * fscalar
+             particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) + gt1(3) * fscalar
+             particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1) + gt2(1) * fscalar
+             particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2) + gt2(2) * fscalar
+             particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3) + gt2(3) * fscalar
+             particle_set ( index_c )% f(1) = particle_set ( index_c ) % f(1) + gt3(1) * fscalar
+             particle_set ( index_c )% f(2) = particle_set ( index_c ) % f(2) + gt3(2) * fscalar
+             particle_set ( index_c )% f(3) = particle_set ( index_c ) % f(3) + gt3(3) * fscalar
+             particle_set ( index_d )% f(1) = particle_set ( index_d ) % f(1) + gt4(1) * fscalar
+             particle_set ( index_d )% f(2) = particle_set ( index_d ) % f(2) + gt4(2) * fscalar
+             particle_set ( index_d )% f(3) = particle_set ( index_d ) % f(3) + gt4(3) * fscalar
+
+             ! computing the pressure tensor
+             k1 = fscalar*gt1
+             k3 = fscalar*gt3
+             k4 = fscalar*gt4
+
+             IF (use_virial) CALL get_pv_torsion(k1,k3,k4,t12,t32,t43,pv_opbend)
+
+             ! the contribution from the opbends. ONLY FOR DEBUG
+             IF ( PRESENT ( f_opbend)) THEN
+                f_opbend(:,index_a) = f_opbend(:,index_a) + fscalar*gt1
+                f_opbend(:,index_b) = f_opbend(:,index_b) + fscalar*gt2
+                f_opbend(:,index_c) = f_opbend(:,index_c) + fscalar*gt3
+                f_opbend(:,index_d) = f_opbend(:,index_d) + fscalar*gt4
+             END IF
+          END DO OPBEND
+
           ONEF: DO ionef = 1, nonefs
              index_a = onef_list ( ionef ) % a + first_atom - 1
              index_b = onef_list ( ionef ) % b + first_atom - 1
@@ -428,11 +499,11 @@ CONTAINS
              particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1) +rij(1) * fscalar
              particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2) +rij(2) * fscalar
              particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3) +rij(3) * fscalar
-             
+
              ! computing the pressure tensor
              k2 = rij * fscalar
              IF (use_virial) CALL get_pv_bond ( k2,rij,pv_onef )
-             
+
              ! the contribution from the bonds. ONLY FOR DEBUG
              IF ( PRESENT ( f_onef ) ) THEN
                 f_onef(:,index_a) = f_onef(:,index_a) - rij*fscalar
@@ -441,10 +512,10 @@ CONTAINS
           END DO ONEF
        END DO
     END DO MOL
-    
+
     CALL timestop(handle)
-    
+
   END SUBROUTINE force_intra_control
-  
+
 END MODULE fist_intra_force
 
