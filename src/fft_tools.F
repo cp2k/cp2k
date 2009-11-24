@@ -1823,19 +1823,25 @@ CONTAINS
     nz = bo ( 2, 3, rs_pos ) - bo ( 1, 3, rs_pos ) + 1
     num_threads = 1
     my_id = 0
-!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(tb,2))), &
-!$omp          private(my_id,num_threads,lb,ub,ipr,jj,ip,ir,jz,jy), &
-!$omp          shared(tb,np,p2p,bo,rs_pos,nray,yzp,alltoall_sgl,zcor,myz,tq,rq,nz)
-!$  num_threads = omp_get_num_threads()
-!$  my_id = omp_get_thread_num()
+!
+!
+! this OMP is commented because it is incorrect,
+! jj is a counter which must be taken care of differently
+!
+!
+!XXXXomp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(tb,2))), &
+!XXXXomp          private(my_id,num_threads,lb,ub,ipr,jj,ip,ir,jz,jy), &
+!XXXXomp          shared(tb,np,p2p,bo,rs_pos,nray,yzp,alltoall_sgl,zcor,myz,tq,rq,nz)
+!XXXX  num_threads = omp_get_num_threads()
+!XXXX  my_id = omp_get_thread_num()
     lb = (SIZE(tb,2)*my_id)/num_threads + 1
     ub = (SIZE(tb,2)*(my_id+1))/num_threads
     tb(:,lb:ub) = 0.0_lp
-!$omp barrier
+!XXXXomp barrier
     DO ip = 0, np - 1
        ipr = p2p ( ip )
        jj = 0
-!$omp do __COLLAPSE2
+!XXXXomp do __COLLAPSE2
        DO jx = 0, bo ( 2, 1, rs_pos ) - bo ( 1, 1, rs_pos )
           DO ir = 1, nray ( ip )
              jz = yzp ( 2, ir, ip )
@@ -1856,9 +1862,9 @@ CONTAINS
              END IF
           END DO
        END DO
-!$omp end do
+!XXXXomp end do
     END DO
-!$omp end parallel
+!XXXXomp end parallel
 
     CALL timestop(handle)
 
@@ -1974,15 +1980,23 @@ CONTAINS
     mp = p2p ( my_pos )
     nz = bo ( 2, 3, mp ) - bo ( 1, 3, mp ) + 1
     nx = bo ( 2, 1, mp ) - bo ( 1, 1, mp ) + 1
-!$omp parallel default(none), &
-!$omp          private(jj,ipl,ip,jz,jy,jx,ixx), &
-!$omp          shared(np,p2p,nray,yzp,zcor,myz,bo,mp, &
-!$omp                 alltoall_sgl,nx,scount,tq,rq,sb, &
-!$omp                 nz,nmax,sdispl,rdispl)
+
+!
+!
+! this OMP is commented because it is incorrect,
+! jj is a counter which must be taken care of differently
+!
+!
+
+!XXXXomp parallel default(none), &
+!XXXXomp          private(jj,ipl,ip,jz,jy,jx,ixx), &
+!XXXXomp          shared(np,p2p,nray,yzp,zcor,myz,bo,mp, &
+!XXXXomp                 alltoall_sgl,nx,scount,tq,rq,sb, &
+!XXXXomp                 nz,nmax,sdispl,rdispl)
     DO ip = 0, np - 1
        jj = 0
        ipl = p2p ( ip )
-!$omp do
+!XXXXomp do
        DO ir = 1, nray ( ip )
           jz = yzp ( 2, ir, ip )
           IF ( zcor ( jz ) == myz ) THEN
@@ -2002,15 +2016,15 @@ CONTAINS
              END IF
           END IF
        END DO
-!$omp end do
+!XXXXomp end do
     END DO
-!$omp do
+!XXXXomp do
     DO ip = 0, np - 1
        sdispl ( ip ) = nmax * ip
        rdispl ( ip ) = nmax * ip
     END DO
-!$omp end do
-!$omp end parallel
+!XXXXomp end do
+!XXXXomp end parallel
 
     IF ( alltoall_sgl ) THEN
        CALL mp_alltoall ( tq, scount, sdispl, ts, rcount, rdispl, group )
