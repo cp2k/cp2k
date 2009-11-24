@@ -310,9 +310,47 @@ CONTAINS
     CALL powell_optimize (ostate%nvar, x, ostate)
 
     IF ( iunit > 0 ) THEN
-      WRITE(iunit,'(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
-      WRITE(iunit,'(" POWELL| Final value of function",T61,F20.10)') ostate%f
-      CALL atom_print_basis(basis,iunit," Optimized Basis",error)
+       WRITE(iunit,'(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
+       WRITE(iunit,'(" POWELL| Final value of function",T61,F20.10)') ostate%fopt
+       ! x->basis
+       SELECT CASE (basis%basis_type)
+          CASE DEFAULT
+            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CASE (GTO_BASIS)
+            IF ( basis%geometrical ) THEN
+              basis%am = 0._dp
+              DO l=0,3
+                DO i=1,basis%nbas(l)
+                  ll = i - 1 + basis%start(l)
+                  basis%am(i,l) = x(1)*x(1) * (x(2)*x(2))**(ll)
+                END DO
+              END DO
+              basis%aval = x(1)*x(1)
+              basis%cval = x(2)*x(2)
+            ELSE
+              DO l=0,3
+                DO i=1,basis%nprim(l)
+                  al = x(xtob(i,l))**2
+                  basis%am(i,l) = EXP(al) - 1._dp
+                END DO
+              END DO
+            END IF
+            basis%bf =  0._dp
+            basis%dbf = 0._dp
+            nr = basis%grid%nr
+            DO l=0,3
+              DO i=1,basis%nbas(l)
+                al  = basis%am(i,l)
+                DO k=1,nr
+                  rk  = basis%grid%rad(k)
+                  ear = EXP(-al*basis%grid%rad(k)**2)
+                  basis%bf(k,i,l) = rk**l * ear
+                  basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+                END DO
+              END DO
+            END DO
+       END SELECT
+       CALL atom_print_basis(basis,iunit," Optimized Basis",error)
     END IF
 
     DEALLOCATE(x,STAT=ierr)
@@ -490,7 +528,7 @@ CONTAINS
       IF ( MOD(ostate%nf,n10) == 0 .AND. iunit > 0 ) THEN
         WRITE(iunit,'(" POWELL| Reached",i4,"% of maximal function calls",T61,F20.10)') &
               INT(REAL(ostate%nf,dp)/REAL(ostate%maxfun,dp)*100._dp), fopt
-        CALL put_pseudo_param(x,ppot%gth_pot,error)
+        CALL put_pseudo_param(ostate%xopt,ppot%gth_pot,error)
         CALL write_pseudo_param(ppot%gth_pot,error)
       END IF
 
@@ -500,6 +538,7 @@ CONTAINS
 
     ostate%state = 8
     CALL powell_optimize (ostate%nvar, x, ostate)
+    CALL put_pseudo_param(x,ppot%gth_pot,error)
     CALL write_pseudo_param(ppot%gth_pot,error)
 
     IF ( iunit > 0 ) THEN

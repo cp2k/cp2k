@@ -5,7 +5,6 @@
 
 !******************************************************************************
 MODULE powell
-  USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
 
@@ -19,6 +18,7 @@ MODULE powell
     INTEGER            :: maxfun
     REAL(dp)           :: rhobeg, rhoend
     REAL(dp), DIMENSION(:), POINTER  :: w
+    REAL(dp), DIMENSION(:), POINTER  :: xopt
     ! local variables
     INTEGER            :: np, nh, nptm, nftest, idz, itest, nf, nfm, nfmm, &
                           nfsav, knew, kopt, ksave, ktemp
@@ -47,6 +47,7 @@ CONTAINS
     CASE (0)
        npt=2*n+1
        ALLOCATE(optstate%w((npt+13)*(npt+n)+3*n*(n+3)/2))
+       ALLOCATE(optstate%xopt(n))
        optstate%state = 1
        CALL newuoa (n, x, optstate)
     CASE (1,2)
@@ -63,7 +64,9 @@ CONTAINS
     CASE (6,7)
        optstate%state = -1
     CASE (8)
+       x(1:n) = optstate%xopt(1:n)
        DEALLOCATE(optstate%w)
+       DEALLOCATE(optstate%xopt)
        optstate%state = -1
     CASE DEFAULT
        STOP
@@ -151,6 +154,8 @@ CONTAINS
          optstate%w(ixn:),optstate%w(ixp:),optstate%w(ifv:),optstate%w(igq:),optstate%w(ihq:),&
          optstate%w(ipq:),optstate%w(ibmat:),optstate%w(izmat:),ndim,optstate%w(id:),&
          optstate%w(ivl:),optstate%w(iw:),optstate)                               
+
+    optstate%xopt(1:n) = optstate%w(ixb:ixb+n-1) + optstate%w(ixo:ixo+n-1)
 
 20  CONTINUE
 

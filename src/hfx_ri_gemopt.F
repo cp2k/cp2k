@@ -139,10 +139,11 @@ CONTAINS
     ostate%state = 8
     IF ( para_env%source == para_env%mepos ) CALL powell_optimize (ostate%nvar, x, ostate)
     CALL mp_bcast(x,para_env%source,para_env%group)
+    CALL set_geminfo (qs_env,x,error)
 
     IF ( iunit > 0 ) THEN
       WRITE(iunit,'(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
-      WRITE(iunit,'(" POWELL| Final value of function",T61,G20.10)') ostate%f
+      WRITE(iunit,'(" POWELL| Final value of function",T61,G20.10)') ostate%fopt
       CALL write_geminfo (qs_env,iunit,error)
     END IF
 
@@ -387,7 +388,7 @@ CONTAINS
     CALL open_file(file_name="powell.res",file_status="UNKNOWN",&
                    file_action="READWRITE",file_position="APPEND",unit_number=iunit)
 
-    WRITE(iunit,*) ostate%nf, ostate%fopt, x
+    WRITE(iunit,*) ostate%nf, ostate%fopt, ostate%xopt
 
     CALL close_file(iunit)
 
