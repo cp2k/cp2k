@@ -255,7 +255,7 @@ CPSourceFileRef,&
        END IF
        IF (meta_env%do_hills) THEN 
           WRITE (iw,'( A )')' METADYN| Spawning the Hills '
-          WRITE (iw,'( A,T71,F10.3)')  ' METADYN| Width of the Spawned Gaussian',meta_env%hills_env%ww
+          WRITE (iw,'( A,T71,F10.3)')  ' METADYN| Height of the Spawned Gaussian',meta_env%hills_env%ww
           !RG Adaptive hills
           IF (meta_env%hills_env%min_disp.gt.0.0_dp) THEN
              WRITE (iw,'(A)')    ' METADYN| Adapative meta time step is activated'
