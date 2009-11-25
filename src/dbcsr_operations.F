@@ -1134,7 +1134,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps_p",&
          product%nblkcols_total)
     size_c_blk_ps = 0
-    c_blk_pt = 1
+    c_blk_pt = product%wms(ithread+1)%datasize + 1
     lastblk = 0
     datasize = 0
     !
