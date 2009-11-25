@@ -179,12 +179,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: name
-    INTEGER                                  :: i, stat, ithermo, my_index
+    INTEGER                                  :: i, ithermo, my_index, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
-    
+
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(gle),cp_fatal_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(gle%nvt),cp_fatal_level,routineP,error,failure)
