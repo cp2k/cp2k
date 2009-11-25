@@ -68,6 +68,7 @@ MODULE qs_linres_epr_nablavks
 ! R0
   USE qs_local_rho_types,              ONLY: rhoz_type
   USE qs_rho0_types,                   ONLY: rho0_atom_type
+  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
@@ -295,7 +296,11 @@ CONTAINS
                            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                            error=error)
 
-    IF (gapw) CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.,error=error)
+    IF (gapw) THEN
+       ! need to rebuild the coeff ! 
+       CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao,error=error)
+       CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.,error=error)
+    END IF
 
     CALL pw_zero(rho_tot_gspace%pw, error=error)
 

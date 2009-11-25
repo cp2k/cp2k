@@ -194,3 +194,7 @@ NO2-EPR-2.inp
 NO2-EPR-3.inp
 # changed eps to 1e-6
 NO2-EPR-3.inp
+# fix epr bug
+NO2-EPR-2.inp
+# fix epr bug
+NO2-EPR-3.inp
