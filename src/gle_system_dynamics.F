@@ -104,7 +104,7 @@ MODULE gle_system_dynamics
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (h_tmp(ndim,gle%loc_num_gle),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    rng_stream => gle%gaussian_rng_stream
+
        
     map_info => gle%map_info
     CALL ke_region_particles(map_info, particle_set, molecule_kind_set,&
@@ -122,6 +122,7 @@ MODULE gle_system_dynamics
        IF (gle%nvt(ideg)%nkt==0.0_dp) CYCLE
        gle%nvt(ideg)%s(1)= map_info%s_kin(imap)
        s_tmp(1,imap) = map_info%s_kin(imap)
+       rng_stream => gle%nvt(ideg)%gaussian_rng_stream
        rr =  next_random_number( rng_stream,error=error)
        e_tmp(1,imap)= rr
        DO iadd = 2,ndim
@@ -461,14 +462,14 @@ MODULE gle_system_dynamics
          CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
               n_rep_val=n_rep,error=error)
 
-         glob_num = 1 !=gle%glob_num_gle
-         loc_num = 1 !=gle%loc_num_gle
+         glob_num =gle%glob_num_gle
+         loc_num =gle%loc_num_gle
          IF (n_rep==glob_num) THEN
            DO i = 1, loc_num
-              ind =  i !map_info%index(i)
+              ind =  map_info%index(i)
               CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&
                    i_rep_val=ind,c_val=rng_record,error=error)
-               CALL read_rng_stream(rng_stream=gle%gaussian_rng_stream,&
+               CALL read_rng_stream(rng_stream=gle%nvt(i)%gaussian_rng_stream,&
                     rng_record=rng_record,error=error)
            END DO
          ELSE
@@ -499,8 +500,9 @@ MODULE gle_system_dynamics
 
     CALL gle_cholesky(gle%c_mat, cc, gle%nadd+1)  
 
-    rng_stream => gle%gaussian_rng_stream
     DO i = 1, gle%loc_num_gle
+      
+      rng_stream => gle%nvt(i)%gaussian_rng_stream
       DO j = 1, gle%nadd+1
         ! here s should be properly initialized, when it is not read from restart
         rr(j) =  next_random_number( rng_stream,error=error)

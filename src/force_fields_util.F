@@ -61,6 +61,7 @@ MODULE force_fields_util
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE shell_potential_types,           ONLY: shell_kind_type
   USE splines_types,                   ONLY: spline_env_release,&
                                              spline_environment_type
   USE string_utilities,                ONLY: compress
@@ -393,13 +394,14 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: atmname, molname
     INTEGER                                  :: handle, iatom, imol, iw
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, shell_active
     REAL(KIND=dp)                            :: mass, mass_mol, mass_sum, &
                                                 qeff, qeff_mol, qeff_sum
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(shell_kind_type), POINTER           :: shell
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -426,7 +428,8 @@ CONTAINS
        DO iatom=1,SIZE(atom_list)
           atomic_kind => atom_list(iatom)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=atmname,qeff=qeff,mass=mass)
+               name=atmname,qeff=qeff,mass=mass, shell_active=shell_active, shell=shell)
+          IF(shell_active) qeff = shell%charge_core+shell%charge_shell
           IF(iw>0) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname)," charge = ",qeff
           qeff_mol = qeff_mol + qeff
           mass_mol = mass_mol + mass
@@ -442,14 +445,15 @@ CONTAINS
     DO iatom=1,SIZE(particle_set)
        atomic_kind => particle_set(iatom)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            name=atmname,qeff=qeff,mass=mass)
+            name=atmname,qeff=qeff,mass=mass,shell_active=shell_active, shell=shell)
+       IF(shell_active) qeff = shell%charge_core+shell%charge_shell
        IF(iw>0) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname),&
             " charge = ",qeff
        qeff_sum = qeff_sum + qeff
        mass_sum = mass_sum + mass
     END DO
-    IF(iw>0) WRITE(iw,*) "    Total system charge = ",qeff_sum
-    IF(iw>0) WRITE(iw,*) "    Total system mass   = ",mass_sum
+    IF(iw>0) WRITE(iw,'(A,F20.10)') "    Total system charge = ",qeff_sum
+    IF(iw>0) WRITE(iw,'(A,F20.10)') "    Total system mass   = ",mass_sum
 
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)

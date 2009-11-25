@@ -39,6 +39,7 @@ MODULE gle_system_types
      INTEGER                                 :: degrees_of_freedom
      REAL(KIND=dp)                           :: nkt, kin_energy, thermostat_energy
      REAL(KIND=dp), DIMENSION(:), POINTER    :: s
+     TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
   END TYPE gle_thermo_type
 
 ! *****************************************************************************
@@ -50,7 +51,6 @@ MODULE gle_system_types
      REAL(dp), POINTER                       :: gle_s(:,:), gle_t(:,:) 
      REAL(dp), POINTER                       :: a_mat(:,:), c_mat(:,:) 
      TYPE(gle_thermo_type), POINTER          :: nvt(:)
-     TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
      TYPE(map_info_type), POINTER            :: map_info
   END TYPE gle_type
 
@@ -179,10 +179,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: name
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, stat, ithermo, my_index
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
-
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: seed
+    REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
+    
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(gle),cp_fatal_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(gle%nvt),cp_fatal_level,routineP,error,failure)
@@ -202,13 +204,31 @@ CONTAINS
     gle%mal(:) = 0
 
     ! Initialize the gaussian stream random number
-    NULLIFY(gle%gaussian_rng_stream)   
     initial_seed = next_rng_seed(error=error)
-    WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for Thermostat #",i
-    CALL compress(name)
-    CALL create_rng_stream(rng_stream=gle%gaussian_rng_stream,&
-       name=name,distribution_type=GAUSSIAN, extended_precision=.TRUE.,&
-       seed=initial_seed,error=error)
+    ALLOCATE (seed(3,2,gle%glob_num_gle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    seed(:,:,1) = initial_seed
+    DO ithermo=2,gle%glob_num_gle
+       seed(:,:,ithermo) = next_rng_seed(seed(:,:,ithermo-1),error=error)
+    END DO
+
+    ! Update initial seed
+    initial_seed = next_rng_seed(seed(:,:,gle%glob_num_gle),error=error)
+    DO ithermo = 1, gle%loc_num_gle
+       NULLIFY(gle%nvt(ithermo)%gaussian_rng_stream)
+       my_index = gle%map_info%index(ithermo)
+       my_seed  = seed(:,:,my_index)
+       WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for Thermostat #",my_index
+       CALL compress(name)
+       CALL create_rng_stream(rng_stream=gle%nvt(ithermo)%gaussian_rng_stream,&
+            name=name,distribution_type=GAUSSIAN, extended_precision=.TRUE.,&
+            seed=my_seed,error=error)
+    END DO
+
+    DEALLOCATE (seed,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ 
   END SUBROUTINE gle_thermo_create
 
 ! *****************************************************************************
@@ -245,10 +265,12 @@ CONTAINS
           DEALLOCATE (gle%gle_s, STAT=stat)
           CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        END IF
-       CALL delete_rng_stream(gle%gaussian_rng_stream,error=error)
        IF (ASSOCIATED (gle%nvt)) THEN
           DO i = 1,SIZE(gle%nvt)
             DEALLOCATE (gle%nvt(i)%s, STAT=stat)
+            IF (ASSOCIATED(gle%nvt(i)%gaussian_rng_stream)) THEN    
+              CALL delete_rng_stream(gle%nvt(i)%gaussian_rng_stream,error=error)
+            END IF
             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
           END DO
           DEALLOCATE (gle%nvt, STAT=stat)

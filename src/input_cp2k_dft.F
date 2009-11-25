@@ -1610,10 +1610,10 @@ CONTAINS
     CALL keyword_create(keyword, name="STM_BIAS",&
          description="Bias energy for scanning tunneling microscopy (STM) image generation."//&
                      "Orbital densities are summed according to the bias energy."//&
-                     "For negative values, states in the range ]HOMO+bias,HOMO] are summed,"//&
-                     "While positive values sum states in the range [LUMO,LUMO+bias[."//&
-                     "Notice that the bias is not with respect to the Fermi energy, and zero biases are skipped."//&
-                     "If postive biases are used, sufficiently many LUMOs (see NLUMO) should be computed.",&
+                     "For negative values, states in the range ]EF+bias,EF] are summed,"//&
+                     "While positive values sum states in the range [EF,EF+bias[."//&
+                     "If postive biases are used, sufficiently many unoccupied stated"//&
+                     " (see ADDED_MOS and NLUMO ) should be computed.",&
          n_var=-1,type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV', error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)

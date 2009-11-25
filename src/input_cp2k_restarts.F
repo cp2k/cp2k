@@ -1184,26 +1184,26 @@ CONTAINS
 
     ! Thermostat Random Number info for restart
     work_section => section_vals_get_subs_vals(gle_section,"RNG_INIT",error=error)
-    glob_num = 1 ! gle%glob_num_gle
-    loc_num = 1 ! gle%loc_num_gle
+    glob_num = gle%glob_num_gle
+    loc_num = gle%loc_num_gle
     ALLOCATE (dwork(rng_record_length,glob_num),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     dwork = 0
     DO i=1,loc_num
-       j = i ! gle%map_info%index(i)
-       CALL dump_rng_stream(rng_stream= gle%gaussian_rng_stream, & !gle%nvt(i)%gaussian_rng_stream,&
+       j = gle%map_info%index(i)
+       CALL dump_rng_stream(rng_stream= gle%nvt(i)%gaussian_rng_stream,&
             rng_record=rng_record, error=error)
        CALL string_to_ascii(rng_record,dwork(:,j))
     END DO
 
     !  Collect data if there was no communication in this thermostat
-!    IF (gle%map_info%dis_type==do_thermo_no_communication) THEN
-!       ! Collect data if there was no communication in this thermostat
-!       CALL mp_sum(dwork,para_env%group)
-!    ELSE
-!       ! Perform some check and collect data in case of communicating thermostats 
-!       CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env, error)
-!    END IF
+    IF (gle%map_info%dis_type==do_thermo_no_communication) THEN
+       ! Collect data if there was no communication in this thermostat
+       CALL mp_sum(dwork,para_env%group)
+    ELSE
+       ! Perform some check and collect data in case of communicating thermostats 
+       CALL communication_thermo_low2(dwork, rng_record_length, glob_num, para_env, error)
+    END IF
     CALL section_rng_val_set(rng_section=work_section,nsize=glob_num,ascii=dwork,&
          error=error)
     DEALLOCATE (dwork,STAT=stat)

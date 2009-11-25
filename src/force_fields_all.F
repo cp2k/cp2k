@@ -2274,11 +2274,11 @@ CPSourceFileRef,&
           counter = 0
           DO j = first, last
              atomic_kind => particle_set(j)%atomic_kind
-             first_shell = MIN(first_shell, MAX(1,particle_set(j)%shell_index))
              CALL get_atomic_kind(atomic_kind=atomic_kind,shell_active=is_a_shell)
              IF(is_a_shell) THEN
                 counter = counter+1
                 shell_list_tmp(counter) = j - first + 1
+                first_shell = MIN(first_shell, MAX(1,particle_set(j)%shell_index))
              END IF
           END DO  ! j atom in molecule_kind i, molecule 1 of the molecule_list
           IF(counter/=0) THEN
