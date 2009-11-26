@@ -79,10 +79,10 @@ MODULE dkh_main
        get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
        neighbor_list_type, neighbor_node_type, next, reduced_3c_list_type
   USE qs_oce_types,                    ONLY: allocate_vtriple,&
+                                             build_reduced_3c_lists,&
                                              deallocate_vtriple,&
                                              oce_matrix_type,&
                                              retrieve_sac_list,&
-                                             build_reduced_3c_lists,&
                                              vtriple_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
