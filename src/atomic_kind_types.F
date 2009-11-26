@@ -2377,7 +2377,7 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(T9,A,(T78,I3))")&
                   "Preferred (initial) orbital occupation order (orbital M values):",&
                   atomic_kind%dft_plus_u%orbitals(:)
-                WRITE (UNIT=output_unit,FMT="(T9,A,T71,ES10.3,/,T9,A,T76,I5))")&
+                WRITE (UNIT=output_unit,FMT="(T9,A,T71,ES10.3,/,T9,A,T76,I5)")&
                   "Threshold value for the SCF convergence criterion:",&
                   atomic_kind%dft_plus_u%eps_scf,&
                   "Number of initial SCF iterations:",&
