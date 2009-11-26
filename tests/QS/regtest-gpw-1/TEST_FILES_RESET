@@ -433,3 +433,5 @@ Ar-13.inp
 H2O-harris.inp
 #
 H2O-MD-harris.inp
+#initial guess
+K2.inp

@@ -767,3 +767,5 @@ O2-ROKS.inp
 H2O-ata.inp
 #
 H2O-ata.inp
+#initial guess
+rsgrid-dist-1.inp

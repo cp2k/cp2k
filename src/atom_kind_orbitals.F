@@ -70,6 +70,7 @@ CONTAINS
                                                 k2, l, ll, lm, m, mb, mo, n, &
                                                 ne, ngp, nj, nn, nr, ns, &
                                                 nset, nsgf, quadtype, z
+    INTEGER, DIMENSION(0:3)                  :: econfx
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
     INTEGER, DIMENSION(:), POINTER           :: econf, lmax, lmin, npgf, &
@@ -269,10 +270,12 @@ CONTAINS
     NULLIFY(econf)
     IF ( ASSOCIATED(gth_potential) ) THEN
       CALL get_potential(gth_potential,elec_conf=econf)
+      econfx = 0
+      econfx(0:SIZE(econf)-1) = econf
       IF ( SUM(econf) >= 0 ) THEN
-        DO l=0,SIZE(econf)-1
+        DO l=0,3
           ll = 2*(2*l+1)
-          nn = ptable(z)%e_conv(l)-econf(l)
+          nn = ptable(z)%e_conv(l)-econfx(l)
           ii = 0
           DO
             ii = ii + 1
@@ -304,9 +307,9 @@ CONTAINS
       ELSE
         ncore = 0
         ncalc = 0
-        DO l=0,SIZE(econf)-1
+        DO l=0,3
           ll = 2*(2*l+1)
-          nn = ABS(econf(l))
+          nn = ABS(econfx(l))
           ii = 0
           DO
             ii = ii + 1

@@ -598,3 +598,5 @@ hcn_meta_chaincoord_kind.inp
 hcn_ts_r.inp
 #
 hcn_ts_r.inp
+#initial guess
+Au13ico_mtd.inp
