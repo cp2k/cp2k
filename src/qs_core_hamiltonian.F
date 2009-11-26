@@ -869,24 +869,24 @@ CONTAINS
                                hab(ico,jco) = 0.0_dp
                             END DO
                          END DO
-                         IF (calculate_forces) THEN
-                            ! *** Decontract density matrix block ***
-                            IF (iatom <= jatom) THEN
-                               CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    p_block(sgfa,sgfb),SIZE(p_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                            ELSE
-                               CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    p_block(sgfb,sgfa),SIZE(p_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                            END IF
-                            CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                                 1.0_dp,work(1,1),SIZE(work,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_dp,pab(1,1),SIZE(pab,1))
-                         END IF
+!deb                         IF (calculate_forces) THEN
+!deb                            ! *** Decontract density matrix block ***
+!deb                            IF (iatom <= jatom) THEN
+!deb                               CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+!deb                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+!deb                                    p_block(sgfa,sgfb),SIZE(p_block,1),&
+!deb                                    0.0_dp,work(1,1),SIZE(work,1))
+!deb                            ELSE
+!deb                               CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
+!deb                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+!deb                                    p_block(sgfb,sgfa),SIZE(p_block,1),&
+!deb                                    0.0_dp,work(1,1),SIZE(work,1))
+!deb                            END IF
+!deb                            CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+!deb                                 1.0_dp,work(1,1),SIZE(work,1),&
+!deb                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
+!deb                                 0.0_dp,pab(1,1),SIZE(pab,1))
+!deb                         END IF
                       END IF
 
                       ! *** Contraction step (core Hamiltonian matrix) ***

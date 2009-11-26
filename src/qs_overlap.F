@@ -48,7 +48,6 @@ MODULE qs_overlap
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
                                              int_size
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
@@ -253,19 +252,8 @@ CONTAINS
          error=error)
     CALL cp_dbcsr_add_dist2d (matrix_s(1)%matrix%m, distribution_2d, error)
 
-    DEALLOCATE (first_sgf_a,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "first_sgf_a")
-    DEALLOCATE (last_sgf_a,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "last_sgf_a")
-
-    DEALLOCATE (first_sgf_b,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "first_sgf_b")
-    DEALLOCATE (last_sgf_b,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "last_sgf_b")
+    DEALLOCATE (first_sgf_a,last_sgf_a,first_sgf_b,last_sgf_b,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     symmetry_string = dbcsr_type_antisymmetric
     IF( basis_set_id_a /= basis_set_id_b) THEN
@@ -317,24 +305,18 @@ CONTAINS
     CALL init_orbital_pointers(ldai)
 
     ALLOCATE (ai_work(ldai,ldai,ncoset(nder)),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "ai_work",ldai*ldai*ncoset(nder)*dp_size)
-    END IF
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE (sab(max_maxco,max_maxco*maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "sab",max_maxco*max_maxco*maxder*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     sab(:,:) = 0.0_dp
 
     ALLOCATE (work(max_maxco,max_maxsgf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work",max_maxco*max_maxsgf*dp_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     work(:,:) = 0.0_dp
 
     ALLOCATE (sint(maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "sint",maxder*int_size)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO i=1,maxder
       NULLIFY (sint(i)%block)
     END DO
@@ -553,24 +535,14 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    DEALLOCATE (ai_work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ai_work")
-
-    DEALLOCATE (sab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "sab")
-
-    DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work")
+    DEALLOCATE (ai_work,sab,work,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO i=1,maxder
       NULLIFY (sint(i)%block)
     END DO
     DEALLOCATE (sint,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "sint")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
 !   *** Print the overlap matrix distribution ***
 
