@@ -1619,6 +1619,7 @@ CONTAINS
                                                 ip, is, it, ng, ngr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx, int_tmp
     LOGICAL                                  :: failure, g_found
+    REAL(KIND=dp)                            :: gig, gigr
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: real_tmp
 
 !------------------------------------------------------------------------------
@@ -1686,9 +1687,11 @@ CONTAINS
              ! for the case pw_grid <= ref_grid
              is = it
              DO ig = it + 1, ngr
+                gig = pw_grid % gsq(ig)
+                gigr = MAX(1._dp,gig)
                 g_found=.FALSE.
                 DO ih = is + 1, SIZE ( ref_grid % gsq  )
-                   IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dp ) CYCLE
+                   IF ( ABS ( gig - ref_grid % gsq(ih) )/gigr > 1.e-12_dp ) CYCLE
                    g_found=.TRUE.
                    EXIT
                 END DO
@@ -1698,7 +1701,7 @@ CONTAINS
                 END IF
                 ip = ih - 1
                 DO ih = ip + 1, SIZE ( ref_grid % gsq  )
-                   IF ( ABS ( pw_grid % gsq(ig) - ref_grid % gsq(ih) ) > 1.e-12_dp ) CYCLE
+                   IF ( ABS ( gig - ref_grid % gsq(ih) )/gigr > 1.e-12_dp ) CYCLE
                    IF ( pw_grid % g_hat(1,ig) /= ref_grid % g_hat(1,ih) ) CYCLE
                    IF ( pw_grid % g_hat(2,ig) /= ref_grid % g_hat(2,ih) ) CYCLE
                    IF ( pw_grid % g_hat(3,ig) /= ref_grid % g_hat(3,ih) ) CYCLE
@@ -1724,9 +1727,11 @@ CONTAINS
              ! for the case pw_grid > ref_grid
              is = it
              DO ig = it + 1, ngr
+                gig = ref_grid % gsq(ig)
+                gigr = MAX(1._dp,gig)
                 g_found=.FALSE.
                 DO ih = is + 1, ng
-                   IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dp ) CYCLE
+                   IF ( ABS ( pw_grid % gsq(ih) - gig )/gigr > 1.e-12_dp ) CYCLE
                    g_found=.TRUE.
                    EXIT
                 END DO
@@ -1736,7 +1741,7 @@ CONTAINS
                 END IF
                 ip = ih - 1
                 DO ih = ip + 1, ng
-                   IF ( ABS ( pw_grid % gsq(ih) - ref_grid % gsq(ig) ) > 1.e-12_dp ) CYCLE
+                   IF ( ABS ( pw_grid % gsq(ih) - gig )/gigr > 1.e-12_dp ) CYCLE
                    IF ( pw_grid % g_hat(1,ih) /= ref_grid % g_hat(1,ig) ) CYCLE
                    IF ( pw_grid % g_hat(2,ih) /= ref_grid % g_hat(2,ig) ) CYCLE
                    IF ( pw_grid % g_hat(3,ih) /= ref_grid % g_hat(3,ig) ) CYCLE
