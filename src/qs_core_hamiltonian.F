@@ -137,16 +137,11 @@ MODULE qs_core_hamiltonian
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next, reduced_3c_list_type
+       neighbor_node_type, next
   USE qs_oce_methods,                  ONLY: build_oce_matrices
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
-                                             allocate_vtriple,&
-                                             build_reduced_3c_lists,&
                                              create_oce_set,&
-                                             deallocate_vtriple,&
-                                             oce_matrix_type,&
-                                             retrieve_sac_list,&
-                                             vtriple_type
+                                             oce_matrix_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: compress,&
@@ -188,22 +183,21 @@ CONTAINS
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
-    INTEGER :: atom_a, atom_b, first_col, handle, i, iab, iat, iatom, ico, &
-      icol, ikind, ilist, inode, irow, iset, ithread, j, jatom, jco, jkind, &
-      jset, last_jatom, ldai, ldsab, maxblock, maxco, maxdco, maxder, maxl, &
-      maxlgto, maxlppl, maxsgf, nat, natom, ncoa, ncob, nder, &
-      neighbor_list_id, nkind, nlist, nnode, nrow, nseta, nsetb, nsgf, &
-      nthread, sgfa, sgfb, stat
+    INTEGER :: atom_a, atom_b, first_col, handle, i, iab, iatom, ico, icol, &
+      ikind, ilist, inode, irow, iset, ithread, j, jatom, jco, jkind, jset, &
+      last_jatom, ldai, ldsab, maxblock, maxco, maxdco, maxder, maxl, &
+      maxlgto, maxlppl, maxsgf, natom, ncoa, ncob, nder, neighbor_list_id, &
+      nkind, nlist, nnode, nrow, nseta, nsetb, nsgf, nthread, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf, &
                                                 last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
-                                                lb_max, lb_min, npgfa, npgfb, &
-                                                nsgfa, nsgfb, rbs
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb, rbs
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: all_potential_present, build_kinetic_energy_matrix, do_ep, &
       epr_calculation, failure, found, gth_potential_present, harris_flag, &
       new_atom_b, oce_present, ppl_present, return_s_derivatives, &
-      return_t_derivatives, rho0_present, tr, use_virial, xas_calculation
+      return_t_derivatives, tr, use_virial, xas_calculation
     REAL(KIND=dp)                            :: dab, eps_fit, eps_ppnl, f, &
                                                 f0, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -237,9 +231,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb, sac_3c, sac_ae, &
-                                                sac_ppl, sap_oce, sap_ppnl, &
-                                                sbc_3c
+      DIMENSION(:), POINTER                  :: sab_orb, sac_ae, sac_ppl, &
+                                                sap_oce, sap_ppnl
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
                                                 sab_orb_neighbor_list_local
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
@@ -249,12 +242,8 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(reduced_3c_list_type), &
-      DIMENSION(:), POINTER                  :: reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
-    TYPE(vtriple_type), DIMENSION(:, :), &
-      POINTER                                :: VH_3c_list
 
     failure = .FALSE.
     IF (calculate_forces) THEN
@@ -274,7 +263,6 @@ CONTAINS
     NULLIFY (matrix_t)
     NULLIFY (habt)
     NULLIFY (oce)
-    NULLIFY (VH_3c_list)
     NULLIFY (pabt)
     NULLIFY (particle_set)
     NULLIFY (rho)
@@ -284,8 +272,6 @@ CONTAINS
     NULLIFY (sac_ppl)
     NULLIFY (sap_ppnl)
     NULLIFY (sap_oce)
-    NULLIFY (sac_3c)
-    NULLIFY (sbc_3c)
     NULLIFY (scf_control)
     NULLIFY (sdabt)
     NULLIFY (matrix_w)
@@ -293,11 +279,9 @@ CONTAINS
     NULLIFY (workt)
     NULLIFY (harris_env)
     NULLIFY (para_env)
-    NULLIFY (atom_list)
 
     ! Default
     oce_present = .FALSE.
-    rho0_present = .FALSE.
 
     IF (PRESENT(harris)) THEN
       harris_flag = harris
@@ -317,9 +301,6 @@ CONTAINS
                     sac_ppl=sac_ppl,&
                     sap_ppnl=sap_ppnl,&
                     sap_oce=sap_oce,&
-                    VH_3c_list=VH_3c_list,&
-                    sac_3c=sac_3c,&
-                    sbc_3c=sbc_3c,&
                     neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d,&
@@ -592,25 +573,9 @@ CONTAINS
     ! ***  Initialize blocks for the one center expansion ***
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
        oce_present = ASSOCIATED(sap_oce)
-       rho0_present = ASSOCIATED(sac_3c)
-       IF(rho0_present) THEN
-          CALL allocate_vtriple(VH_3c_list,nkind,natom,error=error)
-       END IF
     ENDIF
     
     ppl_present = ASSOCIATED(sac_ppl)
-
-    ! *** Retrieve data of SAC_3C neighbors of atom "iatom" ***
-    DO ikind = 1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,natom=nat,atom_list=atom_list)
-       DO iat = 1,nat
-          iatom = atom_list(iat)
-          IF(rho0_present) THEN
-             CALL retrieve_sac_list(VH_3c_list,sac_3c,iatom,ikind,nkind,error=error)
-          ENDIF
-       END DO
-    END DO
 
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
@@ -687,16 +652,6 @@ CONTAINS
                 ELSE
                    new_atom_b = .FALSE.
                 END IF
-                
-               IF(rho0_present .AND. qs_env%rel_control%rel_method/=rel_none) THEN
-                   CALL get_neighbor_node(sab_orb_neighbor_node,reduced_3c_rho0=reduced_3c_rho0)
-                   ! *** Build reduced 3-center lists
-                   IF(.NOT. calculate_forces) &
-                        CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, &
-                        ikind, jkind, sbc_3c, VH_3c_list, reduced_3c_rho0,&
-                        .FALSE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
-                END IF
-! MI get rid of full gapw
                 
                 IF (calculate_forces) atom_b = atom_of_kind(jatom)
                 
@@ -1031,10 +986,6 @@ CONTAINS
                     kinetic=matrix_t,&
                     matrix_h=matrix_h,&
                     oce=oce,error=error)
-
-    IF(ASSOCIATED(VH_3c_list))THEN
-       CALL deallocate_vtriple(VH_3c_list,error=error)
-    END IF
 
     IF(qs_env%rel_control%rel_method/=rel_none)THEN
       CALL dkh_mol_integrals(qs_env,error)

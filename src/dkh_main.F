@@ -82,6 +82,7 @@ MODULE dkh_main
                                              deallocate_vtriple,&
                                              oce_matrix_type,&
                                              retrieve_sac_list,&
+                                             build_reduced_3c_lists,&
                                              vtriple_type
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
@@ -600,6 +601,9 @@ CONTAINS
                 CALL get_neighbor_node(sab_orb_neighbor_node,neighbor=jatom,r=rab)
                 IF(rho0_present) THEN
                    CALL get_neighbor_node(sab_orb_neighbor_node,reduced_3c_rho0=reduced_3c_rho0)
+                   CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, &
+                        ikind, jkind, sbc_3c, VH_3c_list, reduced_3c_rho0,&
+                        .FALSE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
                 END IF
 
                 IF(dkh_loc_atom)THEN
