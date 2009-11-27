@@ -580,8 +580,11 @@ CPSourceFileRef,&
        IF (has_homo .AND. has_lumo) THEN
          IF (ionode) WRITE(output_unit,*) " "
          DO ispin=1,dft_control%nspins
-             IF(.NOT. scf_control%smear%do_smear) gap = homo_lumo(ispin,2)-homo_lumo(ispin,1)
-             IF (ionode) WRITE(output_unit,'(T2,A,F12.6)') "HOMO - LUMO gap [eV] :",gap*evolt
+             IF(.NOT. scf_control%smear%do_smear) THEN 
+                gap = homo_lumo(ispin,2)-homo_lumo(ispin,1)
+                IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)')&
+                                   "HOMO - LUMO gap [eV] :",gap*evolt
+             END IF
          ENDDO
        ENDIF
 
