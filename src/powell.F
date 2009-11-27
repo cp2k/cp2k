@@ -48,6 +48,8 @@ CONTAINS
        npt=2*n+1
        ALLOCATE(optstate%w((npt+13)*(npt+n)+3*n*(n+3)/2))
        ALLOCATE(optstate%xopt(n))
+       ! Initialize w
+       optstate%w = 0.0_dp
        optstate%state = 1
        CALL newuoa (n, x, optstate)
     CASE (1,2)
