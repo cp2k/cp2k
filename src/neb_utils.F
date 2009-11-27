@@ -59,7 +59,7 @@ MODULE neb_utils
                                              dp
   USE mathlib,                         ONLY: matvec_3x3
   USE md_run,                          ONLY: qs_mol_dyn
-  USE neb_IO,                          ONLY: dump_replica_coordinates,&
+  USE neb_io,                          ONLY: dump_replica_coordinates,&
                                              handle_band_file_names
   USE neb_md_utils,                    ONLY: neb_initialize_velocity
   USE neb_types,                       ONLY: neb_type,&

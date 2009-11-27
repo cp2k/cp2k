@@ -27,8 +27,8 @@ MODULE neb_io
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
-  USE force_env_types,                 ONLY: force_env_get
-  USE global_types,                    ONLY: global_environment_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             use_mixed_force
   USE header,                          ONLY: cp2k_footer
   USE input_constants,                 ONLY: band_md_opt,&
                                              do_sm,&
@@ -399,12 +399,12 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: output_file_path, &
                                                 replica_proj_name
-    INTEGER                                  :: handle, handle2, ierr, j, lp
+    INTEGER                                  :: handle, handle2, i, ierr, j, &
+                                                lp, unit_nr
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: new_error
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_logger_type), POINTER            :: logger, sub_logger
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: root_section
 
     CALL timeset(routineN,handle)
@@ -413,8 +413,7 @@ CONTAINS
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
             new_error=new_error, failure=failure, handle=handle2)
        logger => cp_error_get_logger(new_error)
-       CALL force_env_get(f_env%force_env,globenv=globenv,&
-            root_section=root_section,error=new_error)
+       CALL force_env_get(f_env%force_env,root_section=root_section,error=new_error)
        j    = irep + (rep_env%local_rep_indices(1)-1)
 
        ! Get replica_project_name
@@ -428,6 +427,7 @@ CONTAINS
        output_file_path=replica_proj_name(1:lp)//".out"
        CALL section_vals_val_set(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
             c_val=TRIM(output_file_path),error=error)
+
        IF (logger%default_global_unit_nr>0) THEN
           CALL close_file(logger%default_global_unit_nr)
           CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
@@ -447,6 +447,28 @@ CONTAINS
           WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A79)")&
                "*******************************************************************************"
        END IF
+
+       ! Handle specific case for mixed_env
+       SELECT CASE (f_env%force_env%in_use)
+       CASE (use_mixed_force)
+          DO i = 1, f_env%force_env%mixed_env%ngroups
+             IF (MODULO(i-1,f_env%force_env%mixed_env%ngroups)==&
+                 f_env%force_env%mixed_env%group_distribution(f_env%force_env%mixed_env%para_env%mepos)) THEN
+                sub_logger => cp_error_get_logger(f_env%force_env%mixed_env%sub_error(i))
+                sub_logger%iter_info%project_name=replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))
+
+                unit_nr = sub_logger%default_global_unit_nr
+                IF (unit_nr>0) THEN
+                   CALL close_file(unit_nr)
+
+                   output_file_path=replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))//".out"
+                   CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
+                        file_action="WRITE", file_position="APPEND",&
+                        unit_number=unit_nr,skip_get_unit_number=.TRUE.)
+                END IF
+             END IF
+          END DO
+       END SELECT
 
        CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
