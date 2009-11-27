@@ -21,6 +21,7 @@ MODULE topology_coordinate_util
                                              set_potential
   USE f77_blas
   USE input_constants,                 ONLY: do_fist,&
+                                             do_skip_12,&
                                              do_skip_13,&
                                              do_skip_14
   USE input_section_types,             ONLY: section_vals_type,&
@@ -420,14 +421,21 @@ CPSourceFileRef,&
     END IF
     !
     DO iatom = 1, SIZE(particle_set)
-       dim0 = 1                                          ! always exclude itself
-       dim1 = dim0 + SIZE(ex_bond_list(iatom)%array1)    ! always exclude bond-neighbors
+       !  Setup exclusion list for VDW : always exclude itself
+       dim0 = 1
+       ! exclude bond-neighbors (only if do_skip_12 .OR. do_skip_13 .OR. do_skip_14)
+       dim1 = 0
+       IF  (topology%exclude_vdw==do_skip_12.OR. &
+            topology%exclude_vdw==do_skip_13.OR. &
+            topology%exclude_vdw==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%array1)
+       dim1 = dim1 + dim0
        dim2 = 0
        IF  (topology%exclude_vdw==do_skip_13.OR. &
             topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
        dim2 = dim1 + dim2
-       dim3 = SIZE(ex_onfo_list(iatom)%array1)           ! Always exclude 1-4 
-       dim3 = dim2 + dim3                                ! They're treated in a different way..
+       ! Always exclude 1-4 since we treat them in a different way..
+       dim3 = SIZE(ex_onfo_list(iatom)%array1)
+       dim3 = dim2 + dim3
        IF (dim3 /= 0) THEN
           NULLIFY(list, wlist)
           ALLOCATE(wlist(dim3),stat=stat)
@@ -459,21 +467,29 @@ CPSourceFileRef,&
           IF(topology%exclude_vdw==topology%exclude_ei) THEN
              list2 => list
           ELSE
-             dim0 = 1                                          ! always exclude itself
-             dim1 = dim0 + SIZE(ex_bond_list(iatom)%array1)    ! always exclude bond-neighbors
+             ! Setup exclusion list for EI : always exclude itself
+             dim0 = 1
+             ! exclude bond-neighbors (only if do_skip_12 .OR. do_skip_13 .OR. do_skip_14)
+             dim1 = 0
+             IF  (topology%exclude_ei==do_skip_12.OR. &
+                  topology%exclude_ei==do_skip_13.OR. &
+                  topology%exclude_ei==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%array1)
+             dim1 = dim1 + dim0
              dim2 = 0
              IF  (topology%exclude_ei==do_skip_13.OR. &
                   topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
              dim2 = dim1 + dim2
-             dim3 = SIZE(ex_onfo_list(iatom)%array1)           ! Always exclude 1-4 
-             dim3 = dim2 + dim3                                ! They're treated in a different way..
+             ! Always exclude 1-4 since we treat them in a different way..
+             dim3 = SIZE(ex_onfo_list(iatom)%array1)
+             dim3 = dim2 + dim3
+
              IF (dim3 /= 0) THEN
                 ALLOCATE(wlist(dim3),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                wlist(     1:   1) = iatom
-                wlist(     2:dim1) = ex_bond_list(iatom)%array1
-                wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
-                wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
+                wlist(  dim0:dim0) = iatom
+                IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list(iatom)%array1
+                IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
+                IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
                 ! Get a unique list
                 DO i = 1, SIZE(wlist)-1
                    IF (wlist(i)==0)CYCLE

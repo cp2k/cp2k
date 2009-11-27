@@ -288,8 +288,10 @@ MODULE input_constants
                                               do_region_defined=4,&
                                               do_bondparm_covalent=0,&
                                               do_bondparm_vdw=1,&
-                                              do_skip_13=0,&
-                                              do_skip_14=1,&
+                                              do_skip_11=0,&
+                                              do_skip_12=1,&
+                                              do_skip_13=2,&
+                                              do_skip_14=3,&
                                               do_conn_psf=1,&
                                               do_conn_psf_u=2,&
                                               do_conn_generate=3,&
