@@ -24,8 +24,9 @@ MODULE kinds
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size, int_8, int_4
-  PUBLIC :: real_4, real_8
+  PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size
+  PUBLIC :: int_4, int_8, int_4_size, int_8_size
+  PUBLIC :: real_4, real_8, real_4_size, real_8_size
   PUBLIC :: default_string_length, default_path_length, max_line_length
 
 #if __SGL 
@@ -46,6 +47,8 @@ MODULE kinds
 
   INTEGER, PARAMETER :: real_4 = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: real_8 = SELECTED_REAL_KIND ( 14, 200 )
+  INTEGER, PARAMETER :: real_4_size = 4
+  INTEGER, PARAMETER :: real_8_size = 8
 
 
   ! this int holds more than the normal 4byte ints
@@ -53,6 +56,8 @@ MODULE kinds
   ! this should also be different from the default integer size (which we require to be 4 bytes)
   INTEGER, PARAMETER :: int_8 = SELECTED_INT_KIND(10)
   INTEGER, PARAMETER :: int_4 = SELECTED_INT_KIND(5)
+  INTEGER, PARAMETER :: int_4_size = 4
+  INTEGER, PARAMETER :: int_8_size = 8
   INTEGER, PARAMETER :: default_string_length=80
   INTEGER, PARAMETER :: default_path_length=250
   INTEGER, PARAMETER :: max_line_length = 2*default_path_length

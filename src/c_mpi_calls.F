@@ -53,7 +53,8 @@
 ! *****************************************************************************
 
 MODULE c_mpi_calls
-  USE kinds,                           ONLY: dp, sp, real_4, real_8
+  USE kinds,                           ONLY: dp, sp, real_4, real_8,&
+                                             int_4, int_8
 ! Do not use C bindings if we can use CRAY pointers.
 #ifdef __cray_pointers
 #undef __c_bindings
@@ -135,21 +136,15 @@ MODULE c_mpi_calls
 
 
   INTERFACE mp_alloc_mem
-!#if !defined(__SGL)
-     MODULE PROCEDURE mp_alloc_mem_i, mp_alloc_mem_d, mp_alloc_mem_z,&
+     MODULE PROCEDURE mp_alloc_mem_i, mp_alloc_mem_l,&
+          mp_alloc_mem_d, mp_alloc_mem_z,&
           mp_alloc_mem_s, mp_alloc_mem_c
-!#else
-!     MODULE PROCEDURE mp_alloc_mem_i, mp_alloc_mem_d, mp_alloc_mem_z
-!#endif
   END INTERFACE
 
   INTERFACE mp_free_mem
-!#if !defined(__SGL)
-     MODULE PROCEDURE mp_free_mem_i, mp_free_mem_d, mp_free_mem_z,&
+     MODULE PROCEDURE mp_free_mem_i, mp_free_mem_l,&
+          mp_free_mem_d, mp_free_mem_z,&
           mp_free_mem_s, mp_free_mem_c
-!#else
-!     MODULE PROCEDURE mp_free_mem_i, mp_free_mem_d, mp_free_mem_z
-!#endif
   END INTERFACE
 
 CONTAINS
@@ -162,12 +157,29 @@ CONTAINS
 !> \param fp             pointer to assign
 ! *****************************************************************************
   SUBROUTINE array_to_fp_i(iarray, fp)
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      TARGET                                 :: iarray
-    INTEGER, DIMENSION(:), POINTER           :: fp
+    INTEGER(KIND=int_4), DIMENSION(:), &
+      INTENT(IN), TARGET                     :: iarray
+    INTEGER(KIND=int_4), DIMENSION(:), &
+      POINTER                                :: fp
 
     fp => iarray
   END SUBROUTINE array_to_fp_i
+
+! *****************************************************************************
+!> \brief Points a FORTRAN 90 pointer to an existing array, integer version
+!> \par It is intended that the input array is aliased to a Cray pointer.
+!> \author UB
+!> \param[in] iarray     data array
+!> \param fp             pointer to assign
+! *****************************************************************************
+  SUBROUTINE array_to_fp_l(iarray, fp)
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      INTENT(IN), TARGET                     :: iarray
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: fp
+
+    fp => iarray
+  END SUBROUTINE array_to_fp_l
 
 ! *****************************************************************************
 !> \brief Points a FORTRAN 90 pointer to an existing array, double real version
@@ -201,7 +213,6 @@ CONTAINS
     fp => darray
   END SUBROUTINE array_to_fp_z
 
-!#if !defined(__SGL)
 ! *****************************************************************************
 !> \brief Points a FORTRAN 90 pointer to an existing array, single real version
 !> \par It is intended that the input array is aliased to a Cray pointer.
@@ -233,7 +244,6 @@ CONTAINS
 
     fp => darray
   END SUBROUTINE array_to_fp_c
-!#endif /* !__SGL */
 
 #if defined(__c_bindings) || defined(__cray_pointers)
 ! *****************************************************************************
@@ -245,9 +255,9 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_alloc_mem_i(DATA, len, stat)
-     INTEGER, DIMENSION(:), POINTER        :: DATA
-     INTEGER, INTENT(IN)                   :: len
-     INTEGER, INTENT(OUT), OPTIONAL        :: stat
+     INTEGER(KIND=int_4), DIMENSION(:), POINTER :: DATA
+     INTEGER, INTENT(IN)                        :: len
+     INTEGER, INTENT(OUT), OPTIONAL             :: stat
 
 #ifdef __c_bindings
      TYPE(C_PTR)              :: mp_baseptr
@@ -261,7 +271,7 @@ CONTAINS
 #else /* (__c_bindings) */
      INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
      INTEGER                            :: mp_info, mp_res
-     INTEGER                            :: dynmem(1:*)
+     INTEGER(KIND=int_4)                :: dynmem(1:*)
      POINTER (icp, dynmem)
 #endif /* (__c_bindings) */
      INTEGER                  :: integer_size, length, ierr
@@ -289,6 +299,59 @@ CONTAINS
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_alloc_mem_i
 
+! *****************************************************************************
+!> \brief Allocates an integer array, version with either C bindings or CRAY
+!>        pointers
+!> \author UB
+!> \param data           data array to allocate
+!> \param[in] len        length (in data elements) of data array allocation
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_alloc_mem_l(DATA, len, stat)
+     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: DATA
+     INTEGER, INTENT(IN)                        :: len
+     INTEGER, INTENT(OUT), OPTIONAL             :: stat
+
+#ifdef __c_bindings
+     TYPE(C_PTR)              :: mp_baseptr
+#ifndef __mpi_f_bindings
+     INTEGER(KIND=C_INTPTR_T) :: mp_size
+     INTEGER(KIND=C_INT)      :: mp_info, mp_res
+#else
+     INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
+     INTEGER                            :: mp_info, mp_res
+#endif
+#else /* (__c_bindings) */
+     INTEGER(KIND=MPI_ADDRESS_KIND)     :: mp_size
+     INTEGER                            :: mp_info, mp_res
+     INTEGER(KIND=int_8)                :: dynmem(1:*)
+     POINTER (icp, dynmem)
+#endif /* (__c_bindings) */
+     INTEGER                  :: integer_size, length, ierr
+
+     length = MAX(len,1)
+     CALL MPI_TYPE_SIZE(MPI_INTEGER8, integer_size, ierr)
+     mp_size = length * integer_size
+!> The C bindings may use a different value for MPI_INFO_NULL
+     mp_info = MPI_INFO_NULL
+#ifdef __c_bindings
+#ifndef __mpi_f_bindings
+     mp_res = mpi_alloc_mem_c(mp_size, mp_info, mp_baseptr)
+#else
+     CALL mpi_alloc_mem_f(mp_size, mp_info, mp_baseptr, mp_res)
+#endif
+     CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
+#else /* __c_bindings */
+     CALL MPI_ALLOC_MEM(mp_size, mp_info, icp, mp_res)
+     CALL array_to_fp_l(dynmem(1:len), DATA)
+#endif 
+     !write(6,*)'int allocation', ASSOCIATED(data), (/length/), &
+     !     mp_res
+     !IF (ASSOCIATED (data)) &
+     !     write(6,*)'int allocation size', SIZE(data)
+     IF (PRESENT (stat)) stat = mp_res
+   END SUBROUTINE mp_alloc_mem_l
+
 
 ! *****************************************************************************
 !> \brief Allocates a double real array, version with either C bindings or CRAY
@@ -315,7 +378,7 @@ CONTAINS
 #else
      INTEGER(KIND=MPI_ADDRESS_KIND)        :: mp_size
      INTEGER                               :: mp_info, mp_res
-     REAL(KIND=real_8)                         :: dynmem(1:*)
+     REAL(KIND=real_8)                     :: dynmem(1:*)
      POINTER (icp, dynmem)
 #endif
      INTEGER                               :: double_size, length, ierr
@@ -368,7 +431,7 @@ CONTAINS
 #else
      INTEGER(KIND=MPI_ADDRESS_KIND)          :: mp_size
      INTEGER                                 :: mp_info, mp_res
-     COMPLEX(KIND=real_8)                        :: dynmem(1:*)
+     COMPLEX(KIND=real_8)                    :: dynmem(1:*)
      POINTER (icp, dynmem)
 #endif
      INTEGER                                 :: double_size, length, ierr
@@ -396,7 +459,6 @@ CONTAINS
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_alloc_mem_z
 
-!#if !defined(__SGL)
 ! *****************************************************************************
 !> \brief Allocates a single real array, version with either C bindings or CRAY
 !>        pointers
@@ -502,7 +564,6 @@ CONTAINS
      !     write(6,*)'single allocation size', SIZE(data)
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_alloc_mem_c
-!#endif /* !__SGL */
 
 ! *****************************************************************************
 !> \brief Deallocates an integer array, version with either C bindings or CRAY
@@ -512,15 +573,34 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
    SUBROUTINE mp_free_mem_i(DATA, stat)
-    INTEGER, DIMENSION(:), POINTER           :: DATA
+    INTEGER(KIND=int_4), DIMENSION(:), &
+      POINTER                                :: DATA
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
     INTEGER                                  :: mp_res
 
      CALL MPI_FREE_MEM(DATA, mp_res)
-     !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_i
+
+
+! *****************************************************************************
+!> \brief Deallocates an integer array, version with either C bindings or CRAY
+!>        pointers
+!> \author UB
+!> \param data           data array to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+   SUBROUTINE mp_free_mem_l(DATA, stat)
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+
+    INTEGER                                  :: mp_res
+
+     CALL MPI_FREE_MEM(DATA, mp_res)
+     IF (PRESENT (stat)) stat = mp_res
+   END SUBROUTINE mp_free_mem_l
 
 
 ! *****************************************************************************
@@ -560,7 +640,6 @@ CONTAINS
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_z
 
-!#if !defined(__SGL)
 ! *****************************************************************************
 !> \brief Deallocates a double real array, version with either C bindings or
 !>        CRAY pointers
@@ -597,7 +676,6 @@ CONTAINS
      !write(6,*)'int free', ASSOCIATED(data), 'res=', mp_res
      IF (PRESENT (stat)) stat = mp_res
    END SUBROUTINE mp_free_mem_c
-!#endif /* ! __SGL */
 
 
 ! -----------------------------------------------------------------------------
@@ -618,7 +696,8 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
    SUBROUTINE mp_alloc_mem_i(DATA, size, stat)
-    INTEGER, DIMENSION(:), POINTER           :: DATA
+    INTEGER(KIND=int_4), DIMENSION(:), &
+      POINTER                                :: DATA
     INTEGER, INTENT(IN)                      :: size
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
@@ -629,6 +708,26 @@ CONTAINS
      ENDIF
    END SUBROUTINE mp_alloc_mem_i
 
+
+! *****************************************************************************
+!> \brief Allocates an integer array, generic version
+!> \author UB
+!> \param data           data array to allocate
+!> \param[in] len        length (in data elements) of data array allocation
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+   SUBROUTINE mp_alloc_mem_l(DATA, size, stat)
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: DATA
+    INTEGER, INTENT(IN)                      :: size
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+
+     IF (PRESENT (stat)) THEN
+        ALLOCATE(DATA(size), stat=stat)
+     ELSE
+        ALLOCATE(DATA(size))
+     ENDIF
+   END SUBROUTINE mp_alloc_mem_l
 
 
 ! *****************************************************************************
@@ -669,7 +768,6 @@ CONTAINS
      ENDIF
    END SUBROUTINE mp_alloc_mem_z
 
-#if !defined(__SGL)
 ! *****************************************************************************
 !> \brief Allocates a double real array, generic version
 !> \author UB
@@ -707,7 +805,6 @@ CONTAINS
         ALLOCATE(DATA(size))
      ENDIF
    END SUBROUTINE mp_alloc_mem_c
-#endif /* !__SGL */
 
 ! *****************************************************************************
 !> \brief Deallocates an integer array, generic version
@@ -716,7 +813,8 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_free_mem_i(DATA, stat)
-    INTEGER, DIMENSION(:), POINTER           :: DATA
+    INTEGER(KIND=int_4), DIMENSION(:), &
+      POINTER                                :: DATA
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
      IF (PRESENT (stat)) THEN
@@ -725,6 +823,25 @@ CONTAINS
         DEALLOCATE(DATA)
      ENDIF
    END SUBROUTINE mp_free_mem_i
+
+
+! *****************************************************************************
+!> \brief Deallocates an integer array, generic version
+!> \author UB
+!> \param data           data array to allocate
+!> \param[out] stat      (optional) allocation status result
+! *****************************************************************************
+  SUBROUTINE mp_free_mem_l(DATA, stat)
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: DATA
+    INTEGER, INTENT(OUT), OPTIONAL           :: stat
+
+     IF (PRESENT (stat)) THEN
+        DEALLOCATE(DATA, stat=stat)
+     ELSE
+        DEALLOCATE(DATA)
+     ENDIF
+   END SUBROUTINE mp_free_mem_l
 
 
 ! *****************************************************************************
@@ -761,7 +878,6 @@ CONTAINS
      ENDIF
    END SUBROUTINE mp_free_mem_z
 
-#if !defined(__SGL)
 ! *****************************************************************************
 !> \brief Deallocates a single real array, generic version
 !> \author UB
@@ -795,7 +911,6 @@ CONTAINS
         DEALLOCATE(DATA)
      ENDIF
    END SUBROUTINE mp_free_mem_c
-#endif /* !__SGL */
 
 #endif /* __c_bindings */
 
