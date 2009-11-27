@@ -8,13 +8,6 @@
         ATOM Ar
         CHARGE 0.0
       &END
-      &SHELL Ob
-        CORE_CHARGE 0.1
-        SHELL_CHARGE -0.1
-        MASS_FRACTION 0.1
-        SPRING [eV*angstrom^-2] 70
-        MAX_DISTANCE [angstrom] 1.0 
-      &END SHELL
       &NONBONDED
         &LENNARD-JONES
           atoms Ar Ar
