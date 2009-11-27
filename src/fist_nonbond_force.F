@@ -556,11 +556,11 @@ CONTAINS
                         .TRUE., alpha, qci, qcj, const, pv_bc, use_virial)
                 ELSE IF (i_is_shell) THEN
                    CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
-                        core_particle_set, particle_set, shell_i_index, shell_j_index,&
+                        core_particle_set, particle_set, shell_i_index, j,&
                         .TRUE., alpha, qci, qcj, const, pv_bc, use_virial)
                 ELSE
                    CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
-                        particle_set, core_particle_set, shell_i_index, shell_j_index,&
+                        particle_set, core_particle_set, i, shell_j_index,&
                         .TRUE., alpha, qci, qcj, const, pv_bc, use_virial)
                 END IF
              ELSE
