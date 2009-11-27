@@ -549,10 +549,20 @@ CONTAINS
              IF (i_is_shell.OR.j_is_shell) do_shell = .TRUE.
              !
              ! This term excludes always ION-ION interactions
-             IF(i_is_shell) THEN
-                CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
-                     core_particle_set, core_particle_set, shell_i_index, shell_j_index,&
-                     .TRUE., alpha, qci, qcj, const, pv_bc, use_virial)
+             IF (do_shell) THEN
+                IF(i_is_shell.AND.j_is_shell) THEN
+                   CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
+                        core_particle_set, core_particle_set, shell_i_index, shell_j_index,&
+                        .TRUE., alpha, qci, qcj, const, pv_bc, use_virial)
+                ELSE IF (i_is_shell) THEN
+                   CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
+                        core_particle_set, particle_set, shell_i_index, shell_j_index,&
+                        .TRUE., alpha, qci, qcj, const, pv_bc, use_virial)
+                ELSE
+                   CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, &
+                        particle_set, core_particle_set, shell_i_index, shell_j_index,&
+                        .TRUE., alpha, qci, qcj, const, pv_bc, use_virial)
+                END IF
              ELSE
                 CALL bonded_correct_gaussian_low(rci, rcj, cell, v_bonded_corr, particle_set,&
                      particle_set, i, j, .TRUE., alpha, qci, qcj, const, pv_bc,&

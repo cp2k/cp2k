@@ -34,13 +34,6 @@
           SHELL_CHARGE  -2.87
           SPRING [eV*angstrom^-2]    74.92 
        &END SHELL
-       &SHELL  Si
-          MAX_DISTANCE   0.1
-          CORE_CHARGE    4.0
-          MASS_FRACTION  0.2
-          SHELL_CHARGE   0.0
-          SPRING [eV*angstrom^-2]    74.92 
-       &END SHELL
        &NONBONDED
           &WILLIAMS
               ATOMS  Si O
