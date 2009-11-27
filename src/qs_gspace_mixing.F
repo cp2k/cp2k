@@ -9,6 +9,8 @@ MODULE qs_gspace_mixing
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_add_dist2d,&
+                                             dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
@@ -16,13 +18,19 @@ MODULE qs_gspace_mixing
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
+                                             dbcsr_distribution,&
+                                             dbcsr_get_info,&
+                                             dbcsr_init,&
+                                             dbcsr_row_block_sizes,&
+                                             dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
                                              dbcsr_scale,&
                                              dbcsr_set,&
                                              dbcsr_trace
+  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: dbcsr_create
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
                                              invert_matrix
@@ -48,6 +56,7 @@ MODULE qs_gspace_mixing
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: cp_sm_mix
   USE qs_scf_types,                    ONLY: broyden_mixing_new_nr,&
@@ -1542,13 +1551,11 @@ CONTAINS
 !>      05.2009 created [MI]
 !> \author fawzi
 ! *****************************************************************************
- SUBROUTINE mixing_allocate(scf_env,mixing_method,mixing_store,&
-      matrix_s,nspins,error)
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+ SUBROUTINE mixing_allocate(qs_env,mixing_method,mixing_store,&
+      nspins,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: mixing_method
     TYPE(mixing_storage_type), POINTER       :: mixing_store
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1558,19 +1565,38 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, nbuffer, &
                                                 stat
     LOGICAL                                  :: failure
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
 
     failure = .FALSE.
    
     CALL timeset(routineN,handle)
+
+    NULLIFY(sab_orb,scf_env,distribution_2d,matrix_s)
+    CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, &
+         scf_env=scf_env, distribution_2d=distribution_2d, &
+         matrix_s=matrix_s, &
+         error=error)
+
 !   *** allocate p_mix_new ***
     IF (.NOT.ASSOCIATED(scf_env%p_mix_new)) THEN
        CALL dbcsr_allocate_matrix_set(scf_env%p_mix_new,nspins,error=error)
        DO i=1,nspins
           ALLOCATE(scf_env%p_mix_new(i)%matrix)
           CALL dbcsr_init(scf_env%p_mix_new(i)%matrix)
-          CALL dbcsr_copy(scf_env%p_mix_new(i)%matrix,matrix_s(1)%matrix,&
-               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-               "DENSITY",error=error)
+          CALL dbcsr_create(matrix=scf_env%p_mix_new(i)%matrix, &
+               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
+               dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
+               row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
+               col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+               nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
+               error=error)
+          CALL cp_dbcsr_add_dist2d (scf_env%p_mix_new(i)%matrix%m, distribution_2d, error)
+          CALL dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i)%matrix,sab_orb,error=error)
           CALL dbcsr_set(scf_env%p_mix_new(i)%matrix,0.0_dp,error=error)
        ENDDO
     END IF
@@ -1582,9 +1608,15 @@ CONTAINS
           DO i=1,nspins
              ALLOCATE(scf_env%p_delta(i)%matrix)
              CALL dbcsr_init(scf_env%p_delta(i)%matrix)
-             CALL dbcsr_copy(scf_env%p_delta(i)%matrix,matrix_s(1)%matrix,&
-                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                  "DENSITY",error=error)
+             CALL dbcsr_create(matrix=scf_env%p_delta(i)%matrix, &
+                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
+                  dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
+                  row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
+                  col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+                  nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
+                  error=error)
+             CALL cp_dbcsr_add_dist2d (scf_env%p_delta(i)%matrix%m, distribution_2d, error)
+             CALL dbcsr_alloc_block_from_nbl(scf_env%p_delta(i)%matrix,sab_orb,error=error)
              CALL dbcsr_set(scf_env%p_delta(i)%matrix,0.0_dp,error=error)
           ENDDO
        END IF

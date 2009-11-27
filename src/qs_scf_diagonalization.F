@@ -15,6 +15,8 @@ MODULE qs_scf_diagonalization
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_add_dist2d,&
+                                             dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
@@ -34,9 +36,16 @@ MODULE qs_scf_diagonalization
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
+                                             dbcsr_distribution,&
+                                             dbcsr_init,&
+                                             dbcsr_row_block_sizes,&
+                                             dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: dbcsr_create
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              cholesky_off,&
                                              cholesky_reduce,&
@@ -65,6 +74,7 @@ MODULE qs_scf_diagonalization
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              set_mo_occupation
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -293,8 +303,8 @@ CONTAINS
 
     ! mixing storage allocation
     IF (subspace_env%mixing_method>=gspace_mixing_nr) THEN
-         CALL mixing_allocate(scf_env,subspace_env%mixing_method,subspace_env%mixing_store,&
-              matrix_s=matrix_s, nspins=nspin,error=error)
+         CALL mixing_allocate(qs_env,subspace_env%mixing_method,subspace_env%mixing_store,&
+              nspins=nspin,error=error)
 
          CALL mixing_init(subspace_env%mixing_method,rho,subspace_env%mixing_store,&
                            para_env,error=error)
@@ -409,14 +419,12 @@ CONTAINS
 END SUBROUTINE  do_scf_diag_subspace
  
 
-SUBROUTINE diag_subspace_allocate(subspace_env,scf_env,mos,matrix_s,error)
+SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
 
     TYPE(subspace_env_type), POINTER         :: subspace_env
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'diag_subspace_allocate', &
@@ -427,22 +435,42 @@ SUBROUTINE diag_subspace_allocate(subspace_env,scf_env,mos,matrix_s,error)
     LOGICAL                                  :: failure
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
 
     failure = .FALSE.
    
     CALL timeset(routineN,handle)
 
+    NULLIFY(sab_orb,matrix_s,distribution_2d)
+    CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb, &
+         matrix_s=matrix_s, distribution_2d=distribution_2d, &
+         error=error)
+
     nspin = SIZE(mos)
 !   *** allocate p_atrix_store ***
     IF (.NOT.ASSOCIATED(subspace_env%p_matrix_store)) THEN
        CALL dbcsr_allocate_matrix_set(subspace_env%p_matrix_store,nspin,error=error)
+
        DO i=1,nspin
           ALLOCATE(subspace_env%p_matrix_store(i)%matrix)
           CALL dbcsr_init(subspace_env%p_matrix_store(i)%matrix)
-          CALL dbcsr_copy(subspace_env%p_matrix_store(i)%matrix,matrix_s(1)%matrix,&
-               name="DENSITY_STORE",error=error)
+          CALL dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, &
+               name="DENSITY_STORE", &
+               dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
+               row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
+               col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+               nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
+               error=error)
+          CALL cp_dbcsr_add_dist2d (subspace_env%p_matrix_store(i)%matrix%m, distribution_2d, error)
+          CALL dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix,&
+               sab_orb, error=error)
           CALL dbcsr_set(subspace_env%p_matrix_store(i)%matrix,0.0_dp,error=error)
        ENDDO
+
     END IF
 
     ALLOCATE(subspace_env%chc_mat(nspin),STAT=istat)

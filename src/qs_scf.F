@@ -482,6 +482,7 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     input=input, dft_control=dft_control, scf_control=scf_control, &
                     error=error)
+
     ! Defining SCP logicals
     scp_dft = dft_control%scp
     scp_nddo = dft_control%qs_control%se_control%scp 
@@ -2281,8 +2282,8 @@ CPSourceFileRef)
 
 !   *** allocate the mixing storage
     IF (scf_env%mixing_method>0) THEN
-      CALL mixing_allocate(scf_env,scf_env%mixing_method,scf_env%mixing_store,&
-          matrix_s,dft_control%nspins,error)
+      CALL mixing_allocate(qs_env,scf_env%mixing_method,scf_env%mixing_store,&
+           dft_control%nspins,error)
     ELSE
        NULLIFY(scf_env%p_mix_new)
     END IF
@@ -2314,7 +2315,7 @@ CPSourceFileRef)
       CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos, error=error)
     END IF
     IF(scf_env%do_diag_sub ) THEN
-      CALL diag_subspace_allocate(scf_env%subspace_env, scf_env, mos, matrix_s, error=error)
+      CALL diag_subspace_allocate(scf_env%subspace_env, qs_env, mos, error=error)
     END IF
 
     CALL timestop(handle)
