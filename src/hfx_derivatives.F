@@ -52,7 +52,7 @@ MODULE hfx_derivatives
                                              int_8
   USE machine,                         ONLY: m_walltime
   USE mathconstants
-  USE message_passing,                 ONLY: mp_sum_i8
+  USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1341,7 +1341,7 @@ MODULE hfx_derivatives
     IF( actual_x_data%memory_parameter%recalc_forces ) THEN
       tmp_i8(1:6)=(/shm_storage_counter_integrals,shm_neris_onthefly,shm_neris_incore,&
                     shm_neris_total,shm_nprim_ints,shm_stor_count_max_val/)
-      CALL mp_sum_i8(tmp_i8,para_env%group)
+      CALL mp_sum(tmp_i8,para_env%group)
       shm_storage_counter_integrals=tmp_i8(1)
       shm_neris_onthefly=tmp_i8(2)
       shm_neris_incore=tmp_i8(3)

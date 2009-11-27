@@ -64,9 +64,9 @@ MODULE hfx_energy_potential
   USE machine,                         ONLY: m_memory,&
                                              m_walltime
   USE mathconstants
-  USE message_passing,                 ONLY: mp_max_i8,&
+  USE message_passing,                 ONLY: mp_max,&
                                              mp_sum,&
-                                             mp_sum_i8,&
+                                             mp_sum,&
                                              mp_sync
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type
@@ -290,7 +290,7 @@ MODULE hfx_energy_potential
 
     IF( geometry_did_change ) THEN
       memsize_before=m_memory()
-      CALL mp_max_i8(memsize_before, para_env%group)
+      CALL mp_max(memsize_before, para_env%group)
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
                                 extension=".scfLog",error=error)
       IF (iw>0) THEN
@@ -1829,7 +1829,7 @@ MODULE hfx_energy_potential
     IF( geometry_did_change ) THEN
       tmp_i8(1:8)=(/shm_storage_counter_integrals,shm_neris_onthefly,shm_neris_incore,shm_neris_disk, &
                     shm_neris_total,shm_stor_count_int_disk,shm_nprim_ints,shm_stor_count_max_val/)
-      CALL mp_sum_i8(tmp_i8,para_env%group)
+      CALL mp_sum(tmp_i8,para_env%group)
       shm_storage_counter_integrals=tmp_i8(1)
       shm_neris_onthefly=tmp_i8(2)
       shm_neris_incore=tmp_i8(3)
@@ -1838,7 +1838,7 @@ MODULE hfx_energy_potential
       shm_stor_count_int_disk=tmp_i8(6)
       shm_nprim_ints=tmp_i8(7)
       shm_stor_count_max_val=tmp_i8(8)
-      CALL mp_max_i8(memsize_after, para_env%group)
+      CALL mp_max(memsize_after, para_env%group)
       mem_eris = (shm_storage_counter_integrals+128*1024-1)/1024/128
       compression_factor = REAL(shm_neris_incore,dp)/REAL(shm_storage_counter_integrals,dp)
       mem_eris_disk = (shm_stor_count_int_disk+128*1024-1)/1024/128

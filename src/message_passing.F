@@ -105,7 +105,6 @@ MODULE message_passing
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany
   PUBLIC :: mp_gatherv
-  PUBLIC :: mp_sum_i8, mp_max_i8
   PUBLIC :: mp_send, mp_recv
 
   ! RMA
@@ -135,17 +134,6 @@ MODULE message_passing
   INTERFACE mp_waitall
      MODULE PROCEDURE mp_waitall_1, mp_waitall_2
   END INTERFACE
-
-! Todo: these will be removed shortly
-
-  INTERFACE mp_sum_i8
-     MODULE PROCEDURE mp_sum_l, mp_sum_lv
-  END INTERFACE
-
-  INTERFACE mp_max_i8
-     MODULE PROCEDURE mp_max_l, mp_max_lv
-  END INTERFACE
-
 
   !
   ! interfaces to deal easily with scalars / vectors / matrice / ...

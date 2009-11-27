@@ -28,7 +28,6 @@ MODULE hfx_load_balance_methods
                                              mp_isendrecv,&
                                              mp_max,&
                                              mp_sum,&
-                                             mp_sum_i8,&
                                              mp_sync,&
                                              mp_waitall
   USE orbital_pointers
@@ -249,7 +248,7 @@ MODULE hfx_load_balance_methods
          total_block_self_cost = total_block_self_cost + blocks_guess(i)%cost
       END DO
  
-      CALL mp_sum_i8(total_block_self_cost, para_env%group)
+      CALL mp_sum(total_block_self_cost, para_env%group)
  
       objective_block_size = load_balance_parameter%block_size
       objective_nblocks = MAX((natom+objective_block_size-1)/objective_block_size,1)
@@ -600,8 +599,8 @@ MODULE hfx_load_balance_methods
 
 !$OMP BARRIER
 !$OMP MASTER
-      CALL mp_sum_i8(shm_local_quartet_counter, para_env%group)
-      CALL mp_sum_i8(shm_global_quartet_counter, para_env%group)
+      CALL mp_sum(shm_local_quartet_counter, para_env%group)
+      CALL mp_sum(shm_global_quartet_counter, para_env%group)
       IF(para_env%mepos == 0 ) THEN
         IF( shm_local_quartet_counter /= shm_global_quartet_counter ) THEN
           WRITE(error_msg,'(A,I0,A,I0,A)') "HFX Sanity check for parallel distribution failed. "//&

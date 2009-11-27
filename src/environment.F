@@ -59,9 +59,8 @@ MODULE environment
                                              m_memory_details
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
-                                             mp_max_i8,&
+                                             mp_max,&
                                              mp_sum,&
-                                             mp_sum_i8,&
                                              rm_mp_perf_env
   USE orbital_pointers,                ONLY: deallocate_orbital_pointers
   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
@@ -513,13 +512,13 @@ CONTAINS
     Slab_avr=Slab
     SReclaimable_avr=SReclaimable
     MemLikelyFree_avr=MemLikelyFree
-    CALL mp_sum_i8(MemTotal_avr,para_env%group) ; MemTotal_avr=MemTotal_avr/para_env%num_pe/1024
-    CALL mp_sum_i8(MemFree_avr,para_env%group) ; MemFree_avr=MemFree_avr/para_env%num_pe/1024
-    CALL mp_sum_i8(Buffers_avr,para_env%group) ; Buffers_avr=Buffers_avr/para_env%num_pe/1024
-    CALL mp_sum_i8(Cached_avr,para_env%group) ; Cached_avr=Cached_avr/para_env%num_pe/1024
-    CALL mp_sum_i8(Slab_avr,para_env%group) ; Slab_avr=Slab_avr/para_env%num_pe/1024
-    CALL mp_sum_i8(SReclaimable_avr,para_env%group) ; SReclaimable_avr=SReclaimable_avr/para_env%num_pe/1024
-    CALL mp_sum_i8(MemLikelyFree_avr,para_env%group) ; MemLikelyFree_avr=MemLikelyFree_avr/para_env%num_pe/1024
+    CALL mp_sum(MemTotal_avr,para_env%group) ; MemTotal_avr=MemTotal_avr/para_env%num_pe/1024
+    CALL mp_sum(MemFree_avr,para_env%group) ; MemFree_avr=MemFree_avr/para_env%num_pe/1024
+    CALL mp_sum(Buffers_avr,para_env%group) ; Buffers_avr=Buffers_avr/para_env%num_pe/1024
+    CALL mp_sum(Cached_avr,para_env%group) ; Cached_avr=Cached_avr/para_env%num_pe/1024
+    CALL mp_sum(Slab_avr,para_env%group) ; Slab_avr=Slab_avr/para_env%num_pe/1024
+    CALL mp_sum(SReclaimable_avr,para_env%group) ; SReclaimable_avr=SReclaimable_avr/para_env%num_pe/1024
+    CALL mp_sum(MemLikelyFree_avr,para_env%group) ; MemLikelyFree_avr=MemLikelyFree_avr/para_env%num_pe/1024
 
     MemTotal_min=-MemTotal
     MemFree_min=-MemFree
@@ -528,13 +527,13 @@ CONTAINS
     Slab_min=-Slab
     SReclaimable_min=-SReclaimable
     MemLikelyFree_min=-MemLikelyFree
-    CALL mp_max_i8(MemTotal_min,para_env%group) ; MemTotal_min=-MemTotal_min/1024
-    CALL mp_max_i8(MemFree_min,para_env%group) ; MemFree_min=-MemFree_min/1024
-    CALL mp_max_i8(Buffers_min,para_env%group) ; Buffers_min=-Buffers_min/1024
-    CALL mp_max_i8(Cached_min,para_env%group) ; Cached_min=-Cached_min/1024
-    CALL mp_max_i8(Slab_min,para_env%group) ; Slab_min=-Slab_min/1024
-    CALL mp_max_i8(SReclaimable_min,para_env%group) ; SReclaimable_min=-SReclaimable_min/1024
-    CALL mp_max_i8(MemLikelyFree_min,para_env%group) ; MemLikelyFree_min=-MemLikelyFree_min/1024
+    CALL mp_max(MemTotal_min,para_env%group) ; MemTotal_min=-MemTotal_min/1024
+    CALL mp_max(MemFree_min,para_env%group) ; MemFree_min=-MemFree_min/1024
+    CALL mp_max(Buffers_min,para_env%group) ; Buffers_min=-Buffers_min/1024
+    CALL mp_max(Cached_min,para_env%group) ; Cached_min=-Cached_min/1024
+    CALL mp_max(Slab_min,para_env%group) ; Slab_min=-Slab_min/1024
+    CALL mp_max(SReclaimable_min,para_env%group) ; SReclaimable_min=-SReclaimable_min/1024
+    CALL mp_max(MemLikelyFree_min,para_env%group) ; MemLikelyFree_min=-MemLikelyFree_min/1024
 
     MemTotal_max=MemTotal
     MemFree_max=MemFree
@@ -543,13 +542,13 @@ CONTAINS
     Slab_max=Slab
     SReclaimable_max=SReclaimable
     MemLikelyFree_max=MemLikelyFree
-    CALL mp_max_i8(MemTotal_max,para_env%group) ; MemTotal_max=MemTotal_max/1024
-    CALL mp_max_i8(MemFree_max,para_env%group) ; MemFree_max=MemFree_max/1024
-    CALL mp_max_i8(Buffers_max,para_env%group) ; Buffers_max=Buffers_max/1024
-    CALL mp_max_i8(Cached_max,para_env%group) ; Cached_max=Cached_max/1024
-    CALL mp_max_i8(Slab_max,para_env%group) ; Slab_max=Slab_max/1024
-    CALL mp_max_i8(SReclaimable_max,para_env%group) ; SReclaimable_max=SReclaimable_max/1024
-    CALL mp_max_i8(MemLikelyFree_max,para_env%group) ; MemLikelyFree_max=MemLikelyFree_max/1024
+    CALL mp_max(MemTotal_max,para_env%group) ; MemTotal_max=MemTotal_max/1024
+    CALL mp_max(MemFree_max,para_env%group) ; MemFree_max=MemFree_max/1024
+    CALL mp_max(Buffers_max,para_env%group) ; Buffers_max=Buffers_max/1024
+    CALL mp_max(Cached_max,para_env%group) ; Cached_max=Cached_max/1024
+    CALL mp_max(Slab_max,para_env%group) ; Slab_max=Slab_max/1024
+    CALL mp_max(SReclaimable_max,para_env%group) ; SReclaimable_max=SReclaimable_max/1024
+    CALL mp_max(MemLikelyFree_max,para_env%group) ; MemLikelyFree_max=MemLikelyFree_max/1024
 
     MemTotal=MemTotal/1024
     MemFree=MemFree/1024

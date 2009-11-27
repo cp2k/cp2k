@@ -81,8 +81,7 @@ MODULE cp_dbcsr_operations
                                              int_8,&
                                              sp
   USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum_i8
+  USE message_passing,                 ONLY: mp_bcast, mp_sum
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
@@ -984,7 +983,7 @@ CONTAINS
     !
     checksum = dbcsr_checksum(matrix_c, error)
     !WRITE(*,*)'BCSR Sx checksum',checksum,'time=',newtime
-    CALL mp_sum_i8 (flop, dbcsr_mp_group(dbcsr_distribution_mp(&
+    CALL mp_sum (flop, dbcsr_mp_group(dbcsr_distribution_mp(&
          dbcsr_distribution(matrix_c))))
     IF (ldbg.AND.ionode) THEN
        WRITE(output_unit, '(T2,A,F12.4,A,F12.4,";",F12.4,A)')&
