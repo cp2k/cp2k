@@ -66,7 +66,6 @@ MODULE hfx_energy_potential
   USE mathconstants
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum,&
-                                             mp_sum,&
                                              mp_sync
   USE orbital_pointers
   USE particle_types,                  ONLY: particle_type

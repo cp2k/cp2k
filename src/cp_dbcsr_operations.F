@@ -81,7 +81,8 @@ MODULE cp_dbcsr_operations
                                              int_8,&
                                              sp
   USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_bcast, mp_sum
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
