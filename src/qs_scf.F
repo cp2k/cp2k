@@ -337,6 +337,7 @@ CONTAINS
           END IF
 
           IF (scf_env%mixing_method==direct_mixing_nr) THEN
+            scf_env%p_mix_alpha = scf_env%mixing_store%alpha
             IF(qs_env%scf_control%eps_diis<qs_env%scf_control%eps_scf) THEN
               scf_env%skip_diis = .TRUE.
               CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
