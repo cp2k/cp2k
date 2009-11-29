@@ -2876,6 +2876,9 @@ CPSourceFileRef,&
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%nonbonded)) THEN
              DO k=1,SIZE(inp_info%nonbonded%pot)
+                IF ((TRIM(inp_info%nonbonded%pot(k)%pot%at1)=="*").OR.&
+                    (TRIM(inp_info%nonbonded%pot(k)%pot%at2)=="*")) CYCLE
+
                 IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
                      " with ",TRIM(inp_info%nonbonded%pot(k)%pot%at1),&
                      TRIM(inp_info%nonbonded%pot(k)%pot%at2)
@@ -2904,7 +2907,75 @@ CPSourceFileRef,&
                    found = .TRUE.
                 END IF
              END DO
+             ! Check for wildcards for one of the two types (if not associated yet)
+             IF (.not.found) THEN
+                DO k=1,SIZE(inp_info%nonbonded%pot)
+                   IF ((TRIM(inp_info%nonbonded%pot(k)%pot%at1)=="*").EQV.&
+                       (TRIM(inp_info%nonbonded%pot(k)%pot%at2)=="*")) CYCLE
+
+                   IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+                        " with ",TRIM(inp_info%nonbonded%pot(k)%pot%at1),&
+                        TRIM(inp_info%nonbonded%pot(k)%pot%at2)
+                   
+                   IF( (name_atm_a==inp_info%nonbonded%pot(k)%pot%at1) .OR.&
+                       (name_atm_b==inp_info%nonbonded%pot(k)%pot%at2) .OR.&
+                       (name_atm_b==inp_info%nonbonded%pot(k)%pot%at1) .OR.&
+                       (name_atm_a==inp_info%nonbonded%pot(k)%pot%at2) ) THEN
+                      IF (ff_type%multiple_potential) THEN
+                         CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot,error)
+                         CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" ADDING! "//&
+CPSourceFileRef,&
+                              only_ionode=.TRUE.)
+                         potparm_nonbond%pot(i,j)%pot => pot
+                         potparm_nonbond%pot(j,i)%pot => pot
+                      ELSE
+                         CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot,error)
+                         CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
+CPSourceFileRef,&
+                              only_ionode=.TRUE.)
+                      END IF
+                      IF(iw>0) WRITE(iw,*) "    FOUND (one WILDCARD)",TRIM(name_atm_a)," ",TRIM(name_atm_b)
+                      found = .TRUE.
+                   END IF
+                END DO
+             END IF
+             ! Check for wildcards for both types (if not associated yet)
+             IF (.not.found) THEN
+                DO k=1,SIZE(inp_info%nonbonded%pot)
+                   IF ((TRIM(inp_info%nonbonded%pot(k)%pot%at1)/="*").OR.&
+                       (TRIM(inp_info%nonbonded%pot(k)%pot%at2)/="*")) CYCLE
+
+                   IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
+                        " with ",TRIM(inp_info%nonbonded%pot(k)%pot%at1),&
+                        TRIM(inp_info%nonbonded%pot(k)%pot%at2)
+
+                   IF (ff_type%multiple_potential) THEN
+                      CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot,error)
+                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" ADDING! "//&
+CPSourceFileRef,&
+                           only_ionode=.TRUE.)
+                      potparm_nonbond%pot(i,j)%pot => pot
+                      potparm_nonbond%pot(j,i)%pot => pot
+                   ELSE
+                      CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot,error)
+                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
+CPSourceFileRef,&
+                           only_ionode=.TRUE.)
+                   END IF
+                   IF(iw>0) WRITE(iw,*) "    FOUND (both WILDCARDS)",TRIM(name_atm_a)," ",TRIM(name_atm_b)
+                   found = .TRUE.
+                END DO
+             END IF
           END IF
+
           ! at the very end we offer the possibility to overwrite the parameters for QM/MM
           ! nonbonded interactions
           IF (use_qmmm_ff) THEN
