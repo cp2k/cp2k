@@ -88,7 +88,6 @@ MODULE sparse_matrix_types
   PUBLIC :: add_block_node,&
             allocate_matrix,&
             allocate_matrix_set,&
-            transfer_matrix, & ! what is the difference ?
             checksum_matrix, &
             copy_local_sm_to_replicated_fm,&
             deallocate_matrix,&
@@ -175,10 +174,6 @@ MODULE sparse_matrix_types
 
   INTERFACE set_matrix_diagonal
     MODULE PROCEDURE set_real_matrix_diagonal
-  END INTERFACE
-
-  INTERFACE transfer_matrix
-    MODULE PROCEDURE transfer_real_matrix
   END INTERFACE
 
 CONTAINS
@@ -1703,98 +1698,6 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
   END SUBROUTINE set_real_matrix_diagonal
-
-! *****************************************************************************
-!> \brief Transfers source matrix to target matrix (copies the values)
-!>    filtering the result through the structure (sparsity) of target matrix
-!>    zeros blocks as necessary
-!> \param source_matrix the matrix to copy
-!> \param target_matrix the matrix that will contain the copy
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
-!> \note
-!>      assumes that both matrixes have the same distribution
-!>      XXXXX very dangerous (i.e. wrong?) in parallell, if the sparsities are not the same XXXXXXX
-!> \par History
-!>      - 10.04.2002 Creation [MK]
-!>      - 4.2003 extended for matrixes with different structures [fawzi]
-!> \author Matthias Krack
-! *****************************************************************************
-  SUBROUTINE transfer_real_matrix(source_matrix,target_matrix ,error)
-
-    TYPE(real_matrix_type), POINTER          :: source_matrix, target_matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_real_matrix', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, iblock_col_source, &
-                                                iblock_col_target, iblock_row
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: source_block, target_block
-    TYPE(real_block_node_type), POINTER      :: block_node_source, &
-                                                block_node_target
-
-!   *** Check the association status of the source matrix ***
-
-    CALL timeset(routineN,handle)
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(source_matrix),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(target_matrix),cp_failure_level,routineP,error,failure)
-
-!   *** Copy matrix elements ***
-    !
-    ! we loop over the blocks, making use of the fact that they are ordered
-    ! since the sparsity might explicitly be different, this requires checking that
-    ! for a given target block, the source block is actually corresponding
-    !
-    ! for all rows, go over the linked list of blocks
-    DO iblock_row=1,source_matrix%nblock_row
-
-      block_node_target => first_block_node(target_matrix,iblock_row)
-      block_node_source => first_block_node(source_matrix,iblock_row)
-
-      DO WHILE (ASSOCIATED(block_node_target))
-
-        CALL get_block_node(block_node=block_node_target,&
-                            block_col=iblock_col_target,&
-                            BLOCK=target_block)
-
-        IF (ASSOCIATED(target_block)) THEN
-
-           NULLIFY(source_block)
-
-           DO WHILE(ASSOCIATED(block_node_source))
-              CALL get_block_node(block_node=block_node_source,&
-                                  block_col=iblock_col_source,&
-                                  BLOCK=source_block)
-              IF (iblock_col_source == iblock_col_target) EXIT
-              NULLIFY(source_block)
-              IF (iblock_col_source >  iblock_col_target) EXIT
-              block_node_source => block_node_source%next_block_node
-           ENDDO
-
-           IF (ASSOCIATED(source_block)) THEN
-              IF (SIZE(target_block,1)*SIZE(target_block,2).NE.0) THEN
-                 CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
-                      source_block(1,1),1,target_block(1,1),1)
-              ENDIF
-           ELSE
-              IF (SIZE(target_block,1)*SIZE(target_block,2).NE.0) THEN
-                 CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
-                      0.0_dp,0,target_block(1,1),1)
-              ENDIF
-           END IF
-        END IF
-
-        block_node_target => block_node_target%next_block_node
-
-      END DO
-
-    END DO
-    CALL timestop(handle)
-
-  END SUBROUTINE transfer_real_matrix
 
 ! *****************************************************************************
 !> \brief returns the id of the given matrix

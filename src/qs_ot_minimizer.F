@@ -626,7 +626,6 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
        IF (do_scp_nddo ) THEN
        ! Remember, SCP is formally a spin restricted theory
        ! right now no preconditioner yet
-          !CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, error )
          CALL dbcsr_copy (  qs_ot_env ( 1 ) % dxmat,qs_ot_env ( 1 ) % gxmat, error=error )
          CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % dxmat, tmp, local_sum=.TRUE.,&
               error=error)
@@ -811,12 +810,10 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
              qs_ot_env ( 1 ) % gx = qs_ot_env ( 1 ) % gx_old
        END IF 
        IF ( do_scp_nddo ) THEN
-          !CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, error )
              CALL dbcsr_copy ( qs_ot_env ( 1 ) % gx_oldmat, qs_ot_env ( 1 ) % gxmat, error=error )
              CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, tmp, local_sum=.TRUE.,&
                   error=error )
              qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-             !CALL transfer_matrix ( qs_ot_env ( 1 ) % gx_oldmat, qs_ot_env ( 1 ) % gxmat, error )
              CALL dbcsr_copy ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat,error=error )
        END IF 
        IF ( do_ener ) THEN
@@ -855,7 +852,6 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
          CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gxmat, tmp, local_sum=.TRUE., &
               error=error )
          qs_ot_env ( 1 ) % gnorm = qs_ot_env ( 1 ) % gnorm + tmp
-         !CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % gx_oldmat, error )
          CALL dbcsr_copy ( qs_ot_env ( 1 ) % gx_oldmat, qs_ot_env ( 1 ) % gxmat, error=error )
        END IF
 ! ***SCP
@@ -1061,7 +1057,6 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
          qs_ot_env ( 1 ) % h_e ( j, : ) =  -qs_ot_env ( 1 ) % ds_min * qs_ot_env ( 1 ) % h_e ( j, : ) 
        END IF
        IF ( do_scp_nddo ) THEN
-          !CALL transfer_matrix ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( j ) % matrix ,error)
          CALL dbcsr_copy ( qs_ot_env ( 1 ) % he_mat ( j ) % matrix ,qs_ot_env ( 1 ) % gxmat,error=error)
          CALL dbcsr_trace ( qs_ot_env ( 1 ) % gxmat, qs_ot_env ( 1 ) % he_mat ( j ) % matrix, tmp, &
               local_sum=.TRUE. ,error=error )

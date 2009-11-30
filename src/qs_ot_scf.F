@@ -476,9 +476,7 @@ CONTAINS
           END DO
        END IF
        IF (qs_ot_env(1)%settings%scp_nddo .AND. ispin == 1) THEN
-          !CALL transfer_matrix ( pscp, qs_ot_env(1)%xmat, error )
          CALL dbcsr_copy ( qs_ot_env(1)%xmat, pscp, error=error )
-         !CALL transfer_matrix ( fscp, qs_ot_env(1)%gxmat, error )
          CALL dbcsr_copy ( qs_ot_env(1)%gxmat, fscp, error=error )
        END IF
        ! **** SCP
