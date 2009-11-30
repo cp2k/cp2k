@@ -109,7 +109,8 @@ MODULE dbcsr_operations
      MODULE PROCEDURE dbcsr_get_block_p_d, dbcsr_get_block_p_s,&
                       dbcsr_get_block_p_z, dbcsr_get_block_p_c
      MODULE PROCEDURE dbcsr_get_2d_block_p_d, dbcsr_get_2d_block_p_s,&
-                      dbcsr_get_2d_block_p_z, dbcsr_get_2d_block_p_c
+                      dbcsr_get_2d_block_p_z, dbcsr_get_2d_block_p_c,&
+                      dbcsr_get_block_p_area
   END INTERFACE
 
   INTERFACE dbcsr_put_block
@@ -5047,6 +5048,124 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ENDDO
     CALL dbcsr_destroy (recv_matrix, force=.TRUE.)
   END SUBROUTINE dbcsr_sum_replicated
+
+
+! *****************************************************************************
+!> \brief Gets a block from a dbcsr matrix as a data area
+!> \par Data area
+!>      The pointer encapsulated in the data area points to data stored in the
+!>      matrix
+!> \param[in]  matrix DBCSR matrix
+!> \param[in]  row    the row
+!> \param[in]  col    the column
+!> \param[out] block  the block to get
+!> \param[in] tr      whether the data is transposed
+!> \param[out] found  whether the block exists in the matrix
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
+! *****************************************************************************
+! *****************************************************************************
+!> \brief Gets a 2-d block from a dbcsr matrix
+!> \param[in]  matrix DBCSR matrix
+!> \param[in]  row    the row
+!> \param[in]  col    the column
+!> \param[out] block  the block to get (rank-2 array)
+!> \param[out] tr     whether the data is transposed
+!> \param[out] found  whether the block exists in the matrix
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
+! *****************************************************************************
+  SUBROUTINE dbcsr_get_block_p_area(matrix,row,col,block,tr,found,&
+       row_size, col_size)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: block
+    LOGICAL, INTENT(OUT)                     :: tr, found
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_p_area', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, csize, iw, nze, offset, &
+                                                rsize, stored_col, stored_row
+    LOGICAL                                  :: stored_tr
+    TYPE(btree_2d_data_c)                    :: data_block_c
+    TYPE(btree_2d_data_d)                    :: data_block_d
+    TYPE(btree_2d_data_s)                    :: data_block_s
+    TYPE(btree_2d_data_z)                    :: data_block_z
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
+         stored_tr, found, blk, offset)
+
+    tr = stored_tr
+
+    rsize = dbcsr_blk_row_size (matrix%m, stored_row)
+    csize = dbcsr_blk_column_size (matrix%m, stored_col)
+    IF (PRESENT (row_size)) row_size = rsize
+    IF (PRESENT (col_size)) col_size = csize
+
+    IF(found) THEN
+       nze = rsize*csize
+       IF(nze.eq.0) THEN
+          found = .FALSE.
+       ELSE
+          CALL dbcsr_data_set_pointer (block, rsize, csize, matrix%m%data_area,&
+               source_lb = offset)
+       ENDIF
+    ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
+       iw = 1
+!$     iw = omp_get_thread_num()+1
+       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
+            cp_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.")
+       IF (dbcsr_use_mutable (matrix%m)) THEN
+          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
+             CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
+                  dbcsr_get_data_type(matrix))
+          ENDIF
+          SELECT CASE (dbcsr_get_data_type(matrix))
+          CASE (dbcsr_type_real_4)
+             CALL btree_get_s (&
+                  matrix%m%wms(iw)%mutable%m%btree_s,&
+                  make_coordinate_tuple(stored_row, stored_col),&
+                  data_block_s, found)
+             IF (found) THEN
+                CALL dbcsr_data_set_pointer (block, data_block_s%p)
+             ENDIF
+          CASE (dbcsr_type_real_8)
+             CALL btree_get_d (&
+                  matrix%m%wms(iw)%mutable%m%btree_d,&
+                  make_coordinate_tuple(stored_row, stored_col),&
+                  data_block_d, found)
+             IF (found) THEN
+                CALL dbcsr_data_set_pointer (block, data_block_d%p)
+             ENDIF
+          CASE (dbcsr_type_complex_4)
+             CALL btree_get_c (&
+                  matrix%m%wms(iw)%mutable%m%btree_c,&
+                  make_coordinate_tuple(stored_row, stored_col),&
+                  data_block_c, found)
+             IF (found) THEN
+                CALL dbcsr_data_set_pointer (block, data_block_c%p)
+             ENDIF
+          CASE (dbcsr_type_complex_8)
+             CALL btree_get_z (&
+                  matrix%m%wms(iw)%mutable%m%btree_z,&
+                  make_coordinate_tuple(stored_row, stored_col),&
+                  data_block_z, found)
+             IF (found) THEN
+                CALL dbcsr_data_set_pointer (block, data_block_z%p)
+             ENDIF
+          CASE default
+             CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+                  routineN, "Invalid data type.")
+          END SELECT
+       ENDIF
+    ENDIF
+  END SUBROUTINE dbcsr_get_block_p_area
+
 
 ! *****************************************************************************
 !> \brief Calls the functions that are called in the included files but not

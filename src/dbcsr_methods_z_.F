@@ -73,9 +73,9 @@
 
 ! *****************************************************************************
 !> \brief Sets a data pointer.
-!>
-!> Assumes that no memory will be lost when repointing the pointer in the data
-!> area and that the area is initialized.
+!> \par Assumptions
+!>      Assumes that no memory will be lost when repointing the
+!>      pointer in the data area and that the area is initialized.
 !> \param[inout] area     target data area
 !> \param[in]    p        source data pointer
 ! *****************************************************************************
@@ -86,22 +86,80 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_complex(kind=real_8)', &
       routineP = moduleN//':'//routineN
 
+!   ---------------------------------------------------------------------------
+
     area%d%c_dp => p
   END SUBROUTINE set_data_p_z
 
 ! *****************************************************************************
+!> \brief Sets a data pointer.
+!> \par Assumptions
+!>      Assumes that no memory will be lost when repointing the
+!>      pointer in the data area and that the area is initialized.
+!> \param[inout] area     target data area
+!> \param[in]    p        source data pointer
+! *****************************************************************************
+  SUBROUTINE set_data_p_2d_z (area, p)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    COMPLEX(kind=real_8), DIMENSION(:,:), POINTER         :: p
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_2d_complex(kind=real_8)', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    area%d%c2_dp => p
+  END SUBROUTINE set_data_p_2d_z
+
+
+! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
+!> \par Calling
+!>      This routine is hidden behind the dbcsr_get_data interface, hence the
+!>      need for the coersion argument.
+!> \sa dbcsr_get_data_p_z
 !> \param[in] area       data area
 !> \param[in] coersion   force datatype
-!> \param[out] data      pointer to data
+!> \param[in] lb         (optional) lower bound for pointer
+!> \param[in] ub         (optional) upper bound for pointer
+!> \retval data          pointer to data
 ! *****************************************************************************
-  FUNCTION dbcsr_get_data_c_z (area, coersion) RESULT (DATA)
+  FUNCTION dbcsr_get_data_c_z (area, coersion, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
     COMPLEX(kind=real_8), INTENT(IN)            :: coersion
+    INTEGER, INTENT(IN), OPTIONAL  :: lb, ub
     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: DATA
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_c_z', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                        :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+
+!   ---------------------------------------------------------------------------
+
+    ! The coersion argument is needed to make this function unique
+    ! enough to use in the interface. The following line is added to
+    ! remove compiler warnings about unused arguments.
+    l = coersion
     IF (ASSOCIATED (area%d)) THEN
-       DATA => area%d%c_dp
+       IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
+          l = LBOUND (area%d%c_dp, 1)
+          IF (PRESENT (lb)) l = lb
+          u = UBOUND (area%d%c_dp, 1)
+          IF (PRESENT (ub)) u = ub
+          IF (dbg) THEN
+             CALL cp_assert (l .GE. LBOUND (area%d%c_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (u .LE. UBOUND (area%d%c_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+          ENDIF
+          DATA => area%d%c_dp(l:u)
+       ELSE
+          DATA => area%d%c_dp
+       ENDIF
     ELSE
        NULLIFY (DATA)
     ENDIF
@@ -109,16 +167,46 @@
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
+!> \par Calling
+!>      This routine can be called explicitly.
+!> \brief dbcsr_get_data_c_z
 !> \param[in] area       data area
 !> \param[in] coersion   force datatype
+!> \param[in] lb         (optional) lower bound for pointer
+!> \param[in] ub         (optional) upper bound for pointer
 !> \param[out] data      pointer to data
 ! *****************************************************************************
-  FUNCTION dbcsr_get_data_p_z (area) RESULT (DATA)
+  FUNCTION dbcsr_get_data_p_z (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: DATA
+    INTEGER, INTENT(IN), OPTIONAL  :: lb, ub
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_p_z', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                        :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+
+!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
-       DATA => area%d%c_dp
+       IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
+          l = LBOUND (area%d%c_dp, 1)
+          IF (PRESENT (lb)) l = lb
+          u = UBOUND (area%d%c_dp, 1)
+          IF (PRESENT (ub)) u = ub
+          IF (dbg) THEN
+             CALL cp_assert (l .GE. LBOUND (area%d%c_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (u .LE. UBOUND (area%d%c_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+          ENDIF
+          DATA => area%d%c_dp(l:u)
+       ELSE
+          DATA => area%d%c_dp
+       ENDIF
     ELSE
        NULLIFY (DATA)
     ENDIF
@@ -126,6 +214,63 @@
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
+!> \par Calling
+!>      This routine can be called explicitly.
+!> \brief dbcsr_get_data_c_z
+!> \param[in] area       data area
+!> \param[in] coersion   force datatype
+!> \param[in] lb         (optional) lower bound for pointer
+!> \param[in] ub         (optional) upper bound for pointer
+!> \param[out] data      pointer to data
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_p_2d_z (area, lb, ub) RESULT (DATA)
+    TYPE(dbcsr_data_obj), INTENT(IN)            :: area
+    COMPLEX(kind=real_8), DIMENSION(:,:), POINTER            :: DATA
+    INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: lb, ub
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_p_2d_z', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, DIMENSION(2)          :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED (area%d)) THEN
+       IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
+          l = LBOUND (area%d%c2_dp)
+          IF (PRESENT (lb)) l = lb
+          u = UBOUND (area%d%c2_dp)
+          IF (PRESENT (ub)) u = ub
+          IF (dbg) THEN
+             CALL cp_assert (l(1) .GE. LBOUND (area%d%c2_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (l(2) .GE. LBOUND (area%d%c2_dp, 2),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (u(1) .LE. UBOUND (area%d%c2_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (u(2) .LE. UBOUND (area%d%c2_dp, 2),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+          ENDIF
+          DATA => area%d%c2_dp(l(1):u(1), l(2):u(2))
+       ELSE
+          DATA => area%d%c2_dp
+       ENDIF
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END FUNCTION dbcsr_get_data_p_2d_z
+
+
+
+! *****************************************************************************
+!> \brief Returns the entire data for a matrix.
+!> \par Warning
+!>      This routine should only be used within DBCSR code.
 !> \param[in] area       data area
 !> \param[in] coersion   force datatype
 !> \param[out] data      pointer to data
@@ -134,28 +279,102 @@
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: DATA
 
-    IF (ASSOCIATED (matrix%m%data_area%d)) THEN
-       DATA => matrix%m%data_area%d%c_dp
-    ELSE
-       NULLIFY (DATA)
-    ENDIF
+    CALL get_data_z (matrix%m%data_area, DATA)
   END SUBROUTINE get_data_m_z
+
 
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
 !> \param[out] data      pointer to data
+!> \param[in] lb         (optional) lower bound for pointer
+!> \param[in] ub         (optional) upper bound for pointer
 ! *****************************************************************************
-  SUBROUTINE get_data_z (area, DATA)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    COMPLEX(kind=real_8), DIMENSION(:), POINTER :: DATA
+  SUBROUTINE get_data_z (area, DATA, lb, ub)
+    TYPE(dbcsr_data_obj), INTENT(IN)  :: area
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER    :: DATA
+    INTEGER, INTENT(IN), OPTIONAL     :: lb, ub
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_data_z', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                        :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+
+!   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
-       DATA => area%d%c_dp
+       IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
+          l = LBOUND (area%d%c_dp, 1)
+          IF (PRESENT (lb)) l = lb
+          u = UBOUND (area%d%c_dp, 1)
+          IF (PRESENT (ub)) u = ub
+          IF (dbg) THEN
+             CALL cp_assert (l .GE. LBOUND (area%d%c_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (u .LE. UBOUND (area%d%c_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+          ENDIF
+          DATA => area%d%c_dp(l:u)
+       ELSE
+          DATA => area%d%c_dp
+       ENDIF
     ELSE
        NULLIFY (DATA)
     ENDIF
   END SUBROUTINE get_data_z
+
+
+! *****************************************************************************
+!> \brief Returns the single/double precision real/complex data
+!> \param[in] area       data area
+!> \param[out] data      pointer to data
+!> \param[in] lb         (optional) lower bound for pointer
+!> \param[in] ub         (optional) upper bound for pointer
+! *****************************************************************************
+  SUBROUTINE get_data_2d_z (area, DATA, lb, ub)
+    TYPE(dbcsr_data_obj), INTENT(IN)            :: area
+    COMPLEX(kind=real_8), DIMENSION(:,:), POINTER            :: DATA
+    INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: lb, ub
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_data_2d_z', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, DIMENSION(2)          :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED (area%d)) THEN
+       IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
+          l = LBOUND (area%d%c2_dp)
+          IF (PRESENT (lb)) l = lb
+          u = UBOUND (area%d%c2_dp)
+          IF (PRESENT (ub)) u = ub
+          IF (dbg) THEN
+             CALL cp_assert (l(1) .GE. LBOUND (area%d%c2_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (l(2) .GE. LBOUND (area%d%c2_dp, 2),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (u(1) .LE. UBOUND (area%d%c2_dp, 1),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+             CALL cp_assert (u(2) .LE. UBOUND (area%d%c2_dp, 2),&
+                  cp_fatal_level, cp_wrong_args_error, routineN,&
+                  "Out of bounds")
+          ENDIF
+          DATA => area%d%c2_dp(l(1):u(1), l(2):u(2))
+       ELSE
+          DATA => area%d%c2_dp
+       ENDIF
+    ELSE
+       NULLIFY (DATA)
+    ENDIF
+  END SUBROUTINE get_data_2d_z
 
 ! *****************************************************************************
 !> \brief Gets the next data block, single/double precision real/complex
@@ -247,6 +466,23 @@
   END SUBROUTINE iterator_next_2d_block_z
 
 #if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+#if defined(__PTR_RANK_REMAP)
+! *****************************************************************************
+!> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
+!>        rank remapping.
+!>
+!> Merge this with dbcsr_util* upon refactoring.
+! *****************************************************************************
+  SUBROUTINE pointer_z_rank_remap2 (r2p, d1, d2, r1p)
+    INTEGER, INTENT(IN)                      :: d1, d2
+    COMPLEX(kind=real_8), DIMENSION(:, :), &
+      POINTER                                :: r2p
+    COMPLEX(kind=real_8), DIMENSION(d1*d2), &
+      TARGET                                 :: r1p
+
+    r2p(1:d1,1:d2) => r1p(1:d1*d2)
+  END SUBROUTINE pointer_z_rank_remap2
+#else
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
 !>
@@ -261,5 +497,6 @@
 
     r2p => r1p(1:d1, 1:d2)
   END SUBROUTINE pointer_z_rank_remap2
+#endif
 #endif
 

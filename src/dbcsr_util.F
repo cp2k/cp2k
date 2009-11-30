@@ -34,19 +34,19 @@ MODULE dbcsr_util
                                              cp_para_env_type
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_copyall, dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_destroy, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_iterator_blocks_left, &
-       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
-       dbcsr_modify_lock, dbcsr_modify_unlock, dbcsr_mp_group, dbcsr_mp_new, &
+       dbcsr_data_release, dbcsr_destroy, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_hold, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+       dbcsr_distribution_processor, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
+       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
+       dbcsr_get_num_blocks, dbcsr_init, dbcsr_is_initialized, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_modify_lock, &
+       dbcsr_modify_unlock, dbcsr_mp_group, dbcsr_mp_new, &
        dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
        dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
@@ -4197,10 +4197,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 5
 
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: c_sp
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: c_dp
+    CHARACTER                                :: data_type
     INTEGER :: blk, blk_l, blk_p, bp, col, col_img, data_p, dst_p, i, &
       ithread, j, mp_group, ncol_images, nrow_images, nsymmetries, nthreads, &
       numproc, nze, pcol, prev_blk_p, prev_dst_p, prev_row, prow, row, &
@@ -4222,11 +4219,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: predist, same_dst_p, tr
     REAL(KIND=dp)                            :: tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: recv_data
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
-    TYPE(dbcsr_data_obj)                     :: received_data_area
+    TYPE(dbcsr_data_obj)                     :: received_data_area, &
+                                                recv_data_area, send_data_area
     TYPE(dbcsr_distribution_obj)             :: target_dist
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj
@@ -4248,19 +4242,12 @@ CONTAINS
     ENDIF
     predist = .FALSE.
     IF (PRESENT (predistribute)) predist = .TRUE.
-    SELECT CASE (sm%data_type)
-    CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (sm%data_area, r_dp)
-    CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (sm%data_area, r_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (sm%data_area, c_dp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (sm%data_area, c_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    END SELECT
+    data_type = sm%data_type
+    CALL cp_assert (data_type .EQ. dbcsr_type_real_8&
+         .or.data_type .EQ. dbcsr_type_real_4&
+         .or.data_type .EQ. dbcsr_type_complex_8&
+         .or.data_type .EQ. dbcsr_type_complex_4, cp_fatal_level,&
+         cp_internal_error, routineN, "Invalid data type.")
     row_blk_size => array_data (sm%row_blk_size)
     col_blk_size => array_data (sm%col_blk_size)
     target_dist = target_imgdist%main
@@ -4422,9 +4409,13 @@ CONTAINS
        total_recv_count(2, dst_p) = SUM (recv_count (2, :, :, dst_p))
     ENDDO
     ! Allocate data structures needed for data exchange.
-    ALLOCATE (recv_data(SUM(recv_count(2, :, :, :))))
+    !ALLOCATE (recv_data(SUM(recv_count(2, :, :, :))))
+    CALL dbcsr_data_init (recv_data_area)
+    CALL dbcsr_data_new (recv_data_area, data_type, SUM(recv_count(2, :, :, :)))
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :, :))))
-    ALLOCATE (send_data(SUM(send_count(2, :, :, :))))
+    !ALLOCATE (send_data(SUM(send_count(2, :, :, :))))
+    CALL dbcsr_data_init (send_data_area)
+    CALL dbcsr_data_new (send_data_area, data_type, SUM(send_count(2, :, :, :)))
     ALLOCATE (send_meta(metalen*SUM(send_count(1, :, :, :))))
     ! Calculate displacements for processors needed for the exchanges.
     sd_disp = -1 ; sm_disp = -1
@@ -4465,13 +4456,12 @@ CONTAINS
     blks(:,:) = 1
     ! Prepares the work matrices used in the last DO loop. Placed
     ! early.
-    CALL cp_assert (sm%data_type .EQ. dbcsr_type_real_8, cp_fatal_level,&
-         cp_unimplemented_error_nr, routineN, "Only real double support.")
     CALL dbcsr_data_init (received_data_area)
-    CALL dbcsr_data_new (received_data_area, sm%data_type,&
-         special_memory=.FALSE.)
+    !CALL dbcsr_data_new (received_data_area, sm%data_type,&
+    !     special_memory=.FALSE.)
     ! This is an ugly cuckoo.
-    CALL dbcsr_data_set_pointer (received_data_area, recv_data)
+    received_data_area = recv_data_area
+    CALL dbcsr_data_hold(received_data_area)
     !received_data_area%d%r_dp => recv_data
     DO row_img = 1, nrow_images
        DO col_img = 1, ncol_images
@@ -4540,7 +4530,9 @@ CONTAINS
              nze = row_blk_size(stored_row) * col_blk_size(stored_col)
              sd_pos = lsdp(dst_p)
              lsdp(dst_p) = lsdp(dst_p) + nze
-             send_data(sd_pos:sd_pos+nze-1) = r_dp(bp:bp+nze-1)
+             CALL dbcsr_data_set (send_data_area, sd_pos, nze,&
+                  sm%data_area, bp)
+             !send_data(sd_pos:sd_pos+nze-1) = r_dp(bp:bp+nze-1)
              send_meta(sm_pos+1) = stored_col
              send_meta(sm_pos+2) = SGN (&
                   sd_pos-sd_disp(dst_p)+1, blk_p, tr)
@@ -4557,8 +4549,30 @@ CONTAINS
     ENDDO ! iterator
     CALL dbcsr_iterator_stop(iter)
     ! Exchange the data and metadata structures.
-    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
-         recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       CALL mp_alltoall(&
+            send_data_area%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_area%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_group)
+    CASE (dbcsr_type_real_8)
+       CALL mp_alltoall(&
+            send_data_area%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_area%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_group)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_alltoall(&
+            send_data_area%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_area%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_group)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_alltoall(&
+            send_data_area%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_area%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_group)
+    END SELECT
+    !CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
+    !     recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
     CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
     ! Now create the work index and/or copy the relevant data from the
@@ -4609,10 +4623,14 @@ CONTAINS
     DEALLOCATE(rd_disp)
     DEALLOCATE(rm_disp)
     DEALLOCATE(recv_meta)
-    DEALLOCATE(send_data)
+    CALL dbcsr_data_release (send_data_area)
+    !DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
     ! Get rid of the cuckoo.
     CALL dbcsr_data_release (received_data_area)
+    !
+    CALL dbcsr_data_release (recv_data_area)
+    !
     tstop = m_walltime ()
     !WRITE(*,'(1X,A,1X,EN12.4)')'make_column_images time:',tstop-tstart
     DBG 'ums(1) name',ums%mats(1,1)%m%name
@@ -5126,7 +5144,7 @@ CONTAINS
        ENDIF
     CASE default
        CALL cp_unimplemented_error (routineN,&
-            "Currently only double precision reals are supported")
+            "Invalid data type are supported")
     END SELECT
   END SUBROUTINE dbcsr_data_ensure_size
 
@@ -5426,6 +5444,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_aa', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
     INTEGER                                  :: lb_s, ub, ub_s
 
@@ -5451,25 +5470,72 @@ CONTAINS
     ENDIF
     SELECT CASE (src%d%data_type)
     CASE (dbcsr_type_real_4)
+       IF (dbg) THEN
+          CALL cp_assert(ASSOCIATED(dst%d%r_sp),cp_fatal_level,&
+               cp_caller_error, routineN, "associated(dst%d%r_sp)")
+          CALL cp_assert(ASSOCIATED(src%d%r_sp),cp_fatal_level,&
+               cp_caller_error, routineN, "associated(src%d%r_sp)")
+          CALL cp_assert(lb.GE.LBOUND(dst%d%r_sp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "lb dst%d%r_sp")
+          CALL cp_assert(ub.LE.UBOUND(dst%d%r_sp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "ub dst%d%r_sp")
+          CALL cp_assert(lb_s.GE.LBOUND(src%d%r_sp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "lb src%d%r_sp")
+          CALL cp_assert(ub_s.LE.UBOUND(src%d%r_sp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "ub src%d%r_sp")
+       ENDIF
        dst%d%r_sp(lb:ub) = src%d%r_sp(lb_s:ub_s)
     CASE (dbcsr_type_real_8)
-       CALL cp_assert(ASSOCIATED(dst%d%r_dp),cp_fatal_level,&
-            cp_caller_error, routineN, "associated(dst%d%r_dp)")
-       CALL cp_assert(ASSOCIATED(src%d%r_dp),cp_fatal_level,&
-            cp_caller_error, routineN, "associated(src%d%r_dp)")
-       CALL cp_assert(lb.GE.LBOUND(dst%d%r_dp,1),cp_fatal_level,&
-            cp_caller_error, routineN, "lb dst%d%r_dp")
-       CALL cp_assert(ub.LE.UBOUND(dst%d%r_dp,1),cp_fatal_level,&
-            cp_caller_error, routineN, "ub dst%d%r_dp")
-       CALL cp_assert(lb_s.GE.LBOUND(src%d%r_dp,1),cp_fatal_level,&
-            cp_caller_error, routineN, "lb src%d%r_dp")
-       CALL cp_assert(ub_s.LE.UBOUND(src%d%r_dp,1),cp_fatal_level,&
-            cp_caller_error, routineN, "ub src%d%r_dp")
+       IF (dbg) THEN
+          CALL cp_assert(ASSOCIATED(dst%d%r_dp),cp_fatal_level,&
+               cp_caller_error, routineN, "associated(dst%d%r_dp)")
+          CALL cp_assert(ASSOCIATED(src%d%r_dp),cp_fatal_level,&
+               cp_caller_error, routineN, "associated(src%d%r_dp)")
+          CALL cp_assert(lb.GE.LBOUND(dst%d%r_dp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "lb dst%d%r_dp")
+          CALL cp_assert(ub.LE.UBOUND(dst%d%r_dp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "ub dst%d%r_dp")
+          CALL cp_assert(lb_s.GE.LBOUND(src%d%r_dp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "lb src%d%r_dp")
+          CALL cp_assert(ub_s.LE.UBOUND(src%d%r_dp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "ub src%d%r_dp")
+       ENDIF
        dst%d%r_dp(lb:ub) = src%d%r_dp(lb_s:ub_s)
     CASE (dbcsr_type_complex_4)
+       IF (dbg) THEN
+          CALL cp_assert(ASSOCIATED(dst%d%c_sp),cp_fatal_level,&
+               cp_caller_error, routineN, "associated(dst%d%c_sp)")
+          CALL cp_assert(ASSOCIATED(src%d%c_sp),cp_fatal_level,&
+               cp_caller_error, routineN, "associated(src%d%c_sp)")
+          CALL cp_assert(lb.GE.LBOUND(dst%d%c_sp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "lb dst%d%c_sp")
+          CALL cp_assert(ub.LE.UBOUND(dst%d%c_sp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "ub dst%d%c_sp")
+          CALL cp_assert(lb_s.GE.LBOUND(src%d%c_sp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "lb src%d%c_sp")
+          CALL cp_assert(ub_s.LE.UBOUND(src%d%c_sp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "ub src%d%c_sp")
+       ENDIF
        dst%d%c_sp(lb:ub) = src%d%c_sp(lb_s:ub_s)
     CASE (dbcsr_type_complex_8)
+       IF (dbg) THEN
+          CALL cp_assert(ASSOCIATED(dst%d%c_dp),cp_fatal_level,&
+               cp_caller_error, routineN, "associated(dst%d%c_dp)")
+          CALL cp_assert(ASSOCIATED(src%d%c_dp),cp_fatal_level,&
+               cp_caller_error, routineN, "associated(src%d%c_dp)")
+          CALL cp_assert(lb.GE.LBOUND(dst%d%c_dp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "lb dst%d%c_dp")
+          CALL cp_assert(ub.LE.UBOUND(dst%d%c_dp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "ub dst%d%c_dp")
+          CALL cp_assert(lb_s.GE.LBOUND(src%d%c_dp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "lb src%d%c_dp")
+          CALL cp_assert(ub_s.LE.UBOUND(src%d%c_dp,1),cp_fatal_level,&
+               cp_caller_error, routineN, "ub src%d%c_dp")
+       ENDIF
        dst%d%c_dp(lb:ub) = src%d%c_dp(lb_s:ub_s)
+    CASE default
+       CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Can not copy rank-2 data areas")
     END SELECT
   END SUBROUTINE dbcsr_data_copy_aa
 

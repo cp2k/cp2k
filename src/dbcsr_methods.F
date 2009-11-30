@@ -119,8 +119,9 @@ MODULE dbcsr_methods
   END INTERFACE
 
   INTERFACE dbcsr_get_data
-     MODULE PROCEDURE get_data_s, get_data_d, get_data_c, get_data_z,&
-          get_data_m_s, get_data_m_d, get_data_m_c, get_data_m_z
+     MODULE PROCEDURE get_data_s, get_data_d, get_data_c, get_data_z
+     MODULE PROCEDURE get_data_m_s, get_data_m_d, get_data_m_c, get_data_m_z
+     MODULE PROCEDURE get_data_2d_s, get_data_2d_d, get_data_2d_c, get_data_2d_z
   END INTERFACE
 
   INTERFACE dbcsr_get_data_size
@@ -129,16 +130,20 @@ MODULE dbcsr_methods
 
   INTERFACE dbcsr_data_set_pointer
      MODULE PROCEDURE set_data_p_s, set_data_p_d, set_data_p_c, set_data_p_z
+     MODULE PROCEDURE set_data_p_2d_s, set_data_p_2d_d,&
+                      set_data_p_2d_c, set_data_p_2d_z
+     MODULE PROCEDURE set_data_area_area
   END INTERFACE
 
   INTERFACE dbcsr_get_data_p
      MODULE PROCEDURE dbcsr_get_data_c_s, dbcsr_get_data_c_c,&
-          dbcsr_get_data_c_d, dbcsr_get_data_c_z
+                      dbcsr_get_data_c_d, dbcsr_get_data_c_z
   END INTERFACE
 
   INTERFACE dbcsr_iterator_next_block
      MODULE PROCEDURE iterator_next_block_index,&
-                      iterator_next_2d_block_d,&
+                      iterator_next_area_block
+     MODULE PROCEDURE iterator_next_2d_block_d,&
                       iterator_next_2d_block_s,&
                       iterator_next_2d_block_c,&
                       iterator_next_2d_block_z,&
@@ -146,6 +151,11 @@ MODULE dbcsr_methods
                       iterator_next_1d_block_s,&
                       iterator_next_1d_block_c,&
                       iterator_next_1d_block_z
+  END INTERFACE
+
+  INTERFACE pointer_rank_remap
+     MODULE PROCEDURE pointer_s_rank_remap2, pointer_d_rank_remap2,&
+                      pointer_c_rank_remap2, pointer_z_rank_remap2
   END INTERFACE
 
   ! For the 1-D and 2-D arrays
@@ -1942,6 +1952,78 @@ CONTAINS
     
   END SUBROUTINE iterator_next_block_index
 
+! *****************************************************************************
+!> \brief Gets the next data block encapsulated in an object.
+!> \param[in,out] iterator   the iterator
+!> \param[out] row           row of the data block
+!> \param[out] column        column of the data block
+!> \param[out] block         encapsulated data
+!> \param[out] transposed    whether the block data is transposed
+!> \param[out] block_number  (optional) block number
+!> \param[out] row_size      (optional) logical row size of block
+!> \param[out] col_size      (optional) logical column size of block
+!> \param[out] row_offset    (optional) logical row offset of block
+!> \param[out] col_offset    (optional) logical column offset of block
+! *****************************************************************************
+  SUBROUTINE iterator_next_area_block (iterator, row, column, block,&
+       transposed, block_number, row_size, col_size, row_offset, col_offset)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+    INTEGER, INTENT(OUT)                     :: row, column
+    TYPE(dbcsr_data_obj), INTENT(OUT)        :: block
+    LOGICAL, INTENT(OUT)                     :: transposed
+    INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
+                                                col_size, row_offset, &
+                                                col_offset
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_area_block', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk_p, bp, csize, ithread, &
+                                                nze, rsize
+
+!   ---------------------------------------------------------------------------
+
+    IF (iterator%pos .LE. iterator%nblks&
+         .AND. iterator%pos .NE. 0) THEN
+       row = iterator%row
+       column = iterator%col_i(iterator%pos)
+       blk_p = iterator%blk_p(iterator%pos)
+       transposed = blk_p .LT. 0
+       bp = ABS (blk_p)
+       rsize = iterator%row_size
+       csize = iterator%cbs(column)
+       nze = rsize * csize
+       IF (PRESENT (row_size)) row_size = rsize
+       IF (PRESENT (col_size)) col_size = csize
+       IF (PRESENT (row_offset)) row_offset = iterator%row_offset
+       IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
+       ! Redirect the encapsulated pointer to the correct pointer here.
+       CALL set_data_area_area (block, rsize, csize, iterator%data_area,&
+            source_lb=bp)
+       IF (PRESENT (block_number)) block_number = iterator%pos
+       ! Move to the next non-deleted position.
+       iterator%pos = iterator%pos+1
+       IF (.NOT. iterator%shared) THEN
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p)
+       ELSE
+          ithread = 0
+!$        ithread = OMP_GET_THREAD_NUM()
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p,&
+               tdist=iterator%tdist, tid=ithread)
+       ENDIF
+       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
+    ELSE
+       row = 0
+       column = 0
+       IF (PRESENT (block_number)) block_number = 0
+    ENDIF
+  END SUBROUTINE iterator_next_area_block
+
+
 
 ! *****************************************************************************
 !> \brief Returns whether there any blocks left in the iterator.
@@ -1954,6 +2036,102 @@ CONTAINS
 
     blocks_left = iterator%pos .NE. 0
   END FUNCTION dbcsr_iterator_blocks_left
+
+
+
+! *****************************************************************************
+!> \brief Points data area data pointers to another data area
+!>
+!> Assumes that no memory will be lost when repointing the pointer in the data
+!> area and that the area is initialized.
+!> \param[in,out] area         data area to repoint
+!> \param[in] rsize, csize     size of data area to point to
+!> \param[in] pointee          data area to point to
+!> \param[in] source_lb        (optional) point to this offset in pointee
+! *****************************************************************************
+  SUBROUTINE set_data_area_area (area, rsize, csize, pointee, source_lb)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN)                      :: rsize, csize
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: pointee
+    INTEGER, INTENT(IN), OPTIONAL            :: source_lb
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_area_area', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: dt1, dt2
+    INTEGER                                  :: bp, nze
+    LOGICAL                                  :: compatible, pointee_is_2d, rmp
+
+!   ---------------------------------------------------------------------------
+
+    bp = 1 ; IF (PRESENT (source_lb)) bp = source_lb
+    nze = rsize*csize
+    dt1 = area%d%data_type
+    dt2 = pointee%d%data_type
+    compatible = dt1 .EQ. dt2&
+         .OR. dt1 .EQ. dbcsr_type_real_4_2d .AND. dt2 .EQ. dbcsr_type_real_4&
+         .OR. dt1 .EQ. dbcsr_type_real_8_2d .AND. dt2 .EQ. dbcsr_type_real_8&
+         .OR. dt1 .EQ. dbcsr_type_complex_4_2d .AND. dt2 .EQ. dbcsr_type_complex_4&
+         .OR. dt1 .EQ. dbcsr_type_complex_8_2d .AND. dt2 .EQ. dbcsr_type_complex_8
+    CALL cp_assert (compatible, cp_fatal_level,&
+         cp_wrong_args_error, routineN, "Can not point 1-d pointer to 2-d data")
+    pointee_is_2d = dt2 .EQ. dbcsr_type_real_4_2d &
+         .OR. dt2 .EQ. dbcsr_type_real_8_2d &
+         .OR. dt2 .EQ. dbcsr_type_complex_4_2d &
+         .OR. dt2 .EQ. dbcsr_type_complex_8_2d
+    CALL cp_assert (.NOT. PRESENT (source_lb) .OR. .NOT. pointee_is_2d, &
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Lower bound specification not possible with 2-d data")
+    ! Check if size is OK.
+    CALL cp_assert (bp .GE. 1&
+         .AND. bp + nze - 1 .LE. dbcsr_get_data_size (pointee),&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Attempt to point out of bounds")
+    ! There's a remap if the ranks are compatible but not equal.
+    rmp = dt1 .NE. dt2
+    SELECT CASE (dt2)
+    CASE (dbcsr_type_real_4_2d)
+       area%d%r2_sp => dbcsr_get_data_p_2d_s (pointee)
+    CASE (dbcsr_type_real_4)
+       IF (rmp) THEN
+          CALL pointer_s_rank_remap2(area%d%r2_sp, rsize, csize,&
+               dbcsr_get_data_p_s (pointee, bp, bp+nze-1))
+       ELSE
+          area%d%r_sp => dbcsr_get_data_p_s (pointee, bp, bp+nze-1)
+       ENDIF
+    CASE (dbcsr_type_real_8_2d)
+       area%d%r2_dp => dbcsr_get_data_p_2d_d (pointee)
+    CASE (dbcsr_type_real_8)
+       IF (rmp) THEN
+          CALL pointer_d_rank_remap2(area%d%r2_dp, rsize, csize,&
+               dbcsr_get_data_p_d (pointee, bp, bp+nze-1))
+       ELSE
+          area%d%r_dp => dbcsr_get_data_p_d (pointee)
+       ENDIF
+    CASE (dbcsr_type_complex_4_2d)
+       area%d%c2_sp => dbcsr_get_data_p_2d_c (pointee)
+    CASE (dbcsr_type_complex_4)
+       IF (rmp) THEN
+          CALL pointer_c_rank_remap2(area%d%c2_sp, rsize, csize,&
+               dbcsr_get_data_p_c (pointee, bp, bp+nze-1))
+       ELSE
+          area%d%c_sp => dbcsr_get_data_p_c (pointee, bp, bp+nze-1)
+       ENDIF
+    CASE (dbcsr_type_complex_8_2d)
+       area%d%c2_dp => dbcsr_get_data_p_2d_z (pointee)
+    CASE (dbcsr_type_complex_8)
+       IF (rmp) THEN
+          CALL pointer_z_rank_remap2(area%d%c2_dp, rsize, csize,&
+               dbcsr_get_data_p_z (pointee, bp, bp+nze-1))
+       ELSE
+          area%d%c_dp => dbcsr_get_data_p_z (pointee, bp, bp+nze-1)
+       ENDIF
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+            routineN, "Invalid data type")
+    END SELECT
+  END SUBROUTINE set_data_area_area
+
 
 
 ! *****************************************************************************
