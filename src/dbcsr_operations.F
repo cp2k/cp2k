@@ -1502,6 +1502,7 @@ CONTAINS
             .AND. params(sp-1)%alpha .EQ. params(sp)%alpha &
             .AND. params(sp-1)%lcols_b .EQ. params(sp-1)%last_n &
             .AND. params(sp-1)%lcols_c .EQ. params(sp-1)%last_n &
+            .AND. params(sp-1)%offset_a .EQ. params(sp)%offset_a &
             .AND. params(sp-1)%offset_b + params(sp-1)%nze_b .EQ. params(sp)%offset_b &
             .AND. params(sp-1)%offset_c + params(sp-1)%nze_c .EQ. params(sp)%offset_c) THEN
           IF (dbg) WRITE(*,*)routineN//" Merging into:"
@@ -1512,7 +1513,7 @@ CONTAINS
           params(sp-1)%nze_c = params(sp-1)%nze_c + params(sp)%nze_c
           params(sp)%type_c = '0'
           IF (dbg) CALL print_dgemm_parameters(params(sp-1))
-          IF (n .GE. first) THEN
+          IF (n .GT. first) THEN
              n = n - 1
           ENDIF
        ELSE
