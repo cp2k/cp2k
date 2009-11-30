@@ -219,6 +219,7 @@ MODULE dbcsr_types
 !> \var pos              Current position (per thread)
 !> \var row_size         Size of current row
 !> \var rbs, cbs         Pointer to row and column size array
+!> \var roff, coff       Pointer to row and column offset array
 !> \var contiguous_pointers   Whether pointers to data should be contiguous
 !>                            in memory.
 ! *****************************************************************************
@@ -229,15 +230,14 @@ MODULE dbcsr_types
      !COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: buffer_c_sp
      !COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: buffer_c_dp
      TYPE(dbcsr_data_obj)                           :: buffer_2d
-     INTEGER                                        :: pos, row, row_size
-     INTEGER, DIMENSION(:), POINTER :: rbs, cbs
+     INTEGER                                        :: pos, row, row_size, &
+          row_offset
+     INTEGER, DIMENSION(:), POINTER :: rbs, cbs, roff, coff
      LOGICAL            :: contiguous_pointers, shared
      ! Copies from the matrix.
      INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
      INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p, tdist
      TYPE(dbcsr_data_obj) :: data_area
-     !dbg
-     INTEGER :: count_me
   END TYPE dbcsr_iterator
 
 
@@ -304,6 +304,8 @@ MODULE dbcsr_types
 !> \var blk_p       the pointer into the data array of this block.
 !> \var row_blk_size          sizes (rows in a block) of blocked rows
 !> \var col_blk_size          sizes (columns in a block) of blocked columns
+!> \var row_blk_offset          row offset (size = nrow+1)
+!> \var col_blk_offset          col offset (size = ncol+1)
 !> \var max_rbs, max_cbs      maximal row and column sizes
 !> \var dist2d      distribution_2d used by this matrix
 !> \var dist        distribution used by this matrix
@@ -339,7 +341,9 @@ MODULE dbcsr_types
           &                                col_i,&
           &                                blk_p
      TYPE(array_i1d_obj)                   row_blk_size,&
-          &                                col_blk_size
+          &                                col_blk_size,&
+          &                                row_blk_offset,&
+          &                                col_blk_offset
      INTEGER                            :: max_rbs, max_cbs
 
      TYPE(distribution_2d_type), POINTER :: dist2d

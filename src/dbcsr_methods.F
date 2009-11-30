@@ -206,6 +206,8 @@ CONTAINS
     CALL dbcsr_distribution_init (matrix%dist)
     CALL array_nullify (matrix%row_blk_size)
     CALL array_nullify (matrix%col_blk_size)
+    CALL array_nullify (matrix%row_blk_offset)
+    CALL array_nullify (matrix%col_blk_offset)
     NULLIFY (matrix%wms)
     NULLIFY (matrix%dist2d)
   END SUBROUTINE dbcsr_init_type
@@ -391,6 +393,8 @@ CONTAINS
           CALL dbcsr_data_release (matrix%m%data_area)
           CALL array_release (matrix%m%row_blk_size)
           CALL array_release (matrix%m%col_blk_size)
+          CALL array_release (matrix%m%row_blk_offset)
+          CALL array_release (matrix%m%col_blk_offset)
           CALL dbcsr_distribution_release(matrix%m%dist)
           matrix%m%valid = .FALSE.
 !$        CALL OMP_DESTROY_LOCK (matrix%m%modification_lock)
@@ -980,6 +984,21 @@ CONTAINS
 
     col_blk_sizes = matrix%m%col_blk_size
   END FUNCTION dbcsr_col_block_sizes
+
+  FUNCTION dbcsr_col_block_offsets (matrix) RESULT (col_blk_offsets)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(array_i1d_obj)                      :: col_blk_offsets
+
+    col_blk_offsets = matrix%m%col_blk_offset
+  END FUNCTION dbcsr_col_block_offsets
+
+  FUNCTION dbcsr_row_block_offsets (matrix) RESULT (row_blk_offsets)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(array_i1d_obj)                      :: row_blk_offsets
+
+    row_blk_offsets = matrix%m%row_blk_offset
+  END FUNCTION dbcsr_row_block_offsets
+
 ! *****************************************************************************
 !> \brief Gets information about a matrix
 !> \param[in] matrix          matrix to query
@@ -996,6 +1015,8 @@ CONTAINS
 !> \param[out] proc_row_dist, proc_col_dist
 !> \param[out] row_blk_size
 !> \param[out] col_blk_size
+!> \param[out] row_blk_offset
+!> \param[out] col_blk_offset
 !> \param[out] distribution   the data distribution of the matrix
 !> \param[out] name           matrix name
 !> \param[out] data_area      data_area
@@ -1010,7 +1031,7 @@ CONTAINS
        nfullrows_local, nfullcols_local,&
        my_prow, my_pcol,&
        local_rows, local_cols, proc_row_dist, proc_col_dist,&
-       row_blk_size, col_blk_size, distribution, name, data_area,&
+       row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, distribution, name, data_area,&
        matrix_type, data_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, &
@@ -1019,7 +1040,8 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_rows, local_cols, &
                                                 proc_row_dist, proc_col_dist
     TYPE(array_i1d_obj), INTENT(OUT), &
-      OPTIONAL                               :: row_blk_size, col_blk_size
+      OPTIONAL                               :: row_blk_size, col_blk_size, &
+                                                row_blk_offset, col_blk_offset
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT), OPTIONAL                  :: distribution
     CHARACTER(len=*), INTENT(OUT), OPTIONAL  :: name
@@ -1048,6 +1070,8 @@ CONTAINS
     IF (PRESENT (nfullcols_local)) nfullcols_local = matrix%m%nfullcols_local
     IF (PRESENT (row_blk_size)) row_blk_size = matrix%m%row_blk_size
     IF (PRESENT (col_blk_size)) col_blk_size = matrix%m%col_blk_size
+    IF (PRESENT (row_blk_offset)) row_blk_offset = matrix%m%row_blk_offset
+    IF (PRESENT (col_blk_offset)) col_blk_offset = matrix%m%col_blk_offset
     IF (PRESENT (distribution)) distribution = matrix%m%dist
     IF (PRESENT (name)) name = matrix%m%name
     IF (PRESENT (data_area)) data_area = matrix%m%data_area
@@ -1617,7 +1641,6 @@ CONTAINS
 
     INTEGER                                  :: ithread, max_c_size, &
                                                 max_r_size, max_size
-    INTEGER, SAVE                            :: count_me = 0
     LOGICAL                                  :: share
 
 !   ---------------------------------------------------------------------------
@@ -1637,10 +1660,14 @@ CONTAINS
     iterator%pos = 0
     iterator%rbs => array_data (matrix%m%row_blk_size)
     iterator%cbs => array_data (matrix%m%col_blk_size)
+    iterator%roff => array_data (matrix%m%row_blk_offset)
+    iterator%coff => array_data (matrix%m%col_blk_offset)
+
     iterator%nblks = matrix%m%nblks
     iterator%nblkrows_total = matrix%m%nblkrows_total
     iterator%max_r_size = matrix%m%max_rbs
     iterator%max_c_size = matrix%m%max_cbs
+
     ! Can't do that because fortran forces us lose the matrix reference.
     !CALL dbcsr_hold (matrix)
     iterator%row_p => matrix%m%row_p
@@ -1649,9 +1676,6 @@ CONTAINS
     iterator%data_area = matrix%m%data_area
     CALL dbcsr_data_hold (iterator%data_area)
     iterator%row_size = 0
-count_me=count_me+1
-iterator%count_me=count_me
-
     IF (iterator%shared) THEN
        iterator%tdist => array_data (dbcsr_distribution_thread_dist (matrix%m%dist))
     ELSE
@@ -1674,6 +1698,7 @@ iterator%count_me=count_me
        ENDIF
        IF (iterator%row .GT. 0) THEN
           iterator%row_size = iterator%rbs(iterator%row)
+          iterator%row_offset = iterator%roff(iterator%row)
           max_r_size = iterator%max_r_size
           max_c_size = iterator%max_c_size
        ENDIF
@@ -1859,13 +1884,16 @@ iterator%count_me=count_me
 !> \param[out] blk_p         (optional) index into block data array
 !> \param[out] row_size      (optional) logical row size of block
 !> \param[out] col_size      (optional) logical column size of block
+!> \param[out] row_offset    (optional) logical row offset of block
+!> \param[out] col_offset    (optional) logical column offset of block
 ! *****************************************************************************
   SUBROUTINE iterator_next_block_index (iterator, row, column, blk,&
-       transposed, blk_p, row_size, col_size)
+       transposed, blk_p, row_size, col_size, row_offset, col_offset)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column, blk
     LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
-    INTEGER, INTENT(OUT), OPTIONAL           :: blk_p, row_size, col_size
+    INTEGER, INTENT(OUT), OPTIONAL           :: blk_p, row_size, col_size, &
+                                                row_offset, col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_index', &
       routineP = moduleN//':'//routineN
@@ -1881,6 +1909,8 @@ iterator%count_me=count_me
        blk = iterator%pos
        IF (PRESENT (row_size)) row_size = iterator%row_size
        IF (PRESENT (col_size)) col_size = iterator%cbs(column)
+       IF (PRESENT (row_offset)) row_offset = iterator%row_offset
+       IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
        IF (PRESENT (blk_p) .OR. PRESENT (transposed)) THEN
           bp = iterator%blk_p(iterator%pos)
           IF (PRESENT (blk_p)) blk_p = bp
@@ -1904,6 +1934,7 @@ iterator%count_me=count_me
        !CALL find_proper_row (iterator%pos, iterator%row,&
        !     iterator%nblkrows_total, iterator%row_p)
        IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
+       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
     ELSE
        row = 0
        column = 0

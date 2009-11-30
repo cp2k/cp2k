@@ -716,6 +716,7 @@ CONTAINS
 
     CHARACTER                                :: mt
     INTEGER                                  :: my_nblks, my_nze, stat
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, row_blk_offset
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
     LOGICAL                                  :: hijack
 
@@ -785,6 +786,8 @@ CONTAINS
        ! does, except that it keeps the index and data.
        CALL array_release (matrix%m%row_blk_size)
        CALL array_release (matrix%m%col_blk_size)
+       CALL array_release (matrix%m%row_blk_offset)
+       CALL array_release (matrix%m%col_blk_offset)
        CALL dbcsr_distribution_release (matrix%m%dist)
        IF (ASSOCIATED (matrix%m%dist2d)) &
             CALL distribution_2d_release (matrix%m%dist2d, error)
@@ -813,6 +816,15 @@ CONTAINS
     ELSE
        matrix%m%max_cbs = 0
     ENDIF
+
+    ! initialize row/col offsets
+    ALLOCATE(row_blk_offset(array_size (matrix%m%row_blk_size)+1))
+    ALLOCATE(col_blk_offset(array_size (matrix%m%col_blk_size)+1))
+    CALL convert_sizes_to_offsets(array_data(matrix%m%col_blk_size), col_blk_offset)
+    CALL convert_sizes_to_offsets(array_data(matrix%m%row_blk_size), row_blk_offset)
+    CALL array_new(matrix%m%col_blk_offset, col_blk_offset, gift=.TRUE.)
+    CALL array_new(matrix%m%row_blk_offset, row_blk_offset, gift=.TRUE.)
+
     matrix%m%dist = dist
     CALL dbcsr_distribution_hold (matrix%m%dist)
     ! Set up some data.
@@ -1376,13 +1388,17 @@ CONTAINS
        IF (PRESENT (offsets_stop)) offsets_stop(1) = sizes(1)
        IF (.NOT. PRESENT (offsets_stop)) THEN
           DO i = 2, n
-             offsets_start(i) = offsets_start(i-1) + sizes(i-1) + 1
+             offsets_start(i) = offsets_start(i-1) + sizes(i-1)
           ENDDO
+          IF(SIZE(offsets_start).GT.n) &
+               offsets_start(n+1) = offsets_start(n) + sizes(n)
        ELSE
           DO i = 2, n
              offsets_start(i) = offsets_start(i-1) + sizes(i-1)
              offsets_stop(i) = offsets_stop(i-1) + sizes(i)
           ENDDO
+          IF(SIZE(offsets_start).GT.n) &
+               offsets_start(n+1) = offsets_start(n) + sizes(n)
        ENDIF
     ENDIF
   END SUBROUTINE convert_sizes_to_offsets

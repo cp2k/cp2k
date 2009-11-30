@@ -10,13 +10,14 @@
 !> \param[out] col_size      (optional) logical column size of block
 ! *****************************************************************************
   SUBROUTINE iterator_next_1d_block_c (iterator, row, column, block,&
-       transposed, block_number, row_size, col_size)
+       transposed, block_number, row_size, col_size, row_offset, col_offset)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     COMPLEX(kind=real_4), DIMENSION(:), POINTER :: block
     LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number
-    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size,&
+         row_offset, col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_complex(kind=real_4)', &
       routineP = moduleN//':'//routineN
@@ -41,6 +42,8 @@
        nze = rsize * csize
        IF (PRESENT (row_size)) row_size = rsize
        IF (PRESENT (col_size)) col_size = csize
+       IF (PRESENT (row_offset)) row_offset = iterator%row_offset
+       IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
        rbp => dbcsr_get_data_p (iterator%data_area, CMPLX(0.0, 0.0, real_4))
        block => rbp(bp:bp+nze-1)
        IF (PRESENT (block_number)) block_number = iterator%pos
@@ -59,6 +62,7 @@
                tdist=iterator%tdist, tid=ithread)
        ENDIF
        IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
+       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
     ELSE
        row = 0
        column = 0
@@ -166,14 +170,14 @@
 ! *****************************************************************************
   SUBROUTINE iterator_next_2d_block_c (iterator, row, column,&
        block, transposed,&
-       block_number, row_size, col_size)
+       block_number, row_size, col_size, row_offset, col_offset)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     COMPLEX(kind=real_4), DIMENSION(:, :), &
       POINTER                                :: block
     LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number
-    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
+    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size, row_offset, col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_c', &
       routineP = moduleN//':'//routineN
@@ -196,6 +200,8 @@
        csize = iterator%cbs(column)
        IF (PRESENT (row_size)) row_size = rsize
        IF (PRESENT (col_size)) col_size = csize
+       IF (PRESENT (row_offset)) row_offset = iterator%row_offset
+       IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
        nze = rsize * csize
        rbp => dbcsr_get_data_p (iterator%data_area, CMPLX(0.0, 0.0, real_4))
 #if defined(__PTR_RANK_REMAP)
@@ -231,6 +237,7 @@
                tdist=iterator%tdist, tid=ithread)
        ENDIF
        IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
+       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
     ELSE
        row = 0
        column = 0

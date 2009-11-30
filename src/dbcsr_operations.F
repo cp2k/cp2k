@@ -2194,11 +2194,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: a_blk, a_col, a_col_size, &
-                                                a_nze, a_row, a_row_size, i, &
-                                                last_col, timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start, m_offset
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
+      col_offset, i, last_col, row_offset, timing_handle
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start
     LOGICAL                                  :: do_scale, limit_col, right, tr
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
@@ -2208,9 +2206,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
     !
-    !
-    row_blk_size => array_data (matrix_a%m%row_blk_size)
-    col_blk_size => array_data (matrix_a%m%col_blk_size)
     ! last_column => alpha_scalar
     CALL cp_assert (.NOT. PRESENT (last_column) .OR. PRESENT (alpha_scalar),&
          cp_fatal_level, cp_wrong_args_error, routineN,&
@@ -2222,9 +2217,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
             cp_wrong_args_error, routineN,&
             "Specified last column is out of bounds.")
        last_col = last_column
-       ALLOCATE (col_start(SIZE (col_blk_size)))
-       ALLOCATE (col_end(SIZE (col_blk_size)))
-       CALL convert_sizes_to_offsets(col_blk_size, col_start, col_end)
+       ALLOCATE (col_start(dbcsr_nblkcols_total(matrix_a)))
+       ALLOCATE (col_end(dbcsr_nblkrows_total(matrix_a)))
+       CALL convert_sizes_to_offsets(array_data (matrix_a%m%col_blk_size), &
+            col_start, col_end)
     ENDIF
     !
     ! set vars
@@ -2234,8 +2230,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CASE('right');right = .TRUE.
        CASE('left' );right = .FALSE.
        CASE DEFAULT
-          WRITE(*,*) 'side='//side
-          CALL stop_program(routineN,"wrong side...")
+          CALL stop_program(routineN,"wrong side="//side)
        END SELECT
     ENDIF
     !
@@ -2256,21 +2251,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     !
     !
     IF(PRESENT(alpha_matrix)) THEN
-       ALLOCATE(buff(MAXVAL(row_blk_size)*MAXVAL(col_blk_size)),&
-            &   m_offset(matrix_a%m%nblkcols_total))
+       ALLOCATE(buff(MAXVAL(array_data (matrix_a%m%row_blk_size))*&
+                     MAXVAL(array_data (matrix_a%m%col_blk_size))))
        buff = 0.0_dp
-       m_offset(1) = 1
-       IF(right) THEN
-          DO a_col = 2,matrix_a%m%nblkcols_total
-             a_col_size = col_blk_size(a_col-1)
-             m_offset(a_col) = m_offset(a_col-1) + a_col_size**2
-          ENDDO
-       ELSE
-          DO a_row = 2,matrix_a%m%nblkrows_total
-             a_row_size = row_blk_size(a_row-1)
-             m_offset(a_row) = m_offset(a_row-1) + a_row_size**2
-          ENDDO          
-       ENDIF
     ENDIF
     !
     ! quick return if possible
@@ -2284,7 +2267,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_iterator_start(iter, matrix_a)
        iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_d, tr, a_blk,&
-               row_size=a_row_size, col_size=a_col_size)
+               row_size=a_row_size, col_size=a_col_size, &
+               row_offset=row_offset, col_offset=col_offset)
           a_nze = a_row_size * a_col_size
           IF (a_nze .EQ. 0) CYCLE ! Skip empty blocks
           !
@@ -2334,7 +2318,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
                         &     1.0_dp,data_d(1),a_row_size,&
-                        &            alpha_matrix(m_offset(a_col)),a_col_size,&
+                        &            alpha_matrix(col_offset),a_col_size,&
                         &     0.0_dp,buff,a_row_size)
                    CALL dcopy(a_nze,buff,1,data_d(1),1)
                    !CASE (dbcsr_type_complex_4)
@@ -2349,7 +2333,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                    !CASE (dbcsr_type_real_4)
                 CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
-                        &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
+                        &     1.0_dp,alpha_matrix(row_offset),a_row_size,&
                         &            data_d(1),a_row_size,&
                         &     0.0_dp,buff,a_row_size)
                    CALL dcopy(a_nze,buff,1,data_d(1),1)
@@ -2366,10 +2350,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ENDDO iterations
        CALL dbcsr_iterator_stop(iter)
 
-    ENDIF
-
-    IF(PRESENT(alpha_matrix)) THEN
-       DEALLOCATE(buff,m_offset)
     ENDIF
 
     CALL timestop(timing_handle)
@@ -2477,18 +2457,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     LOGICAL                                  :: found, tr
 
 !   ---------------------------------------------------------------------------
-!r = row
-!c = col
-! Figure out where the desired row and col is actually stored.
-!CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
-!IF (PRESENT (block_number)) THEN
-!   b = block_number
-!   CALL cp_assert (block_number .LE. matrix%m%nblks, cp_failure_level,&
-!        cp_caller_error, routineN, "Block number too big.")
-!   found = .TRUE.
-!ELSE
-!   CALL dbcsr_get_stored_block_info (matrix, r, c, found, b)
-!ENDIF
 
     IF (PRESENT (block_number)) THEN
        b = block_number
@@ -2532,8 +2500,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, row, timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size
     LOGICAL                                  :: tr
     REAL(dp)                                 :: my_alpha_scalar, &
                                                 my_beta_scalar
@@ -2549,16 +2515,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     
     IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b)) &
          CALL stop_program(routineN,"data types not consistent")
-
-    !> this should be precomputed somewhere else
-    col_blk_size => array_data (matrix_b%m%col_blk_size)
-    ALLOCATE(offset(matrix_a%m%nblkcols_total+1))
-    offset(1) = 1
-    DO col = 2,matrix_a%m%nblkcols_total+1
-       offset(col) = offset(col-1) + col_blk_size(col-1)
-    ENDDO
-    !<
-
     !
     my_alpha_scalar = 1.0_dp
     IF(PRESENT(alpha_scalar)) my_alpha_scalar = alpha_scalar
@@ -2608,8 +2564,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_finalize (matrix_a, error=error)
 
     ENDIF
-
-    DEALLOCATE(offset)
 
     CALL timestop(timing_handle)
 
@@ -2797,10 +2751,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, i, row, &
+    INTEGER                                  :: blk, col, i, row, row_offset, &
                                                 timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     TYPE(dbcsr_iterator)                     :: iter
@@ -2809,15 +2761,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
 
-    !> this should be precomputed somewhere else
-    row_blk_size => array_data (matrix%m%row_blk_size)
-    ALLOCATE(offset(matrix%m%nblkrows_total))
-    offset(1) = 1
-    DO row = 2,matrix%m%nblkrows_total
-       offset(row) = offset(row-1) + row_blk_size(row-1)
-    ENDDO
-    !<
-    IF(SUM(row_blk_size).GT.SIZE(diag)) CALL stop_program(routineN,"SIZE(diag) too small") 
+    IF(dbcsr_nfullrows_total(matrix).GT.SIZE(diag)) &
+         CALL stop_program(routineN,"SIZE(diag) too small") 
+
+    diag = 0.0_dp
 
     CALL dbcsr_iterator_start(iter, matrix)
 
@@ -2827,10 +2774,11 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           !CASE (dbcsr_type_real_4)
           !CALL dbcsr_iterator_next_block(iter, row, col, data_r, tr, blk)
        CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
+               row_offset=row_offset)
           IF(row.EQ.col) THEN
              DO i = 1,SIZE(data_d,1)
-                diag(offset(row)+i-1) = data_d(i,i)
+                diag(row_offset+i-1) = data_d(i,i)
              ENDDO
           ENDIF
           !CASE (dbcsr_type_complex_4)
@@ -2844,8 +2792,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ENDDO
 
     CALL dbcsr_iterator_stop(iter)
-
-    DEALLOCATE(offset)
 
     CALL timestop(timing_handle)
 
@@ -2866,10 +2812,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, i, row, &
+    INTEGER                                  :: blk, col, i, row, row_offset, &
                                                 timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     TYPE(dbcsr_iterator)                     :: iter
@@ -2878,15 +2822,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
 
-    !> this should be precomputed somewhere else
-    row_blk_size => array_data (matrix%m%row_blk_size)
-    ALLOCATE(offset(matrix%m%nblkrows_total))
-    offset(1) = 1
-    DO row = 2,matrix%m%nblkrows_total
-       offset(row) = offset(row-1) + row_blk_size(row-1)
-    ENDDO
-    !<
-    IF(SUM(row_blk_size).GT.SIZE(diag)) CALL stop_program(routineN,"SIZE(diag) too small")
+    IF(dbcsr_nfullrows_total(matrix).GT.SIZE(diag)) &
+         CALL stop_program(routineN,"SIZE(diag) too small")
 
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -2894,10 +2831,11 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           !CASE (dbcsr_type_real_4)
           !CALL dbcsr_iterator_next_block(iter, row, col, data_s, tr, blk)
        CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
+               row_offset=row_offset)
           IF(row.EQ.col) THEN
              DO i = 1,SIZE(data_d,1)
-                data_d(i,i) = diag(offset(row)+i-1)
+                data_d(i,i) = diag(row_offset+i-1)
              ENDDO
           ENDIF
           !CASE (dbcsr_type_complex_4)
@@ -3250,10 +3188,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_norm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, i, j, nc, nr, row, &
+    INTEGER                                  :: blk, col, col_offset, i, j, &
+                                                nc, nr, row, row_offset, &
                                                 timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_offset, r_offset
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: tr
     REAL(dp)                                 :: fac
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff_d
@@ -3264,22 +3201,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL timeset(routineN, timing_handle)
 
-    col_blk_size => array_data (matrix%m%col_blk_size)
-    row_blk_size => array_data (matrix%m%row_blk_size)
-
-    !> this should be precomputed somewhere else
-    ALLOCATE(r_offset(matrix%m%nblkrows_total),c_offset(matrix%m%nblkcols_total))
-    r_offset(1) = 1
-    DO row = 2,matrix%m%nblkrows_total
-       r_offset(row) = r_offset(row-1) + row_blk_size(row-1)
-    ENDDO
-    nr = SUM(row_blk_size)
-    c_offset(1) = 1
-    DO col = 2,matrix%m%nblkcols_total
-       c_offset(col) = c_offset(col-1) + col_blk_size(col-1)
-    ENDDO
-    nc = SUM(col_blk_size)
-    !<
+    nr = dbcsr_nblkrows_total(matrix)
+    nc = dbcsr_nblkcols_total(matrix)
 
     SELECT CASE(which_norm)
 
@@ -3342,20 +3265,21 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              SELECT CASE (dbcsr_get_data_type(matrix))
              !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
-                CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+                CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
+                     row_offset=row_offset, col_offset=col_offset)
                 IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
                     dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
                     row.NE.col) THEN
                    DO j=1,SIZE(data_d,2)
                    DO i=1,SIZE(data_d,1)
-                      buff_d(r_offset(row)+i-1) = buff_d(r_offset(row)+i-1) + ABS(data_d(i,j))
-                      buff_d(c_offset(col)+j-1) = buff_d(c_offset(col)+j-1) + ABS(data_d(i,j))
+                      buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
+                      buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_d(i,j))
                    ENDDO
                    ENDDO
                 ELSE
                    DO j=1,SIZE(data_d,2)
                    DO i=1,SIZE(data_d,1)
-                      buff_d(r_offset(row)+i-1) = buff_d(r_offset(row)+i-1) + ABS(data_d(i,j))
+                      buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
                    ENDDO
                    ENDDO
                 ENDIF
@@ -3380,22 +3304,23 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              SELECT CASE (dbcsr_get_data_type(matrix))
              !CASE (dbcsr_type_real_4)
              CASE (dbcsr_type_real_8)
-                CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+                CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
+                     row_offset=row_offset, col_offset=col_offset)
                 IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
                     dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
                     row.NE.col) THEN
                    DO j=1,SIZE(data_d,2)
                    DO i=1,SIZE(data_d,1)
-                      norm_vector(c_offset(col)+j-1) = norm_vector(c_offset(col)+j-1) &
+                      norm_vector(col_offset+j-1) = norm_vector(col_offset+j-1) &
                                                      + data_d(i,j)**2
-                      norm_vector(r_offset(row)+i-1) = norm_vector(r_offset(row)+i-1) &
+                      norm_vector(row_offset+i-1) = norm_vector(row_offset+i-1) &
                                                      + data_d(i,j)**2
                    ENDDO
                    ENDDO
                 ELSE
                    DO j=1,SIZE(data_d,2)
                    DO i=1,SIZE(data_d,1)
-                      norm_vector(c_offset(col)+j-1) = norm_vector(c_offset(col)+j-1) &
+                      norm_vector(col_offset+j-1) = norm_vector(col_offset+j-1) &
                                                      + data_d(i,j) * data_d(i,j)
                    ENDDO
                    ENDDO
@@ -3416,8 +3341,6 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL stop_program(routineN,"this norm is NYI")
 
     END SELECT
-
-    DEALLOCATE(r_offset,c_offset)
 
     CALL timestop(timing_handle)
 
