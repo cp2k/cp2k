@@ -86,8 +86,7 @@ CONTAINS
     INTEGER                                  :: handle, ieigensolver, &
                                                 iter_total, k, n, ortho_k, &
                                                 ortho_space_k, output_unit
-    LOGICAL                                  :: energy_only, ionode, &
-                                                my_silent, ortho
+    LOGICAL                                  :: energy_only, my_silent, ortho
     REAL(KIND=dp)                            :: delta, energy
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_hc
@@ -102,12 +101,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     IF ( PRESENT(silent) ) THEN
       my_silent = silent
@@ -275,13 +269,13 @@ CONTAINS
       DEALLOCATE(matrix_hc)
 
       IF (delta < eps_gradient) THEN
-          IF (ionode .AND. .NOT.my_silent) THEN
+          IF ((output_unit>0) .AND. .NOT.my_silent) THEN
              WRITE(output_unit,*) " Reached convergence in ",iter_total," iterations "
           ENDIF
           EXIT outer_scf
       ENDIF
       IF (iter_total >= iter_max) THEN
-         IF (ionode) THEN
+         IF (output_unit>0) THEN
            IF ( my_silent ) THEN
              WRITE(output_unit,"(A,T60,E20.10)") "  WARNING OT eigensolver did not converge: current gradient",delta
            ELSE

@@ -273,7 +273,7 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(:), POINTER           :: ngrids
     LOGICAL :: analyt, decoupling, do_qmmm_periodic, do_restraint, &
-      do_restraintB, do_solvation, failure, ionode
+      do_restraintB, do_solvation, failure
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
     TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
@@ -284,9 +284,7 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     CPPrecondition(.NOT.ASSOCIATED(cp_ddapc_ewald),cp_failure_level,routineP,error,failure)
     ALLOCATE(cp_ddapc_ewald, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)

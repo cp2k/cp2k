@@ -583,7 +583,7 @@ CPSourceFileRef,&
 
        eps = 1.0E-5_dp
 
-       output_unit= cp_logger_get_default_unit_nr(logger)
+       output_unit= cp_logger_get_default_io_unit(logger)
        group = qs_env%para_env%group
        natoms = SIZE(particle_set)
        ALLOCATE (kind_of(natoms),STAT=istat)

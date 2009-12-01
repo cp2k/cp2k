@@ -54,8 +54,7 @@ CONTAINS
                                                 natom, nkind, nspins, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, ionode, my_do_rho0, &
-                                                paw_atom
+    LOGICAL                                  :: failure, my_do_rho0, paw_atom
     REAL(dp)                                 :: rho0_h_tot, tot_rs_int
     REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot, rho1_s_tot
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -96,10 +95,7 @@ CONTAINS
     IF (PRESENT(do_rho0)) my_do_rho0 = do_rho0
 
     logger => cp_error_get_logger(error)
-    ionode = (logger%para_env%mepos==logger%para_env%source)
-    IF(ionode) THEN
-      output_unit = cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit = cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     para_env=para_env,&
@@ -161,7 +157,7 @@ CONTAINS
        CALL put_rho0_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
        IF(ABS(rho0_h_tot) .GE. 1.0E-5_dp)THEN
         IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_h_tot)).GT.1.0E-3_dp) THEN
-          IF (ionode) THEN
+          IF (output_unit>0) THEN
              WRITE(output_unit,'(/,72("*"))')
              WRITE(output_unit,'(T2,A,T66,1E20.8)') &
                   "WARNING: rho0 calculated on the local grid is  :", -rho0_h_tot,&

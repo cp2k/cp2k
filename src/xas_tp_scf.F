@@ -144,7 +144,7 @@ CONTAINS
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     LOGICAL :: diis_step, do_level_shift, energy_only, exit_loop, failure, &
-      gapw, ionode, uniform_occupation, use_jacobi
+      gapw, uniform_occupation, use_jacobi
     REAL(KIND=dp)                            :: a_max, b_max, diis_error, &
                                                 IP_energy, t1, t2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
@@ -204,7 +204,6 @@ CONTAINS
          ks_env=ks_env,&
          error=error)
 
-    ionode = logger%para_env%source==logger%para_env%mepos
     energy_only = .FALSE.
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -348,7 +347,7 @@ CONTAINS
                 !                   CALL cp_fm_to_fm(mo_coeff,moloc_coeff(1)%matrix,xas_control%nexc_search,1,1 )
                 !                   CALL optimize_loc_berry(do_loc_none, localized_wfn_control, &
                 !                        moloc_coeff(1)%matrix, op_sm_set, &
-                !                        op_fm_set, cell, weights, 1, ionode, error=error)
+                !                        op_fm_set, cell, weights, 1, error=error)
                 !
                 !                   ra(1:3) = particle_set(iatom)%r(1:3)
                 !                   DO istate = 1,xas_control%nexc_search
@@ -519,7 +518,6 @@ CONTAINS
     INTEGER                                  :: homo, imin, imo, lfomo, &
                                                 nelectron, nmo, nomo, &
                                                 output_unit
-    LOGICAL                                  :: ionode
     REAL(dp)                                 :: e1, e2, edelta, edist, nelec, &
                                                 nelec0, occ_estate, smear
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
@@ -528,12 +526,7 @@ CONTAINS
 !  ----------------------------------------------------------------
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL get_mo_set(mo_set,eigenvalues=eigenvalues,&
          occupation_numbers=occupation,nelectron=nelectron,nmo=nmo)
@@ -575,7 +568,7 @@ CONTAINS
     END DO
 
     IF(e2 > eigenvalues(nmo)) THEN
-       IF(ionode) WRITE(output_unit,*) "WARNING might be too few states for the smearing !"
+       IF(output_unit>0) WRITE(output_unit,*) "WARNING might be too few states for the smearing !"
     END IF
     DO imo=nmo,nomo,-1
        IF (eigenvalues(imo) < e2) THEN
@@ -618,7 +611,7 @@ CONTAINS
           DO imo = 1,homo
              nelec = nelec + occupation(imo)
           END DO
-          IF(nelec/=nelec0 .AND. ionode)&
+          IF(nelec/=nelec0 .AND. (output_unit>0))&
              WRITE(output_unit,*) "WARNING different number of electrons !", nelec, nelec0
        END IF
     END IF
@@ -884,7 +877,7 @@ CONTAINS
                                                 nao, nelectron, nmo, &
                                                 nvirtual, nvirtual1, &
                                                 nvirtual2, output_unit
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues
     TYPE(cp_fm_type), POINTER                :: all_vectors, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -901,12 +894,7 @@ CONTAINS
     NULLIFY(dft_control,scf_control,matrix_ks,mos,para_env)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL timeset(routineN,handle)
 

@@ -105,8 +105,8 @@ CONTAINS
       map_atom_type(:), map_mol_hash(:), mm_indexes_n(:), mm_indexes_v(:), &
       mol_bnd(:,:), mol_hash(:), mol_num(:), new_position(:), order(:), &
       tmp_n(:), tmp_v(:), wrk(:)
-    LOGICAL                                  :: explicit, failure, ionode, &
-                                                matches, my_qmmm
+    LOGICAL                                  :: explicit, failure, matches, &
+                                                my_qmmm
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tr
     REAL(KIND=dp), POINTER                   :: tatm_charge(:), tatm_mass(:)
     TYPE(array1_list_type), ALLOCATABLE, &
@@ -127,12 +127,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,handle)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
     IF (output_unit>0) WRITE(output_unit,'(T2,"REORDER |  ")')
 
     my_qmmm = .FALSE.

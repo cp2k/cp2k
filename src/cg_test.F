@@ -51,7 +51,7 @@ SUBROUTINE clebsch_gordon_test (error)
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger=>cp_error_get_logger(error)
-    iw = cp_logger_get_default_unit_nr(logger)  
+    iw = cp_logger_get_default_io_unit(logger)  
 
     IF ( iw>0 ) THEN
 

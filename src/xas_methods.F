@@ -173,8 +173,8 @@ CONTAINS
       mixing0, my_homo(2), nao, nelectron, nexc_search, nmo, nspins, &
       output_unit, state_to_be_excited, xas_iter_count
     INTEGER, DIMENSION(:), POINTER           :: state_of_atom
-    LOGICAL :: ch_method_flags, converged, failure, ionode, my_uocc(2), &
-      should_stop, skip_scf, transition_potential, uocc
+    LOGICAL :: ch_method_flags, converged, failure, my_uocc(2), should_stop, &
+      skip_scf, transition_potential, uocc
     REAL(dp)                                 :: maxocc
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
@@ -216,12 +216,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     NULLIFY(xas_env, groundstate_coeff, ostrength_sm, op_sm)
     NULLIFY(excvec_coeff, state_of_atom, qs_loc_env, cell)
@@ -1069,8 +1064,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: homo, i, istat, output_unit
-    LOGICAL                                  :: append_cube, failure, ionode, &
-                                                length
+    LOGICAL                                  :: append_cube, failure, length
     REAL(dp)                                 :: rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
@@ -1091,12 +1085,7 @@ CONTAINS
     failure =.FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-     output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-     output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     NULLIFY(fm_work,ostrength_sm,op_sm, dip_fm_set)
     NULLIFY(all_evals,all_vectors,excvec_coeff, spectrum)
@@ -1621,7 +1610,7 @@ CONTAINS
                                                 mykind_of_kind, &
                                                 state_of_atom, &
                                                 state_of_mytype, type_of_state
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: component, dist, distmin, &
                                                 maxocc, ra(3), rac(3), rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: max_overlap, sto_state_overlap
@@ -1646,12 +1635,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env, cell=cell, mos=mos, particle_set=particle_set,error=error)
 

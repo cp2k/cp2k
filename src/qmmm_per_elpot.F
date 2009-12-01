@@ -76,7 +76,7 @@ CONTAINS
       n_rep_real(3), n_rep_real_val, ncoarsel, ncoarset, Ndim, output_unit, &
       stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(KIND=dp) :: Ak, alpha, box(3), Fac(3), fs, g, g2, Gk, Gmax, &
       mymaxradius, npl, npt, Prefactor, rc, rc2, Rmax, tmp, vec(3), vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, Lg
@@ -87,11 +87,7 @@ CONTAINS
     ncoarset = PRODUCT(ncp)
     ncoarsel = PRODUCT(ncpl)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
                 mm_cell%hmat(3,3)**2 ) 

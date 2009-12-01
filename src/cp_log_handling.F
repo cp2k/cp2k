@@ -65,11 +65,13 @@ MODULE cp_log_handling
   ! parameter vars
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level, cp_fatal_level 
   ! default loggers
-  PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger, cp_default_logger_stack_size
+  PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger,&
+            cp_default_logger_stack_size
   ! logger routines
   PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
             cp_logger_would_log, cp_logger_set, cp_logger_get_default_unit_nr,&
-            cp_logger_get_unit_nr, cp_logger_set_log_level, cp_logger_generate_filename
+            cp_logger_get_default_io_unit, cp_logger_get_unit_nr, &
+            cp_logger_set_log_level, cp_logger_generate_filename
   PUBLIC :: cp_to_string, cp_log, print_message
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
@@ -520,6 +522,26 @@ CONTAINS
     res=cp_logger_get_default_unit_nr(logger,local=local)
   END FUNCTION cp_logger_get_unit_nr
 
+
+! *****************************************************************************
+!> \brief returns the unit nr for the ionode (-1 on all other processors)
+!>        skips as well checks if the procs calling this function is not the ionode
+!> \param logger the logger you want to log in
+!> \param local if true returns a local logger (one per task), otherwise
+!>     returns a global logger (only the process with para_env%mepos==
+!>     para_env%source should write to the global logger). Defaults to
+!>     false
+!> \par History
+!>      12.2009 created [tlaino] 
+!> \author Teodoro Laino
+! *****************************************************************************
+  FUNCTION cp_logger_get_default_io_unit(logger) RESULT(res)
+    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: res
+
+    res=cp_logger_get_default_unit_nr(logger,local=.FALSE.,skip_not_ionode=.TRUE.)
+  END FUNCTION cp_logger_get_default_io_unit
+
 ! *****************************************************************************
 !> \brief Logs in a standard format
 !> \param logger is a type that describes where the logging must go.
@@ -574,8 +596,8 @@ CONTAINS
        CASE default
           label='L'//ADJUSTL(cp_int_to_string(level))
        END SELECT
-       unitNr=cp_logger_get_unit_nr(lggr,local=loc)
        IF (loc .OR. lggr%para_env%mepos==lggr%para_env%source) THEN
+          unitNr=cp_logger_get_unit_nr(lggr,local=loc)
           CALL m_datum(datx)
           CALL print_message(datx(12:19)//' '//label//' in '//&
                fromWhere//' '//message,unitNr,&
@@ -643,9 +665,9 @@ CONTAINS
 !>      4.2002 revised [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  RECURSIVE FUNCTION cp_logger_get_default_unit_nr(logger, local) RESULT(res)
+  RECURSIVE FUNCTION cp_logger_get_default_unit_nr(logger, local, skip_not_ionode) RESULT(res)
     TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
-    LOGICAL, INTENT(in), OPTIONAL            :: local
+    LOGICAL, INTENT(in), OPTIONAL            :: local, skip_not_ionode
     INTEGER                                  :: res
 
     CHARACTER(len=*), PARAMETER :: &
@@ -654,10 +676,11 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: filename
     INTEGER                                  :: iostat
-    LOGICAL                                  :: loc
+    LOGICAL                                  :: loc, skip
     TYPE(cp_logger_type), POINTER            :: lggr
 
     loc=.TRUE.
+    skip=.FALSE.
     IF (PRESENT(logger)) THEN
        lggr => logger
     ELSE
@@ -668,6 +691,7 @@ CONTAINS
          " logger%ref_count<1")
 
     IF (PRESENT(local)) loc=local
+    IF (PRESENT(skip_not_ionode)) skip=skip_not_ionode
     IF (.NOT.loc) THEN
        IF (lggr%default_global_unit_nr<=0) THEN
           IF (lggr%para_env%mepos==lggr%para_env%source) THEN
@@ -676,12 +700,15 @@ CONTAINS
              CALL open_file(TRIM(filename),file_status="unknown",&
                   file_action="WRITE",file_position="APPEND",&
                   unit_number=lggr%default_global_unit_nr)
-          ELSE
+          ELSE IF (.NOT.skip) THEN
              lggr%default_global_unit_nr=cp_logger_get_default_unit_nr(lggr,.TRUE.)
+             lggr%close_global_unit_on_dealloc=.FALSE.
+          ELSE
+             lggr%default_global_unit_nr=-1
              lggr%close_global_unit_on_dealloc=.FALSE.
           END IF
        END IF
-       IF (lggr%para_env%mepos/=lggr%para_env%source) THEN
+       IF ((lggr%para_env%mepos/=lggr%para_env%source).AND.(.NOT.skip)) THEN
           WRITE (unit=lggr%default_global_unit_nr,fmt='(a)',iostat=iostat)&
                ' WARNING non ionode asked for global logger'
           IF (iostat /= 0) THEN

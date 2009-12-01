@@ -127,8 +127,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, output_unit, stat
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                ionode
+    LOGICAL                                  :: calculate_forces, failure
     REAL(KIND=dp)                            :: dvol, total_rho0_rspace
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -148,9 +147,8 @@ CONTAINS
     CALL timeset(routineN,handle )
     failure=.FALSE.
     para_env=>kg_env%para_env
-    ionode=para_env%ionode
     logger => cp_error_get_logger(error)
-    output_unit=cp_logger_get_default_unit_nr(logger)
+    output_unit=cp_logger_get_default_io_unit(logger)
     NULLIFY(energy,dft_control,cell,rho)
     NULLIFY(rspw,auxbas_pw_pool,v_gspace,poisson_env)
     NULLIFY(rho_r,rho_g,rho_core, my_vxc_r, my_vxc_tau, my_rho_g, my_tau)
@@ -247,7 +245,7 @@ CONTAINS
          energy % hartree + energy % pseudo + energy%bond_corr
 
     ! print
-    IF (ionode) THEN
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
             "Total core charge density (r-space):",&
             rho%total_rho_core_rspace
@@ -286,7 +284,7 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, iter, &
                                                 output_unit, stat
-    LOGICAL                                  :: ionode, should_stop
+    LOGICAL                                  :: should_stop
     REAL(KIND=dp)                            :: maxerr, maxgrad, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -305,8 +303,7 @@ CONTAINS
     NULLIFY(rspw,auxbas_pw_pool,vxc_r)
     para_env=>kg_env%para_env
     logger => cp_error_get_logger(error)
-    ionode=para_env%ionode
-    output_unit=cp_logger_get_default_unit_nr(logger)
+    output_unit=cp_logger_get_default_io_unit(logger)
     stat = 0
     iter = 0
 
@@ -328,7 +325,7 @@ CONTAINS
 
     CALL calc_c_gradients(kg_env,vxc_r,maxgrad,force_env_section=kg_env%input,error=error)
 
-    IF (ionode) THEN
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
             FMT="(/,T3,A,T16,A,T49,A,T68,A,/,T3,A)")&
             "Step","maxerr","Time","Convergence","Total energy",&
@@ -338,7 +335,7 @@ CONTAINS
     scf_loop: DO
 
        CALL timeset(routineN,handle2)
-       IF (ionode) CALL m_flush(output_unit)
+       IF (output_unit>0) CALL m_flush(output_unit)
        iter = iter + 1
 
        CALL do_diis_step(kg_env,diis_info,maxerr,error=error)
@@ -347,7 +344,7 @@ CONTAINS
 
        t2 = m_walltime()
 
-       IF (ionode) THEN
+       IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,&
                FMT="(T2,I5,2X,E10.2,T32,F8.2,T40,2F20.10)")&
                iter,maxerr,t2 - t1,maxgrad,kg_env%energy%total
@@ -356,7 +353,7 @@ CONTAINS
        ! ** convergence check
        CALL external_control(should_stop,"KG_SCF",globenv,error)
        IF (maxgrad < scf_control%eps_scf) THEN
-          IF (ionode) THEN
+          IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                   "*** SCF run converged in", iter, "steps ***"
           END IF
@@ -364,7 +361,7 @@ CONTAINS
           EXIT scf_loop
        ELSE IF (should_stop.OR.&
             iter == scf_control%max_scf) THEN
-          IF (ionode) THEN
+          IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
@@ -452,8 +449,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit, stat
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                ionode
+    LOGICAL                                  :: calculate_forces, failure
     REAL(KIND=dp)                            :: dvol, total_rho0_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -475,9 +471,8 @@ CONTAINS
     CALL timeset(routineN,handle )
     failure=.FALSE.
     para_env=>kg_env%para_env
-    ionode=para_env%ionode
     logger=>cp_error_get_logger(error)
-    output_unit=cp_logger_get_default_unit_nr(logger)
+    output_unit=cp_logger_get_default_io_unit(logger)
 
     NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
          cell,rho,rspw,scf_control,dyn_coeff_set)
@@ -570,8 +565,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ikind, nkind, &
                                                 output_unit, stat
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                ionode
+    LOGICAL                                  :: calculate_forces, failure
     REAL(KIND=dp)                            :: dvol, e1_xc, e2_xc, &
                                                 total_rhop_rspace
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
@@ -596,9 +590,8 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle )
     para_env=>kg_env%para_env
-    ionode=para_env%ionode
     logger=>cp_error_get_logger(error)
-    output_unit=cp_logger_get_default_unit_nr(logger)
+    output_unit=cp_logger_get_default_io_unit(logger)
     calculate_forces=.FALSE.
 
     NULLIFY(energy,atomic_kind_set,cell,dft_control,&
@@ -716,7 +709,7 @@ CONTAINS
     CALL mp_max(maxgrad,kg_env%para_env%group)
 
     ! print
-    IF (ionode) THEN
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
             "Total core charge density (r-space):",&
             rho%total_rho_core_rspace

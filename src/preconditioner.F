@@ -1631,7 +1631,7 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_fm_set_all(p ,0.0_dp,error=error)
     !
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     !
     ! residual
     CALL cp_fm_trace(matrix_in,matrix_in,residual_ot,error=error)

@@ -909,7 +909,7 @@ CONTAINS
        END DO
 
        IF (cp_debug) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+          unit_nr=cp_logger_get_default_io_unit(logger)
           CALL mp_sum(non_coer,logger%para_env%group)
           ii=npoints
           CALL mp_sum(ii,logger%para_env%group)
@@ -1879,7 +1879,7 @@ CONTAINS
        END DO
 
        IF (cp_debug) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+          unit_nr=cp_logger_get_default_io_unit(logger)
           CALL mp_sum(non_coer,logger%para_env%group)
           ii=npoints
           CALL mp_sum(ii,logger%para_env%group)

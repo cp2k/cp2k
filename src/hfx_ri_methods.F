@@ -73,7 +73,6 @@ CONTAINS
                                                 maxlgem(2), nat, ngem, nkind, &
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
-    LOGICAL                                  :: ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -143,9 +142,7 @@ CONTAINS
        END DO
     END IF
 
-    ionode = qs_env%para_env%ionode
-    output_unit = -1
-    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_logger_get_default_io_unit(logger)
     IF ( output_unit > 0 ) THEN
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgem=maxlgem)
        ngem=0
@@ -183,7 +180,7 @@ CONTAINS
     INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: calculate_energy, &
                                                 calculate_fock, &
-                                                calculate_virial, ionode, &
+                                                calculate_virial, &
                                                 s_mstruct_changed
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -194,9 +191,7 @@ CONTAINS
 
     t1 = m_walltime()
     logger => cp_error_get_logger(error)
-    ionode = qs_env%para_env%ionode
-    output_unit = -1
-    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
     NULLIFY(ks_env)
     CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)

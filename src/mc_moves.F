@@ -1167,7 +1167,7 @@ END SUBROUTINE mc_conformation_change
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r")
          logger=>cp_error_get_logger(error)
-         output_unit=cp_logger_get_default_unit_nr(logger)
+         output_unit=cp_logger_get_default_io_unit(logger)
          IF(output_unit>0) WRITE(output_unit,*) &
             "Volume move rejected because we tried to make too small of box.",vol_dis
 !     end the timing
@@ -1230,7 +1230,7 @@ END SUBROUTINE mc_conformation_change
             "r")
 
          logger=>cp_error_get_logger(error)
-         output_unit=cp_logger_get_default_unit_nr(logger)
+         output_unit=cp_logger_get_default_io_unit(logger)
          IF(output_unit>0) WRITE(output_unit,*) &
             "Volume move rejected due to overlap.",vol_dis
 !     end the timing

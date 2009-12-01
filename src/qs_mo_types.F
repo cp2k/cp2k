@@ -1931,18 +1931,12 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imo, nmo, nomo, output_unit
-    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
                                                 my_smear, nelec
     TYPE(cp_logger_type), POINTER            :: logger
 
     logger =>cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     my_smear = 0.0_dp
     IF(PRESENT(smear)) my_smear = smear
@@ -1974,7 +1968,7 @@ CPSourceFileRef,&
 
        !     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
        IF(e2 > eigenvalues(nmo)) THEN
-          IF(ionode) THEN
+          IF(output_unit>0) THEN
             WRITE(output_unit,*) "WARNING might be too few states for the smearing !"
           END IF
        END IF

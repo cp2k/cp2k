@@ -340,10 +340,7 @@ CONTAINS
     NULLIFY(tmplist, tmpstringlist, thermolist, molecule_kind, molecule, molecule_set)
     NULLIFY(logger)
     logger      => cp_error_get_logger(error)
-    output_unit = -1
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
     CPPostcondition(.NOT.(ASSOCIATED(map_loc_thermo_gen)),cp_failure_level,routineP,error,failure)
     CALL section_vals_get(region_sections, n_repetition=nregions, error=error)
     ALLOCATE(thermolist(particles%n_els), stat=stat)

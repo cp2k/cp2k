@@ -38,7 +38,7 @@ CONTAINS
 
 ! *****************************************************************************
 SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
-                                unoccupied_orbs,unoccupied_evals,volume,ionode,scr,error)
+                                unoccupied_orbs,unoccupied_evals,volume,scr,error)
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_type), POINTER                :: occupied_orbs
@@ -46,7 +46,6 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
     TYPE(cp_fm_type), POINTER                :: unoccupied_orbs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: unoccupied_evals
     REAL(KIND=dp)                            :: volume
-    LOGICAL                                  :: ionode
     INTEGER                                  :: scr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -132,12 +131,12 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
         ENDDO
       ENDDO
       CALL mp_sum(RESULT,template%para_env%group)
-      IF (ionode) THEN
-      DO iband=1,nbands
-      DO i=0,npoints-1
-         WRITE(scr,'(2E20.10)') emin+(REAL(i,dp)/npoints)*(emax-emin),RESULT(i,iband)
-      ENDDO
-      ENDDO
+      IF (scr>0) THEN
+         DO iband=1,nbands
+            DO i=0,npoints-1
+               WRITE(scr,'(2E20.10)') emin+(REAL(i,dp)/npoints)*(emax-emin),RESULT(i,iband)
+            ENDDO
+         ENDDO
       ENDIF
    ENDDO
 

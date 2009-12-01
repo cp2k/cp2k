@@ -95,12 +95,12 @@ CONTAINS
       k1loc, k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, &
       ncolv_glob, ncolv_mol, nfixd_list_gci, nfixd_restart, nfixd_restraint, &
       nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, &
-      nmolecule, nrep, nvsite, nvsite_restraint, offset, output_unit, stat
+      nmolecule, nrep, nvsite, nvsite_restraint, offset, stat
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
     LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
       fix_atom_molname, fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, &
-      found_molname, ionode, is_qm, ishbond, ldummy, restart_restraint_clv, &
+      found_molname, is_qm, ishbond, ldummy, restart_restraint_clv, &
       restart_restraint_pos
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
@@ -138,12 +138,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger, constr_x_mol, constr_x_glob)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)

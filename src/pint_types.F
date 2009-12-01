@@ -2448,9 +2448,9 @@ SUBROUTINE pint_write_restart(pint_env,error)
      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 
      ! do some output here for now:
-     IF (pint_env%replicas%para_env%ionode) THEN
-        logger => cp_error_get_logger(error)
-        unit_nr = cp_logger_get_default_unit_nr(logger=logger)
+     logger => cp_error_get_logger(error)
+     unit_nr = cp_logger_get_default_io_unit(logger)
+     IF (unit_nr>0) THEN
         WRITE (unit_nr,"(A,I8,T38,A,F20.9)") "Iteration = ",pint_env%iter,&
               " EffPot = ",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
         WRITE (unit_nr,"(A,F20.9,T38,A,F20.9)") "ThermKin = ",0.5_dp* &

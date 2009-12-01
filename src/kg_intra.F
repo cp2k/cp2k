@@ -60,10 +60,9 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iexl, ikind, ipgf, &
       iset, ishell, istat, j, jkind, jpgf, jset, jshell, nkind, npart, &
-      nparticle_local, nseta, nsetb, output_unit
+      nparticle_local, nseta, nsetb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
-    LOGICAL                                  :: ionode
     REAL(KIND=dp) :: alpha_i, alpha_j, ann, dij, eee, ene, enn, fee, fne, &
       fnn, fscalar, gnorm, idij, prefac, q_i, q_j, qnn, qnuc_i, qnuc_j, &
       rijsq, rootann, rootzee, rootzne, z_i, z_j, zee, zne
@@ -75,7 +74,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: box
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -87,9 +85,6 @@ CONTAINS
     CALL timeset(routineN,handle)
     para_env=>kg_env%para_env
     group = para_env%group
-    ionode = para_env%ionode
-    logger=>cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
     prefac = (1.0_dp/pi)**1.5_dp
 
     CALL get_kg_env(kg_env=kg_env,&

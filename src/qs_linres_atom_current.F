@@ -555,7 +555,7 @@ CONTAINS
     !
     !
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     IF(output_unit>0) THEN
        WRITE(output_unit,'(A,E8.2)') 'calculate_jrho_atom_coeff: nbr_dbl=',nbr_dbl
     ENDIF

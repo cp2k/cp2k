@@ -568,8 +568,7 @@ CONTAINS
                                                 rowsize
     INTEGER(KIND=int_8)                      :: flop
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    LOGICAL                                  :: failure, found, ionode, ldbg, &
-                                                tr
+    LOGICAL                                  :: failure, found, ldbg, tr
     REAL(kind=dp)                            :: checksum, newtime, oldtime, &
                                                 trace, walltime1, walltime2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: block1d
@@ -593,9 +592,7 @@ CONTAINS
     failure=.FALSE.
     ldbg = .TRUE.
     logger => cp_error_get_logger (error)
-    ionode = logger%para_env%mepos == logger%para_env%source
-    output_unit = 0
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr (logger)
+    output_unit = cp_logger_get_default_io_unit (logger)
     !Do the new multiplication
     CALL dbcsr_init (matrix_a, error)
     CALL dbcsr_from_sm(matrix_a, matrix_s, error)
@@ -608,14 +605,14 @@ CONTAINS
     IF (ldbg) THEN
        checksum = checksum_matrix(&
             matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
-       IF (ldbg.AND.ionode) THEN
+       IF (ldbg.AND.(output_unit>0)) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"   SM S  checksum", checksum
        ENDIF
     ENDIF
     checksum = 0.0_dp
     checksum = dbcsr_checksum(matrix_a, error)
     !WRITE(*,*)'BCSR S checksum',checksum
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR S  checksum", checksum
     ENDIF
     !
@@ -626,7 +623,7 @@ CONTAINS
     checksum = checksum_matrix(matrix_s2,&
                                matrix_s2%distribution_2d%blacs_env%para_env)
     !WRITE(*,*)'BCSR S checksum',checksum
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"  SM2 S  checksum", checksum
     ENDIF
     ! Check that pointer reuse works.
@@ -634,7 +631,7 @@ CONTAINS
     checksum = checksum_matrix(matrix_s2,&
                                matrix_s2%distribution_2d%blacs_env%para_env)
     !WRITE(*,*)'BCSR S checksum',checksum
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"  SM2 S2 checksum", checksum
     ENDIF
     
@@ -645,7 +642,7 @@ CONTAINS
     checksum = 0.0_dp
     checksum = dbcsr_checksum(matrix_a, error)
     CALL dbcsr_trace(matrix_a,trace,error=error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,2(A,F12.4))')"DBCSR 2*S  checksum", checksum, " trace(2*S)",trace
     ENDIF
     CALL dbcsr_scale(matrix_a,alpha_scalar=0.5_dp,error=error)
@@ -656,13 +653,13 @@ CONTAINS
     CALL dbcsr_copy(matrix_a2,matrix_a,error=error)
     checksum = 0.0_dp
     checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Sbis  checksum", checksum
     ENDIF
     CALL dbcsr_add(matrix_a2,matrix_a,alpha_scalar=-2.0_dp,beta_scalar=2.0_dp,error=error)
     checksum = 0.0_dp
     checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR copy and add: 2*S-2*S  checksum", checksum
     ENDIF
     !CALL dbcsr_release(matrix_a2)
@@ -671,7 +668,7 @@ CONTAINS
     CALL dbcsr_replace_blocks(matrix_a2, matrix_a)
     CALL dbcsr_verify_matrix(matrix_a2, error)
     checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR replace=S checksum", checksum
     ENDIF
     CALL dbcsr_release(matrix_a2)
@@ -680,7 +677,7 @@ CONTAINS
     CALL dbcsr_copy(matrix_a2,matrix_a,error=error)
     CALL dbcsr_filter(matrix_a2,1.0_dp,error=error)
     checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR filter(S,1.0)  checksum", checksum
     ENDIF
     CALL dbcsr_release(matrix_a2)
@@ -688,17 +685,17 @@ CONTAINS
     ! some norms here
     CALL dbcsr_norm(matrix_a, which_norm=dbcsr_norm_maxabsnorm, &
          norm_scalar=checksum, error=error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR maxabsval(S)", checksum
     ENDIF
     CALL dbcsr_norm(matrix_a, which_norm=dbcsr_norm_frobenius, &
          norm_scalar=checksum, error=error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Frobenius(S)", checksum
     ENDIF
     CALL dbcsr_norm(matrix_a, which_norm=dbcsr_norm_gershgorin, &
          norm_scalar=checksum, error=error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Gershgorin(S)", checksum
     ENDIF
     !
@@ -718,7 +715,7 @@ CONTAINS
     !WRITE(*,*)"blk_p=", matrix_a2%blk_p
     CALL dbcsr_finalize (matrix_a2)
     !WRITE(*,*)"blk_p=", matrix_a2%nblks
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum ", checksum
     ENDIF
     !write(*,*)'zeroing...'
@@ -741,7 +738,7 @@ CONTAINS
     ENDDO
     CALL dbcsr_finalize (matrix_a2)
     checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum2", checksum
     ENDIF
     DEALLOCATE (block2d)
@@ -788,7 +785,7 @@ CONTAINS
     CALL dbcsr_finalize (matrix_a2, error=error)
     CALL dbcsr_verify_matrix(matrix_a2, error)
     checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum4", checksum
     ENDIF
     !
@@ -807,7 +804,7 @@ CONTAINS
     checksum = 0.0_dp
     CALL cp_fm_frobenius_norm(matrix_x, checksum, error)
     !WRITE(*,*)'x checksum',checksum*checksum
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"   FM x  checksum", checksum*checksum
     ENDIF
     CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
@@ -828,7 +825,7 @@ CONTAINS
 
     checksum = dbcsr_checksum(matrix_b, error)
     !WRITE(*,*)'DBCSR x checksum',checksum
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x  checksum", checksum
     ENDIF
     !
@@ -837,7 +834,7 @@ CONTAINS
     CALL dbcsr_iterator_start (iter, matrix_b)
     IF (dbcsr_iterator_blocks_left (iter)) THEN
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
-       IF (ldbg.AND.ionode) THEN
+       IF (ldbg.AND.(output_unit>0)) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksumL", checksum
        ENDIF
        CALL dbcsr_iterator_next_block (iter, row, col, block2d, tr, &
@@ -848,7 +845,7 @@ CONTAINS
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        !CALL dbcsr_print (matrix_b, error)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
-       IF (ldbg.AND.ionode) THEN
+       IF (ldbg.AND.(output_unit>0)) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum2", checksum
        ENDIF
        ALLOCATE (block2d_2(SIZE(block2d,1),SIZE(block2d,2)))
@@ -859,7 +856,7 @@ CONTAINS
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
-       IF (ldbg.AND.ionode) THEN
+       IF (ldbg.AND.(output_unit>0)) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cksm", checksum
        ENDIF
        !CALL dbcsr_print (matrix_b, error)
@@ -867,7 +864,7 @@ CONTAINS
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
-       IF (ldbg.AND.ionode) THEN
+       IF (ldbg.AND.(output_unit>0)) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum3", checksum
        ENDIF
        !write(*,*)'removing block'
@@ -875,7 +872,7 @@ CONTAINS
        CALL dbcsr_finalize (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error=error, local=.TRUE.)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
-       IF (ldbg.AND.ionode) THEN
+       IF (ldbg.AND.(output_unit>0)) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cks4", checksum
        ENDIF
        !CALL dbcsr_print (matrix_b, error)
@@ -886,7 +883,7 @@ CONTAINS
        CALL dbcsr_verify_matrix (matrix_b, error=error, local=.TRUE.)
        !CALL dbcsr_print (matrix_b, error)
        checksum = dbcsr_checksum(matrix_b, error, local=.TRUE.)
-       IF (ldbg.AND.ionode) THEN
+       IF (ldbg.AND.(output_unit>0)) THEN
           WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksm4L", checksum
        ENDIF
        DEALLOCATE (block2d_2)
@@ -894,25 +891,25 @@ CONTAINS
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_verify_matrix (matrix_b, error=error)
     checksum = dbcsr_checksum(matrix_b, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksm4g", checksum
     ENDIF
     CALL dbcsr_finalize (matrix_b)
     CALL dbcsr_verify_matrix (matrix_b, error=error)
     checksum = dbcsr_checksum(matrix_b, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum4", checksum
     ENDIF
     !
     ! test the scale routine on a general matrix
     CALL dbcsr_scale(matrix_b,alpha_scalar=3.0_dp,error=error)
     checksum = dbcsr_checksum(matrix_b, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x  checksum", checksum
     ENDIF
     CALL dbcsr_scale(matrix_b,alpha_scalar=1.0_dp/3.0_dp,error=error)
     checksum = dbcsr_checksum(matrix_b, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x/3  checksum", checksum
     ENDIF
     !
@@ -922,14 +919,14 @@ CONTAINS
     CALL dbcsr_replicate_all (matrix_bt)
     CALL dbcsr_verify_matrix (matrix_bt)
     checksum = dbcsr_checksum(matrix_bt, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x.*p checksum", checksum
     ENDIF
     ! Sum the replicates.
     CALL dbcsr_sum_replicated (matrix_bt)
     CALL dbcsr_verify_matrix (matrix_bt)
     checksum = dbcsr_checksum(matrix_bt, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSRpx.*p checksum", checksum
     ENDIF
     ! Again, to test unity of distribution of replication
@@ -940,7 +937,7 @@ CONTAINS
     CALL dbcsr_distribute (matrix_bt)
     CALL dbcsr_verify_matrix (matrix_bt)
     checksum = dbcsr_checksum(matrix_bt, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x s  checksum", checksum
     ENDIF
     !CALL dbcsr_release(matrix_bt)
@@ -951,7 +948,7 @@ CONTAINS
     CALL dbcsr_distribute (matrix_bt, fast=.TRUE.)
     CALL dbcsr_verify_matrix (matrix_bt)
     !checksum = dbcsr_checksum(matrix_bt, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x d  checksum", checksum
     ENDIF
 
@@ -986,7 +983,7 @@ CONTAINS
     !WRITE(*,*)'BCSR Sx checksum',checksum,'time=',newtime
     CALL mp_sum (flop, dbcsr_mp_group(dbcsr_distribution_mp(&
          dbcsr_distribution(matrix_c))))
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4,A,F12.4,";",F12.4,A)')&
             "DBCSR Sx checksum", checksum,&
             " time ", newtime,&
@@ -1013,7 +1010,7 @@ CONTAINS
     CALL copy_fm_to_dbcsr(matrix_x, matrix_bt)
     CALL dbcsr_verify_matrix (matrix_bt)
     checksum = dbcsr_checksum(matrix_bt, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"copy fm2dbcsr chksm", checksum
     ENDIF
 
@@ -1022,7 +1019,7 @@ CONTAINS
     !call dbcsr_replicate_all (matrix_b)
     !call dbcsr_replicate_all (matrix_c)
     CALL dbcsr_trace(matrix_b, matrix_c, trace, error=error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4,A,I4)')"DBCSR trace(C'*S*C)", trace," should be equal to ",k
     ENDIF
 
@@ -1043,7 +1040,7 @@ CONTAINS
     CALL dbcsr_complete_redistribute (matrix_b, matrix_bt)
     CALL dbcsr_verify_matrix (matrix_bt)
     checksum = dbcsr_checksum(matrix_bt, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')"Elemental B chcksum", checksum
     ENDIF
     !
@@ -1060,7 +1057,7 @@ CONTAINS
     CALL dbcsr_complete_redistribute (matrix_b, matrix_bt)
     CALL dbcsr_verify_matrix (matrix_bt)
     checksum = dbcsr_checksum(matrix_bt, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" Fullest B checksum", checksum
     ENDIF
 
@@ -1072,7 +1069,7 @@ CONTAINS
     CALL copy_dbcsr_to_fm (matrix_b, matrix_x2)
     CALL cp_sm_fm_multiply(matrix_s, matrix_x2, fmout, k, error=error)
     CALL cp_fm_frobenius_norm(fmout, checksum, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')" Conv Sx checksum",&
             checksum*checksum
     ENDIF
@@ -1098,7 +1095,7 @@ CONTAINS
     oldtime = walltime2-walltime1
     CALL cp_fm_frobenius_norm(fmout, checksum, error)
     !WRITE(*,*)'Sx checksum',checksum*checksum,'time=',oldtime
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')" SMFM Sx checksum",&
             checksum*checksum, " time ", oldtime
     ENDIF
@@ -1111,7 +1108,7 @@ CONTAINS
     !CALL cp_fm_create(fmout, matrix_x%matrix_struct, "FMout", error=error)
     CALL dbcsr_sm_fm_multiply(matrix_a, matrix_x, fmout, k, beta=0.0_dp, error=error)
     CALL cp_fm_frobenius_norm(fmout, checksum, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" dbcsr_SM_FM Sx checksum",&
             checksum*checksum
     ENDIF
@@ -1121,7 +1118,7 @@ CONTAINS
     CALL dbcsr_copy(matrix_a2, matrix_a, error=error)
     CALL dbcsr_plus_fm_fm_t(matrix_a2,matrix_x,ncol=k,error=error)
     checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" S = S+C*C^t Sx1checksum",&
             checksum
     ENDIF
@@ -1133,7 +1130,7 @@ CONTAINS
     CALL dbcsr_copy(matrix_a2, matrix_a, error=error)
     CALL dbcsr_plus_fm_fm_t(matrix_a2,matrix_x,matrix_x,ncol=k,error=error)
     checksum = dbcsr_checksum(matrix_a2, error)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" S = S+C*C^t Sx2checksum",&
             checksum
     ENDIF
@@ -1151,7 +1148,7 @@ CONTAINS
     !checksum = dbcsr_checksum(matrix_a2, error)
     checksum = checksum_matrix(&
          matrix_s2, matrix_s%distribution_2d%blacs_env%para_env)
-    IF (ldbg.AND.ionode) THEN
+    IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" S = S+C*C^t Sx3checksum",&
             checksum
     ENDIF

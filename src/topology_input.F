@@ -669,19 +669,14 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label,
 
     CHARACTER(LEN=default_string_length)     :: nlabel
     INTEGER                                  :: output_unit
-    LOGICAL                                  :: explicit, failure, ionode
+    LOGICAL                                  :: explicit, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: restraint_section
 
   failure      = .FALSE.
   is_restraint = .FALSE.
   logger => cp_error_get_logger(error)
-  ionode = logger%para_env%mepos==logger%para_env%source
-  IF (ionode) THEN
-     output_unit= cp_logger_get_default_unit_nr(logger)
-  ELSE
-     output_unit = -1
-  END IF
+  output_unit= cp_logger_get_default_io_unit(logger)
   CALL section_vals_get(cons_section,explicit=explicit, error=error)
   IF (explicit) THEN
      restraint_section => section_vals_get_subs_vals(cons_section,"RESTRAINT",&

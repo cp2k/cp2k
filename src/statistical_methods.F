@@ -68,7 +68,7 @@ CONTAINS
     INTEGER                                  :: i, i1, j, n2, output_unit, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a1, a2, an, an25, asa, fac, &
                                                 gamma, m, range, rsn, s, sa, &
                                                 sax, ssa, ssassx, ssumm2, &
@@ -80,9 +80,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     ! Check for  N < 3
     IF (n  < 3 .OR. n > 5000)   THEN 
        failure = .TRUE.

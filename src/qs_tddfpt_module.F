@@ -126,7 +126,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: oe_corr, output_unit
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: input, xc_fun_orig, xc_fun_tmp
@@ -136,10 +136,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger, scf_env, input)
     logger => cp_error_get_logger(error)
-    ionode = (logger%para_env%mepos==logger%para_env%source)
-    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
-    IF (ionode) THEN
+    IF (output_unit>0) THEN
        WRITE (output_unit, "(2X,A)") "",&
        "-----------------------------------------------------------------------------",&
        "-                    orbital eigenvalue correction started                  -",&

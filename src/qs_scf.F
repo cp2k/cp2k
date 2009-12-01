@@ -225,8 +225,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: max_scf_tmp, output_unit
-    LOGICAL                                  :: converged, failure, ionode, &
+    INTEGER                                  :: max_scf_tmp
+    LOGICAL                                  :: converged, failure, &
                                                 outer_scf_loop, should_stop
     LOGICAL, SAVE                            :: first_step_flag = .TRUE.
     TYPE(cp_logger_type), POINTER            :: logger
@@ -239,9 +239,6 @@ CONTAINS
     NULLIFY(scf_env)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
-    ionode = qs_env%para_env%ionode
-    output_unit = -1
-    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error,input=input, &

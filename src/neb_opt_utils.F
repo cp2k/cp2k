@@ -66,8 +66,7 @@ CONTAINS
                                                 info, istart, iv, iw, j, jv, &
                                                 k, lwork, np, nv, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
-    LOGICAL                                  :: failure, increase_error, &
-                                                ionode
+    LOGICAL                                  :: failure, increase_error
     REAL(dp), DIMENSION(:, :), POINTER       :: work
     REAL(KIND=dp)                            :: eps_svd
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: S, Work_dgesdd
@@ -78,12 +77,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode.AND.debug_this_module) THEN
-      iw = cp_logger_get_default_unit_nr(logger)
-    ELSE
-      iw = -1
-    END IF
+    iw = cp_logger_get_default_io_unit(logger)
     failure  = .FALSE.
     accepted = .FALSE.
     IF (.NOT.failure) THEN

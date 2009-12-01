@@ -437,7 +437,7 @@ CONTAINS
        ! Copy atomic positions into pos_ref
        CALL force_env_get(force_env,subsys=subsys,globenv=globenv,error=error)
        para_env=>force_env%para_env
-       iw = cp_logger_get_default_unit_nr(logger)
+       iw = cp_logger_get_default_io_unit(logger)
 
        IF (iw>0) THEN
           WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
@@ -506,7 +506,7 @@ CONTAINS
           END DO
        END DO
        IF (globenv%run_type_id.EQ.debug_run) THEN
-          IF (para_env%ionode) THEN
+          IF (iw>0) THEN
              WRITE (UNIT=iw,FMT="((T34,A))") "Numerical pv_virial"
              WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial%pv_virial(i,1:3), i=1,3)
           END IF
@@ -515,7 +515,7 @@ CONTAINS
        ! Rebuild the appropriate environments to obtain original environment
        CALL force_env_set_cell(force_env, cell=cell, error=error)
 
-       IF (para_env%ionode) THEN
+       IF (iw>0) THEN
           WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
                'NUMERICAL STRESS END *****************************'
        END IF
@@ -963,10 +963,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: def_error, description, &
                                                 this_error
     INTEGER :: iforce_eval, iparticle, jparticle, mixing_type, my_group, &
-      natom, nforce_eval, output_unit, source, stat, unit_nr
+      natom, nforce_eval, source, stat, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: failure, ionode, &
-                                                virial_consistent
+    LOGICAL                                  :: failure, virial_consistent
     REAL(KIND=dp) :: coupling_parameter, dedf, der_1, der_2, dx, energy, err, &
       lambda, lerr, restraint_strength, restraint_target, sd
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix
@@ -994,10 +993,7 @@ CONTAINS
     TYPE(virial_type), POINTER               :: loc_virial, virial_mix
 
     failure=.FALSE.
-    output_unit = -1
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)    
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     ! Get infos about the mixed subsys
     CALL force_env_get(force_env=force_env,&
@@ -1213,7 +1209,7 @@ CONTAINS
           CALL section_vals_val_get(gen_section,"DX",r_val=dx,error=error)
           CALL section_vals_val_get(gen_section,"ERROR_LIMIT",r_val=lerr,error=error)
           dedf = evalfd(1,iforce_eval,force_env%mixed_env%val,dx,err)
-          IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
+          IF (ABS(err)>lerr) THEN
              WRITE(this_error,"(A,G12.6,A)")"(",err,")"
              WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
              CALL compress(this_error,.TRUE.)
@@ -1221,7 +1217,7 @@ CONTAINS
              CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
                   'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                   ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-                  TRIM(def_error)//' .',error)
+                  TRIM(def_error)//' .',error=error,only_ionode=.TRUE.)
           END IF
           ! General Mapping of forces...
           CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&

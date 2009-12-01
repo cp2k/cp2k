@@ -158,8 +158,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                ionode
+    LOGICAL                                  :: calculate_forces, failure
     REAL(KIND=dp)                            :: dvol, e1_xc, e2_xc, &
                                                 total_rho0_rspace, &
                                                 total_rhop_rspace
@@ -191,10 +190,9 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   CALL timeset ( routineN,handle )
   failure=.FALSE.
   para_env=>kg_env%para_env
-  ionode=para_env%ionode
   logger=>cp_error_get_logger(error)
   ! better to hook it to a print_key in the input
-  output_unit=cp_logger_get_default_unit_nr(logger)
+  output_unit=cp_logger_get_default_io_unit(logger)
 
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           dyn_coeff_set,local_coeffs,rho,rspw,auxbas_pw_pool)
@@ -462,8 +460,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                ionode
+    LOGICAL                                  :: calculate_forces, failure
     REAL(KIND=dp)                            :: dvol, total_rho0_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -493,9 +490,8 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
   CALL timeset (routineN,handle )
   failure=.FALSE.
   para_env=>kg_env%para_env
-  ionode=para_env%ionode
   logger=>cp_error_get_logger(error)
-  output_unit=cp_logger_get_default_unit_nr(logger)
+  output_unit=cp_logger_get_default_io_unit(logger)
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           rho,rspw,auxbas_pw_pool)
   NULLIFY(rho_r,rho_g,rho_core,v_gspace,v_rspace,vxc_r)

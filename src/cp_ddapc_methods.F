@@ -727,7 +727,7 @@ CONTAINS
       iparticle2, istart_g, j, l, lmax, n_rep1, n_rep2, ndim, output_unit, &
       stat, weight
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, fixed_center, ionode
+    LOGICAL                                  :: failure, fixed_center
     REAL(KIND=dp)                            :: center(3), eps_in, eps_out, &
                                                 factor, mass, mycos, r1, r2, &
                                                 Rs, rvec(3)
@@ -739,11 +739,7 @@ CONTAINS
     fixed_center = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
     IF (.NOT.failure) THEN
        ndim   = SIZE(particle_set) * SIZE(radii)
        ALLOCATE(M(ndim, ndim), stat=stat)

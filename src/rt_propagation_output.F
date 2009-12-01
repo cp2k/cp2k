@@ -375,7 +375,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input
 
@@ -384,12 +383,10 @@ CONTAINS
     NULLIFY(input)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     CALL get_qs_env(qs_env,input=input,error=error)
 
-    CALL qs_scf_post_moments(input, logger, qs_env, ionode, output_unit, error)
+    CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
     CALL timestop(handle)
 
   END SUBROUTINE make_moment

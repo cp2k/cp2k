@@ -81,15 +81,14 @@ CONTAINS
     INTEGER :: ac, atom_a, atom_c, group, handle, i, ialpha, iatom, ikind, &
       iparticle_local, iset, istat, jkind, katom, kkind, knode, ldai, ldsab, &
       maxco, maxder, maxl, maxlgto, maxlppl, maxsgf, natom, natom_of_kind, &
-      ncexp, ncoa, nder, nkind, nnode, nparticle_local, nseta, output_unit, &
-      sgfa
+      ncexp, ncoa, nder, nkind, nnode, nparticle_local, nseta, sgfa
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: elp_potential_present, &
                                                 gth_potential_present, &
-                                                ionode, ppl_present
+                                                ppl_present
     REAL(KIND=dp)                            :: alfa, dab, dac, dbc, e_ppl, &
                                                 rab2, rac2, rbc2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ppl_radius
@@ -153,9 +152,6 @@ CONTAINS
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles,my_alpha)
     para_env=>kg_env%para_env
     group = para_env%group
-    ionode = para_env%ionode
-    logger=>cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -591,15 +587,14 @@ CONTAINS
     INTEGER :: ac, atom_a, atom_c, group, handle, i, ialpha, iatom, ikind, &
       iparticle_local, iset, istat, jkind, katom, kkind, knode, ldai, ldsab, &
       maxco, maxder, maxl, maxlgto, maxlppl, maxsgf, natom, natom_of_kind, &
-      ncexp, ncoa, nder, nkind, nnode, nparticle_local, nseta, offset, &
-      output_unit, sgfa
+      ncexp, ncoa, nder, nkind, nnode, nparticle_local, nseta, offset, sgfa
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: elp_potential_present, &
                                                 gth_potential_present, &
-                                                ionode, ppl_present
+                                                ppl_present
     REAL(KIND=dp)                            :: alfa, coef, dab, dac, dbc, &
                                                 e_ppl, rab2, rac2, rbc2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ppl_radius
@@ -665,9 +660,6 @@ CONTAINS
     NULLIFY(dyn_coeff_set,local_coeffs)
     para_env=>kg_env%para_env
     group = para_env%group
-    ionode = para_env%ionode
-    logger=>cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&

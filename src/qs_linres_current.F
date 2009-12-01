@@ -199,8 +199,7 @@ CONTAINS
       natom, nmo, nspins, nstates(2), output_unit, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: rbs
-    LOGICAL                                  :: append_cube, failure, gapw, &
-                                                ionode
+    LOGICAL                                  :: append_cube, failure, gapw
     REAL(dp)                                 :: dk(3), jrho_tot_G(3,3), &
                                                 jrho_tot_R(3,3), maxocc, &
                                                 scale_fac
@@ -252,8 +251,7 @@ CONTAINS
          &  psi1,p_psi1,psi1_p,psi1_D,psi1_rxp,psi0_order,sab_all)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     !
     !
     CALL get_current_env(current_env=current_env,&
@@ -545,7 +543,7 @@ CONTAINS
                   &                       log_filename=.FALSE.,file_position=my_pos,&
                   &                       error=error)
              
-             CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
+             CALL pw_to_cube(wf_r%pw,unit_nr,unit_nr>0,"RESPONSE CURRENT DENSITY ",&
                   &          particles=particles,&
                   &          stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
                   &          error=error),error=error)
@@ -2228,7 +2226,7 @@ CONTAINS
       nspins, nstate_loc, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: rbs
-    LOGICAL                                  :: chi_pbc, failure, gapw, ionode
+    LOGICAL                                  :: chi_pbc, failure, gapw
     REAL(dp)                                 :: chi(3), chi_tmp, contrib, &
                                                 contrib2, dk(3), &
                                                 int_current(3), &
@@ -2273,8 +2271,7 @@ CONTAINS
          &  cell,psi0_order,particle_set)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
          &          dft_control=dft_control,&
@@ -2289,11 +2286,6 @@ CONTAINS
 
     nspins = dft_control%nspins
     gapw = dft_control%qs_control%gapw
-    !IF (output_unit>0) THEN
-    !   WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-    !   WRITE(output_unit,*) 'chi_analytic: gapw=',gapw!,' reset to .false.'
-    !   WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
-    !END IF
 
     CALL get_current_env(current_env=current_env,&
          &               chi_pbc=chi_pbc,&
@@ -2698,7 +2690,7 @@ CONTAINS
       output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: rbs
-    LOGICAL                                  :: chi_pbc, failure, gapw, ionode
+    LOGICAL                                  :: chi_pbc, failure, gapw
     REAL(dp)                                 :: chi(3), contrib, dk(3), &
                                                 int_current(3), maxocc
     TYPE(array_i1d_obj)                      :: row_blk_sizes
@@ -2738,8 +2730,7 @@ CONTAINS
          &  op_p_ao,psi1_p,psi1_rxp,psi1_D,buf,cell,psi0_order)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
          &          dft_control=dft_control,&

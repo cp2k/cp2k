@@ -138,7 +138,7 @@ CONTAINS
     INTEGER :: handle, i, iat, iatom, imol, jat, jatom, mepos, nat_mol, &
       ngrid_level, nmol_local, num_pe, output_unit
     INTEGER, DIMENSION(:), POINTER           :: index_atom
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: length, Li, ra(3), rab, &
                                                 rab_max, rab_pbc(3), rad_at, &
                                                 rad_max, rb(3), side(3)
@@ -167,8 +167,7 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    ionode= (logger%para_env%mepos == logger%para_env%source)
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
     CALL get_qs_env(qs_env=qs_env, cell=cell, cell_ref=cell_ref,&
                     dft_control=dft_control,&
@@ -220,7 +219,7 @@ CONTAINS
     DO i = 1,3
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       IF(Li<length) THEN
-        IF (ionode) THEN
+        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,&
                 FMT="(/,T2,A,/,T6,A,I3,A,f10.5,A,f10.5)")&
           "WARNING: The Cell Box Side is Probably too Small",&
@@ -275,7 +274,7 @@ CONTAINS
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       length = cell_mol%hmat( i,i )
       IF(Li<length) THEN
-        IF (ionode) THEN
+        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,&
                 FMT="(/,T2,A,/,T6,A,I3,A,f10.5,A,f10.5)")&
           "WARNING: The Cell Box Side is Probably too Small",&

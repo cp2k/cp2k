@@ -101,7 +101,7 @@ CONTAINS
                                                 n_rep, ndim, nmo, nspin, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: nadd_unocc, stm_th_torb
-    LOGICAL                                  :: append_cube, failure, ionode
+    LOGICAL                                  :: append_cube, failure
     REAL(KIND=dp)                            :: efermi
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occ, &
                                                 stm_biases
@@ -125,9 +125,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
      NULLIFY (mos, rho, pw_env, stm_th_torb, fm_struct_tmp)
      NULLIFY (auxbas_pw_pool, pw_pools, stm_density_ao, mo_coeff)
@@ -209,7 +207,7 @@ CONTAINS
           END IF
      ENDDO
      CALL stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                    occupation, efermi, stm_biases, stm_th_torb,  particles, ionode,&
+                    occupation, efermi, stm_biases, stm_th_torb,  particles, &
                     output_unit, append_cube,  error=error)
      DO ispin = 1,nspin
        IF(nadd_unocc(ispin)>0) THEN
@@ -251,7 +249,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE stm_cubes(qs_env, dft_section, stm_density_ao, wf_r, wf_g, mo_arrays, evals, &
-                       occupation, efermi, stm_biases,  stm_th_torb, particles, ionode,&
+                       occupation, efermi, stm_biases,  stm_th_torb, particles, &
                        output_unit, append_cube,  error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -266,7 +264,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: stm_biases
     INTEGER, DIMENSION(:), POINTER           :: stm_th_torb
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: append_cube
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -297,12 +294,13 @@ CONTAINS
 
     nspin = SIZE(mo_arrays)
 
-    IF (ionode) WRITE(output_unit,'(T2,A)')       ""
-    IF (ionode) WRITE(output_unit,'(T2,A,F12.6, A)') "STM : Fermi energy ", efermi , " a.u. "
+    IF (output_unit>0) WRITE(output_unit,'(T2,A)')       ""
+    IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6, A)') "STM : Fermi energy ", efermi , " a.u. "
     DO ibias=1,SIZE(stm_biases)
 
-       IF (ionode) WRITE(output_unit,'(T2,A)')       ""
-       IF (ionode) WRITE(output_unit,'(T2,A,F16.6)') "Preparing for STM image at bias [a.u.] ",stm_biases(ibias)
+       IF (output_unit>0) WRITE(output_unit,'(T2,A)')       ""
+       IF (output_unit>0) WRITE(output_unit,'(T2,A,F16.6)') &
+                            "Preparing for STM image at bias [a.u.] ",stm_biases(ibias)
 
        istates=0
        nstates = 0
@@ -317,7 +315,7 @@ CONTAINS
                   nstates(ispin) = nstates(ispin)+1
                END IF
              END DO 
-             IF (ionode .AND. evals(ispin)%array(1)> efermi+stm_biases(ibias)) &
+             IF ((output_unit>0).AND.evals(ispin)%array(1)> efermi+stm_biases(ibias)) &
                  WRITE(output_unit,'(T4,A)') "Warning: EFermi+bias below lowest computed occupied MO"
           ELSE
              nmo = SIZE(evals(ispin)%array)
@@ -328,12 +326,12 @@ CONTAINS
                   nstates(ispin) = nstates(ispin)+1
                END IF
              END DO 
-             IF (ionode .AND.  evals(ispin)%array(nmo) < efermi+stm_biases(ibias)) &
+             IF ((output_unit>0) .AND.  evals(ispin)%array(nmo) < efermi+stm_biases(ibias)) &
                  WRITE(output_unit,'(T4,A)') "Warning: E-Fermi+bias above highest computed unoccupied MO"
           ENDIF
           istates=istates+nstates(ispin)
        ENDDO
-       IF (ionode) WRITE(output_unit,'(T4,A,I0,A)') "Using a total of ",istates," states"
+       IF ((output_unit>0)) WRITE(output_unit,'(T4,A,I0,A)') "Using a total of ",istates," states"
        IF(istates==0) CYCLE
 
        CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=istates, &
@@ -386,7 +384,7 @@ CONTAINS
               middle_name=TRIM(filename),file_position=my_pos, file_action="WRITE",&
               log_filename=.FALSE.,error=error)
          WRITE(title,'(A,I0,A,I0,A,F16.8)') "STM cube ",ibias," wfn deriv. ",iorb," at bias ",stm_biases(ibias)
-         CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
+         CALL pw_to_cube(wf_r%pw,unit_nr,unit_nr>0,title,particles=particles,&
              stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
              zero_tails=.TRUE., error=error)
 

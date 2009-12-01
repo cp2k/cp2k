@@ -291,7 +291,7 @@ CONTAINS
     INTEGER                                  :: i, j, n_ev, n_spins, occ, &
                                                 output_unit, spin, stat, virt
     INTEGER, DIMENSION(2)                    :: nhomos, nlumos, nrows
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: contribution, &
                                                 summed_contributions
     REAL(KIND=dp), ALLOCATABLE, &
@@ -304,11 +304,10 @@ CONTAINS
     NULLIFY(S_lumos, logger)
     failure = .FALSE.
     logger    => cp_error_get_logger(error)
-    ionode    = (logger%para_env%mepos==logger%para_env%source)
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
-    IF (ionode) WRITE (*,*)
-    IF (ionode) WRITE (*,*)
+    IF (output_unit>0) WRITE (output_unit,*)
+    IF (output_unit>0) WRITE (output_unit,*)
 
     t_control = qs_env%dft_control%tddfpt_control
     n_ev      = t_control%n_ev
@@ -331,17 +330,17 @@ CONTAINS
              lumo_coeff_col(MAXVAL(nrows(1:n_spins)),1), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1, n_ev
-       IF (ionode) THEN
-          WRITE (*,'(A,I3,5X,F15.6)') "  excited state : ", i, t_env%evals(i)*evolt
-          WRITE (*,*)
+       IF (output_unit>0) THEN
+          WRITE (output_unit,'(A,I3,5X,F15.6)') "  excited state : ", i, t_env%evals(i)*evolt
+          WRITE (output_unit,*)
        END IF
        summed_contributions = 0.0_dp
        DO spin=1, n_spins
           IF (n_spins == 2) THEN
              IF (spin == 1) THEN
-                IF (ionode) WRITE (*,*) 'alpha:'
+                IF (output_unit>0) WRITE (output_unit,*) 'alpha:'
              ELSE
-                IF (ionode) WRITE (*,*) 'beta:'
+                IF (output_unit>0) WRITE (output_unit,*) 'beta:'
              END IF
           END IF
           searchloop: DO occ=nhomos(spin), 1, -1
@@ -356,14 +355,14 @@ CONTAINS
                 END DO
                 summed_contributions = summed_contributions + (contribution)**2
                 IF (ABS(contribution) > 5.0e-2_dp) THEN
-                   IF (ionode) WRITE (*,'(18X,I3,A,I3,10X,F8.3,5X,F8.3)') &
+                   IF (output_unit>0) WRITE (output_unit,'(18X,I3,A,I3,10X,F8.3,5X,F8.3)') &
                         occ, " ->", nhomos(spin)+virt, ABS(contribution), summed_contributions
                 END IF
                 IF (ABS(summed_contributions - 1.0_dp) < 1.0e-3_dp) CYCLE searchloop
              END DO
           END DO searchloop
        END DO
-       IF (ionode) WRITE (*,*)
+       IF (output_unit>0) WRITE (output_unit,*)
     END DO
 
     !

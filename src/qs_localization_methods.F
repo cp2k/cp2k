@@ -85,7 +85,6 @@ CONTAINS
     INTEGER                                  :: handle, i, istep, k, n, &
                                                 ncol_local, nrow_local, &
                                                 output_unit, p
-    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: expfactor, f2, f2old, gnorm, &
                                                 tnorm
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -94,19 +93,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-!,f2_thresh=1.0E-5_dp
-
     CALL timeset(routineN,handle)
 
     NULLIFY(logger,CTmp,U,G,Gp1,Gp2,context,para_env,fm_struct_k_k)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CALL cp_fm_struct_get(C%matrix_struct, nrow_global=n, ncol_global=k, &
          &                nrow_local = nrow_local, ncol_local = ncol_local, &
@@ -120,7 +112,7 @@ CONTAINS
     CALL cp_fm_create(Gp2 , fm_struct_k_k, error=error)
     !
     ! printing
-    IF(output_unit.GT.0) THEN
+    IF(output_unit>0) THEN
        WRITE(output_unit,'(1X)')
        WRITE(output_unit,'(2X,A)') '-----------------------------------------------------------------------------'
        WRITE(output_unit,'(A,I5)'   ) '      Nbr iterations =',iterations

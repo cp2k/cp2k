@@ -181,9 +181,7 @@ CONTAINS
          molecule_set, subsys, particles, input, print_key)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -199,7 +197,7 @@ CONTAINS
        CALL qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
 
        ! Moments of charge distribution
-       CALL qs_scf_post_moments(input, logger, qs_env, ionode, output_unit, error)
+       CALL qs_scf_post_moments(input, logger, qs_env, output_unit, error)
 
        ! Determine if we need to computer properties using the localized centers
        localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
@@ -254,18 +252,18 @@ CONTAINS
              ! they should have the same eigenvalues.
              ! So it looks like I need a convincing definition of an eigenstate in this case :-)
              ! 
-             IF (ionode) WRITE(output_unit,*) &
+             IF (output_unit>0) WRITE(output_unit,*) &
                 " Unclear how we define MOs in the restricted case ... skipping"
           ELSE
              DO ispin=1,dft_control%nspins
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                 eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
-                IF (ionode) WRITE(output_unit,*) " "
-                IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
+                IF (output_unit>0) WRITE(output_unit,*) " "
+                IF (output_unit>0) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
                 IF (homo .NE. nmo) THEN
-                   IF (ionode) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
+                   IF (output_unit>0) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
                 ENDIF
-                IF (ionode) WRITE(output_unit,*) "---------------------------------------------"
+                IF (output_unit>0) WRITE(output_unit,*) "---------------------------------------------"
                 ! Also rotate the OT derivs, since they are needed for force calculations
                 IF (ASSOCIATED(qs_env%mo_derivs)) THEN
                    mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
@@ -273,14 +271,14 @@ CONTAINS
                    mo_coeff_deriv=>NULL()
                 ENDIF
                 CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-                  scr=output_unit, ionode=ionode, do_rotation=.TRUE.,&
+                  scr=output_unit, ionode=output_unit>0, do_rotation=.TRUE.,&
                   co_rotate=mo_coeff_deriv,error=error)
 
                 CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
-                IF (ionode) WRITE(output_unit,'(T2,A,F12.6)') "Fermi Energy [eV] :",mos(ispin)%mo_set%mu*evolt
+                IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') "Fermi Energy [eV] :",mos(ispin)%mo_set%mu*evolt
                 ! Prints the cube files of OCCUPIED ORBITALS
                 CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
-                     mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, error=error)
+                     mo_coeff, wf_g, wf_r, particles, homo, ispin, error=error)
              ENDDO
           ENDIF
        ENDIF
@@ -321,7 +319,7 @@ CPSourceFileRef,&
        !  - Possibly gets molecular states
        IF (p_loc) THEN
           IF (qs_env%dft_control%restricted) THEN
-             IF (ionode) WRITE(output_unit,*) &
+             IF (output_unit>0) WRITE(output_unit,*) &
               " Unclear how we define MOs / localization in the restricted case ... skipping"
           ELSE
              nmos=0
@@ -336,12 +334,12 @@ CPSourceFileRef,&
                                 eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
                 ! Get eigenstates
                 IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)==0) THEN
-                   IF (ionode) WRITE(output_unit,*) " "
-                   IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
+                   IF (output_unit>0) WRITE(output_unit,*) " "
+                   IF (output_unit>0) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
                    IF (homo .NE. nmo) THEN
-                      IF (ionode) WRITE(output_unit,*) " and ",nmo-homo," added MO eigenvalues"
+                      IF (output_unit>0) WRITE(output_unit,*) " and ",nmo-homo," added MO eigenvalues"
                    ENDIF
-                   IF (ionode) WRITE(output_unit,*) "---------------------------------------------"
+                   IF (output_unit>0) WRITE(output_unit,*) "---------------------------------------------"
                    ! Also rotate the OT derivs, since they are needed for force calculations
                    IF (ASSOCIATED(qs_env%mo_derivs)) THEN
                       mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
@@ -350,14 +348,15 @@ CPSourceFileRef,&
                    ENDIF
                    CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
                         evals_arg=mo_eigenvalues, scr=output_unit, &
-                        ionode=ionode, do_rotation=.TRUE.,error=error)
+                        ionode=output_unit>0, do_rotation=.TRUE.,error=error)
                 END IF
                 NULLIFY(mo_localized)
                 CALL cp_fm_create(mo_localized,mo_coeff%matrix_struct,error=error)
                 CALL cp_fm_to_fm(mo_coeff,mo_localized,error=error)
                 IF (qs_loc_env%do_localize) THEN
                    ! Do the Real localization..
-                   IF (ionode) WRITE(output_unit,"(/,T2,A,I3)") "LOCALIZATION| Computing localization properties "//&
+                   IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I3)")&
+                        "LOCALIZATION| Computing localization properties "//&
                         "for OCCUPIED ORBITALS. Spin:",ispin
 
                    scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
@@ -395,9 +394,10 @@ CPSourceFileRef,&
              NULLIFY(unoccupied_orbs(ispin)%matrix)
              NULLIFY(unoccupied_evals(ispin)%array)
              ! Always write eigenvalues
-             IF (ionode) WRITE(output_unit,*) " "
-             IF (ionode) WRITE(output_unit,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
-             IF (ionode) WRITE(output_unit,FMT='(1X,A)') "-----------------------------------------------------"
+             IF (output_unit>0) WRITE(output_unit,*) " "
+             IF (output_unit>0) WRITE(output_unit,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
+             IF (output_unit>0) WRITE(output_unit,FMT='(1X,A)')&
+                                      "-----------------------------------------------------"
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo,nao=nao,nmo=nmo)
              CALL cp_fm_get_info(mo_coeff, nrow_global=n,error=error)
              nlumos=MAX(1,MIN(nlumo,nao-homo))
@@ -430,11 +430,11 @@ CPSourceFileRef,&
 
              CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
                   unoccupied_evals(ispin)%array, scr=output_unit, &
-                  ionode=ionode,error=error)
+                  ionode=output_unit>0,error=error)
 
              ! Prints the cube files of UNOCCUPIED ORBITALS
              CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
-                  unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, ionode, error)
+                  unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, error)
           ENDDO
 
        ENDIF
@@ -462,7 +462,7 @@ CPSourceFileRef,&
 
        ! Compute the optical conductivity (needs homos and lumos)
        CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
-            unoccupied_orbs, unoccupied_evals, ionode, output_unit, error)
+            unoccupied_orbs, unoccupied_evals, output_unit, error)
 
        ! This is just a deallocation for printing MO_CUBES
        IF (do_mo_cubes .AND. nlumo /= 0 ) THEN
@@ -475,7 +475,7 @@ CPSourceFileRef,&
        ENDIF
        
        ! Print coherent X-ray diffraction spectrum
-       CALL qs_scf_post_xray(input, dft_section, logger, qs_env, ionode, output_unit, error)
+       CALL qs_scf_post_xray(input, dft_section, logger, qs_env, output_unit, error)
        
        ! Calculation of Electric Field Gradients
        CALL qs_scf_post_efg(input, logger, error)
@@ -529,11 +529,10 @@ CPSourceFileRef,&
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_moments(input, logger, qs_env, ionode, output_unit, error)
+  SUBROUTINE qs_scf_post_moments(input, logger, qs_env, output_unit, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -663,7 +662,7 @@ CPSourceFileRef,&
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
-       unoccupied_orbs, unoccupied_evals, ionode, output_unit, error)
+       unoccupied_orbs, unoccupied_evals, output_unit, error)
     TYPE(section_vals_type), POINTER         :: input, dft_section
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_logger_type), POINTER            :: logger
@@ -672,7 +671,6 @@ CPSourceFileRef,&
       POINTER                                :: unoccupied_orbs
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
-    LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -693,13 +691,12 @@ CPSourceFileRef,&
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_xray(input,dft_section,logger,qs_env,ionode,&
+  SUBROUTINE qs_scf_post_xray(input,dft_section,logger,qs_env,&
                               output_unit,error)
 
     TYPE(section_vals_type), POINTER         :: input, dft_section
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -827,7 +824,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, iw, output_unit
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -854,8 +851,7 @@ CPSourceFileRef,&
          particles, subsys)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN

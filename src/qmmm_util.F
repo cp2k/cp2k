@@ -309,7 +309,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ip
+    INTEGER                                  :: ip, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
@@ -365,8 +365,8 @@ CONTAINS
           DO ip=1,subsys_mm%particles%n_els
              particles_mm(ip)%r = particles_mm(ip)%r - transl_v
           END DO
-          IF (logger%para_env%mepos==logger%para_env%source) &
-               WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),fmt='(/1X,A)')&
+          unit_nr=cp_logger_get_default_io_unit(logger)
+          IF (unit_nr>0) WRITE (unit=unit_nr,fmt='(/1X,A)')&
                " Translating the system in order to center the QM fragment in the QM box."
           IF (.NOT.force_env%qmmm_env%center_qm_subsys) force_env%qmmm_env%do_translate = .FALSE.
        END IF

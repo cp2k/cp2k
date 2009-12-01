@@ -117,8 +117,8 @@ CONTAINS
     INTEGER                                  :: box_number, ibox, isos, &
                                                 istat, iw, nboxes, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: nunits_tot
-    LOGICAL                                  :: ionode, lbias, lrestart, &
-                                                lskip_box, lterminate
+    LOGICAL                                  :: lbias, lrestart, lskip_box, &
+                                                lterminate
     REAL(dp)                                 :: rcut
     REAL(dp), DIMENSION(:, :), POINTER       :: empty_coordinates
     TYPE(cp_logger_type), POINTER            :: logger
@@ -141,13 +141,12 @@ CONTAINS
          root_section,mc_molecule_info)
       para_env=>force_env_1%para_env
       logger=>cp_error_get_logger(error)
-      iw = cp_logger_get_default_unit_nr(logger)
+      iw = cp_logger_get_default_io_unit(logger)
       force_env_section => force_env_1%force_env_section
       root_section => force_env_1%root_section
       CALL section_vals_get(force_env_section,n_repetition=isos,error=error)
       CPPostconditionNoFail(isos==1,cp_warning_level,routineP,error)
 ! set some values...will use get_globenv if that ever comes around
-      ionode=para_env%ionode
 
 ! initialize the random numbers
       CALL create_rng_stream(rng_stream=rng_stream,&
@@ -201,7 +200,7 @@ CONTAINS
 
       DO ibox=1,nboxes
 
-         IF (ionode) THEN
+         IF (iw>0) THEN
             WRITE(iw,*)
             WRITE(iw,*)
             WRITE(iw,'(A,I2,A)') '******************************** Begin BOX ',ibox,&
@@ -294,7 +293,7 @@ CONTAINS
       IF(force_env(1)%force_env%in_use .EQ. use_fist_force) THEN
          CALL find_mc_rcut(mc_par(1)%mc_par,force_env(1)%force_env,lterminate)
          CALL get_mc_par(mc_par(1)%mc_par,rcut=rcut)
-         IF(ionode) WRITE (iw,'( A,T73,F8.4 )') &
+         IF(iw>0) WRITE (iw,'( A,T73,F8.4 )') &
             ' MC| Interaction cutoff [angstroms]',rcut*angstrom
          IF(lterminate) THEN
             CALL stop_program('mc_run.F/do_mon_car',&
@@ -304,7 +303,7 @@ CONTAINS
 
 ! make sure some values are the same between boxes
       IF(nboxes == 2) THEN
-         CALL equilize_mc_sim_parameters(mc_par,iw,ionode)
+         CALL equilize_mc_sim_parameters(mc_par,iw)
       ENDIF
 
 ! now check the input parameters and run the simulation
@@ -382,11 +381,10 @@ CONTAINS
 !>      Designed for parallel.
 !> \author MJM
 ! *****************************************************************************
-    SUBROUTINE equilize_mc_sim_parameters(mc_par,iw,ionode)
+    SUBROUTINE equilize_mc_sim_parameters(mc_par,iw)
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
     INTEGER, INTENT(IN)                      :: iw
-    LOGICAL, INTENT(IN)                      :: ionode
 
     CHARACTER(20)                            :: ensemble
     INTEGER                                  :: iprint, iuptrans, iupvolume, &
@@ -399,7 +397,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER :: avbmc_rmax, avbmc_rmin, pbias, &
       pmavbmc_mol, pmrot_mol, pmswap_mol, pmtraion_mol, pmtrans_mol
 
-      IF(ionode) THEN
+      IF(iw>0) THEN
          WRITE(iw,'( A,A )' ) 'Ignoring some input for box 2, and ',&
               'using the values for box 1 for the following variables:'
          WRITE(iw,'( A,A )' ) 'nstep,iupvolume,iuptrans,nmoves,',&

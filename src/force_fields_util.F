@@ -120,7 +120,7 @@ CONTAINS
     INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
     LOGICAL                                  :: do_zbl, failure, fatal, &
-                                                ionode, my_qmmm, shell_present
+                                                my_qmmm, shell_present
     REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -137,10 +137,8 @@ CONTAINS
     fatal   = .FALSE.
     NULLIFY(logger, Ainfo)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
     ! Error unit
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)

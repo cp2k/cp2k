@@ -60,10 +60,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: my_par
     INTEGER                                  :: a_var, handle, i, iatom, j, &
-                                                k, n_var, natom, output_unit, &
-                                                rep, stat
+                                                k, n_var, natom, rep, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms, nparticle
-    LOGICAL                                  :: failure, ionode, useall
+    LOGICAL                                  :: failure, useall
     REAL(KIND=dp)                            :: dedf, dx, energy, err, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger
@@ -80,10 +79,7 @@ CONTAINS
     CALL section_vals_get(ext_pot_section,n_repetition=n_var,error=error)
     DO rep=1, n_var
        natom       =  0
-       output_unit = -1
        logger => cp_error_get_logger(error)
-       ionode = logger%para_env%mepos==logger%para_env%source
-       IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
        CALL section_vals_val_get(ext_pot_section,"DX",r_val=dx,i_rep_section=rep,error=error)
        CALL section_vals_val_get(ext_pot_section,"ERROR_LIMIT",r_val=lerr,i_rep_section=rep,error=error)
        CALL get_generic_info(ext_pot_section, "FUNCTION", coupling_function, my_par, my_val,&
@@ -121,7 +117,7 @@ CONTAINS
           energy = energy + evalf(1,my_val)
           DO j = 1, 3
              dedf = evalfd(1,j,my_val,dx,err)
-             IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
+             IF (ABS(err)>lerr) THEN
                 WRITE(this_error,"(A,G12.6,A)")"(",err,")"
                 WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
                 CALL compress(this_error,.TRUE.)
@@ -129,7 +125,7 @@ CONTAINS
                 CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
                      'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-                     TRIM(def_error)//' .',error)
+                     TRIM(def_error)//' .',error=error,only_ionode=.TRUE.)
              END IF
              particles%els(iatom)%f(j)=particles%els(iatom)%f(j)-dedf
           END DO

@@ -71,9 +71,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n_ev, nspins, &
-                                                out_unit, restarts, stat
-    LOGICAL                                  :: do_kernel_save, failure, &
-                                                ionode
+                                                output_unit, restarts, stat
+    LOGICAL                                  :: do_kernel_save, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ievals
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -83,8 +82,7 @@ CONTAINS
     failure   = .FALSE.
 
     logger    => cp_error_get_logger(error)
-    ionode    = (logger%para_env%mepos==logger%para_env%source)
-    out_unit  = cp_logger_get_default_unit_nr(logger)
+    output_unit  = cp_logger_get_default_io_unit(logger)
 
     n_ev      = qs_env%dft_control%tddfpt_control%n_ev
     nspins    = qs_env%dft_control%nspins
@@ -97,21 +95,21 @@ CONTAINS
     !---------------!
     do_kernel_save = qs_env%dft_control%tddfpt_control%do_kernel
     qs_env%dft_control%tddfpt_control%do_kernel = .FALSE.
-    IF (ionode) THEN
-       WRITE (out_unit,*) " Generating initial guess"
-       WRITE (out_unit,*)
+    IF (output_unit>0) THEN
+       WRITE (output_unit,*) " Generating initial guess"
+       WRITE (output_unit,*)
     END IF
     IF (ASSOCIATED(qs_env%dft_control%tddfpt_control%lumos)) THEN
        CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env, error=error)
     ELSE
-       IF (ionode) WRITE (out_unit,*) "LUMOS are needed in TDDFPT!"
+       IF (output_unit>0) WRITE (output_unit,*) "LUMOS are needed in TDDFPT!"
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
     DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
        IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals, error=error)) EXIT
-       IF (ionode) THEN
-          WRITE (out_unit,*) " Restarting"
-          WRITE (out_unit,*)
+       IF (output_unit>0) THEN
+          WRITE (output_unit,*) " Restarting"
+          WRITE (output_unit,*)
        END IF
     END DO
     qs_env%dft_control%tddfpt_control%do_kernel = do_kernel_save
@@ -119,16 +117,16 @@ CONTAINS
     !-----------------!
     ! call the solver !
     !-----------------!
-    IF (ionode) THEN
-       WRITE (out_unit,*)
-       WRITE (out_unit,*) " Doing TDDFPT calculation"
-       WRITE (out_unit,*)
+    IF (output_unit>0) THEN
+       WRITE (output_unit,*)
+       WRITE (output_unit,*) " Doing TDDFPT calculation"
+       WRITE (output_unit,*)
     END IF
     DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
           IF (iterative_solver(ievals, t_env, p_env, qs_env, t_env%evals, error=error)) EXIT
-       IF (ionode) THEN
-          WRITE (out_unit,*) " Restarting"
-          WRITE (out_unit,*)
+       IF (output_unit>0) THEN
+          WRITE (output_unit,*) " Restarting"
+          WRITE (output_unit,*)
        END IF
     END DO
 
@@ -169,9 +167,9 @@ CONTAINS
 
     CHARACTER                                :: mode
     INTEGER :: col, handle, i, iev, iter, j, k, max_krylovspace_dim, max_kv, &
-      n_ev, n_kv, nspins, out_unit, row, spin, stat
+      n_ev, n_kv, nspins, output_unit, row, spin, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: must_improve
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: Atilde_ij, convergence, tmp, &
                                                 tmp2
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_difference, evals_tmp
@@ -200,8 +198,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env, tddfpt_control=tddfpt_control,error=error)
     logger    => cp_error_get_logger(error)
-    ionode    = (logger%para_env%mepos==logger%para_env%source)
-    out_unit  = cp_logger_get_default_unit_nr(logger)
+    output_unit  = cp_logger_get_default_io_unit(logger)
     n_ev      = tddfpt_control%n_ev
     nspins    = qs_env%dft_control%nspins
 
@@ -219,8 +216,8 @@ CONTAINS
     max_kv = tddfpt_control%max_kv
     IF (max_krylovspace_dim <= max_kv) THEN
        max_kv = max_krylovspace_dim
-       IF (ionode) THEN
-          WRITE (out_unit,*) "  Setting the maximum number of krylov vectors to ", max_kv, "!!"
+       IF (output_unit>0) THEN
+          WRITE (output_unit,*) "  Setting the maximum number of krylov vectors to ", max_kv, "!!"
        END IF
     END IF
 !    CPPostcondition(max_krylovspace_dim>=max_kv,cp_failure_level,routineP,error,failure)
@@ -262,10 +259,10 @@ CONTAINS
        END DO
     END DO
 
-    IF (ionode) THEN
-       WRITE (out_unit, '(2X,A,T69,A)') &
+    IF (output_unit>0) THEN
+       WRITE (output_unit, '(2X,A,T69,A)') &
               "nvec", "Convergence"
-       WRITE (out_unit, '(2X,A)') &
+       WRITE (output_unit, '(2X,A)') &
               "-----------------------------------------------------------------------------"
     END IF
 
@@ -349,7 +346,7 @@ CONTAINS
                 END DO
 
              ELSE
-                IF (ionode) WRITE (out_unit,*) "unknown mode"
+                IF (output_unit>0) WRITE (output_unit,*) "unknown mode"
                 CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END IF
 
@@ -424,16 +421,16 @@ CONTAINS
 
           evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter))/evals(1:n_ev,iter-1))
           ! For debugging
-          IF (ionode) THEN
-             WRITE (out_unit,*)
+          IF (output_unit>0) THEN
+             WRITE (output_unit,*)
              DO i=1, n_ev
-                WRITE (out_unit,'(2X,F10.7,T69,ES11.4)') evals(i,iter)*evolt, evals_difference(i)
+                WRITE (output_unit,'(2X,F10.7,T69,ES11.4)') evals(i,iter)*evolt, evals_difference(i)
              END DO
-             WRITE (out_unit,*)
+             WRITE (output_unit,*)
           END IF
 
           convergence = MAXVAL(evals_difference)
-          IF (ionode) WRITE (out_unit, '(2X,I4,T69,ES11.4)') k, convergence
+          IF (output_unit>0) WRITE (output_unit, '(2X,I4,T69,ES11.4)') k, convergence
 
           IF (convergence < tddfpt_control%tolerance) THEN
              res = .TRUE.

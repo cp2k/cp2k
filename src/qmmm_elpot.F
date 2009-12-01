@@ -72,7 +72,7 @@ CONTAINS
     INTEGER                                  :: I, ig, ig_start, J, K, myind, &
                                                 ndim, Np, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    LOGICAL                                  :: failure, found, ionode
+    LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: A, G, rc, Rmax, Rmin, t, t1, &
                                                 t2, x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radius
@@ -82,11 +82,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_pot
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
     Rmin = 0.0_dp
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&

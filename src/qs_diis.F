@@ -138,7 +138,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ibuffer, ispin, &
                                                 istat, nbuffer, output_unit
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
 ! -------------------------------------------------------------------------
@@ -151,14 +151,6 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(diis_buffer%ref_count>0,cp_failure_level,routineP,error,failure)
-
-    ionode = (logger%para_env%source == logger%para_env%mepos)
-
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
-    ELSE
-      output_unit= -1
-    END IF
 
     nbuffer = diis_buffer%nbuffer
 
@@ -206,10 +198,8 @@ CONTAINS
                                        "diis_buffer%b_matrix",&
                                        (nbuffer + 1)**2*dp_size)
       diis_buffer%b_matrix = 0.0_dp
-      IF (ionode) THEN
-        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
-                                           extension=".scfLog",error=error)
-      END IF
+      output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
+                                         extension=".scfLog",error=error)
       IF (output_unit > 0) THEN
         WRITE (UNIT=output_unit,FMT="(/,T9,A)")&
           "DIIS | The SCF DIIS buffer was allocated and initialized"
@@ -264,8 +254,7 @@ CONTAINS
                                                 nb, nb1, nmo, nspin, &
                                                 output_unit
     LOGICAL                                  :: eigenvectors_discarded, &
-                                                failure, ionode, mo_uocc, &
-                                                my_roks
+                                                failure, mo_uocc, my_roks
     REAL(KIND=dp)                            :: maxocc, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev, occ
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occa, occb
@@ -295,14 +284,6 @@ CONTAINS
 
     NULLIFY (c,new_errors,old_errors,parameters,matrix_struct,a,b,occa,occb)
     logger => cp_error_get_logger(error)
-
-    ionode = (logger%para_env%source == logger%para_env%mepos)
-
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
-    ELSE
-      output_unit= -1
-    END IF
 
     ! Quick return, if no DIIS is requested
 
@@ -416,10 +397,8 @@ CONTAINS
 
     diis_step = ((diis_buffer%ncall >= my_nmixing).AND.(delta < eps_diis))
 
-    IF (ionode) THEN
-      output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
-                                         extension=".scfLog",error=error)
-    END IF
+    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
+                                       extension=".scfLog",error=error)
     IF (output_unit > 0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T9,A,I4,/,(T9,A,ES12.3))")&
          "DIIS | Current SCF DIIS buffer size:         ",nb,&
@@ -550,10 +529,8 @@ CONTAINS
 
     END IF
 
-    IF (output_unit > 0) THEN
-      CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-                                        "PRINT%DIIS_INFO",error=error)
-    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+                                      "PRINT%DIIS_INFO",error=error)
 
     CALL timestop(handle)
 

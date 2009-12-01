@@ -92,8 +92,8 @@ CONTAINS
     CHARACTER(len=max_line_length)           :: token
     INTEGER                                  :: desc_level, handle, ik, irs, &
                                                 is, nsub, output_unit
-    LOGICAL :: at_end, compatible_end, failure, ionode, root_sect, &
-      skip_description, skip_help, suberror_happened, whole_section
+    LOGICAL :: at_end, compatible_end, failure, root_sect, skip_description, &
+      skip_help, suberror_happened, whole_section
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, &
@@ -114,11 +114,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     IF (.NOT.failure) THEN
        CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -354,7 +350,7 @@ CONTAINS
              END IF
           END IF
        END DO
-       IF (failure.AND.ionode) THEN
+       IF (failure.AND.(output_unit>0)) THEN
           IF (.NOT.skip_help) THEN
              CALL print_message(&
                   ' You can have a description of the input by using the keyword '//&

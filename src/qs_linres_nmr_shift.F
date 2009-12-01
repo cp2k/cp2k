@@ -301,7 +301,7 @@ CONTAINS
          &  atom_list,grid_atom,harmonics,logger)
     !
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     !
     CALL get_qs_env(qs_env=qs_env,&
          &          atomic_kind_set=atomic_kind_set,&
@@ -730,7 +730,7 @@ CONTAINS
                                                 output_unit, unit_atoms, &
                                                 unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: do_nics, failure, gapw, ionode
+    LOGICAL                                  :: do_nics, failure, gapw
     REAL(dp) :: chi_aniso, chi_iso, chi_sym_tot(3,3), chi_tensor(3,3,2), &
       chi_tensor_loc(3,3,2), chi_tensor_loc_tmp(3,3), chi_tensor_tmp(3,3), &
       chi_tmp(3,3), eig(3), rpos(3), shift_aniso, shift_iso, &
@@ -752,8 +752,7 @@ CONTAINS
     NULLIFY(cs,cs_nics,r_nics,cs_loc,cs_nics_loc,logger,particle_set,atom_kind,dft_control)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
                                                  "PROPERTIES%LINRES%NMR",error=error)

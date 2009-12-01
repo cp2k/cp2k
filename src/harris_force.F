@@ -440,8 +440,8 @@ CONTAINS
       END DO
 
       ! Output
-      IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+      unit_nr=cp_logger_get_default_io_unit(logger)
+      IF (unit_nr>0) THEN
         WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
         WRITE (unit_nr,*) "The Harris functional force correction is performed!"
         WRITE (unit_nr,*) ""
@@ -940,8 +940,8 @@ CONTAINS
       END DO
 
       ! Output
-      IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+      unit_nr=cp_logger_get_default_io_unit(logger)
+      IF (unit_nr>0) THEN
         WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
         WRITE (unit_nr,*) "The Harris functional force correction is performed!"
         WRITE (unit_nr,*) ""
@@ -1298,11 +1298,11 @@ CONTAINS
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
 
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
-          WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
-          WRITE (unit_nr,*) "The Harris force correction rho_core test is performed!"
-          WRITE (unit_nr,*) ""
+    unit_nr=cp_logger_get_default_io_unit(logger)
+    IF (unit_nr>0) THEN
+      WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
+      WRITE (unit_nr,*) "The Harris force correction rho_core test is performed!"
+      WRITE (unit_nr,*) ""
     END IF
 
     IF (.NOT. failure) THEN
@@ -1325,14 +1325,13 @@ CONTAINS
                                atom_of_kind=atom_of_kind, kind_of=kind_of, &
                                natom_of_kind=natom_of_kind)
 
-      IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+      IF (unit_nr>0) THEN
         DO  iatom = 1, natom
-          ikind = kind_of(iatom)
-          i = atom_of_kind(iatom)
-          WRITE (unit_nr,*) force(ikind)%rho_core(1:3,i)
-          WRITE (unit_nr,*) harris_force%f_rho_core(iatom,1:3) + &
-             harris_force%f_cross_integrate_v_core(iatom,1:3)
+           ikind = kind_of(iatom)
+           i = atom_of_kind(iatom)
+           WRITE (unit_nr,*) force(ikind)%rho_core(1:3,i)
+           WRITE (unit_nr,*) harris_force%f_rho_core(iatom,1:3) + &
+           harris_force%f_cross_integrate_v_core(iatom,1:3)
         END DO
       END IF
 
@@ -1394,8 +1393,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
 
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    unit_nr=cp_logger_get_default_io_unit(logger)
+    IF (unit_nr>0) THEN
           WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
           WRITE (unit_nr,*) "The Harris force correction rho_elec test is performed!"
           WRITE (unit_nr,*) ""
@@ -1421,8 +1420,7 @@ CONTAINS
                                atom_of_kind=atom_of_kind, kind_of=kind_of, &
                                natom_of_kind=natom_of_kind)
 
-      IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+      IF (unit_nr>0) THEN
         DO  iatom = 1, natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
@@ -1506,8 +1504,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
 
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    unit_nr=cp_logger_get_default_io_unit(logger)
+    IF (unit_nr>0) THEN
           WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
           WRITE (unit_nr,*) "The Harris force correction integral_vxc test is performed!"
           WRITE (unit_nr,*) ""
@@ -1614,8 +1612,7 @@ CONTAINS
       CALL set_qs_env(qs_env=qs_env, force=force_tmp,error=error)
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
 
-      IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+      IF (unit_nr>0) THEN
         WRITE (unit_nr, *) ""
         DO iatom = 1, natom
           ikind = kind_of(iatom)

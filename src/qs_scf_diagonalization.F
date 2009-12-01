@@ -236,7 +236,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iloop, ispin, &
                                                 istat, nao, nmo, nspin, &
                                                 output_unit
-    LOGICAL                                  :: converged, failure, ionode
+    LOGICAL                                  :: converged, failure
     REAL(dp)                                 :: ene_diff, ene_old, &
                                                 iter_delta, max_val, &
                                                 sum_band, sum_val, t1, t2
@@ -251,19 +251,11 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
 
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-        output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-        output_unit = -1
-    END IF
-
     CALL timeset(routineN,handle)
-
     NULLIFY(c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
          mo_occupations, work)
 
+    logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIAG_SUB_SCF",&
             extension=".scfLog",error=error)
 
@@ -977,7 +969,7 @@ END SUBROUTINE diag_subspace_allocate
 
     INTEGER                                  :: handle, homo, ispin, iter, &
                                                 nao, nmo, output_unit
-    LOGICAL                                  :: converged, failure, ionode, &
+    LOGICAL                                  :: converged, failure, &
                                                 my_check_moconv_only
     REAL(dp)                                 :: eps_iter, t1, t2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -987,13 +979,6 @@ END SUBROUTINE diag_subspace_allocate
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-        output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-        output_unit = -1
-    END IF
-
     CALL timeset(routineN,handle)
 
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%LANCZOS",&

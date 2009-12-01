@@ -703,7 +703,7 @@ CONTAINS
     NULLIFY(logger,particle_set,atom_kind_i,atom_kind_j,dft_control)
 
     logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     issc_section => section_vals_get_subs_vals(qs_env%input, &
          "PROPERTIES%LINRES%SPINSPIN",error=error)

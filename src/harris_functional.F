@@ -447,8 +447,8 @@ CONTAINS
        CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
        ! Output
-       IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+       unit_nr=cp_logger_get_default_io_unit(logger)
+       IF (unit_nr>0) THEN
           WRITE (unit_nr,*) ""
           WRITE (unit_nr,*) "The Harris functional energy correction is performed!"
           WRITE (unit_nr,*) ""

@@ -269,7 +269,6 @@ CONTAINS
     NULLIFY(Sc,chc)
 
     logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_ks=matrix_ks,&

@@ -840,7 +840,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 ! some stuff in case we need to write error messages to the screen
 
     logger=>cp_error_get_logger(error)
-    iw = cp_logger_get_default_unit_nr(logger)
+    iw = cp_logger_get_default_io_unit(logger)
 
 ! allocate the array we'll need in case we have an empty box
     CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
@@ -893,8 +893,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,"&GLOBAL",.TRUE.,&
          mc_input_file%global_row_end,idum)
     IF(mc_input_file%global_row_end == 0) THEN
-       WRITE(iw,*)
-       WRITE(iw,*) 'File name ',input_file_name
+       IF (iw>0) THEN
+          WRITE(iw,*)
+          WRITE(iw,*) 'File name ',input_file_name
+       END IF
        CALL stop_program('mc_types.F/mc_input_file_create',&
             'Could not find &END after &GLOBAL (make sure & is in the same column) and last line is blank')
     ENDIF
@@ -906,8 +908,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
          mc_input_file%coord_row_start,idum)
 
     IF(mc_input_file%coord_row_end == 0) THEN
-       WRITE(iw,*)
-       WRITE(iw,*) 'File name ',input_file_name
+       IF (iw>0) THEN
+          WRITE(iw,*)
+          WRITE(iw,*) 'File name ',input_file_name
+       END IF
        CALL stop_program('mc_types.F/mc_input_file_create',&
             'Could not find &END after &COORD (make sure & is the first in the same column after &COORD)')
     ENDIF
@@ -917,8 +921,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
          mc_input_file%run_type_row, mc_input_file%run_type_column)
     mc_input_file%run_type_column=mc_input_file%run_type_column+9
     IF(mc_input_file%run_type_row == 0) THEN
-       WRITE(iw,*)
-       WRITE(iw,*) 'File name ',input_file_name
+       IF (iw>0) THEN
+          WRITE(iw,*)
+          WRITE(iw,*) 'File name ',input_file_name
+       END IF
        CALL stop_program('mc_types.F/mc_input_file_create',&
             'Could not find RUN_TYPE in the input file (should be in the &GLOBAL section).')
     ENDIF
@@ -942,8 +948,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
             "ABC",.FALSE.,mc_input_file%cell_row, mc_input_file%cell_column)
     ENDIF
     IF(mc_input_file%cell_row == 0) THEN
-       WRITE(iw,*)
-       WRITE(iw,*) 'File name ',input_file_name
+       IF (iw>0) THEN
+          WRITE(iw,*)
+          WRITE(iw,*) 'File name ',input_file_name
+       END IF
        CALL stop_program('mc_types.F/mc_input_file_create',&
             'Could not find &CELL section in the input file.  Or could not find the ABC line after it.')
     ENDIF
@@ -964,10 +972,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
     ENDDO
     IF(irep .NE. nmol_types) THEN
-       WRITE(iw,*)
-       WRITE(iw,*) 'File name ',input_file_name
-       WRITE(iw,*) 'Number of molecule types ',nmol_types
-       WRITE(iw,*) '&MOLECULE sections found ',irep
+       IF (iw>0) THEN
+          WRITE(iw,*)
+          WRITE(iw,*) 'File name ',input_file_name
+          WRITE(iw,*) 'Number of molecule types ',nmol_types
+          WRITE(iw,*) '&MOLECULE sections found ',irep
+       END IF
        CALL stop_program('mc_types.F/mc_input_file_create',&
             'Did not find MOLECULE sections for every molecule in the simulation (make sure both input files have all types)')
     ENDIF
@@ -1157,8 +1167,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       END SELECT
 
       logger=>cp_error_get_logger(error)
-      iw = cp_logger_get_default_unit_nr(logger)
-      IF(para_env%ionode) WRITE ( iw, * )
+      iw = cp_logger_get_default_io_unit(logger)
+      IF(iw>0) WRITE ( iw, * )
 
 !..filenames
       mc_par % program = input_file_name
@@ -1311,7 +1321,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 !..end of parsing the input section
 
 !..write some information to output
-      IF (mc_par % ionode ) THEN
+      IF (iw>0) THEN
          WRITE(box_string,'(I2)') mc_par%mc_molecule_info%nboxes
          WRITE(molecule_string,'(I2)') mc_par%mc_molecule_info%nmol_types
          WRITE(tab_string,'(I4)') 81-10*mc_par%mc_molecule_info%nmol_types

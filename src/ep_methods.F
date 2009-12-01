@@ -702,7 +702,6 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(sub_orbitals, main_qs_env, sub_proj, logger, orbitals)
     logger => cp_error_get_logger(error)
-    unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
 
     CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
     CALL ep_env_get(ep_env,&
@@ -802,9 +801,6 @@ CONTAINS
                   "my_start_col_full>full_nmo+1, "//&
                   CPSourceFileRef,&
                   error,failure)
-!FM           CALL p_proj_transfer_blacs_to_f(p_proj=sub_proj(isub)%projection,&
-!FM                min_m=sub_orbitals, full_m=orbitals,&
-!FM                start_col_full=start_col, ncol=sub_nmo, error=error)
 
           END DO
           CALL cp_assert(my_start_col_full==ep_env%full_nmo(ispin)+1,&
@@ -918,9 +914,6 @@ CONTAINS
           END DO
           ! localize r
           CALL ep_env_localize_matrix(ep_env, r, error=error)
-!FM        CALL cp_fm_vect_write(matrixes=r, &
-!FM             unit_nr=cp_logger_get_default_unit_nr(logger),&
-!FM             long_description=.TRUE., error=error) !pippo
 
           ! check convergence (with ||r||)
           r_norm2=0.0_dp
@@ -982,9 +975,6 @@ CONTAINS
                 p_ortho_norm=p_ortho_norm+p_ortho_norm_s
              END DO
              p_ortho_norm=SQRT(p_ortho_norm)
-!FM           CALL cp_fm_vect_write(matrixes=p_ortho, &
-!FM                unit_nr=cp_logger_get_default_unit_nr(logger),&
-!FM                long_description=.TRUE., error=error) !pippo
 
              ! rescale p_ortho
              CPPreconditionNoFail(p_ortho_norm>eps_r*0.5,cp_warning_level,routineP,error)
@@ -999,24 +989,12 @@ CONTAINS
              ! localize Ap
              CALL ep_env_localize_matrix(ep_env, Ap, error=error)
 
-!FM           CALL cp_fm_vect_write(matrixes=Ap, &
-!FM                unit_nr=cp_logger_get_default_unit_nr(logger),&
-!FM                long_description=.TRUE., error=error) !pippo
-
              Ap_p=0.0_dp
              DO ispin=1,nspins
                 CALL cp_fm_trace(matrix_a=Ap(ispin)%matrix,&
                      matrix_b=p(ispin)%matrix,trace=Ap_p_s,error=error)
                 Ap_p=Ap_p+Ap_p_s
              END DO
-
-!FM           ! check if A is almost indefinite (in this case Conjugate
-!FM           ! Residual would be better)
-!FM           CALL cp_assert(p_ortho_norm*Ap_p>r_norm2*MIN(eps_r,1.0e-6_dp),&
-!FM                cp_warning_level,cp_assertion_failed,routineP,&
-!FM                "A is almost indefinite (Conjugate Residual would be better)"//&
-!FM                CPSourceFileRef,&
-!FM                error=error)
 
              ! this alpha is the alpha in alg. desc. times p_ortho_norm
              alpha=r_z/Ap_p
@@ -1027,9 +1005,6 @@ CONTAINS
                      beta=alpha,matrix_b=p_ortho(ispin)%matrix,&
                      error=error)
              END DO
-!FM        CALL cp_fm_vect_write(matrixes=ep_env%psi1, &
-!FM             unit_nr=cp_logger_get_default_unit_nr(logger),&
-!FM             long_description=.TRUE., error=error) !pippo
 
              ! r=r- alpha Ap
              DO ispin=1,nspins
@@ -1285,7 +1260,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, isub, nmo, &
-                                                nspins, start_col, unit_nr
+                                                nspins, start_col
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: main_qs_env
@@ -1297,7 +1272,6 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(main_qs_env, sub_proj)
     logger => cp_error_get_logger(error)
-    unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
 
     CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
     CALL ep_env_get(ep_env,&
@@ -1313,11 +1287,6 @@ CONTAINS
 
           DO isub=1,SIZE(sub_proj)
              CPInvariant(start_col+ep_env%sub_nmo(ispin)<nmo+2,cp_failure_level,routineP,error,failure)
-
-!FM           CALL p_proj_restrain_f(p_proj=sub_proj(isub)%projection,&
-!FM                full_m=wf_coeff(ispin)%matrix,&
-!FM                start_col=start_col, ncol=ep_env%sub_nmo(ispin), error=error)
-
              start_col=start_col+ep_env%sub_nmo(ispin)
           END DO
           CPPostcondition(start_col==nmo+1,cp_failure_level,routineP,error,failure)

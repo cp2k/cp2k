@@ -407,8 +407,8 @@ CONTAINS
                    H_eigval2(i) =  SIGN(1.0_dp,H_eigval2(i))*SQRT(ABS(H_eigval2(i))*massunit)*vibfac/1000.0_dp
                 END DO
                 ! Dump Info
-                IF (para_env%mepos==para_env%source) THEN             
-                   iw = cp_logger_get_default_unit_nr(logger)
+                iw = cp_logger_get_default_io_unit(logger)
+                IF (iw>0) THEN
                    CALL vib_out(iw,nvib,D,konst,rmass,H_eigval2,particles,Mlist, intensities)
                 END IF
                 IF(.NOT.something_frozen) CALL molden_out(input,particles,H_eigval2,D,intensities,calc_intens,&

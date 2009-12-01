@@ -516,8 +516,8 @@ CONTAINS
     total_rho = pw_integrate_function(qs_env%rho%rho_r(1)%pw,isign=-1,&
                                       error=error)
     qs_env%rho%tot_rho_r = total_rho
-    IF (logger%para_env%source==logger%para_env%mepos) THEN
-      unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    unit_nr=cp_logger_get_default_io_unit(logger)
+    IF (unit_nr>0) THEN
       WRITE (unit_nr,*) "Total Rho =", total_rho
     END IF
 

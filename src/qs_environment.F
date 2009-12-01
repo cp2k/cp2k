@@ -375,7 +375,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
                                                 explicit, harris_flag, &
-                                                ionode, nometric, was_present
+                                                nometric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -425,10 +425,7 @@ CONTAINS
     NULLIFY(logger)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
-
-    ionode = para_env%ionode
-    output_unit = -1
-    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_logger_get_default_io_unit(logger)
     was_present = .FALSE.
 
     IF (PRESENT(harris)) THEN
@@ -934,14 +931,13 @@ CONTAINS
     ! using just one set of MOs and special casing most of the code
     ! right now we'll just take care of what is effectively an additional constraint
     ! at as few places as possible, just duplicating the beta orbitals
-    IF (dft_control%restricted .AND. logger%para_env%mepos==logger%para_env%source) THEN
+    IF (dft_control%restricted .AND. (output_unit>0)) THEN
        ! it is really not yet tested till the end ! Joost
-       iw = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
-       WRITE(iw,*) ""
-       WRITE(iw,*) " **************************************"
-       WRITE(iw,*) " restricted calculation cutting corners"
-       WRITE(iw,*) " experimental feature, check code      "
-       WRITE(iw,*) " **************************************"
+       WRITE(output_unit,*) ""
+       WRITE(output_unit,*) " **************************************"
+       WRITE(output_unit,*) " restricted calculation cutting corners"
+       WRITE(output_unit,*) " experimental feature, check code      "
+       WRITE(output_unit,*) " **************************************"
     ENDIF
 
     DO ispin=1,dft_control%nspins

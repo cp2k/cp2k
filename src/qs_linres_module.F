@@ -111,9 +111,8 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, iB, output_unit
     LOGICAL                                  :: do_qmmm, epr_present, &
-                                                failure, ionode, &
-                                                issc_present, lr_calculation, &
-                                                nmr_present
+                                                failure, issc_present, &
+                                                lr_calculation, nmr_present
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(current_env_type)                   :: current_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -151,7 +150,6 @@ CONTAINS
     END SELECT
 
     logger => cp_error_get_logger(error)
-    ionode = (logger%para_env%mepos==logger%para_env%source)
 
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     CALL section_vals_get(lr_section,explicit=lr_calculation,error=error)
@@ -297,8 +295,8 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
             "PRINT%PROGRAM_RUN_INFO",error=error)
     ELSE
-       IF(ionode) THEN
-          output_unit = cp_logger_get_default_unit_nr(logger)
+       output_unit = cp_logger_get_default_io_unit(logger)
+       IF(output_unit>0) THEN
           WRITE (output_unit, "(2X,A)") "",&
                "-----------------------------------------------------------------------------",&
                "-              No LR calculation has been specified in the input            -",&

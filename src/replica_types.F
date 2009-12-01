@@ -169,7 +169,7 @@ CONTAINS
       ir, irep, lp, my_prep, natom, new_env_id, nrep_local, stat, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: gridinfo
     INTEGER, DIMENSION(2)                    :: dims, pos
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(2)                    :: rdim
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
@@ -181,12 +181,7 @@ CONTAINS
     NULLIFY(cart,para_env_f,para_env_inter_rep)
     IF (.NOT. failure) THEN
        logger => cp_error_get_logger(error)
-       ionode = para_env%mepos==para_env%source
-       IF (ionode) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger)
-       ELSE
-          unit_nr=-1
-       END IF
+       unit_nr=cp_logger_get_default_io_unit(logger)
        new_env_id=-1
        forcedim = 1
        IF (PRESENT(row_force)) THEN

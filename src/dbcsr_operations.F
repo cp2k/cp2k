@@ -250,7 +250,6 @@ CONTAINS
                                                 right_index_rp, right_index_sp
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
                                                 right_pgrid
-    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
                                                 trun, trun_t, tstart, tstop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_rp, left_data_sp, &
@@ -280,9 +279,7 @@ CONTAINS
             work_mutable=.FALSE.)
     !ENDIF
     logger => cp_error_get_logger (error)
-    ionode = logger%para_env%mepos == logger%para_env%source
-    output_unit = 0
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr (logger)
+    output_unit = cp_logger_get_default_io_unit (logger)
     tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
     t_dgemm = 0.0_dp ; t_all = 0.0_dp
     flop_total = 0
@@ -798,7 +795,7 @@ CONTAINS
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
              IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
-             IF (ionode .AND. detailed_timing) THEN
+             IF ((output_unit>0) .AND. detailed_timing) THEN
                 WRITE(output_unit,'(1X,A,F9.4,A,EN12.4,A,1X,EN12.4,1X,A)')&
                      "Segment Local Multiplication time ",tstop-tstart," and ",&
                      (REAL(flop_single, dp)/1000000.0_dp)/(tstop-tstart),&
@@ -817,7 +814,7 @@ CONTAINS
     trun_t = m_walltime () - trun_t
     IF (trun_t .EQ. 0) trun_t = 0.000001_dp
     IF (trun .EQ. 0) trun = 0.000001_dp
-    IF (ionode .AND. detailed_timing) THEN
+    IF ((output_unit>0) .AND. detailed_timing) THEN
        WRITE(output_unit,'(1X,A,F9.4,1X,A,EN12.4,1X,A)')&
             "  Total Local Multiplication time ",trun,"and ",&
             (REAL(flop_total, dp)/1000000.0_dp)/trun,&
@@ -841,7 +838,7 @@ CONTAINS
     !
     IF (dbg) THEN
        checksum = dbcsr_checksum (product_matrix, error=error)
-       IF (ionode) THEN
+       IF ((output_unit>0)) THEN
           WRITE(output_unit,'(1X,A,1X,F9.4)')"Product Checksum=",checksum
        ENDIF
     ENDIF

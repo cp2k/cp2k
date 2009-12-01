@@ -84,7 +84,7 @@ CONTAINS
     INTEGER :: handle, i, iatom, ibond, idum, index_now, iphi, itheta, iw, &
       natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
       ntheta_prev, output_unit
-    LOGICAL                                  :: failure, found, ionode
+    LOGICAL                                  :: failure, found
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -93,9 +93,7 @@ CONTAINS
     NULLIFY(parser, logger)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)

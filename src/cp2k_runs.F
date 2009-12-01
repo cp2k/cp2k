@@ -182,7 +182,7 @@ CONTAINS
     CALL cp_error_check(error,failure)
     IF (failure) THEN
        logger => cp_error_get_logger(error)
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+       unit_nr=cp_logger_get_default_io_unit(logger)
        IF (unit_nr>0) THEN
           CALL cp_error_get(error,info=unknown_string)
           WRITE(unit_nr,'(T2,A)') ""

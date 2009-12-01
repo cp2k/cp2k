@@ -74,9 +74,8 @@ CONTAINS
     INTEGER                                  :: end_c, handle, iatom, ILEN, &
                                                 j, natom, output_unit, &
                                                 start_c, wrd
-    LOGICAL                                  :: explicit, failure, ionode, &
-                                                is_ok, my_overwrite, &
-                                                my_save_mem, &
+    LOGICAL                                  :: explicit, failure, is_ok, &
+                                                my_overwrite, my_save_mem, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: r0(3), unit_conv
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -91,12 +90,7 @@ CONTAINS
     my_save_mem = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
     IF (PRESENT(overwrite)) my_overwrite=overwrite
     IF (PRESENT(save_mem)) my_save_mem=save_mem
     NULLIFY(coord_section)
@@ -273,8 +267,8 @@ CPSourceFileRef,&
                                                 j, nshell, output_unit, &
                                                 sh_index, start_c, wrd
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_index, at_index_c
-    LOGICAL :: core_scaled_coordinates, explicit, failure, ionode, is_ok, &
-      is_shell, my_save_mem, shell_scaled_coordinates
+    LOGICAL :: core_scaled_coordinates, explicit, failure, is_ok, is_shell, &
+      my_save_mem, shell_scaled_coordinates
     REAL(KIND=dp)                            :: dab, mass_com, rab(3), &
                                                 unit_conv_core, &
                                                 unit_conv_shell
@@ -292,11 +286,7 @@ CPSourceFileRef,&
     my_save_mem = .FALSE.
     NULLIFY(logger, atomic_kind, list, shell_coord_section, shell, val)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     IF(PRESENT(save_mem)) my_save_mem=save_mem
     NULLIFY(shell_coord_section, core_coord_section)
@@ -459,7 +449,7 @@ CPSourceFileRef,&
 
            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
            IF(shell%max_dist>0.0_dp .AND. shell%max_dist<dab ) THEN
-             IF(ionode) THEN
+             IF(output_unit>0) THEN
                WRITE(output_unit,*) "WARNING : shell and core for atom ", at_index(ishell), " seem to be too distant. "
              END IF
            END IF

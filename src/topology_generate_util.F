@@ -497,7 +497,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list, map_nb
     INTEGER, DIMENSION(:), POINTER           :: isolated_atoms, tmp_v
     LOGICAL                                  :: connectivity_ok, explicit, &
-                                                failure, ionode, print_info
+                                                failure, print_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
     REAL(KIND=dp)                            :: bondparm_factor, cell_v(3), &
                                                 dr(3), ksign, my_maxrad, r2, &
@@ -525,9 +525,7 @@ CONTAINS
     NULLIFY(isolated_atoms, tmp_v)
     CALL timeset(routineN,handle)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error)
     IF (.NOT.failure) THEN
@@ -1471,7 +1469,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, i, iw, &
                                                 natom, nbond, nsize, ntheta, &
                                                 output_unit, stat
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -1485,12 +1483,7 @@ CONTAINS
          extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
-       ionode = logger%para_env%mepos==logger%para_env%source
-       IF (ionode) THEN
-          output_unit= cp_logger_get_default_unit_nr(logger)
-       ELSE
-          output_unit = -1
-       END IF
+       output_unit= cp_logger_get_default_io_unit(logger)
        conn_info => topology%conn_info
        nbond = 0
        natom = topology%natoms
@@ -1729,7 +1722,7 @@ CONTAINS
 
     INTEGER                                  :: handle, itheta, iw, ntheta, &
                                                 output_unit
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1738,12 +1731,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error)    
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
     CALL timeset(routineN,handle)
     conn_info => topology%conn_info    
     ntheta = SIZE(conn_info%theta_a)
@@ -1782,7 +1770,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iw, natom, nbond, &
                                                 nphi, nsize, output_unit, stat
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -1794,12 +1782,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
     CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        conn_info => topology%conn_info
@@ -1897,9 +1880,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error)
-    output_unit = -1
-    IF (logger%para_env%mepos==logger%para_env%source)&
-         output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     CALL timeset(routineN,handle)
     IF (.NOT.failure) THEN
        atom_info => topology%atom_info
@@ -2010,9 +1991,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error) 
-    output_unit = -1
-    IF (logger%para_env%mepos==logger%para_env%source) &
-         output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     CALL timeset(routineN,handle)    
     conn_info => topology%conn_info    
     nphi = SIZE(conn_info%phi_a)

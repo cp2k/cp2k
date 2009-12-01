@@ -278,7 +278,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, &
                                                 nsgf_seta, nsgf_setb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, forces, ionode
+    LOGICAL                                  :: failure, forces
     REAL(dp)                                 :: alpha_a, alpha_b, dab, &
                                                 disp_factor, I_a, I_b, &
                                                 rab(3), rab2
@@ -313,8 +313,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     output_unit = -1
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
     forces = .FALSE.
     failure = .FALSE.
     IF ( PRESENT ( calculate_forces ) ) forces = calculate_forces
@@ -617,11 +616,11 @@ CONTAINS
        END DO ! jkind
     END DO  ! ikind
 
-    IF (debug_this_module.AND.ionode) THEN
+    IF (debug_this_module.AND.(output_unit>0)) THEN
        DO iatom = 1, natom
           ikind = kind_of ( iatom )
           i_atom = atom_of_kind ( iatom )
-          WRITE ( *, * ) 'F_DISPERSION', iatom,  force ( ikind ) % f_scp_disp ( :, i_atom )
+          WRITE (output_unit, * ) 'F_DISPERSION', iatom,  force ( ikind ) % f_scp_disp ( :, i_atom )
        END DO
     END IF
 

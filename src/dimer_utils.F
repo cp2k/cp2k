@@ -51,10 +51,8 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    output_unit = -1
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit= cp_logger_get_default_io_unit(logger)
+
     ! Orthogonality check for the rotation..
     check = ABS(DOT_PRODUCT(nvec,theta))<MAX(1.0E-9_dp,dimer_thrs)
     IF (.NOT.check.AND.(output_unit>0)) THEN

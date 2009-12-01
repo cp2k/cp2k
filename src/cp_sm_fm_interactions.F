@@ -1025,12 +1025,8 @@ CPSourceFileRef,&
     IF (PRESENT(beta)) my_beta=beta
     failure=.FALSE.
 
-!FM  NULLIFY(tmp_m)
     IF (ASSOCIATED(sparse_matrix%distribution_2d)) THEN
        IF (v_in%matrix_struct%para_env%num_pe>2) THEN
-!FM     CALL cp_fm_create(tmp_m,v_out%matrix_struct,error=error)
-!FM     CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,tmp_m,ncol,para_env, &
-!FM          my_alpha,my_beta,error)
           SELECT CASE(sparse_matrix%symmetry)
           CASE("symmetric")
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
@@ -1057,15 +1053,6 @@ CPSourceFileRef,&
 CPSourceFileRef,&
                   error=error,failure=failure)
           END SELECT
-!FM    CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=tmp_m,matrix_b=v_out,&
-!FM         beta=-1.0_dp,error=error)
-!FM    CALL cp_fm_maxabsval(tmp_m,diff)
-!FM    IF (logger%para_env%source==logger%para_env%mepos) THEN
-!FM       WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
-!FM            "matrix_multiply diff=",diff
-!FM    END IF
-!FM    CPPostcondition(diff<1.0e-14,cp_warning_level,routineP,error,failure)
-!FM    call cp_fm_release(tmp_m,error=error)
        ELSE
           CALL cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol, &
                my_alpha,my_beta,error)
@@ -1104,40 +1091,14 @@ SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-!FM  REAL(KIND = dp) :: diff
-!FM  TYPE(real_matrix_type), POINTER :: tmp_m
-
   logger=> cp_error_get_logger(error)
 
   failure=.FALSE.
-!FM  NULLIFY(tmp_m)
   IF (ASSOCIATED(sparse_matrix%distribution_2d)) THEN
      IF (matrix_v%matrix_struct%para_env%num_pe>1) THEN
-!FM     CALL replicate_matrix(sparse_matrix,tmp_m,target_name="tmp_m",allocate_blocks=.TRUE.)
-!FM     CALL cp_sm_plus_fm_fm_t_general(sparse_matrix=tmp_m,matrix_v=matrix_v,&
-!FM          matrix_g=matrix_g,ncol=ncol,alpha=alpha,error=error)
 
-     CALL cp_sm_plus_fm_fm_t_2d(sm=sparse_matrix,matrix_v=matrix_v,&
-          matrix_g=matrix_g,ncol=ncol,alpha=alpha, error=error)
-!FM     CALL cp_sm_write(sparse_matrix,&
-!FM          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-!FM          long_description=.TRUE., local=.TRUE.)
-!FM     CALL cp_sm_write(tmp_m,&
-!FM          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-!FM          long_description=.TRUE., local=.TRUE.)
-!FM     CALL cp_sm_scale_and_add(alpha=1.0_dp,matrix_a=tmp_m,matrix_b=sparse_matrix,&
-!FM          beta=-1.0_dp,error=error)
-!FM     CALL write_blocks_maxabsval(tmp_m,cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-!FM     CALL cp_sm_write(tmp_m,&
-!FM          unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-!FM          long_description=.TRUE., local=.TRUE.)
-!FM     CALL cp_sm_maxabsval(tmp_m,diff,matrix_v%matrix_struct%para_env)
-!FM     IF (logger%para_env%source==logger%para_env%mepos) THEN
-!FM        WRITE(unit=cp_logger_get_default_unit_nr(logger),fmt="(a,e16.8)")&
-!FM             "matrix_fm_fm_t diff=",diff
-!FM     END IF
-!FM     CPPostcondition(diff<1.0e-14,cp_warning_level,routineP,error,failure)
-!FM     CALL deallocate_matrix(tmp_m)
+        CALL cp_sm_plus_fm_fm_t_2d(sm=sparse_matrix,matrix_v=matrix_v,&
+             matrix_g=matrix_g,ncol=ncol,alpha=alpha, error=error)
      ELSE
         CALL cp_sm_plus_fm_fm_t_general(sparse_matrix=sparse_matrix,&
              matrix_v=matrix_v,&
@@ -2257,8 +2218,6 @@ CPSourceFileRef,&
              bsize=fm_nrow_block-MOD(first_grow-1,fm_nrow_block)
 #ifdef __SCALAPACK
              iprow =MOD( fm_first_prow + (first_grow - 1) / fm_nrow_block, fm_nprow )
-!FM                iprow = indxg2p(first_grow,fm_nrow_block, &
-!FM                     myprow, fm_first_prow,fm%matrix_struct%context%num_pe(1))
 #else
              iprow =0
 #endif
@@ -2485,8 +2444,6 @@ CPSourceFileRef,&
              bsize=fm_nrow_block-MOD(first_grow-1,fm_nrow_block)
 #ifdef __SCALAPACK
              iprow =MOD( fm_first_prow + (first_grow - 1) / fm_nrow_block, fm_nprow )
-!FM                iprow = indxg2p(first_grow,fm_nrow_block, &
-!FM                     myprow, fm_first_prow,fm%matrix_struct%context%num_pe(1))
 #else
              iprow =0
 #endif

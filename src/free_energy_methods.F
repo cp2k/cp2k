@@ -814,18 +814,15 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: coupling_function
     CHARACTER(LEN=default_string_length)     :: def_error, par, this_error
     INTEGER                                  :: i, iforce_eval, ipar, isize, &
-                                                iw, j, NEquilStep, output_unit
-    LOGICAL                                  :: failure, ionode
+                                                iw, j, NEquilStep
+    LOGICAL                                  :: failure
     REAL(KIND=dp) :: avg_BP, avg_DET, avg_DUE, d_ene_w, dedf, ene_w, err, &
       Err_DET, Err_DUE, std_DET, std_DUE, tmp, tmp2, wfac
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: alch_section
 
     failure = .FALSE.
-    output_unit = -1
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
     alch_section => section_vals_get_subs_vals(fe_section,"ALCHEMICAL_CHANGE",error=error)
     CALL section_vals_val_get(alch_section,"PARAMETER",c_val=par,error=error)
     DO i = 1, SIZE(my_par)
@@ -834,7 +831,7 @@ CONTAINS
     CPPrecondition(i<=SIZE(my_par),cp_failure_level,routineP,error,failure)
     ipar = i
     dedf = evalfd(1,ipar,my_val,dx,err)
-    IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
+    IF (ABS(err)>lerr) THEN
        WRITE(this_error,"(A,G12.6,A)")"(",err,")"
        WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
        CALL compress(this_error,.TRUE.)
@@ -842,7 +839,7 @@ CONTAINS
        CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
             'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
             ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-            TRIM(def_error)//' .',error)
+            TRIM(def_error)//' .',error=error,only_ionode=.TRUE.)
     END IF
 
     ! We must print now the energy of the biased system, the weigthing energy 
@@ -853,7 +850,7 @@ CONTAINS
     CALL parsef(2,TRIM(coupling_function),my_par)       
     ene_w   = evalf(2,my_val)
     d_ene_w = evalfd(2,ipar,my_val,dx,err)
-    IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
+    IF (ABS(err)>lerr) THEN
        WRITE(this_error,"(A,G12.6,A)")"(",err,")"
        WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
        CALL compress(this_error,.TRUE.)
@@ -861,7 +858,7 @@ CONTAINS
        CALL cp_assert(.FALSE.,cp_warning_level,-300,routineP,&
             'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
             ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
-            TRIM(def_error)//' .',error)
+            TRIM(def_error)//' .',error=error,only_ionode=.TRUE.)
     END IF
     CALL section_vals_val_get(alch_section,"NEQUIL_STEPS",i_val=NEquilStep,error=error)
     ! Store results

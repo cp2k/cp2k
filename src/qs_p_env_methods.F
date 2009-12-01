@@ -459,7 +459,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, lfomo, n_spins, nmo, &
                                                 output_unit, spin, stat
-    LOGICAL                                  :: failure, ionode, was_present
+    LOGICAL                                  :: failure, was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
@@ -477,17 +477,12 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input, lr_section
 
-! code
-
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
          S_sm_pools,logger, input,lr_section)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%source==logger%para_env%mepos
-    output_unit  = cp_logger_get_default_unit_nr(logger)
-
     n_spins = qs_env%dft_control%nspins
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)

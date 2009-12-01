@@ -1854,7 +1854,7 @@ CONTAINS
     INTEGER                                  :: i_rep_s, ik, isec, nr, nval, &
                                                 output_unit
     LOGICAL                                  :: check_key, defaultSection, &
-                                                failure, ionode
+                                                failure
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -1865,9 +1865,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
     CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)

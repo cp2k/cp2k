@@ -161,7 +161,7 @@ CONTAINS
                                                 maxlgto, maxlppl, maxlppnl, &
                                                 nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: ionode, kg_gpw, use_ref_cell, &
+    LOGICAL                                  :: kg_gpw, use_ref_cell, &
                                                 was_present
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -187,9 +187,8 @@ CONTAINS
                                                 qs_section, work_section
 
     CALL timeset(routineN,handle)
-    ionode = para_env%ionode
     logger => cp_error_get_logger(error)
-    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_logger_get_default_io_unit(logger)
     was_present = .FALSE.
 
     ! nullifying  pointers
@@ -381,7 +380,7 @@ CONTAINS
       CALL dft_control_release(dft_control, error=error)
     END IF
 
-    IF (ionode) CALL m_flush(output_unit)
+    IF (output_unit>0) CALL m_flush(output_unit)
 
     CALL timestop(handle)
 

@@ -88,7 +88,7 @@ CONTAINS
       ix, iy, iz, jmol, l, last_atom, n_ao_kind, nat_mol, natom, nm, &
       nmol_kind, nmol_local, nmoments, num_mol, output_unit, unit_nr
     INTEGER, DIMENSION(2)                    :: nmo_kind
-    LOGICAL                                  :: failure, first_time, ionode
+    LOGICAL                                  :: failure, first_time
     REAL(KIND=dp)                            :: charge, total_charge
     REAL(KIND=dp), DIMENSION(3)              :: r1, ra, rc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mmol, pmat, ref_point, refp, &
@@ -130,13 +130,8 @@ CONTAINS
     NULLIFY(mmol, pmat, ref_point, refp, work)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
-    IF (ionode) THEN
+    output_unit= cp_logger_get_default_io_unit(logger)
+    IF (output_unit>0) THEN
       WRITE(output_unit,'(/,A,/)') " +++ Molecular Properties Calculation"
     END IF
 
@@ -298,7 +293,7 @@ CONTAINS
            END DO 
         END IF
 
-        IF (ionode) THEN
+        IF (output_unit>0) THEN
           DO jmol = 1, SIZE(mmol,2)
              WRITE(output_unit,'(A,i7)') " Molecule Nr. ", jmol
              IF ( nmoments > 0 ) THEN
@@ -326,7 +321,7 @@ CONTAINS
                WRITE(output_unit,'(A)') " Higher Moment [a.u.]"
              END IF
           END DO
-        END IF  ! ionode
+        END IF
   
         CALL deallocate_matrix_set (moments,error=error)
 
@@ -343,7 +338,7 @@ CONTAINS
       END IF  ! calculate Moments
     END IF  ! Failure
 
-    IF (ionode) THEN
+    IF (output_unit>0) THEN
       WRITE(output_unit,'(/,A)') " +++ End of Molecular Properties Calculation"
     END IF
 

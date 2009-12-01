@@ -350,7 +350,7 @@ CONTAINS
     !
     NULLIFY(logger,FY,Y)
     logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_logger_get_default_io_unit(logger)
     !
     CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
     !
@@ -498,7 +498,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D,logger)
     logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    output_unit = cp_logger_get_default_io_unit(logger)
     CALL cp_fm_get_info(matrix_c,nrow_global=n,ncol_global=k,error=error)
     !
     C_NEW => matrix_c

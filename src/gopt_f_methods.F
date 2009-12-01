@@ -607,6 +607,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_final_info', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: unit_nr
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: etot
     TYPE(cell_type), POINTER                 :: cell
@@ -630,8 +631,9 @@ CONTAINS
                          error=error)
 
       ! Write out more data for the minimum
-      IF (logger%para_env%mepos==logger%para_env%source) THEN
-        WRITE (unit=cp_logger_get_default_unit_nr(logger), fmt="(/,T20,' Reevaluating energy at the minimum ')")
+      unit_nr=cp_logger_get_default_io_unit(logger)
+      IF (unit_nr>0) THEN
+        WRITE (unit=unit_nr, fmt="(/,T20,' Reevaluating energy at the minimum ')")
       END IF
       CALL cp_eval_at(gopt_env,x0,f=etot,master=master,para_env=para_env,error=error)
       CALL write_geo_traj(force_env,  root_section, it, etot, error)
