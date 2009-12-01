@@ -21,7 +21,8 @@ MODULE neb_opt_utils
   USE f77_blas_generic
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE neb_types,                       ONLY: neb_type,&
                                              neb_var_type
   USE neb_utils,                       ONLY: neb_calc_energy_forces,&
@@ -62,6 +63,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'accept_diis_step', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: line
     INTEGER                                  :: i, iend, ind, indi, indj, &
                                                 info, istart, iv, iw, j, jv, &
                                                 k, lwork, np, nv, stat
@@ -98,8 +100,8 @@ CONTAINS
           ! Apply DIIS..
           DO jv = 2, n_diis
              np = jv+1
-             IF (iw>0) WRITE(iw,'(A)')"Applying DIIS equations with the last"//&
-                  cp_to_string(jv)//" error vectors"
+             IF (iw>0) WRITE(iw,'(A,I5,A)')"Applying DIIS equations with the last",&
+                  jv," error vectors"
              ALLOCATE(wrk(np,np),stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(work(np,np),stat=stat)
@@ -122,8 +124,11 @@ CONTAINS
                    wrk(j,i) = wrk(i,j)
                 END DO
              END DO
-             IF (iw>0) WRITE(iw,'(A)')"DIIS Matrix"//cp_to_string(np)//"x"//cp_to_string(np)//"."
-             IF (iw>0) WRITE(iw,'('//cp_to_string(np)//'F12.6)')wrk
+             IF (iw>0) THEN
+                 line="DIIS Matrix"//cp_to_string(np)//"x"//cp_to_string(np)//"."
+                 WRITE(iw,'(A)')TRIM(line)
+                 WRITE(iw,'('//cp_to_string(np)//'F12.6)')wrk
+             END IF
              ! Inverte the DIIS Matrix
              work=TRANSPOSE(wrk)
              ! Workspace query
@@ -206,8 +211,10 @@ CONTAINS
              DEALLOCATE(wrk_inv,stat=stat)
  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END DO
-          IF (iw>0) WRITE(iw,'(A)')"Exiting DIIS accepting"//&
-               cp_to_string(MIN(n_diis,jv))//" errors."
+          IF (iw>0) THEN
+             line ="Exiting DIIS accepting"//cp_to_string(MIN(n_diis,jv))//" errors."
+             WRITE(iw,'(A)')TRIM(line)
+          END IF
        END IF
        IF (ALL(set_err==1)) THEN
           ! always delete the last error vector from the history vectors
