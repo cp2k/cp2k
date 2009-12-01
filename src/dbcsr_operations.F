@@ -2220,7 +2220,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
             "Specified last column is out of bounds.")
        last_col = last_column
        ALLOCATE (col_start(dbcsr_nblkcols_total(matrix_a)))
-       ALLOCATE (col_end(dbcsr_nblkrows_total(matrix_a)))
+       ALLOCATE (col_end(dbcsr_nblkcols_total(matrix_a)))
        CALL convert_sizes_to_offsets(array_data (matrix_a%m%col_blk_size), &
             col_start, col_end)
     ENDIF
