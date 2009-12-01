@@ -1011,19 +1011,20 @@ CONTAINS
       c_row_size, c_row_size_logical, clamp_k_len, datasize, first_k, &
       first_row, first_working_sp, i, ithread, j, last_k, last_row, lastblk, &
       new_blk, new_row_blks, nthreads, old_blk, old_row_begin_blk, old_size, &
-      row_begin_blk, row_blk
+      row_begin_blk, row_blk, blk_start, blk_end, blk_size
     INTEGER :: rpt, size_c_blk_ps, stack_pointer, stat, submat_f_col, &
       submat_f_row, submat_l_col, submat_l_row, this_right_limit, &
       timing_handle
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate, lflop, one_flop
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: c_blk_ps, c_blk_ps_p, &
-      left_col_blk_end, left_col_blk_start, left_row_blk_end, &
-      left_row_blk_start, right_col_blk_end, right_col_blk_start
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mt_row_processing, new_index
-    INTEGER, DIMENSION(:), POINTER :: left_col_blk_size, left_local_rows, &
-      left_row_blk_size, new_blk_p, new_col_i, new_row_i, &
-      product_col_blk_size, right_col_blk_size, right_row_blk_size
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: c_blk_ps, c_blk_ps_p
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: new_index
+    INTEGER, DIMENSION(:), POINTER :: left_local_rows, &
+      new_blk_p, new_col_i, new_row_i,&
+      left_row_blk_offset, left_col_blk_offset,&
+      right_row_blk_offset, right_col_blk_offset,&
+      product_col_blk_offset
+
     LOGICAL :: block_exists, found, keep_sparsity, left_limit_rows, limit_k, &
       right_limit_cols, tr_a, tr_b, tr_p
     REAL(KIND=dp)                            :: epoch, mt_t_dgemm, my_alpha, &
@@ -1050,11 +1051,11 @@ CONTAINS
     DBG "Doing NN matrix multiplication",left%name,' x ',right%name
     DBG "Pre-mult blk sizes, data", product%wms(ithread+1)%lastblk,&
          product%wms(ithread+1)%datasize
-    left_row_blk_size => array_data (left%row_blk_size)
-    left_col_blk_size => array_data (left%col_blk_size)
-    right_row_blk_size => array_data (right%row_blk_size)
-    right_col_blk_size => array_data (right%col_blk_size)
-    product_col_blk_size => array_data (product%col_blk_size)
+    left_row_blk_offset => array_data (left%row_blk_offset)
+    left_col_blk_offset => array_data (left%col_blk_offset)
+    right_row_blk_offset => array_data (right%row_blk_offset)
+    right_col_blk_offset => array_data (right%col_blk_offset)
+    product_col_blk_offset => array_data (product%col_blk_offset)
     !left_thread_dist => array_data (dbcsr_distribution_thread_dist (product%dist))
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
     ! Submatrix handling
@@ -1071,28 +1072,16 @@ CONTAINS
     right_limit_cols = MAXVAL (submatrix_box(3:4)) .GT. 0
     limit_k = MAXVAL (submatrix_box(5:6)) .GT. 0
     IF (left_limit_rows) THEN
-       ALLOCATE (left_row_blk_start (left%nblkrows_total),&
-                 left_row_blk_end (left%nblkrows_total))
-       CALL convert_sizes_to_offsets (left_row_blk_size,&
-            left_row_blk_start, left_row_blk_end)
        submat_f_row = submatrix_box(1)
        submat_l_row = submatrix_box(2)
        !write(*,*)"limiting rows",submatrix_box(1:2)
     ENDIF
     IF (right_limit_cols) THEN
-       ALLOCATE (right_col_blk_start (right%nblkcols_total),&
-                 right_col_blk_end (right%nblkcols_total))
-       CALL convert_sizes_to_offsets (right_col_blk_size,&
-            right_col_blk_start, right_col_blk_end)
        submat_f_col = submatrix_box(3)
        submat_l_col = submatrix_box(4)
        !write(*,*)"limiting cols",submatrix_box(3:4)
     ENDIF
     IF (limit_k) THEN
-       ALLOCATE (left_col_blk_start (left%nblkcols_total),&
-                 left_col_blk_end (left%nblkcols_total))
-       CALL convert_sizes_to_offsets (left_col_blk_size,&
-            left_col_blk_start, left_col_blk_end)
        first_k = 1
        last_k = left%nfullcols_total
        IF (submatrix_box(5) .GT. 0) THEN
@@ -1124,8 +1113,7 @@ CONTAINS
     mt_t_dgemm = 0.0_dp
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
        !
-    ALLOCATE (mt_row_processing(rpnslots, left%nblkrows_total))
-    ALLOCATE (new_index (4, left%nfullrows_local*right%nfullcols_local))
+    ALLOCATE (new_index (3, left%nfullrows_local*right%nfullcols_local))
     ! c_blk_ps contains the block pointers in the product's current row
     ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
     IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
@@ -1154,28 +1142,31 @@ CONTAINS
        a_row = left_local_rows (a_row_l)
        a_row_logical = a_row
        IF (dbg) WRITE(*,*)routineN//" A row", a_row
+       blk_start = left_row_blk_offset(a_row_logical)
+       blk_end = left_row_blk_offset(a_row_logical+1)-1
+       blk_size = left_row_blk_offset(a_row_logical+1) - blk_start
        IF (left_limit_rows) THEN
-          IF (left_row_blk_start (a_row) .GT. submat_l_row .OR.&
-              left_row_blk_end (a_row) .LT. submat_f_row) THEN
+          IF (left_row_blk_offset (a_row) .GT. submat_l_row .OR.&
+              left_row_blk_offset (a_row+1)-1 .LT. submat_f_row) THEN
              !write(*,*)"Skipping row", a_row
              CYCLE
           ELSE
              CALL cp_assert(&
-                    MIN(submat_l_row, left_row_blk_end (a_row))&
-                  - MAX(submat_f_row, left_row_blk_start (a_row))+1&
-                  .EQ. left_row_blk_size (a_row),&
+                    MIN(submat_l_row, blk_start)&
+                  - MAX(submat_f_row, blk_end)+1&
+                  .EQ. blk_size,&
                   cp_fatal_level, cp_unimplemented_error_nr,&
                   routineN, "Submatrix must encompass complete block rows")
           ENDIF
        ENDIF
-       a_row_size_logical = left_row_blk_size(a_row_logical) ! stored
-       c_row_size_logical = a_row_size_logical
+       a_row_size_logical = blk_size ! stored
+       c_row_size_logical = blk_size
        row_begin_blk = new_blk+1
        IF (old_blk .LE. old_size) THEN
           DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LT. a_row)
              old_blk = old_blk+1
              IF (old_blk .GT. old_size) THEN
-                old_blk = old_blk-1
+                !old_blk = old_blk-1
                 EXIT
              ENDIF
           ENDDO
@@ -1187,6 +1178,8 @@ CONTAINS
        END FORALL
        size_c_blk_ps = 0
        ! Fill in the c_blk_ps array
+       if (dbg) write(*,*)routineN//" old_blk, old_size, old_row_begin_blk",&
+            old_blk,old_size,old_row_begin_blk
        IF (old_blk .LE. old_size) THEN
           ! Old index
           DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LE. a_row) ! EQ
@@ -1201,13 +1194,15 @@ CONTAINS
              c_blk_ps_p(size_c_blk_ps) = product%wms(ithread+1)%col_i(old_blk)
              old_blk = old_blk+1
              IF (old_blk .GT. old_size) THEN
-                old_blk = old_blk-1
+                !old_blk = old_blk-1
                 EXIT
              ENDIF
           ENDDO
        ENDIF
-       mt_row_processing(rpslot_oldblks, a_row) = size_c_blk_ps
-       mt_row_processing(rpslot_addoffset, a_row) = new_blk+1
+       IF (dbg) then
+          write(*,*)routineN//" c_blk_ps="
+          write(*,'(10(1X,I7))')c_blk_ps
+       endif
        new_row_blks = 0
        DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
           IF (left%blk_p(a_blk) .EQ. 0) THEN
@@ -1221,15 +1216,18 @@ CONTAINS
           IF (dbg) WRITE(*,*)routineN//" A col", a_col,";",a_row
           a_row_logical = a_row
           a_col_logical = a_col
-          a_col_size_logical = left_col_blk_size(a_col_logical)
+          blk_start = left_col_blk_offset (a_col_logical)
+          blk_end = left_col_blk_offset (a_col_logical+1)-1
+          blk_size = left_col_blk_offset (a_col_logical+1) - blk_start
+          a_col_size_logical = blk_size
           a_row_size = a_row_size_logical
           a_col_size = a_col_size_logical
           tr_a = left%blk_p(a_blk) .LT. 0
           a_type = blas_mat_type (tr_a)
           IF (tr_a) CALL swap (a_row_size, a_col_size)
           IF (limit_k) THEN
-             IF (left_col_blk_start (a_col_logical) .GT. last_k .OR.&
-                 left_col_blk_end (a_col_logical) .LT. first_k) THEN
+             IF (blk_start .GT. last_k .OR.&
+                 blk_end .LT. first_k) THEN
                 !write(*,'(A,I5,"(",I5,"-",I5,") not in ",I5,"-",I5)')&
                 !     routineN//"Skipping a col", a_col,&
                 !     left_col_blk_start (a_col), left_col_blk_end (a_col),&
@@ -1237,8 +1235,8 @@ CONTAINS
                 CYCLE
              ELSE
                 !i = MAX (first_k, left_col_blk_start (a_col_logical))
-                i = left_col_blk_start(a_col_logical)
-                j = MIN (last_k, left_col_blk_end (a_col_logical))
+                i = blk_start
+                j = MIN (last_k, blk_end)
                 !clamp_k_offset = i - left_col_blk_start (a_col_logical)
                 clamp_k_len = j - i + 1
                 !write(*,'(A,I5,"(",I5,"-",I5,") not in ",I5,"-",I5)')&
@@ -1263,15 +1261,18 @@ CONTAINS
              IF (dbg) WRITE(*,*)routineN//" B col", b_col, ";",a_row, a_col
              b_col_logical = b_col
              b_offset = ABS (right%blk_p(b_blk))
+             blk_start = right_col_blk_offset (b_col_logical)
+             blk_end = right_col_blk_offset (b_col_logical+1)-1
+             blk_size = right_col_blk_offset (b_col_logical+1) - blk_start
              IF (right_limit_cols) THEN
                 !IF (right_col_blk_start (b_col_logical) .GT. submat_l_col .OR.&
                 !    right_col_blk_end (b_col_logical) .LT. submat_f_col) THEN
-                IF (right_col_blk_start (b_col_logical) .GT. submat_l_col) THEN
+                IF (blk_start .GT. submat_l_col) THEN
                    !WRITE(*,*)"Skipping column", b_col
                    CYCLE
-                ELSEIF (right_col_blk_end(b_col_logical) .GT. submat_l_col) THEN
+                ELSEIF (blk_end .GT. submat_l_col) THEN
                    this_right_limit =&
-                        submat_l_col - right_col_blk_start(b_col_logical) + 1
+                        submat_l_col - blk_start + 1
                 ELSE
                    this_right_limit = 0
                 ENDIF
@@ -1279,8 +1280,10 @@ CONTAINS
                 this_right_limit = 0
              ENDIF
              c_col_logical = b_col_logical
-             b_col_size_logical = right_col_blk_size(b_col_logical)
-             c_col_size_logical = product_col_blk_size(c_col_logical)
+             b_col_size_logical = blk_size
+             c_col_size_logical = &
+                  product_col_blk_offset (c_col_logical+1) -&
+                  product_col_blk_offset (c_col_logical)
              c_row_size = c_row_size_logical
              c_col_size = c_col_size_logical
              !
@@ -1308,9 +1311,8 @@ CONTAINS
                 new_index(1, new_blk) = c_row_logical
                 new_index(2, new_blk) = c_col_logical
                 new_index(3, new_blk) = c_blk_pt
-                new_index(4, new_blk) = ithread+1
                 new_row_blks = new_row_blks + 1
-                DBG 'Adding coordinate', c_row_logical, c_col_logical, c_blk_p
+                DBG 'Adding coordinate', c_row_logical, c_col_logical, c_blk_pt
                 offset = c_blk_pt
                 c_blk_pt = c_blk_pt + c_nze
                 datasize = datasize + c_nze
@@ -1321,7 +1323,7 @@ CONTAINS
                 which_beta = beta_new
                 tr_p = .FALSE.
              ELSE
-                DBG 'Using existing coordinate at', offset, tr_p
+                DBG 'Using existing coordinate for', c_row_logical, c_col_logical, offset, tr_p
                 which_beta = beta_add
              ENDIF
              c_offset = offset
@@ -1366,10 +1368,12 @@ CONTAINS
                   -dgemm_parameter_stack(stack_pointer)%alpha
              i = UBOUND (dgemm_parameter_stack,1)
              i = MIN (i, 3*i/4)
+             IF (dbg) write(*,*)routineN//" Before merge, stack pointer is at",stack_pointer
              IF (stack_pointer .GE. i) THEN
                 CALL merge_dgemm_stack(dgemm_parameter_stack,&
                      first_working_sp, stack_pointer)
              ENDIF
+             IF (dbg) write(*,*)routineN//"  After merge, stack pointer is at",stack_pointer
              IF (stack_pointer .GE. i) THEN
                 IF (dbg) WRITE(*,*)routineN//" Processing stack at", stack_pointer
                 mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
@@ -1390,27 +1394,10 @@ CONTAINS
           CALL merge_dgemm_stack(dgemm_parameter_stack,&
                first_working_sp, stack_pointer)
           first_working_sp = stack_pointer+1
-          !IF (stack_pointer .GT. 0) THEN
-          !   CALL merge_dgemm_stack(dgemm_parameter_stack, 1, stack_pointer)
-          !   mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
-          !   CALL process_dgemm_stack(dgemm_parameter_stack(1:stack_pointer),&
-          !        stack_pointer,&
-          !        left%data_area, right%data_area,&
-          !        product%wms(ithread+1)%data_area,&
-          !        one_flop)
-          !   mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
-          !   lflop = lflop + one_flop
-          !   stack_pointer = 0
-          !   first_working_sp = 1
-          !ENDIF
        ENDDO ! a_col
-       mt_row_processing(rpslot_owner, a_row) = ithread
-       mt_row_processing(rpslot_addblks, a_row) = new_row_blks
     ENDDO ! a_row
     IF (stack_pointer .GT. 0) THEN
        IF (dbg) WRITE(*,*)routineN//" Final processing at", stack_pointer
-       !CALL merge_dgemm_stack(dgemm_parameter_stack,&
-       !     first_working_sp, stack_pointer)
        mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
        CALL process_dgemm_stack(dgemm_parameter_stack(1:stack_pointer),&
             stack_pointer,&
@@ -1424,22 +1411,6 @@ CONTAINS
     ENDIF
     !
     DEALLOCATE (c_blk_ps, c_blk_ps_p)
-    ! Now merge the new indices with the old index.
-    !!CALL accumulate_row_offsets (mt_row_processing, exchange,&
-    !!     SIZE(mt_row_processing,2))
-    ! The upper replaces this commented block.
-    mt_row_processing(rpslot_totaloffset, 1) = 1
-    mt_row_processing(rpslot_oldoffset, 1) = 1
-    DO a_row = 2, left%nblkrows_total
-       mt_row_processing(rpslot_totaloffset, a_row)&
-            = mt_row_processing(rpslot_totaloffset, a_row-1)&
-            + mt_row_processing(rpslot_addblks, a_row-1)&
-            + mt_row_processing(rpslot_oldblks, a_row-1)
-       mt_row_processing(rpslot_oldoffset, a_row)&
-            = mt_row_processing(rpslot_oldoffset, a_row-1)&
-            + mt_row_processing(rpslot_oldblks, a_row-1)
-    ENDDO
-
     product%wms(ithread+1)%lastblk&
          = product%wms(ithread+1)%lastblk + lastblk
     product%wms(ithread+1)%datasize&
@@ -1574,6 +1545,16 @@ CONTAINS
             right_data_area),&
             params(sp)%offset_b,&
             params(sp)%offset_b+params(sp)%nze_b-1)
+       if (dbg) then
+          write(*,*)'A'
+          call dbcsr_printmat (left_data_d,&
+               params(sp)%lrows_a, params(sp)%lcols_a,&
+               tr=params(sp)%type_a.eq.'T')
+          write(*,*)'B'
+          call dbcsr_printmat (right_data_d,&
+               params(sp)%lrows_b, params(sp)%lcols_b,&
+               tr=params(sp)%type_b.eq.'T')
+       endif
        ! Avoid nagging compilers
        IF (params(sp)%beta .EQ. 0.0_dp) THEN
           IF (params(sp)%type_c .EQ. 'N'&
@@ -1650,6 +1631,12 @@ CONTAINS
                INT(params(sp)%last_n &
                * params(sp)%lcols_c * params(sp)%last_k, int_8)
        ENDIF
+       IF (dbg) then
+          write(*,*)'C'
+          call dbcsr_printmat (product_data_d,&
+               params(sp)%lrows_c, params(sp)%lcols_c,&
+               tr=params(sp)%type_c.eq.'T')
+       endif
     ENDDO
   END SUBROUTINE process_dgemm_stack
 
@@ -1734,7 +1721,7 @@ CONTAINS
     INTEGER, DIMENSION(old_size), INTENT(IN) :: old_blk_p, old_col_i, &
                                                 old_row_i
     INTEGER, INTENT(IN)                      :: add_size
-    INTEGER, DIMENSION(4, add_size), &
+    INTEGER, DIMENSION(3, add_size), &
       INTENT(IN)                             :: add_ip
     INTEGER, DIMENSION(new_size), &
       INTENT(OUT), OPTIONAL                  :: new_blk_d
@@ -1769,7 +1756,7 @@ CONTAINS
           new_row_i(1:add_size) = add_ip(1, 1:add_size)
           new_col_i(1:add_size) = add_ip(2, 1:add_size)
           new_blk_p(1:add_size) = add_ip(3, 1:add_size)
-          IF (multidata) new_blk_d(1:add_size) = add_ip(4, 1:add_size)
+          !IF (multidata) new_blk_d(1:add_size) = add_ip(4, 1:add_size)
        ELSE
           DO WHILE (new_blk .LE. new_size)
              merge_from_whom = 0
@@ -1810,7 +1797,7 @@ CONTAINS
                 new_row_i(new_blk) = add_ip(1, add_blk)
                 new_col_i(new_blk) = add_ip(2, add_blk)
                 new_blk_p(new_blk) = add_ip(3, add_blk)
-                IF (multidata) new_blk_d(new_blk) = add_ip(4, add_blk)
+                !IF (multidata) new_blk_d(new_blk) = add_ip(4, add_blk)
                 add_blk = add_blk + 1
              CASE (1)
                 ! Merges from the old array
@@ -1838,192 +1825,6 @@ CONTAINS
        ENDDO
     ENDIF
   END SUBROUTINE merge_arrays
-
-
-!! *****************************************************************************
-!!> \brief Merges many sorted indices
-!!> \param[in,out] new_row_i, new_col_i, new_blk_p      merge index
-!!> \param[in,out] old_row_i, old_col_i, old_blk_p      current index
-!!> \param[in] add_ip                    index to add into the current index
-!!> \param[in] old_size                  size of current index
-!!> \param[in] add_sizes                 size of index to add into the current
-!!>                                      index
-!!> \param[in] row_metadata              who processed a row, how many elements
-!!>                                      were added, and how many were in the
-!!>                                      old row
-!!> \param[in] new_blk_d, old_blk_d      (optional) new and old location of data
-!!>                                      blocks
-!! *****************************************************************************
-!  SUBROUTINE merge_many_arrays (&
-!       new_row_i, new_col_i, new_blk_p,&
-!       old_row_i, old_col_i, old_blk_p, old_size,&
-!       add_ip, add_sizes, row_metadata,&
-!       new_blk_d, old_blk_d)
-!    INTEGER, DIMENSION(:), POINTER           :: new_row_i, new_col_i, &
-!                                                new_blk_p, old_row_i, &
-!                                                old_col_i, old_blk_p
-!    INTEGER, INTENT(IN)                      :: old_size
-!    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: add_ip
-!    INTEGER, DIMENSION(0:), INTENT(IN)       :: add_sizes
-!    INTEGER, DIMENSION(:, :), INTENT(IN)     :: row_metadata
-!    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: new_blk_d, old_blk_d
-!
-!    INTEGER                                  :: a1, a2, ablks, add_size, &
-!                                                ithread, n1, n2, new_size, &
-!                                                nrows, nthreads, o1, o2, &
-!                                                oblks, row
-!    INTEGER, DIMENSION(:), POINTER           :: tmp_p
-!    LOGICAL                                  :: multidata
-!
-!!
-!
-!    multidata = PRESENT (old_blk_d) .AND. PRESENT (new_blk_d)
-!    ithread = 0
-!    nthreads = 1
-!    !$ ithread = OMP_GET_THREAD_NUM ()
-!    !$ nthreads = OMP_GET_NUM_THREADS ()
-!    !IF (ithread .EQ. 0) THEN
-!    !   WRITE (*,*) " MANY Old array", old_size
-!    !   DO n1 = 1, old_size
-!    !      WRITE(*,'(I7,2X,I7,2X,I7)')old_row_i(n1),old_col_i(n1),old_blk_p(n1)
-!    !   ENDDO
-!    !   DO n1 = 0, nthreads-1
-!    !      WRITE (*,*) " MANY Add array from", n1, ":", add_sizes(n1)
-!    !      DO n2 = 1, add_sizes(n1)
-!    !         WRITE(*,'(4(2X,I7))')add_ip (1:4, n2, n1)
-!    !      ENDDO
-!    !   ENDDO
-!    !   WRITE(*,*)"Metadata:"
-!    !   DO n1 = 1, SIZE (row_metadata, 2)
-!    !      WRITE(*,'(6(1X,I5))') row_metadata(:, n1)
-!    !   ENDDO
-!    !ENDIF
-!    !!$OMP BARRIER
-!    nrows = SIZE(row_metadata, 2)
-!    add_size = SUM (add_sizes)
-!    new_size = old_size+add_size
-!    ! There's nothing to do if nothing was added
-!    IF (add_size .GT. 0) THEN
-!       ! Process my rows.
-!       DO row = 1, nrows
-!          IF (row_metadata(rpslot_owner, row) .EQ. ithread) THEN
-!             oblks = row_metadata(rpslot_oldblks, row)
-!             o1 = row_metadata(rpslot_oldoffset, row)
-!             o2 = o1 + oblks - 1
-!             ablks = row_metadata(rpslot_addblks, row)
-!             a1 = row_metadata(rpslot_addoffset, row)
-!             a2 = a1 + ablks - 1
-!             n1 = row_metadata(rpslot_totaloffset, row)
-!             n2 = n1 + oblks + ablks - 1
-!             IF (n2 .GE. n1) THEN
-!                CALL merge_arrays(new_row_i(n1:n2), new_col_i(n1:n2),&
-!                     new_blk_p(n1:n2), oblks + ablks,&
-!                     old_row_i(o1:o2), old_col_i(o1:o2),&
-!                     old_blk_p(o1:o2), oblks,&
-!                     add_ip(:,a1:a2,ithread), ablks,&
-!                     new_blk_d(n1:n2), old_blk_d(o1:o2))
-!             ENDIF
-!          END IF
-!       ENDDO
-!       ! Now set the pointers to the arrays with the new values.
-!       IF (ithread .EQ. 0) THEN
-!          tmp_p => old_row_i
-!          old_row_i => new_row_i
-!          DEALLOCATE (tmp_p)
-!          tmp_p => old_col_i
-!          old_col_i => new_col_i
-!          DEALLOCATE (tmp_p)
-!          tmp_p => old_blk_p
-!          old_blk_p => new_blk_p
-!          DEALLOCATE (tmp_p)
-!          IF (multidata) THEN
-!             tmp_p => old_blk_d
-!             old_blk_d => new_blk_d
-!             DEALLOCATE (tmp_p)
-!          ENDIF
-!       ENDIF
-!    ELSE
-!       IF (ithread .EQ. 0) THEN
-!          DEALLOCATE (new_row_i, new_col_i, new_blk_p)
-!          IF (multidata) DEALLOCATE (new_blk_d)
-!       ENDIF
-!    ENDIF
-!    !!!$OMP BARRIER
-!    !IF (ithread .EQ. 0) THEN
-!    !   WRITE (*,*) " MANY New array"
-!    !   DO i = 1, new_size
-!    !      WRITE(*,'(4(2X,I7))')old_row_i(i),old_col_i(i),&
-!    !           old_blk_p(i),old_blk_d(i)
-!    !   ENDDO
-!    !ENDIF
-!  END SUBROUTINE merge_many_arrays
-
-
-! *****************************************************************************
-!> \brief Accumulates sums.
-!>
-!> accumulates[x,i],i>1 = \sum_{j=1,i-1}terms[x,j]
-!> \param[in] terms                     terms to accumulate
-!> \param[out] accumulates              accumulations of terms
-!> \par Must be a pointer to force pass by reference.
-!> \param exchange                      for exchanging data
-! *****************************************************************************
-  SUBROUTINE accumulate_row_offsets (row_meta, exchange, n)
-    !INTEGER, DIMENSION(:, :), INTENT(INOUT), VOLATILE :: row_meta
-    !INTEGER, DIMENSION(:, :), POINTER                 :: row_meta
-    INTEGER, DIMENSION(rpnslots, *)          :: row_meta
-    INTEGER, DIMENSION(:, 0:), &
-      INTENT(INOUT), VOLATILE                :: exchange
-    INTEGER, INTENT(IN)                      :: n
-
-    INTEGER                                  :: i, ithread, my_first, &
-                                                my_last, nthreads, s_add, &
-                                                s_old, segment_size
-
-    ithread = 0 ; nthreads = 1
-    !$ ithread = OMP_GET_THREAD_NUM ()
-    !$ nthreads = OMP_GET_NUM_THREADS ()
-    ithread = 0
-    nthreads = 1
-    !segment_size = CEILING (n / nthreads)
-    segment_size = n / nthreads
-    IF (nthreads * segment_size .LT. n) segment_size = segment_size + 1
-    my_first = 1 + ithread * segment_size
-    my_last = MIN (n, (ithread+1) * segment_size)
-    exchange(2, ithread) = SUM (row_meta(rpslot_addblks, my_first:my_last))
-    exchange(1, ithread) = exchange(2, ithread)&
-         + SUM (row_meta(rpslot_oldblks, my_first:my_last))
-    !$OMP BARRIER
-    !$OMP SINGLE
-    DO i = 1, nthreads-2
-       exchange(:, i) = exchange(:, i-1) + exchange(:, i)
-    ENDDO
-    exchange(:, 1:nthreads-1) = exchange(:, 0:nthreads-2) + 1
-    exchange(:, 0) = 1
-    !$OMP END SINGLE
-    IF (my_first .LE. my_last) THEN
-       row_meta(rpslot_totaloffset, my_first) = exchange(1, ithread)
-       row_meta(rpslot_oldoffset, my_first) = exchange(2, ithread)
-    ENDIF
-    !IF (ithread .EQ. 0) THEN
-    !   WRITE(*,*)"row_meta preassign"
-    !   WRITE(*,'(6(1X,I5))')row_meta(:,1:n)
-    !ENDIF
-    DO i = my_first+1, my_last
-       s_add = row_meta(rpslot_addblks, i-1)
-       s_old = row_meta(rpslot_oldblks, i-1)
-       !IF (ithread .EQ. 0) THEN
-       !   WRITE(*,'(A,I3,1X,I3,1X,A,2(1X,I5),A,6(1X,I5))')'me',ithread,i,&
-       !        'add, old', s_add, s_old, ';',row_meta(:,i-1)
-       !ENDIF
-       row_meta(rpslot_totaloffset, i) = row_meta(rpslot_totaloffset, i-1)&
-            + s_add+s_old
-       row_meta(rpslot_oldoffset, i) = row_meta(rpslot_oldoffset, i-1)&
-            + s_old
-    ENDDO
-    !$OMP FLUSH (row_meta)
-  END SUBROUTINE accumulate_row_offsets
-
 
 
 ! *****************************************************************************

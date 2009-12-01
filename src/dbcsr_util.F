@@ -4047,17 +4047,17 @@ CONTAINS
     ENDIF
     IF (dbg) THEN
        DO i = 1, nwms
-          WRITE(*,'(A,1X,I4,1X,A,3(1X,I7))')routineN//" size of wm",i,"is",&
+          WRITE(*,'(1X,A,1X,I4,1X,A,3(1X,I7))')routineN//" size of wm",i,"is",&
                matrix%wms(i)%lastblk,&
                matrix%wms(i)%datasize,&
                dbcsr_get_data_size (matrix%wms(i)%data_area)
-          WRITE(*,'(A)')routineP//' row_i='
+          WRITE(*,'(1X,A)')routineN//' row_i='
           IF (ASSOCIATED (matrix%wms(i)%row_i))&
                WRITE(*,'(10(1X,I7))')matrix%wms(i)%row_i(:)
-          WRITE(*,'(A)')routineP//' col_i='
+          WRITE(*,'(1X,A)')routineN//' col_i='
           IF (ASSOCIATED (matrix%wms(i)%col_i))&
                WRITE(*,'(10(1X,I7))')matrix%wms(i)%col_i(:)
-          WRITE(*,'(A)')routineP//' blk_p='
+          WRITE(*,'(1X,A)')routineN//' blk_p='
           IF (ASSOCIATED (matrix%wms(i)%blk_p))&
                WRITE(*,'(10(1X,I7))')matrix%wms(i)%blk_p(:)
        ENDDO
@@ -4095,7 +4095,7 @@ CONTAINS
        o_blk_p = matrix%wms(smallest)%blk_p(wm_blk_p(smallest))
        nze = rbs(smallest_row) * cbs(smallest_col)
        IF (dbg) THEN
-          WRITE(*,'(A,"(",I5,",",I5,") at ",I7,1X,A,I5,1X,I7,1X,A,1X,I7)')&
+          WRITE(*,'(1X,A,"(",I5,",",I5,") at ",I7,1X,A,I5,1X,I7,1X,A,1X,I7)')&
                routineN//" Adding",&
                smallest_row, smallest_col, blk_p, "from",smallest, o_blk_p,&
                "size", nze
