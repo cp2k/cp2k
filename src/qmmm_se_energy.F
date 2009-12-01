@@ -58,7 +58,8 @@ MODULE qmmm_se_energy
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -90,9 +91,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, ikind, &
-                                                itype, iw, natom, natorb_a, &
-                                                nkind
+    INTEGER                                  :: handle, i, iatom, ierr, &
+                                                ikind, itype, iw, natom, &
+                                                natorb_a, nkind
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: anag, defined, found, tr
     REAL(KIND=dp)                            :: enuclear
@@ -149,7 +150,8 @@ CONTAINS
 
     ! Allocate the core Hamiltonian matrix
     CALL dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)
-    ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix)
+    ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix, STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineN, "matrix")
     CALL dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix,error)
 
     CALL dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix,matrix_s(1)%matrix,&
