@@ -184,10 +184,10 @@
         &MOLECULE
           NMOL 2
           CONN_FILE_FORMAT PSF
-          CONN_FILE_NAME ./dcw.psf
+          CONN_FILE_NAME ../sample_psf/dcw.psf
         &END MOLECULE
       &END MOL_SET
-      COORD_FILE_NAME ./dimer.xyz
+      COORD_FILE_NAME ../sample_xyz/dimer.xyz
       COORDINATE XYZ
     &END TOPOLOGY
     &KIND OW
