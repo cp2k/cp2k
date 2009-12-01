@@ -1757,8 +1757,8 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_lm2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr, msglen, &
-                                                recv_tag, send_tag
+    INTEGER                                  :: handle, ierr, msglen_in, &
+                                                msglen_out, recv_tag, send_tag
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
 
     ierr = 0
@@ -1768,15 +1768,17 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     t_start = m_walltime ( )
-    msglen = SIZE(msgin,1)*SIZE(msgin,2)
+    msglen_in = SIZE(msgin,1)*SIZE(msgin,2)
+    msglen_out = SIZE(msgout,1)*SIZE(msgout,2)
     send_tag = 0 ! cannot think of something better here, this might be dangerous
     recv_tag = 0 ! cannot think of something better here, this might be dangerous
-    CALL mpi_sendrecv(msgin,msglen,MPI_INTEGER8,dest,send_tag,msgout,&
-         msglen,MPI_INTEGER8,source,recv_tag,comm,status(1),ierr)
+    CALL mpi_sendrecv(msgin,msglen_in,MPI_INTEGER8,dest,send_tag,msgout,&
+         msglen_out,MPI_INTEGER8,source,recv_tag,comm,status(1),ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
-    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
+         msg_size=(msglen_in+msglen_out)*int_8_size/2)
     DEALLOCATE(status)
 #else
     msgout = msgin
@@ -1820,7 +1822,8 @@
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
-    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen_in*int_8_size)
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
+         msg_size=(msglen_in+msglen_out)*int_8_size/2)
     DEALLOCATE(status)
 #else
     msgout = msgin
