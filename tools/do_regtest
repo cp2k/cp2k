@@ -61,6 +61,7 @@
 #                    speed-up regtesting after very localised changes (e.g. -skipdir QS/regtest)
 #  -restrictdir string : this switch can repeat, restrict regtesting to certain dirs, useful to 
 #                        speed-up regtesting after very localised changes (e.g. -restrictdir QS/regtest)
+#  -config string : loads a site/compiler/environment specific configuration
 #
 # Script configuration. The value of the follow variables can be redefined, see below
 #   dir_base, FORT_C_NAME, cp2k_version, dir_triplet, cp2k_dir, cp2k_prefix, cp2k_postfix,
@@ -80,6 +81,11 @@
 # - emptycheck: useful for automatic testers, no testing if nothing changed in CVS (YES|NO)
 # - leakcheck: if using g95, set this variable to "YES" in order to get memory leak checking
 #
+# The following variable definitions can now be loaded from a
+# site-specific configuration using the -config option. Create one
+# configuration file for each architecture/compiler using these as a
+# template (and don't forget to include a modified cp2k_prefix for MPI
+# runs as well!).
 export LC_ALL=C
 export FORT_C_NAME=g95
 dir_base=/data03/vondele/clean
@@ -145,6 +151,11 @@ case $1 in
   -restrictdir) let ndirstorestrict=ndirstorestrict+1;
         restrict_dirs[ndirstorestrict]=$2;
         shift;
+        ;;
+  # load system-specific configuration
+  -config)
+        source $2 || { echo "Error loading configuration from $2" ; exit 1 ; }
+        shift
         ;;
   # do not update the CVS
   -nocvs) nocvs="nocvs";;
@@ -334,7 +345,7 @@ fi
 # *** from here failures are likely to be bugs in cp2k
 echo "-------------------------compiling cp2k-----------------------------------"
 cd ${dir_base}/${cp2k_dir}/makefiles
-${make} VERSION=${cp2k_version} &> out
+${make} -j ${maxtasks} VERSION=${cp2k_version} &> out
 if (( $? )); then
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
 tail -40 out >> ${error_description_file}
@@ -389,10 +400,19 @@ n_correct=0
 n_tests=0
 n_new=0
 
+# Copy the tests into the working regtest directory.
+cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
+cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
+    echo "Could not copy testing directory as hard links."
+    echo "Using normal copy instead."
+    sleep 10
+    cp -rp ${dir_base}/${cp2k_dir}/tests/* ${dir_out}/tests
+)
+
 #
 # get a list of directories to be tested, taking care of the exclusions
 #
-dirs=`cat ${dir_base}/${cp2k_dir}/tests/TEST_DIRS | grep -v "#"`
+dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#"`
 newdirs=""
 for dir in ${dirs}
 do
@@ -429,8 +449,14 @@ dirs=$new_dirs
 #
 # execute all regtests
 #
-cd ${dir_base}
-rm -f REGTEST_RUNNING-* REGTEST_TASK_RESULT-* REGTEST_TASK_TESTS-*
+
+# Just to be sure, clean possible existing status files.
+cd ${dir_out}
+mkdir ${dir_out}/status
+rm -f ${dir_out}/status/REGTEST_RUNNING-* \
+    ${dir_out}/status/REGTEST_TASK_RESULT-* \
+    ${dir_out}/status/REGTEST_TASK_TESTS-*
+
 
 for dir in ${dirs};
 do
@@ -439,14 +465,14 @@ do
  #
  task=${dir//\//-}
  (
-  touch ${dir_base}/REGTEST_RUNNING-$task
+  touch ${dir_out}/status/REGTEST_RUNNING-$task
   n_runtime_error=0
   n_wrong_results=0
   n_correct=0
   n_tests=0
   n_new=0
 
-  cd ${dir_base}/${cp2k_dir}/tests/${dir}
+  cd ${dir_out}/tests/${dir}
   mkdir -p ${dir_out}/${dir}
   mkdir -p ${dir_last}/${dir}
   touch ${dir_last}/${dir}/TEST_FILES_RESET
@@ -467,8 +493,8 @@ do
   #
   # run the tests now
   #
-  echo "Starting tests in ${dir_base}/${cp2k_dir}/tests/${dir}"
-  echo ">>>>>>>>>>>>>>>>> ${dir_base}/${cp2k_dir}/tests/${dir}" > ${dir_base}/REGTEST_TASK_TESTS-$task
+  echo "Starting tests in ${dir_out}/tests/${dir}"
+  echo ">>>>>>>>>>>>>>>>> ${dir_out}/tests/${dir}" > ${dir_out}/status/REGTEST_TASK_TESTS-$task
   ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
   for ((itest=1;itest<=ntest;itest++));
   do
@@ -542,12 +568,12 @@ do
            grep -i "Remaining memory"  ${output_file} >> ${memory_description_file}
         fi
      fi 
-     printf "%50s %20s\n" "${dir}/${input_file}" "${this_test}" >> ${dir_base}/REGTEST_TASK_TESTS-$task
+     printf "%50s %20s\n" "${dir}/${input_file}" "${this_test}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
-  echo "<<<<<<<<<<<<<<<<< ${dir_base}/${cp2k_dir}/tests/${dir}" >> ${dir_base}/REGTEST_TASK_TESTS-$task
-  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_base}/REGTEST_TASK_RESULT-$task
-  cat ${dir_base}/REGTEST_TASK_TESTS-$task
-  rm -f ${dir_base}/REGTEST_TASK_TESTS-$task ${dir_base}/REGTEST_RUNNING-$task
+  echo "<<<<<<<<<<<<<<<<< ${dir_out}/tests/${dir}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
+  cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  rm -f ${dir_out}/status/REGTEST_TASK_TESTS-$task ${dir_out}/status/REGTEST_RUNNING-$task
  )&
 
  #
@@ -557,7 +583,7 @@ do
  while (( runningtasks >= maxtasks ))
  do
    sleep 1
-   runningtasks=`ls -1 ${dir_base}/REGTEST_RUNNING-* 2> /dev/null | awk 'BEGIN{c=0}{c=c+1}END{print c}'`
+   runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2> /dev/null | awk 'BEGIN{c=0}{c=c+1}END{print c}'`
  done
 
 done
@@ -572,7 +598,7 @@ wait
 for dir in ${dirs};
 do
   task=${dir//\//-}
-  file=${dir_base}/REGTEST_TASK_RESULT-$task
+  file=${dir_out}/status/REGTEST_TASK_RESULT-$task
   tmp=`awk '{print $1}' $file`
   n_runtime_error=$((n_runtime_error+tmp))
   tmp=`awk '{print $2}' $file`
