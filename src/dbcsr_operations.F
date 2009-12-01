@@ -1006,25 +1006,21 @@ CONTAINS
       a_nze, a_offset, a_row, a_row_l, a_row_logical, a_row_size, &
       a_row_size_logical, b_blk, b_col, b_col_logical, b_col_size, &
       b_col_size_logical, b_nze, b_offset, b_row, b_row_logical, b_row_size, &
-      b_row_size_logical, c_blk_p, c_blk_pt, c_col, c_col_logical, &
-      c_col_size, c_col_size_logical, c_nze, c_offset, c_row_logical, &
-      c_row_size, c_row_size_logical, clamp_k_len, datasize, first_k, &
-      first_row, first_working_sp, i, ithread, j, last_k, last_row, lastblk, &
-      new_blk, new_row_blks, nthreads, old_blk, old_row_begin_blk, old_size, &
-      row_begin_blk, row_blk, blk_start, blk_end, blk_size
-    INTEGER :: rpt, size_c_blk_ps, stack_pointer, stat, submat_f_col, &
-      submat_f_row, submat_l_col, submat_l_row, this_right_limit, &
-      timing_handle
+      b_row_size_logical, blk_end, blk_size, blk_start, c_blk_p, c_blk_pt, &
+      c_col, c_col_logical, c_col_size, c_col_size_logical, c_nze, c_offset, &
+      c_row_logical, c_row_size, c_row_size_logical, clamp_k_len, datasize, &
+      first_k, first_row, first_working_sp, i, ithread, j, last_k, last_row, &
+      lastblk, new_blk, new_row_blks, nthreads, old_blk, old_row_begin_blk
+    INTEGER :: old_size, row_begin_blk, row_blk, rpt, size_c_blk_ps, &
+      stack_pointer, stat, submat_f_col, submat_f_row, submat_l_col, &
+      submat_l_row, this_right_limit, timing_handle
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate, lflop, one_flop
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: c_blk_ps, c_blk_ps_p
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: new_index
-    INTEGER, DIMENSION(:), POINTER :: left_local_rows, &
-      new_blk_p, new_col_i, new_row_i,&
-      left_row_blk_offset, left_col_blk_offset,&
-      right_row_blk_offset, right_col_blk_offset,&
-      product_col_blk_offset
-
+    INTEGER, DIMENSION(:), POINTER :: left_col_blk_offset, left_local_rows, &
+      left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
+      product_col_blk_offset, right_col_blk_offset, right_row_blk_offset
     LOGICAL :: block_exists, found, keep_sparsity, left_limit_rows, limit_k, &
       right_limit_cols, tr_a, tr_b, tr_p
     REAL(KIND=dp)                            :: epoch, mt_t_dgemm, my_alpha, &
@@ -1178,7 +1174,7 @@ CONTAINS
        END FORALL
        size_c_blk_ps = 0
        ! Fill in the c_blk_ps array
-       if (dbg) write(*,*)routineN//" old_blk, old_size, old_row_begin_blk",&
+       IF (dbg) WRITE(*,*)routineN//" old_blk, old_size, old_row_begin_blk",&
             old_blk,old_size,old_row_begin_blk
        IF (old_blk .LE. old_size) THEN
           ! Old index
@@ -1199,10 +1195,10 @@ CONTAINS
              ENDIF
           ENDDO
        ENDIF
-       IF (dbg) then
-          write(*,*)routineN//" c_blk_ps="
-          write(*,'(10(1X,I7))')c_blk_ps
-       endif
+       IF (dbg) THEN
+          WRITE(*,*)routineN//" c_blk_ps="
+          WRITE(*,'(10(1X,I7))')c_blk_ps
+       ENDIF
        new_row_blks = 0
        DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
           IF (left%blk_p(a_blk) .EQ. 0) THEN
@@ -1368,12 +1364,12 @@ CONTAINS
                   -dgemm_parameter_stack(stack_pointer)%alpha
              i = UBOUND (dgemm_parameter_stack,1)
              i = MIN (i, 3*i/4)
-             IF (dbg) write(*,*)routineN//" Before merge, stack pointer is at",stack_pointer
+             IF (dbg) WRITE(*,*)routineN//" Before merge, stack pointer is at",stack_pointer
              IF (stack_pointer .GE. i) THEN
                 CALL merge_dgemm_stack(dgemm_parameter_stack,&
                      first_working_sp, stack_pointer)
              ENDIF
-             IF (dbg) write(*,*)routineN//"  After merge, stack pointer is at",stack_pointer
+             IF (dbg) WRITE(*,*)routineN//"  After merge, stack pointer is at",stack_pointer
              IF (stack_pointer .GE. i) THEN
                 IF (dbg) WRITE(*,*)routineN//" Processing stack at", stack_pointer
                 mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
@@ -1545,16 +1541,16 @@ CONTAINS
             right_data_area),&
             params(sp)%offset_b,&
             params(sp)%offset_b+params(sp)%nze_b-1)
-       if (dbg) then
-          write(*,*)'A'
-          call dbcsr_printmat (left_data_d,&
+       IF (dbg) THEN
+          WRITE(*,*)'A'
+          CALL dbcsr_printmat (left_data_d,&
                params(sp)%lrows_a, params(sp)%lcols_a,&
                tr=params(sp)%type_a.eq.'T')
-          write(*,*)'B'
-          call dbcsr_printmat (right_data_d,&
+          WRITE(*,*)'B'
+          CALL dbcsr_printmat (right_data_d,&
                params(sp)%lrows_b, params(sp)%lcols_b,&
                tr=params(sp)%type_b.eq.'T')
-       endif
+       ENDIF
        ! Avoid nagging compilers
        IF (params(sp)%beta .EQ. 0.0_dp) THEN
           IF (params(sp)%type_c .EQ. 'N'&
@@ -1631,12 +1627,12 @@ CONTAINS
                INT(params(sp)%last_n &
                * params(sp)%lcols_c * params(sp)%last_k, int_8)
        ENDIF
-       IF (dbg) then
-          write(*,*)'C'
-          call dbcsr_printmat (product_data_d,&
+       IF (dbg) THEN
+          WRITE(*,*)'C'
+          CALL dbcsr_printmat (product_data_d,&
                params(sp)%lrows_c, params(sp)%lcols_c,&
                tr=params(sp)%type_c.eq.'T')
-       endif
+       ENDIF
     ENDDO
   END SUBROUTINE process_dgemm_stack
 
