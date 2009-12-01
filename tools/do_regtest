@@ -102,8 +102,10 @@ leakcheck="NO"
 #
 
 # *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
-cp2k_prefix="${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
-cp2k_postfix=
+# Leave empty for serial, uncomment for parallel
+#cp2k_run_prefix="mpiexec -np 2"
+cp2k_run_prefix=""
+cp2k_run_postfix=
 #cp2k_prefix="( ulimit -t 300; ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix=" )"
 #cp2k_prefix="poe ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
@@ -169,6 +171,13 @@ case $1 in
 esac
 shift
 done
+
+# *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
+# Unless cp2k_prefix is overridden in the sourced -config file, the
+# default is used.
+cp2k_prefix=${cp2k_prefix:-"${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"}
+cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
+
 
 ###################################################################################
 #
