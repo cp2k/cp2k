@@ -11,17 +11,19 @@
 MODULE qmmm_elpot
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE f77_blas
   USE input_constants,                 ONLY: do_qmmm_coulomb,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: rootpi
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
@@ -67,10 +69,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: dx = 0.05_dp, d2x = dx*dx
 
-    CHARACTER(LEN=200)                       :: myFormat
-    CHARACTER(LEN=80)                        :: FileName
+    CHARACTER(LEN=default_path_length)       :: myFormat
+    CHARACTER(LEN=default_string_length)     :: rc_s
     INTEGER                                  :: I, ig, ig_start, J, K, myind, &
-                                                ndim, Np, output_unit, stat
+                                                ndim, Np, output_unit, stat, &
+                                                unit_nr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: A, G, rc, Rmax, Rmin, t, t1, &
@@ -79,7 +82,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
-    TYPE(section_vals_type), POINTER         :: print_pot
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -88,7 +90,6 @@ CONTAINS
                 mm_cell%hmat(2,2)**2+&
                 mm_cell%hmat(3,3)**2 ) 
     np   = CEILING(rmax/dx)+1
-    print_pot => section_vals_get_subs_vals(print_section,"MM_POTENTIAL",error=error)
     !
     ! Preprocessing
     !
@@ -178,18 +179,17 @@ CONTAINS
                 pot0_2(2,i) = pot0_2(2,i)+2.0_dp*x*t2*dx
              END DO             
           END DO
+
           ! Print info on the unidimensional MM electrostatic potential
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),cp_p_file).AND.&
-               logger%para_env%mepos==logger%para_env%source) THEN
-             CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
-             myind = INDEX(FileName," ")
-             CPPostcondition(myind /= 1,cp_failure_level,routineP,error,failure)
-             WRITE(Filename(myind:),'(A1,F4.2)')"_",rc
-             IF (para_env%ionode) THEN 
-                OPEN(UNIT=21,FILE=FileName)
-                WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
-                WRITE(21,'(A,I5)')"# MM ELECTROSTATIC POTENTIAL - Nr. of Gaussians:",pgf%number_of_gaussians
-                WRITE(21,'(A,T10,A,T30,A,T300,A)')"#","Xval","Gaussians","LongRange"
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,"MM_POTENTIAL",&
+                    error=error),cp_p_file)) THEN
+             WRITE(rc_s,'(F6.3)')rc
+             unit_nr = cp_print_key_unit_nr(logger,print_section,"MM_POTENTIAL",&
+                  extension="_rc="//TRIM(ADJUSTL(rc_s))//".data",error=error)
+             IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
+                WRITE(unit_nr,'(A,I5)')"# MM ELECTROSTATIC POTENTIAL - Nr. of Gaussians:",pgf%number_of_gaussians
+                WRITE(unit_nr,'(A,T10,A,T30,A,T300,A)')"#","Xval","Gaussians","LongRange"
                 myFormat = "T10,F15.9,T30,"
                 DO Ig=1,pgf%number_of_gaussians
                    myind = INDEX(myFormat," ")
@@ -200,12 +200,13 @@ CONTAINS
                 myind = INDEX(myFormat," ")-1
                 x=0.0_dp
                 DO i=1,np
-                   WRITE(21,'('//myFormat(1:myind)//')')&
+                   WRITE(unit_nr,'('//myFormat(1:myind)//')')&
                         x,(EXP(-(x/pgf%Gk(Ig))**2)*pgf%Ak(Ig),Ig=1,pgf%number_of_gaussians),pot0_2(1,i)
                    x=x+dx
                 END DO
-                CLOSE(21)
              END IF
+             CALL cp_print_key_finished_output(unit_nr,logger,print_section,&
+                  "MM_POTENTIAL", error=error)
           END IF
        CASE DEFAULT
           DEALLOCATE(potentials(K)%Pot)

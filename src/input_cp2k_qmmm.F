@@ -900,7 +900,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"MM_POTENTIAL",&
             description="Controls the printing of the MM unidimensional potential on file",&
-            print_level=high_print_level,filename="MM_ELPOT.data",&
+            print_level=high_print_level,filename="MM_ELPOT",&
             common_iter_levels=1,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
