@@ -10,8 +10,10 @@ MODULE realspace_grid_cube
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_recv,&
+  USE message_passing,                 ONLY: mp_maxloc,&
+                                             mp_recv,&
                                              mp_send,&
+                                             mp_sum,&
                                              mp_sync
   USE particle_list_types,             ONLY: particle_list_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
@@ -30,10 +32,9 @@ MODULE realspace_grid_cube
 
 CONTAINS
 
-  SUBROUTINE pw_to_cube ( pw, iunit, ionode, title, particles, stride, zero_tails, error )
+  SUBROUTINE pw_to_cube ( pw, unit_nr, title, particles, stride, zero_tails, error )
     TYPE(pw_type), POINTER                   :: pw
-    INTEGER, INTENT(IN)                      :: iunit
-    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: unit_nr
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: stride
@@ -43,9 +44,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dest, gid, handle, i, I1, I2, I3, iat, ionode_rank, ip, L1, &
-      L2, L3, my_rank, my_stride(3), np, num_pe, source, stat, tag, U1, U2, &
-      U3, z
+    INTEGER :: checksum, dest, gid, handle, i, I1, I2, I3, iat, ip, L1, L2, &
+      L3, my_rank, my_stride(3), np, num_pe, rank(2), source, stat, tag, U1, &
+      U2, U3, z
     LOGICAL                                  :: failure, my_zero_tails
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
     TYPE(particle_list_type), POINTER        :: my_particles
@@ -73,14 +74,14 @@ CPSourceFileRef,&
        CPPrecondition(my_stride(3)>0,cp_failure_level,routineP,error,failure)
     END IF
 
-    IF (ionode) THEN
+    IF (unit_nr>0) THEN
       ! this format seems to work for e.g. molekel and gOpenmol
       ! latest version of VMD can read non orthorhombic cells
-      WRITE(iunit,'(a11)') "-Quickstep-"
+      WRITE(unit_nr,'(a11)') "-Quickstep-"
       IF (PRESENT(title)) THEN
-         WRITE(iunit,*) TRIM(title)
+         WRITE(unit_nr,*) TRIM(title)
       ELSE
-         WRITE(iunit,*) "No Title"
+         WRITE(unit_nr,*) "No Title"
       ENDIF
 
       np=0
@@ -88,15 +89,15 @@ CPSourceFileRef,&
       my_particles=>particles
       IF (ASSOCIATED(my_particles)) np=my_particles%n_els
 
-      WRITE(iunit,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
+      WRITE(unit_nr,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
 
-      WRITE(iunit,'(I5,3f12.6)') (pw%pw_grid%npts(1)+my_stride(1)-1)/my_stride(1),&
+      WRITE(unit_nr,'(I5,3f12.6)') (pw%pw_grid%npts(1)+my_stride(1)-1)/my_stride(1),&
            pw%pw_grid%dh(1,1)*REAL(my_stride(1),dp),pw%pw_grid%dh(2,1)*REAL(my_stride(1),dp),&
            pw%pw_grid%dh(3,1)*REAL(my_stride(1),dp)
-      WRITE(iunit,'(I5,3f12.6)') (pw%pw_grid%npts(2)+my_stride(2)-1)/my_stride(2),&
+      WRITE(unit_nr,'(I5,3f12.6)') (pw%pw_grid%npts(2)+my_stride(2)-1)/my_stride(2),&
            pw%pw_grid%dh(1,2)*REAL(my_stride(2),dp),pw%pw_grid%dh(2,2)*REAL(my_stride(2),dp),&
            pw%pw_grid%dh(3,2)*REAL(my_stride(2),dp)
-      WRITE(iunit,'(I5,3f12.6)') (pw%pw_grid%npts(3)+my_stride(3)-1)/my_stride(3),&
+      WRITE(unit_nr,'(I5,3f12.6)') (pw%pw_grid%npts(3)+my_stride(3)-1)/my_stride(3),&
            pw%pw_grid%dh(1,3)*REAL(my_stride(3),dp),pw%pw_grid%dh(2,3)*REAL(my_stride(3),dp),&
            pw%pw_grid%dh(3,3)*REAL(my_stride(3),dp)
 
@@ -104,7 +105,7 @@ CPSourceFileRef,&
          DO iat=1,np
             CALL get_atomic_kind(my_particles%els(iat)%atomic_kind,z=z)
 
-            WRITE(iunit,'(I5,4f12.6)') z,0._dp,my_particles%els(iat)%r
+            WRITE(unit_nr,'(I5,4f12.6)') z,0._dp,my_particles%els(iat)%r
          END DO
       END IF
     ENDIF
@@ -125,20 +126,26 @@ CPSourceFileRef,&
     num_pe      = pw%pw_grid%para%group_size
     tag         = 1
 
-    ! who is ionode, might need fixing
-    ionode_rank = 0
-    CPPostcondition(ionode.OR.(ionode_rank.NE.my_rank),cp_failure_level,routineP,error,failure)
+    rank(1)=unit_nr
+    rank(2)=my_rank
+    checksum=0
+    IF (unit_nr>0) checksum=1
 
-    dest        = ionode_rank
+    CALL mp_sum(checksum,gid)
+    CPPostcondition(checksum==1,cp_failure_level,routineP,error,failure)
 
+    CALL mp_maxloc(rank,gid)
+    CPPostcondition(rank(1)>0,cp_failure_level,routineP,error,failure)
+
+    dest = rank(2)
     DO I1=L1,U1,my_stride(1)
       DO I2=L2,U2,my_stride(2)
 
        ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
-       IF (pw % pw_grid % para % mode .NE. PW_MODE_LOCAL ) THEN
+       IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL ) THEN
          DO ip=0,num_pe-1
-            IF (pw % pw_grid % para % bo (1,1,ip,1)<=I1-L1+1 .AND. pw % pw_grid % para % bo (2,1,ip,1)>=I1-L1+1 .AND. &
-                pw % pw_grid % para % bo (1,2,ip,1)<=I2-L2+1 .AND. pw % pw_grid % para % bo (2,2,ip,1)>=I2-L2+1 ) THEN
+            IF (pw%pw_grid%para%bo (1,1,ip,1)<=I1-L1+1 .AND. pw%pw_grid%para%bo (2,1,ip,1)>=I1-L1+1 .AND. &
+                pw%pw_grid%para%bo (1,2,ip,1)<=I2-L2+1 .AND. pw%pw_grid%para%bo (2,2,ip,1)>=I2-L2+1 ) THEN
                 source = ip
             ENDIF
          ENDDO
@@ -160,13 +167,13 @@ CPSourceFileRef,&
           ENDIF
        ENDIF
 
-       IF (ionode) THEN
+       IF (unit_nr>0) THEN
          IF(my_zero_tails) THEN
            DO I3 = L3,U3
              IF(buf(I3)<1.E-7_dp) buf(I3) = 0.0_dp
            END DO
          END IF
-         WRITE(iunit,'(6E13.5)') (buf(I3),I3=L3,U3,my_stride(3))
+         WRITE(unit_nr,'(6E13.5)') (buf(I3),I3=L3,U3,my_stride(3))
        ENDIF
 
        ! this double loop generates so many messages that it can overload 

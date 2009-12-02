@@ -194,7 +194,7 @@ CONTAINS
                "POTENTIAL",error=error),cp_p_file)) THEN
              iw2 = cp_print_key_unit_nr(logger,print_section,"POTENTIAL",&
                   extension=".qmmmLog",error=error)
-             CALL pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw2,iw2>0,&
+             CALL pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw2,&
                   particles=particles,&
                   title="QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
              CALL cp_print_key_finished_output(iw2,logger,print_section,&

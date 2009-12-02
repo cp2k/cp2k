@@ -262,8 +262,7 @@ CONTAINS
                    CALL open_file(file_name=TRIM(filename),file_status="UNKNOWN",&
                         file_action="WRITE",unit_number=file_unit)
                    CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
-                        iunit=file_unit,&
-                        ionode=logger%para_env%mepos==logger%para_env%source,&
+                        unit_nr=file_unit,&
                         particles=particles,&
                         title="v_rspace",error=error)
                    CALL close_file(file_unit)
@@ -312,9 +311,8 @@ CONTAINS
                            file_status="UNKNOWN",&
                            file_action="WRITE",unit_number=file_unit)
                       CALL pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
-                           iunit=file_unit,&
+                           unit_nr=file_unit,&
                            particles=particles,&
-                           ionode=logger%para_env%mepos==logger%para_env%source,&
                            title="drho_r",error=error)
                       CALL close_file(file_unit)
                    END DO

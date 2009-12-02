@@ -543,7 +543,7 @@ CONTAINS
                   &                       log_filename=.FALSE.,file_position=my_pos,&
                   &                       error=error)
              
-             CALL pw_to_cube(wf_r%pw,unit_nr,unit_nr>0,"RESPONSE CURRENT DENSITY ",&
+             CALL pw_to_cube(wf_r%pw,unit_nr,"RESPONSE CURRENT DENSITY ",&
                   &          particles=particles,&
                   &          stride=section_get_ivals(current_section,"PRINT%CURRENT_CUBES%STRIDE",&
                   &          error=error),error=error)

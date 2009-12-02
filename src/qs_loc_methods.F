@@ -973,7 +973,7 @@ CONTAINS
           WRITE(title,'(A7,I5.5,A1,I1.1,A1,3F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom
        END IF
-       CALL pw_to_cube(wf_r%pw,unit_out_c,unit_out_c>0,title,&
+       CALL pw_to_cube(wf_r%pw,unit_out_c,title,&
             particles=particles,&
             stride=section_get_ivals(print_key,"STRIDE",error=error),error=error)
        CALL cp_print_key_finished_output(unit_out_c,logger,print_key,"",error=error)

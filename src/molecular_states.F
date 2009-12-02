@@ -285,7 +285,7 @@ CONTAINS
              WRITE(title,'(A,I0,A,I0,A,F16.8)') "Molecular Eigenstate ",i," of ",ns,". Energy [a.u.] = ",evals(i)
              unit_nr=cp_print_key_unit_nr(logger,localization_section,"MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             CALL pw_to_cube(wf_r%pw,unit_nr,unit_nr>0,particles=particles,title=title,&
+             CALL pw_to_cube(wf_r%pw,unit_nr,particles=particles,title=title,&
                   stride=section_get_ivals(localization_section,&
                   "MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,localization_section,&

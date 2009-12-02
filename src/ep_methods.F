@@ -1849,8 +1849,7 @@ CONTAINS
                 unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO1",&
                      extension=".cube",middle_name="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      log_filename=.FALSE.,error=error)
-                CALL pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, iunit=unit_nr,&
-                     ionode=logger%para_env%mepos==logger%para_env%source,&
+                CALL pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, unit_nr=unit_nr,&
                      title="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                      particles=particles,&
                      stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
@@ -1869,8 +1868,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,ep_env%input,"PRINT%EP_RHO_CUBE/RHO0",&
                extension=".cube",middle_name="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                log_filename=.FALSE.,error=error)
-          CALL pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=unit_nr,&
-               ionode=logger%para_env%mepos==logger%para_env%source,&
+          CALL pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, unit_nr=unit_nr,&
                title="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                particles=particles,&
                stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&

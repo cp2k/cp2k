@@ -1002,7 +1002,7 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,lr_section,"EPR%PRINT%NABLAVKS_CUBES",&
                   extension=TRIM(ext),middle_name=TRIM(filename),&
                   log_filename=.FALSE.,file_position="REWIND",error=error)
-          CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"NABLA V_KS ",&
+          CALL pw_to_cube(wf_r%pw,unit_nr,"NABLA V_KS ",&
                   particles=particles,&
                   stride=section_get_ivals(lr_section,&
                   "EPR%PRINT%NABLAVKS_CUBES%STRIDE",error=error),&

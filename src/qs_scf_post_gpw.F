@@ -1080,7 +1080,7 @@ CPSourceFileRef,&
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",extension=".cube",&
                middle_name=TRIM(filename),file_position=my_pos_cube,log_filename=.FALSE.,error=error)
           WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-          CALL pw_to_cube(wf_r%pw,unit_nr,unit_nr>0,title,particles=particles,&
+          CALL pw_to_cube(wf_r%pw,unit_nr,title,particles=particles,&
                stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
                error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
@@ -1146,7 +1146,7 @@ CPSourceFileRef,&
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",extension=".cube",&
                middle_name=TRIM(filename),file_position=my_pos_cube,log_filename=.FALSE.,error=error)
           WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-          CALL pw_to_cube(wf_r%pw, unit_nr, unit_nr>0, title, particles=particles,&
+          CALL pw_to_cube(wf_r%pw, unit_nr, title, particles=particles,&
                stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
                error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
@@ -1797,7 +1797,7 @@ CPSourceFileRef,&
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
                extension=".cube",middle_name=TRIM(filename),file_position=my_pos_cube,&
                log_filename=.FALSE.,error=error)
-          CALL pw_to_cube(wf_r%pw,unit_nr,unit_nr>0,"TOTAL DENSITY",&
+          CALL pw_to_cube(wf_r%pw,unit_nr,"TOTAL DENSITY",&
                particles=particles,&
                stride=section_get_ivals(dft_section,"PRINT%TOT_DENSITY_CUBE%STRIDE",error=error),&
                error=error)
@@ -1873,7 +1873,7 @@ CPSourceFileRef,&
                   "Total electronic charge (G-space):",rho_total,&
                   "Total electronic charge (R-space):",rho_total_rspace
               END IF
-              CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,unit_nr>0,"TOTAL ELECTRON DENSITY",&
+              CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,"TOTAL ELECTRON DENSITY",&
                    particles=particles,&
                    stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
                    error=error)
@@ -1911,7 +1911,7 @@ CPSourceFileRef,&
                      "Total spin density (G-space)           :",rho_total,&
                      "Total spin density (R-space)           :",rho_total_rspace
                 END IF
-                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,unit_nr>0,"TOTAL SPIN DENSITY",&
+                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,"TOTAL SPIN DENSITY",&
                      particles=particles,&
                      stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
                      error=error)
@@ -1944,7 +1944,7 @@ CPSourceFileRef,&
                      "The sum of alpha and beta density is written in cube file format to the file:",&
                      TRIM(filename)
                 END IF
-                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,unit_nr>0,"SUM OF ALPHA AND BETA DENSITY",&
+                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,"SUM OF ALPHA AND BETA DENSITY",&
                      particles=particles,stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",&
                      error=error),error=error)
                 CALL cp_print_key_finished_output(unit_nr,logger,input,&
@@ -1961,7 +1961,7 @@ CPSourceFileRef,&
                      "The spin density is written in cube file format to the file:",&
                      TRIM(filename)
                 END IF
-                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,unit_nr>0,"SPIN DENSITY",&
+                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,"SPIN DENSITY",&
                      particles=particles,&
                      stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
                      error=error)
@@ -1980,7 +1980,7 @@ CPSourceFileRef,&
                      "The electron density is written in cube file format to the file:",&
                      TRIM(filename)
                 END IF
-                CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,unit_nr>0,"ELECTRON DENSITY",&
+                CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,"ELECTRON DENSITY",&
                      particles=particles,&
                      stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
                      error=error)
@@ -2015,8 +2015,7 @@ CPSourceFileRef,&
           CALL pw_copy(qs_env%ks_env%v_hartree_rspace%pw,aux_r%pw, error=error)
           CALL pw_scale(aux_r%pw,udvol,error=error)
 
-          CALL pw_to_cube(aux_r%pw,&
-               unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
+          CALL pw_to_cube(aux_r%pw,unit_nr,"HARTREE POTENTIAL",particles=particles,&
                stride=section_get_ivals(dft_section,&
                "PRINT%V_HARTREE_CUBE%STRIDE",error=error),&
                error=error)
@@ -2059,7 +2058,7 @@ CPSourceFileRef,&
             CALL pw_scale(aux_r%pw,udvol,error=error)
 
             CALL pw_to_cube(aux_r%pw,&
-               unit_nr,unit_nr>0,"ELECTRIC FIELD",particles=particles,&
+               unit_nr,"ELECTRIC FIELD",particles=particles,&
                stride=section_get_ivals(dft_section,&
                "PRINT%EFIELD_CUBE%STRIDE",error=error),&
                error=error)

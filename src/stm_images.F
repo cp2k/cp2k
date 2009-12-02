@@ -384,7 +384,7 @@ CONTAINS
               middle_name=TRIM(filename),file_position=my_pos, file_action="WRITE",&
               log_filename=.FALSE.,error=error)
          WRITE(title,'(A,I0,A,I0,A,F16.8)') "STM cube ",ibias," wfn deriv. ",iorb," at bias ",stm_biases(ibias)
-         CALL pw_to_cube(wf_r%pw,unit_nr,unit_nr>0,title,particles=particles,&
+         CALL pw_to_cube(wf_r%pw,unit_nr,title,particles=particles,&
              stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
              zero_tails=.TRUE., error=error)
 
