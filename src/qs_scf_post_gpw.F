@@ -516,9 +516,9 @@ CPSourceFileRef,&
        ! Gets the lumos, and eigenvalues for the lumos
        IF ((do_mo_cubes .OR.dft_control%do_tddfpt_calculation ) .AND. nlumo .NE. 0 ) THEN 
           ALLOCATE(unoccupied_orbs(dft_control%nspins),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(unoccupied_evals(dft_control%nspins),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           DO ispin=1,dft_control%nspins
              NULLIFY(unoccupied_orbs(ispin)%matrix)
              NULLIFY(unoccupied_evals(ispin)%array)
