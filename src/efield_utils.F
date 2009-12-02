@@ -71,7 +71,7 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bo_global, bo_local
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol, efield_ener, field(3)
-    REAL(kind=dp), DIMENSION(3)              :: dr, grid_p, shift
+    REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(qs_energy_type), POINTER            :: energy
@@ -88,9 +88,6 @@ CONTAINS
     v_efield_rspace%pw%cr3d=0.0_dp 
 
     CALL get_qs_env(qs_env,cell=cell,energy=energy,rho=rho,error=error)
-
-    shift=-REAL(MODULO(np,2),dp)*dr/2.0_dp        
-
 
     bo_local=v_efield_rspace%pw%pw_grid%bounds_local
     bo_global=v_efield_rspace%pw%pw_grid%bounds
