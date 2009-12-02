@@ -1574,16 +1574,13 @@ CPSourceFileRef,&
     should_output = BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
          "PRINT%MO",error=error),cp_p_file)
 
+    IF ((.NOT.should_output).OR.(.NOT.(p_eval.OR.p_evec.OR.p_occ))) RETURN
 
     IF (PRESENT(last)) THEN
        my_last = last
     ELSE
        my_last = .FALSE.
     END IF
-
-    should_output = (should_output.OR.my_last)
-
-    IF ((.NOT.should_output).OR.(.NOT.(p_eval.OR.p_evec.OR.p_occ))) RETURN
 
     scf_step = logger%iter_info%iteration(logger%iter_info%n_rlevel) - 1
 
