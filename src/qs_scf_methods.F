@@ -21,8 +21,7 @@ MODULE qs_scf_methods
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
-                                             cp_fm_syevd,&
-                                             cp_fm_syevr
+                                             cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
