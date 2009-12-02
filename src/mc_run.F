@@ -321,10 +321,9 @@ CONTAINS
 ! of running a simulation
       SELECT CASE(ensemble)
       CASE("VIRIAL")
-         CALL mc_compute_virial(mc_env,error,rng_stream)
+         CALL mc_compute_virial(mc_env,rng_stream,error)
       CASE DEFAULT
-         CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,error,&
-              rng_stream)
+         CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,rng_stream,error)
       END SELECT
 
 ! get rid of all the MC molecule information

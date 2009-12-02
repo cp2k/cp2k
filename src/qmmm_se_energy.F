@@ -58,8 +58,7 @@ MODULE qmmm_se_energy
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -91,11 +90,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, ierr, &
-                                                ikind, itype, iw, natom, &
-                                                natorb_a, nkind
+    INTEGER                                  :: handle, i, iatom, ikind, &
+                                                itype, iw, natom, natorb_a, &
+                                                nkind, stat
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: anag, defined, found, tr
+    LOGICAL                                  :: anag, defined, failure, &
+                                                found, tr
     REAL(KIND=dp)                            :: enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -111,6 +111,7 @@ CONTAINS
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -150,8 +151,9 @@ CONTAINS
 
     ! Allocate the core Hamiltonian matrix
     CALL dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)
-    ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix, STAT=ierr)
-    IF (ierr /= 0) CALL stop_memory(routineN, "matrix")
+    ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix, STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix,error)
 
     CALL dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix,matrix_s(1)%matrix,&
