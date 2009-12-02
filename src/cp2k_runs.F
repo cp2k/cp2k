@@ -224,9 +224,9 @@ CONTAINS
        CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
             error=error)
        logger => cp_error_get_logger(error)
-       IF (echo_input.AND.para_env%mepos==para_env%source) THEN
+       IF (echo_input) THEN
           CALL section_vals_write(input_file,&
-               unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+               unit_nr=cp_logger_get_default_io_unit(logger),&
                hide_root=.TRUE., hide_defaults=.FALSE., error=error)
        END IF
 
@@ -237,7 +237,7 @@ CONTAINS
 
        IF (failure) THEN
           logger => cp_error_get_logger(error)
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+          unit_nr=cp_logger_get_default_io_unit(logger)
           IF (unit_nr>0) THEN
              WRITE(unit_nr,'(T15,A)') ""
              WRITE(unit_nr,'(T15,A)') "CP2K failed to parse the input."
