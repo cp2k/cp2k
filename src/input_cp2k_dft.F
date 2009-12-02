@@ -1345,7 +1345,7 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="NLUMO",&
-            description="Number of virtual orbitals to be added to the MOS set  ",&
+            description="Number of virtual orbitals to be added to the MO set (-1=all)",&
             usage="NLUMO integer",default_i_val=0, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)

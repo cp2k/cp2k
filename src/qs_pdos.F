@@ -169,6 +169,7 @@ CONTAINS
 
     
     CALL section_vals_val_get(dft_section,"PRINT%PDOS%NLUMO",i_val=nlumo,error=error)
+    IF (nlumo == -1) nlumo = nao - homo
     do_virt = (nlumo>(nmo-homo))
     nvirt = nlumo - (nmo-homo)
     ! Generate virtual orbitals
