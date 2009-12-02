@@ -21,8 +21,8 @@ MODULE qs_loc_control
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
-       do_loc_none, op_loc_berry, op_loc_boys, state_loc_all, state_loc_list, &
-       state_loc_none, state_loc_range
+       do_loc_none, energy_loc_range, op_loc_berry, op_loc_boys, &
+       state_loc_all, state_loc_list, state_loc_none, state_loc_range
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -65,6 +65,7 @@ MODULE qs_loc_control
     REAL(KIND=dp)                        :: max_crazy_angle
     REAL(KIND=dp)                        :: crazy_scale
     REAL(KIND=dp)                        :: eps_occ
+    REAL(KIND=dp), DIMENSION(2)          :: lu_ene_bound
     LOGICAL                              :: crazy_use_diag
     LOGICAL                              :: print_cubes, jacobi_fallback
     LOGICAL                              :: print_centers
@@ -115,6 +116,7 @@ CONTAINS
     localized_wfn_control%ref_count= 1
     localized_wfn_control%nloc_states=0
     localized_wfn_control%lu_bound_states=0
+    localized_wfn_control%lu_ene_bound=0.0_dp
     localized_wfn_control%print_cubes = .FALSE.
     localized_wfn_control%print_centers = .FALSE.
     localized_wfn_control%print_spreads = .FALSE.
@@ -205,10 +207,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, n_list, n_rep, &
-                                                n_state, output_unit
+    INTEGER                                  :: i, ind, ir, n_list, n_rep, &
+                                                n_state, nline, output_unit
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, my_do_xas
+    REAL(dp), POINTER                        :: ene(:)
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
@@ -223,7 +226,9 @@ CONTAINS
        IF(localize) THEN
           NULLIFY (list)
           localized_wfn_control%lu_bound_states = 0
+          localized_wfn_control%lu_ene_bound = 0.0_dp
           localized_wfn_control%nloc_states     = 0
+          localized_wfn_control%set_of_states   = 0
           n_state = 0
 
           CALL section_vals_val_get(loc_section,"MAX_ITER",&
@@ -251,23 +256,34 @@ CONTAINS
 
           ! List of States
           CALL section_vals_val_get(loc_section,"LIST",  n_rep_val=n_rep,error=error)
-          n_list = 0
-          DO ir = 1,n_rep
-             NULLIFY(list)
-             CALL section_vals_val_get(loc_section,"LIST",i_rep_val=ir,i_vals=list,error=error)
-             IF(ASSOCIATED(list)) THEN
-                CALL reallocate(localized_wfn_control%loc_states,1,n_list+SIZE(list))
-                DO i = 1, SIZE(list)
-                   localized_wfn_control%loc_states(n_list+i) = list(i)
-                END DO ! i
-                localized_wfn_control%nloc_states(1) = n_list + SIZE(list)
-                n_list = n_list +  SIZE(list)
-             END IF
-          END DO ! ir
-          IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list
+          IF(n_rep>0) THEN
+            n_list = 0
+            DO ir = 1,n_rep
+               NULLIFY(list)
+               CALL section_vals_val_get(loc_section,"LIST",i_rep_val=ir,i_vals=list,error=error)
+               IF(ASSOCIATED(list)) THEN
+                  CALL reallocate(localized_wfn_control%loc_states,1,n_list+SIZE(list))
+                  DO i = 1, SIZE(list)
+                     localized_wfn_control%loc_states(n_list+i) = list(i)
+                  END DO ! i
+                  localized_wfn_control%nloc_states(1) = n_list + SIZE(list)
+                  n_list = n_list +  SIZE(list)
+               END IF
+            END DO ! ir
+            IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list
+          END IF
+
+          IF(localized_wfn_control%set_of_states == 0) THEN
+            CALL section_vals_val_get(loc_section,"ENERGY_RANGE",r_vals=ene,error=error)
+            IF(ene(1)/=ene(2)) THEN
+               localized_wfn_control%set_of_states = energy_loc_range
+               localized_wfn_control%lu_ene_bound(1) = ene(1)
+               localized_wfn_control%lu_ene_bound(2) = ene(2)
+            END IF
+          END IF
 
           ! All States or XAS specific states
-          IF(localized_wfn_control%nloc_states(1) == 0)  THEN
+          IF(localized_wfn_control%set_of_states == 0)  THEN
              IF(my_do_xas) THEN
                 localized_wfn_control%set_of_states = state_loc_range
                 localized_wfn_control%nloc_states(1) =  nloc_xas
@@ -306,14 +322,31 @@ CONTAINS
                      "LOCALIZE| If fractional occupation, fully occupied MOs are those within occupation tolerance of ", &
                        localized_wfn_control%eps_occ
              CASE (state_loc_range)
-                WRITE (UNIT=output_unit,FMT="(T2,A,T65,2I8)")&
+                WRITE (UNIT=output_unit,FMT="(T2,A,T65,I8,A,I8)")&
                      "LOCALIZE| Orbitals to be localized: Those with index between ",&
-                     localized_wfn_control%lu_bound_states(1,1),&
+                     localized_wfn_control%lu_bound_states(1,1), " and ",&
                      localized_wfn_control%lu_bound_states(2,1)
+!                WRITE (UNIT=output_unit,FMT="(T10,A,10I") " Total number of orbitals to be localized : ",&
+!                      localized_wfn_control%nloc_states
              CASE (state_loc_list)
                 WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| Orbitals to be localized: Those with index in the list"
-                WRITE (UNIT=output_unit,FMT=*) localized_wfn_control%loc_states
+                     "LOCALIZE| Orbitals to be localized: Those with index in the following list"
+                nline = localized_wfn_control%nloc_states(1)/20+1
+                ind = 0
+                DO i = 1,nline
+                  IF(ind+20<localized_wfn_control%nloc_states(1)) THEN
+                    WRITE (UNIT=output_unit,FMT="(T8,20I7)") localized_wfn_control%loc_states(ind+1:ind+20)
+                    ind=ind+20
+                  ELSE
+                    WRITE (UNIT=output_unit,FMT="(T8,20I7)") &
+                        localized_wfn_control%loc_states(ind+1:localized_wfn_control%nloc_states(1))
+                    ind = localized_wfn_control%nloc_states(1)
+                  END IF
+                END DO
+             CASE (energy_loc_range)
+                WRITE (UNIT=output_unit,FMT="(T2,A,T65,/,f16.6,A,f16.6,A)")&
+                   "LOCALIZE| Orbitals to be localized: Those with energy in the range between ",&
+                   localized_wfn_control%lu_ene_bound(1), " and ",  localized_wfn_control%lu_ene_bound(2)," a.u."
              CASE DEFAULT
                 WRITE (UNIT=output_unit,FMT="(T2,A)")&
                      "LOCALIZE| Orbitals to be localized: None "
@@ -425,7 +458,8 @@ CONTAINS
     localized_wfn_control%nloc_states(1:2) = nmoloc(1:2)
     max_nmoloc = MAX(nmoloc(1),nmoloc(2))
 
-    IF(localized_wfn_control%set_of_states == state_loc_list) THEN
+    SELECT CASE(localized_wfn_control%set_of_states )
+    CASE(state_loc_list) 
        ! List
        CPPrecondition(ASSOCIATED(localized_wfn_control%loc_states),cp_failure_level,routineP,error,failure)
        IF(max_nmoloc<SIZE(localized_wfn_control%loc_states,1)) THEN
@@ -440,31 +474,34 @@ CONTAINS
              CPPostcondition(iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
           ENDDO
        END DO
-    ELSE
-       IF(localized_wfn_control%set_of_states == state_loc_range) THEN
-          ! Range
-          DO ispin = 1,nspins
-             localized_wfn_control%lu_bound_states(1,ispin) = &
-                  localized_wfn_control%lu_bound_states(1,1)
-             localized_wfn_control%lu_bound_states(2,ispin) = &
-                  localized_wfn_control%lu_bound_states(1,1) +  nmoloc(ispin) -1
-             max_iloc = localized_wfn_control%lu_bound_states(2,ispin)
-             CPPostcondition(max_iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
+    CASE(state_loc_range)
+       ! Range
+       DO ispin = 1,nspins
+          localized_wfn_control%lu_bound_states(1,ispin) = &
+               localized_wfn_control%lu_bound_states(1,1)
+          localized_wfn_control%lu_bound_states(2,ispin) = &
+               localized_wfn_control%lu_bound_states(1,1) +  nmoloc(ispin) -1
+          max_iloc = localized_wfn_control%lu_bound_states(2,ispin)
+          CPPostcondition(max_iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
+       END DO
+    CASE(energy_loc_range)
+       ! Energy
+       DO ispin = 1,nspins
+          
+       END DO
+    CASE(state_loc_all)
+       ! All
+       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ispin = 1,nspins
+          localized_wfn_control%lu_bound_states(1,ispin) = 1
+          localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
+          IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
+          DO i = 1, nmoloc(ispin)
+             localized_wfn_control%loc_states(i) = i
           END DO
-       ELSE
-          ! All
-          ALLOCATE(localized_wfn_control%loc_states(max_nmoloc),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DO ispin = 1,nspins
-             localized_wfn_control%lu_bound_states(1,ispin) = 1
-             localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
-             IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
-             DO i = 1, nmoloc(ispin)
-                localized_wfn_control%loc_states(i) = i
-             END DO
-          END DO
-       END IF
-    END IF
+       END DO
+    END SELECT
 
   END SUBROUTINE set_loc_wfn_lists
 

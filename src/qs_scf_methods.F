@@ -21,7 +21,8 @@ MODULE qs_scf_methods
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
-                                             cp_fm_syevd
+                                             cp_fm_syevd,&
+                                             cp_fm_syevr
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
@@ -82,7 +83,6 @@ CONTAINS
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-!<<<<<<< qs_scf_methods.F
   SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_store, rho_ao, para_env, iter_delta,&
                                     iter_count,diis,invert,error)
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
@@ -231,7 +231,7 @@ CONTAINS
           END IF
        ELSE
           CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
-!          CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
+ !         CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
           IF(cholesky_method==cholesky_inverse) THEN
             CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
           ELSE
@@ -269,7 +269,7 @@ CONTAINS
          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
        ELSE
          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
-!         CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
+ !        CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
        END IF
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&

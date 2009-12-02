@@ -329,7 +329,7 @@ CONTAINS
     !
     ! init the restart file for the write
     !
-    CALL linres_init_write_restart(qs_env,lr_section,error)
+    CALL linres_init_write_restart(lr_section,error)
     !
     !
     !

@@ -810,7 +810,7 @@ CONTAINS
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
             rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
-            poisson_env, input, scf_section,rho,dft_control)
+            poisson_env, input, scf_section,rho,dft_control,logger)
     logger => cp_error_get_logger(error)
 
     energy_hartree=0.0_dp
@@ -1531,8 +1531,7 @@ CONTAINS
   END SUBROUTINE linres_write_restart
 
 
-  SUBROUTINE linres_init_write_restart(qs_env,linres_section,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE linres_init_write_restart(linres_section,error)
     TYPE(section_vals_type), POINTER         :: linres_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

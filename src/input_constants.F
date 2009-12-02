@@ -353,7 +353,8 @@ MODULE input_constants
                                               state_loc_all=0,&
                                               state_loc_range=1,&
                                               state_loc_list=2,&
-                                              state_loc_none=3
+                                              energy_loc_range=3,&
+                                              state_loc_none=4
 
   INTEGER, PARAMETER, PUBLIC               :: orb_s=0,&
                                               orb_px=1,&

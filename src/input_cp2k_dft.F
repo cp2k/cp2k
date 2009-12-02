@@ -736,6 +736,20 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,&
+            name="ENERGY_RANGE",&
+            description="Select the orbitals to be localized within the given energy range."//&
+            "This type of selection cannot be added on top of the selection through a LIST. It reads to reals that are"//&
+            " lower and higher boundaries of the energy range.",&
+            usage=" ENERGY_RANGE lower_bound {real}, higher_bound {real}", &
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=2,default_r_vals=(/0._dp,0._dp/),unit_str='eV',&
+            type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing basic info about the method", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&

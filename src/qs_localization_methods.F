@@ -39,16 +39,19 @@ MODULE qs_localization_methods
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: &
-       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_maxabsrownorm, &
-       cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
-       cp_fm_to_fm, cp_fm_type
+       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
+       cp_fm_maxabsrownorm, cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, &
+       cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi
-  USE message_passing,                 ONLY: mp_max,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_max,&
+                                             mp_sendrecv,&
+                                             mp_sum,&
+                                             mp_sync
   USE rt_matrix_exp,                   ONLY: exp_pade_real,&
                                              get_nsquare_norder
   USE timings,                         ONLY: timeset,&
@@ -57,11 +60,18 @@ MODULE qs_localization_methods
 
   IMPLICIT NONE
   PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations,&
-            direct_mini, rotate_orbitals, approx_l1_norm_sd
+            direct_mini, rotate_orbitals, approx_l1_norm_sd, jacobi_rot_para
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization_methods'
 
   PRIVATE
+
+   TYPE set_c_1d_type
+     COMPLEX(KIND=dp), POINTER, DIMENSION(:) :: c_array
+   END TYPE
+   TYPE set_c_2d_type
+     COMPLEX(KIND=dp), POINTER, DIMENSION(:,:) :: c_array
+   END TYPE
 
 CONTAINS
 ! *****************************************************************************
@@ -492,11 +502,12 @@ CONTAINS
     CALL cp_fm_release ( wf ,error=error)
   END SUBROUTINE rotate_orbitals
 ! *****************************************************************************
-  SUBROUTINE gradsq_at_0 ( diag, weights, matrix )
+  SUBROUTINE gradsq_at_0 ( diag, weights, matrix,ndim )
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: diag
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER, INTENT(IN)                      :: ndim
 
     COMPLEX(KIND=dp)                         :: zii, zjj
     INTEGER                                  :: idim, istate, jstate, &
@@ -514,7 +525,7 @@ CONTAINS
       DO jstate = 1, ncol_local
 ! get real and imaginary parts
         gradsq_ij = 0.0_dp
-        DO idim = 1, 3
+        DO idim = 1, ndim
           zii = diag(row_indices(istate),idim)
           zjj = diag(col_indices(jstate),idim)
           gradsq_ij = gradsq_ij + weights ( idim ) * &
@@ -697,8 +708,8 @@ CONTAINS
     ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idim=1,dim2
-       CALL cp_fm_scale_and_add(1.0_dp,mat_t,1.0_dp,zij(1,idim) % matrix,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,mat_t,1.0_dp,zij(2,idim) % matrix,error=error)
+       CALL cp_fm_scale_and_add(1.0_dp,mat_t,weights(idim),zij(1,idim) % matrix,error=error)
+       CALL cp_fm_scale_and_add(1.0_dp,mat_t,weights(idim),zij(2,idim) % matrix,error=error)
     ENDDO
     CALL cp_fm_syevd(mat_t,mat_U,evals,error=error)
     DO idim=1,dim2
@@ -833,11 +844,15 @@ CONTAINS
 ! useful to try different spread functionals
 !
 ! *****************************************************************************
-  SUBROUTINE direct_mini( weights, zij, vectors, iterations )
+  SUBROUTINE direct_mini( weights, zij, vectors, max_iter ,eps_localization, iterations , out_each, error)
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
+    INTEGER, INTENT(IN)                      :: max_iter
+    REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: iterations
+    INTEGER, INTENT(IN)                      :: out_each
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'direct_mini', &
       routineP = moduleN//':'//routineN
@@ -849,10 +864,11 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: evals_exp
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: diag_z
-    INTEGER :: handle, i, icol, idim, irow, line_search_count, line_searches, &
-      lsl, lsm, lsr, n, ncol_local, nrow_local
+    INTEGER :: handle, i, icol, idim, irow, istat, line_search_count, &
+      line_searches, lsl, lsm, lsr, n, ncol_local, ndim, nrow_local, &
+      output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: new_direction
+    LOGICAL                                  :: failure, new_direction
     REAL(KIND=dp) :: a, b, beta_pr, c, denom, ds, ds_min, fa, fb, fc, nom, &
       normg, normg_cross, normg_old, npos, omega, tol, val, x0, x1, xa, xb, xc
     REAL(KIND=dp), DIMENSION(150)            :: energy, grad, pos
@@ -862,23 +878,36 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_B, cmat_M, &
                                                 cmat_R, cmat_t1, cmat_t2, &
                                                 cmat_U
-    TYPE(cp_error_type)                      :: error
     TYPE(cp_fm_type), POINTER                :: matrix_A, matrix_G, &
                                                 matrix_G_old, &
                                                 matrix_G_search, matrix_H, &
                                                 matrix_R, matrix_T
+    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(evals,evals_exp,diag_z,fval,fvald,c_zij)
     NULLIFY(matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old)
     NULLIFY(cmat_A,cmat_U,cmat_R,cmat_t1,cmat_t2,cmat_B,cmat_M)
 
     CALL timeset(routineN,handle)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_io_unit(logger)
+
     n = zij(1,1)%matrix%matrix_struct%nrow_global
-    ALLOCATE(evals(n),evals_exp(n),diag_z(n,3),fval(n),fvald(n))
-    ALLOCATE(c_zij(SIZE(zij,2)))
+    ndim = (SIZE(zij,2))
+
+    failure=.FALSE.
+
+    IF ( output_unit > 0) THEN
+      WRITE(output_unit,'(T10,A )') "Localization by direct minimization of the functiona; "
+      WRITE(output_unit,'(T5,2A13,A20,A20,A10 )') " Line search ", " Iteration ", " Functional ", " Tolerance "," ds Min "
+    END IF
+
+    ALLOCATE(evals(n),evals_exp(n),diag_z(n,ndim),fval(n),fvald(n))
+    ALLOCATE(c_zij(ndim), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! create the three complex matrices Z
-    DO idim=1,SIZE(c_zij)
+    DO idim=1,ndim
        NULLIFY(c_zij(idim)%matrix)
        CALL cp_cfm_create ( c_zij(idim)%matrix, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
        c_zij(idim)%matrix% local_data = CMPLX (zij(1,idim) % matrix % local_data, &
@@ -928,7 +957,7 @@ CONTAINS
          cmat_U%local_data=REAL(cmat_U%local_data) ! enforce numerics, U is a real matrix
 
          IF ( new_direction .AND. MOD(line_searches,20).EQ.5 ) THEN ! reset with A .eq. 0
-            DO idim=1,SIZE(c_zij)
+            DO idim=1,ndim
                CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1,error=error)
                CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix,error=error)
             ENDDO
@@ -951,7 +980,7 @@ CONTAINS
          ! compute Omega and M
          CALL cp_cfm_set_all(cmat_M,czero,error=error)
          omega = 0.0_dp
-         DO idim=1,SIZE(c_zij)
+         DO idim=1,ndim
             CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1,error=error) ! t1=ZU
             CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,cmat_t2,error=error) ! t2=(U^T)ZU
             DO i=1,n
@@ -975,9 +1004,9 @@ CONTAINS
             ENDDO
          ENDDO
 
-         ! compute Hessian diagonal approximation
+         ! compute Hessian diagonal approximation for the preconditioner
          IF (.TRUE.) THEN
-            CALL gradsq_at_0(diag_z,weights,matrix_H)
+            CALL gradsq_at_0(diag_z,weights,matrix_H,ndim)
          ELSE
             CALL cp_fm_set_all(matrix_H,1.0_dp,error=error)
          ENDIF
@@ -1024,10 +1053,11 @@ CONTAINS
             !write(16,*) evals(:)
             !write(17,*) matrix_A%local_data(:,:)
             !write(18,*) matrix_G%local_data(:,:)
-            IF (matrix_A%matrix_struct%para_env%mepos .EQ. matrix_A%matrix_struct%para_env%source) THEN
-               WRITE(cp_logger_get_default_unit_nr(),*) line_searches,Iterations,Omega,tol,ds_min
+            IF (output_unit > 0) THEN
+               WRITE(output_unit,'(T5,I10,T18,I10,T31,2F20.6,F10.3)') line_searches,Iterations,Omega,tol,ds_min
+              CALL m_flush(output_unit)
             ENDIF
-            IF (tol.lt.1.0E-3_dp)  EXIT
+            IF (tol<eps_localization .OR. iterations>max_iter)  EXIT
 
             IF (.TRUE.) THEN ! do conjugate gradient CG
                 CALL cp_fm_trace(matrix_G,matrix_G_old,normg_cross,error=error)
@@ -1215,4 +1245,633 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief Parallel algorithm for jacobi rotations
+!> \par History
+!> \author MI (11.2009)
+! *****************************************************************************
+  SUBROUTINE jacobi_rot_para(weights, zij, vectors, para_env, max_iter, eps_localization, &
+              sweeps, out_each, error)
+
+    REAL(KIND=dp), INTENT(IN)                :: weights( : )
+    TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
+    TYPE(cp_fm_type), POINTER                :: vectors
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: max_iter
+    REAL(KIND=dp), INTENT(IN)                :: eps_localization
+    INTEGER                                  :: sweeps
+    INTEGER, INTENT(IN)                      :: out_each
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rot_para', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: zi, zj
+    COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
+    INTEGER :: dim2, handle, i, idim, ii, ik, il1, il2, il_recv, &
+      il_recv_partner, ilow1, ilow2, ip, ip_has_i, ip_partner, ip_recv_from, &
+      ip_recv_partner, ip_send_to, ipair, iperm, istat, istate, iu1, iu2, &
+      iup1, iup2, j, jj, jstate, k, kk, n1, n2, nblock, nblock_max, npair, &
+      nperm, ns_me, ns_partner, ns_recv_from, ns_recv_partner, nstate, &
+      output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: list_pair, ns_bound
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: xlow, xstate, xup
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: gmat, rmat_loc, rmat_recv, &
+                                                rmat_send, rotmat, &
+                                                z_ij_loc_im, z_ij_loc_re
+    REAL(KIND=dp)                            :: ct, gmax, grad, ri, rj, st, &
+                                                theta, tolerance
+    TYPE(cp_fm_type), POINTER                :: rmat
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(set_c_1d_type), DIMENSION(:), &
+      POINTER                                :: zdiag_all, zdiag_me
+    TYPE(set_c_2d_type), DIMENSION(:), &
+      POINTER                                :: cz_ij_loc, xyz_me, xyz_mix, &
+                                                xyz_mix_ns, xyz_partner
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_io_unit(logger)
+
+    NULLIFY(rmat, cz_ij_loc, zdiag_all, zdiag_me)
+    NULLIFY(xyz_me, xyz_mix,xyz_mix_ns, xyz_partner)
+    NULLIFY(mii,mij,mjj)
+
+    dim2 = SIZE(zij,2)
+    ALLOCATE(mii(dim2),mij(dim2),mjj(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL cp_fm_create ( rmat, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_set_all ( rmat, 0._dp, 1._dp, error )
+
+    CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
+
+    ALLOCATE(z_ij_loc_re(nstate,nstate),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(z_ij_loc_im(nstate,nstate),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(cz_ij_loc(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idim = 1,dim2
+      CALL cp_fm_get_submatrix(zij(1,idim)%matrix,z_ij_loc_re,1,1,nstate,nstate,error=error)
+      CALL cp_fm_get_submatrix(zij(2,idim)%matrix,z_ij_loc_im,1,1,nstate,nstate,error=error)
+      ALLOCATE (cz_ij_loc(idim)%c_array(nstate,nstate),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      DO i=1,nstate
+        DO j = 1,nstate
+          cz_ij_loc(idim)%c_array(j,i) = CMPLX(z_ij_loc_re(j,i),z_ij_loc_im(j,i),dp)
+        END DO
+      END DO
+    END DO
+    DEALLOCATE(z_ij_loc_re,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(z_ij_loc_im,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(rcount(para_env%num_pe),STAT=istat)
+    ALLOCATE(rdispl(para_env%num_pe),STAT=istat)
+
+    tolerance = 1.0e10_dp
+    sweeps = 0
+
+   ! Distribution of the states
+    xstate = REAL(nstate,dp)/REAL(para_env%num_pe,dp)
+    nblock_max = 0
+    ALLOCATE(ns_bound(0:para_env%num_pe-1,2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    npair = (para_env%num_pe+1)/2
+    nperm = para_env%num_pe - MOD( para_env%num_pe +1,2)
+    ALLOCATE(list_pair(2,npair),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    Xlow=0.0D0
+    Xup=0.0D0
+    DO ip=1,para_env%num_pe
+      xup = xlow + xstate
+      ns_bound(ip-1,1)=NINT(xlow)+1
+      ns_bound(ip-1,2)=NINT(xup)
+      IF(NINT(xup).GT.nstate) THEN
+         ns_bound(ip-1,2)=nstate
+      ENDIF
+      IF(NINT(xlow).GT.nstate) THEN
+        ns_bound(ip-1,1)=nstate+1
+      ENDIF
+      xlow = xup
+    ENDDO
+    DO ip=0,para_env%num_pe-1
+      nblock=ns_bound(ip,2)-ns_bound(ip,1)+1
+      nblock_max=MAX(nblock_max,nblock)
+    ENDDO
+
+    ALLOCATE(rotmat(nstate,nstate),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    rotmat=0.0_dp
+    DO i =1,nstate
+      rotmat(i,i) = 1.0_dp
+    END DO
+
+    ALLOCATE(xyz_me(dim2),STAT=istat)
+    ALLOCATE(xyz_partner(dim2),STAT=istat)
+    ALLOCATE(xyz_mix(dim2),STAT=istat)
+    ALLOCATE(xyz_mix_ns(dim2),STAT=istat)
+    ALLOCATE(zdiag_me(dim2),STAT=istat)
+    ALLOCATE(zdiag_all(dim2),STAT=istat)
+
+    ns_me = ns_bound(para_env%mepos,2) - ns_bound(para_env%mepos,1) +1
+    IF(ns_me/=0) THEN
+      DO idim = 1,dim2
+         NULLIFY(xyz_me(idim)%c_array)
+         ALLOCATE(xyz_me(idim)%c_array(nstate,ns_me),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+         NULLIFY(xyz_mix_ns(idim)%c_array)
+         ALLOCATE(xyz_mix_ns(idim)%c_array(nstate,ns_me),STAT=istat)
+         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      END DO
+      ALLOCATE(gmat(nstate,ns_me),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    DO idim = 1,dim2
+       NULLIFY(zdiag_me(idim)%c_array)
+       ALLOCATE(zdiag_me(idim)%c_array(nblock_max),STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       zdiag_me(idim)%c_array = CMPLX(0.0_dp, 0.0_dp, dp)
+       NULLIFY(zdiag_all(idim)%c_array)
+       ALLOCATE(zdiag_all(idim)%c_array(para_env%num_pe*nblock_max),STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       zdiag_all(idim)%c_array = CMPLX(0.0_dp, 0.0_dp, dp)
+    END DO
+    ALLOCATE(rmat_recv(nblock_max*2,nblock_max),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(rmat_send(nblock_max*2,nblock_max),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    IF(output_unit>0) THEN
+      WRITE(output_unit,'(T10,A )') "Localization by iterative distributed Jacobi rotation"
+      WRITE(output_unit,'(T20,A12,T40,A12 )') "Iteration", "Tolerance"
+    END IF
+
+    DO sweeps = 1,max_iter
+      DO iperm = 1,nperm
+        CALL eberlein(iperm,para_env,list_pair,error)
+        ip_partner = -1
+        ns_partner = 0
+        DO ipair = 1,npair
+          IF(list_pair(1,ipair) == para_env%mepos) THEN
+             ip_partner = list_pair(2,ipair)
+             EXIT
+          ELSE IF(list_pair(2,ipair) == para_env%mepos) THEN
+             ip_partner = list_pair(1,ipair)
+             EXIT
+          END IF
+        END DO
+        IF(ip_partner >=0) THEN
+           ns_partner =  ns_bound(ip_partner,2) - ns_bound(ip_partner,1) +1
+        ELSE
+           ns_partner = 0
+        END IF
+
+        IF(ns_partner*ns_me /= 0) THEN
+          ALLOCATE(rmat_loc(ns_me+ns_partner,ns_me+ns_partner),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          rmat_loc = 0.0_dp
+          DO i = 1, ns_me+ns_partner
+            rmat_loc(i,i) = 1.0_dp
+          END DO
+          
+          DO idim = 1,dim2
+            NULLIFY(xyz_partner(idim)%c_array)
+            ALLOCATE(xyz_partner(idim)%c_array(nstate,ns_partner),STAT=istat)
+            NULLIFY(xyz_mix(idim)%c_array)
+            ALLOCATE(xyz_mix(idim)%c_array(ns_me+ns_partner,ns_me+ns_partner),STAT=istat)
+            DO i = 1,ns_me
+               ii = ns_bound(para_env%mepos,1) + i -1
+               xyz_me(idim)%c_array(1:nstate,i) = cz_ij_loc(idim)%c_array(1:nstate,ii) 
+            END DO
+            CALL mp_sendrecv(msgin=xyz_me(idim)%c_array,dest=ip_partner,&
+                msgout=xyz_partner(idim)%c_array,source=ip_partner,comm=para_env%group)
+          END DO
+          n1=ns_me
+          n2=ns_partner
+          ilow1=ns_bound(para_env%mepos,1)
+          iup1 = ns_bound(para_env%mepos,1)+n1-1
+          ilow2 = ns_bound(ip_partner,1)
+          iup2 = ns_bound(ip_partner,1)+n2-1
+          IF(ns_bound(para_env%mepos,1)<ns_bound(ip_partner,1)) THEN
+           il1=1
+           iu1=n1
+           iu1=n1
+           il2=1+n1
+           iu2=n1+n2
+          ELSE
+           il1=1+n2
+           iu1=n1+n2
+           iu1=n1+n2
+           il2=1
+           iu2=n2
+          END IF
+ 
+          DO idim= 1,dim2
+             DO i = 1,n1
+               xyz_mix(idim)%c_array(il1:iu1,il1+i-1) = xyz_me(idim)%c_array(ilow1:iup1,i)
+               xyz_mix(idim)%c_array(il2:iu2,il1+i-1) = xyz_me(idim)%c_array(ilow2:iup2,i)
+             END DO
+             DO i = 1,n2
+               xyz_mix(idim)%c_array(il2:iu2,il2+i-1) = xyz_partner(idim)%c_array(ilow2:iup2,i)
+               xyz_mix(idim)%c_array(il1:iu1,il2+i-1) = xyz_partner(idim)%c_array(ilow1:iup1,i)
+             END DO
+          END DO
+
+          DO istate = 1,n1+n2
+            DO jstate = istate+1,n1+n2
+              DO idim = 1,dim2
+                mii(idim) = xyz_mix(idim)%c_array(istate,istate)
+                mij(idim) = xyz_mix(idim)%c_array(istate,jstate)
+                mjj(idim) = xyz_mix(idim)%c_array(jstate,jstate)
+              END DO
+              CALL get_angle ( mii, mjj, mij, weights, theta )
+              st = SIN ( theta )
+              ct = COS ( theta )
+              DO idim = 1,dim2
+                DO i=1,n1+n2
+                  zi = ct*xyz_mix(idim)%c_array(i,istate)+st*xyz_mix(idim)%c_array(i,jstate)
+                  zj = -st*xyz_mix(idim)%c_array(i,istate)+ct*xyz_mix(idim)%c_array(i,jstate) 
+                  xyz_mix(idim)%c_array(i,istate) = zi
+                  xyz_mix(idim)%c_array(i,jstate) = zj
+                END DO
+                DO i=1,n1+n2
+                  zi = ct*xyz_mix(idim)%c_array(istate,i) + st*xyz_mix(idim)%c_array(jstate,i)
+                  zj = -st*xyz_mix(idim)%c_array(istate,i) + ct*xyz_mix(idim)%c_array(jstate,i)
+                  xyz_mix(idim)%c_array(istate,i) = zi
+                  xyz_mix(idim)%c_array(jstate,i) = zj
+                END DO
+              END DO
+
+              DO i = 1,n1+n2
+                ri= ct*rmat_loc(i,istate)+st*rmat_loc(i,jstate)
+                rj= ct*rmat_loc(i,jstate)-st*rmat_loc(i,istate)
+                rmat_loc(i,istate)=ri
+                rmat_loc(i,jstate)=rj
+              END DO
+            END DO
+          END DO
+
+          CALL mp_sendrecv(rotmat(1:nstate,ilow1:iup1),ip_partner,&
+               rotmat(1:nstate,ilow2:iup2),ip_partner,para_env%group)
+          IF(ilow1<ilow2) THEN
+            CALL dgemm("N","N",nstate,n1,n2,1.0_dp,rotmat(1,ilow2),nstate,rmat_loc(1+n1,1),n1+n2,0.0_dp,gmat,nstate)
+            CALL dgemm("N","N",nstate,n1,n1,1.0_dp,rotmat(1,ilow1),nstate,rmat_loc(1,1),n1+n2,1.0_dp,gmat,nstate)
+          ELSE
+            CALL dgemm("N","N",nstate,n1,n2,1.0_dp,rotmat(1,ilow2),nstate,rmat_loc(1,n2+1),n1+n2,0.0_dp,gmat,nstate)
+            CALL dgemm("N","N",nstate,n1,n1,1.0_dp,rotmat(1,ilow1),nstate,rmat_loc(n2+1,n2+1),n1+n2,1.0_dp,gmat,nstate)
+          END IF
+
+          CALL dcopy(nstate*n1,gmat(1,1),1,rotmat(1,ilow1),1)
+
+          DO idim = 1,dim2
+             DO i = 1,n1
+               xyz_mix_ns(idim)%c_array(1:nstate,i) = CMPLX(0.0_dp,0.0_dp,dp)
+             END DO
+
+             DO istate = 1,n1
+               DO jstate = 1,nstate
+                  DO i = 1,n2
+                     xyz_mix_ns(idim)%c_array(jstate,istate) = xyz_mix_ns(idim)%c_array(jstate,istate) +& 
+                               xyz_partner(idim)%c_array(jstate,i)*rmat_loc(il2+i-1,il1+istate-1)
+                  END DO
+               END DO
+             END DO
+             DO istate = 1,n1
+               DO jstate = 1,nstate
+                  DO i = 1,n1
+                     xyz_mix_ns(idim)%c_array(jstate,istate) = xyz_mix_ns(idim)%c_array(jstate,istate) +& 
+                               xyz_me(idim)%c_array(jstate,i)*rmat_loc(il1+i-1,il1+istate-1)
+                  END DO
+               END DO
+             END DO
+          END DO  ! idim
+        ELSEIF(ns_me/=0) THEN
+          DO idim = 1,dim2
+             DO i = 1,ns_me
+               ii = ns_bound(para_env%mepos,1)+i - 1
+               xyz_mix_ns(idim)%c_array(1:nstate,i) = cz_ij_loc(idim)%c_array(1:nstate,ii)
+             END DO
+          END DO
+        END IF
+
+        IF(ns_me/=0) THEN
+          DO idim=1,dim2
+            DO i =ns_bound(para_env%mepos,1),ns_bound(para_env%mepos,2)
+              cz_ij_loc(idim)%c_array(1:nstate,i) = CMPLX(0.0_dp,0.0_dp,dp)
+            END DO
+          END DO
+        END IF
+
+        IF(ns_partner*ns_me /= 0) THEN
+        ! traspose rotation matrix rmat_loc
+          DO i =1,ns_me+ns_partner
+            DO j = i+1,ns_me+ns_partner
+              ri = rmat_loc(i,j)
+              rmat_loc(i,j)=rmat_loc(j,i)
+              rmat_loc(j,i)=ri
+            END DO
+          END DO
+
+         ! prepare for distribution
+          DO i = 1,n1
+             rmat_send(1:n1,i) = rmat_loc(il1:iu1,il1+i-1)
+          END DO
+          ik = nblock_max
+          DO i = 1,n2
+             rmat_send(ik+1:ik+n1,i) = rmat_loc(il1:iu1,il2+i-1)
+          END DO
+        ELSE
+          rmat_send = 0.0_dp
+        END IF
+
+        !loop for distribution 
+        DO ip = 0,para_env%num_pe-1
+          IF(ip==0) THEN
+            ! use my self rmat_loc
+             DO i = 1,nblock_max
+               rmat_recv(1:2*nblock_max,i) = rmat_send(1:2*nblock_max,i) 
+             END DO
+             ip_recv_from = para_env%mepos
+             ip_send_to = para_env%mepos
+          ELSE
+             ip_recv_from=MOD(para_env%mepos-IP+para_env%num_pe,para_env%num_pe)
+             ip_send_to=MOD(para_env%mepos+IP+para_env%num_pe,para_env%num_pe)
+             CALL mp_sendrecv(rmat_send,ip_send_to,rmat_recv,ip_recv_from,para_env%group) 
+          END IF
+          ns_recv_from = ns_bound(ip_recv_from,2)-ns_bound(ip_recv_from,1)+1
+
+          IF(ns_me/=0) THEN
+            IF(ns_recv_from/=0) THEN
+              !look for the partner of ip_recv_from
+              ip_recv_partner = -1
+              ns_recv_partner = 0
+              DO ipair = 1,npair
+                IF(list_pair(1,ipair) == ip_recv_from) THEN
+                  ip_recv_partner = list_pair(2,ipair)
+                  EXIT
+                ELSE IF(list_pair(2,ipair) == ip_recv_from) THEN
+                  ip_recv_partner = list_pair(1,ipair)
+                  EXIT
+                END IF
+              END DO
+
+              IF(ip_recv_partner>=0) THEN
+                ns_recv_partner =  ns_bound(ip_recv_partner,2)-ns_bound(ip_recv_partner,1)+1
+              END IF
+              IF(ns_recv_partner>0) THEN
+                il1 =  ns_bound(para_env%mepos,1)
+                il_recv = ns_bound(ip_recv_from,1)
+                il_recv_partner = ns_bound(ip_recv_partner,1)
+                ik = nblock_max
+                
+                DO idim = 1,dim2
+                  DO i = 1,ns_recv_from
+                    ii = il_recv+i-1
+                    DO j = 1,ns_me
+                      jj = il1+j-1
+                      DO k = 1,ns_recv_from
+                        kk = il_recv+k-1
+                        cz_ij_loc(idim)%c_array(ii,jj) = cz_ij_loc(idim)%c_array(ii,jj) + &
+                                  rmat_recv(i,k) * xyz_mix_ns(idim)%c_array(kk,j)
+                      END DO
+                    END DO 
+                  END DO
+                  DO i = 1,ns_recv_from
+                    ii = il_recv+i-1
+                    DO j = 1,ns_me
+                      jj = il1+j-1
+                      DO k = 1,ns_recv_partner
+                        kk = il_recv_partner+k-1
+                        cz_ij_loc(idim)%c_array(ii,jj) = cz_ij_loc(idim)%c_array(ii,jj) + &
+                                  rmat_recv(ik+i,k) * xyz_mix_ns(idim)%c_array(kk,j)
+                      END DO
+                    END DO 
+                  END DO
+                END DO  ! idim
+              ELSE
+                il1 =  ns_bound(para_env%mepos,1)
+                il_recv = ns_bound(ip_recv_from,1)
+                DO idim = 1,dim2
+                   DO j = 1,ns_me
+                     jj = il1+j-1
+                     DO i = 1,ns_recv_from
+                       ii = il_recv+i-1
+                       cz_ij_loc(idim)%c_array(ii,jj) = xyz_mix_ns(idim)%c_array(ii,j)
+                     END DO
+                   END DO
+                END DO ! idim
+              END IF
+            END IF
+          END IF ! ns_me
+        END DO ! ip
+!   CALL m_flush(6)
+        IF(ns_partner*ns_me /= 0) THEN
+          DEALLOCATE(rmat_loc, STAT=istat)
+          DO idim = 1,dim2
+            DEALLOCATE(xyz_partner(idim)%c_array,STAT=istat)
+            DEALLOCATE(xyz_mix(idim)%c_array,STAT=istat)
+          END DO 
+        END IF
+      END DO  ! iperm
+
+      ! calculate the max gradient
+      DO idim = 1,dim2
+        DO i = ns_bound(para_env%mepos,1), ns_bound(para_env%mepos,2)
+          ii = i-ns_bound(para_env%mepos,1)+1
+          zdiag_me(idim)%c_array(ii) =  cz_ij_loc(idim)%c_array(i,i) 
+        END DO
+        rcount(:) = SIZE(zdiag_me(idim)%c_array)
+        rdispl(1)=0
+        DO ip=2,para_env%num_pe
+          rdispl(ip)=rdispl(ip-1)+rcount(ip-1)
+        ENDDO
+        ! collect all the diagonal elements in a replicated 1d array
+        CALL mp_allgather(zdiag_me(idim)%c_array,zdiag_all(idim)%c_array,rcount,rdispl,para_env%group)
+      END DO 
+
+      gmax = 0.0_dp
+      DO j = ns_bound(para_env%mepos,1),  ns_bound(para_env%mepos,2)
+        DO i = 1,j-1
+          ! find the location of the diagonal element (i,i)
+          DO ip = 0,para_env%num_pe-1
+             IF(i>=ns_bound(ip,1) .AND. i<=ns_bound(ip,2)) THEN
+               ip_has_i = ip
+               EXIT
+             END IF
+          END DO
+          ii = nblock_max*ip_has_i + i - ns_bound(ip_has_i,1) + 1
+          ! mepos has the diagonal element (j,j), as well as the off diagonal (i,j)
+          jj = nblock_max*para_env%mepos + j - ns_bound(para_env%mepos,1) +1
+          grad = 0.0_dp
+          DO idim = 1,dim2
+            zi = zdiag_all(idim)%c_array(ii)
+            zj = zdiag_all(idim)%c_array(jj)
+            grad = grad + weights(idim) * REAL(4.0_dp*CONJG( cz_ij_loc(idim)%c_array(i,j))*(zj-zi),dp )
+          END DO
+          gmax = MAX(gmax,ABS(grad))
+        END DO 
+      END DO 
+      
+      CALL mp_max(gmax,para_env%group)
+      tolerance = gmax
+
+      IF(output_unit>0  .AND. MODULO(sweeps,out_each)==0) THEN
+         WRITE(output_unit,'(T20,I12,T40,E12.4)') sweeps,tolerance
+      END IF
+      IF(tolerance < eps_localization) GOTO 1000
+    END DO ! sweeps
+
+    IF(output_unit>0) THEN
+       WRITE(output_unit,*) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
+       WRITE(output_unit,*) '               Present  Max. gradient = ', tolerance
+    END IF
+
+1000 CONTINUE
+
+    DEALLOCATE(rmat_recv, STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(rmat_send, STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idim = 1,dim2
+      DEALLOCATE(xyz_me(idim)%c_array,STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(zdiag_me(idim)%c_array, STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(zdiag_all(idim)%c_array, STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(xyz_me,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(zdiag_me, STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(zdiag_all, STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(xyz_partner,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(xyz_mix,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idim = 1,dim2
+      DEALLOCATE(xyz_mix_ns(idim)%c_array,STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(xyz_mix_ns,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(gmat,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(mii,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(mij,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(mjj,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ilow1=ns_bound(para_env%mepos,1)
+    ns_me=ns_bound(para_env%mepos,2)-ns_bound(para_env%mepos,1)+1
+!    ALLOCATE(z_ij_loc_re(nstate,ns_me),STAT=istat)
+    ALLOCATE(z_ij_loc_re(nstate,nstate),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+!    ALLOCATE(z_ij_loc_im(nstate,ns_me),STAT=istat)
+    ALLOCATE(z_ij_loc_im(nstate,nstate),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idim = 1,dim2
+      z_ij_loc_re = 0.0_dp
+      z_ij_loc_im = 0.0_dp
+      DO i=1,ns_me
+        ii = ilow1 + i -1
+        DO j = 1,nstate
+!          z_ij_loc_re(j,i)=real(cz_ij_loc(idim)%c_array(j,ii),dp) 
+!          z_ij_loc_im(j,i)=aimag(cz_ij_loc(idim)%c_array(j,ii)) 
+          z_ij_loc_re(j,ii)=REAL(cz_ij_loc(idim)%c_array(j,ii),dp) 
+          z_ij_loc_im(j,ii)=AIMAG(cz_ij_loc(idim)%c_array(j,ii)) 
+        END DO
+      END DO
+      CALL mp_sum(z_ij_loc_re,para_env%group)
+      CALL mp_sum(z_ij_loc_im,para_env%group)
+      CALL cp_fm_set_submatrix(zij(1,idim)%matrix,z_ij_loc_re,1,1,nstate,nstate,error=error)
+      CALL cp_fm_set_submatrix(zij(2,idim)%matrix,z_ij_loc_im,1,1,nstate,nstate,error=error)
+    END DO
+
+    z_ij_loc_re = 0.0_dp
+    DO i=1,ns_me
+      ii = ilow1 + i -1
+      DO j = 1,nstate
+        z_ij_loc_re(j,ii)=rotmat(j,ii) 
+      END DO
+    END DO
+    CALL mp_sum(z_ij_loc_re,para_env%group)
+!    CALL cp_fm_set_submatrix(rmat,z_ij_loc_re,1,ilow1,nstate,ns_me,error=error)
+    CALL cp_fm_set_submatrix(rmat,z_ij_loc_re,1,1,nstate,nstate,error=error)
+
+    DEALLOCATE(z_ij_loc_re,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(z_ij_loc_im,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO idim = 1,dim2
+       DEALLOCATE(cz_ij_loc(idim)%c_array,STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(cz_ij_loc,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL mp_sync(para_env%group)
+    CALL rotate_orbitals ( rmat, vectors )
+    CALL cp_fm_release ( rmat ,error=error)
+
+    DEALLOCATE(rotmat,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(ns_bound, list_pair)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE jacobi_rot_para
+
+  SUBROUTINE eberlein(iperm,para_env,list_pair,error)
+    INTEGER, INTENT(IN)                      :: iperm
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, DIMENSION(:, :)                 :: list_pair
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'eberlein', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, jj, npair
+
+      npair=(para_env%num_pe+1)/2
+      IF(iperm==1) THEN
+!..set up initial ordering
+        DO I=0,para_env%num_pe-1
+          II=((i+1)+1)/2
+          JJ=MOD((i+1)+1,2)+1
+          list_pair(JJ,II)=i
+        ENDDO
+        IF(MOD(para_env%num_pe,2)==1) list_pair(2,npair)=-1
+      ELSEIF(MOD(iperm,2)==0) THEN
+!..a type shift
+        jj=list_pair(1,npair)
+        DO I=npair,3,-1
+          list_pair(1,I)=list_pair(1,I-1)
+        ENDDO
+        list_pair(1,2)=list_pair(2,1)
+        list_pair(2,1)=jj
+      ELSE
+!..b type shift
+        jj=list_pair(2,1)
+        DO I=1,npair-1
+          list_pair(2,I)=list_pair(2,I+1)
+        ENDDO
+        list_pair(2,npair)=jj
+      ENDIF
+
+  END SUBROUTINE eberlein
+
 END MODULE qs_localization_methods

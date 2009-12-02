@@ -46,3 +46,5 @@ ch4-gapw-issc-2.inp
 no-gapw-issc-1.inp
 # changed eps to 1e-6
 ch4-gapw-issc-pso-1.inp
+#
+no-gapw-issc-1.inp

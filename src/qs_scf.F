@@ -458,7 +458,7 @@ CONTAINS
     NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
-            scf_section)
+            scf_section, para_env)
     NULLIFY ( aux_coeff_set, scp_env, pscp, ks_scp)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -1336,6 +1336,7 @@ END SUBROUTINE qs_scf_print_summary
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    NULLIFY(para_env)
     para_env=>qs_env%para_env
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -1821,6 +1822,7 @@ CPSourceFileRef)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    NULLIFY(para_env)
     para_env=>qs_env%para_env
 
     s_minus_half_available = .FALSE.

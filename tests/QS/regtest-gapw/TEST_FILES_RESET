@@ -259,3 +259,9 @@ He2-all-md.inp
 He2-all-md.inp
 # Numerics changes due to different distributions 
 He2-all-md.inp
+# localization functional
+H2O-gapw-all_localize.inp
+H2O-gapw-all_localize_crazy.inp
+H2O-gapw-all_loc_list.inp
+H2O-gapw-all_localize_noortho.inp
+H2O-gapw-all_localize_crazy_noortho.inp

@@ -22,10 +22,6 @@ MODULE qs_loc_methods
                                              set_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
-  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                             cp_cfm_release,&
-                                             cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              dbcsr_obj_p_type,&
@@ -95,6 +91,7 @@ MODULE qs_loc_methods
   USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
                                              crazy_rotations,&
                                              direct_mini,&
+                                             jacobi_rot_para,&
                                              jacobi_rotations
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -124,10 +121,8 @@ CONTAINS
 !>       the selected mos  and by the definition using the berry phase
 !>       as given by silvestrelli et al
 !>       If required the centers and the spreads for each mos selected
-!>       are calculated from z_ij and printed in the proper files.
-!>       The files should be appended if already exist, in this way
-!>       it would be possible to follow the evlution of the localization
-!>       e.g. along a MD trajectory
+!>       are calculated from z_ij and printed to file.
+!>       The centers files is appended if already exists
 !> \param method indicates localization algorithm
 !> \param qs_loc_env new environment for the localization calculations
 !> \param vectors selected mos to be localized
@@ -146,7 +141,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE optimize_loc_berry( method, qs_loc_env, vectors, op_sm_set, &
-       zij_fm_set, cell, weights,  ispin, loc_section, print_loc_section,error)
+       zij_fm_set, para_env, cell, weights,  ispin, loc_section, print_loc_section,error)
 
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -155,6 +150,7 @@ CONTAINS
       DIMENSION(:, :), POINTER               :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: zij_fm_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
@@ -201,12 +197,19 @@ CONTAINS
     crazy_scale = qs_loc_env%localized_wfn_control%crazy_scale
     eps_localization = qs_loc_env%localized_wfn_control%eps_localization
     out_each = qs_loc_env%localized_wfn_control%out_each
-
+    CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
+         ispin, loc_section, print_loc_section, only_initial_out=.TRUE., error=error )
     SELECT CASE ( method )
     CASE ( do_loc_jacobi )
-       CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=max_iter,&
+      IF(para_env%num_pe > 1 .AND. nmoloc > 2*para_env%num_pe) THEN
+        CALL jacobi_rot_para ( weights, zij_fm_set, vectors, para_env, max_iter=max_iter,&
             eps_localization=eps_localization, sweeps=sweeps, &
             out_each=out_each, error=error )
+      ELSE
+        CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=max_iter,&
+            eps_localization=eps_localization, sweeps=sweeps, &
+            out_each=out_each, error=error )
+      END IF
     CASE ( do_loc_crazy )
        CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=max_iter, max_crazy_angle = max_crazy_angle, &
             crazy_scale=crazy_scale, crazy_use_diag=crazy_use_diag, &
@@ -228,11 +231,8 @@ CONTAINS
           ENDIF
        END IF
     CASE ( do_loc_direct )
-       IF(.NOT. cell%orthorhombic ) THEN
-           CALL stop_program("qs_localization","non-orthorhombic cell with the selected method NYI")
-       ELSE
-           CALL direct_mini( weights, zij_fm_set, vectors, sweeps )
-       END IF
+       CALL direct_mini( weights, zij_fm_set, vectors, max_iter=max_iter,&
+            eps_localization=eps_localization, iterations=sweeps,  out_each=out_each, error=error  )
     CASE( do_loc_l1_norm_sd )
        IF(.NOT. cell%orthorhombic ) THEN
            CALL stop_program("qs_localization","non-orthorhombic cell with the selected method NYI")
@@ -256,7 +256,7 @@ CONTAINS
        CALL stop_program("qs_localization","unknown localization method")
     END SELECT
     IF (output_unit>0) THEN
-       WRITE(output_unit,'(T15,A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
+       IF(sweeps<=max_iter) WRITE(output_unit,'(T15,A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
             " converged in ",sweeps," iterations"
     ENDIF
 
@@ -399,7 +399,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE centers_spreads_berry( qs_loc_env, zij, nmoloc, cell, weights, ispin,&
-       loc_section, print_loc_section, error)
+       loc_section, print_loc_section, only_initial_out, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     INTEGER, INTENT(IN)                      :: nmoloc
@@ -407,27 +407,30 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: only_initial_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: file_tmp, iter
-    COMPLEX(KIND=dp)                         :: almost_determinant, z
+    COMPLEX(KIND=dp)                         :: z
     INTEGER                                  :: idir, istate, jdir, nstates, &
                                                 output_unit, unit_out_s
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: spread_i, sum_spread_i
-    REAL(dp), DIMENSION(3)                   :: c, cpbc, spreadtot
+    LOGICAL                                  :: failure, my_only_init
+    REAL(dp)                                 :: spread_i, spread_ii, &
+                                                sum_spread_i, sum_spread_ii
+    REAL(dp), DIMENSION(3)                   :: c, c2, cpbc
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     REAL(KIND=dp)                            :: imagpart, realpart
-    TYPE(cp_cfm_type), POINTER               :: complexresult
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    NULLIFY(centers,complexresult,logger,print_key)
+    NULLIFY(centers, logger, print_key)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
+    my_only_init=.FALSE.
+    IF(PRESENT(only_initial_out)) my_only_init=only_initial_out
 
     file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
     output_unit = cp_print_key_unit_nr(logger,loc_section,"PROGRAM_RUN_INFO",&
@@ -435,7 +438,7 @@ CONTAINS
     unit_out_s = cp_print_key_unit_nr(logger,print_loc_section,"WANNIER_SPREADS",&
          middle_name=file_tmp,extension=".data",error=error)
     iter = cp_iter_string(logger%iter_info,error=error)
-    IF(unit_out_s>0) WRITE(unit_out_s,'(i6,/,A)') nmoloc, TRIM(iter)
+    IF(unit_out_s>0 .AND. .NOT. my_only_init) WRITE(unit_out_s,'(i6,/,A)') nmoloc, TRIM(iter)
 
     CALL  cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates ,error=error)
     CPPrecondition(nstates>=nmoloc,cp_failure_level,routineP,error,failure)
@@ -444,15 +447,20 @@ CONTAINS
     CPPrecondition(ASSOCIATED(centers),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(centers,2)==nmoloc,cp_failure_level,routineP,error,failure)
     sum_spread_i  = 0.0_dp
+    sum_spread_ii  = 0.0_dp
     DO istate=1,nmoloc
        c = 0.0_dp
-       spread_i = 0
+       c2 = 0.0_dp
+       spread_i = 0.0_dp
+       spread_ii = 0.0_dp
        DO jdir = 1,SIZE(zij,2)
          CALL cp_fm_get_element(zij(1,jdir)%matrix,istate,istate,realpart)
          CALL cp_fm_get_element(zij(2,jdir)%matrix,istate,istate,imagpart)
          z=CMPLX(realpart,imagpart,dp)
          spread_i =  spread_i -weights ( jdir ) *&
                      LOG (realpart*realpart+imagpart*imagpart ) / twopi/twopi
+         spread_ii =  spread_ii + weights ( jdir ) *&
+                     (1.0_dp - (realpart*realpart+imagpart*imagpart )) / twopi/twopi
          IF(jdir < 4) THEN
            DO idir=1,3
              c(idir) =  c(idir) + &
@@ -462,29 +470,28 @@ CONTAINS
        END DO
        cpbc = pbc(c,cell)
        centers (1:3, istate ) = cpbc(1:3)
-       centers (4, istate ) = SQRT(spread_i)
+       centers (4, istate ) = spread_i 
+       centers (5, istate ) = spread_ii
        sum_spread_i = sum_spread_i +  centers (4, istate )
-       IF (unit_out_s>0) WRITE(unit_out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
+       sum_spread_ii = sum_spread_ii +  centers (5, istate )
+       IF (unit_out_s>0 .AND. .NOT. my_only_init) WRITE(unit_out_s,'(I6,2F16.8)') istate, centers(4:5,istate)
     ENDDO
 
     ! Print of wannier centers
     print_key => section_vals_get_subs_vals(print_loc_section,"WANNIER_CENTERS",error=error)
-    CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin, error)
+    IF (.NOT. my_only_init)  CALL print_wannier_centers(qs_loc_env, print_key, centers, logger, ispin, error)
 
-    ! Now, find the spread of the orbitals
-    CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct ,error=error)
+    IF (output_unit>0) THEN
+        WRITE(output_unit,'(T10, A, 2x, A26, A26)') " Spread Functional ", "sum_in w_i(1-|z_in|^2)", "sum_in -w_i ln(|z_in|^2)"
+        IF(my_only_init) THEN
+          WRITE(output_unit,'(T4,A,10x,2F20.10)') " Initial Spread (Berry) : ", sum_spread_i, sum_spread_ii
+        ELSE
+          WRITE(output_unit,'(T4,A,10x,2F20.10)') " Total Spread (Berry) : ", sum_spread_i, sum_spread_ii
+        END IF
+    END IF
 
-    DO idir=1,3
-       complexresult%local_data ( :, : ) = CMPLX (zij(1,idir)%matrix%local_data(:,:), &
-            zij(2,idir)%matrix%local_data(:,:),dp)
-       CALL cp_cfm_lu_decompose ( complexresult, almost_determinant )
-       spreadtot(idir) =  SQRT(-2.0*nmoloc*LOG(ABS(almost_determinant)))
-    ENDDO
-    CALL cp_cfm_release(complexresult,error=error)
+    IF (unit_out_s>0 .AND. .NOT. my_only_init) WRITE (unit_out_s,'(A,2F16.10)') " Total ",  sum_spread_i, sum_spread_ii
 
-    IF (output_unit>0)WRITE(output_unit,'(T4,A,10x,3F16.10)') " Total Spread (Berry) x,y,z: ",spreadtot(1:3)
-
-    IF (unit_out_s>0) WRITE (unit_out_s,'(A,3F16.10)') " Total ", spreadtot(1:3)
     CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS",error=error)
     CALL cp_print_key_finished_output(output_unit,logger,loc_section,"PROGRAM_RUN_INFO",error=error)
 
@@ -617,7 +624,7 @@ CONTAINS
       jstate, l_spin, lb, loc_method, my_nspins, n_rep, nao, ncubes, nmo, &
       nmosub, s_spin, ub
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, list_cubes
-    LOGICAL                                  :: append_cube, failure, ionode, &
+    LOGICAL                                  :: append_cube, failure, &
                                                 list_cubes_setup
     LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(dp), DIMENSION(6)                   :: weights
@@ -646,7 +653,6 @@ CONTAINS
     failure = .FALSE.
     qs_loc_env%first_time = first_time
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
 
     CALL get_qs_loc_env(qs_loc_env=qs_loc_env, &
          localized_wfn_control=localized_wfn_control,&
@@ -698,7 +704,7 @@ CONTAINS
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
 
           CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set,&
-               op_fm_set, cell, weights, ispin, loc_section, print_loc_section, error=error)
+               op_fm_set, para_env, cell, weights, ispin, loc_section, print_loc_section, error=error)
 
           ! Here we dealloctate op_fm_set
           IF(ASSOCIATED(op_fm_set)) THEN
