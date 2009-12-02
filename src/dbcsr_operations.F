@@ -967,7 +967,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Multiplies two DBCSR matrices, using the current local data.
 !>
-!> Attempts to block consecutive columns in rows of the right matrix.
 !> \param[in] left, right     left and right DBCSR matrices
 !> \param[in,out] product     resulting DBCSR product matrix
 !> \param[in] submatrix_box   select submatrix
@@ -1436,7 +1435,19 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_nn_mult_lin
 
-
+! *****************************************************************************
+!> \brief Joins compatible DGEMM parameters into a single DGEMM parameter
+!>
+!> \param[in,out] params      Stack of parameters
+!> \param[in,out] first       First element considered joinable
+!> \par first
+!>      This is the first element in the list (and highest in the
+!>      stack) should be considered joinable with following
+!>      elements. It is used to avoid rescanning the elements at the
+!>      bottom of the stack that have already been determined to be
+!>      non-joinable.
+!> \par[in,out] n             Number of elements (stack size)
+! *****************************************************************************
   SUBROUTINE merge_dgemm_stack(params, first, n)
     INTEGER, INTENT(INOUT)                   :: n, first
     TYPE(dgemm_parameters), DIMENSION(1:n), &
@@ -1489,6 +1500,16 @@ CONTAINS
   END SUBROUTINE merge_dgemm_stack
 
 
+! *****************************************************************************
+!> \brief Issues actual DGEMM calls.
+!>
+!> \param[in] params           Stack of DGEMM parameters
+!> \param[in] n                Number of parameters
+!> \param[in] left_data_area   Left-matrix data
+!> \param[in] right_data_area  Right-matrix data
+!> \param[in,out] product_data-area     Data for results
+!> \param[out] lflop           (optional) Number of FLOPs used by DGEMM
+! *****************************************************************************
 
   SUBROUTINE process_dgemm_stack(params, n,&
        left_data_area, right_data_area, product_data_area, lflop)
@@ -1503,8 +1524,10 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'process_dgemm_stack', &
       routineP = moduleN//':'//routineN
+    REAL, PARAMETER                          :: resize_factor = 1.618034
 
-    INTEGER                                  :: c, lda, ldb, ldc, r, sp
+    INTEGER                                  :: c, lda, ldb, ldc, maxs, r, sp
+    LOGICAL                                  :: do_resize
     REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, product_data_d, &
                                                 right_data_d
 
@@ -1513,6 +1536,22 @@ CONTAINS
     DEBUG_BODY
 
     IF (PRESENT (lflop)) lflop = INT(0, int_8)
+    ! Increase product data area size if necessary.
+    do_resize = .FALSE.
+    maxs = dbcsr_get_data_size(product_data_area)
+    DO sp = 1, n
+       IF (params(sp)%offset_c+params(sp)%nze_c-1 .GT. maxs) THEN
+          maxs = params(sp)%offset_c+params(sp)%nze_c-1
+          do_resize = .TRUE.
+       ENDIF
+    ENDDO
+    IF (do_resize) THEN
+       IF (dbg) &
+            WRITE(*,*)routineN//" Data area too small, increasing!", &
+            maxs, dbcsr_get_data_size(product_data_area)
+       CALL dbcsr_data_ensure_size (product_data_area,&
+            maxs, factor=resize_factor)
+    ENDIF
     DO sp = 1, n
        IF (dbg) WRITE(*,*)routineN//" Stack pointer", sp
        IF (dbg) CALL print_dgemm_parameters(params(sp))
