@@ -337,8 +337,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lb_new, lb_orig, stat, &
-                                                ub_new, ub_orig, old_size,&
-                                                size_increase
+                                                ub_new, ub_orig
     LOGICAL                                  :: dbg, docopy = .TRUE., &
                                                 failure = .TRUE., info, spec,&
                                                 pad
@@ -374,7 +373,6 @@
     ENDIF
     lb_orig = LBOUND(array,1)
     ub_orig = UBOUND(array,1)
-    old_size = ub_orig - lb_orig + 1
     IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig,&
          '; special?',spec
     ! The existing array is big enough.
@@ -385,20 +383,12 @@
     !CALL timeset(routineN,timing_handle)
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
-          size_increase = lb_orig - lb_new
-          size_increase = MAX (NINT(REAL(size_increase)*factor),&
-                               NINT(REAL(old_size)*factor))
-          lb_new = MIN (lb_orig, lb_new - size_increase)
-       ELSE
-          lb_new = lb_orig
+          lb_new = MIN(lb_orig, lb_new - NINT(REAL(lb_orig - lb_new)*factor))
        ENDIF
     ENDIF
     IF (ub_orig.LT.ub) THEN
        IF (PRESENT(factor)) THEN
-          size_increase = ub_new - ub_orig
-          size_increase = MAX (NINT(REAL(size_increase)*factor),&
-                               NINT(REAL(old_size)*factor))
-          ub_new = MAX (ub_orig, ub + size_increase)
+          ub_new = MAX(ub_orig, ub + NINT(REAL(ub-ub_orig)*factor))
        ELSE
           ub_new = ub
        ENDIF
@@ -431,10 +421,7 @@
        ELSE
           DEALLOCATE(array)
        ENDIF
-       IF (pad) THEN
-          array(ub_orig+1:ub_new) = CMPLX(0.0, 0.0, real_8)
-          array(lb_new:lb_orig-1) = CMPLX(0.0, 0.0, real_8)
-       ENDIF
+       IF (pad) array(ub_orig+1:ub_new) = CMPLX(0.0, 0.0, real_8)
     ELSEIF (pad) THEN
        array(:) = CMPLX(0.0, 0.0, real_8)
     ENDIF
