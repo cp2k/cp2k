@@ -1986,7 +1986,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
     CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
     CALL cp_error_init(suberror,template_error=error)
-    IF (.NOT. failure) THEN
+    IF ((.NOT.failure).AND.(unit_nr>0)) THEN
        CALL section_vals_get(section_vals, explicit=explicit, n_repetition=nr, section=section,&
             error=error)
        IF (explicit.OR.(.NOT.my_hide_defaults)) THEN
