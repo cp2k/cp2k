@@ -641,7 +641,7 @@ MODULE wfn_fitting_methods
     NULLIFY (sdab)
     NULLIFY (work)
 
-
+    return_s_derivatives = .TRUE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
