@@ -67,7 +67,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_potential', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, k, np(3)
+    INTEGER                                  :: handle, i, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo_global, bo_local
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol, efield_ener, field(3)
@@ -79,9 +79,6 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    dr=v_efield_rspace%pw%pw_grid%dr
-
-    dvol = v_efield_rspace%pw%pw_grid%dvol
 
     NULLIFY(cell, particles)
     CALL cp_subsys_get(qs_env%subsys,particles=particles,error=error)
@@ -92,10 +89,8 @@ CONTAINS
     bo_local=v_efield_rspace%pw%pw_grid%bounds_local
     bo_global=v_efield_rspace%pw%pw_grid%bounds
 
-    np=v_efield_rspace%pw%pw_grid%npts
-    dvol = v_efield_rspace%pw%pw_grid%dvol
+    dvol=v_efield_rspace%pw%pw_grid%dvol
     dr=v_efield_rspace%pw%pw_grid%dr
-    np= v_efield_rspace%pw%pw_grid%npts
 
     CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error)
 
