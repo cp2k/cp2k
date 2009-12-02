@@ -48,7 +48,8 @@ MODULE qs_scf_post_gpw
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE f77_blas
   USE hfx_ri_gemopt,                   ONLY: geminal_optimize
-  USE input_constants,                 ONLY: ot_precond_full_all,&
+  USE input_constants,                 ONLY: energy_loc_range,&
+                                             ot_precond_full_all,&
                                              state_loc_all,&
                                              use_orb_basis_set
   USE input_section_types,             ONLY: section_get_ival,&
@@ -184,11 +185,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, ilast_intocc, ispin, istat, n, n_mo(2), nao, &
-      nelectron, nhomo, nlumo, nlumos, nmo, nmoloc(2), nmos, output_unit, &
-      unit_nr
+    INTEGER :: handle, homo, i, ilast_intocc, ilow, ispin, istat, iup, n, &
+      n_mo(2), nao, nelectron, nhomo, nlumo, nlumos, nmo, nmoloc(2), nmos, &
+      output_unit, unit_nr
     LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, failure, has_homo, &
-      has_lumo, ionode, my_localized_wfn, p_loc
+      has_lumo, my_localized_wfn, p_loc
     REAL(dp)                                 :: e_kin, e_kinAtt
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, occupation
@@ -417,12 +418,39 @@ CONTAINS
                     ilast_intocc = nmoloc(ispin)
                    END IF
                    nmoloc(ispin) = ilast_intocc
-                   IF(nmoloc(ispin)/=nmo) THEN
-                     IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I6,A,F12.6,A,F12.6,A)")&
-                        "LOCALIZATION| The first ",ilast_intocc,&
-                        " occupied orbitals are localized, corresponding to energy range from ",&
+                   IF(nmoloc(ispin)/=n_mo(ispin)) THEN
+                     IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I6,A,F12.6,A,F12.6,A)") "LOCALIZATION| The first ",&
+                        ilast_intocc," occupied orbitals are localized, corresponding to energies from ",&
                         mo_eigenvalues(1), " to ",  mo_eigenvalues(ilast_intocc) , " [a.u.]." 
                    END IF
+                ELSE IF(qs_loc_env%localized_wfn_control%set_of_states == energy_loc_range) THEN
+                  ilow = 0
+                  iup = 0
+                  DO i = 1,n_mo(ispin)
+                    IF(mo_eigenvalues(i)>=qs_loc_env%localized_wfn_control%lu_ene_bound(1) ) THEN
+                      ilow = i
+                      EXIT
+                    END IF
+                  END DO
+                  DO i = n_mo(ispin),1,-1
+                    IF(mo_eigenvalues(i)<=qs_loc_env%localized_wfn_control%lu_ene_bound(2) ) THEN
+                      iup = i
+                      EXIT
+                    END IF
+                  END DO
+                  qs_loc_env%localized_wfn_control%lu_bound_states(1,ispin) = ilow
+                  qs_loc_env%localized_wfn_control%lu_bound_states(2,ispin) = iup
+                  qs_loc_env%localized_wfn_control%nloc_states(ispin) = iup-ilow +1
+                  nmoloc(ispin) = qs_loc_env%localized_wfn_control%nloc_states(ispin) 
+                  IF(occupation(ilow)-occupation(iup) > qs_loc_env%localized_wfn_control%eps_occ) THEN
+                    CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
+                       "The selected energy range includes orbitals with different occupation number. "//&
+                       " The localization procedure cannot be applied."//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
+                  END IF
+                  IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I6,A)") "LOCALIZATION| ",&
+                       nmoloc(ispin)," orbitals in the selected energy range are localized, ."
                 ELSE
                    nmoloc(ispin) = MIN(qs_loc_env%localized_wfn_control%nloc_states(1) ,n_mo(ispin))
                    IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I6,A)") "LOCALIZATION| ",&
