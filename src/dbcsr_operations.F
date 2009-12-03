@@ -1636,7 +1636,7 @@ CONTAINS
                params(sp)%type_c,&
                flip_type(params(sp)%type_a),&
                flip_type(params(sp)%type_b),&
-               params(sp)%last_n, params(sp)%lcols_c,& !m, n (switched)
+               params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
                params(sp)%last_k,& ! k
                params(sp)%alpha,&
                params(sp)%offset_a, params(sp)%nze_a,&
@@ -1644,14 +1644,14 @@ CONTAINS
                params(sp)%beta,&
                params(sp)%offset_c, params(sp)%nze_c
           lda = select_n_or_t (params(sp)%type_a,&
-               params(sp)%lcols_a, params(sp)%lrows_a)
+               params(sp)%lrows_a, params(sp)%lcols_a)
           ldb = select_n_or_t (params(sp)%type_b,&
-               params(sp)%lcols_b, params(sp)%lrows_b)
+               params(sp)%lrows_b, params(sp)%lcols_b)
           ldc = select_n_or_t (params(sp)%type_c,&
-               params(sp)%lcols_c, params(sp)%lrows_c)
-          CALL DGEMM(flip_type(params(sp)%type_a),&
-               flip_type(params(sp)%type_b),&
-               params(sp)%last_n, params(sp)%lcols_c,& !m, n (switched)
+               params(sp)%lrows_c, params(sp)%lcols_c)
+          CALL DGEMM(flip_type(params(sp)%type_b),&
+               flip_type(params(sp)%type_a),&
+               params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
                params(sp)%last_k,& ! k
                params(sp)%alpha,&
                right_data_d, ldb,&
