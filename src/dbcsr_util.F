@@ -4816,7 +4816,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    dbg = .TRUE.
+    dbg = .FALSE.
     info = .FALSE.
     CALL dbcsr_set_debug(dbg, info=info)
 
