@@ -252,6 +252,7 @@ MODULE qs_environment_types
 !> \param rho_core a grid with the charges of the cores of the atoms in the
 !>        reciprocal (g) space
 !> \param vppl a realspace grid with the local pseudopotential
+!> \param vee a realspace grid with the external electrostatic potential
 !> \param qs_charges an object where to put the charges that are present on
 !>        the various grids
 !> \param ks_env environement for the calculation of the Kohn Sham matrix
@@ -297,7 +298,6 @@ MODULE qs_environment_types
 !> \author Matthias Krack & fawzi
 ! *****************************************************************************
   TYPE qs_environment_type
-!   PRIVATE
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
     LOGICAL :: qmmm, qmmm_periodic
@@ -321,7 +321,7 @@ MODULE qs_environment_types
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(harris_env_type), POINTER                        :: harris_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER       :: matrix_h,&
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER         :: matrix_h,&
                                                              matrix_ks,&
                                                              matrix_s,&
                                                              kinetic,&
@@ -343,6 +343,7 @@ MODULE qs_environment_types
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(pw_p_type), POINTER                              :: rho_core
     TYPE(pw_p_type), POINTER                              :: vppl
+    TYPE(pw_p_type), POINTER                              :: vee
     TYPE(qs_charges_type), POINTER                        :: qs_charges
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
     TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
@@ -420,7 +421,7 @@ CONTAINS
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, wfn_fitting_env, &
-       hfx_ri_env,dispersion_env, error)
+       hfx_ri_env,dispersion_env, vee, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -549,6 +550,7 @@ CONTAINS
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
       POINTER                                :: dispersion_env
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: vee
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -621,6 +623,7 @@ CONTAINS
     IF (PRESENT(rel_control)) rel_control => qs_env%rel_control  
     IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
     IF (PRESENT(vppl)) vppl => qs_env%vppl
+    IF (PRESENT(vee)) vee => qs_env%vee
     IF (PRESENT(qs_charges)) qs_charges => qs_env%qs_charges
     IF (PRESENT(ks_env)) ks_env => qs_env%ks_env
     IF (PRESENT(ks_qmmm_env)) ks_qmmm_env => qs_env%ks_qmmm_env
@@ -765,6 +768,7 @@ CONTAINS
     NULLIFY (qs_env%qs_charges)
     NULLIFY (qs_env%rho_core)
     NULLIFY (qs_env%vppl)
+    NULLIFY (qs_env%vee)
     NULLIFY (qs_env%ks_env)
     NULLIFY (qs_env%ks_qmmm_env)
     NULLIFY (qs_env%wf_history)
@@ -841,7 +845,7 @@ CONTAINS
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
        sab_2c,sac_3c,sbc_3c,sab_scp,sab_vdw,energy,force,harris_env,matrix_h,matrix_ks,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
-       matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,& 
+       matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,& 
        rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,ks_env,& 
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
@@ -876,7 +880,9 @@ CONTAINS
     TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools, mpools_aux_fit
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_aux_fit, rho_buffer, &
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(pw_p_type), OPTIONAL, POINTER       :: vee
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_aux_fit, rho_buffer, &
                                                 rho_xc
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
@@ -1089,6 +1095,7 @@ CONTAINS
     IF (PRESENT(kinetic)) qs_env%kinetic => kinetic
     IF (PRESENT(rho_core)) qs_env%rho_core => rho_core
     IF (PRESENT(vppl)) qs_env%vppl => vppl
+    IF (PRESENT(vee)) qs_env%vee => vee
     IF (PRESENT(qs_charges)) THEN
        CALL qs_charges_retain(qs_charges,error=error)
        CALL qs_charges_release(qs_env%qs_charges,error=error)
@@ -1548,6 +1555,10 @@ CONTAINS
           IF (ASSOCIATED(qs_env%vppl)) THEN
              CALL pw_release(qs_env%vppl%pw,error=error)
              DEALLOCATE(qs_env%vppl)
+          ENDIF
+          IF (ASSOCIATED(qs_env%vee)) THEN
+             CALL pw_release(qs_env%vee%pw,error=error)
+             DEALLOCATE(qs_env%vee)
           ENDIF
           CALL qs_charges_release(qs_env%qs_charges, error=error)
           CALL qs_ks_release(qs_env%ks_env, error=error)

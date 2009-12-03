@@ -47,6 +47,7 @@ MODULE qs_force_types
                                          hfx_ri,&
                                          ehrenfest,&
                                          efield,&
+                                         eev,&
                                          total
   END TYPE qs_force_type
 
@@ -170,6 +171,10 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%efield(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineP,"qs_force(ikind)%efield",3*n*dp_size)
+      END IF
+      ALLOCATE (qs_force(ikind)%eev(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineP,"qs_force(ikind)%eev",3*n*dp_size)
       END IF
       ! Always initialize ch_pulay to zero..
       qs_force(ikind)%ch_pulay  = 0.0_dp
@@ -374,6 +379,13 @@ CONTAINS
           CALL stop_memory(routineP,"qs_force%efield")
         END IF
       END IF
+
+      IF (ASSOCIATED(qs_force(ikind)%eev)) THEN
+        DEALLOCATE (qs_force(ikind)%eev,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineP,"qs_force%eev")
+        END IF
+      END IF
     END DO
 
     DEALLOCATE (qs_force,STAT=istat)
@@ -424,6 +436,7 @@ CONTAINS
       qs_force(ikind)%hfx_ri(:,:) = 0.0_dp
       qs_force(ikind)%ehrenfest(:,:) = 0.0_dp
       qs_force(ikind)%efield(:,:) = 0.0_dp
+      qs_force(ikind)%eev(:,:) = 0.0_dp
       qs_force(ikind)%total(:,:) = 0.0_dp
     END DO
 
@@ -499,6 +512,7 @@ CONTAINS
         qs_force_output(ikind)%hfx_ri(:,:) = qs_force_input(ikind)%hfx_ri(:,:)
         qs_force_output(ikind)%ehrenfest(:,:) = qs_force_input(ikind)%ehrenfest(:,:)
         qs_force_output(ikind)%efield(:,:) = qs_force_input(ikind)%efield(:,:)
+        qs_force_output(ikind)%eev(:,:) = qs_force_input(ikind)%eev(:,:)
         qs_force_output(ikind)%total(:,:) = qs_force_input(ikind)%total(:,:)
       END DO
     END IF

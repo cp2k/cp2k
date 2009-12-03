@@ -57,3 +57,6 @@ N.inp                1
 h2o-otdiag.inp       1
 h2o-diag.inp         1
 h2o-otdiag-lsd.inp   1
+#external electrostatic field
+H2O-extpot.inp      11
+H-extpot.inp        11

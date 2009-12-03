@@ -318,7 +318,8 @@ CONTAINS
       scale_ddW0, scale_dEx1, scale_dEx2, scale_x, total_energy_xc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     REAL(KIND=dp)                            :: ddapc_order_p, ecore_ppl, &
-                                                mulliken_order_p, s2_order_p
+                                                ee_ener, mulliken_order_p, &
+                                                s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(becke_restraint_type), POINTER      :: becke
@@ -494,19 +495,19 @@ CONTAINS
           CALL pw_zero(v_hartree_gspace%pw, error=error)
        END IF
 
-       !CJM get the total density in g-space [ions + electrons]
+       ! Get the total density in g-space [ions + electrons]
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
        IF(my_print) THEN
          output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
               extension=".scfLog",error=error)
-         CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc, output_unit, error)
+         CALL print_densities(qs_env, rho, my_rho_xc, output_unit, error)
          CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
               "PRINT%TOTAL_DENSITIES", error=error)
        END IF
 
-       ! CJM getting the Hartree energy and Hartree potential.  Also getting the stress tensor
-       ! CJM from the Hartree term if needed.  No nuclear force information here
+       ! Getting the Hartree energy and Hartree potential.  Also getting the stress tensor
+       ! from the Hartree term if needed.  No nuclear force information here
        IF (use_virial .AND. calculate_forces) THEN
          h_stress(:,:) = 0.0_dp
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
@@ -548,299 +549,309 @@ CONTAINS
           CALL pw_scale(v_efield_rspace%pw, v_efield_rspace%pw%pw_grid%dvol, error=error)
        END IF
 
-
        ! SIC
        CALL calc_v_sic_rspace(v_sic_rspace,energy,qs_env,dft_control,rho,poisson_env,&
             just_energy,calculate_forces,auxbas_pw_pool,error=error)
 
-       IF ( gapw ) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
+       IF (gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
 
-       !***** Check if becke potential is needed to constrain charges *****
+       ! Check if becke potential is needed to constrain charges
        CALL qs_ks_becke_restraint(qs_env,auxbas_pw_pool,calculate_forces,matrix_s,becke,error)
-       
-       ! *** Add the QM/MM potential ***
+
+       ! Adds the External Potential if requested
+       IF(dft_control%apply_external_potential) THEN
+          ! Compute the energy due to the external potential
+          ee_ener=0.0_dp
+          DO ispin=1,nspins
+             ee_ener=ee_ener+accurate_sum(qs_env%vee%pw%cr3d*rho%rho_r(ispin)%pw%cr3d)*&
+                  qs_env%vee%pw%pw_grid%dvol
+          END DO
+          CALL mp_sum(ee_ener,qs_env%para_env%group)
+          ! the sign accounts for the charge of the electrons
+          energy%ee=-ee_ener
+       END IF
+
+       ! Adds the QM/MM potential 
        IF (qs_env%qmmm) THEN
           output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
                extension=".qmmmLog",error=error)
           IF (output_unit>0) &
                WRITE (UNIT=output_unit,FMT="(T3,A)")&
-               "Adding QM/MM electrostatic potential to the Kohn-Sham potential.."
-           CALL qmmm_calculate_energy (qs_env=qs_env,&
-                                       rho=rho%rho_r,&
-                                       v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
-                                       qmmm_energy=energy%qmmm_el,&
-             ! also take into account the scaling (in addition to the volume element)
-                                       error=error)
-           CALL cp_print_key_finished_output(output_unit,logger,input,&
-                "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
+               "Adding QM/MM electrostatic potential to the Kohn-Sham potential."
+          CALL qmmm_calculate_energy (qs_env=qs_env,&
+                                      rho=rho%rho_r,&
+                                      v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
+                                      qmmm_energy=energy%qmmm_el,&
+                                      error=error)
+          CALL cp_print_key_finished_output(output_unit,logger,input,&
+               "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
 
-           IF (.NOT.just_energy) THEN
-              CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
-                   v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
-                   error=error)
-           END IF
+          IF (.NOT.just_energy) THEN
+             CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+                  v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,scale=1.0_dp,&
+                  error=error)
+          END IF
        END IF
-! ****SCP        *** Add the polarization potential ***
+
+       ! SCP: Add the polarization potential
        IF ( scp_dft ) THEN
-! Get the KS_SCP environment
+          ! Get the KS_SCP environment
           CALL get_scp_env ( scp_env = scp_env, ks_scp_env = ks_scp_env, error = error )
           IF (output_unit>0) &
                WRITE (UNIT=output_unit,FMT="(T3,A)")&
                "Adding SCP  potential to the Kohn-Sham potential.."
           IF (qs_env % qmmm ) THEN
-            CALL scp_calculate_qmmm_energy ( scp_env, qs_env%ks_qmmm_env%v_qmmm_rspace, error )
+             CALL scp_calculate_qmmm_energy ( scp_env, qs_env%ks_qmmm_env%v_qmmm_rspace, error )
           END IF
           IF (.NOT.just_energy) THEN
-! Needs up-to-date KS_SCP_ENV
-            CALL scp_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
-                                        v_scp=ks_scp_env%v_scp_rspace,&
-                                        error=error)
+             ! Needs up-to-date KS_SCP_ENV
+             CALL scp_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+                                         v_scp=ks_scp_env%v_scp_rspace,&
+                                         error=error)
           END IF
        END IF
-! ****SCP   
 
-       !! calculate the density matrix for the fitted mo_coeffs
+       ! calculate the density matrix for the fitted mo_coeffs
        IF( dft_control%do_wfn_fitting ) THEN       
-         NULLIFY(mo_coeff_aux_fit)
-         CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
-         CALL get_qs_env(qs_env,mos=mos,wfn_fitting_env=wfn_fitting_env,error=error)
+          NULLIFY(mo_coeff_aux_fit)
+          CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
+          CALL get_qs_env(qs_env,mos=mos,wfn_fitting_env=wfn_fitting_env,error=error)
+          
+          CALL fit_mo_coeffs(wfn_fitting_env, para_env, &
+                             qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
+                             mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
+          CALL set_qs_env(qs_env,wfn_fitting_env=wfn_fitting_env,error=error)
+          
+          DO ispin=1,nspins
+             matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
+             CALL calculate_density_matrix(mos_aux_fit(ispin)%mo_set, &
+                                           matrix_p_aux_fit(ispin)%matrix,error=error)
+             CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
+                  rho=qs_env%rho_aux_fit%rho_r(ispin),&
+                  rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
+                  total_rho=qs_env%rho_aux_fit%tot_rho_r(ispin),&
+                  qs_env=qs_env,soft_valid=.FALSE.,&
+                  basis_set_id=use_aux_fit_basis_set, error=error)
+          END DO
 
-         CALL fit_mo_coeffs(wfn_fitting_env, para_env, &
-                            qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
-                            mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
-         CALL set_qs_env(qs_env,wfn_fitting_env=wfn_fitting_env,error=error)
-
-         DO ispin=1,nspins
-           matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
-           CALL calculate_density_matrix(mos_aux_fit(ispin)%mo_set, &
-                                         matrix_p_aux_fit(ispin)%matrix,error=error)
-           CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
-                rho=qs_env%rho_aux_fit%rho_r(ispin),&
-                rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
-                total_rho=qs_env%rho_aux_fit%tot_rho_r(ispin),&
-                qs_env=qs_env,soft_valid=.FALSE.,&
-                basis_set_id=use_aux_fit_basis_set, error=error)
-
-         END DO
-
-         qs_env%rho_aux_fit%rho_r_valid=.TRUE.
-         qs_env%rho_aux_fit%rho_g_valid=.TRUE.
+          qs_env%rho_aux_fit%rho_r_valid=.TRUE.
+          qs_env%rho_aux_fit%rho_g_valid=.TRUE.
        END IF
 
        ! only activate stress calculation if 
        IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
 
        IF( .NOT. do_adiabatic_rescaling ) THEN
-         ! *** calculate the xc potential on the pw density ***
-         ! *** associates v_rspace_new if the xc potential needs to be computed.
-! CJM getting the XC potential
-         !! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
-         IF( dft_control%do_wfn_fitting ) THEN
+          ! *** calculate the xc potential on the pw density ***
+          ! *** associates v_rspace_new if the xc potential needs to be computed.
+          ! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
+          IF( dft_control%do_wfn_fitting ) THEN
 
-!*************** HACK for PBE0 correction (just to have some regtests)
-
-           CALL get_qs_env(qs_env, input=input, error=error)
-           xc_section => section_vals_get_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",error=error)
-           xc_fun => section_vals_get_subs_vals2(xc_section,i_section=1,error=error)
-           CALL section_vals_val_get(xc_fun,"scale_c",r_val=scale_c,error=error)
-           CALL section_vals_val_get(xc_fun,"scale_x",r_val=scale_x,error=error)
-
-           CALL section_vals_val_set(xc_fun,"scale_c",r_val=0.0_dp,error=error)
-           CALL section_vals_val_set(xc_fun,"scale_x",r_val=0.25_dp,error=error)
-
-           CALL qs_vxc_create(qs_env=qs_env,&
-              vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
-              just_energy=just_energy, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
-              error=error)
-
-          CALL section_vals_val_set(xc_fun,"scale_c",r_val=scale_c,error=error)
-          CALL section_vals_val_set(xc_fun,"scale_x",r_val=scale_x,error=error)
-
-           energy%exc_aux_fit = -energy%exc_aux_fit
-           IF (.NOT. just_energy .AND. ASSOCIATED(v_rspace_new_aux_fit) ) THEN
-             DO ispin = 1,nspins
-               v_rspace_new_aux_fit(ispin)%pw%cr3d  = - v_rspace_new_aux_fit(ispin)%pw%cr3d
-             END DO
-           END IF
-         END IF
-         CALL qs_vxc_create(qs_env=qs_env,&
-              vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-              just_energy=just_energy, gapw_xc=gapw_xc, error=error)
-         IF (gapw .OR. gapw_xc) THEN
-            CALL calculate_vxc_atom(qs_env,just_energy,error)
-         END IF
+             !*************** HACK for PBE0 correction (just to have some regtests)
+             CALL get_qs_env(qs_env, input=input, error=error)
+             xc_section => section_vals_get_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",error=error)
+             xc_fun => section_vals_get_subs_vals2(xc_section,i_section=1,error=error)
+             CALL section_vals_val_get(xc_fun,"scale_c",r_val=scale_c,error=error)
+             CALL section_vals_val_get(xc_fun,"scale_x",r_val=scale_x,error=error)
+             
+             CALL section_vals_val_set(xc_fun,"scale_c",r_val=0.0_dp,error=error)
+             CALL section_vals_val_set(xc_fun,"scale_x",r_val=0.25_dp,error=error)
+             
+             CALL qs_vxc_create(qs_env=qs_env,&
+                  vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
+                  just_energy=just_energy, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
+                  error=error)
+             
+             CALL section_vals_val_set(xc_fun,"scale_c",r_val=scale_c,error=error)
+             CALL section_vals_val_set(xc_fun,"scale_x",r_val=scale_x,error=error)
+             
+             energy%exc_aux_fit = -energy%exc_aux_fit
+             IF (.NOT. just_energy .AND. ASSOCIATED(v_rspace_new_aux_fit) ) THEN
+                DO ispin = 1,nspins
+                   v_rspace_new_aux_fit(ispin)%pw%cr3d  = - v_rspace_new_aux_fit(ispin)%pw%cr3d
+                END DO
+             END IF
+          END IF
+          CALL qs_vxc_create(qs_env=qs_env,&
+               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+               just_energy=just_energy, gapw_xc=gapw_xc, error=error)
+          IF (gapw .OR. gapw_xc) THEN
+             CALL calculate_vxc_atom(qs_env,just_energy,error)
+          END IF
        ELSE
-         !! If we perform adiabatic rescaling, the xc potential has to be scaled by the xc- and
-         !! HFX-energy. Thus, let us first calculate the energy 
-         CALL qs_vxc_create(qs_env=qs_env,&
-              vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-              just_energy=.TRUE., gapw_xc=gapw_xc, error=error)
-         IF (gapw .OR. gapw_xc) THEN
-           CALL calculate_vxc_atom(qs_env,.TRUE.,error=error)
-         END IF
-
+          !! If we perform adiabatic rescaling, the xc potential has to be scaled by the xc- and
+          !! HFX-energy. Thus, let us first calculate the energy 
+          CALL qs_vxc_create(qs_env=qs_env,&
+               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+               just_energy=.TRUE., gapw_xc=gapw_xc, error=error)
+          IF (gapw .OR. gapw_xc) THEN
+             CALL calculate_vxc_atom(qs_env,.TRUE.,error=error)
+          END IF
        END IF
 
        IF (use_virial .AND. calculate_forces) THEN
-         virial%pv_virial = virial%pv_virial - virial%pv_xc 
-         virial%pv_calculate = .FALSE.
+          virial%pv_virial = virial%pv_virial - virial%pv_xc 
+          virial%pv_calculate = .FALSE.
        ENDIF
-      
+       
        ! *** Initialize the auxiliary ks matrix to zero if required
        IF( dft_control%do_wfn_fitting ) THEN
-         DO ispin = 1,nspins
-            CALL dbcsr_set(qs_env%matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error) 
-         END DO
+          DO ispin = 1,nspins
+             CALL dbcsr_set(qs_env%matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error) 
+          END DO
        END IF
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hfx ) THEN
-         DO ispin = 1,nspins
-           CALL dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
-         END DO
-         CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
-         !! set hf exchange energy to zero
-         energy%ex = 0.0_dp
+          DO ispin = 1,nspins
+             CALL dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
+          END DO
+          CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+          !! set hf exchange energy to zero
+          energy%ex = 0.0_dp
 
-         IF ( do_hfx_ri ) THEN
-           IF( calculate_forces ) THEN
-             !! initalize force array to zero
-             CALL get_qs_env(qs_env=qs_env, force=force, error=error)
-             DO ikind = 1,SIZE(force)
-               force(ikind)%hfx_ri(:,:) = 0.0_dp
-             END DO
-           END IF
-!deb
-           CALL hfx_ri_energy_potential (qs_env,calculate_forces,error)
-!deb
-         ELSE
-           IF( calculate_forces ) THEN
-             !! initalize force array to zero
-             CALL get_qs_env(qs_env=qs_env, force=force, error=error)
-             DO ikind = 1,SIZE(force)
-               force(ikind)%fock_4c(:,:) = 0.0_dp
-             END DO
-           END IF
-           ALLOCATE(hf_energy(n_rep_hf), STAT=stat) 
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           DO irep = 1,n_rep_hf
-             IF( .NOT. do_adiabatic_rescaling) THEN
-               IF( dft_control%do_wfn_fitting ) THEN
-                 IF ( .NOT. hfx_treat_lsd_in_core ) THEN 
-                   CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
-                                              qs_env%rho_aux_fit,hfx_sections,&
-                                              para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                              ispin=1, error=error)
-                 ELSE
-                   DO ispin = 1,nspins
-                     CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
-                                                qs_env%rho_aux_fit,hfx_sections,&
-                                                para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                                ispin=ispin, error=error)
-                   END DO
-                 END IF
-                 IF( calculate_forces ) THEN
-                   CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-                   CALL derivatives_four_center(qs_env, qs_env%rho_aux_fit, hfx_sections, &
-                                                para_env, irep, error=error)
-                 END IF
-               ELSE
-                 IF ( .NOT. hfx_treat_lsd_in_core ) THEN
-                   CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
-                                              para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                              ispin=1, error=error)
-                 ELSE
-                   DO ispin = 1,nspins
-                     CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
-                                                para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
-                                                ispin=ispin, error=error)
-                   END DO
-                 END IF
-                 IF( calculate_forces ) THEN
-                   CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-                   CALL derivatives_four_center(qs_env, rho, hfx_sections, &
-                                                para_env, irep, error=error)
-                 END IF
-               END IF
-             ELSE
-               IF( .NOT. hfx_treat_lsd_in_core ) THEN
-                 !! we calculate everything but we do not add the potential in a first step
-                 CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
-                                            para_env,ks_env%s_mstruct_changed,irep,.FALSE.,&
-                                            ispin=1, error=error)
-               ELSE
-                 CALL cp_unimplemented_error(fromWhere=routineP, &
-                       message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids", &
-                       error=error, error_level=cp_failure_level)
-               END IF
-               hf_energy(irep) = energy%ex
-               !! If required, the calculation of the forces will be done later
+          IF ( do_hfx_ri ) THEN
+             IF( calculate_forces ) THEN
+                !! initalize force array to zero
+                CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+                DO ikind = 1,SIZE(force)
+                   force(ikind)%hfx_ri(:,:) = 0.0_dp
+                END DO
              END IF
-             CALL pw_hfx(qs_env,energy,hfx_sections,poisson_env,auxbas_pw_pool,irep,error)
-           END DO
+             CALL hfx_ri_energy_potential (qs_env,calculate_forces,error)
+          ELSE
+             IF( calculate_forces ) THEN
+                !! initalize force array to zero
+                CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+                DO ikind = 1,SIZE(force)
+                   force(ikind)%fock_4c(:,:) = 0.0_dp
+                END DO
+             END IF
+             ALLOCATE(hf_energy(n_rep_hf), STAT=stat) 
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DO irep = 1,n_rep_hf
+                IF( .NOT. do_adiabatic_rescaling) THEN
+                   IF( dft_control%do_wfn_fitting ) THEN
+                      IF ( .NOT. hfx_treat_lsd_in_core ) THEN 
+                         CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
+                                                    qs_env%rho_aux_fit,hfx_sections,&
+                                                    para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
+                                                    ispin=1, error=error)
+                      ELSE
+                         DO ispin = 1,nspins
+                            CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
+                                                       qs_env%rho_aux_fit,hfx_sections,&
+                                                       para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
+                                                       ispin=ispin, error=error)
+                         END DO
+                      END IF
+                      IF( calculate_forces ) THEN
+                         CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+                         CALL derivatives_four_center(qs_env, qs_env%rho_aux_fit, hfx_sections, &
+                                                      para_env, irep, error=error)
+                      END IF
+                   ELSE
+                      IF ( .NOT. hfx_treat_lsd_in_core ) THEN
+                         CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
+                                                    para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
+                                                    ispin=1, error=error)
+                      ELSE
+                         DO ispin = 1,nspins
+                            CALL integrate_four_center(qs_env, ks_matrix ,energy,rho,hfx_sections,&
+                                                       para_env,ks_env%s_mstruct_changed,irep,.TRUE.,&
+                                                       ispin=ispin, error=error)
+                         END DO
+                      END IF
+                      IF( calculate_forces ) THEN
+                         CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+                         CALL derivatives_four_center(qs_env, rho, hfx_sections, &
+                                                      para_env, irep, error=error)
+                      END IF
+                   END IF
+                ELSE
+                   IF( .NOT. hfx_treat_lsd_in_core ) THEN
+                      !! we calculate everything but we do not add the potential in a first step
+                      CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
+                                                 para_env,ks_env%s_mstruct_changed,irep,.FALSE.,&
+                                                 ispin=1, error=error)
+                   ELSE
+                      CALL cp_unimplemented_error(fromWhere=routineP, &
+                           message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids",&
+                           error=error, error_level=cp_failure_level)
+                   END IF
+                   hf_energy(irep) = energy%ex
+                   !! If required, the calculation of the forces will be done later
+                END IF
+                CALL pw_hfx(qs_env,energy,hfx_sections,poisson_env,auxbas_pw_pool,irep,error)
+             END DO
+          END IF
 
-         END IF 
-
-         ! *** Add Core-Hamiltonian-Matrix ***
-         DO ispin=1,nspins
-            CALL dbcsr_add(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
-         END DO
+          ! *** Add Core-Hamiltonian-Matrix ***
+          DO ispin=1,nspins
+             CALL dbcsr_add(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+          END DO
        END IF
 
        !! If we perform adiabatic rescaling we are now able to rescale the xc-potential
        IF( do_adiabatic_rescaling ) THEN
-         CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_TYPE", i_val=adiabatic_functional,error=error) 
-         CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_MODEL", i_val=adiabatic_model,error=error)
-         CALL section_vals_val_get(adiabatic_rescaling_section, "LAMBDA", r_val=adiabatic_lambda,error=error)
-         CALL section_vals_val_get(adiabatic_rescaling_section, "OMEGA", r_val=adiabatic_omega,error=error)
-         SELECT CASE(adiabatic_functional)
-         CASE (do_adiabatic_hybrid_mcy3)
-           SELECT CASE(adiabatic_model)
-           CASE(do_adiabatic_model_pade)
-             CALL cp_assert( n_rep_hf == 2 , cp_failure_level,cp_assertion_failed,routineP,&
-                            " For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "//&
-                            " Please check your input file.",&
-                             error,failure)
-             CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
-                                    adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
-                                    scale_dEx2, total_energy_xc, error)
+          CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_TYPE",&
+               i_val=adiabatic_functional,error=error) 
+          CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_MODEL",&
+               i_val=adiabatic_model,error=error)
+          CALL section_vals_val_get(adiabatic_rescaling_section, "LAMBDA",&
+               r_val=adiabatic_lambda,error=error)
+          CALL section_vals_val_get(adiabatic_rescaling_section, "OMEGA",&
+               r_val=adiabatic_omega,error=error)
+          SELECT CASE(adiabatic_functional)
+          CASE (do_adiabatic_hybrid_mcy3)
+             SELECT CASE(adiabatic_model)
+             CASE(do_adiabatic_model_pade)
+                CALL cp_assert( n_rep_hf == 2 , cp_failure_level,cp_assertion_failed,routineP,&
+                     " For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "//&
+                     " Please check your input file.",&
+                     error,failure)
+                CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
+                     adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
+                     scale_dEx2, total_energy_xc, error)
               
-             !! Scale and add Fock matrix to KS matrix
-             IF(do_hfx) THEN
-               CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 1 ,&
-                                                    scale_dEx1, error)
-               CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 2 ,&
-                                                    scale_dEx2, error)
-             END IF
-             IF( calculate_forces ) THEN
-               CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-               !! we also have to scale the forces!!!!
-               CALL derivatives_four_center(qs_env, rho, hfx_sections, &
-                                            para_env, 1, adiabatic_rescale_factor=scale_dEx1, error=error)
-               CALL derivatives_four_center(qs_env, rho, hfx_sections, &
-                                            para_env, 2, adiabatic_rescale_factor=scale_dEx2, error=error)
-             END IF
+                !! Scale and add Fock matrix to KS matrix
+                IF(do_hfx) THEN
+                   CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 1 ,&
+                                                        scale_dEx1, error)
+                   CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 2 ,&
+                                                        scale_dEx2, error)
+                END IF
+                IF( calculate_forces ) THEN
+                   CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+                   !! we also have to scale the forces!!!!
+                   CALL derivatives_four_center(qs_env, rho, hfx_sections, para_env, 1,&
+                                                adiabatic_rescale_factor=scale_dEx1, error=error)
+                   CALL derivatives_four_center(qs_env, rho, hfx_sections, para_env, 2,&
+                                                adiabatic_rescale_factor=scale_dEx2, error=error)
+                END IF
 
              !! Calculate vxc and rescale it
-             CALL qs_vxc_create(qs_env=qs_env,&
-                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-                  just_energy=just_energy, gapw_xc=gapw_xc, adiabatic_rescale_factor=scale_dDFA, error=error)
-             !! Calcualte vxc and rescale it
-             IF (gapw .OR. gapw_xc) THEN
-                CALL calculate_vxc_atom(qs_env,just_energy,adiabatic_rescale_factor=scale_dDFA,error=error) 
-             END IF
-             !! Hack for the total energy expression
-             energy%ex = 0.0_dp 
-             energy%exc1 = 0.0_dp
-             energy%exc = total_energy_xc 
-
-           END SELECT
-         END SELECT            
+                CALL qs_vxc_create(qs_env=qs_env,&
+                     vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                     just_energy=just_energy, gapw_xc=gapw_xc, adiabatic_rescale_factor=scale_dDFA,&
+                     error=error)
+                !! Calcualte vxc and rescale it
+                IF (gapw .OR. gapw_xc) THEN
+                   CALL calculate_vxc_atom(qs_env,just_energy,adiabatic_rescale_factor=scale_dDFA,&
+                        error=error) 
+                END IF
+                !! Hack for the total energy expression
+                energy%ex = 0.0_dp 
+                energy%exc1 = 0.0_dp
+                energy%exc = total_energy_xc 
+                
+             END SELECT
+          END SELECT
        END IF
 
        IF(do_ppl .AND. calculate_forces)THEN
           CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
           DO ispin=1,nspins
-            CALL integrate_ppl_rspace(rho%rho_r(ispin),qs_env,error=error)
+             CALL integrate_ppl_rspace(rho%rho_r(ispin),qs_env,error=error)
           END DO
        END IF
 
@@ -877,7 +888,7 @@ CONTAINS
 
                 CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_r,error=error)
              ELSE
-! CJM getting nuclear force contribution from the core charge density
+                ! Getting nuclear force contribution from the core charge density
                 CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env,error=error)
              END IF
           END IF
@@ -923,7 +934,7 @@ CONTAINS
 
                END DO  ! ispin
             ELSE
-!CJM add v_hartree + v_xc = v_rspace_new
+               ! Add v_hartree + v_xc = v_rspace_new
                DO ispin=1,nspins
                   v_rspace_new(ispin)%pw%cr3d  =&
                        v_rspace_new(ispin)%pw%pw_grid%dvol * &
@@ -952,6 +963,12 @@ CONTAINS
                       v_rspace_new(ispin)%pw%cr3d= v_rspace_new(ispin)%pw%cr3d+&
                                                    v_efield_rspace%pw%cr3d
                   END IF
+                  ! External electrostatic potential
+                  IF(dft_control%apply_external_potential)THEN
+                     CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+                          v_qmmm=qs_env%vee,scale=-1.0_dp,error=error)
+                  END IF
+                  !
                   IF(do_ppl)THEN
                     CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
                     v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
@@ -978,12 +995,12 @@ CONTAINS
                   ! add the part due to v_rspace
                   IF (do_ep) THEN
                      my_rho => ep_qs_env%dH_coeffs
-!CJM Pointing my_rho to the density matrix rho_ao
+                     ! Pointing my_rho to the density matrix rho_ao
                   ELSE
                      my_rho => rho%rho_ao
                   END IF
 
-!CJM compute matrix elements of V_HXC including nuclear force information through matrix_dv
+                  ! Compute matrix elements of V_HXC including nuclear force information through matrix_dv
                   IF (ASSOCIATED(matrix_dv)) THEN
                      CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                           p=my_rho(ispin),h=ks_matrix(ispin),&
@@ -1139,29 +1156,26 @@ CONTAINS
        END IF
 
        IF(gapw) THEN
-!      ***  Integrals of the Hartree potential with g0_soft ***
+          ! Integrals of the Hartree potential with g0_soft
           CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
                                      calculate_forces, error=error)
        END IF
 
-! **** SCP
-!    Single atom contributions to KS matrix due to self-correction of the SCP with 
-!    the orbitals. 
+       ! Single atom contributions to KS matrix due to self-correction of the SCP with 
+       ! the orbitals. 
        IF (scp_dft) THEN
           CALL integrate_a_vhscp_b ( qs_env, ks_matrix, rho%rho_ao, &
                                      just_energy, error=error )
           CALL scp_qs_energies ( qs_env, calculate_forces, just_energy, error=error )
           
        ENDIF
-! **** SCP
+
        IF(gapw .OR. gapw_xc) THEN
-!      ***  Single atom contributions in the KS matrix ***
+          ! Single atom contributions in the KS matrix ***
           CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,calculate_forces,error=error)
        ENDIF
-!
 
        !Calculation of Mulliken restraint, if requested
-
        CALL qs_ks_mulliken_restraint(energy,dft_control,just_energy,para_env,&
             ks_matrix, matrix_s,rho,mulliken_order_p,error)
 
@@ -1197,10 +1211,10 @@ CONTAINS
           energy%efermi = energy%efermi /REAL(SIZE(mo_array))
        ENDIF
 
-       ! **** right now we can compute the orbital derivative here, as it depends currently only on the available
-       ! **** Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
-       ! **** from this routine, notice that this part of the calculation in not linear scaling
-       ! **** right now this operation is only non-trivial because of occupation numbers and the restricted keyword
+       ! Right now we can compute the orbital derivative here, as it depends currently only on the available
+       ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
+       ! from this routine, notice that this part of the calculation in not linear scaling
+       ! right now this operation is only non-trivial because of occupation numbers and the restricted keyword
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy.AND..NOT.qs_env%run_rtp) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
           DO ispin=1,SIZE(mo_derivs)
@@ -1216,8 +1230,8 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
                CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
-               CALL merge_mo_derivs(ispin, qs_env%wfn_fitting_env, mos(ispin)%mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
-                                    mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error)
+               CALL merge_mo_derivs(ispin, qs_env%wfn_fitting_env, mos(ispin)%mo_set, mo_coeff,&
+                    mo_coeff_aux_fit, mo_derivs,mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error)
              END IF
 
              IF (dft_control%restricted) THEN
@@ -1229,11 +1243,12 @@ CONTAINS
                  CALL cp_fm_set_all(hc_tmp,0.0_dp,error=error)
                  CALL cp_fm_get_info(hc_tmp,ncol_global=k2,error=error)
 
-                 ! uniform_occupation is needed for this case, otherwise we can no reconstruct things in ot, since we 
-                 ! irreversibly sum 
+                 ! uniform_occupation is needed for this case, otherwise we can no
+                 ! reconstruct things in ot, since we irreversibly sum 
                  CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
                  CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
-                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
+                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff,&
+                      uniform_occupation=uniform_occupation)
                  CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
                  CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
@@ -1277,18 +1292,18 @@ CONTAINS
             energy%exc + energy%exc1 + energy%ex + energy%dispersion +&
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + SUM(energy%ddapc_restraint) + energy%s2_restraint +&
-            energy%becke + energy%dft_plus_u + energy%kTS + energy%efield +energy%efield_core
+            energy%becke + energy%dft_plus_u + energy%kTS + energy%efield +energy%efield_core+&
+            energy%ee + energy%ee_core
 
        IF( dft_control%do_wfn_fitting ) THEN
          energy%total = energy%total + energy%exc_aux_fit
        END IF 
-! **** SCP
+
        IF (scp_dft) THEN
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
-         energy % total = energy % total + scp_energy % e_scp_total
-         energy % total = energy % total + scp_energy % e_scp_disp
+         energy%total = energy%total + scp_energy%e_scp_total
+         energy%total = energy%total + scp_energy%e_scp_disp
        ENDIF 
-! **** SCP
 
        IF(my_print) THEN
          output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
@@ -1711,8 +1726,8 @@ CONTAINS
            ! get the potential in matrix form
            DO ispin=1,Nspin
               ! use a work_v_rspace
-              work_v_rspace%pw%cr3d = (energy_scaling(iterm) * vxc(ispin) % pw %pw_grid%dvol)* &
-                                      vxc(ispin) % pw % cr3d 
+              work_v_rspace%pw%cr3d = (energy_scaling(iterm) * vxc(ispin)%pw %pw_grid%dvol)* &
+                                      vxc(ispin)%pw%cr3d 
               ! zero first ?!
               CALL dbcsr_set(matrix_h(ispin)%matrix,0.0_dp,error=error)
               CALL integrate_v_rspace(v_rspace=work_v_rspace,p=matrix_p(ispin),h=matrix_h(ispin),&
@@ -1973,10 +1988,10 @@ CONTAINS
        ! compute the energy functional for this orbital and its derivative
 
        CALL pw_poisson_solve(poisson_env,orb_rho_g%pw, ener, work_v_gspace%pw,error=error)
-       energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
+       energy%hartree=energy%hartree - dft_control%sic_scaling_a * ener
        IF (.NOT. just_energy) THEN
             CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw, error=error)
-            CALL pw_scale(work_v_rspace%pw, - dft_control % sic_scaling_a * work_v_rspace%pw%pw_grid%dvol,&
+            CALL pw_scale(work_v_rspace%pw, - dft_control%sic_scaling_a * work_v_rspace%pw%pw_grid%dvol,&
                  error=error)
             CALL dbcsr_set(orb_h,0.0_dp,error=error)
        ENDIF
@@ -1990,9 +2005,9 @@ CONTAINS
                    pw_pool=xc_pw_pool, error=error)
            ! add to the existing work_v_rspace
            work_v_rspace%pw%cr3d = work_v_rspace%pw%cr3d - &
-                   dft_control % sic_scaling_b * vxc(1) % pw %pw_grid%dvol *  vxc(1) % pw % cr3d 
+                   dft_control%sic_scaling_b * vxc(1)%pw %pw_grid%dvol *  vxc(1)%pw%cr3d 
        END IF
-       energy%exc = energy%exc - dft_control % sic_scaling_b * exc
+       energy%exc = energy%exc - dft_control%sic_scaling_b * exc
 
        IF (.NOT. just_energy) THEN
            ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
@@ -2138,9 +2153,9 @@ CONTAINS
 
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
-       full_scaling= - dft_control % sic_scaling_a 
+       full_scaling= - dft_control%sic_scaling_a 
     CASE ( sic_ad )
-       full_scaling= - dft_control % sic_scaling_a * nelec
+       full_scaling= - dft_control%sic_scaling_a * nelec
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
             "Unknown sic method id",error,failure)
@@ -2162,7 +2177,7 @@ CONTAINS
        CALL pw_transfer(work_v%pw, v_sic_rspace%pw, error=error)
        ! also take into account the scaling (in addition to the volume element)
        CALL pw_scale(v_sic_rspace%pw, &
-            dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol, error=error )
+            dft_control%sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol, error=error )
     ENDIF
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,work_rho%pw,error=error)
@@ -2222,9 +2237,8 @@ CONTAINS
   END SUBROUTINE calc_rho_tot_gspace
 
 ! *****************************************************************************
-  SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, rho_xc, output_unit, error)
+  SUBROUTINE print_densities(qs_env, rho, rho_xc, output_unit, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(pw_p_type), INTENT(IN)              :: rho_tot_gspace
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -2325,8 +2339,8 @@ CONTAINS
 !>      4.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
-                               just_energy,print_active,error)
+  SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
+       just_energy,print_active,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
@@ -2352,99 +2366,99 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
 
-  c_forces=.FALSE.
-  energy_only = .FALSE.
-  IF (PRESENT(just_energy)) energy_only=just_energy
-  IF (PRESENT(calculate_forces)) c_forces=calculate_forces
+    c_forces=.FALSE.
+    energy_only = .FALSE.
+    IF (PRESENT(just_energy)) energy_only=just_energy
+    IF (PRESENT(calculate_forces)) c_forces=calculate_forces
 
-  IF (c_forces) THEN
-     CALL timeset(routineN//' (forces)',handle)
-  ELSE
-     CALL timeset(routineN,handle)
-  ENDIF
+    IF (c_forces) THEN
+       CALL timeset(routineN//' (forces)',handle)
+    ELSE
+       CALL timeset(routineN,handle)
+    ENDIF
 
-  failure=.FALSE.
-  did_update=.FALSE.
-  NULLIFY(matrix_ks,matrix_h,energy, logger, rho, rho_xc, dft_control, para_env)
-  logger => cp_error_get_logger(error)
+    failure=.FALSE.
+    did_update=.FALSE.
+    NULLIFY(matrix_ks,matrix_h,energy, logger, rho, rho_xc, dft_control, para_env)
+    logger => cp_error_get_logger(error)
 
-  CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-  IF (.NOT. failure) THEN
-     IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR. &
-          ks_env%potential_changed .OR. &
-          (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
-        did_update=.TRUE.
-        CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,&
-             rho_xc=rho_xc,energy=energy,&
-             dft_control=dft_control,&
-             matrix_h=matrix_h,para_env=para_env,error=error)
-        ! update ecore
-        energy%core=0.0_dp
-        DO ispin=1,dft_control%nspins
-          CALL calculate_ecore(h=matrix_h(1)%matrix,&
-                               p=rho%rho_ao(ispin)%matrix,&
-                               ecore=ecore,&
-                               para_env=para_env,&
-                               error=error)
-          energy%core=energy%core+ecore
-        END DO
-        ! the ks matrix will be rebuilt so this is fine now
-        ks_env%potential_changed=.FALSE.
-        IF ( dft_control%qs_control%semi_empirical ) THEN
-          CALL build_se_fock_matrix(ks_env,qs_env=qs_env,&
-               ks_matrix=matrix_ks,rho=rho,energy=energy,&
-               calculate_forces=c_forces,just_energy=energy_only,&
-               error=error)
-        ELSEIF ( dft_control%qs_control%dftb ) THEN
-          CALL build_dftb_ks_matrix(ks_env,qs_env=qs_env,&
-               ks_matrix=matrix_ks,rho=rho,energy=energy,&
-               calculate_forces=c_forces,just_energy=energy_only,&
-               error=error)
-        ELSEIF (PRESENT(kg_env)) THEN
-          CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-          CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set,error=error)
-          CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
-          CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
-          CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-               ks_matrix=matrix_ks, rho=rho, energy=energy,&
-               calculate_forces=c_forces,just_energy=energy_only,print_active=print_active,&
-               kg_gpw = .TRUE.,kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
-               error=error)
-        ELSEIF (dft_control%qs_control%gapw_xc) THEN
-          CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-               ks_matrix=matrix_ks, rho=rho, energy=energy,&
-               calculate_forces=c_forces,just_energy=energy_only,&
-               print_active=print_active,rho_xc=rho_xc,error=error)
-        ELSE
+    IF (.NOT. failure) THEN
+       IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR. &
+            ks_env%potential_changed .OR. &
+            (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
+          did_update=.TRUE.
+          CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,&
+               rho_xc=rho_xc,energy=energy,&
+               dft_control=dft_control,&
+               matrix_h=matrix_h,para_env=para_env,error=error)
+          ! update ecore
+          energy%core=0.0_dp
+          DO ispin=1,dft_control%nspins
+             CALL calculate_ecore(h=matrix_h(1)%matrix,&
+                  p=rho%rho_ao(ispin)%matrix,&
+                  ecore=ecore,&
+                  para_env=para_env,&
+                  error=error)
+             energy%core=energy%core+ecore
+          END DO
+          ! the ks matrix will be rebuilt so this is fine now
+          ks_env%potential_changed=.FALSE.
+          IF ( dft_control%qs_control%semi_empirical ) THEN
+             CALL build_se_fock_matrix(ks_env,qs_env=qs_env,&
+                  ks_matrix=matrix_ks,rho=rho,energy=energy,&
+                  calculate_forces=c_forces,just_energy=energy_only,&
+                  error=error)
+          ELSEIF ( dft_control%qs_control%dftb ) THEN
+             CALL build_dftb_ks_matrix(ks_env,qs_env=qs_env,&
+                  ks_matrix=matrix_ks,rho=rho,energy=energy,&
+                  calculate_forces=c_forces,just_energy=energy_only,&
+                  error=error)
+          ELSEIF (PRESENT(kg_env)) THEN
+             CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
+             CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set,error=error)
+             CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
+             CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
+             CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
+                  ks_matrix=matrix_ks, rho=rho, energy=energy,&
+                  calculate_forces=c_forces,just_energy=energy_only,print_active=print_active,&
+                  kg_gpw = .TRUE.,kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
+                  error=error)
+          ELSEIF (dft_control%qs_control%gapw_xc) THEN
+             CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
+                  ks_matrix=matrix_ks, rho=rho, energy=energy,&
+                  calculate_forces=c_forces,just_energy=energy_only,&
+                  print_active=print_active,rho_xc=rho_xc,error=error)
+          ELSE
 
-          CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-               ks_matrix=matrix_ks, rho=rho, energy=energy,&
-               calculate_forces=c_forces,just_energy=energy_only,&
-               print_active=print_active,error=error)
-        END IF
-        IF(.NOT.energy_only) THEN
-           ks_env%rho_changed=.FALSE.
-           ks_env%s_mstruct_changed=.FALSE.
-           ks_env%forces_up_to_date=ks_env%forces_up_to_date.or.c_forces
-        END IF
-     END IF
-  END IF
+             CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
+                  ks_matrix=matrix_ks, rho=rho, energy=energy,&
+                  calculate_forces=c_forces,just_energy=energy_only,&
+                  print_active=print_active,error=error)
+          END IF
+          IF(.NOT.energy_only) THEN
+             ks_env%rho_changed=.FALSE.
+             ks_env%s_mstruct_changed=.FALSE.
+             ks_env%forces_up_to_date=ks_env%forces_up_to_date.or.c_forces
+          END IF
+       END IF
+    END IF
 
-  IF (cp_debug.AND.debug_this_module) THEN
-     IF (did_update) THEN
-        CALL cp_log(logger,cp_note_level,routineP,&
-             "did update")
-     ELSE
-        CALL cp_log(logger,cp_note_level,routineP,&
-             "did NOT update")
-     END IF
-  END IF
+    IF (cp_debug.AND.debug_this_module) THEN
+       IF (did_update) THEN
+          CALL cp_log(logger,cp_note_level,routineP,&
+               "did update")
+       ELSE
+          CALL cp_log(logger,cp_note_level,routineP,&
+               "did NOT update")
+       END IF
+    END IF
 
-  CALL timestop(handle)
+    CALL timestop(handle)
 
-END SUBROUTINE qs_ks_update_qs_env
+  END SUBROUTINE qs_ks_update_qs_env
 
 ! *****************************************************************************
 !> \brief tells that some of the things relevant to the ks calculation
@@ -2462,7 +2476,7 @@ END SUBROUTINE qs_ks_update_qs_env
 !>      4.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_changed,full_reset,error)
+  SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_changed,full_reset,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
                                                 rho_changed, &
@@ -2476,7 +2490,7 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
     LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    
+
 
     failure=.FALSE.
 
@@ -2506,7 +2520,7 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
 
     CALL  timestop(handle)
 
-END SUBROUTINE qs_ks_did_change
+  END SUBROUTINE qs_ks_did_change
 
 ! *****************************************************************************
 !> \brief calculates and allocates the xc potential, already reducing it to
@@ -2538,9 +2552,9 @@ END SUBROUTINE qs_ks_did_change
 !>      - sic alterations [Joost VandeVondele]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
-     just_energy, harris, nsc_force, gapw_xc, epr_xc, adiabatic_rescale_factor, &
-     basis_set_id, error)
+  SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
+       just_energy, harris, nsc_force, gapw_xc, epr_xc, adiabatic_rescale_factor, &
+       basis_set_id, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp)                            :: exc
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -2576,497 +2590,497 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     TYPE(section_vals_type), POINTER         :: input, xc_section
     TYPE(virial_type), POINTER               :: virial
 
-  CALL timeset( routineN ,handle)
+    CALL timeset( routineN ,handle)
 
-  failure=.FALSE.
-  CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
-  CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
-  NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,xc_pw_pool,harris_env,&
-       cell, my_vxc_rho, tmp_pw,tmp_g,tmp_g2,&
-       my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace, input)
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
+    NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,xc_pw_pool,harris_env,&
+         cell, my_vxc_rho, tmp_pw,tmp_g,tmp_g2,&
+         my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace, input)
 
-  my_just_energy=.FALSE.
-  IF (PRESENT(just_energy)) my_just_energy=just_energy
-  my_gapw_xc=.FALSE.
-  IF(PRESENT(gapw_xc)) my_gapw_xc=gapw_xc
-  my_epr_xc=.FALSE.
-  IF(PRESENT(epr_xc)) my_epr_xc=epr_xc
-  IF (PRESENT(harris)) THEN
-     harris_flag = harris
-  ELSE
-     harris_flag = .FALSE.
-  END IF
-  IF (PRESENT(nsc_force)) THEN
-     nsc_flag = nsc_force
-  ELSE
-     nsc_flag = .FALSE.
-  END IF
+    my_just_energy=.FALSE.
+    IF (PRESENT(just_energy)) my_just_energy=just_energy
+    my_gapw_xc=.FALSE.
+    IF(PRESENT(gapw_xc)) my_gapw_xc=gapw_xc
+    my_epr_xc=.FALSE.
+    IF(PRESENT(epr_xc)) my_epr_xc=epr_xc
+    IF (PRESENT(harris)) THEN
+       harris_flag = harris
+    ELSE
+       harris_flag = .FALSE.
+    END IF
+    IF (PRESENT(nsc_force)) THEN
+       nsc_flag = nsc_force
+    ELSE
+       nsc_flag = .FALSE.
+    END IF
 
-  my_adiabatic_rescale_factor = 1.0_dp
-  do_adiabatic_rescaling = .FALSE.
-  IF( PRESENT(adiabatic_rescale_factor)) THEN
-    my_adiabatic_rescale_factor = adiabatic_rescale_factor
-    do_adiabatic_rescaling = .TRUE.
-  END IF
+    my_adiabatic_rescale_factor = 1.0_dp
+    do_adiabatic_rescaling = .FALSE.
+    IF( PRESENT(adiabatic_rescale_factor)) THEN
+       my_adiabatic_rescale_factor = adiabatic_rescale_factor
+       do_adiabatic_rescaling = .TRUE.
+    END IF
 
-  IF( PRESENT(basis_set_id) ) THEN
-    my_basis_set_id = basis_set_id
-  ELSE
-    my_basis_set_id = use_orb_basis_set
-  END IF
+    IF( PRESENT(basis_set_id) ) THEN
+       my_basis_set_id = basis_set_id
+    ELSE
+       my_basis_set_id = use_orb_basis_set
+    END IF
 
 
-  CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
-       pw_env=pw_env, cell=cell,virial=virial, error=error)
-  IF(my_epr_xc) THEN
-     xc_section => section_vals_get_subs_vals(input,&
-                   "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC",error=error)
-  ELSE
-     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-  END IF
-  CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
-       i_val=myfun,error=error)
-  IF (myfun/=xc_none) THEN
-     ! would be better to pass these as arguments
-     IF (harris_flag) THEN
-        CALL get_qs_env(qs_env=qs_env,  harris_env=harris_env, error=error)
-        IF (nsc_flag) THEN
-           rho_struct => harris_env%rho_diff
-        ELSE
-           rho_struct => harris_env%rho
-        END IF
-     ELSEIF(my_gapw_xc) THEN
-        CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct, error=error)
-     ELSE
-        SELECT CASE (my_basis_set_id)
-        CASE (use_orb_basis_set)
-          CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error)
-        CASE (use_aux_fit_basis_set)
-          CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct, error=error)
-        END SELECT
-     END IF
-
-     ! test if the real space density is available
-     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
-     CPPrecondition(rho_struct%rho_r_valid,cp_failure_level,routineP,error,failure)
-     CALL cp_assert( dft_control%nspins == 1 .OR. dft_control%nspins == 2,&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          "nspins must be 1 or 2",error,failure)
-     ! there are some options related to SIC here.
-     ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
-     ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta))
-     ! or compute          E(rho_alpha,rho_beta)-b*E(rho_alpha-rho_beta,0)
-
-     ! my_scaling is the scaling needed of the standard E(rho_alpha,rho_beta) term
-     my_scaling=1.0_dp
-     SELECT CASE (dft_control%sic_method_id)
-     CASE ( sic_none )
-        ! all fine
-     CASE ( sic_mauri_spz, sic_ad )
-        ! no idea yet what to do here in that case
-        CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
-     CASE ( sic_mauri_us )
-        my_scaling=1.0_dp-dft_control % sic_scaling_b
-        ! no idea yet what to do here in that case
-        CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
-     CASE ( sic_eo )
-        ! NOTHING TO BE DONE
-     CASE DEFAULT
-        ! this case has not yet been treated here
-        CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,"NYI",error,failure)
-     END SELECT
-
-     IF (dft_control % sic_scaling_b .EQ. 0.0_dp) THEN
-        sic_scaling_b_zero = .TRUE.
-     ELSE
-        sic_scaling_b_zero = .FALSE.
-     ENDIF
-
-     IF ( .NOT. failure ) THEN
-        CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool,auxbas_pw_pool=auxbas_pw_pool,&
-             error=error)
-        uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid,xc_pw_pool%pw_grid)
-
-        ALLOCATE(rho_r(dft_control%nspins),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        IF (.not.uf_grid) THEN
-           DO ispin=1,dft_control%nspins
-              rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
-           END DO
-
-           IF (rho_struct%tau_r_valid) THEN
-              ALLOCATE(tau(dft_control%nspins),stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-              DO ispin=1,dft_control%nspins
-                 tau(ispin)%pw => rho_struct%tau_r(ispin)%pw
-              END DO
-           END IF
-
-           ! for gradient corrected functional the density in g space might
-           ! be useful so if we have it, we pass it in
-           IF ( rho_struct%rho_g_valid ) THEN
-              ALLOCATE(rho_g(dft_control%nspins),stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-              DO ispin=1,dft_control%nspins
-                 rho_g(ispin)%pw => rho_struct%rho_g(ispin)%pw
-              END DO
-           END IF
-        ELSE
-           CPPrecondition(rho_struct%rho_g_valid,cp_failure_level,routineP,error,failure)
-           ALLOCATE(rho_g(dft_control%nspins),stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           DO ispin=1,dft_control%nspins
-              CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
-                   in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D,error=error)
-              CALL pw_transfer(rho_struct%rho_g(ispin)%pw,rho_g(ispin)%pw, error=error)
-           END DO
-           DO ispin=1,dft_control%nspins
-              CALL pw_pool_create_pw(xc_pw_pool,rho_r(ispin)%pw,&
-                   in_space=REALSPACE, use_data=REALDATA3D,error=error)
-              CALL pw_transfer(rho_g(ispin)%pw,rho_r(ispin)%pw, error=error)
-           END DO
-           CPPrecondition(.NOT.rho_struct%tau_r_valid,cp_failure_level,routineP,error,failure)
-           IF (rho_struct%tau_r_valid) THEN
-              ALLOCATE(tau(dft_control%nspins),stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-              DO ispin=1,dft_control%nspins
-                 CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
-                      in_space=REALSPACE, use_data=REALDATA3D,error=error)
-
-                 CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
-                      in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
-                      in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_transfer(tau(ispin)%pw,tmp_g, error=error)
-                 CALL pw_transfer(tmp_g,tmp_g2, error=error)
-                 CALL pw_transfer(tmp_g2,tmp_pw, error=error)
-                 CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
-                 CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
-              END DO
-           END IF
-        END IF
-        !
-        ! here the rho_r, rho_g, tau is what it should be
-        ! we get back the right my_vxc_rho and my_vxc_tau as required
-        !
-        IF (my_just_energy) THEN
-           exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
-                rho_g=rho_g, xc_section=xc_section,&
-                cell=cell, pw_pool=xc_pw_pool,&
-                error=error)
-
-        ELSE
-           CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
-                rho_g=rho_g,tau=tau,exc=exc,&
-                xc_section=xc_section,&
-                cell=cell, pw_pool=xc_pw_pool,&
-                error=error,&
-                virial=virial)
-        END IF
-
-        !! Apply rescaling to the potential if requested
-        IF(.NOT. my_just_energy) THEN
-          IF(do_adiabatic_rescaling) THEN
-            IF( ASSOCIATED(my_vxc_rho)) THEN
-              DO ispin=1,SIZE(my_vxc_rho)
-                my_vxc_rho(ispin)%pw%cr3d=my_vxc_rho(ispin)%pw%cr3d*my_adiabatic_rescale_factor
-              END DO
-            END IF
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
+         pw_env=pw_env, cell=cell,virial=virial, error=error)
+    IF(my_epr_xc) THEN
+       xc_section => section_vals_get_subs_vals(input,&
+            "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC",error=error)
+    ELSE
+       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    END IF
+    CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
+         i_val=myfun,error=error)
+    IF (myfun/=xc_none) THEN
+       ! would be better to pass these as arguments
+       IF (harris_flag) THEN
+          CALL get_qs_env(qs_env=qs_env,  harris_env=harris_env, error=error)
+          IF (nsc_flag) THEN
+             rho_struct => harris_env%rho_diff
+          ELSE
+             rho_struct => harris_env%rho
           END IF
-        END IF
+       ELSEIF(my_gapw_xc) THEN
+          CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct, error=error)
+       ELSE
+          SELECT CASE (my_basis_set_id)
+          CASE (use_orb_basis_set)
+             CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error)
+          CASE (use_aux_fit_basis_set)
+             CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct, error=error)
+          END SELECT
+       END IF
 
-        IF (my_scaling .NE. 1.0_dp) THEN
-           exc=exc * my_scaling
-           IF (ASSOCIATED(my_vxc_rho)) THEN
-              DO ispin=1,SIZE(my_vxc_rho)
-                 my_vxc_rho(ispin)%pw%cr3d=my_vxc_rho(ispin)%pw%cr3d*my_scaling
-              ENDDO
-           ENDIF
-           IF (ASSOCIATED(my_vxc_tau)) THEN
-              DO ispin=1,SIZE(my_vxc_tau)
-                 my_vxc_tau(ispin)%pw%cr3d=my_vxc_tau(ispin)%pw%cr3d*my_scaling
-              ENDDO
-           ENDIF
-        ENDIF
+       ! test if the real space density is available
+       CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
+       CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(rho_struct%rho_r_valid,cp_failure_level,routineP,error,failure)
+       CALL cp_assert( dft_control%nspins == 1 .OR. dft_control%nspins == 2,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "nspins must be 1 or 2",error,failure)
+       ! there are some options related to SIC here.
+       ! Normal DFT computes E(rho_alpha,rho_beta) (or its variant E(2*rho_alpha) for non-LSD)
+       ! SIC can             E(rho_alpha,rho_beta)-b*(E(rho_alpha,rho_beta)-E(rho_beta,rho_beta))
+       ! or compute          E(rho_alpha,rho_beta)-b*E(rho_alpha-rho_beta,0)
 
-        ! we have pw data for the xc, qs_ks requests coeff structure, here we transfer
-        ! pw -> coeff
-        IF (ASSOCIATED(my_vxc_rho)) THEN
-           ALLOCATE(vxc_rho(dft_control%nspins),stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           DO ispin=1,dft_control%nspins
-              vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
-           END DO
-           DEALLOCATE(my_vxc_rho,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (ASSOCIATED(my_vxc_tau)) THEN
-           ALLOCATE(vxc_tau(dft_control%nspins),stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           DO ispin=1,dft_control%nspins
-              vxc_tau(ispin)%pw => my_vxc_tau(ispin)%pw
-           END DO
-           DEALLOCATE(my_vxc_tau,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
+       ! my_scaling is the scaling needed of the standard E(rho_alpha,rho_beta) term
+       my_scaling=1.0_dp
+       SELECT CASE (dft_control%sic_method_id)
+       CASE ( sic_none )
+          ! all fine
+       CASE ( sic_mauri_spz, sic_ad )
+          ! no idea yet what to do here in that case
+          CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
+       CASE ( sic_mauri_us )
+          my_scaling=1.0_dp-dft_control%sic_scaling_b
+          ! no idea yet what to do here in that case
+          CPPrecondition(.NOT.rho_struct%tau_r_valid ,cp_failure_level,routineP,error,failure)
+       CASE ( sic_eo )
+          ! NOTHING TO BE DONE
+       CASE DEFAULT
+          ! this case has not yet been treated here
+          CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,"NYI",error,failure)
+       END SELECT
 
-        ! compute again the xc but now for Exc(m,o) and the opposite sign
-        IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
-           ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
-           CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(1)%pw,&
-                use_data = COMPLEXDATA1D,&
-                in_space = RECIPROCALSPACE, error=error)
-           CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1)%pw,&
-                use_data = REALDATA3D,&
-                in_space = REALSPACE, error=error)
-           CALL pw_copy(rho_struct%rho_r(1)%pw,rho_m_rspace(1)%pw, error=error)
-           CALL pw_axpy(rho_struct%rho_r(2)%pw,rho_m_rspace(1)%pw,alpha=-1._dp, error=error)
-           CALL pw_copy(rho_struct%rho_g(1)%pw,rho_m_gspace(1)%pw, error=error)
-           CALL pw_axpy(rho_struct%rho_g(2)%pw,rho_m_gspace(1)%pw,alpha=-1._dp, error=error)
-           ! bit sad, these will be just zero...
-           CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2)%pw,&
-                use_data = COMPLEXDATA1D,&
-                in_space = RECIPROCALSPACE, error=error)
-           CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2)%pw,&
-                use_data = REALDATA3D,&
-                in_space = REALSPACE, error=error)
-           CALL pw_zero(rho_m_rspace(2)%pw, error=error)
-           CALL pw_zero(rho_m_gspace(2)%pw, error=error)
+       IF (dft_control%sic_scaling_b .EQ. 0.0_dp) THEN
+          sic_scaling_b_zero = .TRUE.
+       ELSE
+          sic_scaling_b_zero = .FALSE.
+       ENDIF
 
-           rho_g(1)%pw => rho_m_gspace(1)%pw
-           rho_g(2)%pw => rho_m_gspace(2)%pw
-           rho_r(1)%pw => rho_m_rspace(1)%pw
-           rho_r(2)%pw => rho_m_rspace(2)%pw
+       IF ( .NOT. failure ) THEN
+          CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool,auxbas_pw_pool=auxbas_pw_pool,&
+               error=error)
+          uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid,xc_pw_pool%pw_grid)
 
-           IF (my_just_energy) THEN
-              exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
-                   rho_g=rho_g, xc_section=xc_section,&
-                   cell=cell, pw_pool=xc_pw_pool,&
-                   error=error)
-           ELSE
-              CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
-                   rho_g=rho_g,tau=tau,exc=exc_m,&
-                   xc_section=xc_section,&
-                   cell=cell, pw_pool=xc_pw_pool,&
-                   error=error)
-           END IF
+          ALLOCATE(rho_r(dft_control%nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (.not.uf_grid) THEN
+             DO ispin=1,dft_control%nspins
+                rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
+             END DO
 
-           exc = exc - dft_control % sic_scaling_b * exc_m
+             IF (rho_struct%tau_r_valid) THEN
+                ALLOCATE(tau(dft_control%nspins),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DO ispin=1,dft_control%nspins
+                   tau(ispin)%pw => rho_struct%tau_r(ispin)%pw
+                END DO
+             END IF
 
-           ! and take care of the potential only vxc_rho is taken into account
-           IF (.NOT. my_just_energy) THEN
-              vxc_rho(1)%pw%cr3d=vxc_rho(1)%pw%cr3d-dft_control % sic_scaling_b *&
-                   my_vxc_rho(1)%pw%cr3d
-              vxc_rho(2)%pw%cr3d=vxc_rho(2)%pw%cr3d+dft_control % sic_scaling_b *&
-                   my_vxc_rho(1)%pw%cr3d ! 1=m
-              CALL pw_release(my_vxc_rho(1)%pw,error=error)
-              CALL pw_release(my_vxc_rho(2)%pw,error=error)
-              DEALLOCATE(my_vxc_rho,stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           ENDIF
+             ! for gradient corrected functional the density in g space might
+             ! be useful so if we have it, we pass it in
+             IF ( rho_struct%rho_g_valid ) THEN
+                ALLOCATE(rho_g(dft_control%nspins),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DO ispin=1,dft_control%nspins
+                   rho_g(ispin)%pw => rho_struct%rho_g(ispin)%pw
+                END DO
+             END IF
+          ELSE
+             CPPrecondition(rho_struct%rho_g_valid,cp_failure_level,routineP,error,failure)
+             ALLOCATE(rho_g(dft_control%nspins),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DO ispin=1,dft_control%nspins
+                CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
+                     in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D,error=error)
+                CALL pw_transfer(rho_struct%rho_g(ispin)%pw,rho_g(ispin)%pw, error=error)
+             END DO
+             DO ispin=1,dft_control%nspins
+                CALL pw_pool_create_pw(xc_pw_pool,rho_r(ispin)%pw,&
+                     in_space=REALSPACE, use_data=REALDATA3D,error=error)
+                CALL pw_transfer(rho_g(ispin)%pw,rho_r(ispin)%pw, error=error)
+             END DO
+             CPPrecondition(.NOT.rho_struct%tau_r_valid,cp_failure_level,routineP,error,failure)
+             IF (rho_struct%tau_r_valid) THEN
+                ALLOCATE(tau(dft_control%nspins),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DO ispin=1,dft_control%nspins
+                   CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
+                        in_space=REALSPACE, use_data=REALDATA3D,error=error)
 
-           DO ispin=1,2
-              CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_rspace(ispin)%pw,&
-                   error=error)
-              CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_gspace(ispin)%pw,&
-                   error=error)
-           ENDDO
-           DEALLOCATE(rho_m_rspace)
-           DEALLOCATE(rho_m_gspace)
+                   CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
+                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
+                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+                   CALL pw_transfer(tau(ispin)%pw,tmp_g, error=error)
+                   CALL pw_transfer(tmp_g,tmp_g2, error=error)
+                   CALL pw_transfer(tmp_g2,tmp_pw, error=error)
+                   CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
+                   CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
+                END DO
+             END IF
+          END IF
+          !
+          ! here the rho_r, rho_g, tau is what it should be
+          ! we get back the right my_vxc_rho and my_vxc_tau as required
+          !
+          IF (my_just_energy) THEN
+             exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
+                  rho_g=rho_g, xc_section=xc_section,&
+                  cell=cell, pw_pool=xc_pw_pool,&
+                  error=error)
 
-        ENDIF
+          ELSE
+             CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
+                  rho_g=rho_g,tau=tau,exc=exc,&
+                  xc_section=xc_section,&
+                  cell=cell, pw_pool=xc_pw_pool,&
+                  error=error,&
+                  virial=virial)
+          END IF
 
-        ! now we have - sum_s N_s * Exc(rho_s/N_s,0)
-        IF ( dft_control % sic_method_id .EQ. sic_ad  .AND. .NOT. sic_scaling_b_zero ) THEN
+          !! Apply rescaling to the potential if requested
+          IF(.NOT. my_just_energy) THEN
+             IF(do_adiabatic_rescaling) THEN
+                IF( ASSOCIATED(my_vxc_rho)) THEN
+                   DO ispin=1,SIZE(my_vxc_rho)
+                      my_vxc_rho(ispin)%pw%cr3d=my_vxc_rho(ispin)%pw%cr3d*my_adiabatic_rescale_factor
+                   END DO
+                END IF
+             END IF
+          END IF
 
-           ! find out how many elecs we have
-           CALL get_qs_env(qs_env,mos=mo_array,error=error)
-           CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_spin(1))
-           CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_spin(2))
+          IF (my_scaling .NE. 1.0_dp) THEN
+             exc=exc * my_scaling
+             IF (ASSOCIATED(my_vxc_rho)) THEN
+                DO ispin=1,SIZE(my_vxc_rho)
+                   my_vxc_rho(ispin)%pw%cr3d=my_vxc_rho(ispin)%pw%cr3d*my_scaling
+                ENDDO
+             ENDIF
+             IF (ASSOCIATED(my_vxc_tau)) THEN
+                DO ispin=1,SIZE(my_vxc_tau)
+                   my_vxc_tau(ispin)%pw%cr3d=my_vxc_tau(ispin)%pw%cr3d*my_scaling
+                ENDDO
+             ENDIF
+          ENDIF
 
-           ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
-           DO ispin=1,2
-              CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(ispin)%pw,&
-                   use_data = COMPLEXDATA1D,&
-                   in_space = RECIPROCALSPACE, error=error)
-              CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(ispin)%pw,&
-                   use_data = REALDATA3D,&
-                   in_space = REALSPACE, error=error)
-           ENDDO
+          ! we have pw data for the xc, qs_ks requests coeff structure, here we transfer
+          ! pw -> coeff
+          IF (ASSOCIATED(my_vxc_rho)) THEN
+             ALLOCATE(vxc_rho(dft_control%nspins),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DO ispin=1,dft_control%nspins
+                vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
+             END DO
+             DEALLOCATE(my_vxc_rho,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(my_vxc_tau)) THEN
+             ALLOCATE(vxc_tau(dft_control%nspins),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DO ispin=1,dft_control%nspins
+                vxc_tau(ispin)%pw => my_vxc_tau(ispin)%pw
+             END DO
+             DEALLOCATE(my_vxc_tau,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
 
-           rho_g(1)%pw => rho_m_gspace(1)%pw
-           rho_g(2)%pw => rho_m_gspace(2)%pw
-           rho_r(1)%pw => rho_m_rspace(1)%pw
-           rho_r(2)%pw => rho_m_rspace(2)%pw
+          ! compute again the xc but now for Exc(m,o) and the opposite sign
+          IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
+             ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
+             CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(1)%pw,&
+                  use_data = COMPLEXDATA1D,&
+                  in_space = RECIPROCALSPACE, error=error)
+             CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(1)%pw,&
+                  use_data = REALDATA3D,&
+                  in_space = REALSPACE, error=error)
+             CALL pw_copy(rho_struct%rho_r(1)%pw,rho_m_rspace(1)%pw, error=error)
+             CALL pw_axpy(rho_struct%rho_r(2)%pw,rho_m_rspace(1)%pw,alpha=-1._dp, error=error)
+             CALL pw_copy(rho_struct%rho_g(1)%pw,rho_m_gspace(1)%pw, error=error)
+             CALL pw_axpy(rho_struct%rho_g(2)%pw,rho_m_gspace(1)%pw,alpha=-1._dp, error=error)
+             ! bit sad, these will be just zero...
+             CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2)%pw,&
+                  use_data = COMPLEXDATA1D,&
+                  in_space = RECIPROCALSPACE, error=error)
+             CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(2)%pw,&
+                  use_data = REALDATA3D,&
+                  in_space = REALSPACE, error=error)
+             CALL pw_zero(rho_m_rspace(2)%pw, error=error)
+             CALL pw_zero(rho_m_gspace(2)%pw, error=error)
 
-           DO ispin=1,2
-              IF (nelec_spin(ispin) .GT. 0 ) THEN
-                 nelec_s_inv=1.0_dp/REAL(nelec_spin(ispin),KIND=dp)
-              ELSE
-                 ! does it matter if there are no electrons with this spin (H) ?
-                 nelec_s_inv=0.0_dp
-              ENDIF
-              CALL pw_copy(rho_struct%rho_r(ispin)%pw,rho_m_rspace(1)%pw, error=error)
-              CALL pw_copy(rho_struct%rho_g(ispin)%pw,rho_m_gspace(1)%pw, error=error)
-              CALL pw_scale(rho_m_rspace(1)%pw,nelec_s_inv, error=error)
-              CALL pw_scale(rho_m_gspace(1)%pw,nelec_s_inv, error=error)
-              CALL pw_zero(rho_m_rspace(2)%pw, error=error)
-              CALL pw_zero(rho_m_gspace(2)%pw, error=error)
+             rho_g(1)%pw => rho_m_gspace(1)%pw
+             rho_g(2)%pw => rho_m_gspace(2)%pw
+             rho_r(1)%pw => rho_m_rspace(1)%pw
+             rho_r(2)%pw => rho_m_rspace(2)%pw
 
-              IF (my_just_energy) THEN
-                 exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
-                      rho_g=rho_g, xc_section=xc_section,&
-                      cell=cell, pw_pool=xc_pw_pool,&
-                      error=error)
-              ELSE
-                 CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
-                      rho_g=rho_g,tau=tau,exc=exc_m,&
-                      xc_section=xc_section,&
-                      cell=cell, pw_pool=xc_pw_pool,&
-                      error=error)
-              END IF
+             IF (my_just_energy) THEN
+                exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
+                     rho_g=rho_g, xc_section=xc_section,&
+                     cell=cell, pw_pool=xc_pw_pool,&
+                     error=error)
+             ELSE
+                CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
+                     rho_g=rho_g,tau=tau,exc=exc_m,&
+                     xc_section=xc_section,&
+                     cell=cell, pw_pool=xc_pw_pool,&
+                     error=error)
+             END IF
 
-              exc = exc - dft_control % sic_scaling_b * nelec_spin(ispin) * exc_m
+             exc = exc - dft_control%sic_scaling_b * exc_m
 
-              ! and take care of the potential only vxc_rho is taken into account
-              IF (.NOT. my_just_energy) THEN
-                 vxc_rho(ispin)%pw%cr3d=vxc_rho(ispin)%pw%cr3d-dft_control % sic_scaling_b *&
-                      my_vxc_rho(1)%pw%cr3d
-                 CALL pw_release(my_vxc_rho(1)%pw,error=error)
-                 CALL pw_release(my_vxc_rho(2)%pw,error=error)
-                 DEALLOCATE(my_vxc_rho,stat=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-              ENDIF
-           ENDDO
+             ! and take care of the potential only vxc_rho is taken into account
+             IF (.NOT. my_just_energy) THEN
+                vxc_rho(1)%pw%cr3d=vxc_rho(1)%pw%cr3d-dft_control%sic_scaling_b *&
+                     my_vxc_rho(1)%pw%cr3d
+                vxc_rho(2)%pw%cr3d=vxc_rho(2)%pw%cr3d+dft_control%sic_scaling_b *&
+                     my_vxc_rho(1)%pw%cr3d ! 1=m
+                CALL pw_release(my_vxc_rho(1)%pw,error=error)
+                CALL pw_release(my_vxc_rho(2)%pw,error=error)
+                DEALLOCATE(my_vxc_rho,stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ENDIF
 
-           DO ispin=1,2
-              CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_rspace(ispin)%pw,&
-                   error=error)
-              CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_gspace(ispin)%pw,&
-                   error=error)
-           ENDDO
-           DEALLOCATE(rho_m_rspace)
-           DEALLOCATE(rho_m_gspace)
+             DO ispin=1,2
+                CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_rspace(ispin)%pw,&
+                     error=error)
+                CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_gspace(ispin)%pw,&
+                     error=error)
+             ENDDO
+             DEALLOCATE(rho_m_rspace)
+             DEALLOCATE(rho_m_gspace)
 
-        ENDIF
+          ENDIF
 
-        ! compute again the xc but now for Exc(n_down,n_down)
-        IF (dft_control%sic_method_id .EQ. sic_mauri_us .AND. .NOT. sic_scaling_b_zero ) THEN
-           rho_r(1)%pw => rho_struct%rho_r(2)%pw
-           rho_r(2)%pw => rho_struct%rho_r(2)%pw
-           IF ( rho_struct%rho_g_valid ) THEN
-              rho_g(1)%pw => rho_struct%rho_g(2)%pw
-              rho_g(2)%pw => rho_struct%rho_g(2)%pw
-           ENDIF
+          ! now we have - sum_s N_s * Exc(rho_s/N_s,0)
+          IF ( dft_control%sic_method_id .EQ. sic_ad  .AND. .NOT. sic_scaling_b_zero ) THEN
 
-           IF (my_just_energy) THEN
-              exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
-                   rho_g=rho_g, xc_section=xc_section,&
-                   cell=cell, pw_pool=xc_pw_pool,&
-                   error=error)
-           ELSE
-              CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
-                   rho_g=rho_g,tau=tau,exc=exc_m,&
-                   xc_section=xc_section,&
-                   cell=cell, pw_pool=xc_pw_pool,&
-                   error=error)
-           END IF
+             ! find out how many elecs we have
+             CALL get_qs_env(qs_env,mos=mo_array,error=error)
+             CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_spin(1))
+             CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_spin(2))
 
-           exc = exc + dft_control % sic_scaling_b * exc_m
+             ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
+             DO ispin=1,2
+                CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(ispin)%pw,&
+                     use_data = COMPLEXDATA1D,&
+                     in_space = RECIPROCALSPACE, error=error)
+                CALL pw_pool_create_pw(xc_pw_pool, rho_m_rspace(ispin)%pw,&
+                     use_data = REALDATA3D,&
+                     in_space = REALSPACE, error=error)
+             ENDDO
 
-           ! and take care of the potential
-           IF (.NOT. my_just_energy) THEN
-              ! both go to minority spin
-              vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d + &
-                   2.0_dp * dft_control % sic_scaling_b * my_vxc_rho(1)%pw%cr3d
-              CALL pw_release(my_vxc_rho(1)%pw,error=error)
-              CALL pw_release(my_vxc_rho(2)%pw,error=error)
-              DEALLOCATE(my_vxc_rho)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           ENDIF
+             rho_g(1)%pw => rho_m_gspace(1)%pw
+             rho_g(2)%pw => rho_m_gspace(2)%pw
+             rho_r(1)%pw => rho_m_rspace(1)%pw
+             rho_r(2)%pw => rho_m_rspace(2)%pw
 
-        ENDIF
+             DO ispin=1,2
+                IF (nelec_spin(ispin) .GT. 0 ) THEN
+                   nelec_s_inv=1.0_dp/REAL(nelec_spin(ispin),KIND=dp)
+                ELSE
+                   ! does it matter if there are no electrons with this spin (H) ?
+                   nelec_s_inv=0.0_dp
+                ENDIF
+                CALL pw_copy(rho_struct%rho_r(ispin)%pw,rho_m_rspace(1)%pw, error=error)
+                CALL pw_copy(rho_struct%rho_g(ispin)%pw,rho_m_gspace(1)%pw, error=error)
+                CALL pw_scale(rho_m_rspace(1)%pw,nelec_s_inv, error=error)
+                CALL pw_scale(rho_m_gspace(1)%pw,nelec_s_inv, error=error)
+                CALL pw_zero(rho_m_rspace(2)%pw, error=error)
+                CALL pw_zero(rho_m_gspace(2)%pw, error=error)
 
-        !
-        ! cleanups
-        !
-        IF (uf_grid) THEN
-           DO ispin=1,SIZE(rho_r)
-              CALL pw_pool_give_back_pw(xc_pw_pool,rho_r(ispin)%pw,error=error)
-           END DO
-           IF (ASSOCIATED(vxc_rho)) THEN
-              DO ispin=1,SIZE(vxc_rho)
-                 CALL pw_pool_create_pw(auxbas_pw_pool,tmp_pw,&
-                      in_space=REALSPACE,use_data=REALDATA3D,error=error)
+                IF (my_just_energy) THEN
+                   exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
+                        rho_g=rho_g, xc_section=xc_section,&
+                        cell=cell, pw_pool=xc_pw_pool,&
+                        error=error)
+                ELSE
+                   CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
+                        rho_g=rho_g,tau=tau,exc=exc_m,&
+                        xc_section=xc_section,&
+                        cell=cell, pw_pool=xc_pw_pool,&
+                        error=error)
+                END IF
 
-                 CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
-                      in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
-                      in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_transfer(vxc_rho(ispin)%pw,tmp_g, error=error)
-                 CALL pw_transfer(tmp_g,tmp_g2, error=error)
-                 CALL pw_transfer(tmp_g2,tmp_pw, error=error)
-                 CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
-                 CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
-                 !FM              CALL pw_zero(tmp_pw,error=error)
-                 !FM              CALL pw_restrict_s3(vxc_rho(ispin)%pw,tmp_pw,&
-                 !FM                   auxbas_pw_pool,param_section=interp_section,error=error)
-                 CALL pw_pool_give_back_pw(xc_pw_pool,vxc_rho(ispin)%pw,error=error)
-                 vxc_rho(ispin)%pw => tmp_pw
-                 NULLIFY(tmp_pw)
-              END DO
-           END IF
-           IF (ASSOCIATED(vxc_tau)) THEN
-              DO ispin=1,SIZE(vxc_tau)
-                 CALL pw_pool_create_pw(auxbas_pw_pool,tmp_pw,&
-                      in_space=REALSPACE,use_data=REALDATA3D,error=error)
+                exc = exc - dft_control%sic_scaling_b * nelec_spin(ispin) * exc_m
 
-                 CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
-                      in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
-                      in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
-                 CALL pw_transfer(vxc_tau(ispin)%pw,tmp_g, error=error)
-                 CALL pw_transfer(tmp_g,tmp_g2, error=error)
-                 CALL pw_transfer(tmp_g2,tmp_pw, error=error)
-                 CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
-                 CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
-                 !FM              CALL pw_zero(tmp_pw,error=error)
-                 !FM              CALL pw_restrict_s3(vxc_rho(ispin)%pw,tmp_pw,&
-                 !FM                   auxbas_pw_pool,param_section=interp_section,error=error)
-                 CALL pw_pool_give_back_pw(xc_pw_pool,vxc_tau(ispin)%pw,error=error)
-                 vxc_tau(ispin)%pw => tmp_pw
-                 NULLIFY(tmp_pw)
-              END DO
-           END IF
+                ! and take care of the potential only vxc_rho is taken into account
+                IF (.NOT. my_just_energy) THEN
+                   vxc_rho(ispin)%pw%cr3d=vxc_rho(ispin)%pw%cr3d-dft_control%sic_scaling_b *&
+                        my_vxc_rho(1)%pw%cr3d
+                   CALL pw_release(my_vxc_rho(1)%pw,error=error)
+                   CALL pw_release(my_vxc_rho(2)%pw,error=error)
+                   DEALLOCATE(my_vxc_rho,stat=stat)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ENDIF
+             ENDDO
 
-        END IF
-        DEALLOCATE(rho_r,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        IF (ASSOCIATED(rho_g)) THEN
-           IF (uf_grid) THEN
-              DO ispin=1,SIZE(rho_g)
-                 CALL pw_pool_give_back_pw(xc_pw_pool,rho_g(ispin)%pw,error=error)
-              END DO
-           END IF
-           DEALLOCATE(rho_g,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(tau)) THEN
-           IF (uf_grid) THEN
-              DO ispin=1,SIZE(tau)
-                 CALL pw_pool_give_back_pw(xc_pw_pool,tau(ispin)%pw,error=error)
-              END DO
-           END IF
-           DEALLOCATE(tau,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
+             DO ispin=1,2
+                CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_rspace(ispin)%pw,&
+                     error=error)
+                CALL pw_pool_give_back_pw(xc_pw_pool,rho_m_gspace(ispin)%pw,&
+                     error=error)
+             ENDDO
+             DEALLOCATE(rho_m_rspace)
+             DEALLOCATE(rho_m_gspace)
 
-     END IF
-  END IF
-  CALL timestop(handle)
+          ENDIF
 
-END SUBROUTINE qs_vxc_create
+          ! compute again the xc but now for Exc(n_down,n_down)
+          IF (dft_control%sic_method_id .EQ. sic_mauri_us .AND. .NOT. sic_scaling_b_zero ) THEN
+             rho_r(1)%pw => rho_struct%rho_r(2)%pw
+             rho_r(2)%pw => rho_struct%rho_r(2)%pw
+             IF ( rho_struct%rho_g_valid ) THEN
+                rho_g(1)%pw => rho_struct%rho_g(2)%pw
+                rho_g(2)%pw => rho_struct%rho_g(2)%pw
+             ENDIF
+
+             IF (my_just_energy) THEN
+                exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
+                     rho_g=rho_g, xc_section=xc_section,&
+                     cell=cell, pw_pool=xc_pw_pool,&
+                     error=error)
+             ELSE
+                CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
+                     rho_g=rho_g,tau=tau,exc=exc_m,&
+                     xc_section=xc_section,&
+                     cell=cell, pw_pool=xc_pw_pool,&
+                     error=error)
+             END IF
+
+             exc = exc + dft_control%sic_scaling_b * exc_m
+
+             ! and take care of the potential
+             IF (.NOT. my_just_energy) THEN
+                ! both go to minority spin
+                vxc_rho(2)%pw%cr3d = vxc_rho(2)%pw%cr3d + &
+                     2.0_dp * dft_control%sic_scaling_b * my_vxc_rho(1)%pw%cr3d
+                CALL pw_release(my_vxc_rho(1)%pw,error=error)
+                CALL pw_release(my_vxc_rho(2)%pw,error=error)
+                DEALLOCATE(my_vxc_rho)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ENDIF
+
+          ENDIF
+
+          !
+          ! cleanups
+          !
+          IF (uf_grid) THEN
+             DO ispin=1,SIZE(rho_r)
+                CALL pw_pool_give_back_pw(xc_pw_pool,rho_r(ispin)%pw,error=error)
+             END DO
+             IF (ASSOCIATED(vxc_rho)) THEN
+                DO ispin=1,SIZE(vxc_rho)
+                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_pw,&
+                        in_space=REALSPACE,use_data=REALDATA3D,error=error)
+
+                   CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
+                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
+                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+                   CALL pw_transfer(vxc_rho(ispin)%pw,tmp_g, error=error)
+                   CALL pw_transfer(tmp_g,tmp_g2, error=error)
+                   CALL pw_transfer(tmp_g2,tmp_pw, error=error)
+                   CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
+                   CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
+                   !FM              CALL pw_zero(tmp_pw,error=error)
+                   !FM              CALL pw_restrict_s3(vxc_rho(ispin)%pw,tmp_pw,&
+                   !FM                   auxbas_pw_pool,param_section=interp_section,error=error)
+                   CALL pw_pool_give_back_pw(xc_pw_pool,vxc_rho(ispin)%pw,error=error)
+                   vxc_rho(ispin)%pw => tmp_pw
+                   NULLIFY(tmp_pw)
+                END DO
+             END IF
+             IF (ASSOCIATED(vxc_tau)) THEN
+                DO ispin=1,SIZE(vxc_tau)
+                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_pw,&
+                        in_space=REALSPACE,use_data=REALDATA3D,error=error)
+
+                   CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
+                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
+                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+                   CALL pw_transfer(vxc_tau(ispin)%pw,tmp_g, error=error)
+                   CALL pw_transfer(tmp_g,tmp_g2, error=error)
+                   CALL pw_transfer(tmp_g2,tmp_pw, error=error)
+                   CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
+                   CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
+                   !FM              CALL pw_zero(tmp_pw,error=error)
+                   !FM              CALL pw_restrict_s3(vxc_rho(ispin)%pw,tmp_pw,&
+                   !FM                   auxbas_pw_pool,param_section=interp_section,error=error)
+                   CALL pw_pool_give_back_pw(xc_pw_pool,vxc_tau(ispin)%pw,error=error)
+                   vxc_tau(ispin)%pw => tmp_pw
+                   NULLIFY(tmp_pw)
+                END DO
+             END IF
+
+          END IF
+          DEALLOCATE(rho_r,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          IF (ASSOCIATED(rho_g)) THEN
+             IF (uf_grid) THEN
+                DO ispin=1,SIZE(rho_g)
+                   CALL pw_pool_give_back_pw(xc_pw_pool,rho_g(ispin)%pw,error=error)
+                END DO
+             END IF
+             DEALLOCATE(rho_g,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(tau)) THEN
+             IF (uf_grid) THEN
+                DO ispin=1,SIZE(tau)
+                   CALL pw_pool_give_back_pw(xc_pw_pool,tau(ispin)%pw,error=error)
+                END DO
+             END IF
+             DEALLOCATE(tau,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+
+       END IF
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE qs_vxc_create
 
 ! *****************************************************************************
 !> \brief Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
@@ -3232,13 +3246,11 @@ END SUBROUTINE qs_vxc_create
   END SUBROUTINE calculate_w_matrix_2
 
 ! *****************************************************************************
+!> \brief Calculate the energy-weighted density matrix W if ROKS is active.
+!>        The W matrix is returned in matrix_w.
+!> \author 04.05.06,MK
+! *****************************************************************************
   SUBROUTINE calculate_w_matrix_roks(mo_set,matrix_ks,matrix_p,matrix_w,error)
-
-    ! Calculate the energy-weighted density matrix W if ROKS is active.
-    ! The W matrix is returned in matrix_w.
-
-    ! - Creation (04.05.06,MK)
-
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(dbcsr_obj), POINTER                 :: matrix_ks, matrix_p, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -3251,8 +3263,6 @@ END SUBROUTINE qs_vxc_create
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: c, ks, p, work
     TYPE(cp_para_env_type), POINTER          :: para_env
-
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 

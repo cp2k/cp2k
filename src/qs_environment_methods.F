@@ -404,7 +404,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
-    TYPE(pw_p_type), POINTER                 :: rho_core, vppl
+    TYPE(pw_p_type), POINTER                 :: rho_core, vee, vppl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     CALL timeset(routineN,handle)
@@ -479,6 +479,25 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
       END IF
     END IF
 
+    ! reallocate vee: external electrostatic potential
+    IF (dft_control%apply_external_potential) THEN
+      NULLIFY(vee)
+      CALL get_qs_env(qs_env,pw_env=new_pw_env,vee=vee,error=error)
+      IF (ASSOCIATED(vee)) THEN
+         CALL pw_release(vee%pw,error=error)
+         DEALLOCATE(vee,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ENDIF
+      ALLOCATE(vee,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+         CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+         CALL pw_pool_create_pw(auxbas_pw_pool, vee%pw, use_data=REALDATA3D, error=error)
+         vee%pw%in_space=REALSPACE
+         CALL set_qs_env(qs_env,vee=vee,error=error)
+         dft_control%eval_external_potential=.TRUE.
+      END IF
+    END IF
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_pw_env

@@ -199,9 +199,10 @@ CONTAINS
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm, error)
+  SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm,scale,error)
     TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
     TYPE(pw_p_type), INTENT(IN)              :: v_qmmm
+    REAL(KIND=dp), INTENT(IN)                :: scale
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
@@ -209,12 +210,13 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fac
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    v_hartree%pw%cr3d = v_hartree%pw%cr3d + &
-                        v_qmmm%pw%pw_grid%dvol*v_qmmm%pw%cr3d
+    fac = v_qmmm%pw%pw_grid%dvol*scale
+    v_hartree%pw%cr3d = v_hartree%pw%cr3d + fac*v_qmmm%pw%cr3d
 
     CALL timestop(handle)
   END SUBROUTINE qmmm_modify_hartree_pot

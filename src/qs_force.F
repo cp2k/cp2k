@@ -53,6 +53,8 @@ MODULE qs_force
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_external_potential,           ONLY: external_c_potential,&
+                                             external_e_potential
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type,&
                                              zero_qs_force
@@ -347,6 +349,8 @@ CONTAINS
                calculate_forces=.TRUE.,&
                error=error)
           CALL calculate_ecore_efield(qs_env,calculate_forces=.TRUE.,error=error)
+          CALL external_c_potential(qs_env,calculate_forces=.TRUE.,error=error)
+          CALL external_e_potential(qs_env,error)
        END IF
 
        IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
@@ -417,7 +421,8 @@ CONTAINS
                force(ikind)%repulsive(:,:)  +&
                force(ikind)%dispersion(:,:) +& 
                force(ikind)%ehrenfest(:,:) +& 
-               force(ikind)%efield(:,:)
+               force(ikind)%efield(:,:)+&
+               force(ikind)%eev(:,:)
           ! **** SCP
           IF ( dft_control%scp ) THEN
              CALL get_qs_env(qs_env=qs_env, scp_env=scp_env, error=error)
@@ -607,7 +612,8 @@ CONTAINS
                   iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
                   iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
                   iatom,ikind,"     ehrenfest",qs_force(ikind)%ehrenfest(1:3,i),&
-                  iatom,ikind,"     efield",qs_force(ikind)%efield(1:3,i),&
+                  iatom,ikind,"        efield",qs_force(ikind)%efield(1:3,i),&
+                  iatom,ikind,"           eev",qs_force(ikind)%eev(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO
@@ -633,6 +639,8 @@ CONTAINS
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&
                   iatom,ikind,"        hfx_ri",qs_force(ikind)%hfx_ri(1:3,i),&
+                  iatom,ikind,"        efield",qs_force(ikind)%efield(1:3,i),&
+                  iatom,ikind,"           eev",qs_force(ikind)%eev(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO

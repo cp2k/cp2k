@@ -253,7 +253,7 @@ CPSourceFileRef,&
          l_val=dft_control%rtp_control%hfx_redistribute,error=error)
     END IF
 
-!   *** Read the input section ***
+    !   *** Read the input section ***
     tmp_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%do_xas_calculation,error=error)
     IF (dft_control%do_xas_calculation) THEN
@@ -266,7 +266,7 @@ CPSourceFileRef,&
        END IF
     END IF
 
-!   *** Read the finite field input section ***
+    !   *** Read the finite field input section ***
     tmp_section => section_vals_get_subs_vals(dft_section,"EFIELD",error=error)
     CALL section_vals_get(tmp_section,n_repetition=nrep,explicit=dft_control%apply_efield_field,error=error)
     IF (dft_control%apply_efield_field) THEN
@@ -276,6 +276,10 @@ CPSourceFileRef,&
           CALL read_efield_sections(dft_control,tmp_section,error)
        END DO
     END IF
+
+    !   *** Read the external potential input section ***
+    tmp_section => section_vals_get_subs_vals(dft_section,"EXTERNAL_POTENTIAL",error=error)
+    CALL section_vals_get(tmp_section,explicit=dft_control%apply_external_potential,error=error)
 
   END SUBROUTINE read_dft_control
 

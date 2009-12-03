@@ -47,6 +47,8 @@ MODULE qs_energy_types
                        qmmm_nu,&
                        mulliken,&
                        becke,&
+                       ee,&
+                       ee_core,&
                        efield,&
                        efield_core,&
                        s2_restraint,&
@@ -163,6 +165,8 @@ CONTAINS
       qs_energy%becke = 0.0_dp
       qs_energy%efield = 0.0_dp
       qs_energy%efield_core = 0.0_dp
+      qs_energy%ee = 0.0_dp
+      qs_energy%ee_core = 0.0_dp
       qs_energy%s2_restraint = 0.0_dp
       qs_energy%dft_plus_u = 0.0_dp
       qs_energy%kTS = 0.0_dp
@@ -201,7 +205,6 @@ CONTAINS
     END IF
 
     CALL allocate_qs_energy(qs_energy_out)
-
     CALL copy_qs_energy(qs_energy_in,qs_energy_out)
     
   END SUBROUTINE duplicate_qs_energy
@@ -245,8 +248,10 @@ CONTAINS
       qs_energy_out%mulliken        = qs_energy_in%mulliken
       qs_energy_out%ddapc_restraint = qs_energy_in%ddapc_restraint
       qs_energy_out%becke           = qs_energy_in%becke
-      qs_energy_out%efield           = qs_energy_in%efield
-      qs_energy_out%efield_core      = qs_energy_in%efield_core
+      qs_energy_out%efield          = qs_energy_in%efield
+      qs_energy_out%efield_core     = qs_energy_in%efield_core
+      qs_energy_out%ee              = qs_energy_in%ee
+      qs_energy_out%ee_core         = qs_energy_in%ee_core
       qs_energy_out%s2_restraint    = qs_energy_in%s2_restraint
       qs_energy_out%dft_plus_u      = qs_energy_in%dft_plus_u
       qs_energy_out%ktS             = qs_energy_in%ktS

@@ -338,6 +338,8 @@ MODULE cp_control_types
                                           dft_plus_u,&
                                           scp,&
                                           apply_efield_field,&
+                                          apply_external_potential,&
+                                          eval_external_potential,&
                                           do_wfn_fitting,&
                                           smear,&
                                           low_spin_roks

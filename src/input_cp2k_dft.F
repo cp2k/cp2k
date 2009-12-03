@@ -413,6 +413,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_ext_pot_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_poisson_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -4488,6 +4492,75 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_low_spin_roks_section
+
+! *****************************************************************************
+!> \brief Creates the section for applying an electrostatic external potential
+!> \author teo
+!> \date 12.2009
+! *****************************************************************************
+  SUBROUTINE create_ext_pot_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ext_pot_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="EXTERNAL_POTENTIAL",&
+            description="Section controlling the presence of an electrostatic "//&
+            "external potential dependent on the atomic positions (X,Y,Z)",&
+            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+      
+       CALL keyword_create(keyword, name="FUNCTION",&
+            description="Specifies the functional form in mathematical notation. Variables must be the atomic "//&
+            "coordinates (X,Y,Z) of the grid.",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", required=.TRUE.,&
+            type_of_var=lchar_t, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="PARAMETERS",&
+            description="Defines the parameters of the functional form",&
+            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            n_var=-1, repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="VALUES",&
+            description="Defines the values of  parameter of the functional form",&
+            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="STATIC",&
+            description="Specifies the external potential as STATIC or time dependent. At the moment "//&
+                        "only static potentials are implemented.",&
+            usage="STATIC T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DX",&
+            description="Parameter used for computing the derivative with the Ridders method.",&
+            usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ERROR_LIMIT",&
+            description="Checks that the error in computing the derivative is not larger than "//&
+            "the value set. In case prints a warning message.",&
+            usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_ext_pot_section
 
 ! *****************************************************************************
 !> \brief creates the section for finite fields

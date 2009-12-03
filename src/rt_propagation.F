@@ -37,6 +37,8 @@ MODULE rt_propagation
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_external_potential,           ONLY: external_c_potential,&
+                                             external_e_potential
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -312,6 +314,9 @@ CONTAINS
        qs_env%sim_step=i_step
        rtp%istep=i_step-rtp%i_start
        CALL calculate_ecore_efield(qs_env,.FALSE.,error)
+       CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
+       CALL external_e_potential(qs_env,error=error)
+
        CALL cp_iterate(logger%iter_info,last=(i_step==max_steps),iter_nr=i_step,error=error)
        rtp%converged=.FALSE.
        DO i_iter=1,max_iter

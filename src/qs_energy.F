@@ -42,6 +42,8 @@ MODULE qs_energy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_external_potential,           ONLY: external_c_potential,&
+                                             external_e_potential
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
@@ -201,6 +203,8 @@ CONTAINS
        CALL calculate_ecore_self(qs_env,error=error)
        CALL calculate_ecore_efield(qs_env,calculate_forces=.FALSE.,error=error)
        CALL calculate_ecore_overlap(qs_env, para_env, calculate_forces=.FALSE.,error=error)
+       CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
+       CALL external_e_potential(qs_env,error=error)
 
        IF ( dft_control%scp ) THEN
           IF(dft_control%scp_control%dispersion ) THEN
@@ -313,6 +317,8 @@ CONTAINS
        IF(qs_env%rtp%iter==1)THEN
           CALL update_core_and_matrices(qs_env,globenv,error)
           CALL calculate_ecore_efield(qs_env,calculate_forces=.FALSE.,error=error)
+          CALL external_c_potential(qs_env,calculate_forces=.FALSE.,error=error)
+          CALL external_e_potential(qs_env,error=error)
        END IF
        CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
 
