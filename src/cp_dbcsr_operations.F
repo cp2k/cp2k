@@ -1781,7 +1781,6 @@ CONTAINS
                                                 nblkrows_total, nze, row, &
                                                 row_size, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: tr
 
 !   ---------------------------------------------------------------------------
 
@@ -1805,7 +1804,7 @@ CONTAINS
           row_size = row_blk_size(row)
           nze = row_size*col_size
           CALL dbcsr_put_block(matrix, row, col, &
-               pkd_vec(INT(pkd_vec(row)):INT(pkd_vec(row)+nze-1)), tr,&
+               pkd_vec(INT(pkd_vec(row)):INT(pkd_vec(row)+nze-1)), &
                summation=.FALSE.)
        ENDDO ! row
        CALL dbcsr_finalize(matrix)
@@ -1819,7 +1818,7 @@ CONTAINS
           col_size = col_blk_size(col)
           nze = row_size*col_size
           CALL dbcsr_put_block(matrix, row, col, &
-               pkd_vec(INT(pkd_vec(col)):INT(pkd_vec(col)+nze-1)), tr,&
+               pkd_vec(INT(pkd_vec(col)):INT(pkd_vec(col)+nze-1)), &
                summation=.FALSE.)
        ENDDO ! col
        CALL dbcsr_finalize(matrix)
