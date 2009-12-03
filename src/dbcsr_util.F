@@ -4789,29 +4789,34 @@ CONTAINS
 !>                            enlargements
 !> \param[in] nocopy          (optional) copy array on enlargement; default
 !>                            is to copy
+!> \param[in] zero_pad        (optional) zero new allocations; default is to
+!>                            write nothing
 !> \param error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE ensure_array_size_i(array, lb, ub, factor, nocopy, special, error)
+  SUBROUTINE ensure_array_size_i(array, lb, ub, factor, nocopy, special,&
+       zero_pad, error)
     INTEGER, DIMENSION(:), POINTER           :: array
     INTEGER, INTENT(IN), OPTIONAL            :: lb
     INTEGER, INTENT(IN)                      :: ub
     REAL, INTENT(IN), OPTIONAL               :: factor
-    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special
+    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special, zero_pad
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_i', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: lb_new, lb_orig, stat, &
-                                                ub_new, ub_orig
+    INTEGER                                  :: lb_new, lb_orig, old_size, &
+                                                size_increase, stat, ub_new, &
+                                                ub_orig
     INTEGER, DIMENSION(:), POINTER           :: newarray
     LOGICAL                                  :: dbg, docopy = .TRUE., &
-                                                failure = .TRUE., info, spec
+                                                failure = .TRUE., info, pad, &
+                                                spec
 
 !   ---------------------------------------------------------------------------
 
-    dbg = .FALSE.
+    dbg = .TRUE.
     info = .FALSE.
     CALL dbcsr_set_debug(dbg, info=info)
 
@@ -4821,6 +4826,8 @@ CONTAINS
     IF (PRESENT (special)) spec = special
     lb_new = 1
     IF (PRESENT (lb)) lb_new = lb
+    pad = .FALSE.
+    IF (PRESENT (zero_pad)) pad = zero_pad
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
        !CALL timeset(routineN, timing_handle)
@@ -4841,28 +4848,36 @@ CONTAINS
     ENDIF
     lb_orig = LBOUND(array,1)
     ub_orig = UBOUND(array,1)
-    IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig
+    old_size = ub_orig - lb_orig + 1
     ! The existing array is big enough.
     IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
        RETURN
     ENDIF
+    IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig
     ! A reallocation must be performed.
-    !CALL timeset(routineN, timing_handle)
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
-          lb_new = MIN(lb_orig, lb_new - NINT(REAL(lb_orig - lb_new)*factor))
+          size_increase = lb_orig - lb_new
+          size_increase = MAX (NINT(REAL(size_increase)*factor),&
+                               NINT(REAL(old_size)*factor))
+          lb_new = MIN (lb_orig, lb_new - size_increase)
+       ELSE
+          lb_new = lb_orig
        ENDIF
     ENDIF
     IF (ub_orig.LT.ub) THEN
        IF (PRESENT(factor)) THEN
-          ub_new = MAX(ub_orig, ub + NINT(REAL(ub-ub_orig)*factor))
+          size_increase = ub - ub_orig
+          size_increase = MAX (NINT(REAL(size_increase)*factor),&
+                               NINT(REAL(old_size)*factor))
+          ub_new = MAX (ub_orig, ub + size_increase)
        ELSE
           ub_new = ub
        ENDIF
     ELSE
        ub_new = ub
     ENDIF
-    IF(dbg) WRITE(*,*)routineP//' Resizing to bounds',lb_new,':',ub_new
+    IF(dbg) WRITE(*,*)routineP//' Resizing to bounds',lb_new,':',ub_new,'v',ub
     IF(.NOT.docopy) THEN
        IF (spec) THEN
           CALL mp_deallocate(array)
@@ -4871,14 +4886,13 @@ CONTAINS
        ENDIF
     ENDIF
     IF (spec) THEN
-       CALL cp_assert (lb_new.EQ.1,&
-            cp_warning_level, cp_internal_error,&
+       CALL cp_assert (lb_new.EQ.1, cp_warning_level, cp_internal_error,&
             routineN, "Special memory can only start at 1.")
        CALL mp_allocate(newarray, ub_new-lb_new+1, stat=stat)
     ELSE
        ALLOCATE(newarray(lb_new:ub_new), stat=stat)
     ENDIF
-    IF(stat /= 0) CALL stop_memory(routineP, 'new', ub_new-lb_new+1)
+    IF(stat /= 0) CALL stop_memory(routineP, 'newarray', ub_new-lb_new+1)
     IF(docopy) THEN
        IF(dbg) CALL cp_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             cp_failure_level, cp_internal_error, routineP,&
@@ -4889,9 +4903,14 @@ CONTAINS
        ELSE
           DEALLOCATE(array)
        ENDIF
+       IF (pad) THEN
+          array(ub_orig+1:ub_new) = 0
+          array(lb_new:lb_orig-1) = 0
+       ENDIF
+    ELSEIF (pad) THEN
+       array(:) = 0
     END IF
     array => newarray
-    !CALL timestop(timing_handle)
   END SUBROUTINE ensure_array_size_i
 
 
@@ -5069,11 +5088,13 @@ CONTAINS
 !> \param[in] nocopy          (optional) do not keep potentially existing data,
 !>                            default is to keep it
 !> \param[in] zero_pad        (optional) pad new data with zeros
+!> \param[in] factor          (optional) increase size by this factor
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad)
+  SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad, factor)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, INTENT(IN), OPTIONAL            :: data_size
     LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, zero_pad
+    REAL, INTENT(IN), OPTIONAL               :: factor
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
       routineP = moduleN//':'//routineN
@@ -5104,7 +5125,8 @@ CONTAINS
           IF (pad) area%d%r_dp(:) = 0.0_dp
        ELSE
           CALL ensure_array_size (area%d%r_dp, ub=data_size,&
-               special=area%d%special, nocopy=nocp, zero_pad=zero_pad)
+               special=area%d%special, nocopy=nocp, zero_pad=zero_pad,&
+               factor=factor)
        ENDIF
     CASE (dbcsr_type_real_4)
        IF (.NOT. ASSOCIATED (area%d%r_sp)) THEN
@@ -5116,7 +5138,8 @@ CONTAINS
           IF (pad) area%d%r_sp(:) = 0.0_sp
        ELSE
           CALL ensure_array_size (area%d%r_sp, ub=data_size,&
-               special=area%d%special, nocopy=nocp, zero_pad=zero_pad)
+               special=area%d%special, nocopy=nocp, zero_pad=zero_pad,&
+               factor=factor)
        ENDIF
     CASE (dbcsr_type_complex_8)
        IF (.NOT. ASSOCIATED (area%d%c_dp)) THEN
@@ -5128,7 +5151,8 @@ CONTAINS
           IF (pad) area%d%c_dp(:) = 0.0_dp
        ELSE
           CALL ensure_array_size (area%d%c_dp, ub=data_size,&
-               special=area%d%special, nocopy=nocp, zero_pad=zero_pad)
+               special=area%d%special, nocopy=nocp, zero_pad=zero_pad,&
+               factor=factor)
        ENDIF
     CASE (dbcsr_type_complex_4)
        IF (.NOT. ASSOCIATED (area%d%c_sp)) THEN
@@ -5140,7 +5164,8 @@ CONTAINS
           IF (pad) area%d%c_sp(:) = 0.0_sp
        ELSE
           CALL ensure_array_size (area%d%c_sp, ub=data_size,&
-               special=area%d%special, nocopy=nocp, zero_pad=zero_pad)
+               special=area%d%special, nocopy=nocp, zero_pad=zero_pad,&
+               factor=factor)
        ENDIF
     CASE default
        CALL cp_unimplemented_error (routineN,&
