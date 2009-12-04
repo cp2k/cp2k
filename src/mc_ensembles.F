@@ -69,7 +69,8 @@ MODULE mc_ensembles
                                              mc_moves_p_type,&
                                              mc_simulation_parameters_p_type,&
                                              set_mc_par
-  USE message_passing,                 ONLY: mp_bcast
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_bcast
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_p_type,&
