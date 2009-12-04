@@ -130,3 +130,5 @@ Si_tersoff_qmmm.inp
 Si_tersoff_qmmm.inp
 # Numerics changes due to different distributions 
 Si_tersoff_qmmm.inp
+# turned on dbcsr_multiply_fm_fm_t
+Si_tersoff_qmmm.inp
