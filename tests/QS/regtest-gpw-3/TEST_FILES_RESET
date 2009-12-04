@@ -769,3 +769,13 @@ H2O-ata.inp
 H2O-ata.inp
 #initial guess
 rsgrid-dist-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-bloechl.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-bloechl-Spl.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-bloechl-restraint.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-ata.inp
+# turned on dbcsr_multiply_fm_fm_t
+dynamics.inp

@@ -265,3 +265,7 @@ H2O-gapw-all_localize_crazy.inp
 H2O-gapw-all_loc_list.inp
 H2O-gapw-all_localize_noortho.inp
 H2O-gapw-all_localize_crazy_noortho.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2S-gapw-gop.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2S-gapw-gop-ot.inp

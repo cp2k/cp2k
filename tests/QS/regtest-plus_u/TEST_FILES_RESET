@@ -239,3 +239,21 @@ H2O-uks-otcg-mulliken.inp
 # Simplification and 20x speedup for Lowdin
 H2O-rks-otcg-lowdin.inp
 H2O-uks-otcg-lowdin.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-rks-diag.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-rks-otcg.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-uks-diag.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-uks-otcg.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-rks-otcg-mulliken.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-uks-otcg-mulliken.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-rks-otcg-lowdin.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-uks-diag-lowdin.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-uks-otcg-lowdin.inp

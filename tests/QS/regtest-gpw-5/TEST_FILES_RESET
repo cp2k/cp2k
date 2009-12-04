@@ -61,3 +61,17 @@ si8_broy_wc.inp
 si8_broy_wc_crazy.inp
 si8_pulay_off.inp
 si8_pmix_otdiag.inp
+# turned on dbcsr_multiply_fm_fm_t
+si8_pulay_off.inp
+# turned on dbcsr_multiply_fm_fm_t
+si8_broy_kry.inp
+# turned on dbcsr_multiply_fm_fm_t
+si8_broy_kry_r.inp
+# turned on dbcsr_multiply_fm_fm_t
+si8_broy_wc.inp
+# turned on dbcsr_multiply_fm_fm_t
+si8_broy_wc_crazy.inp
+# turned on dbcsr_multiply_fm_fm_t
+si8_broy_wc_crazy_ene.inp
+# turned on dbcsr_multiply_fm_fm_t
+si8_noort_broy_wc_direct_ene.inp

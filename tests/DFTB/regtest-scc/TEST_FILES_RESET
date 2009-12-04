@@ -151,3 +151,7 @@ ch2o-ot2.inp
 ch2o-ot3.inp
 # Numerics changes due to different distributions 
 ch2o-ot4.inp
+# turned on dbcsr_multiply_fm_fm_t
+ch2o-5.inp
+# turned on dbcsr_multiply_fm_fm_t
+h2o-3.inp

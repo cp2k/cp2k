@@ -608,3 +608,23 @@ H2O-OT-1.inp
 H2O-OT-1.inp
 #
 H2O-OT-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-OT-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-OT-2.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-OT-3.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-OT-4.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-OT-ASPC-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-OT-ASPC-2.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-OT-ASPC-5.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-OT-ASPC-6.inp
+# turned on dbcsr_multiply_fm_fm_t
+vib-mixed.inp
+# turned on dbcsr_multiply_fm_fm_t
+vib-int-mixed.inp

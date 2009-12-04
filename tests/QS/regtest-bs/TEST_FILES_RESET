@@ -23,3 +23,9 @@ cu2cl6_m3_std.inp
 cu2cl6_m1_clp6cud9.inp
 # Numerics changes due to different distributions 
 cu2cl6_m3_clp6cud9.inp
+# turned on dbcsr_multiply_fm_fm_t
+cu2cl6_m1_std.inp
+# turned on dbcsr_multiply_fm_fm_t
+cu2cl6_m3_std.inp
+# turned on dbcsr_multiply_fm_fm_t
+cu2cl6_m3_clp6cud9.inp

@@ -285,3 +285,13 @@ hcl_ot.inp
 zn_1w_debug.inp
 #
 FeH_1cat.inp
+# turned on dbcsr_multiply_fm_fm_t
+ch4-ot.inp
+# turned on dbcsr_multiply_fm_fm_t
+hcl_ot.inp
+# turned on dbcsr_multiply_fm_fm_t
+ZrF2-PM6.inp
+# turned on dbcsr_multiply_fm_fm_t
+zn_1w_debug.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-32.inp

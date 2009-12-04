@@ -200,3 +200,11 @@ CO_xastpxhh.inp
 CO_xastpval.inp
 # Numerics changes due to different distributions 
 CO_xastpxhh_loclist.inp
+# turned on dbcsr_multiply_fm_fm_t
+CO.inp
+# turned on dbcsr_multiply_fm_fm_t
+CO_xastpxhh.inp
+# turned on dbcsr_multiply_fm_fm_t
+CO_xastpval.inp
+# turned on dbcsr_multiply_fm_fm_t
+CO_xastpxhh_loclist.inp

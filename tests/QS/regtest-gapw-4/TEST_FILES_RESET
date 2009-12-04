@@ -187,3 +187,5 @@ H_hf_gapw_nopaw_full.inp
 CO_xastpxfh.inp
 # Numerics changes due to different distributions 
 CO_xastpxfh.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O_Onopaw_gop.inp

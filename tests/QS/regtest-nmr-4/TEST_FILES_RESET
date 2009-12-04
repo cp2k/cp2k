@@ -319,3 +319,7 @@ c2h2_list-1.inp
 ch4-gapw-restart-1.inp
 # changed eps to 1e-6
 o2-gapw-uks-restart-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+o2-gapw-uks-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+o2-gapw-uks-restart-1.inp

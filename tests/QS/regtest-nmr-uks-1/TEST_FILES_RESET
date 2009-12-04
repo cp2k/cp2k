@@ -630,3 +630,25 @@ O2-UKS-NMR-10.inp
 O2-UKS-NMR-11.inp
 # changed eps to 1e-6
 O2-UKS-NMR-12.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-2.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-3.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-5.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-6.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-7.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-8.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-9.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-10.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-11.inp
+# turned on dbcsr_multiply_fm_fm_t
+O2-UKS-NMR-12.inp

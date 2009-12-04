@@ -76,3 +76,9 @@ Periclase.inp
 SiO2.inp
 # Numerics changes due to different distributions 
 SiO2_lr_quad.inp
+# turned on dbcsr_multiply_fm_fm_t
+Periclase.inp
+# turned on dbcsr_multiply_fm_fm_t
+SiO2.inp
+# turned on dbcsr_multiply_fm_fm_t
+SiO2_lr_quad.inp

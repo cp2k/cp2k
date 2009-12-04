@@ -135,9 +135,9 @@ MODULE cp_dbcsr_operations
   END INTERFACE
 
   INTERFACE dbcsr_plus_fm_fm_t
-     MODULE PROCEDURE dbcsr_plus_fm_fm_t_hack_hack
+     !MODULE PROCEDURE dbcsr_plus_fm_fm_t_hack_hack
      !MODULE PROCEDURE dbcsr_plus_fm_fm_t_native
-     !MODULE PROCEDURE dbcsr_plus_fm_fm_t_native_new
+     MODULE PROCEDURE dbcsr_plus_fm_fm_t_native_new
   END INTERFACE
 
   !INTERFACE dbcsr_put_block_node
@@ -1720,7 +1720,7 @@ CONTAINS
       routineN = 'dbcsr_plus_fm_fm_t_native_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, nao, timing_handle
+    INTEGER                                  :: k, nao, timing_handle
     LOGICAL                                  :: check_product
     REAL(KIND=dp)                            :: my_alpha, norm
     TYPE(array_i1d_obj)                      :: col_blk_size_left, &
@@ -1732,7 +1732,7 @@ CONTAINS
     TYPE(dbcsr_obj)                          :: mat_g, mat_v, sparse_matrix2, &
                                                 sparse_matrix3
 
-    check_product = .TRUE.
+    check_product = .FALSE.
 
     CALL timeset(routineN, timing_handle)
     IF (ncol .GT. 0) THEN
@@ -1823,22 +1823,23 @@ CONTAINS
           WRITE(*,*) 'matrix_type=',dbcsr_get_matrix_type(sparse_matrix)
           WRITE(*,*) 'norm(sm+alpha*v*g^t - fm+alpha*v*g^t)/n=',norm/REAL(nao,dp)
           IF(norm/REAL(nao,dp).GT.1e-12_dp) THEN
-             WRITE(*,*) 'fm_matrix'
-             DO j=1,SIZE(fm_matrix%local_data,2)
-                DO i=1,SIZE(fm_matrix%local_data,1)
-                   WRITE(*,'(A,I3,A,I3,A,E26.16,A)') 'a(',i,',',j,')=',fm_matrix%local_data(i,j),';'
-                ENDDO
-             ENDDO
-             WRITE(*,*) 'mat_v'
-             CALL dbcsr_print(mat_v,matlab_format=.TRUE.)
-             WRITE(*,*) 'mat_g'
-             CALL dbcsr_print(mat_g,matlab_format=.TRUE.)
-             WRITE(*,*) 'sparse_matrix'
-             CALL dbcsr_print(sparse_matrix,matlab_format=.TRUE.)
-             WRITE(*,*) 'sparse_matrix2 (sm from fm)'
-             CALL dbcsr_print(sparse_matrix2,matlab_format=.TRUE.)
-             WRITE(*,*) 'sparse_matrix3 (copy of sm input)'
-             CALL dbcsr_print(sparse_matrix3,matlab_format=.TRUE.)
+             !WRITE(*,*) 'fm_matrix'
+             !DO j=1,SIZE(fm_matrix%local_data,2)
+             !   DO i=1,SIZE(fm_matrix%local_data,1)
+             !      WRITE(*,'(A,I3,A,I3,A,E26.16,A)') 'a(',i,',',j,')=',fm_matrix%local_data(i,j),';'
+             !   ENDDO
+             !ENDDO
+             !WRITE(*,*) 'mat_v'
+             !CALL dbcsr_print(mat_v,matlab_format=.TRUE.)
+             !WRITE(*,*) 'mat_g'
+             !CALL dbcsr_print(mat_g,matlab_format=.TRUE.)
+             !WRITE(*,*) 'sparse_matrix'
+             !CALL dbcsr_print(sparse_matrix,matlab_format=.TRUE.)
+             !WRITE(*,*) 'sparse_matrix2 (-sm + sparse(fm))'
+             !CALL dbcsr_print(sparse_matrix2,matlab_format=.TRUE.)
+             !WRITE(*,*) 'sparse_matrix3 (copy of sm input)'
+             !CALL dbcsr_print(sparse_matrix3,matlab_format=.TRUE.)
+             !stop
           ENDIF
           CALL dbcsr_release(sparse_matrix2)
           CALL dbcsr_release(sparse_matrix3)

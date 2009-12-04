@@ -124,3 +124,9 @@ graphite.inp
 graphite2.inp
 # Numerics changes due to different distributions 
 graphite3.inp
+# turned on dbcsr_multiply_fm_fm_t
+graphite.inp
+# turned on dbcsr_multiply_fm_fm_t
+graphite2.inp
+# turned on dbcsr_multiply_fm_fm_t
+graphite3.inp

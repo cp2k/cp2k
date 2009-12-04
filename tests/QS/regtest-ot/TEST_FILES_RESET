@@ -624,3 +624,17 @@ He2_ddapc_constraint-4.inp
 He2_none_full_single.inp
 #
 He2_ddapc_constraint-3.inp
+# turned on dbcsr_multiply_fm_fm_t
+C2H4.inp
+# turned on dbcsr_multiply_fm_fm_t
+He2_ddapc_constraint-3.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-geo-ot-evals.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-geo-ot-mols.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-geo-ot-pdos.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O-geo-ot-pdos-lumo-comp.inp
+# turned on dbcsr_multiply_fm_fm_t
+sic_ddapc_rt.inp

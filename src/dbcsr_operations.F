@@ -1605,6 +1605,10 @@ CONTAINS
           CALL dbcsr_printmat (right_data_d,&
                params(sp)%lrows_b, params(sp)%lcols_b,&
                tr=params(sp)%type_b.eq.'T')
+          WRITE(*,*)'Cin'
+          CALL dbcsr_printmat (product_data_d,&
+               params(sp)%lrows_c, params(sp)%lcols_c,&
+               tr=params(sp)%type_c.eq.'T')
        ENDIF
        ! Avoid nagging compilers
        IF (params(sp)%beta .EQ. 0.0_dp) THEN
@@ -1683,7 +1687,7 @@ CONTAINS
                * params(sp)%lcols_c * params(sp)%last_k, int_8)
        ENDIF
        IF (dbg) THEN
-          WRITE(*,*)'C'
+          WRITE(*,*)'Cout'
           CALL dbcsr_printmat (product_data_d,&
                params(sp)%lrows_c, params(sp)%lcols_c,&
                tr=params(sp)%type_c.eq.'T')

@@ -728,3 +728,5 @@ w2_qmmm-3.inp
 ch3m-gapw-1.inp
 # changed eps to 1e-6
 ch3p-gapw-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+no-gapw-gpw-1.inp

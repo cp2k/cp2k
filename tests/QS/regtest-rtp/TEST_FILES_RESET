@@ -91,3 +91,5 @@ H2plus-emd-1.inp
 H2plus-emd.inp
 # Numerics changes due to different distributions 
 wfn_mix_1.inp
+# turned on dbcsr_multiply_fm_fm_t
+wfn_mix_1.inp

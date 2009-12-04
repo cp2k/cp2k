@@ -1,1 +1,3 @@
 # Enter input files to reset
+# turned on dbcsr_multiply_fm_fm_t
+extrap-4-far.inp

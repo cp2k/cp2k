@@ -411,3 +411,21 @@ h2o_gks_p.inp
 h2op_2.inp
 #
 dimer.inp
+# turned on dbcsr_multiply_fm_fm_t
+st.inp
+# turned on dbcsr_multiply_fm_fm_t
+ch4-ot.inp
+# turned on dbcsr_multiply_fm_fm_t
+h2op_2.inp
+# turned on dbcsr_multiply_fm_fm_t
+h2po4.inp
+# turned on dbcsr_multiply_fm_fm_t
+b2h6_pm6.inp
+# turned on dbcsr_multiply_fm_fm_t
+ch2o_pm6.inp
+# turned on dbcsr_multiply_fm_fm_t
+dimer.inp
+# turned on dbcsr_multiply_fm_fm_t
+dimer3.inp
+# turned on dbcsr_multiply_fm_fm_t
+h2o_gks_p.inp

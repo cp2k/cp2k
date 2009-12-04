@@ -600,3 +600,9 @@ hcn_ts_r.inp
 hcn_ts_r.inp
 #initial guess
 Au13ico_mtd.inp
+# turned on dbcsr_multiply_fm_fm_t
+hcn_ts_r.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O_meta_pop.inp
+# turned on dbcsr_multiply_fm_fm_t
+H2O_meta_langevin.inp

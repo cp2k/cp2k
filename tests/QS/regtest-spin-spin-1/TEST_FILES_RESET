@@ -48,3 +48,5 @@ no-gapw-issc-1.inp
 ch4-gapw-issc-pso-1.inp
 #
 no-gapw-issc-1.inp
+# turned on dbcsr_multiply_fm_fm_t
+no-gapw-issc-1.inp
