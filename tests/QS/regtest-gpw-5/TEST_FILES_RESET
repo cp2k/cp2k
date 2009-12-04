@@ -75,3 +75,7 @@ si8_broy_wc_crazy.inp
 si8_broy_wc_crazy_ene.inp
 # turned on dbcsr_multiply_fm_fm_t
 si8_noort_broy_wc_direct_ene.inp
+# more to reset from last commit
+si8_pulay.inp
+si8_pulay_inverse.inp
+si8_pulay_reduce.inp

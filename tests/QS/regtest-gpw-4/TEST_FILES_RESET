@@ -723,3 +723,5 @@ He3_multi_ddapc.inp
 h2o-otdiag.inp
 # turned on dbcsr_multiply_fm_fm_t
 h2o-otdiag-lsd.inp
+# more to reset from last commit
+spin_restraint.inp

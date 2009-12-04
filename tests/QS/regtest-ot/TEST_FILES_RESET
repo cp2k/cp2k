@@ -638,3 +638,10 @@ H2O-geo-ot-pdos.inp
 H2O-geo-ot-pdos-lumo-comp.inp
 # turned on dbcsr_multiply_fm_fm_t
 sic_ddapc_rt.inp
+# more to reset from last commit
+He2_ddapc_constraint-2.inp
+He2_ddapc_constraint-4.inp
+He2_ddapc_constraint.inp
+He2_none_full_all.inp
+He2_none_full_inverse.inp
+He2_none_full_single.inp

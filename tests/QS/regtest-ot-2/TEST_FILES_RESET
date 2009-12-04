@@ -813,3 +813,9 @@ N3-6.inp
 H2O.inp
 # turned on dbcsr_multiply_fm_fm_t
 H2O.inp
+# more to reset from last commit
+N3-2.inp
+N3-3.inp
+N3-4.inp
+N3-5.inp
+N3-6.inp

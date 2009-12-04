@@ -606,3 +606,10 @@ hcn_ts_r.inp
 H2O_meta_pop.inp
 # turned on dbcsr_multiply_fm_fm_t
 H2O_meta_langevin.inp
+# more to reset from last commit
+Au13ico_mtd.inp
+hcn_md.inp
+hcn_meta_chaincoord.inp
+hcn_meta_chaincoord_kind.inp
+hcn_meta_coord.inp
+hcn_ts.inp
