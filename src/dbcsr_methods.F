@@ -58,7 +58,7 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release
   PUBLIC :: dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
-            dbcsr_mp_myprow, dbcsr_mp_mypcol, dbcsr_mp_pgrid_equal
+            dbcsr_mp_myprow, dbcsr_mp_mypcol, dbcsr_mp_pgrid_equal, dbcsr_mp_get_coordinates
   PUBLIC :: dbcsr_distribution_new, dbcsr_distribution_hold,&
             dbcsr_distribution_release, dbcsr_distribution_init
   PUBLIC :: dbcsr_distribution_mp, dbcsr_distribution_processor,&
@@ -533,6 +533,20 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_mp_release
+
+  PURE SUBROUTINE dbcsr_mp_get_coordinates(mp_env, node, prow, pcol)
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    INTEGER, INTENT(IN)                      :: node
+    INTEGER, INTENT(OUT)                     :: prow, pcol
+
+    INTEGER                                  :: tmp
+
+    pcol = MOD (node, SIZE(mp_env%mp%pgrid,2))
+    prow = node / SIZE(mp_env%mp%pgrid,2)
+    IF (mp_env%mp%pgrid(prow, pcol) .NE. node) THEN
+       tmp = pcol ; pcol = prow ; prow = tmp
+    ENDIF
+  END SUBROUTINE dbcsr_mp_get_coordinates
 
   FUNCTION dbcsr_mp_pgrid(mp_env) RESULT (pgrid)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env

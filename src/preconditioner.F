@@ -17,8 +17,8 @@ MODULE preconditioner
        copy_dbcsr_to_fm, copy_fm_to_dbcsr, dbcsr_copy_vec, &
        dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_multiply_vec, &
        dbcsr_pack_vec, dbcsr_sm_fm_multiply, dbcsr_sm_sm_multiply, &
-       dbcsr_unpack_vec, packed_vec_bif_tech2, packed_vec_build_u, &
-       packed_vec_scale
+       dbcsr_unpack_vec, packed_vec_bcast, packed_vec_bif_tech2, &
+       packed_vec_build_u, packed_vec_ini, packed_vec_scale
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -41,24 +41,29 @@ MODULE preconditioner
                                              cp_fm_type
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_release, &
-       dbcsr_get_info, dbcsr_get_occupation, dbcsr_init, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_release, &
+       dbcsr_distribution_release, dbcsr_get_info, dbcsr_get_occupation, &
+       dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_nblkcols_local, &
+       dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_release, &
        dbcsr_row_block_sizes, dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: &
        block_add_on_diag_d, block_chol_inv_d, dbcsr_add, dbcsr_add_on_diag, &
        dbcsr_btriu, dbcsr_copy, dbcsr_filter, dbcsr_get_block, &
-       dbcsr_get_block_p, dbcsr_put_block, dbcsr_scale, dbcsr_trace
+       dbcsr_get_block_p, dbcsr_norm, dbcsr_put_block, dbcsr_scale, &
+       dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
                                              dbcsr_mp_obj,&
+                                             dbcsr_norm_frobenius,&
                                              dbcsr_obj,&
                                              dbcsr_type_normal
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create,&
                                              dbcsr_create_dist_r_unrot,&
                                              dbcsr_finalize,&
+                                             dbcsr_get_stored_coordinates,&
                                              dbcsr_print,&
                                              dbcsr_verify_matrix,&
                                              dbcsr_work_create
@@ -70,6 +75,8 @@ MODULE preconditioner
        ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
        ot_precond_sparse_kinetic_sainv
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE termination,                     ONLY: stop_memory,&
@@ -267,22 +274,18 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      ! compute the full inverse
      preconditioner_env%solver=ot_precond_solver_inv_chol
      CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-          &                          my_mixed_precision, error=error)!present sm->dbcsr
+          &                          my_mixed_precision, error=error)
   CASE (ot_precond_solver_sainv)
      !
      preconditioner_env%solver=ot_precond_solver_sainv
      CALL make_sparse_inverse_bif(preconditioner_env, preconditioner_env%fm, matrix_s, &
           &                       error=error)
-     ! FOR THE MOMENT WE DO IT THE OLD WAY !
-     preconditioner_env%solver=ot_precond_solver_inv_chol
-     CALL make_full_inverse_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-          &                          my_mixed_precision, error=error)!present sm->dbcsr
   CASE (ot_precond_solver_direct)
      !
      ! prepare for the direct solver
      preconditioner_env%solver=ot_precond_solver_direct
      CALL make_full_fact_cholesky(preconditioner_env, preconditioner_env%fm, matrix_s, &
-          &                       error)!present sm->dbcsr
+          &                       error)
    CASE (ot_precond_solver_default)
      preconditioner_env%solver=ot_precond_solver_default
   CASE DEFAULT
@@ -1737,36 +1740,40 @@ END SUBROUTINE make_full_all_ortho
                                                 thresh_inner = 1.0E-2_dp, &
                                                 thresh_post = 1.0E-5_dp
 
-    INTEGER                                  :: d_offset, handle, istat, k, &
-                                                max_blk_size, &
-                                                max_row_blk_size, &
-                                                max_vec_size, n, &
-                                                nblkrows_local
+    INTEGER :: d_offset, handle, istat, k, max_blk_size, max_row_blk_size, &
+      max_vec_size, mp_group, mynode, mypcol, myprow, n, nblkcols_local, &
+      nblkrows_local, nblkrows_total, npcols, nprows, numnodes, &
+      proc_holds_diag_blk
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: dbg_print_chksum, &
+                                                dbg_print_matrix, failure, &
+                                                found, tr
     REAL(dp)                                 :: chksum, occ_in, occ_out, s, &
                                                 t(100), trace
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: blk, pkd_d, pkd_inv_d, pkd_u, &
-                                                pkd_u_fac, pkd_v, pkd_v_fac
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: blk_p
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: blk, blk_p, pkd_d, pkd_inv_d, &
+                                                pkd_u, pkd_u_fac, pkd_v, &
+                                                pkd_v_fac, pkd_v_tmp
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: fm_work1, fm_work2
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_obj)                          :: mat_li, mat_li_scaled, &
-                                                mat_lt, mat_t, mat_tmp, mat_v
+                                                mat_lt, mat_lt_scaled, mat_t, &
+                                                mat_tmp, mat_v
+    TYPE(dbcsr_obj), POINTER                 :: prcnd
 
     t=0.0_dp
+    dbg_print_matrix = .FALSE.
+    dbg_print_chksum = .TRUE.
 !
 
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
-CALL cpu_time(t(1))
-
-    no_parallel_for_now: IF(preconditioner_env%para_env%num_pe.EQ.1) THEN
+    CALL cpu_time(t(1))
 
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
+
     !
     ! some infos
     CALL cp_fm_get_info(fm,nrow_global=n,error=error)
@@ -1792,8 +1799,8 @@ CALL cpu_time(t(1))
          matrix_s%m%data_type, dbcsr_uses_special_memory(matrix_s), error=error)
     CALL dbcsr_finalize(mat_t, error=error)
     CALL copy_fm_to_dbcsr(fm_work1,mat_t)
-    IF(.FALSE.)CALL dbcsr_verify_matrix(mat_t, error)
-    IF(.FALSE.)CALL dbcsr_print(mat_t,error)
+    IF(.TRUE.)CALL dbcsr_verify_matrix(mat_t, error)
+    IF(dbg_print_matrix)CALL dbcsr_print(mat_t,error)
 
     occ_in = dbcsr_get_occupation(mat_t)
     CALL dbcsr_filter(mat_t,1e-5_dp,error=error)
@@ -1821,29 +1828,50 @@ CALL cpu_time(t(1))
     CALL dbcsr_work_create(mat_v,work_mutable=.TRUE.,&
          nblks_guess=mat_t%m%nblks,sizedata_guess=mat_t%m%nze,&
          error=error)
+    !
+    !
+    prcnd => preconditioner_env%sparse_matrix
+    IF (ASSOCIATED(prcnd)) THEN
+       CALL dbcsr_deallocate_matrix(prcnd,error=error)
+       NULLIFY(prcnd)
+    ENDIF
+    ALLOCATE(prcnd)
+    CALL dbcsr_init(prcnd,error=error)
+    CALL dbcsr_create(prcnd, ' PRECONDITIONER ', &
+         dbcsr_distribution(mat_t), dbcsr_type_normal, dbcsr_row_block_sizes(mat_t),&
+         dbcsr_col_block_sizes(mat_t), mat_t%m%nblks, mat_t%m%nze,&
+         mat_t%m%data_type, dbcsr_uses_special_memory(mat_t), error=error)
+    CALL dbcsr_finalize(prcnd, error=error)
+    !CALL dbcsr_work_create(prcnd,work_mutable=.TRUE.,&
+    !     nblks_guess=mat_t%m%nblks,sizedata_guess=mat_t%m%nze,&
+    !     error=error)
 
     !
     ! some variables
     s = 1.0_dp ! s > 0
-    n = dbcsr_distribution_nlocal_rows (dbcsr_distribution (mat_t))
-    d_offset = 1
 
-    mp_obj = dbcsr_distribution_mp (dbcsr_distribution (matrix_s))
+    nblkrows_total = dbcsr_nblkrows_total(mat_t)
+    nblkrows_local = dbcsr_nblkrows_local(mat_t)
+    nblkcols_local = dbcsr_nblkcols_local(mat_t)
     row_blk_size => array_data(dbcsr_row_block_sizes(mat_t))
+    mp_obj = dbcsr_distribution_mp (dbcsr_distribution (mat_t))
+    mp_group = dbcsr_mp_group (mp_obj)
 
     max_row_blk_size = MAXVAL(row_blk_size)
     max_blk_size = max_row_blk_size**2
-    nblkrows_local = dbcsr_distribution_nlocal_rows (&
-         dbcsr_distribution (matrix_s))
-    max_vec_size = nblkrows_local*max_blk_size+n+1
+    max_vec_size = 100 * MAX(nblkrows_local,nblkcols_local)*max_blk_size+nblkrows_total+1 ! need to fix that
+    CALL mp_max(max_vec_size,mp_group)
 
     WRITE(*,*) 'nblkrows_local',nblkrows_local
     WRITE(*,*) 'max_blk_size',max_blk_size
+    WRITE(*,*) 'nblkrows_local',nblkrows_local
+    WRITE(*,*) 'nblkcols_local',nblkcols_local
+    WRITE(*,*) 'nblkrows_total',nblkrows_total
     WRITE(*,*) 'max_vec_size',max_vec_size
 
     ALLOCATE(pkd_u(max_vec_size), pkd_v(max_vec_size), pkd_v_fac(max_vec_size),&
          &   pkd_u_fac(max_vec_size), pkd_d(max_vec_size), pkd_inv_d(max_vec_size), &
-         &   blk(max_blk_size), STAT=istat)
+         &   blk(max_blk_size), pkd_v_tmp(max_vec_size), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     pkd_u(:) = 0.0_dp
@@ -1854,38 +1882,57 @@ CALL cpu_time(t(1))
     pkd_inv_d(:) = 0.0_dp
     blk(:) = 0.0_dp
 
-    !numnodes = dbcsr_mp_numnodes (mp_obj)
-    !mynode = dbcsr_mp_mynode (mp_obj)
-    !myprow = dbcsr_mp_myprow (mp_obj)
-    !mypcol = dbcsr_mp_mypcol (mp_obj)
-    !npcols = dbcsr_mp_npcols (mp_obj)
-    !nprows = dbcsr_mp_nprows (mp_obj)
+    numnodes = dbcsr_mp_numnodes (mp_obj)
+    mynode = dbcsr_mp_mynode (mp_obj)
+    myprow = dbcsr_mp_myprow (mp_obj)
+    mypcol = dbcsr_mp_mypcol (mp_obj)
+    npcols = dbcsr_mp_npcols (mp_obj)
+    nprows = dbcsr_mp_nprows (mp_obj)
     !blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-    !mp_group = dbcsr_mp_group (mp_obj)
+
+    WRITE(*,*) 'numnodes',numnodes
+    WRITE(*,*) 'mynode',mynode
+    WRITE(*,*) 'myprow',myprow
+    WRITE(*,*) 'mypcol',mypcol
+    WRITE(*,*) 'npcols',npcols
+    WRITE(*,*) 'nprows',nprows
+
+    !
+    !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
+    !p .EQ. dbcsr_mp_mynode (mp_obj)
+    !
+
     !
     CALL cpu_time(t(2))
     WRITE(*,*) 't1',t(2)-t(1)
     !
     ! let's bif !
-    DO k = 1,n
+    d_offset = 1
+    DO k = 1,nblkrows_total
+       !write(*,*) 'enter loop k=',k
+       CALL dbcsr_get_stored_coordinates (mat_t, k, k, tr, proc_holds_diag_blk)
+       !write(*,*) 'proc_holds_diag_blk',proc_holds_diag_blk, proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)
+
        CALL cpu_time(t(3))
        !------------------------------------------------------------------------
        ! set v and u 
        !
        !v(k,1:n)=A(k,1:n);
-       CALL dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)!PARA local copy
+       CALL dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)
        !chksum = dbcsr_checksum(mat_v,error)
-       !write(*,*) 'checksum1',chksum
+       !write(*,*) 'checksum1 checksum(mat_v)',chksum
        CALL cpu_time(t(4))
        t(50) = t(50) + t(4)-t(3)
        !
        !v(k,k)=v(k,k)-s;
-       CALL dbcsr_get_block_p(mat_v, k, k, blk_p, tr, found)!PARA local get
-       IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
-       CALL block_add_on_diag_d(row_blk_size(k), blk_p, -s)
+       IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
+          CALL dbcsr_get_block_p(mat_v, k, k, blk_p, tr, found)
+          IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
+          CALL block_add_on_diag_d(row_blk_size(k), blk_p, -s)
+       ENDIF
 
        !chksum = dbcsr_checksum(mat_v,error)
-       !write(*,*) 'checksum2',chksum
+       !write(*,*) 'checksum2 checksum(mat_v)',chksum
        !
        !u(k,k)=1;
        !CALL block_set_d(row_blk_size(k), row_blk_size(k), blk, 1.0_dp, 0.0_dp)
@@ -1901,6 +1948,10 @@ CALL cpu_time(t(1))
        ! compute u(1:k-1,1:n) * A(1:n,k);
        CALL dbcsr_multiply_vec(mat_li, mat_t, 1, k-1, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by 
        !                                                                        !PARA the same procs as A(1:n,k)
+       !write(*,*) 'pkd_v_fac:',pkd_v_fac(1:int(pkd_v_fac(nblkrows_total+1))-1)
+       !chksum = sum(abs(   pkd_v_fac  ( nblkrows_total+2: int(pkd_v_fac (nblkrows_total+1))-1) ))
+       !write(*,*) 'checksum3.0',chksum
+       !
        CALL cpu_time(t(6))
        t(52) = t(52) + t(6)-t(5)
        !
@@ -1908,6 +1959,8 @@ CALL cpu_time(t(1))
        !CALL packed_vec_bcast(pkd_v_fac, source, 'columnwise', mp_obj, error=error) !PARA replicate columnwise
        !
        ! compute inv(d(i,i)) * uAk(i,k) / s , i=1,k-1
+       !chksum = sum(abs(  pkd_inv_d ))
+       !write(*,*) 'checksum3.1',chksum
        CALL packed_vec_scale(1.0_dp/s, pkd_inv_d, pkd_v_fac, k-1, k, row_blk_size, 'left', error=error)!PARA local
        CALL cpu_time(t(7))
        t(53) = t(53) + t(7)-t(6)
@@ -1926,12 +1979,21 @@ CALL cpu_time(t(1))
        ! update v and u
        !
        ! pack u(k,:) and v(k,:)
-       CALL dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
+       CALL packed_vec_ini(pkd_v, nblkrows_total, error)
+
+       !CALL dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
        CALL cpu_time(t(8))
        t(54) = t(54) + t(8)-t(7)
        !old CALL dbcsr_pack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
        !
        ! bcast the u and v
+       !call packed_vec_bcast(pkd_v, -1, 'all', .false., nblkrows_total, row_blk_size(k)*row_blk_size, mp_obj, error)
+       !chksum = sum(abs(pkd_v(nblkrows_total+2:int(pkd_v(nblkrows_total+1))-1)))
+       !write(*,*) 'checksum3.2 pkd_v',chksum
+       !chksum = sum(abs(pkd_v_fac(nblkrows_total+2:int(pkd_v_fac(nblkrows_total+1))-1)))
+       !write(*,*) 'checksum3.2 pkd_v_fac',chksum
+
+
        !CALL packed_vec_bcast(pkd_v, source, 'columnwise', mp_obj, error=error)
        !CALL packed_vec_bcast(pkd_u, source, 'columnwise', mp_obj, error=error)
        !
@@ -1943,14 +2005,32 @@ CALL cpu_time(t(1))
        CALL cpu_time(t(9))
        t(55) = t(55) + t(9)-t(8)
        !chksum = dbcsr_checksum(mat_v,error)
-       !write(*,*) 'checksum3',chksum
+       !write(*,*) 'checksum4.0 mat_v',chksum
+       ! bcast the v
+
+
+       !write(*,'(A,1000F12.6)') '1pkd_v',pkd_v(nblkrows_total+2:int(pkd_v(nblkrows_total+1))-1)
+       CALL packed_vec_bcast(pkd_v, -1, 'all', .TRUE. ,nblkrows_total, &
+            row_blk_size(k)*row_blk_size, mp_obj, error)
+
+
+       CALL dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', do_sum=.TRUE., error=error)  !PARA local
+       CALL dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
+       CALL packed_vec_bcast(pkd_v, -1, 'all', .FALSE. ,nblkrows_total, &
+            row_blk_size(k)*row_blk_size, mp_obj, error)
+
+       !write(*,*) '2pkd_v',pkd_v( 1 : int(pkd_v(nblkrows_total+1)) - 1 )
+
+       !chksum = sum(abs( pkd_v ( nblkrows_total+2 : int(pkd_v(nblkrows_total+1))-1 ) ))
+       !write(*,'(A,1000F12.6)') '2pkd_v',pkd_v(nblkrows_total+2:int(pkd_v(nblkrows_total+1))-1)
+       !write(*,*) 'checksum4.1',chksum
        !
        ! compute norm
        !
        ! filter the packed v
        !
        ! build u(k,:) = [-v(k,1:k-1)/s 1 0 ... 0]
-       CALL packed_vec_build_u(pkd_u, pkd_v, k, n, s, row_blk_size, error=error)
+       CALL packed_vec_build_u(pkd_u, pkd_v, k, nblkrows_total, s, row_blk_size, error=error)
        CALL cpu_time(t(10))
        t(56) = t(56) + t(10)-t(9)
        !
@@ -1962,23 +2042,34 @@ CALL cpu_time(t(1))
        CALL dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
        CALL dbcsr_unpack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
        !chksum = dbcsr_checksum(mat_v,error)
-       !write(*,*) 'checksum4',chksum
+       !write(*,*) 'checksum5 checksum(mat_v)',chksum
        !chksum = dbcsr_checksum(mat_li,error)
-       !write(*,*) 'checksum5',chksum
+       !write(*,*) 'checksum6.0 checksum(mat_li)',chksum
+       !write(*,*) 'checksum6.1',sum(abs(pkd_u))
+       !write(*,*) 'pkd_u',pkd_u
        CALL cpu_time(t(11))
        t(57) = t(57) + t(11)-t(10)
        !------------------------------------------------------------------------
        ! build d and inv(d)
        !
        ! d(k,k) = v(k,k) / s + eye(k);
-       CALL dbcsr_get_block(mat_v, k, k, blk, .FALSE., found)    !PARA local
-       CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)          !PARA local
-       CALL block_add_on_diag_d(row_blk_size(k), blk, 1.0_dp)    !PARA local
-       CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)!PARA local
+       IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
+          CALL dbcsr_get_block(mat_v, k, k, blk, .FALSE., found)
+          IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
+          CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)
+          CALL block_add_on_diag_d(row_blk_size(k), blk, 1.0_dp)
+          CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)
+          !
+          ! inv(d(k,k))
+          CALL block_chol_inv_d(row_blk_size(k), blk)
+          CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_inv_d(d_offset), 1)
+       ENDIF
        !
-       ! inv(d(k,k))
-       CALL block_chol_inv_d(row_blk_size(k), blk)                   !PARA local
-       CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_inv_d(d_offset), 1)!PARA local
+       ! bcast d(k,k) and inv(d(k,k))
+       CALL mp_bcast(pkd_d(d_offset:d_offset+row_blk_size(k)**2-1), &
+            proc_holds_diag_blk, dbcsr_mp_group (mp_obj))
+       CALL mp_bcast(pkd_inv_d(d_offset:d_offset+row_blk_size(k)**2-1), &
+            proc_holds_diag_blk, dbcsr_mp_group (mp_obj))
        !
        ! update the block pointer
        d_offset = d_offset + row_blk_size(k)**2
@@ -1989,20 +2080,15 @@ CALL cpu_time(t(1))
     CALL dbcsr_finalize(mat_v, error=error)
     CALL dbcsr_finalize(mat_li, error=error)
 
-
-    WRITE(*,*) 'tin1',t(50)
-    WRITE(*,*) 'tin2',t(51)
-    WRITE(*,*) 'tin3',t(52)
-    WRITE(*,*) 'tin4',t(53)
-    WRITE(*,*) 'tin5',t(54)
-    WRITE(*,*) 'tin6',t(55)
-    WRITE(*,*) 'tin7',t(56)
-    WRITE(*,*) 'tin8',t(57)
-    WRITE(*,*) 'tin9',t(58)
-
-    !chksum = dbcsr_checksum(mat_v,error)
-    !write(*,*) 'checksum(v)',chksum
-
+    !WRITE(*,*) 'tin1',t(50)
+    !WRITE(*,*) 'tin2',t(51)
+    !WRITE(*,*) 'tin3',t(52)
+    !WRITE(*,*) 'tin4',t(53)
+    !WRITE(*,*) 'tin5',t(54)
+    !WRITE(*,*) 'tin6',t(55)
+    !WRITE(*,*) 'tin7',t(56)
+    !WRITE(*,*) 'tin8',t(57)
+    !WRITE(*,*) 'tin9',t(58)
     !
     ! D=d;
     ! Linv=u;
@@ -2010,29 +2096,56 @@ CALL cpu_time(t(1))
     CALL dbcsr_init (mat_lt)
     CALL dbcsr_btriu(mat_lt, mat_v, error=error)
     !chksum = dbcsr_checksum(mat_lt,error)
-    !write(*,*) 'checksum(lt)_1',chksum
+    !WRITE(*,*) 'checksum(lt)_1',chksum
     CALL dbcsr_add_on_diag(mat_lt, s, error=error)
     !chksum = dbcsr_checksum(mat_lt,error)
-    !write(*,*) 'checksum(lt)_2',chksum,sum(abs(pkd_inv_d))
+    !WRITE(*,*) 'checksum(lt)_2',chksum,SUM(ABS(pkd_inv_d))
     CALL dbcsr_scale(mat_lt, alpha_matrix=pkd_inv_d, side='left', error=error)
     !chksum = dbcsr_checksum(mat_lt,error)
-    !write(*,*) 'checksum(lt)_3',chksum
+    !WRITE(*,*) 'checksum(lt)_3',chksum
+    CALL dbcsr_init (mat_li_scaled)
+    CALL dbcsr_copy(mat_li_scaled, mat_li, error=error)
+    CALL dbcsr_scale(mat_li_scaled, alpha_matrix=pkd_inv_d, side='left', error=error)
+
+    CALL dbcsr_init (mat_lt_scaled)
+    CALL dbcsr_copy(mat_lt_scaled, mat_lt, error=error)
+    CALL dbcsr_scale(mat_lt_scaled, alpha_matrix=pkd_d, side='left', error=error)
+
     occ_in = dbcsr_get_occupation(mat_lt)
     occ_out = dbcsr_get_occupation(mat_li)
     WRITE(*,*) routineN//' occ(Lt)',occ_in,' occ(Li)',occ_out
 
+    chksum = dbcsr_checksum(mat_v,error)
+    IF(dbg_print_chksum)WRITE(*,*) 'checksum(v)',chksum
     chksum = dbcsr_checksum(mat_li,error)
-    IF(.FALSE.)WRITE(*,*) 'checksum(li)',chksum
+    IF(dbg_print_chksum)WRITE(*,*) 'checksum(li)',chksum
+    chksum = dbcsr_checksum(mat_li_scaled,error)
+    IF(dbg_print_chksum)WRITE(*,*) 'checksum(li_scaled)',chksum
     chksum = dbcsr_checksum(mat_lt,error)
-    IF(.FALSE.)WRITE(*,*) 'checksum(lt)',chksum
+    IF(dbg_print_chksum)WRITE(*,*) 'checksum(lt)',chksum
 
-    IF(.FALSE.)CALL dbcsr_print(mat_li,error)
-    IF(.FALSE.)CALL dbcsr_print(mat_lt,error)
+
+    IF(dbg_print_matrix)CALL dbcsr_print(mat_v,error)
+    IF(dbg_print_matrix)CALL dbcsr_print(mat_li,error,matlab_format=.TRUE.)
+    IF(dbg_print_matrix)CALL dbcsr_print(mat_li_scaled,error,matlab_format=.TRUE.)
+    IF(dbg_print_matrix)CALL dbcsr_print(mat_lt,error)
 
     !
     ! At this point we should have inv(L), L^t, D and inv(D)
-    !CALL dbcsr_verify_matrix(mat_li, error=error)
-    !CALL dbcsr_verify_matrix(mat_lt, error=error)
+    ! compute the precond or apply the factors
+    !
+    ! C = A*B'
+    IF(.FALSE.)CALL dbcsr_verify_matrix(prcnd, error)
+    IF(.FALSE.)CALL dbcsr_verify_matrix(mat_li, error)
+    IF(.FALSE.)CALL dbcsr_verify_matrix(mat_t, error)
+    IF(.FALSE.)CALL dbcsr_verify_matrix(mat_li_scaled, error)
+    CALL dbcsr_sm_sm_multiply("T", "N", 1.0_dp, mat_li, mat_li_scaled, 0.0_dp, prcnd, error=error)
+    !CALL dbcsr_print(prcnd, error, matlab_format=.TRUE.)
+
+    chksum = dbcsr_checksum(prcnd,error)
+    IF(dbg_print_chksum)WRITE(*,*) 'checksum(prcnd)',chksum
+
+
     !
     ! checks
     IF(.TRUE.) THEN
@@ -2042,22 +2155,43 @@ CALL cpu_time(t(1))
        CALL dbcsr_trace(mat_li, mat_lt, trace, error=error)
        WRITE(*,*) 'trace(Li^t*Lt)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
-       CALL dbcsr_init (mat_li_scaled)
-       CALL dbcsr_copy(mat_li_scaled, mat_li, error=error)
-       CALL dbcsr_scale(mat_li_scaled, alpha_matrix=pkd_inv_d, side='left', error=error)
        CALL dbcsr_init(mat_tmp, error=error)
        CALL dbcsr_create (mat_tmp, "tmp mat_t", dbcsr_distribution (mat_t), dbcsr_type_normal,&
-            dbcsr_row_block_sizes (mat_li_scaled), dbcsr_col_block_sizes (mat_t),&
+            dbcsr_row_block_sizes (mat_t), dbcsr_col_block_sizes (mat_t),&
             error=error)
-       CALL dbcsr_sm_sm_multiply(1.0_dp, mat_li_scaled, mat_t,&
-            0.0_dp, mat_tmp, error=error)
-
+       CALL dbcsr_finalize(mat_tmp,error=error)
+       CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, mat_li_scaled, mat_t, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_trace(mat_li, mat_tmp, trace, error=error)
        WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
+
+       !
+       CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, prcnd, mat_t, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
+       WRITE(*,*) 'norm(A*Li*D*li^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
+
+       CALL dbcsr_sm_sm_multiply("T", "T", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
+       WRITE(*,*) 'norm(A*Li*D*li^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
+
+       CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
+       WRITE(*,*) 'norm(Li*D*li^t*A)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
+       !
+       !norm(Lt'*D*Lt-A,'fro')
+       CALL dbcsr_copy(mat_tmp, mat_t, error=error)
+       CALL dbcsr_sm_sm_multiply("T", "N", 1.0_dp, mat_lt, mat_lt_scaled, -1.0_dp, mat_tmp, error=error)
+       CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
+       WRITE(*,*) 'norm(Lt^t*D*Lt-A) = ',trace
+       !
+       !norm(Lt*Linv'-I,'fro')
+       CALL dbcsr_sm_sm_multiply("N", "T", 1.0_dp, mat_lt, mat_li, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
+       WRITE(*,*) 'norm(Lt*Linv^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
+
     ENDIF
     !
     ! cleanup
-    DEALLOCATE(pkd_u, pkd_v, pkd_v_fac, pkd_u_fac, pkd_d, pkd_inv_d, blk, STAT=istat)
+    DEALLOCATE(pkd_u, pkd_v, pkd_v_fac, pkd_u_fac, pkd_d, pkd_inv_d, pkd_v_tmp, blk, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL dbcsr_release(mat_t)
@@ -2065,12 +2199,14 @@ CALL cpu_time(t(1))
     CALL dbcsr_release(mat_lt)
     CALL dbcsr_release(mat_li)
     CALL dbcsr_release(mat_li_scaled)
+    CALL dbcsr_release(mat_lt_scaled)
     CALL dbcsr_release(mat_tmp)
 
     CALL cp_fm_release(fm_work1,error=error)
     CALL cp_fm_release(fm_work2,error=error)
 
-    ENDIF no_parallel_for_now
+    CALL copy_dbcsr_to_fm (prcnd, fm)!for the moment
+    CALL dbcsr_deallocate_matrix(prcnd,error=error)!for the moment
 
 CALL cpu_time(t(13))
 
@@ -2111,7 +2247,7 @@ WRITE(*,*) 'tend',t(13)-t(12)
     CALL dbcsr_create(matrix_result, "result", dist_result, 'N',&
          dbcsr_row_block_sizes (preconditioner_env%dbcsr_matrix),&
          dbcsr_col_block_sizes (matrix_right), error=error)
-    CALL dbcsr_sm_sm_multiply (1.0_dp, preconditioner_env%dbcsr_matrix,&
+    CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, preconditioner_env%dbcsr_matrix,&
          matrix_right, 0.0_dp, matrix_result, error=error)
     CALL dbcsr_distribution_release (dist_result)
     CALL dbcsr_release (matrix_right)

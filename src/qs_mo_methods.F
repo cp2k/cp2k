@@ -26,7 +26,6 @@ MODULE qs_mo_methods
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_fm_retain,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE dbcsr_operations,                ONLY: dbcsr_set
@@ -376,19 +375,19 @@ CONTAINS
        CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
        alpha=1.0_dp
 
+       CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
+                               matrix_v=mo_set%mo_coeff,&
+                               matrix_g=fm_tmp,&
+                               ncol=mo_set%homo,&
+                               alpha=alpha,error=error)
+       CALL cp_fm_release(fm_tmp,error=error)
     ELSE
        alpha=mo_set%maxocc
-       fm_tmp => mo_set%mo_coeff
-       CALL cp_fm_retain(fm_tmp,error=error)
+       CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
+                               matrix_v=mo_set%mo_coeff,&
+                               ncol=mo_set%homo,&
+                               alpha=alpha,error=error)
     ENDIF
-
-    CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                            matrix_v=mo_set%mo_coeff,&
-                            matrix_g=fm_tmp,&
-                            ncol=mo_set%homo,&
-                            alpha=alpha,error=error)
-
-    CALL cp_fm_release(fm_tmp,error=error)
 
     CALL timestop(handle)
 

@@ -777,9 +777,9 @@ CPSourceFileRef,&
              CALL dbcsr_create(mo_tmp_dbcsr, "mo_tmp", product_dist, 'N',&
                   dbcsr_row_block_sizes (s_sparse(1)%matrix),&
                   dbcsr_col_block_sizes (mo_dbcsr), error=error)
-             CALL dbcsr_sm_sm_multiply(1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
+             CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
                   0.0_dp, mo_tmp_dbcsr,&
-                  hint=1, error=error)
+                  error=error)
              CALL dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_tmp_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_tmp_dbcsr); CALL mp_sum(i,group)
@@ -798,7 +798,7 @@ CPSourceFileRef,&
              CALL dbcsr_create (mo_dbcsr, "mo", product_dist, 'N',&
                   dbcsr_row_block_sizes (p_rmpv(ispin)%matrix),&
                   dbcsr_col_block_sizes (mo_tmp_dbcsr), error=error)
-             CALL dbcsr_sm_sm_multiply(1.0_dp, p_rmpv(ispin)%matrix,&
+             CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix,&
                   mo_tmp_dbcsr, 0.0_dp, mo_dbcsr, error=error)
              CALL dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_dbcsr, error=error)

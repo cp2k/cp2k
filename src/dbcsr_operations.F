@@ -165,7 +165,7 @@ MODULE dbcsr_operations
   INTEGER, PARAMETER, PRIVATE :: rpslot_oldblks = 4
   INTEGER, PARAMETER, PRIVATE :: rpslot_oldoffset = 5
   INTEGER, PARAMETER, PRIVATE :: rpslot_totaloffset = 6
-  INTEGER, PARAMETER, PRIVATE :: rpnslots = 6
+ INTEGER, PARAMETER, PRIVATE :: rpnslots = 6
 
 
   LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
@@ -1565,6 +1565,25 @@ CONTAINS
           IF (dbg) WRITE(*,*)routineN//" Skipping empty blocks"
           CYCLE
        ENDIF
+
+       IF(params(sp)%offset_c+params(sp)%nze_c-1.GT.&
+            SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
+          WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
+               SIZE(dbcsr_get_data_p_d(product_data_area))
+          WRITE(*,*) 'params(sp)%offset_c+params(sp)%nze_c-1',&
+               params(sp)%offset_c+params(sp)%nze_c-1
+          !stop
+       ENDIF
+       IF(params(sp)%offset_c.GT.&
+            SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
+          WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
+               SIZE(dbcsr_get_data_p_d(product_data_area))
+          WRITE(*,*) 'params(sp)%offset_c',&
+               params(sp)%offset_c
+          !stop
+       ENDIF
+
+
        product_data_d => pointer_view (dbcsr_get_data_p_d (&
             product_data_area),&
             params(sp)%offset_c,&
@@ -2031,7 +2050,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
       col_offset, i, last_col, row_offset, timing_handle
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start, m_offset
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: do_scale, limit_col, right, tr
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
@@ -2089,6 +2109,22 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        ALLOCATE(buff(MAXVAL(array_data (matrix_a%m%row_blk_size))*&
                      MAXVAL(array_data (matrix_a%m%col_blk_size))))
        buff = 0.0_dp
+       !
+       row_blk_size => array_data (matrix_a%m%row_blk_size)
+       col_blk_size => array_data (matrix_a%m%col_blk_size)
+       ALLOCATE(m_offset(dbcsr_nblkrows_total(matrix_a)))
+       m_offset(1) = 1
+       IF(right) THEN
+          DO a_col = 2,dbcsr_nblkcols_total(matrix_a)
+             a_col_size = col_blk_size(a_col-1)
+             m_offset(a_col) = m_offset(a_col-1) + a_col_size**2
+          ENDDO
+       ELSE
+          DO a_row = 2,dbcsr_nblkrows_total(matrix_a)
+             a_row_size = row_blk_size(a_row-1)
+             m_offset(a_row) = m_offset(a_row-1) + a_row_size**2
+          ENDDO
+       ENDIF
     ENDIF
     !
     ! quick return if possible
@@ -2153,7 +2189,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                 CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
                         &     1.0_dp,data_d(1),a_row_size,&
-                        &            alpha_matrix(col_offset),a_col_size,&
+                        &            alpha_matrix(m_offset(a_col)),a_col_size,&
                         &     0.0_dp,buff,a_row_size)
                    CALL dcopy(a_nze,buff,1,data_d(1),1)
                    !CASE (dbcsr_type_complex_4)
@@ -2168,7 +2204,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                    !CASE (dbcsr_type_real_4)
                 CASE (dbcsr_type_real_8)
                    CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
-                        &     1.0_dp,alpha_matrix(row_offset),a_row_size,&
+                        &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
                         &            data_d(1),a_row_size,&
                         &     0.0_dp,buff,a_row_size)
                    CALL dcopy(a_nze,buff,1,data_d(1),1)
@@ -2186,6 +2222,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_iterator_stop(iter)
 
     ENDIF
+
+    IF(PRESENT(alpha_matrix)) DEALLOCATE(buff,m_offset)
 
     CALL timestop(timing_handle)
 
@@ -3063,7 +3101,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              END SELECT
           ENDDO
           CALL dbcsr_iterator_stop(iter)
-          CALL mp_max(norm_scalar,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+          CALL mp_sum(norm_scalar,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
           norm_scalar = SQRT(norm_scalar)
        ENDIF
 

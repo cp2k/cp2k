@@ -3179,11 +3179,11 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 !> \param[in] nodata          (optional) don't print actual data
 ! *****************************************************************************
-  SUBROUTINE dbcsr_print(matrix, error, nodata)
+  SUBROUTINE dbcsr_print(matrix, error, nodata, matlab_format)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: nodata
+    LOGICAL, INTENT(IN), OPTIONAL            :: nodata, matlab_format
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print', &
       routineP = moduleN//':'//routineN
@@ -3192,8 +3192,9 @@ CONTAINS
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: tr, yesprint
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, &
+                                                row_blk_offset, row_blk_size
+    LOGICAL                                  :: my_matlab_format, tr, yesprint
     REAL(KIND=dp)                            :: blk_cs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
@@ -3205,6 +3206,8 @@ CONTAINS
     CALL cp_assert (dbcsr_valid_index (matrix),&
          cp_warning_level, cp_caller_error,&
          routineN, "Can not print invalid matrix.")
+    my_matlab_format = .FALSE.
+    IF(PRESENT(matlab_format)) my_matlab_format = matlab_format
     yesprint = .TRUE.
     IF (PRESENT (nodata)) yesprint = .NOT. nodata
     WRITE(*,*)routineP//' Contents of matrix named ', matrix%m%name
@@ -3226,6 +3229,9 @@ CONTAINS
     DBGV 'index', matrix%m%index
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
+    row_blk_offset => array_data (matrix%m%row_blk_offset)
+    col_blk_offset => array_data (matrix%m%col_blk_offset)
+
     IF (matrix%m%nblks .GT. 0) THEN
        DO br = 1, matrix%m%nblkrows_total
           m = row_blk_size(br)
@@ -3260,7 +3266,7 @@ CONTAINS
                 END SELECT
                 !WRITE(*,*)routineP//' chksum for (',br,',',bc,') at',&
                 !     blk_p,'l',mn,'= ', blk_cs,'size',m,n
-                WRITE(*,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
+                IF(.not.my_matlab_format) WRITE(*,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
                      !" Checksum for (",br,bc,") at ",blk_p," size ",m,n,mn,&
                      " Checksum for (",br,bc,") at ",matrix%m%blk_p(blk)," size ",m,n,mn,&
                      " checksum=",blk_cs
@@ -3268,7 +3274,12 @@ CONTAINS
                    SELECT CASE (matrix%m%data_type)
                    CASE (dbcsr_type_real_8)
                       !WRITE(*,'(10(1X,F7.2))')r_dp(blk_p:blk_p+mn-1)
-                      CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                      IF(my_matlab_format) THEN
+                         CALL dbcsr_printmat_matlab(r_dp(blk_p:blk_p+mn-1),m,n, &
+                              row_blk_offset(br), col_blk_offset(bc),tr=tr)
+                      ELSE
+                         CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                      ENDIF
                    CASE (dbcsr_type_real_4)
                       CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
                    CASE (dbcsr_type_complex_8)
@@ -3285,6 +3296,50 @@ CONTAINS
   END SUBROUTINE dbcsr_print
 
 
+! *****************************************************************************
+!> \brief Prints the elements of a matrix.
+!> \param[in] rows,columns    is the logical (possibly detransposed) matrix
+!>                            size, not the stored size.
+!> \param[in] tr    (optional) specifies whether the elements are stored
+!>                  transposed
+! *****************************************************************************
+
+  SUBROUTINE dbcsr_printmat_matlab(matrix, rows, cols, r_offset, c_offset, tr)
+    REAL(KIND=real_8), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
+    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, c_offset
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+    INTEGER                                  :: c, c_off, m, n, r, r_off
+    LOGICAL                                  :: t
+
+!   ---------------------------------------------------------------------------
+
+    m = rows
+    n = cols
+    r_off = r_offset
+    c_off = c_offset
+    t = .FALSE.
+    IF(PRESENT(tr)) THEN
+       IF(tr) THEN
+          t = .TRUE.
+          m = cols
+          n = rows
+          r_off = c_offset
+          c_off = r_offset
+       ENDIF
+    ENDIF
+
+    DO c = 1,cols
+       DO r = 1,rows
+          IF(.NOT.t) THEN
+             WRITE(*,'(A,I3,A,I3,A,E26.16,A)') 'a(',r+r_off-1,',',c+c_off-1,')=',matrix(r+(c-1)*rows),';'
+          ELSE
+             STOP
+          ENDIF
+       ENDDO
+    ENDDO
+  END SUBROUTINE dbcsr_printmat_matlab
 
 ! *****************************************************************************
 !> \brief Verify the correctness of a BCSR matrix.
