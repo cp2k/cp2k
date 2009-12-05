@@ -779,3 +779,5 @@ H2O-bloechl-restraint.inp
 H2O-ata.inp
 # turned on dbcsr_multiply_fm_fm_t
 dynamics.inp
+# more to reset
+H2O-solv.inp

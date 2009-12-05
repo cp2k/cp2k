@@ -155,3 +155,6 @@ ch2o-ot4.inp
 ch2o-5.inp
 # turned on dbcsr_multiply_fm_fm_t
 h2o-3.inp
+# more to reset
+ch2o-4.inp
+test-lsd.inp
