@@ -15,6 +15,13 @@
 MODULE cp_dbcsr_diag
 
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+  USE cp_cfm_types,                    ONLY: cp_cfm_release,&
+                                             cp_cfm_to_cfm,&
+                                             cp_cfm_type
+  USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
+                                             copy_dbcsr_to_cfm,&
+                                             copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
@@ -641,5 +648,87 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE dbcsr_syevr
+
+! *****************************************************************************
+  SUBROUTINE dbcsr_heevd(matrix,eigenvectors,eigenvalues,error)
+
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: eigenvectors
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_heevd', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: m, v
+    INTEGER                                  :: handle, info, istat, liwork, &
+                                                lrwork, lwork, n
+    INTEGER, DIMENSION(9)                    :: descm, descv
+    INTEGER, DIMENSION(:), POINTER           :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
+    TYPE(cp_cfm_type), POINTER               :: fm_eigenvectors, fm_matrix
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+
+    CALL copy_dbcsr_to_cfm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_cfm(eigenvectors, fm_eigenvectors)
+
+    n = fm_matrix%matrix_struct%nrow_global
+    m => fm_matrix%local_data
+    ALLOCATE(iwork(1),work(1),rwork(1),STAT=istat)
+    IF (istat.NE.0) CALL stop_memory(routineN,"iwork")
+! work space query
+    lwork  = -1
+    lrwork = -1
+    liwork = -1
+
+#if defined(__SCALAPACK)
+    v => fm_eigenvectors%local_data
+    descm(:) = fm_matrix%matrix_struct%descriptor(:)
+    descv(:) = fm_eigenvectors%matrix_struct%descriptor(:)
+    CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
+                  work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
+    lwork=work(1)
+    lrwork=rwork(1)+1000000 ! needed to correct for a bug in scalapack, unclear how much the right number is
+    liwork=iwork(1)
+    DEALLOCATE(work,iwork,rwork)
+    ALLOCATE(iwork(liwork),work(lwork),rwork(lrwork),STAT=istat)
+    IF (istat.NE.0) CALL stop_memory(routineN,"work")
+    iwork=0;work=CMPLX(0._dp,0._dp,dp);rwork=0._dp;
+    CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
+                  work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
+#else
+    CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1), &
+                  work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
+    lwork=work(1)
+    lrwork=rwork(1)
+    liwork=iwork(1)
+    DEALLOCATE(work,iwork,rwork)
+    ALLOCATE(iwork(liwork),work(lwork),rwork(lrwork),STAT=istat)
+    IF (istat.NE.0) CALL stop_memory(routineN,"work")
+    CALL zheevd('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1), &
+                  work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
+    CALL cp_cfm_to_cfm(fm_matrix,fm_eigenvectors,error=error)
+#endif
+
+    IF (info.NE.0) CALL stop_program(routineN,"unable to diagonalize matrix")
+    DEALLOCATE(work,iwork,rwork)
+
+
+    CALL copy_cfm_to_dbcsr(fm_eigenvectors, eigenvectors)
+
+    CALL cp_cfm_release(fm_matrix, error)
+
+    CALL cp_cfm_release(fm_eigenvectors, error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE dbcsr_heevd
+
 
 END MODULE cp_dbcsr_diag
