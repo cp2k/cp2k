@@ -15,8 +15,8 @@ MODULE preconditioner
                                              array_i1d_obj
   USE cp_dbcsr_operations,             ONLY: &
        copy_dbcsr_to_fm, copy_fm_to_dbcsr, dbcsr_copy_vec, &
-       dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_multiply_vec, &
-       dbcsr_pack_vec, dbcsr_sm_fm_multiply, dbcsr_sm_sm_multiply, &
+       dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_multiply, &
+       dbcsr_multiply_vec, dbcsr_pack_vec, dbcsr_sm_fm_multiply, &
        dbcsr_unpack_vec, packed_vec_bcast, packed_vec_bif_tech2, &
        packed_vec_build_u, packed_vec_ini, packed_vec_scale
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -2139,7 +2139,7 @@ END SUBROUTINE make_full_all_ortho
     IF(.FALSE.)CALL dbcsr_verify_matrix(mat_li, error)
     IF(.FALSE.)CALL dbcsr_verify_matrix(mat_t, error)
     IF(.FALSE.)CALL dbcsr_verify_matrix(mat_li_scaled, error)
-    CALL dbcsr_sm_sm_multiply("T", "N", 1.0_dp, mat_li, mat_li_scaled, 0.0_dp, prcnd, error=error)
+    CALL dbcsr_multiply("T", "N", 1.0_dp, mat_li, mat_li_scaled, 0.0_dp, prcnd, error=error)
     !CALL dbcsr_print(prcnd, error, matlab_format=.TRUE.)
 
     chksum = dbcsr_checksum(prcnd,error)
@@ -2160,31 +2160,31 @@ END SUBROUTINE make_full_all_ortho
             dbcsr_row_block_sizes (mat_t), dbcsr_col_block_sizes (mat_t),&
             error=error)
        CALL dbcsr_finalize(mat_tmp,error=error)
-       CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, mat_li_scaled, mat_t, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_multiply("N", "N", 1.0_dp, mat_li_scaled, mat_t, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_trace(mat_li, mat_tmp, trace, error=error)
        WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
        !
-       CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, prcnd, mat_t, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_multiply("N", "N", 1.0_dp, prcnd, mat_t, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(A*Li*D*li^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
-       CALL dbcsr_sm_sm_multiply("T", "T", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_multiply("T", "T", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(A*Li*D*li^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
-       CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_multiply("N", "N", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(Li*D*li^t*A)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
        !
        !norm(Lt'*D*Lt-A,'fro')
        CALL dbcsr_copy(mat_tmp, mat_t, error=error)
-       CALL dbcsr_sm_sm_multiply("T", "N", 1.0_dp, mat_lt, mat_lt_scaled, -1.0_dp, mat_tmp, error=error)
+       CALL dbcsr_multiply("T", "N", 1.0_dp, mat_lt, mat_lt_scaled, -1.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(Lt^t*D*Lt-A) = ',trace
        !
        !norm(Lt*Linv'-I,'fro')
-       CALL dbcsr_sm_sm_multiply("N", "T", 1.0_dp, mat_lt, mat_li, 0.0_dp, mat_tmp, error=error)
+       CALL dbcsr_multiply("N", "T", 1.0_dp, mat_lt, mat_li, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(Lt*Linv^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
@@ -2247,7 +2247,7 @@ WRITE(*,*) 'tend',t(13)-t(12)
     CALL dbcsr_create(matrix_result, "result", dist_result, 'N',&
          dbcsr_row_block_sizes (preconditioner_env%dbcsr_matrix),&
          dbcsr_col_block_sizes (matrix_right), error=error)
-    CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, preconditioner_env%dbcsr_matrix,&
+    CALL dbcsr_multiply("N", "N", 1.0_dp, preconditioner_env%dbcsr_matrix,&
          matrix_right, 0.0_dp, matrix_result, error=error)
     CALL dbcsr_distribution_release (dist_result)
     CALL dbcsr_release (matrix_right)

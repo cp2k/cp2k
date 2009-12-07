@@ -21,9 +21,9 @@ MODULE qs_initial_guess
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              dbcsr_from_fm,&
+                                             dbcsr_multiply,&
                                              dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply,&
-                                             dbcsr_sm_sm_multiply
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
@@ -777,7 +777,7 @@ CPSourceFileRef,&
              CALL dbcsr_create(mo_tmp_dbcsr, "mo_tmp", product_dist, 'N',&
                   dbcsr_row_block_sizes (s_sparse(1)%matrix),&
                   dbcsr_col_block_sizes (mo_dbcsr), error=error)
-             CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
+             CALL dbcsr_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
                   0.0_dp, mo_tmp_dbcsr,&
                   error=error)
              CALL dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
@@ -798,7 +798,7 @@ CPSourceFileRef,&
              CALL dbcsr_create (mo_dbcsr, "mo", product_dist, 'N',&
                   dbcsr_row_block_sizes (p_rmpv(ispin)%matrix),&
                   dbcsr_col_block_sizes (mo_tmp_dbcsr), error=error)
-             CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix,&
+             CALL dbcsr_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix,&
                   mo_tmp_dbcsr, 0.0_dp, mo_dbcsr, error=error)
              CALL dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_dbcsr, error=error)

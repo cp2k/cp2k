@@ -45,10 +45,12 @@ MODULE qs_localization_methods
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush, m_walltime
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_bcast, mp_max,&
+                                             mp_bcast,&
+                                             mp_max,&
                                              mp_sendrecv,&
                                              mp_sum,&
                                              mp_sync
@@ -284,7 +286,8 @@ CONTAINS
                                                 istate, jstate, nstate, &
                                                 unit_nr
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: ct, st, t1, t2, theta, tolerance
+    REAL(KIND=dp)                            :: ct, st, t1, t2, theta, &
+                                                tolerance
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: c_zij
     TYPE(cp_cfm_type), POINTER               :: c_rmat
@@ -1281,12 +1284,12 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: list_pair, ns_bound
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: ct, gmax, grad, ri, rj, st, &
-                                                t1, t2, theta, tolerance, &
-                                                xlow, xstate, xup
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: gmat, rmat_loc, rmat_recv, &
                                                 rmat_send, rotmat, &
                                                 z_ij_loc_im, z_ij_loc_re
+    REAL(KIND=dp)                            :: ct, gmax, grad, ri, rj, st, &
+                                                t1, t2, theta, tolerance, &
+                                                xlow, xstate, xup
     TYPE(cp_fm_type), POINTER                :: rmat
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(set_c_1d_type), DIMENSION(:), &

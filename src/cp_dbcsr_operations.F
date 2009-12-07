@@ -107,7 +107,7 @@ MODULE cp_dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
-  PUBLIC :: dbcsr_sm_sm_multiply, dbcsr_check, dbcsr_multiply_local
+  PUBLIC :: dbcsr_multiply, dbcsr_check, dbcsr_multiply_local
   PUBLIC :: cp_dbcsr_add_dist2d, cp_dbcsr_get_dist2d, cp_dbcsr_remove_dist2d
   PUBLIC :: dbcsr_multiply_vec, dbcsr_pack_vec,&
        packed_vec_scale, dbcsr_unpack_vec,&
@@ -136,8 +136,7 @@ MODULE cp_dbcsr_operations
 
   INTERFACE dbcsr_plus_fm_fm_t
      !MODULE PROCEDURE dbcsr_plus_fm_fm_t_hack_hack
-     !MODULE PROCEDURE dbcsr_plus_fm_fm_t_native
-     MODULE PROCEDURE dbcsr_plus_fm_fm_t_native_new
+     MODULE PROCEDURE dbcsr_plus_fm_fm_t_native
   END INTERFACE
 
   !INTERFACE dbcsr_put_block_node
@@ -309,7 +308,7 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 !> \param[out] flop           (optional) effective flop
 ! *****************************************************************************
-  SUBROUTINE dbcsr_sm_sm_multiply(transa, transb, alpha, matrix_a, matrix_b, &
+  SUBROUTINE dbcsr_multiply(transa, transb, alpha, matrix_a, matrix_b, &
        beta, matrix_c, first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, error, flop)
     
@@ -326,7 +325,7 @@ CONTAINS
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sm_sm_multiply', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_col, f_k, f_row, i, l_col, &
@@ -592,7 +591,7 @@ CONTAINS
     IF (dbg) &
          CALL dbcsr_verify_matrix (matrix_c)
     CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_sm_sm_multiply
+  END SUBROUTINE dbcsr_multiply
 
 
 
@@ -1017,9 +1016,9 @@ CONTAINS
     CALL dbcsr_create (matrix_c, "C", product_dist, dbcsr_type_normal,&
          matrix_a%m%row_blk_size, matrix_b%m%col_blk_size,&
          error=error)
-    CALL dbcsr_sm_sm_multiply("N", "N", 1.0_dp, matrix_a, matrix_b, 0.0_dp, matrix_c,&
+    CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_a, matrix_b, 0.0_dp, matrix_c,&
          error=error, flop=flop)
-    !CALL dbcsr_sm_sm_multiply("N", "N", matrix_bt, matrix_a, matrix_c,&
+    !CALL dbcsr_multiply("N", "N", matrix_bt, matrix_a, matrix_c,&
     !     dist_result, hint, error)
     !CALL dbcsr_distribution_release (dist_result)
     walltime2 = m_walltime()
@@ -1559,7 +1558,7 @@ CONTAINS
        CALL copy_fm_to_dbcsr(fm_in, in)
        CALL copy_fm_to_dbcsr(fm_out, out)
 
-       CALL dbcsr_sm_sm_multiply("N", "N", my_alpha, matrix, in,&
+       CALL dbcsr_multiply("N", "N", my_alpha, matrix, in,&
             my_beta, out, last_column=ncol, error=error)
 
        CALL copy_dbcsr_to_fm(out, fm_out,error)
@@ -1607,7 +1606,6 @@ CONTAINS
     END SUBROUTINE match_col_sizes
   END SUBROUTINE dbcsr_sm_fm_multiply
 
-
   SUBROUTINE dbcsr_plus_fm_fm_t_native(sparse_matrix,matrix_v,matrix_g,ncol,&
        alpha,error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: sparse_matrix
@@ -1618,106 +1616,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_plus_fm_fm_t_native', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: k, timing_handle
-    REAL(KIND=dp)                            :: my_alpha
-    TYPE(array_i1d_obj)                      :: col_blk_size_left, &
-                                                col_dist_left
-    TYPE(dbcsr_distribution_obj)             :: dist_left
-    TYPE(dbcsr_mp_obj)                       :: mp
-    TYPE(dbcsr_obj)                          :: mat_g, mat_gt, mat_v
-
-    CALL timeset(routineN, timing_handle)
-    !call dbcsr_print (sparse_matrix)
-    !call dbcsr_print_dist (dbcsr_distribution(sparse_matrix))
-    IF (ncol .GT. 0) THEN
-       CALL cp_assert (dbcsr_valid_index (sparse_matrix), cp_fatal_level,&
-            cp_caller_error, routineN, "sparse_matrix must pre-exist", error)
-
-       ! Setup matrix_v
-       CALL cp_fm_get_info(matrix_v, ncol_global=k, error=error)
-       !IF (ncol .NE. k) WRITE(*,*)routineN//'truncated mult k, ncol',k,ncol
-       mp = dbcsr_distribution_mp (dbcsr_distribution(sparse_matrix))
-       CALL create_bl_distribution (col_dist_left, col_blk_size_left,&
-            k, dbcsr_mp_npcols (mp))
-       CALL dbcsr_distribution_new (dist_left, mp,&
-            dbcsr_distribution_row_dist (dbcsr_distribution(sparse_matrix)),&
-            col_dist_left)
-       CALL array_release (col_dist_left)
-       CALL dbcsr_init (mat_v)
-       CALL dbcsr_create(mat_v, "DBCSR matrix_v", dist_left, dbcsr_type_normal,&
-            dbcsr_row_block_sizes (sparse_matrix), col_blk_size_left, 0, 0,&
-            dbcsr_get_data_type (sparse_matrix), special=.TRUE.)
-       CALL dbcsr_finalize (mat_v)
-       CALL copy_fm_to_dbcsr(matrix_v, mat_v)
-       CALL dbcsr_verify_matrix(mat_v, error)
-       !call dbcsr_print(mat_v)
-
-       ! Setup matrix_g
-       IF (PRESENT (matrix_g)) THEN
-          CALL dbcsr_init(mat_g)
-          !call dbcsr_transpose_dims (dist_tmp, dist_left)
-          !call dbcsr_transpose_distribution (dist_right, dist_tmp)
-          !call dbcsr_distribution_release (dist_tmp)
-          !CALL dbcsr_create(mat_g, "DBCSR matrix_g", dist_right,&
-          CALL dbcsr_create(mat_g, "DBCSR matrix_g", dist_left,&
-               dbcsr_type_normal,&
-               dbcsr_row_block_sizes (sparse_matrix),&
-               dbcsr_col_block_sizes (mat_v),&
-               data_type=dbcsr_get_data_type (sparse_matrix), special=.TRUE.)
-          CALL dbcsr_finalize (mat_g)
-          CALL copy_fm_to_dbcsr(matrix_g, mat_g)
-          !
-          CALL dbcsr_init(mat_gt)
-          !call dbcsr_print (mat_g)
-          CALL dbcsr_new_transposed(mat_gt, mat_g, shallow_data_copy=.FALSE.,&
-               transpose_data=.TRUE., transpose_distribution=.FALSE.,&
-               error=error)
-          CALL dbcsr_release (mat_g)
-       ELSE
-          CALL dbcsr_init(mat_gt)
-          !call dbcsr_print (mat_v)
-          CALL dbcsr_new_transposed(mat_gt, mat_v, shallow_data_copy=.TRUE.,&
-               transpose_distribution=.FALSE.,&
-               error=error)
-       ENDIF
-       CALL array_release (col_blk_size_left)
-       CALL dbcsr_verify_matrix (mat_gt, error)
-       
-       !call dbcsr_print(mat_gt)
-       !
-       CALL dbcsr_distribution_release (dist_left)
-       !
-       !write(*,*)routineN//" sizes", mat_v%m%nblks, mat_gt%m%nblks, sparse_matrix%m%nblks
-       !call dbcsr_sm_sm_multiply("N", "N", my_alpha, mat_v, mat_gt, 0.0_dp, sparse_matrix,&
-       !     sparse_matrix%m%dist, last_column=ncol, use_sparsity=sparse_matrix,&
-       !     error=error)
-       my_alpha = 1.0_dp
-       IF (PRESENT (alpha)) my_alpha = alpha
-       CALL dbcsr_sm_sm_multiply("N", "N", my_alpha, mat_v, mat_gt,&
-            1.0_dp, sparse_matrix,&
-            retain_sparsity=.TRUE.,&
-            last_k = ncol,&
-            error=error)
-       CALL dbcsr_release (mat_v)
-       CALL dbcsr_release (mat_gt)
-    ENDIF
-    CALL timestop(timing_handle)
-
-  END SUBROUTINE dbcsr_plus_fm_fm_t_native
-
-  SUBROUTINE dbcsr_plus_fm_fm_t_native_new(sparse_matrix,matrix_v,matrix_g,ncol,&
-       alpha,error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: sparse_matrix
-    TYPE(cp_fm_type), POINTER                :: matrix_v
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
-    INTEGER, INTENT(IN)                      :: ncol
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_plus_fm_fm_t_native_new', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k, nao, timing_handle
@@ -1788,13 +1686,13 @@ CONTAINS
        my_alpha = 1.0_dp
        IF(PRESENT (alpha)) my_alpha = alpha
        IF(PRESENT (matrix_g)) THEN
-          CALL dbcsr_sm_sm_multiply("N", "T", my_alpha, mat_v, mat_g,&
+          CALL dbcsr_multiply("N", "T", my_alpha, mat_v, mat_g,&
                1.0_dp, sparse_matrix,&
                retain_sparsity=.TRUE.,&
                last_k = ncol,&
                error=error)
        ELSE
-          CALL dbcsr_sm_sm_multiply("N", "T", my_alpha, mat_v, mat_v,&
+          CALL dbcsr_multiply("N", "T", my_alpha, mat_v, mat_v,&
                1.0_dp, sparse_matrix,&
                retain_sparsity=.TRUE.,&
                last_k = ncol,&
@@ -1850,7 +1748,7 @@ CONTAINS
     ENDIF
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_plus_fm_fm_t_native_new
+  END SUBROUTINE dbcsr_plus_fm_fm_t_native
 
   SUBROUTINE dbcsr_plus_fm_fm_t_hack_hack(sparse_matrix,matrix_v,matrix_g,ncol,&
        alpha,error)
