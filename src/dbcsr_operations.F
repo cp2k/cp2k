@@ -4312,7 +4312,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: new_type
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
     LOGICAL                                  :: shallow, tr_blocks, tr_dist
     TYPE(dbcsr_distribution_obj)             :: new_dist
@@ -4321,6 +4321,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
     CALL cp_assert (dbcsr_valid_index(normal), cp_fatal_level, cp_caller_error,&
          routineN, "Matrix does not exist.")
     ! Internalize options
@@ -4421,6 +4422,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL dbcsr_release (transposed)
        transposed = t2
     ENDIF
+    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_new_transposed
 
 ! *****************************************************************************
