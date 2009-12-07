@@ -367,7 +367,7 @@
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_block_d(matrix,row,col,block,tr,found,&
        row_size, col_size)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), INTENT(OUT)       :: block
     LOGICAL, INTENT(IN)                      :: tr
@@ -455,7 +455,7 @@
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_block_p_d(matrix,row,col,block,tr,found,&
        row_size, col_size)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), POINTER           :: block
     LOGICAL, INTENT(OUT)                     :: tr

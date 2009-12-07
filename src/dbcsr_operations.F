@@ -64,7 +64,7 @@ MODULE dbcsr_operations
   PUBLIC :: dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, &
             dbcsr_set_diag, dbcsr_get_block, dbcsr_get_block_p,&
-            dbcsr_get_block_diag,&
+            dbcsr_get_block_diag, dbcsr_hadamard_product, &
             dbcsr_put_block, dbcsr_filter,&
             dbcsr_replace_blocks,&
             dbcsr_btriu, block_add_on_diag,&
@@ -2399,7 +2399,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
     !
     ! let's go
-    IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total) THEN
+    IF(dbcsr_nblkrows_total(matrix_a).NE.dbcsr_nblkrows_total(matrix_b)) THEN
        CALL stop_program(routineN,"matrices not consistent")
     ENDIF
 
@@ -2445,6 +2445,73 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_add
+
+! *****************************************************************************
+!> \brief Hadamard product
+!>    C = A . B 
+!> \param[in,out] matrix_c        DBCSR matrix
+!> \param[in] matrix_a, matrix_b  DBCSR matrix
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hadamard_product', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_size, nze, row, &
+                                                row_size, timing_handle
+    LOGICAL                                  :: found, tr_a, tr_b
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: c_data_d
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data_d, b_data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    
+    IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b).OR.&
+       dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_c)) &
+       CALL stop_program(routineN,"data types not consistent, need to fix that")
+
+    IF(dbcsr_nblkrows_total(matrix_a).NE.dbcsr_nblkrows_total(matrix_b).OR.&
+       dbcsr_nblkrows_total(matrix_c).NE.dbcsr_nblkrows_total(matrix_a)) &
+       CALL stop_program(routineN,"matrices not consistent")
+
+    ALLOCATE(c_data_d(dbcsr_max_row_size(matrix_a)*dbcsr_max_col_size(matrix_a)))
+    CALL dbcsr_set(matrix_c, 0.0_dp, error=error)
+    CALL dbcsr_iterator_start(iter, matrix_a)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       SELECT CASE (dbcsr_get_data_type(matrix_a))
+          !CASE (dbcsr_type_real_4)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, a_data_d, tr_a, blk, &
+               row_size=row_size, col_size=col_size)
+          nze = row_size * col_size
+          CALL dbcsr_get_block_p(matrix_b, row, col, b_data_d, tr_b, found)
+          IF(tr_a.NEQV.tr_b) &
+               CALL stop_program(routineN,"tr not consistent, need to fix that")
+          IF(found) THEN
+             c_data_d(1:nze) = a_data_d(1:nze) * b_data_d(1:nze)
+             CALL dbcsr_put_block(matrix_c, row, col, c_data_d, tr_a, &
+                  summation=.FALSE.)
+          ENDIF
+          !CASE (dbcsr_type_complex_4)
+          !CASE (dbcsr_type_complex_8)
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,"Only real double precision")
+       END SELECT
+    ENDDO
+
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_finalize (matrix_c, error=error)
+    DEALLOCATE(c_data_d)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_hadamard_product
 
 ! *****************************************************************************
 !> \brief Replaces blocks with blocks from another matrix.
