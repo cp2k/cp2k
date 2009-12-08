@@ -221,7 +221,8 @@ MODULE input_constants
                                               do_method_rm1=13,&
                                               do_method_dftb=14,&
                                               do_method_pchg=15,&
-                                              do_method_pnnl=16
+                                              do_method_pnnl=16,&
+                                              do_method_ofgpw=17
 
   INTEGER, PARAMETER, PUBLIC               :: do_ppl_analytic=0,&
                                               do_ppl_grid=1

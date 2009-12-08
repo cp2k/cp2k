@@ -96,9 +96,9 @@ MODULE qs_environment
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_mndo, &
-       do_method_mndod, do_method_pdg, do_method_pm3, do_method_pm6, &
-       do_method_pnnl, do_method_rm1, do_multipole_none, general_roks, &
-       restart_guess, use_aux_fit_basis_set, xc_vdw_fun_pairpot
+       do_method_mndod, do_method_ofgpw, do_method_pdg, do_method_pm3, &
+       do_method_pm6, do_method_pnnl, do_method_rm1, do_multipole_none, &
+       general_roks, restart_guess, use_aux_fit_basis_set, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -543,10 +543,11 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          all_potential_present=all_potential_present)
     IF ( (dft_control%qs_control%method == "GPW") .OR. &
-         (dft_control%qs_control%method == "GAPW_XC") ) THEN
+         (dft_control%qs_control%method == "GAPW_XC") .OR. &
+         (dft_control%qs_control%method == "OFGPW") ) THEN
        IF( all_potential_present ) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
-               "all-el calculations with GPW and GAPW_XC are not implemented ")
+               "all-el calculations with GPW, GAPW_XC, and OFGPW are not implemented ")
        END IF
     END IF
 
@@ -760,7 +761,8 @@ CONTAINS
     !   Initialize possible dispersion parameters
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
         dft_control%qs_control%method_id == do_method_gapw .OR. &
-        dft_control%qs_control%method_id == do_method_gapw_xc) THEN
+        dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
+        dft_control%qs_control%method_id == do_method_ofgpw) THEN
       ALLOCATE(dispersion_env,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dispersion_env",1)
       NULLIFY(vdw_section,xc_fun_section)
@@ -804,8 +806,10 @@ CONTAINS
     END IF
 
     IF ((MODULO(nelectron,2) /= 0).AND.(dft_control%nspins == 1)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "Use the LSD option for an odd number of electrons.")
+       IF ( .NOT. dft_control%qs_control%ofgpw ) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Use the LSD option for an odd number of electrons.")
+       END IF
     END IF
 
     ! The transition potential method to calculate XAS needs LSD
@@ -829,32 +833,60 @@ CONTAINS
     !   distinction between the number of electrons per spin and the number of
     !   MOs per spin this should allow the use of fractional occupations later
     !   on
-    IF (dft_control%nspins == 1) THEN
-       maxocc = 2.0_dp
-       nelectron_spin(1) = nelectron
-       nelectron_spin(2) = 0
-       n_mo(1) = nelectron/2
-       n_mo(2) = 0
+    IF ( dft_control%qs_control%ofgpw ) THEN
+
+       IF (dft_control%nspins == 1) THEN
+          maxocc = nelectron
+          nelectron_spin(1) = nelectron
+          nelectron_spin(2) = 0
+          n_mo(1) = 1
+          n_mo(2) = 0
+       ELSE
+          IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                  "LSD: try to use a different multiplicity.")
+          END IF
+          nelectron_spin(1) = (nelectron + multiplicity - 1)/2
+          nelectron_spin(2) = (nelectron - multiplicity + 1)/2
+          IF (nelectron_spin(2) < 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                  "LSD: too few electrons for this multiplicity.")
+          END IF
+          maxocc=MAXVAL(nelectron_spin)
+          n_mo(1) = MIN(nelectron_spin(1),1)
+          n_mo(2) = MIN(nelectron_spin(2),1)
+       END IF
+
     ELSE
-       maxocc=1.0_dp
 
-       !    *** the simplist spin distribution is written here. Special cases will
-       !    *** need additional user input
-       IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "LSD: try to use a different multiplicity.")
+       IF (dft_control%nspins == 1) THEN
+          maxocc = 2.0_dp
+          nelectron_spin(1) = nelectron
+          nelectron_spin(2) = 0
+          n_mo(1) = nelectron/2
+          n_mo(2) = 0
+       ELSE
+          maxocc=1.0_dp
+
+          !    *** the simplist spin distribution is written here. Special cases will
+          !    *** need additional user input
+          IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                  "LSD: try to use a different multiplicity.")
+          END IF
+
+          nelectron_spin(1) = (nelectron + multiplicity - 1)/2
+          nelectron_spin(2) = (nelectron - multiplicity + 1)/2
+
+          IF (nelectron_spin(2) < 0) THEN
+             CALL stop_program(routineN,moduleN,__LINE__,&
+                  "LSD: too few electrons for this multiplicity.")
+          END IF
+   
+          n_mo(1) = nelectron_spin(1)
+          n_mo(2) = nelectron_spin(2)
+   
        END IF
-
-       nelectron_spin(1) = (nelectron + multiplicity - 1)/2
-       nelectron_spin(2) = (nelectron - multiplicity + 1)/2
-
-       IF (nelectron_spin(2) < 0) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "LSD: too few electrons for this multiplicity.")
-       END IF
-
-       n_mo(1) = nelectron_spin(1)
-       n_mo(2) = nelectron_spin(2)
 
     END IF
 
@@ -982,7 +1014,8 @@ CONTAINS
     ! Print the DFT control parameters
     IF (dft_control%qs_control%method_id == do_method_gpw .OR. &
         dft_control%qs_control%method_id == do_method_gapw .OR. &
-        dft_control%qs_control%method_id == do_method_gapw_xc) THEN
+        dft_control%qs_control%method_id == do_method_gapw_xc .OR. &
+        dft_control%qs_control%method_id == do_method_ofgpw) THEN
       CALL write_dispersion(qs_env,error)
     END IF
 

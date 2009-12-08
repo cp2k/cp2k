@@ -377,6 +377,8 @@ CONTAINS
                CALL scf_post_calculation_se (dft_section, scf_env, qs_env, error)
             ELSEIF (dft_control%qs_control%dftb) THEN
                ! Do Nothing
+            ELSEIF (dft_control%qs_control%ofgpw) THEN
+               ! Do Nothing
             ELSE
                CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env, error)
             END IF
@@ -1867,12 +1869,12 @@ CPSourceFileRef)
           IF (dft_control%nspins > 1) THEN
             WRITE (UNIT=output_unit,FMT="(/,T2,A,I2)") "Spin",ispin
           END IF
-          WRITE (UNIT=output_unit,FMT="(/,(T2,A,T44,I10))")&
+          WRITE (UNIT=output_unit,FMT="(/,(T2,A,T71,I10))")&
             "Number of electrons:",nelectron_spin,&
             "Number of occupied orbitals:",homo,&
             "Number of molecular orbitals:",nmo
        END DO
-       WRITE (UNIT=output_unit,FMT="(/,T2,A,T44,I10)")&
+       WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,I10)")&
          "Number of orbital functions:",nao
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
@@ -1925,7 +1927,7 @@ CPSourceFileRef)
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                extension=".scfLog",error=error)
     IF (output_unit > 0) THEN
-       WRITE (UNIT=output_unit,FMT="(T2,A,T44,I10)")&
+       WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
          "Number of independent orbital functions:",nao - ndep
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&

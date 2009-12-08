@@ -79,6 +79,7 @@ MODULE qs_initial_guess
                                              read_mo_set,&
                                              set_mo_occupation,&
                                              wfn_restart_file_name
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
   USE qs_scf_types,                    ONLY: block_krylov_diag_method_nr,&
@@ -139,7 +140,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
                                                 ortho_basis, scp, tr
-    LOGICAL                                  :: ionode, do_std_diag
+    LOGICAL                                  :: ionode, do_std_diag, ofgpw
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 my_sum, total_rho, trps1, trps2, &
@@ -208,6 +209,7 @@ CONTAINS
 
     dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
 
+    ofgpw = dft_control%qs_control%ofgpw
     density_guess=scf_control%density_guess
     do_std_diag = .FALSE.
     ortho_basis = .FALSE.
@@ -506,57 +508,61 @@ CPSourceFileRef,&
 
           IF (output_unit > 0) THEN
             IF (nspin > 1) THEN
-              WRITE (UNIT=output_unit,FMT="(T2,A,I0,/)")&
+              WRITE (UNIT=output_unit,FMT="(T2,A,I1)")&
                 "Re-scaling the density matrix to get the right number of electrons for spin ",ispin
             ELSE 
-              WRITE (UNIT=output_unit,FMT="(T2,A,/)")&
+              WRITE (UNIT=output_unit,FMT="(T2,A)")&
                 "Re-scaling the density matrix to get the right number of electrons"
             END IF
-            WRITE (output_unit,'(T3,A,T20,A,T35,A)') "# Electrons","Trace(P)","Scaling factor" 
-            WRITE (output_unit,'(T4,I10,T16,F12.3,T35,F14.3)') nelectron,trps1,scale
+            WRITE (output_unit,'(T19,A,T44,A,T67,A)') "# Electrons","Trace(P)","Scaling factor" 
+            WRITE (output_unit,'(T20,I10,T40,F12.3,T67,F14.3)') nelectron,trps1,scale
           END IF
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
-          IF(ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
-          IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
-               (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag)) THEN
-             IF (dft_control%restricted.AND.(ispin == 2)) THEN
-                CALL mo_set_restrict(mo_array,error=error)
-             ELSE
-                CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                                mo_coeff=mo_coeff,&
-                                nmo=nmo, nao=nao, homo=homo)
-
-                CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
-                CALL cp_fm_init_random(mo_coeff,nmo,error=error)
-
-                CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
-                ! multiply times PS
-                IF (ortho_basis) THEN
-                   CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+          IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
+             ! get orbitals later
+          ELSE
+             IF(ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
+             IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
+                  (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag)) THEN
+                IF (dft_control%restricted.AND.(ispin == 2)) THEN
+                   CALL mo_set_restrict(mo_array,error=error)
                 ELSE
-                   ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
-                   CALL dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                   CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                                   mo_coeff=mo_coeff,&
+                                   nmo=nmo, nao=nao, homo=homo)
+   
+                   CALL cp_fm_set_all(mo_coeff,0.0_dp,error=error)
+                   CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+   
+                   CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+                   ! multiply times PS
+                   IF (ortho_basis) THEN
+                      CALL cp_fm_to_fm(mo_coeff,sv,error=error)
+                   ELSE
+                      ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
+                      CALL dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                   END IF
+                   CALL dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
+   
+                   CALL cp_fm_release(sv,error=error)
+                   ! and ortho the result
+                   IF (ortho_basis) THEN
+                      CALL make_basis_simple(mo_coeff,nmo,error=error)
+                   ELSE
+                      CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
+                   END IF
                 END IF
-                CALL dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
 
-                CALL cp_fm_release(sv,error=error)
-                ! and ortho the result
-                IF (ortho_basis) THEN
-                   CALL make_basis_simple(mo_coeff,nmo,error=error)
-                ELSE
-                   CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
-                END IF
+                CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
+                                       smear=qs_env%scf_control%smear,&
+                                       error=error)
+
+                CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                                              p_rmpv(ispin)%matrix,&
+                                              error=error)
              END IF
-
-             CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                    smear=qs_env%scf_control%smear,&
-                                    error=error)
-
-             CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                           p_rmpv(ispin)%matrix,&
-                                           error=error)
           END IF
 
           DO ikind=1,SIZE(atomic_kind_set)
@@ -567,6 +573,21 @@ CPSourceFileRef,&
           END DO
 
        END DO
+
+       IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
+          ! We fit a function to the square root of the density
+          CALL qs_rho_update_rho(qs_env%rho,qs_env,error=error)
+          CPPostcondition(1==0,cp_failure_level,routineP,error,failure)
+!         CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
+!         DO ispin=1,nspin
+!           CALL integrate_ppl_rspace(qs%rho%rho_r(ispin),qs_env,error=error)
+!           CALL cp_cfm_solve(overlap,mos,error)
+!           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+!                           mo_coeff=mo_coeff, nmo=nmo, nao=nao)
+!           CALL cp_fm_init_random(mo_coeff,nmo,error=error)
+!         END DO
+!         CALL cp_fm_release(sv,error=error)
+       END IF
 
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
                                          "PRINT%KINDS",error=error)
@@ -579,6 +600,7 @@ CPSourceFileRef,&
 
     ELSE IF (density_guess == sparse_guess) THEN
 
+       IF(ofgpw) CALL stop_program(routineN,"SPARSE_GUESS not implemented for OFGPW")
        IF(.NOT.scf_control%use_ot) CALL stop_program(routineN,"OT needed!")
 
        eps = 1.0E-5_dp

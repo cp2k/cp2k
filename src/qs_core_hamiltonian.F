@@ -196,7 +196,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: all_potential_present, build_kinetic_energy_matrix, do_ep, &
       epr_calculation, failure, found, gth_potential_present, harris_flag, &
-      new_atom_b, oce_present, ppl_present, return_s_derivatives, &
+      new_atom_b, oce_present, ofdft, ppl_present, return_s_derivatives, &
       return_t_derivatives, tr, use_virial, xas_calculation
     REAL(KIND=dp)                            :: dab, eps_fit, eps_ppnl, f, &
                                                 f0, rab2
@@ -288,6 +288,9 @@ CONTAINS
     ELSE
       harris_flag = .FALSE.
     END IF
+
+    ! is this a orbital-free method calculation
+    ofdft = qs_env%dft_control%qs_control%ofgpw
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -818,10 +821,12 @@ CONTAINS
                                  rpgfb(:,jset),zetb(:,jset),&
                                  rab,dab,sdab,hab,nder,return_t_derivatives,&
                                  ai_work,ldai,pab,force_a)
-                            force(ikind)%kinetic(:,atom_a) =force(ikind)%kinetic(:,atom_a) + 2.0_dp*force_a(:)
-                            force(jkind)%kinetic(:,atom_b) =force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
-                            IF (use_virial) THEN
-                               CALL virial_pair_force ( virial%pv_virial, f0, force_a, rab, error)
+                            IF(.NOT.ofdft) THEN
+                              force(ikind)%kinetic(:,atom_a) =force(ikind)%kinetic(:,atom_a) + 2.0_dp*force_a(:)
+                              force(jkind)%kinetic(:,atom_b) =force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
+                              IF (use_virial) THEN
+                                 CALL virial_pair_force ( virial%pv_virial, f0, force_a, rab, error)
+                              END IF
                             END IF
                          ELSE
                             ! *** Calculate the primitive kinetic energy integrals ***
@@ -863,30 +868,19 @@ CONTAINS
                                END IF
                             END DO
                          END IF
+                         IF (ofdft) THEN
+                            DO jco=1,ncob
+                               DO ico=1,ncoa
+                                  hab(ico,jco) = 0.0_dp
+                               END DO
+                            END DO
+                         END IF
                       ELSE
                          DO jco=1,ncob
                             DO ico=1,ncoa
                                hab(ico,jco) = 0.0_dp
                             END DO
                          END DO
-!deb                         IF (calculate_forces) THEN
-!deb                            ! *** Decontract density matrix block ***
-!deb                            IF (iatom <= jatom) THEN
-!deb                               CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-!deb                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-!deb                                    p_block(sgfa,sgfb),SIZE(p_block,1),&
-!deb                                    0.0_dp,work(1,1),SIZE(work,1))
-!deb                            ELSE
-!deb                               CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-!deb                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-!deb                                    p_block(sgfb,sgfa),SIZE(p_block,1),&
-!deb                                    0.0_dp,work(1,1),SIZE(work,1))
-!deb                            END IF
-!deb                            CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-!deb                                 1.0_dp,work(1,1),SIZE(work,1),&
-!deb                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-!deb                                 0.0_dp,pab(1,1),SIZE(pab,1))
-!deb                         END IF
                       END IF
 
                       ! *** Contraction step (core Hamiltonian matrix) ***

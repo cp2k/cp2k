@@ -383,6 +383,8 @@ CONTAINS
       IF(basis%grid%rad(i) < rcov) den(i)=0._dp
     END DO
     charge = SUM ( den(1:m) * basis%grid%wr(1:m) )
+    DEALLOCATE(den,STAT=ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE atom_orbital_charge
 ! *****************************************************************************
@@ -417,6 +419,8 @@ CONTAINS
         IF (orb(i)*orb(i+1) < 0._dp) node=node+1
       END IF
     END DO
+    DEALLOCATE(orb,STAT=ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE atom_orbital_nodes
 ! *****************************************************************************

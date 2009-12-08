@@ -240,6 +240,7 @@ MODULE cp_control_types
     LOGICAL                                       :: realspace_mgrids
     LOGICAL                                       :: map_consistent
     LOGICAL                                       :: gapw,gapw_xc,gpw,pao
+    LOGICAL                                       :: ofgpw
     LOGICAL                                       :: dftb
     LOGICAL                                       :: scp
     LOGICAL                                       :: semi_empirical

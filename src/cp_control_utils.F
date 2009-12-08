@@ -544,6 +544,7 @@ CPSourceFileRef,&
     qs_control%polarization   = .FALSE.
     qs_control%dftb           = .FALSE.
     qs_control%semi_empirical = .FALSE.
+    qs_control%ofgpw          = .FALSE.
     SELECT CASE (qs_control%method_id)
     CASE (do_method_gapw)
        CALL cite_reference(Lippert1999)
@@ -555,6 +556,8 @@ CPSourceFileRef,&
        CALL cite_reference(Lippert1997)
        CALL cite_reference(VandeVondele2005a)
        qs_control%gpw = .TRUE.
+    CASE (do_method_ofgpw)
+       qs_control%ofgpw = .TRUE.
     CASE (do_method_dftb)
        qs_control%dftb = .TRUE.
        CALL cite_reference(Porezag1995)
