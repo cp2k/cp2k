@@ -1216,18 +1216,18 @@ CONTAINS
 
     ! Thermostat S variable info for restart
     NULLIFY(s_tmp)
-    ALLOCATE (s_tmp((gle%nadd+1)*gle%glob_num_gle),STAT=stat)
+    ALLOCATE (s_tmp((gle%ndim)*gle%glob_num_gle),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     s_tmp=0.0_dp
 
     NULLIFY(work,index)
     DO iproc=1,para_env%num_pe
-       CALL reallocate(work,1,gle_per_proc(iproc)*(gle%nadd+1))
+       CALL reallocate(work,1,gle_per_proc(iproc)*(gle%ndim))
        CALL reallocate(index,1,gle_per_proc(iproc))
        IF(para_env%mepos == (iproc-1)) THEN
           INDEX(:)=0
           counter=0
-          DO i=1,gle%nadd+1
+          DO i=1,gle%ndim
              DO j=1,gle%loc_num_gle
                 counter=counter+1
                 work(counter)=gle%nvt(j)%s(i)
@@ -1240,10 +1240,10 @@ CONTAINS
        CALL mp_bcast(work,iproc-1,para_env%group)
        CALL mp_bcast(index,iproc-1,para_env%group)
        counter=0
-       DO i=1,gle%nadd+1
+       DO i=1,gle%ndim
           DO j=1,gle_per_proc(iproc)
              counter = counter+1
-             s_tmp((INDEX(j)-1)*(gle%nadd+1)+i) = work(counter)
+             s_tmp((INDEX(j)-1)*(gle%ndim)+i) = work(counter)
           END DO
        END DO
     END DO

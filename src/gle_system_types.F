@@ -44,10 +44,10 @@ MODULE gle_system_types
 
 ! *****************************************************************************
   TYPE gle_type
-     INTEGER                                 :: nadd
+     INTEGER                                 :: ndim
      INTEGER                                 :: glob_num_gle, loc_num_gle, region
      INTEGER, DIMENSION(:), POINTER          :: mal
-     REAL(dp)                                :: temp, dt, aunits, dt_fact
+     REAL(dp)                                :: temp, dt, dt_fact
      REAL(dp), POINTER                       :: gle_s(:,:), gle_t(:,:) 
      REAL(dp), POINTER                       :: a_mat(:,:), c_mat(:,:) 
      TYPE(gle_thermo_type), POINTER          :: nvt(:)
@@ -86,18 +86,14 @@ CONTAINS
     gle%dt = simpar%dt*0.5_dp
 
     CALL cite_reference(Ceriotti2009)   
-    CALL section_vals_val_get(section,"NADD",i_val=gle%nadd,error=error)
-    CALL section_vals_val_get(section,"AUNITS",r_val=gle%aunits,error=error)
+    CALL section_vals_val_get(section,"NDIM",i_val=gle%ndim,error=error)
 
+    ALLOCATE(gle%a_mat(gle%ndim,gle%ndim), STAT=istat)
+    ALLOCATE(gle%c_mat(gle%ndim,gle%ndim), STAT=istat)
+    ALLOCATE(gle%gle_s(gle%ndim,gle%ndim), STAT=istat)
+    ALLOCATE(gle%gle_t(gle%ndim,gle%ndim), STAT=istat)
 
-    ALLOCATE(gle%a_mat(gle%nadd+1,gle%nadd+1), STAT=istat)
-    ALLOCATE(gle%c_mat(gle%nadd+1,gle%nadd+1), STAT=istat)
-    ALLOCATE(gle%gle_s(gle%nadd+1,gle%nadd+1), STAT=istat)
-    ALLOCATE(gle%gle_t(gle%nadd+1,gle%nadd+1), STAT=istat)
-
-
-    CALL section_vals_val_get(section,"A_LIST",&
-          n_rep_val=n_rep, error=error)
+    CALL section_vals_val_get(section,"A_LIST",n_rep_val=n_rep, error=error)
 
     j = 1
     k = 1
@@ -108,28 +104,25 @@ CONTAINS
 
       IF(ASSOCIATED(list)) THEN
          DO i = 1,SIZE(list)
-            IF(j>gle%nadd+1) THEN
+            IF(j>gle%ndim) THEN
                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"GLE: Too many elements in A_LIST",error,failure)
             END IF
             gle%a_mat(j,k) = list(i)
             k = k + 1
-            IF(k>gle%nadd + 1) THEN
+            IF(k>gle%ndim) THEN
               k = 1
               j = j + 1
             END IF
          END DO
       END IF
     END DO ! ir
-    IF(j<gle%nadd+2) THEN
+    IF(j<gle%ndim+1) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"GLE: Too few elements in A_LIST",error,failure)
     END IF
 
-    gle%a_mat = gle%a_mat*gle%aunits
- 
-    CALL section_vals_val_get(section,"C_LIST",&
-          n_rep_val=n_rep, error=error)
+    CALL section_vals_val_get(section,"C_LIST",n_rep_val=n_rep, error=error)
     IF(n_rep>0) THEN
       j = 1
       k = 1
@@ -140,26 +133,26 @@ CONTAINS
 
         IF(ASSOCIATED(list)) THEN
           DO i = 1,SIZE(list)
-            IF(j>gle%nadd+1) THEN
+            IF(j>gle%ndim) THEN
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                     routineP,"GLE: Too many elements in C_LIST",error,failure)
             END IF
             gle%c_mat(j,k) = list(i)
             k = k + 1
-            IF(k>gle%nadd + 1) THEN
+            IF(k>gle%ndim) THEN
                 k = 1
                 j = j + 1
             END IF
           END DO
         END IF
       END DO ! ir
-      IF(j<gle%nadd+2) THEN
+      IF(j<gle%ndim+1) THEN
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"GLE: Too few elements in C_LIST",error,failure)
       END IF
     ELSE
       gle%c_mat = 0.0_dp
-      DO i = 1,gle%nadd+1
+      DO i = 1,gle%ndim
           gle%c_mat(i,i) =  gle%temp
       END DO
     END IF
@@ -193,7 +186,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i = 1, gle%loc_num_gle
        NULLIFY(gle%nvt(i)%s)
-       ALLOCATE(gle%nvt(i)%s(gle%nadd+1),stat=stat)
+       ALLOCATE(gle%nvt(i)%s(gle%ndim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        gle%nvt(i)%kin_energy = 0.0_dp
        gle%nvt(i)%thermostat_energy = 0.0_dp

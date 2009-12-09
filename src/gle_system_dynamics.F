@@ -96,7 +96,7 @@ MODULE gle_system_dynamics
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
     NULLIFY( rng_stream) 
     present_vel = PRESENT(vel)
-    ndim = gle%nadd+1
+    ndim = gle%ndim
     ALLOCATE (s_tmp(ndim,gle%loc_num_gle),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     s_tmp = 0.0_dp
@@ -195,9 +195,7 @@ MODULE gle_system_dynamics
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, restart
-    REAL(dp)                                 :: Mtmp(gle%nadd+1,gle%nadd+1)
-
-! temporary matrix
+    REAL(dp)                                 :: Mtmp(gle%ndim,gle%ndim)
 
     failure = .FALSE.
     restart = .FALSE.
@@ -205,17 +203,17 @@ MODULE gle_system_dynamics
     CALL gle_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
          molecule, molecule_kind_set, gle, para_env, gci, error )
 
-    IF ( gle % nadd /= 0 ) THEN
+    IF ( gle % ndim /= 0 ) THEN
             CALL init_gle_variables ( gle, error=error)
     END IF
     CALL restart_gle(gle,gle_section,save_mem,restart,error)
 
     ! here we should have read a_mat and c_mat; whe can therefore compute S and T
     ! deterministic part of the propagator
-    CALL gle_matrix_exp((-simpar%dt*0.5_dp)*gle%a_mat, gle%nadd+1,15,15,gle%gle_t)
+    CALL gle_matrix_exp((-simpar%dt*0.5_dp)*gle%a_mat, gle%ndim,15,15,gle%gle_t)
     ! stochastic part 
     Mtmp=gle%c_mat-MATMUL(gle%gle_t,MATMUL(gle%c_mat,TRANSPOSE(gle%gle_t)))
-    CALL gle_cholesky(Mtmp, gle%gle_s, gle%nadd+1)  
+    CALL gle_cholesky(Mtmp, gle%gle_s, gle%ndim)  
 
   END SUBROUTINE initialize_gle_part
 
@@ -421,7 +419,7 @@ MODULE gle_system_dynamics
        CALL section_vals_val_get(gle_section,"S%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( gle % nvt, 1)
           ind = map_info%index(i)
-          ind = (ind-1) * (gle% nadd+1)
+          ind = (ind-1) * (gle% ndim)
           DO j = 1, SIZE(gle%nvt(i)%s, 1)
              ind = ind + 1
              gle % nvt(i)%s(j)  = buffer ( ind )
@@ -491,19 +489,16 @@ MODULE gle_system_dynamics
 
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: rr(gle%nadd+1), &
-                                                cc(gle%nadd+1,gle%nadd+1)
+    REAL(dp)                                 :: rr(gle%ndim), &
+                                                cc(gle%ndim,gle%ndim)
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     failure = .FALSE.
 
-
-    CALL gle_cholesky(gle%c_mat, cc, gle%nadd+1)  
-
+    CALL gle_cholesky(gle%c_mat, cc, gle%ndim)  
     DO i = 1, gle%loc_num_gle
-      
       rng_stream => gle%nvt(i)%gaussian_rng_stream
-      DO j = 1, gle%nadd+1
+      DO j = 1, gle%ndim
         ! here s should be properly initialized, when it is not read from restart
         rr(j) =  next_random_number( rng_stream,error=error)
       END DO

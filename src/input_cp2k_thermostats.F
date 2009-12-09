@@ -373,24 +373,15 @@ CONTAINS
 
        NULLIFY(keyword, subsection)
 
-       CALL keyword_create(keyword, name="nadd",&
-            description="size of the gle matrix", usage="nadd integer", &
-            default_i_val=0,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="aunits",&
-            description="aunits", usage="aunits real", &
-            default_r_val=1.0_dp,&
-            unit_str="au_t^-1",& 
-            error=error)
+       CALL keyword_create(keyword, name="NDIM",&
+            description="Size of the gle matrix", usage="NDIM 6", &
+            default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="A_LIST",&
             description=" matrix", usage="A_LIST real real real", &
-            type_of_var=real_t, &
+            type_of_var=real_t, unit_str="au_t^-1",&
             n_var=-1, repeats=.TRUE., required=.TRUE., &
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
