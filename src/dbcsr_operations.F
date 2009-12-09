@@ -68,7 +68,8 @@ MODULE dbcsr_operations
             dbcsr_put_block, dbcsr_filter,&
             dbcsr_replace_blocks,&
             dbcsr_btriu, block_add_on_diag,&
-            block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm
+            block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm, &
+            dbcsr_gershgorin_norm, dbcsr_maxabs_norm, dbcsr_frobenius_norm
   PUBLIC :: dbcsr_desymmetrize_deep,&
             dbcsr_new_transposed,&
             dbcsr_complete_redistribute,&
@@ -179,7 +180,6 @@ MODULE dbcsr_operations
   END TYPE dgemm_parameters
 
 CONTAINS
-
 
 ! *****************************************************************************
 !> \brief Multiplies two DBCSR matrices
@@ -2173,17 +2173,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           ELSEIF(PRESENT(alpha_vector)) THEN
              CALL stop_program(routineN,"NYI")
              IF(right) THEN
-                !col_global = ...
-                !DO col = 1,a_col_size
-                !   !a_data(:,col) = a_data(:,col) * alpha_vector(col_global+col)
-                !   CALL dscal(a_row_size,alpha_vector(col_global+col),a_data((col-1)*a_row_size+1),1)
-                !ENDDO
+                DO i = 1,a_col_size
+                   CALL dscal(a_row_size,alpha_vector(col_offset+i-1),&
+                        data_d((i-1)*a_row_size+1),1)
+                ENDDO
              ELSE
-                !row_global = ...
-                !DO row = 1,a_row_size
-                !   !a_data(row,:) = a_data(row,:) * alpha_vector(row_global+row)
-                !   CALL dscal(a_col_size,alpha_vector(row_global+row),a_data(row),a_col_size)
-                !ENDDO
+                DO i = 1,a_row_size
+                   CALL dscal(a_col_size,alpha_vector(row_offset+i-1),&
+                        data_d(i),a_col_size)
+                ENDDO
              ENDIF
           ELSEIF(PRESENT(alpha_matrix)) THEN
              IF(right) THEN
@@ -3133,111 +3131,26 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, col_offset, i, j, &
-                                                nc, nr, row, row_offset, &
-                                                timing_handle
+                                                row, row_offset
     LOGICAL                                  :: tr
-    REAL(dp)                                 :: fac
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff_d
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, timing_handle)
-
-    nr = dbcsr_nblkrows_total(matrix)
-    nc = dbcsr_nblkcols_total(matrix)
-
     SELECT CASE(which_norm)
 
     CASE(dbcsr_norm_frobenius)
 
-       IF(PRESENT(norm_scalar)) THEN
-          norm_scalar = 0.0_dp
-          CALL dbcsr_iterator_start(iter, matrix)
-          DO WHILE (dbcsr_iterator_blocks_left(iter))
-             SELECT CASE (dbcsr_get_data_type(matrix))
-                !CASE (dbcsr_type_real_4)
-             CASE (dbcsr_type_real_8)
-                CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-                fac = 1.0_dp
-                IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
-                    dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
-                    row.NE.col) fac = 2.0_dp
-                norm_scalar = norm_scalar + fac * SUM(data_d**2)
-                !CASE (dbcsr_type_complex_4)
-                !CASE (dbcsr_type_complex_8)
-             CASE DEFAULT
-                CALL cp_unimplemented_error (routineN,"Only real double precision")
-             END SELECT
-          ENDDO
-          CALL dbcsr_iterator_stop(iter)
-          CALL mp_sum(norm_scalar,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
-          norm_scalar = SQRT(norm_scalar)
-       ENDIF
+       IF(PRESENT(norm_scalar)) norm_scalar = dbcsr_frobenius_norm(matrix)
 
     CASE(dbcsr_norm_maxabsnorm)
 
-       IF(PRESENT(norm_scalar)) THEN
-          norm_scalar = 0.0_dp
-          CALL dbcsr_iterator_start(iter, matrix)
-          DO WHILE (dbcsr_iterator_blocks_left(iter))
-             SELECT CASE (dbcsr_get_data_type(matrix))
-                !CASE (dbcsr_type_real_4)
-             CASE (dbcsr_type_real_8)
-                CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-                norm_scalar = MAX(norm_scalar,MAXVAL(ABS(data_d)))
-                !CASE (dbcsr_type_complex_4)
-                !CASE (dbcsr_type_complex_8)
-             CASE DEFAULT
-                CALL cp_unimplemented_error (routineN,"Only real double precision")
-             END SELECT
-          ENDDO
-          CALL dbcsr_iterator_stop(iter)
-          CALL mp_max(norm_scalar,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
-       ENDIF
+       IF(PRESENT(norm_scalar)) norm_scalar = dbcsr_maxabs_norm(matrix)
 
     CASE(dbcsr_norm_gershgorin)
 
-       IF(PRESENT(norm_scalar)) THEN
-          IF(nr.NE.nc) CALL stop_program(routineN,"not a square matrix")
-          norm_scalar = 0.0_dp
-          ALLOCATE(buff_d(nr))
-          buff_d = 0.0_dp
-          CALL dbcsr_iterator_start(iter, matrix)
-          DO WHILE (dbcsr_iterator_blocks_left(iter))
-             SELECT CASE (dbcsr_get_data_type(matrix))
-             !CASE (dbcsr_type_real_4)
-             CASE (dbcsr_type_real_8)
-                CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
-                     row_offset=row_offset, col_offset=col_offset)
-                IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
-                    dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
-                    row.NE.col) THEN
-                   DO j=1,SIZE(data_d,2)
-                   DO i=1,SIZE(data_d,1)
-                      buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
-                      buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_d(i,j))
-                   ENDDO
-                   ENDDO
-                ELSE
-                   DO j=1,SIZE(data_d,2)
-                   DO i=1,SIZE(data_d,1)
-                      buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
-                   ENDDO
-                   ENDDO
-                ENDIF
-             !CASE (dbcsr_type_complex_4)
-             !CASE (dbcsr_type_complex_8)
-             CASE DEFAULT
-                CALL cp_unimplemented_error (routineN,"Only real double precision")
-             END SELECT
-          ENDDO
-          CALL dbcsr_iterator_stop(iter)
-          CALL mp_sum(buff_d,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))       
-          norm_scalar = MAXVAL(buff_d)
-          DEALLOCATE(buff_d)
-       ENDIF
+       IF(PRESENT(norm_scalar)) norm_scalar = dbcsr_gershgorin_norm(matrix)
 
     CASE(dbcsr_norm_column)
 
@@ -3286,10 +3199,174 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     END SELECT
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_norm
 
+! *****************************************************************************
+!> \brief compute a norm of a dbcsr matrix
+!> \param[in] matrix  the matrix
+!> \param[out] norm
+!> \param[in] which_norm
+!> 
+! *****************************************************************************
+  FUNCTION dbcsr_gershgorin_norm(matrix)
+
+    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
+    REAL(dp)                                 :: dbcsr_gershgorin_norm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_gershgorin_norm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_offset, i, j, &
+                                                nc, nr, row, row_offset, &
+                                                timing_handle
+    LOGICAL                                  :: tr
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff_d
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    nr = dbcsr_nfullrows_total(matrix)
+    nc = dbcsr_nfullcols_total(matrix)
+
+    IF(nr.NE.nc) CALL stop_program(routineN,"not a square matrix")
+    dbcsr_gershgorin_norm = 0.0_dp
+    ALLOCATE(buff_d(nr))
+    buff_d = 0.0_dp
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       SELECT CASE (dbcsr_get_data_type(matrix))
+          !CASE (dbcsr_type_real_4)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
+               row_offset=row_offset, col_offset=col_offset)
+          IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
+              dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
+              row.NE.col) THEN
+             DO j=1,SIZE(data_d,2)
+             DO i=1,SIZE(data_d,1)
+                buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
+                buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_d(i,j))
+             ENDDO
+             ENDDO
+          ELSE
+             DO j=1,SIZE(data_d,2)
+             DO i=1,SIZE(data_d,1)
+                buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
+             ENDDO
+             ENDDO
+          ENDIF
+          !CASE (dbcsr_type_complex_4)
+          !CASE (dbcsr_type_complex_8)
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,"Only real double precision")
+       END SELECT
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL mp_sum(buff_d,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))       
+    dbcsr_gershgorin_norm = MAXVAL(buff_d)
+    DEALLOCATE(buff_d)
+
+    CALL timestop(timing_handle)
+
+  END FUNCTION dbcsr_gershgorin_norm
+
+! *****************************************************************************
+!> \brief compute a norm of a dbcsr matrix
+!> \param[in] matrix  the matrix
+!> \param[out] norm
+!> \param[in] which_norm
+!> 
+! *****************************************************************************
+  FUNCTION dbcsr_maxabs_norm(matrix)
+    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
+    REAL(dp)                                 :: dbcsr_maxabs_norm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_maxabs_norm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, row, timing_handle
+    LOGICAL                                  :: tr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    dbcsr_maxabs_norm = 0.0_dp
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       SELECT CASE (dbcsr_get_data_type(matrix))
+          !CASE (dbcsr_type_real_4)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          dbcsr_maxabs_norm = MAX(dbcsr_maxabs_norm,MAXVAL(ABS(data_d)))
+          !CASE (dbcsr_type_complex_4)
+          !CASE (dbcsr_type_complex_8)
+       CASE DEFAULT
+          CALL cp_unimplemented_error (routineN,"Only real double precision")
+       END SELECT
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL mp_max( dbcsr_maxabs_norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+
+    CALL timestop(timing_handle)
+
+  END FUNCTION dbcsr_maxabs_norm
+
+! *****************************************************************************
+!> \brief compute a norm of a dbcsr matrix
+!> \param[in] matrix  the matrix
+!> \param[out] norm
+!> \param[in] which_norm
+!> 
+! *****************************************************************************
+  FUNCTION dbcsr_frobenius_norm(matrix)
+
+    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
+    REAL(dp)                                 :: dbcsr_frobenius_norm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_frobenius_norm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, row, timing_handle
+    LOGICAL                                  :: tr
+    REAL(dp)                                 :: fac
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    dbcsr_frobenius_norm = 0.0_dp
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       SELECT CASE (dbcsr_get_data_type(matrix))
+          !CASE (dbcsr_type_real_4)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          fac = 1.0_dp
+          IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
+              dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
+              row.NE.col) fac = 2.0_dp
+          dbcsr_frobenius_norm = dbcsr_frobenius_norm + fac * SUM(data_d**2)
+          !CASE (dbcsr_type_complex_4)
+          !CASE (dbcsr_type_complex_8)
+       CASE DEFAULT
+          CALL cp_unimplemented_error(routineN,"Only real double precision")
+       END SELECT
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL mp_sum(dbcsr_frobenius_norm,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+    dbcsr_frobenius_norm = SQRT(dbcsr_frobenius_norm)
+
+    CALL timestop(timing_handle)
+
+  END FUNCTION dbcsr_frobenius_norm
 
 ! *****************************************************************************
 !> \brief Replicates a DBCSR on all processors.

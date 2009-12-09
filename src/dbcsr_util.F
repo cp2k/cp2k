@@ -190,6 +190,11 @@ MODULE dbcsr_util
      MODULE PROCEDURE bcsr_assert, dbcsr_int_assert, dbcsr_logical_assert
   END INTERFACE
 
+  INTERFACE create_bl_distribution
+     MODULE PROCEDURE create_bl_distribution_new
+     !module procedure create_bl_distribution_old
+  END INTERFACE
+
   ! Main
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize,&
        dbcsr_checksum, dbcsr_ssum, dbcsr_verify_matrix,&
@@ -1808,12 +1813,12 @@ CONTAINS
 !> \param[in] elements          number of elements to bin
 !> \param[in] nbins             number of bins
 ! *****************************************************************************
-  SUBROUTINE create_bl_distribution (block_distribution,&
+  SUBROUTINE create_bl_distribution_old (block_distribution,&
        block_size, nelements, nbins)
     TYPE(array_i1d_obj), INTENT(OUT)         :: block_distribution, block_size
     INTEGER, INTENT(IN)                      :: nelements, nbins
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution_old', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: max_block_size = 32
 
@@ -1904,8 +1909,101 @@ CONTAINS
        WRITE(*,'(1X,A,A)')routineP//" Sizes"
        WRITE(*,1579)array_data (block_size)
     ENDIF
-  END SUBROUTINE create_bl_distribution
+  END SUBROUTINE create_bl_distribution_old
 
+! *****************************************************************************
+!> \brief Distributes elements into blocks and into bins
+!>
+!> \par Term clarification
+!>      An example: blocks are atom blocks and bins are process rows/colums.
+!> \param[out] block_distribution       block distribution to bins
+!> \param[out] block_size       sizes of blocks
+!> \param[in] elements          number of elements to bin
+!> \param[in] nbins             number of bins
+! *****************************************************************************
+  SUBROUTINE create_bl_distribution_new (block_distribution,&
+       block_size, nelements, nbins)
+    TYPE(array_i1d_obj), INTENT(OUT)         :: block_distribution, block_size
+    INTEGER, INTENT(IN)                      :: nelements, nbins
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution_new', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_elements_per_block = 16
+
+    INTEGER :: bin, blk_layer, element_stack, els, estimated_blocks, &
+      max_blocks_per_bin, nblks, nblocks, stat
+    INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    CALL array_nullify (block_distribution)
+    CALL array_nullify (block_size)
+    ! Define the sizes on which we build the distribution.
+    IF (nelements .GT. 0) THEN
+
+       nblocks = CEILING(REAL(nelements)/REAL(max_elements_per_block))
+       max_blocks_per_bin = CEILING(REAL(nblocks)/REAL(nbins))
+
+       IF (dbg) THEN
+          WRITE(*,'(1X,A,1X,A,I7,A,I7,A)')routineP,"For",nelements,&
+               " elements and",nbins," bins"
+          WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
+               max_elements_per_block," max elements per block"
+          WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
+               nblocks," blocks"
+          WRITE(*,'(1X,A,1X,A,I7,A)')routineP,"There are",&
+               max_blocks_per_bin," max blocks/bin"
+       ENDIF
+
+       estimated_blocks = max_blocks_per_bin * nbins
+       ALLOCATE (blk_dist (estimated_blocks), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineP, "blk_dist", estimated_blocks)
+       ALLOCATE (blk_sizes (estimated_blocks), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineP, "blk_sizes", estimated_blocks)
+
+       element_stack = 0
+       nblks = 0
+       DO blk_layer = 1, max_blocks_per_bin
+          DO bin = 0, nbins-1
+             els = MIN (max_elements_per_block, nelements-element_stack)
+             IF (els .GT. 0) THEN
+                element_stack = element_stack + els
+                nblks = nblks + 1
+                blk_dist(nblks) = bin
+                blk_sizes(nblks) = els
+                IF (dbg) WRITE(*,'(1X,A,I5,A,I5,A,I5)')routineP//" Assigning",&
+                     els," elements as block",nblks," to bin",bin
+             ENDIF
+          ENDDO
+       ENDDO
+       ! Create the output arrays.
+       DBG "Wound up with",nblks,'blocks instead of',estimated_blocks
+       IF (nblks .EQ. estimated_blocks) THEN
+          CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
+          CALL array_new (block_size, blk_sizes, gift=.TRUE.)
+       ELSE
+          CALL array_new (block_distribution, blk_dist(1:nblks), lb=1)
+          CALL array_new (block_size, blk_sizes(1:nblks), lb=1)
+          DEALLOCATE (blk_dist)
+          DEALLOCATE (blk_sizes)
+       ENDIF
+    ELSE
+       ALLOCATE (blk_dist (0), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineP, "blk_dist", estimated_blocks)
+       ALLOCATE (blk_sizes (0), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineP, "blk_sizes", estimated_blocks)
+       CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
+       CALL array_new (block_size, blk_sizes, gift=.TRUE.)
+    ENDIF
+1579 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
+    IF (dbg) THEN
+       WRITE(*,'(1X,A,A)')routineP//" Distribution"
+       WRITE(*,1579)array_data (block_distribution)
+       WRITE(*,'(1X,A,A)')routineP//" Sizes"
+       WRITE(*,1579)array_data (block_size)
+    ENDIF
+  END SUBROUTINE create_bl_distribution_new
 
 ! *****************************************************************************
 !> \brief Create the distribution_2d for the right matrix in a matrix-matrix

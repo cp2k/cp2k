@@ -429,3 +429,7 @@ dimer.inp
 dimer3.inp
 # turned on dbcsr_multiply_fm_fm_t
 h2o_gks_p.inp
+# new general distribution
+st.inp
+# new general distribution
+h2po4.inp

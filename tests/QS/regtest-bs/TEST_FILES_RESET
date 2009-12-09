@@ -29,3 +29,9 @@ cu2cl6_m1_std.inp
 cu2cl6_m3_std.inp
 # turned on dbcsr_multiply_fm_fm_t
 cu2cl6_m3_clp6cud9.inp
+# new general distribution
+cu2cl6_m1_std.inp
+# new general distribution
+cu2cl6_m3_std.inp
+# new general distribution
+cu2cl6_m3_clp6cud9.inp

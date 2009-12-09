@@ -82,3 +82,7 @@ Periclase.inp
 SiO2.inp
 # turned on dbcsr_multiply_fm_fm_t
 SiO2_lr_quad.inp
+# new general distribution
+SiO2.inp
+# new general distribution
+SiO2_lr_quad.inp

@@ -82,3 +82,27 @@ si8_pulay_reduce.inp
 # more to reset
 si8_noort_broy_wc_jacobi_ene1.inp
 si8_pulay_restore.inp
+# new general distribution
+si8_pulay.inp
+# new general distribution
+si8_pulay_reduce.inp
+# new general distribution
+si8_pulay_restore.inp
+# new general distribution
+si8_pulay_inverse.inp
+# new general distribution
+si8_pulay_off.inp
+# new general distribution
+si8_broy_kry.inp
+# new general distribution
+si8_broy_kry_r.inp
+# new general distribution
+si8_broy_wc.inp
+# new general distribution
+si8_broy_wc_crazy.inp
+# new general distribution
+si8_broy_wc_crazy_ene.inp
+# new general distribution
+si8_noort_broy_wc_jacobi_ene1.inp
+# new general distribution
+si8_noort_broy_wc_direct_ene.inp
