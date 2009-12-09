@@ -74,6 +74,7 @@ CONTAINS
     INTEGER                                  :: i, ir, istat, j, k, n_rep
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: list
+    REAL(KIND=dp)                            :: a_scale
 
     failure = .FALSE.
     NULLIFY(gle%nvt)
@@ -87,6 +88,7 @@ CONTAINS
 
     CALL cite_reference(Ceriotti2009)   
     CALL section_vals_val_get(section,"NDIM",i_val=gle%ndim,error=error)
+    CALL section_vals_val_get(section,"A_SCALE",r_val=a_scale,error=error)
 
     ALLOCATE(gle%a_mat(gle%ndim,gle%ndim), STAT=istat)
     ALLOCATE(gle%c_mat(gle%ndim,gle%ndim), STAT=istat)
@@ -121,6 +123,7 @@ CONTAINS
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"GLE: Too few elements in A_LIST",error,failure)
     END IF
+    gle%a_mat = gle%a_mat * a_scale
 
     CALL section_vals_val_get(section,"C_LIST",n_rep_val=n_rep, error=error)
     IF(n_rep>0) THEN

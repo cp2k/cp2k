@@ -379,16 +379,23 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword,name="A_SCALE",&
+            description="scaling factor for matrix A (for generic matrix A, depends "//&
+            "on the characteristic frequency of the system).", usage="A_SCALE 0.5", &
+            default_r_val=1.0_dp, unit_str="au_t^-1", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword,name="A_LIST",&
-            description=" matrix", usage="A_LIST real real real", &
-            type_of_var=real_t, unit_str="au_t^-1",&
+            description="A matrix", usage="A_LIST real real real", &
+            type_of_var=real_t, unit_str="internal_cp2k",&
             n_var=-1, repeats=.TRUE., required=.TRUE., &
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="C_LIST",&
-            description=" matrix", usage="C_LIST real real real", &
+            description="C matrix", usage="C_LIST real real real", &
             unit_str="K_e",& 
             type_of_var=real_t, n_var=-1, repeats=.TRUE., required=.FALSE., &
             error=error)
