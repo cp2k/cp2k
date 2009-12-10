@@ -106,3 +106,13 @@ si8_broy_wc_crazy_ene.inp
 si8_noort_broy_wc_jacobi_ene1.inp
 # new general distribution
 si8_noort_broy_wc_direct_ene.inp
+# Numerics change 
+si8_broy_kry.inp
+# Numerics change 
+si8_broy_kry_r.inp
+# Numerics change 
+si8_broy_wc.inp
+# Numerics change 
+si8_broy_wc_crazy.inp
+# Numerics change 
+si8_noort_broy_wc_direct_ene.inp

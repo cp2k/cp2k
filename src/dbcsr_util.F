@@ -1604,33 +1604,44 @@ CONTAINS
   END SUBROUTINE transpose_index_local
 
 
-
 ! *****************************************************************************
 !> \brief Makes a canonical index to the distribution.
 !> \par Canonical means that it respects the distribution.
 !> \param[inout] matrix       matrix for which to make canonical index
+!> \param[in] cp2k            (optional) make CP2K triangular index
+!>                            from canonical; default is false
 ! *****************************************************************************
-  SUBROUTINE dbcsr_make_index_canonical (matrix)
+  SUBROUTINE dbcsr_make_index_canonical (matrix, cp2k)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    LOGICAL, INTENT(IN), OPTIONAL            :: cp2k
 
     INTEGER                                  :: nb, nc, nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: new_blk_p, new_col_i, &
                                                 new_row_p
+    LOGICAL                                  :: rev
 
 !   ---------------------------------------------------------------------------
 
+    rev = .FALSE.
+    IF (PRESENT (cp2k)) rev = cp2k
     nr = SIZE(matrix%m%row_p)
     ALLOCATE (new_row_p (nr))
     nc = SIZE(matrix%m%col_i)
     ALLOCATE (new_col_i (nc))
     nb = SIZE(matrix%m%blk_p)
     ALLOCATE (new_blk_p (nb))
-    CALL make_index_canonical (new_row_p, new_col_i, new_blk_p,&
-         matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m)
+    IF (rev) THEN
+       CALL make_index_triangular (new_row_p, new_col_i, new_blk_p,&
+            matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m)
+    ELSE
+       CALL make_index_canonical (new_row_p, new_col_i, new_blk_p,&
+            matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m)
+    ENDIF
     matrix%m%row_p(:) = new_row_p
     matrix%m%col_i(:) = new_col_i
     matrix%m%blk_p(:) = new_blk_p
   END SUBROUTINE dbcsr_make_index_canonical
+
 
 
 ! *****************************************************************************
@@ -1657,7 +1668,7 @@ CONTAINS
     INTEGER                                  :: blk, blk_p, col, nblks, row, &
                                                 stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_i
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: dbg = .FALSE., tr
 
 !   ---------------------------------------------------------------------------
 
@@ -1673,9 +1684,10 @@ CONTAINS
           stored_col = col
           tr = .FALSE.
           CALL get_stored_canonical (matrix, stored_row, stored_col, tr)
-          !write(*,'(A,2(1X,I5),A,2(1X,I5),";",I7)')&
-          !     routineN//" X->",row,col,"->",&
-          !     stored_row, stored_col,blk
+          IF (dbg) &
+               WRITE(*,'(A,2(1X,I5),A,2(1X,I5),";",I7)')&
+               routineN//" X->",row,col,"->",&
+               stored_row, stored_col,blk
           row_i(blk) = stored_row
           new_col_i(blk) = stored_col
           IF (.NOT. tr) THEN
@@ -1693,6 +1705,72 @@ CONTAINS
     !write(*,*)"new col_i", new_col_i
     !write(*,*)"new blk_p", new_blk_p
   END SUBROUTINE make_index_canonical
+
+
+! *****************************************************************************
+!> \brief Makes a CP2K triangular index given the index arrays
+!>
+!> \note
+!> This routine uses hard-coded logic as to what constitutes a
+!> canonical ordering
+!> \par Description of canonical ordering
+!> A non-(anti)symmetric matrix is left as is. Otherwise, the row and column
+!> are stored in the position prescribed by the distribution.
+! *****************************************************************************
+  SUBROUTINE make_index_triangular (new_row_p, new_col_i, new_blk_p,&
+       old_row_p, old_col_i, old_blk_p, matrix)
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_row_p, new_col_i, &
+                                                new_blk_p
+    INTEGER, DIMENSION(:), INTENT(IN)        :: old_row_p, old_col_i, &
+                                                old_blk_p
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_index_triangular', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, blk_p, col, nblks, row, &
+                                                stored_col, stored_row
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_i
+    LOGICAL                                  :: dbg = .FALSE., tr
+
+!   ---------------------------------------------------------------------------
+
+    nblks = SIZE(old_blk_p)
+    ALLOCATE(row_i (nblks))
+    !write(*,*)"old row_p", old_row_p
+    !write(*,*)"old col_i", old_col_i
+    !write(*,*)"old blk_p", old_blk_p
+    DO row = 1, SIZE(old_row_p)-1
+       DO blk = old_row_p(row)+1, old_row_p(row+1)
+          col = old_col_i(blk)
+          stored_row = row
+          stored_col = col
+          tr = .FALSE.
+          IF (stored_row .GT. stored_col) THEN
+             CALL swap (stored_row, stored_col)
+             tr = .TRUE.
+          ENDIF
+          IF (dbg) &
+               WRITE(*,'(A,2(1X,I5),A,2(1X,I5),";",I7)')&
+               routineN//" X->",row,col,"->",&
+               stored_row, stored_col,blk
+          row_i(blk) = stored_row
+          new_col_i(blk) = stored_col
+          IF (.NOT. tr) THEN
+             new_blk_p(blk) = old_blk_p(blk)
+          ELSE
+             new_blk_p(blk) = -old_blk_p(blk)
+          ENDIF
+       ENDDO
+    ENDDO
+    CALL dbcsr_sort_indices(nblks, row_i, new_col_i, blk_p=new_blk_p)
+    ! Re-create the index
+    CALL dbcsr_make_dbcsr_index (new_row_p, row_i, SIZE(new_row_p)-1, nblks)
+    !write(*,*)"new row_p", new_row_p
+    !write(*,*)"new row_i", row_i
+    !write(*,*)"new col_i", new_col_i
+    !write(*,*)"new blk_p", new_blk_p
+  END SUBROUTINE make_index_triangular
 
 
   SUBROUTINE dbcsr_make_dbcsr_index (row_p, row_i, nrows, nblks)
@@ -4061,9 +4139,6 @@ CONTAINS
     nrows = SIZE (row_p)-1
     CALL cp_assert(SIZE(blk_p).GE.nblks, cp_failure_level,&
          cp_wrong_args_error, routineN, 'Destination blk_p too small.')
-    CALL cp_assert(dbcsr_get_data_size(dst).GE.dbcsr_get_data_size(src),&
-         cp_warning_level, cp_wrong_args_error, routineN,&
-         'Destination data space may be too small.')
     IF (nblks .GE. 1) &
          blk_p(1) = SGN(1, old_blk_p(1), mark)
     nze_prev = 0
@@ -4077,19 +4152,16 @@ CONTAINS
                 blk_p(blk) = SGN(ABS(blk_p(blk-1)) + nze_prev, old_blk_p(blk),&
                      mark)
              ENDIF
+             CALL cp_assert(&
+                  ABS(blk_p(blk))+nze-1 .LE. dbcsr_get_data_size(dst),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  'Destination data space is too small.')
              IF (.NOT. trb) THEN
                 CALL dbcsr_data_set (dst, ABS(blk_p(blk)), nze,&
                      src, source_lb=ABS(old_blk_p(blk)))
-                !dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1) =&
-                !     src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1)
              ELSE
                 CALL dbcsr_block_transpose (dst, src, ABS(blk_p(blk)),&
-                     !row_size, col_size, ABS(old_blk_p(blk)))
                      col_size, row_size, ABS(old_blk_p(blk)))
-                !CALL dbcsr_block_transpose (&
-                !     dst(ABS(blk_p(blk)):ABS(blk_p(blk))+nze-1),&
-                !     src(ABS(old_blk_p(blk)):ABS(old_blk_p(blk))+nze-1),&
-                !     row_size, col_size)
              ENDIF
              nze_prev = nze
           ENDIF ! blk exists

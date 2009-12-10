@@ -37,17 +37,17 @@ MODULE cp_dbcsr_operations
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_data_hold, dbcsr_data_release, &
-       dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_no_threads, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-       dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_col_block_sizes, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_get_data, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_get_coordinates, &
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
@@ -290,6 +290,16 @@ CONTAINS
 !> \par Matrices m_a and m_b are multiplied into the m_c product matrix. If the
 !>      dist2d parameter is not specified, then a new distribution_2d is
 !>      determined for it.
+!> \par Non-equal column dimensions of the right and product matrices
+!>      The right and product matrix are allowed to have different
+!>      (full) column dimensions. If they differ, there are certain
+!>      peculiar behaviors, then the last_column is effectively set to
+!>      the minimal of the two.
+!> \par Beta scaling of the right product matrix
+!>      If the effective last_column is less than the full column
+!>      dimension of the product matrix, then the scaling of the
+!>      product matrix with beta is limited to the submatrix specified
+!>      by last_column.
 !> \param[in] transa, transb  specifies the form of op( A or B ) to be used in 
 !>                            the matrix multiplication 
 !> \param[in] alpha           scaling of product
@@ -305,7 +315,7 @@ CONTAINS
 !>                            product
 !> \param[in] last_k          (optional) last full column of limiting inner
 !>                            product
-!> \param[in] retain_sparisty (optional) enforce the sparsity pattern of the
+!> \param[in] retain_sparsity (optional) enforce the sparsity pattern of the
 !>                            existing product matrix; default is no
 !> \param[in,out] error       cp2k error
 !> \param[out] flop           (optional) effective flop
@@ -331,12 +341,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_col, f_k, f_row, i, l_col, &
-                                                l_k, l_row, nthreads, &
-                                                timing_handle
+                                                l_k, l_row, timing_handle
     INTEGER(KIND=int_8)                      :: my_flop
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: old_blk_p
-    LOGICAL                                  :: keep_sparsity, new_left, &
-                                                new_product, new_right
+    LOGICAL                                  :: keep_product_data, &
+                                                keep_sparsity, new_left, &
+                                                new_right, product_reindex
+    REAL(KIND=dp)                            :: cs
     TYPE(dbcsr_2d_array_type)                :: m2s_left, m2s_right
     TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
     TYPE(dbcsr_obj)                          :: matrix_left, matrix_right, &
@@ -362,15 +372,9 @@ CONTAINS
        CALL dbcsr_verify_matrix (matrix_a)
        CALL dbcsr_verify_matrix (matrix_b)
        CALL dbcsr_verify_matrix (matrix_c)
-       CALL dbcsr_print (matrix_a)
-       CALL dbcsr_print (matrix_b)
-       CALL dbcsr_print (matrix_c)
-       !WRITE(*,*)'dist a'
-       !CALL dbcsr_print_dist (dbcsr_distribution (matrix_a))
-       !WRITE(*,*)'dist b'
-       !CALL dbcsr_print_dist (dbcsr_distribution (matrix_b))
-       !WRITE(*,*)'dist c'
-       !CALL dbcsr_print_dist (dbcsr_distribution (matrix_c))
+       CALL dbcsr_print (matrix_a, nodata=.TRUE.)
+       CALL dbcsr_print (matrix_b, nodata=.TRUE.)
+       CALL dbcsr_print (matrix_c, nodata=.TRUE.)
     ENDIF
     !
     ! transpose/conjg left and/or right matrices if needed 
@@ -409,89 +413,38 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
             routineN, "wrong transb = "//transb)
     END SELECT
-
-    keep_sparsity = .FALSE.
-    IF (PRESENT (retain_sparsity)) keep_sparsity=retain_sparsity
-
-    IF (beta .NE. 1.0_dp) THEN
-       !IF (PRESENT (last_column)) THEN
-       !   write(*,*)'scaling to last col',last_column,&
-       !        dbcsr_nfullcols_total (matrix_b),&
-       !        dbcsr_nfullcols_total (matrix_c), beta
-       !ELSE
-       !   write(*,*)'scaling without last col', beta
-       !ENDIF
-       CALL dbcsr_scale (matrix_c, alpha_scalar=beta, error=error,&
-            last_column=last_column)
-    ENDIF
-
-    ! Fix CP2K distribution mismatch
-    !write(*,*)routineN//" matrix types", dbcsr_get_matrix_type(matrix_a),&
-    !     dbcsr_get_matrix_type(matrix_b), dbcsr_get_matrix_type(matrix_c)
-    !IF (keep_sparsity .AND. (&
-    IF ((&
-         dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_symmetric .OR.&
-         dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_antisymmetric)) THEN
-       new_product = .TRUE.
-       CALL dbcsr_init (product_matrix)
-       CALL dbcsr_copy (product_matrix, matrix_c, error=error,&
-            shallow_data=.TRUE.)
-       !WRITE(*,*)'Making canonical index of target'
-       CALL dbcsr_make_index_canonical (product_matrix)
-       ALLOCATE (old_blk_p (SIZE (product_matrix%m%blk_p)))
-       old_blk_p(:) = product_matrix%m%blk_p(:)
-       !call dbcsr_make_untransposed_blocks (product_matrix)
-    ELSE
-       new_product = .FALSE.
-       product_matrix = matrix_c
-    ENDIF
     !
-    nthreads = 1
-    !$ nthreads = OMP_GET_NUM_THREADS ()
-    CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
-    ! CP2k does not follow conventions, so always copy the data
-    !IF (beta .NE. 0.0_dp) THEN
-       !call dbcsr_print (product_matrix)
-       i = 1
-       !$ i = omp_get_num_threads()
-       CALL dbcsr_add_wm_from_matrix(product_matrix, nwms=i)
-    !ENDIF
-    product_matrix%m%nze = 0
-    product_matrix%m%nblks = 0
-    product_matrix%m%valid = .FALSE.
-
-
     ! Submatrix selection
     f_row = 1
-    l_row = dbcsr_nfullrows_total(product_matrix)
+    l_row = dbcsr_nfullrows_total(matrix_c)
     f_col = 1
-    l_col = dbcsr_nfullcols_total(product_matrix)
+    l_col = dbcsr_nfullcols_total(matrix_c)
     f_k = 0
     l_k = 0
     IF (PRESENT (first_row)) THEN
        CALL cp_assert(first_row .GE. 1&
-            .AND. first_row .LE. dbcsr_nfullrows_total(product_matrix),&
+            .AND. first_row .LE. dbcsr_nfullrows_total(matrix_c),&
             cp_fatal_level, cp_wrong_args_error, routineN,&
             "Invalid first row specified")
        f_row = first_row
     ENDIF
     IF (PRESENT (last_row)) THEN
        CALL cp_assert(last_row .GE. 1&
-            .AND. last_row .LE. dbcsr_nfullrows_total(product_matrix),&
+            .AND. last_row .LE. dbcsr_nfullrows_total(matrix_c),&
             cp_fatal_level, cp_wrong_args_error, routineN,&
             "Invalid last row specified")
        l_row = last_row
     ENDIF
     IF (PRESENT (first_column)) THEN
        CALL cp_assert(first_column .GE. 1&
-            .AND. first_column .LE. dbcsr_nfullcols_total(product_matrix),&
+            .AND. first_column .LE. dbcsr_nfullcols_total(matrix_c),&
             cp_fatal_level, cp_wrong_args_error, routineN,&
             "Invalid first col specified")
        f_col = first_column
     ENDIF
     IF (PRESENT (last_column)) THEN
        CALL cp_assert(last_column .GE. 1&
-            .AND. last_column .LE. dbcsr_nfullcols_total(product_matrix),&
+            .AND. last_column .LE. dbcsr_nfullcols_total(matrix_c),&
             cp_fatal_level, cp_wrong_args_error, routineN,&
             "Invalid last column specified (C)")
        CALL cp_assert(last_column .GE. 1&
@@ -514,28 +467,74 @@ CONTAINS
             "Invalid last k specified (A)")
        l_k = last_k
     ENDIF
+    !
     ! Now optimize the default submatrix selection values away
     IF (f_row .EQ. 1) f_row = 0
     IF (l_row .EQ. dbcsr_nfullrows_total(matrix_left)) l_row = 0
     IF (f_col .EQ. 1) f_col = 0
+    ! The last column must be set if the right and product matrices
+    ! differ.
+    l_col = MIN (l_col, dbcsr_nfullcols_total(matrix_right))
+    l_col = MIN (l_col, dbcsr_nfullcols_total(matrix_c))
     IF (l_col .EQ. dbcsr_nfullcols_total(matrix_right) .AND. &
          dbcsr_nfullcols_total(matrix_right) .EQ.&
-         dbcsr_nfullcols_total(product_matrix)) l_col = 0
+         dbcsr_nfullcols_total(matrix_c)) l_col = 0
     IF (f_k .EQ. 1) f_k = 0
     IF (l_k .EQ. dbcsr_nfullcols_total(matrix_left)) l_k = 0
-    !IF (l_k .NE. 0) WRITE(*,*)'Limiting last k',l_k
     IF (.NOT. PRESENT(last_column) .AND.&
         .NOT. array_equality (dbcsr_col_block_sizes (matrix_right),&
-                              dbcsr_col_block_sizes (product_matrix))) THEN
+                              dbcsr_col_block_sizes (matrix_c))) THEN
        l_col = MIN (dbcsr_nfullcols_total(matrix_right),&
-                    dbcsr_nfullcols_total(product_matrix))
-       !write(*,*)routineN//" Adjusted l_col=",l_col
+                    dbcsr_nfullcols_total(matrix_c))
     ENDIF
     CALL cp_assert (f_row .LE. l_row, cp_fatal_level,&
          cp_wrong_args_error, routineN, "Last row smaller than first row")
     CALL cp_assert (f_col .LE. l_col, cp_fatal_level,&
          cp_wrong_args_error, routineN, "Last col smaller than first col")
     !
+    !
+    ! Product data needs to be retained when
+    ! * beta != 0; or
+    ! * there is column limiting (l_col > 0) and the limiting column
+    !   is less than the number of full columns in theproduct matrix
+    keep_sparsity = .FALSE.
+    IF (PRESENT (retain_sparsity)) keep_sparsity=retain_sparsity
+    !
+    keep_product_data = keep_sparsity&
+         .OR. beta .NE. 0.0_dp&
+         .OR. (l_col .GT. 0 .AND. l_col .LT. dbcsr_nfullcols_total(matrix_c))
+    !
+    IF (beta .NE. 1.0_dp .AND. keep_product_data) THEN
+       CALL dbcsr_scale (matrix_c, alpha_scalar=beta, error=error,&
+            last_column=last_column)
+    ENDIF
+    !
+    ! The index of the product matrix is twiddled into canonical form
+    ! if it is (anti)symmetric (i.e., rows and columns are where the
+    ! row/column distributions say they are). Doing this in advance
+    ! makes the local multiply more efficient.
+    product_matrix = matrix_c
+    IF (keep_product_data) THEN
+       IF ((&
+            dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_symmetric .OR.&
+            dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_antisymmetric)) THEN
+          product_reindex = .TRUE.
+          CALL dbcsr_make_index_canonical (product_matrix)
+       ELSE
+          product_reindex = .FALSE.
+       ENDIF
+       CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
+       i = 1
+       !$ i = omp_get_num_threads()
+       CALL dbcsr_add_wm_from_matrix(product_matrix, nwms=i)
+    ELSE
+       product_reindex = .FALSE.
+    ENDIF
+    product_matrix%m%nze = 0
+    product_matrix%m%nblks = 0
+    product_matrix%m%valid = .FALSE.
+    !
+    ! Create imaged distributions for the multiply.
     CALL dbcsr_create_image_dist (rdist_right, matrix_right%m%dist,&
          match_row_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_left%m%dist)),&
          match_col_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (product_matrix%m%dist)),&
@@ -572,26 +571,24 @@ CONTAINS
     IF (new_left) CALL dbcsr_release (matrix_left)
     IF (new_right) CALL dbcsr_release (matrix_right)
     CALL dbcsr_distribution_no_threads (product_matrix%m%dist)
-    IF (new_product) THEN
-       !product_matrix%m%blk_p(:) = old_blk_p(:)
-       !call dbcsr_make_untransposed_blocks (product_matrix)
-       CALL dbcsr_data_release (matrix_c%m%data_area)
-       matrix_c%m%data_area = product_matrix%m%data_area
-       CALL dbcsr_data_hold (matrix_c%m%data_area)
-       CALL dbcsr_release (product_matrix)
-    ELSE
-       matrix_c = product_matrix
+    ! The index of the product matrix is reset to the CP2K form if it
+    ! was previously set to the canonical form.
+    IF (product_reindex) THEN
+       CALL dbcsr_make_index_canonical(product_matrix, cp2k=.TRUE.)
     ENDIF
+    matrix_c = product_matrix
     IF (dbg) THEN
-       CALL dbcsr_print (matrix_c)
+       CALL dbcsr_print (matrix_c, nodata=.TRUE.)
     ENDIF
     CALL dbcsr_destroy_image_dist (rdist_left)
     CALL dbcsr_destroy_image_dist (rdist_right)
     CALL dbcsr_destroy_array (m2s_left)
     CALL dbcsr_destroy_array (m2s_right)
-    ! Perform multiplication
-    IF (dbg) &
-         CALL dbcsr_verify_matrix (matrix_c)
+    IF (dbg) THEN
+       CALL dbcsr_verify_matrix (matrix_c)
+       cs = dbcsr_checksum (matrix_c, error)
+       WRITE(*,*)routineN//" Product checksum", cs
+    ENDIF
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_multiply
 

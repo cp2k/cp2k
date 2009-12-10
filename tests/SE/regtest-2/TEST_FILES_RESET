@@ -295,3 +295,5 @@ ZrF2-PM6.inp
 zn_1w_debug.inp
 # turned on dbcsr_multiply_fm_fm_t
 H2O-32.inp
+# Numerics change 
+H2O-32.inp

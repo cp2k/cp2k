@@ -1018,7 +1018,7 @@ CONTAINS
       left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
       product_col_blk_offset, right_col_blk_offset, right_row_blk_offset
     LOGICAL :: block_exists, found, keep_sparsity, left_limit_rows, limit_k, &
-      right_limit_cols, tr_a, tr_b, tr_p
+      product_is_symmetric, right_limit_cols, tr_a, tr_b, tr_p
     REAL(KIND=dp)                            :: epoch, mt_t_dgemm, my_alpha, &
                                                 my_beta, which_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, right_data_d
@@ -1028,6 +1028,7 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
+    CALL timeset(routineN, timing_handle)
     my_alpha = 1.0_dp ; IF (PRESENT (alpha_d)) my_alpha = alpha_d
     my_beta = 0.0_dp ; IF (PRESENT (beta_d)) my_beta = beta_d
     keep_sparsity = .FALSE.
@@ -1035,7 +1036,8 @@ CONTAINS
        !WRITE(*,*)routineN//" Retaining sparsity!"
        keep_sparsity = .TRUE.
     END IF
-    CALL timeset(routineN, timing_handle)
+    product_is_symmetric = (product%matrix_type .EQ. dbcsr_type_symmetric &
+         .OR. product%matrix_type .EQ. dbcsr_type_antisymmetric)
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     !WRITE(*,*)'Hello! I am thread',ithread
@@ -1250,6 +1252,16 @@ CONTAINS
                 CYCLE
              ENDIF
              b_col = right%col_i(b_blk)
+             c_col_logical = b_col
+             ! Don't calculate symmetric blocks.
+             IF (product_is_symmetric) THEN
+                IF (c_row_logical .NE. c_col_logical&
+                     .AND. checker_tr (c_row_logical, c_col_logical)) THEN
+                   !write(*,*)"Skipping symmetric block!", c_row_logical,&
+                   !     c_col_logical
+                   CYCLE
+                ENDIF
+             ENDIF
              IF (dbg) WRITE(*,*)routineN//" B col", b_col, ";",a_row, a_col
              b_col_logical = b_col
              b_offset = ABS (right%blk_p(b_blk))
@@ -1306,6 +1318,15 @@ CONTAINS
                 new_row_blks = new_row_blks + 1
                 DBG 'Adding coordinate', c_row_logical, c_col_logical, c_blk_pt
                 offset = c_blk_pt
+                ! CP2K can't handle transposed blocks. Blocks that are
+                ! canonically under the diagonal should therefore be
+                ! set at transposed.
+                IF (product_is_symmetric&
+                     .AND. c_row_logical .GT. c_col_logical) THEN
+                   WRITE(*,*)"New block is transposed",&
+                        c_row_logical,c_col_logical
+                   offset = -offset
+                ENDIF
                 c_blk_pt = c_blk_pt + c_nze
                 datasize = datasize + c_nze
                 lastblk = lastblk + 1
