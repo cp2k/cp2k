@@ -14,6 +14,7 @@
 !> \author JGH (18-Mar-2001)
 ! *****************************************************************************
 MODULE realspace_grid_types
+  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE input_constants,                 ONLY: rsgrid_automatic,&
                                              rsgrid_replicated
   USE input_section_types,             ONLY: section_vals_get,&
@@ -23,9 +24,9 @@ MODULE realspace_grid_types
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: det_3x3
   USE message_passing,                 ONLY: &
-       mp_alltoall, mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, &
-       mp_isend, mp_isendrecv, mp_max, mp_min, mp_sum, mp_sync, mp_waitall, &
-       mp_waitany
+       mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, mp_isend, &
+       mp_isendrecv, mp_max, mp_min, mp_request_null, mp_sum, mp_sync, &
+       mp_waitall, mp_waitany
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
@@ -953,11 +954,10 @@ CONTAINS
 !> \par History
 !>      12.2007 created [Matt Watkins]
 !>      9.2008 reduced amount of halo data sent [Iain Bethune] 
-!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      10.2008 added non-blocking communication [Iain Bethune] 
-!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      4.2009 added support for rank-reordering on the grid [Iain Bethune] 
-!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      12.2009 added OMP and sparse alltoall [Iain Bethune]
+!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2008-2009 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir,error)
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -973,7 +973,8 @@ CONTAINS
       my_pw_rank, my_rs_rank, n_shifts, nn, num_threads, position, &
       source_down, source_up, stat, ub, x, y, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: dshifts, recv_disps, &
-                                                recv_sizes, send_disps, &
+                                                recv_reqs, recv_sizes, &
+                                                send_disps, send_reqs, &
                                                 send_sizes, ushifts
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: bounds, recv_tasks, send_tasks
     INTEGER, DIMENSION(2)                    :: neighbours, pos
@@ -984,12 +985,13 @@ CONTAINS
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(3)                    :: halo_swapped
     REAL(KIND=dp)                            :: pw_sum, rs_sum
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: recv_buf_3d_down, &
                                                 recv_buf_3d_up, &
                                                 send_buf_3d_down, &
                                                 send_buf_3d_up
+    TYPE(cp_1d_r_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: recv_bufs, send_bufs
 
 !$  INTEGER :: omp_get_max_threads, omp_get_num_threads, omp_get_thread_num
 
@@ -1356,55 +1358,98 @@ CONTAINS
 
        CPPrecondition(SUM(send_sizes)==PRODUCT(ub_recv - lb_recv + 1),cp_failure_level,routineP,error,failure)
 
-       ALLOCATE ( send_buf ( SUM(send_sizes) ), STAT=stat )
+       ALLOCATE ( send_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE ( recv_buf ( SUM(recv_sizes) ), STAT=stat )
+       ALLOCATE ( recv_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       send_buf = 0
-       recv_buf = 0
+       DO i = 0, rs % desc % group_size - 1
+         IF ( send_sizes(i) .NE. 0 ) THEN
+           ALLOCATE(send_bufs(i)%array (send_sizes(i)))
+         ELSE
+           NULLIFY(send_bufs(i)%array)
+         END IF
+         IF ( recv_sizes(i) .NE. 0 ) THEN
+           ALLOCATE(recv_bufs(i)%array (recv_sizes(i)))
+         ELSE
+           NULLIFY(recv_bufs(i)%array)
+         END IF
+       END DO
+
+       ALLOCATE (recv_reqs (0:rs % desc % group_size - 1), STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       recv_reqs = mp_request_null
+
+       DO i = 0, rs % desc % group_size - 1
+         IF ( recv_sizes(i) .NE. 0 ) THEN
+           CALL mp_irecv(recv_bufs(i)%array, i, rs % desc % group, recv_reqs(i))
+         END IF
+       END DO
 
        ! do packing
 !$omp parallel do default(none), &
 !$omp             private(k,z,y,x), &
-!$omp             shared(rs,send_tasks,send_buf,send_disps)
+!$omp             shared(rs,send_tasks,send_bufs,send_disps)
        DO i = 0, rs % desc % group_size - 1
           k=0
           DO z = send_tasks(i,5) , send_tasks(i,6)
              DO y = send_tasks(i,3) , send_tasks(i,4)
                 DO x = send_tasks(i,1) , send_tasks(i,2)
                    k=k+1
-                   send_buf(send_disps(i) + k)= rs % r (x,y,z)
+                   send_bufs(i)%array(k)= rs % r (x,y,z)
                 ENDDO
              ENDDO
           ENDDO
        ENDDO
 !$omp end parallel do
 
-       ! do the communication
+       ALLOCATE (send_reqs (0:rs % desc % group_size - 1), STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       send_reqs = mp_request_null
 
-       CALL mp_alltoall(send_buf, send_sizes, send_disps, recv_buf, recv_sizes, recv_disps, rs % desc % group)
+       DO i = 0, rs % desc % group_size - 1
+         IF ( send_sizes(i) .NE. 0 ) THEN
+           CALL mp_isend(send_bufs(i)%array, i, rs % desc % group, send_reqs(i))
+         END IF
+       END DO
 
        ! do unpacking
-!$omp parallel do default(none), &
-!$omp             private(k,z,y,x), &
-!$omp             shared(pw,rs,recv_tasks,recv_buf,recv_disps)
+       ! no OMP here so we can unpack each message as it arrives
        DO i = 0, rs % desc % group_size - 1
+          IF ( recv_sizes(i) .EQ. 0) CYCLE
+
+          CALL mp_waitany(recv_reqs, completed)
           k=0
-          DO z = recv_tasks(i,5) , recv_tasks(i,6)
-             DO y = recv_tasks(i,3) , recv_tasks(i,4)
-                DO x = recv_tasks(i,1) , recv_tasks(i,2)
+          DO z = recv_tasks(completed-1,5) , recv_tasks(completed-1,6)
+             DO y = recv_tasks(completed-1,3) , recv_tasks(completed-1,4)
+                DO x = recv_tasks(completed-1,1) , recv_tasks(completed-1,2)
                    k=k+1
-                   pw % cr3d (x,y,z) = recv_buf(recv_disps(i) + k) 
+                   pw % cr3d (x,y,z) = recv_bufs(completed-1)%array(k) 
                 ENDDO
              ENDDO
           ENDDO
        ENDDO
-!$omp end parallel do
 
-       DEALLOCATE ( send_buf, STAT=stat)
+       CALL mp_waitall(send_reqs)
+
+       DEALLOCATE ( recv_reqs, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( recv_buf, STAT=stat)
+       DEALLOCATE ( send_reqs, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+
+       DO i = 0, rs % desc % group_size - 1
+         IF ( ASSOCIATED(send_bufs(i)%array ) ) THEN
+           DEALLOCATE(send_bufs(i)%array)
+         END IF
+         IF ( ASSOCIATED(recv_bufs(i)%array ) ) THEN
+           DEALLOCATE(recv_bufs(i)%array)
+         END IF
+       END DO
+
+       DEALLOCATE ( send_bufs, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_bufs, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( send_tasks, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1563,55 +1608,100 @@ CONTAINS
 
        CPPrecondition(SUM(recv_sizes)==PRODUCT(ub_recv - lb_recv + 1),cp_failure_level,routineP,error,failure)
 
-       ALLOCATE ( send_buf ( SUM(send_sizes) ), STAT=stat )
+       ALLOCATE ( send_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE ( recv_buf ( SUM(recv_sizes) ), STAT=stat )
+       ALLOCATE ( recv_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       send_buf = 0
-       recv_buf = 0
+       DO i = 0, rs % desc % group_size - 1
+         IF ( send_sizes(i) .NE. 0 ) THEN
+           ALLOCATE(send_bufs(i)%array (send_sizes(i)))
+         ELSE
+           NULLIFY(send_bufs(i)%array)
+         END IF
+         IF ( recv_sizes(i) .NE. 0 ) THEN
+           ALLOCATE(recv_bufs(i)%array (recv_sizes(i)))
+         ELSE
+           NULLIFY(recv_bufs(i)%array)
+         END IF
+       END DO
+
+       ALLOCATE (recv_reqs (0:rs % desc % group_size - 1), STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       recv_reqs = mp_request_null
+
+       DO i = 0, rs % desc % group_size - 1
+         IF ( recv_sizes(i) .NE. 0 ) THEN
+           CALL mp_irecv(recv_bufs(i)%array, i, rs % desc % group, recv_reqs(i))
+         END IF
+       END DO
 
        ! do packing
 !$omp parallel do default(none), &
 !$omp             private(k,z,y,x), &
-!$omp             shared(pw,rs,send_tasks,send_buf,send_disps)
+!$omp             shared(pw,rs,send_tasks,send_bufs,send_disps)
        DO i = 0, rs % desc % group_size - 1
           k=0
           DO z = send_tasks(i,5) , send_tasks(i,6)
              DO y = send_tasks(i,3) , send_tasks(i,4)
                 DO x = send_tasks(i,1) , send_tasks(i,2)
                    k=k+1
-                   send_buf(send_disps(i) + k)= pw % cr3d (x,y,z)
+                   send_bufs(i)%array(k)= pw % cr3d (x,y,z)
                 ENDDO
              ENDDO
           ENDDO
        ENDDO
 !$omp end parallel do
 
-       ! do the communication
+       ALLOCATE (send_reqs (0:rs % desc % group_size - 1), STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       send_reqs = mp_request_null
 
-       CALL mp_alltoall(send_buf, send_sizes, send_disps, recv_buf, recv_sizes, recv_disps, rs % desc % group)
+       DO i = 0, rs % desc % group_size - 1
+         IF ( send_sizes(i) .NE. 0 ) THEN
+           CALL mp_isend(send_bufs(i)%array, i, rs % desc % group, send_reqs(i))
+         END IF
+       END DO
 
        ! do unpacking
-!$omp parallel do default(none), &
-!$omp             private(k,z,y,x), &
-!$omp             shared(rs,recv_tasks,recv_buf,recv_disps)
+       ! no OMP here so we can unpack each message as it arrives
+
        DO i = 0, rs % desc % group_size - 1
+          IF ( recv_sizes(i) .EQ. 0) CYCLE
+
+          CALL mp_waitany(recv_reqs, completed)
           k=0
-          DO z = recv_tasks(i,5) , recv_tasks(i,6)
-             DO y = recv_tasks(i,3) , recv_tasks(i,4)
-                DO x = recv_tasks(i,1) , recv_tasks(i,2)
+          DO z = recv_tasks(completed-1,5) , recv_tasks(completed-1,6)
+             DO y = recv_tasks(completed-1,3) , recv_tasks(completed-1,4)
+                DO x = recv_tasks(completed-1,1) , recv_tasks(completed-1,2)
                    k=k+1
-                   rs % r (x,y,z) = recv_buf(recv_disps(i) + k) 
+                   rs % r (x,y,z) = recv_bufs(completed-1)%array(k) 
                 ENDDO
              ENDDO
           ENDDO
        ENDDO
-!$omp end parallel do
 
-       DEALLOCATE ( send_buf, STAT=stat)
+       CALL mp_waitall(send_reqs)
+
+       DEALLOCATE ( recv_reqs, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( recv_buf, STAT=stat)
+       DEALLOCATE ( send_reqs, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+
+       DO i = 0, rs % desc % group_size - 1
+         IF ( ASSOCIATED(send_bufs(i)%array ) ) THEN
+           DEALLOCATE(send_bufs(i)%array)
+         END IF
+         IF ( ASSOCIATED(recv_bufs(i)%array ) ) THEN
+           DEALLOCATE(recv_bufs(i)%array)
+         END IF
+       END DO
+
+
+       DEALLOCATE ( send_bufs, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( recv_bufs, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( send_tasks, STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
