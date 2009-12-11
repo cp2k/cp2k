@@ -1337,7 +1337,7 @@ CONTAINS
                 DBG 'Using existing coordinate for', c_row_logical, c_col_logical, offset, tr_p
                 which_beta = beta_add
              ENDIF
-             c_offset = offset
+             c_offset = ABS(offset)
              stack_pointer = stack_pointer + 1
              dgemm_parameter_stack(stack_pointer)%type_a = a_type
              dgemm_parameter_stack(stack_pointer)%type_b = b_type
