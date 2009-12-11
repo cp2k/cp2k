@@ -1311,22 +1311,20 @@ CONTAINS
                 CYCLE
              ENDIF sparsity_enforcement
              IF (.NOT. block_exists) THEN
-                new_blk = new_blk+1
-                new_index(1, new_blk) = c_row_logical
-                new_index(2, new_blk) = c_col_logical
-                new_index(3, new_blk) = c_blk_pt
-                new_row_blks = new_row_blks + 1
-                DBG 'Adding coordinate', c_row_logical, c_col_logical, c_blk_pt
                 offset = c_blk_pt
                 ! CP2K can't handle transposed blocks. Blocks that are
                 ! canonically under the diagonal should therefore be
                 ! set at transposed.
                 IF (product_is_symmetric&
                      .AND. c_row_logical .GT. c_col_logical) THEN
-                   WRITE(*,*)"New block is transposed",&
-                        c_row_logical,c_col_logical
                    offset = -offset
                 ENDIF
+                new_blk = new_blk+1
+                new_index(1, new_blk) = c_row_logical
+                new_index(2, new_blk) = c_col_logical
+                new_index(3, new_blk) = offset
+                new_row_blks = new_row_blks + 1
+                DBG 'Adding coordinate', c_row_logical, c_col_logical, c_blk_pt
                 c_blk_pt = c_blk_pt + c_nze
                 datasize = datasize + c_nze
                 lastblk = lastblk + 1
@@ -1334,7 +1332,7 @@ CONTAINS
                 size_c_blk_ps = size_c_blk_ps + 1
                 c_blk_ps_p(size_c_blk_ps) = c_col_logical
                 which_beta = beta_new
-                tr_p = .FALSE.
+                tr_p = offset .LT. 0
              ELSE
                 DBG 'Using existing coordinate for', c_row_logical, c_col_logical, offset, tr_p
                 which_beta = beta_add
