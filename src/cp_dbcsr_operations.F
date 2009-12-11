@@ -513,22 +513,23 @@ CONTAINS
     ! if it is (anti)symmetric (i.e., rows and columns are where the
     ! row/column distributions say they are). Doing this in advance
     ! makes the local multiply more efficient.
+    IF ((&
+         dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_symmetric .OR.&
+         dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_antisymmetric)) THEN
+       product_reindex = .TRUE.
+    ELSE
+       product_reindex = .FALSE.
+    ENDIF
     product_matrix = matrix_c
     IF (keep_product_data) THEN
-       IF ((&
-            dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_symmetric .OR.&
-            dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_antisymmetric)) THEN
-          product_reindex = .TRUE.
+       IF (product_reindex) THEN
+          IF (dbg) WRITE(*,*)routineN//" Making canonical index"
           CALL dbcsr_make_index_canonical (product_matrix)
-       ELSE
-          product_reindex = .FALSE.
        ENDIF
        CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
        i = 1
        !$ i = omp_get_num_threads()
        CALL dbcsr_add_wm_from_matrix(product_matrix, nwms=i)
-    ELSE
-       product_reindex = .FALSE.
     ENDIF
     product_matrix%m%nze = 0
     product_matrix%m%nblks = 0
@@ -574,6 +575,7 @@ CONTAINS
     ! The index of the product matrix is reset to the CP2K form if it
     ! was previously set to the canonical form.
     IF (product_reindex) THEN
+       IF (dbg) WRITE(*,*)routineN//" Making CP2K index"
        CALL dbcsr_make_index_canonical(product_matrix, cp2k=.TRUE.)
     ENDIF
     matrix_c = product_matrix
