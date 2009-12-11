@@ -449,7 +449,7 @@ CONTAINS
        scale = 0.25_dp
        loc_iter = 0
        DO WHILE ( ABS(hist(odim,3)) > rms_force*scale .OR. ABS(hist(odim,1)-hist(odim-1,1)) > scale*rms_dr)
-          CALL external_control(should_stop,"LINFIT",globenv,error)
+          CALL external_control(should_stop,"LINFIT",globenv=globenv,error=error)
           IF(should_stop) EXIT
           !
           loc_iter = loc_iter + 1
@@ -617,7 +617,7 @@ CONTAINS
        END IF
        loc_iter = 3
        DO WHILE (fb.GE.fc)
-          CALL external_control(should_stop,"MNBRACK",globenv,error)
+          CALL external_control(should_stop,"MNBRACK",globenv=globenv,error=error)
           IF(should_stop) EXIT
           !
           r=(bx-ax)*(fb-fc)
@@ -782,7 +782,7 @@ CONTAINS
        dw = dx
        loc_iter = 1
        DO  iter = 1, itmax
-          CALL external_control(should_stop,"BRENT",globenv,error)
+          CALL external_control(should_stop,"BRENT",globenv=globenv,error=error)
           IF(should_stop) EXIT
           !
           xm    = 0.5_dp * (a+b)

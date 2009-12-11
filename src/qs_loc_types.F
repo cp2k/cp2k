@@ -105,6 +105,7 @@ MODULE qs_loc_types
      TYPE (dbcsr_obj_p_type), DIMENSION(:,:),&
           POINTER                                :: op_sm_set
      
+     REAL (KIND = dp)                            :: start_time,target_time
      REAL (KIND = dp)                            :: weights ( 6 )
      INTEGER                                     :: dim_op
   END TYPE qs_loc_env_new_type

@@ -335,7 +335,7 @@ CPSourceFileRef,&
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)
           ! Check for an external exit command
-          CALL external_control(should_stop,"NEB",globenv,error)
+          CALL external_control(should_stop,"NEB",globenv=globenv,error=error)
           IF(should_stop) EXIT
           ! Control on velocity - II part [check vels VS forces, Steepest Descent like]
           CALL control_vels_b(vels, forces, vc_section, error)
@@ -503,7 +503,7 @@ CPSourceFileRef,&
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)
           ! Check for an external exit command
-          CALL external_control(should_stop,"NEB",globenv,error)
+          CALL external_control(should_stop,"NEB",globenv=globenv,error=error)
           IF(should_stop) EXIT
           ! Dump Infos
           CALL dump_neb_info(neb_env=neb_env,&

@@ -38,7 +38,6 @@ MODULE xas_tp_scf
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_operations,                ONLY: dbcsr_copy
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: core_guess,&
                                              ot_precond_full_kinetic,&
                                              ot_precond_solver_default,&
@@ -123,7 +122,7 @@ CONTAINS
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE xas_do_tp_scf (xas_control,xas_env,iatom,scf_env,qs_env,globenv,&
+  SUBROUTINE xas_do_tp_scf (xas_control,xas_env,iatom,scf_env,qs_env,&
        converged,should_stop,error)
 
     TYPE(xas_control_type)                   :: xas_control
@@ -131,7 +130,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iatom
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -433,7 +431,8 @@ CONTAINS
        END IF
 
        ! ** convergence check
-       CALL external_control(should_stop,"XASSCF",globenv,error)
+       CALL external_control(should_stop,"XASSCF",target_time=qs_env%target_time,&
+           start_time=qs_env%start_time,error=error)
        IF (scf_env%iter_delta < xas_control%eps_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
@@ -495,7 +494,7 @@ CONTAINS
     DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,globenv,error=error)
+    CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,error=error)
 
     CALL mp_sync(qs_env%para_env%group)
 
@@ -622,13 +621,12 @@ CONTAINS
   END SUBROUTINE xas_smearing
 
 ! *****************************************************************************
-  SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,globenv,error)
+  SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states', &
@@ -719,7 +717,7 @@ CONTAINS
             localized_wfn_control=localized_wfn_control,error=error)
        loc_section => section_vals_get_subs_vals(input,"DFT%XAS%LOCALIZE",error=error)
        print_loc_section => section_vals_get_subs_vals(input,"DFT%XAS%PRINT",error=error)
-       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,globenv=globenv,error=error)
+       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
        ra(1:3) = particle_set(iatom)%r(1:3)
 
        NULLIFY(atomic_kind)
@@ -862,12 +860,11 @@ CONTAINS
   END SUBROUTINE cls_prepare_states
 
 ! *****************************************************************************
-  SUBROUTINE xes_scf_once(qs_env,xas_env,scf_section,globenv,converged,should_stop,error)
+  SUBROUTINE xes_scf_once(qs_env,xas_env,scf_section,converged,should_stop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(section_vals_type), POINTER         :: scf_section
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -915,7 +912,7 @@ CONTAINS
        CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
             scf_section=scf_section, error=error)
 
-       CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+       CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
             converged=converged, should_stop=should_stop, error=error)
        CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
 

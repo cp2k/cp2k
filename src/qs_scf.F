@@ -82,7 +82,6 @@ MODULE qs_scf
                                              dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
   USE harris_functional,               ONLY: harris_eigenvalue_calculation,&
                                              harris_eigenvalue_trace_KS_Pmix,&
@@ -212,14 +211,12 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
-!>      globenv should be removed
 !> \par History
 !>      02.2003 introduced scf_env, moved real work to scf_env_do_scf [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf(qs_env,globenv,error)
+  SUBROUTINE scf(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf', &
@@ -356,7 +353,7 @@ CONTAINS
            outer_scf_loop = qs_env%scf_control%outer_scf%have_scf
            qs_env%scf_control%outer_scf%have_scf = .FALSE.
          END IF
-         CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+         CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env,  &
                              converged=converged, should_stop=should_stop, error=error)
 
          !   *** add the converged wavefunction to the wavefunction history
@@ -374,13 +371,13 @@ CONTAINS
          ! *** compute properties that depend on the converged wavefunction
          IF (.NOT.(should_stop)) THEN
             IF     (dft_control%qs_control%semi_empirical) THEN
-               CALL scf_post_calculation_se (dft_section, scf_env, qs_env, globenv, error)
+               CALL scf_post_calculation_se (dft_section, scf_env, qs_env, error)
             ELSEIF (dft_control%qs_control%dftb) THEN
                ! Do Nothing
             ELSEIF (dft_control%qs_control%ofgpw) THEN
                ! Do Nothing
             ELSE
-               CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env, globenv, error)
+               CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env, error)
             END IF
          END IF
 
@@ -401,7 +398,6 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
-!>      globenv should be removed
 !> \par History
 !>      long history, see cvs and qs_scf module history
 !>      02.2003 introduced scf_env [fawzi]
@@ -409,11 +405,10 @@ CONTAINS
 !>      06.2007 Check for SCF iteration count early [jgh]
 !> \author Matthias Krack
 ! *****************************************************************************
-  SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,converged,should_stop,error)
+  SUBROUTINE scf_env_do_scf(scf_env,qs_env,converged,should_stop,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT)                     :: converged, should_stop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -723,7 +718,8 @@ CONTAINS
              END IF
 
              CALL section_vals_val_get(harris_section, "HARRIS_ENERGY",l_val=harris_energy,error=error)
-             IF ((globenv%run_type_id == debug_run) .OR. (harris_energy)) THEN
+!             IF ((globenv%run_type_id == debug_run) .OR. (harris_energy)) THEN
+             IF ((harris_energy)) THEN
                 energy%total = harris_env%harris_energy%Eharris
              END IF
           END IF
@@ -773,7 +769,8 @@ CONTAINS
           END IF
 
           ! ** can we exit the SCF loop  ?
-          CALL external_control(should_stop,"SCF",globenv,error)
+          CALL external_control(should_stop,"SCF",target_time=qs_env%target_time, &
+               start_time=qs_env%start_time,error=error)
           IF (scf_env%iter_delta < scf_control%eps_scf) THEN
              IF (output_unit>0) THEN
                 WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&

@@ -264,7 +264,7 @@ CONTAINS
        ediff = etot - eold
 
        ! check for an external exit command
-       CALL external_control(should_stop,"GEO",globenv,error)
+       CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
        IF(should_stop) EXIT
 
        ! Some IO and Convergence check

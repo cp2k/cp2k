@@ -691,7 +691,7 @@ CONTAINS
        END IF
 
 ! ** convergece check
-       CALL external_control(should_stop,"SCF",globenv,error)
+       CALL external_control(should_stop,"SCF",globenv=globenv,error=error)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&

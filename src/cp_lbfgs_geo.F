@@ -118,7 +118,7 @@ CONTAINS
                force_env=force_env,gopt_param=gopt_param, converged=converged,error=error)) EXIT
 
           ! Check for an external exit command
-          CALL external_control(should_stop,"GEO",globenv,error)
+          CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
           IF (should_stop) THEN
              CALL cp_opt_gopt_stop(optimizer, error=error)
              EXIT

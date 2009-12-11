@@ -166,7 +166,7 @@ CONTAINS
           CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv, error)
 
           ! Check for an external exit command
-          CALL external_control(should_stop,"GEO",globenv,error)
+          CALL external_control(should_stop,"GEO",globenv=globenv,error=error)
           IF(should_stop) EXIT
           
           ! Some IO and Convergence check

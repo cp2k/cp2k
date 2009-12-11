@@ -305,6 +305,7 @@ MODULE qs_environment_types
     LOGICAL :: use_harris
     LOGICAL :: run_rtp
     REAL(KIND=dp)                                         :: sim_time
+    REAL(KIND=dp) :: start_time, target_time
     INTEGER                                               :: sim_step
     TYPE(cell_type), POINTER                              :: cell, super_cell
     TYPE(cell_type), POINTER                              :: cell_ref
@@ -824,6 +825,8 @@ CONTAINS
     qs_env%qmmm_periodic=.FALSE.
     qs_env%requires_mo_derivs=.FALSE.
     qs_env%use_harris=.FALSE.
+    qs_env%target_time = globenv%cp2k_target_time
+    qs_env%start_time = globenv%cp2k_start_time
 
     qs_env%sim_time=0._dp
     qs_env%sim_step=0

@@ -219,7 +219,7 @@ CONTAINS
     END IF
 
     ! *** Perform a SCF run ***
-    CALL scf(qs_env=qs_env, globenv=globenv, error=error)
+    CALL scf(qs_env=qs_env,  error=error)
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN
@@ -257,7 +257,7 @@ CONTAINS
           CALL read_becke_section(qs_control=dft_control%qs_control,&
                                      becke_section=rest_b_section,error=error)
        END IF
-       CALL scf(qs_env=qs_env, globenv=globenv, error=error)
+       CALL scf(qs_env=qs_env, error=error)
        qs_env%et_coupling%keep_matrix=.TRUE.
 
        CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
@@ -275,7 +275,7 @@ CONTAINS
     
     !Properties
     IF(dft_control%do_xas_calculation) THEN
-      CALL xas(qs_env, dft_control%xas_control, globenv,error=error)
+      CALL xas(qs_env, dft_control%xas_control, error=error)
     END IF
 
     CALL timestop(handle)

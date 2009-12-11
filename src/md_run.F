@@ -438,7 +438,7 @@ CONTAINS
        ! You can force to print the last step (for example if the method used
        ! to compute energy and forces is not SCF based) activating the print_key
        ! MOTION%MD%PRINT%FORCE_LAST.
-       CALL external_control(should_stop,"MD",globenv,error=error)
+       CALL external_control(should_stop,"MD",globenv=globenv,error=error)
        IF (should_stop) THEN
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
           CALL md_output(md_env,md_section,force_env%root_section,should_stop,error=error)

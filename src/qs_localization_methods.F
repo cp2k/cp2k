@@ -44,7 +44,6 @@ MODULE qs_localization_methods
        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -1261,7 +1260,7 @@ CONTAINS
 !> \author MI (11.2009)
 ! *****************************************************************************
   SUBROUTINE jacobi_rot_para(weights, zij, vectors, para_env, max_iter, eps_localization, &
-              sweeps, out_each, globenv, error)
+              sweeps, out_each, target_time, start_time, error)
 
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
@@ -1271,7 +1270,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: sweeps
     INTEGER, INTENT(IN)                      :: out_each
-    TYPE(global_environment_type), POINTER   :: globenv
+    REAL(dp) :: start_time, target_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rot_para', &
@@ -1763,7 +1762,7 @@ CONTAINS
          CALL m_flush(output_unit)
       END IF
       IF(tolerance < eps_localization) GOTO 1000
-      CALL external_control(should_stop,"LOC",globenv,error)
+      CALL external_control(should_stop,"LOC",target_time=target_time, start_time=start_time,error=error)
       IF(should_stop) EXIT
 
     END DO ! sweeps

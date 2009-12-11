@@ -351,7 +351,7 @@ CONTAINS
        END IF
 
        ! ** convergence check
-       CALL external_control(should_stop,"KG_SCF",globenv,error)
+       CALL external_control(should_stop,"KG_SCF",globenv=globenv,error=error)
        IF (maxgrad < scf_control%eps_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&

@@ -59,7 +59,6 @@ MODULE xas_methods
                                              dbcsr_create,&
                                              dbcsr_dist2d_to_dist
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_all, state_loc_list, state_loc_range, &
        xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, &
@@ -145,7 +144,6 @@ CONTAINS
 !>      An scf optimization using the TP scheme or TD-DFT is used
 !>      to evaluate the spectral energies and oscillator strengths
 !> \param qs_env the qs_env, the xas_env lives in
-!> \param globenv global environment for i/o and error
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \note
@@ -159,11 +157,10 @@ CONTAINS
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE xas(qs_env, xas_control, globenv, error)
+  SUBROUTINE xas(qs_env, xas_control, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(xas_control_type)                   :: xas_control
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
@@ -322,7 +319,7 @@ CONTAINS
        " (final state of the core hole decay). Only one SCF is needed (not one per atom)"
       skip_scf = .TRUE.
 
-      CALL xes_scf_once(qs_env,xas_env,scf_section,globenv,converged,should_stop,error=error)
+      CALL xes_scf_once(qs_env,xas_env,scf_section,converged,should_stop,error=error)
 
       IF(converged .AND. .NOT. should_stop) THEN
 
@@ -367,7 +364,7 @@ CONTAINS
         CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,&
              qs_env,myspin=1,do_localize=xas_control%localized_wfn,error=error)
       END IF
-      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,globenv=globenv,error=error)
+      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
     END IF
 
     CALL cls_assign_core_states(xas_control,xas_env,my_localized_wfn_control,&
@@ -488,10 +485,11 @@ CONTAINS
           CALL init_scf_loop(scf_env=scf_env,qs_env=qs_env,&
                   scf_section=scf_section, error=error)
 
-          CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,globenv,&
+          CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,&
                converged,should_stop,error=error)
 
-          CALL external_control(should_stop,"CLS",globenv,error)
+          CALL external_control(should_stop,"CLS",target_time=qs_env%target_time,& 
+               start_time=qs_env%start_time,error=error)
           IF(should_stop)THEN
              CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
              GO TO 1000

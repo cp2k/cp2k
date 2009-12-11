@@ -143,7 +143,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE optimize_loc_berry( method, qs_loc_env, vectors, op_sm_set, &
        zij_fm_set, para_env, cell, weights,  ispin, loc_section, print_loc_section,&
-       globenv, error)
+       error)
 
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -157,7 +157,6 @@ CONTAINS
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
@@ -169,7 +168,7 @@ CONTAINS
     LOGICAL                                  :: converged, crazy_use_diag
     REAL(dp)                                 :: crazy_scale, &
                                                 eps_localization, &
-                                                max_crazy_angle
+                                                max_crazy_angle, start_time, target_time
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -200,6 +199,8 @@ CONTAINS
     crazy_scale = qs_loc_env%localized_wfn_control%crazy_scale
     eps_localization = qs_loc_env%localized_wfn_control%eps_localization
     out_each = qs_loc_env%localized_wfn_control%out_each
+    target_time = qs_loc_env%target_time
+    start_time = qs_loc_env%start_time
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
          ispin, loc_section, print_loc_section, only_initial_out=.TRUE., error=error )
     SELECT CASE ( method )
@@ -207,7 +208,7 @@ CONTAINS
       IF(para_env%num_pe > 1 .AND. nmoloc > 2*para_env%num_pe) THEN
         CALL jacobi_rot_para ( weights, zij_fm_set, vectors, para_env, max_iter=max_iter,&
             eps_localization=eps_localization, sweeps=sweeps, &
-            out_each=out_each, globenv=globenv, error=error )
+            out_each=out_each, target_time=target_time, start_time=start_time, error=error )
       ELSE
         CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=max_iter,&
             eps_localization=eps_localization, sweeps=sweeps, &
@@ -611,14 +612,13 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin,&
-       ext_mo_coeff,globenv,error)
+       ext_mo_coeff,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
     INTEGER, INTENT(IN), OPTIONAL            :: myspin
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: ext_mo_coeff
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
@@ -656,6 +656,8 @@ CONTAINS
     NULLIFY(cell, localized_wfn_control, moloc_coeff, op_sm_set, op_fm_set)
     failure = .FALSE.
     qs_loc_env%first_time = first_time
+    qs_loc_env%target_time = qs_env%target_time
+    qs_loc_env%start_time = qs_env%start_time
 
     CALL get_qs_loc_env(qs_loc_env=qs_loc_env, &
          localized_wfn_control=localized_wfn_control,&
@@ -707,7 +709,7 @@ CONTAINS
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
 
           CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set,&
-               op_fm_set, para_env, cell, weights, ispin, loc_section, print_loc_section, globenv, error=error)
+               op_fm_set, para_env, cell, weights, ispin, loc_section, print_loc_section,  error=error)
 
           ! Here we dealloctate op_fm_set
           IF(ASSOCIATED(op_fm_set)) THEN

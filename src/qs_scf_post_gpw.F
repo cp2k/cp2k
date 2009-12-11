@@ -47,7 +47,6 @@ MODULE qs_scf_post_gpw
                                              cp_subsys_type
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE hfx_ri_gemopt,                   ONLY: geminal_optimize
   USE input_constants,                 ONLY: energy_loc_range,&
                                              ot_precond_full_all,&
@@ -176,12 +175,11 @@ CONTAINS
 !>              started splitting out different subroutines
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_post_calculation_gpw(dft_section, scf_env,qs_env, globenv, error)
+  SUBROUTINE scf_post_calculation_gpw(dft_section, scf_env,qs_env, error)
 
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
@@ -515,7 +513,7 @@ CPSourceFileRef,&
                    scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
                 
                    CALL qs_loc_driver(qs_env,qs_loc_env,localize_section,localization_section,&
-                        myspin=ispin,ext_mo_coeff=mo_localized,globenv=globenv,error=error)
+                        myspin=ispin,ext_mo_coeff=mo_localized,error=error)
 
                    ! maps wfc to molecules, and compute the molecular dipoles if required
                    IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&

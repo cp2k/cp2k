@@ -131,7 +131,7 @@ CONTAINS
           IF (should_stop) EXIT
 
           ! If no signal was received in the inner loop let's check also at this stage
-          CALL external_control(should_stop,"BSSE",globenv,error=error)
+          CALL external_control(should_stop,"BSSE",globenv=globenv,error=error)
           IF (should_stop) EXIT
 
           ! Dump Restart info only if the calculation of the energy of a configuration
@@ -202,7 +202,7 @@ CONTAINS
           DO i = 1, Num_of_sub_conf
              CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc(i,:), n_frags,&
                   root_section,globenv, Em_loc(i), error)
-             CALL external_control(should_stop,"BSSE",globenv,error=error)
+             CALL external_control(should_stop,"BSSE",globenv=globenv,error=error)
              IF (should_stop) EXIT
           END DO
           ! Energy

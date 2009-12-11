@@ -265,12 +265,14 @@ CONTAINS
 !>      if the file WAIT exists, the program waits here till it disappears
 !> \author MI (10.03.2005)
 ! *****************************************************************************
-  SUBROUTINE external_control(should_stop,flag,globenv,error)
+  SUBROUTINE external_control(should_stop,flag,globenv,target_time,start_time,error)
 
     LOGICAL, INTENT(OUT)                     :: should_stop
     CHARACTER(LEN=*), INTENT(IN)             :: flag
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
+    REAL(dp), OPTIONAL                       :: target_time
+    REAL(dp), OPTIONAL                       :: start_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'external_control', &
@@ -280,7 +282,8 @@ CONTAINS
                                                 exit_gname, exit_gname_level
     INTEGER                                  :: handle, i, unit_number
     LOGICAL                                  :: failure, should_wait
-    REAL(KIND=dp)                            :: t1, t2, time_check
+    REAL(KIND=dp)                            :: my_start_time, my_target_time, &
+                                                t1, t2, time_check
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -356,10 +359,19 @@ CONTAINS
           ENDIF
        END IF
 
-       IF ((.NOT.should_stop).AND.(globenv%cp2k_target_time > 0.0_dp)) THEN
+       IF(PRESENT(target_time)) THEN
+          my_target_time = target_time
+          my_start_time = start_time
+       ELSEIF(PRESENT(globenv)) THEN
+          my_target_time=globenv%cp2k_target_time
+          my_start_time=globenv%cp2k_start_time
+       ELSE
+          my_target_time = -1.0_dp 
+       END IF
+       IF ( (.NOT.should_stop).AND.(my_target_time > 0.0_dp)) THEN
           ! Check for execution time
-          time_check  = m_walltime() - globenv%cp2k_start_time
-          IF (time_check .GT. globenv%cp2k_target_time) THEN
+          time_check  = m_walltime() - my_start_time
+          IF (time_check .GT. my_target_time) THEN
              should_stop = .TRUE.
              WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,f12.3,A)")&
                   "*** "//TRIM(flag)//" run terminated - exceeded requested execution time:",&

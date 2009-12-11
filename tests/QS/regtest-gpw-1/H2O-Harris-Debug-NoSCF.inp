@@ -12,6 +12,7 @@
       EXTRAPOLATION USE_GUESS
       &HARRIS
         ACTIVATE TRUE
+         HARRIS_ENERGY
       &END HARRIS
     &END QS
     &SCF
