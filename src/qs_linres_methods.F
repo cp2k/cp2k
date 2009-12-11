@@ -45,6 +45,7 @@ MODULE qs_linres_methods
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dbcsr_util,                      ONLY: dbcsr_checksum
   USE f77_blas
+  USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: do_loc_none,&
                                              op_loc_berry,&
@@ -138,12 +139,13 @@ CONTAINS
 !>      07.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,centers_only,error)
+  SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,centers_only,globenv,error)
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: nspins
     LOGICAL, INTENT(IN), OPTIONAL            :: centers_only
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
@@ -195,7 +197,7 @@ CONTAINS
     CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,do_localize=.TRUE.,error=error)
     ! The localized orbitals are copied in the mos,
     ! The orbital centers are stored in linres_control%localized_wfn_control
-    CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,error=error)
+    CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,globenv=globenv,error=error)
     CALL qs_loc_env_release(qs_loc_env, error=error)
 
     ! Write Centers and Spreads on std out

@@ -375,7 +375,7 @@ CONTAINS
              ! The Ground State is needed, it can be read from Restart
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                                               error=suberror)
-             CALL linres_calculation(force_env, error=suberror)
+             CALL linres_calculation(force_env, globenv, error=suberror)
           CASE (debug_run)
              SELECT CASE(method_name_id)
              CASE(do_qs, do_qmmm, do_ep, do_fist)

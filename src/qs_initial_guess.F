@@ -140,7 +140,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
                                                 ortho_basis, scp, tr
-    LOGICAL                                  :: ionode, do_std_diag, ofgpw
+    LOGICAL                                  :: do_std_diag, ofgpw
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 my_sum, total_rho, trps1, trps2, &

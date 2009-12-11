@@ -44,10 +44,12 @@ MODULE qs_localization_methods
        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,&
+                                             twopi
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
                                              mp_max,&
@@ -56,6 +58,7 @@ MODULE qs_localization_methods
                                              mp_sync
   USE rt_matrix_exp,                   ONLY: exp_pade_real,&
                                              get_nsquare_norder
+  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -1258,7 +1261,7 @@ CONTAINS
 !> \author MI (11.2009)
 ! *****************************************************************************
   SUBROUTINE jacobi_rot_para(weights, zij, vectors, para_env, max_iter, eps_localization, &
-              sweeps, out_each, error)
+              sweeps, out_each, globenv, error)
 
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
@@ -1268,6 +1271,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: sweeps
     INTEGER, INTENT(IN)                      :: out_each
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rot_para', &
@@ -1283,12 +1287,12 @@ CONTAINS
       output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: list_pair, ns_bound
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, should_stop
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: gmat, rmat_loc, rmat_recv, &
                                                 rmat_send, rotmat, &
                                                 z_ij_loc_im, z_ij_loc_re
-    REAL(KIND=dp)                            :: ct, gmax, grad, ri, rj, st, &
-                                                t1, t2, theta, tolerance, &
+    REAL(KIND=dp)                            :: ct, func, gmax, grad, ri, rj, &
+                                                st, t1, t2, theta, tolerance, &
                                                 xlow, xstate, xup
     TYPE(cp_fm_type), POINTER                :: rmat
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1427,7 +1431,7 @@ CONTAINS
 
     IF(output_unit>0) THEN
       WRITE(output_unit,'(T10,A )') "Localization by iterative distributed Jacobi rotation"
-      WRITE(output_unit,'(T20,A12,T40,A12,A8 )') "Iteration", "Tolerance"," Time "
+      WRITE(output_unit,'(T20,A12,T32, A22,T60, A12,A8 )') "Iteration", "Functional", "Tolerance"," Time "
     END IF
 
     DO sweeps = 1,max_iter
@@ -1741,13 +1745,27 @@ CONTAINS
       
       CALL mp_max(gmax,para_env%group)
       tolerance = gmax
+
+      func = 0.0_dp
+      DO i=ns_bound(para_env%mepos,1),  ns_bound(para_env%mepos,2)
+        k = i-ns_bound(para_env%mepos,1) + 1
+        DO idim = 1,dim2
+          zi=REAL(cz_ij_loc(idim)%c_array(i,k),dp)
+          zj= AIMAG(cz_ij_loc(idim)%c_array(i,k))
+          func = func + weights(idim) *(1.0_dp - (zi*zi+zj*zj))/twopi/twopi
+        END DO
+      END DO
+      CALL mp_sum(func,para_env%group)
       t2 =  m_walltime()
 
       IF(output_unit>0  .AND. MODULO(sweeps,out_each)==0) THEN
-         WRITE(output_unit,'(T20,I12,T40,E12.4,F8.3)') sweeps,tolerance,t2-t1
+         WRITE(output_unit,'(T20,I12,T35,F20.10,T60,E12.4,F8.3)') sweeps,func, tolerance,t2-t1
          CALL m_flush(output_unit)
       END IF
       IF(tolerance < eps_localization) GOTO 1000
+      CALL external_control(should_stop,"LOC",globenv,error)
+      IF(should_stop) EXIT
+
     END DO ! sweeps
 
     IF(output_unit>0) THEN

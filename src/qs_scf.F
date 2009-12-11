@@ -374,13 +374,13 @@ CONTAINS
          ! *** compute properties that depend on the converged wavefunction
          IF (.NOT.(should_stop)) THEN
             IF     (dft_control%qs_control%semi_empirical) THEN
-               CALL scf_post_calculation_se (dft_section, scf_env, qs_env, error)
+               CALL scf_post_calculation_se (dft_section, scf_env, qs_env, globenv, error)
             ELSEIF (dft_control%qs_control%dftb) THEN
                ! Do Nothing
             ELSEIF (dft_control%qs_control%ofgpw) THEN
                ! Do Nothing
             ELSE
-               CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env, error)
+               CALL scf_post_calculation_gpw(dft_section, scf_env, qs_env, globenv, error)
             END IF
          END IF
 

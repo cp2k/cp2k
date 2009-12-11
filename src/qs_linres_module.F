@@ -23,6 +23,7 @@ MODULE qs_linres_module
                                              force_env_type,&
                                              use_qmmm,&
                                              use_qs_force
+  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        lr_current, lr_none, ot_precond_full_all, ot_precond_full_kinetic, &
        ot_precond_full_single, ot_precond_full_single_inverse, &
@@ -101,9 +102,10 @@ CONTAINS
 !>      06.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_calculation(force_env, error)
+  SUBROUTINE linres_calculation(force_env, globenv, error)
 
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
@@ -153,7 +155,7 @@ CONTAINS
 
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
     CALL section_vals_get(lr_section,explicit=lr_calculation,error=error)
-    CALL linres_init(lr_section,p_env,qs_env,error=error)
+    CALL linres_init(lr_section,p_env,qs_env,globenv,error=error)
 
     IF(lr_calculation) THEN
        output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -177,7 +179,7 @@ CONTAINS
                   "Are you sure that you want to calculate the chemical"//&
                   " shift without localized psi0??")
              CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-                  dft_control%nspins,centers_only=.TRUE.,error=error)
+                  dft_control%nspins,centers_only=.TRUE.,globenv=globenv,error=error)
           ENDIF
           IF(dft_control%nspins/=2.AND.epr_present) THEN
              CALL stop_program(routineP,&
@@ -256,7 +258,7 @@ CONTAINS
                   "Are you sure that you want to calculate the chemical"//&
                   " shift without localized psi0??")
              CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-                  dft_control%nspins,centers_only=.TRUE.,error=error)
+                  dft_control%nspins,centers_only=.TRUE.,globenv=globenv,error=error)
           ENDIF
           !
           !Initialize the current environment
@@ -319,11 +321,12 @@ CONTAINS
 !>      06.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_init(lr_section,p_env,qs_env,error)
+  SUBROUTINE linres_init(lr_section,p_env,qs_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: lr_section
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
@@ -372,7 +375,7 @@ CONTAINS
          END IF
 
          CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-               dft_control%nspins,error=error)
+               dft_control%nspins,globenv=globenv,error=error)
 
          DO ispin=1,dft_control%nspins
             CALL calculate_density_matrix(mos(ispin)%mo_set,rho%rho_ao(ispin)%matrix,error=error)

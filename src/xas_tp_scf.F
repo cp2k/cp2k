@@ -495,7 +495,7 @@ CONTAINS
     DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,error=error)
+    CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,globenv,error=error)
 
     CALL mp_sync(qs_env%para_env%group)
 
@@ -622,12 +622,13 @@ CONTAINS
   END SUBROUTINE xas_smearing
 
 ! *****************************************************************************
-  SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,error)
+  SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,globenv,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states', &
@@ -718,7 +719,7 @@ CONTAINS
             localized_wfn_control=localized_wfn_control,error=error)
        loc_section => section_vals_get_subs_vals(input,"DFT%XAS%LOCALIZE",error=error)
        print_loc_section => section_vals_get_subs_vals(input,"DFT%XAS%PRINT",error=error)
-       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
+       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,globenv=globenv,error=error)
        ra(1:3) = particle_set(iatom)%r(1:3)
 
        NULLIFY(atomic_kind)

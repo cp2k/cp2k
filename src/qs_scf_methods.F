@@ -230,7 +230,7 @@ CONTAINS
           END IF
        ELSE
           CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error=error)
- !         CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
+!          CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
           IF(cholesky_method==cholesky_inverse) THEN
             CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"MULTIPLY",error=error)
           ELSE
@@ -268,7 +268,7 @@ CONTAINS
          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
        ELSE
          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
- !        CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
+!         CALL cp_fm_syevr(matrix_ks,work,mo_eigenvalues,1,nmo,error=error)
        END IF
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
