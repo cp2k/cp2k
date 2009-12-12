@@ -366,8 +366,10 @@ CONTAINS
           my_target_time=globenv%cp2k_target_time
           my_start_time=globenv%cp2k_start_time
        ELSE
-          my_target_time = -1.0_dp 
+          ! If none of the two arguments is present abort.. This routine should always check about time.
+          CPPrecondition(.FALSE.,cp_fatal_level,routineP,error,failure)
        END IF
+
        IF ( (.NOT.should_stop).AND.(my_target_time > 0.0_dp)) THEN
           ! Check for execution time
           time_check  = m_walltime() - my_start_time
