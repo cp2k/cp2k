@@ -314,12 +314,13 @@ CONTAINS
     cp_ddapc_ewald%do_property      = cp_printkey_is_on(logger%iter_info,printC_section,error)
     cp_ddapc_ewald%do_restraint     = do_restraint.OR.do_restraintB
     ! Determining the tasks and further check
-    IF (do_qmmm_periodic.AND.decoupling.AND.(output_unit>0)) THEN
+    IF (do_qmmm_periodic.AND.decoupling) THEN
        ! Check than an additional POISSON section has not been defined. In case write a warning
-       WRITE(output_unit,'(T2,"WARNING",A)')&
-            "A calculation with the QMMM periodic model has been requested.",&
-            "The explicit POISSON section in DFT section will be IGNORED.",&
-            "QM Electrostatic controlled only by the PERIODIC section in QMMM section"
+       IF (output_unit>0) &
+          WRITE(output_unit,'(T2,"WARNING",A)')&
+               "A calculation with the QMMM periodic model has been requested.",&
+               "The explicit POISSON section in DFT section will be IGNORED.",&
+               "QM Electrostatic controlled only by the PERIODIC section in QMMM section"
        decoupling = .FALSE.
     END IF
     IF (decoupling) THEN
