@@ -88,7 +88,7 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       broy_mix, broy_mix_new, cholesky_inverse, cholesky_off, debug_run, &
+       broy_mix, broy_mix_new, cholesky_inverse, cholesky_off, &
        densities_guess, diag_block_krylov, diag_ot, diag_standard, &
        direct_p_mix, history_guess, kerker_mix, multisec_mix, no_mix, &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &

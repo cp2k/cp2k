@@ -271,8 +271,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: flag
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
-    REAL(dp), OPTIONAL                       :: target_time
-    REAL(dp), OPTIONAL                       :: start_time
+    REAL(dp), OPTIONAL                       :: target_time, start_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'external_control', &
@@ -282,8 +281,9 @@ CONTAINS
                                                 exit_gname, exit_gname_level
     INTEGER                                  :: handle, i, unit_number
     LOGICAL                                  :: failure, should_wait
-    REAL(KIND=dp)                            :: my_start_time, my_target_time, &
-                                                t1, t2, time_check
+    REAL(KIND=dp)                            :: my_start_time, &
+                                                my_target_time, t1, t2, &
+                                                time_check
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)

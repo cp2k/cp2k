@@ -46,7 +46,6 @@ MODULE qs_loc_methods
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, &
        do_loc_none, dump_dcd, dump_xmol, op_loc_berry, op_loc_boys, &
@@ -168,7 +167,8 @@ CONTAINS
     LOGICAL                                  :: converged, crazy_use_diag
     REAL(dp)                                 :: crazy_scale, &
                                                 eps_localization, &
-                                                max_crazy_angle, start_time, target_time
+                                                max_crazy_angle, start_time, &
+                                                target_time
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
 

@@ -1270,7 +1270,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: sweeps
     INTEGER, INTENT(IN)                      :: out_each
-    REAL(dp) :: start_time, target_time
+    REAL(dp)                                 :: target_time, start_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rot_para', &
