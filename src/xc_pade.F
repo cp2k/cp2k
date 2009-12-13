@@ -19,8 +19,7 @@ MODULE xc_pade
                                              cite_reference
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -130,30 +129,33 @@ CONTAINS
   END SUBROUTINE pade_info
 
 ! *****************************************************************************
-  SUBROUTINE pade_lda(derivative_set, rho, pot, order)
-
+  SUBROUTINE pade_lda(derivative_set, rho, pot, order, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: error, m, m1, m2, mp, mt, &
-                                                mx(0:3,2), n
-    LOGICAL                                  :: calc(0:4)
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lda', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: m, m1, m2, mp, mt, mx(0:3,2), &
+                                                n, stat
+    LOGICAL                                  :: calc(0:4), failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
 
+    failure = .FALSE.
     CALL setup_calculation(order,mx,calc,100)
     mp = SIZE ( pot, 2 )
     m = ABS(order)
     mt = mx(m,2)
-    IF ( mt > mp ) CALL stop_program ( "pade_lda", &
-       "Size of POT array too small" )
+    IF ( mt > mp ) CALL stop_program ( "pade_lda", "Size of POT array too small" )
 
     n = SIZE ( rho )
-    ALLOCATE ( rs(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "pade_lda", "rs", n )
+    ALLOCATE ( rs(n), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     CALL calc_rs ( rho, rs )
     IF ( calc(0) .AND. calc(1) ) THEN
@@ -175,8 +177,8 @@ CONTAINS
        CALL pade_lda_3(n, rho, rs, pot(:,m1:m1))
     END IF
 
-    DEALLOCATE ( rs, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "pade_lda", "rs" )
+    DEALLOCATE ( rs, STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE pade_lda
 
@@ -188,20 +190,24 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: order
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lda_pw_eval', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: n, stat
-    LOGICAL                                  :: calc(0:4)
+    LOGICAL                                  :: calc(0:4), failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_r, e_rr, e_rrr
     TYPE(xc_derivative_type), POINTER        :: deriv
 
+    failure = .FALSE.
     calc = .FALSE.
     IF (order >= 0) calc(0:order) = .TRUE.
     IF (order < 0) calc(-order) = .TRUE.
 
     n = PRODUCT(rho_set%local_bounds(2,:)-rho_set%local_bounds(1,:)+(/1,1,1/))
     ALLOCATE ( rs(n), STAT=stat )
-    IF ( stat /= 0 ) CALL stop_memory ( "pade_lda", "rs", n )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     CALL calc_rs_pw ( rho_set%rho, rs, n )
     IF ( calc(0) .AND. calc(1) ) THEN
@@ -237,7 +243,7 @@ CONTAINS
     END IF
 
     DEALLOCATE ( rs, STAT=stat )
-    IF ( stat /= 0 ) CALL stop_memory ( "pade_lda", "rs" )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE pade_lda_pw_eval
 
