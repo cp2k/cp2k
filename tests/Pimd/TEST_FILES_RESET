@@ -26,3 +26,6 @@ h2o_pint.inp
 h2o_pint.inp 
 # New initial guess ATOMIC 
 h2o_pint.inp
+# helium-related changes
+h2o_pint.inp
+h2o_pint_fist.inp

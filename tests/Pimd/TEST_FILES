@@ -3,3 +3,5 @@
 # see regtest/TEST_FILES
 h2o_pint.inp         9
 h2o_pint_fist.inp    9
+helium-only.inp     40
+water-in-helium.inp  9

@@ -656,18 +656,24 @@ CONTAINS
 
   END SUBROUTINE dump_rng_stream
 
+! 2009-11-04 lwalewsk: changed type of bg, cg and ig
+!            from INTEGER, DIMENSION(3, 2) to REAL(KIND=dp), DIMENSION(3, 2)
+! 2009-11-09 lwalewsk: getting of buffer and buffer_filled components added
 ! *****************************************************************************
   SUBROUTINE get_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
-                            antithetic,extended_precision,error)
+                            antithetic,extended_precision,&
+                            buffer,buffer_filled,error)
 
     ! Get the components of a RNG stream.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: name
     INTEGER, INTENT(OUT), OPTIONAL           :: distribution_type
-    INTEGER, DIMENSION(3, 2), INTENT(OUT), &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: buffer
+    REAL(KIND=dp), DIMENSION(3, 2), INTENT(OUT), &
       OPTIONAL                               :: bg, cg, ig
-    LOGICAL, INTENT(OUT), OPTIONAL           :: antithetic, extended_precision
+    LOGICAL, INTENT(OUT), OPTIONAL           :: antithetic, extended_precision,&
+                                                buffer_filled
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rng_stream', &
@@ -693,6 +699,8 @@ CONTAINS
       IF (PRESENT(extended_precision)) THEN
         extended_precision = rng_stream%extended_precision
       END IF
+      IF (PRESENT(buffer)) buffer = rng_stream%buffer
+      IF (PRESENT(buffer_filled)) buffer_filled = rng_stream%buffer_filled
     END IF
 
   END SUBROUTINE get_rng_stream
@@ -1337,9 +1345,11 @@ CONTAINS
 
   END FUNCTION rn53
 
+! 2009-11-09 lwalewsk: setting of buffer and buffer_filled components added
 ! *****************************************************************************
   SUBROUTINE set_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
-                            seed,antithetic,extended_precision,error)
+                            seed,antithetic,extended_precision,&
+                            buffer,buffer_filled,error)
 
     ! Set the components of a RNG stream.
     ! NOTE: The manipulation of an active RNG stream is discouraged.
@@ -1347,9 +1357,11 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
     INTEGER, INTENT(IN), OPTIONAL            :: distribution_type
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: buffer
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: bg, cg, ig, seed
-    LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
+    LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision,&
+                                                buffer_filled
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_rng_stream', &
@@ -1383,6 +1395,8 @@ CONTAINS
       IF (PRESENT(extended_precision)) THEN
         rng_stream%extended_precision = extended_precision
       END IF
+      IF (PRESENT(buffer)) rng_stream%buffer = buffer
+      IF (PRESENT(buffer_filled)) rng_stream%buffer_filled = buffer_filled
     END IF
 
   END SUBROUTINE set_rng_stream

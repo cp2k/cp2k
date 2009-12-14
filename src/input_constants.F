@@ -251,6 +251,11 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: transformation_normal=1,&
                                               transformation_stage=2
 
+  ! helium pbc unit cell shapes
+  INTEGER, PARAMETER, PUBLIC               :: helium_cell_shape_none=0,&
+                                              helium_cell_shape_cube=1,&
+                                              helium_cell_shape_octahedron=2
+
   ! Free Energy methods
   INTEGER, PARAMETER, PUBLIC               :: do_fe_meta=0,&
                                               do_fe_ui=1,&
@@ -268,6 +273,9 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: dump_atomic=1,&
                                               dump_xmol=2,&
                                               dump_dcd=3
+
+  INTEGER, PARAMETER, PUBLIC               :: fmt_id_xyz=1,&
+                                              fmt_id_pdb=2
 
   INTEGER, PARAMETER, PUBLIC               :: do_qmmm_none=0,&
                                               do_qmmm_coulomb=1,&

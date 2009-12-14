@@ -301,7 +301,7 @@ CONTAINS
           CALL section_vals_release(input_file,error=suberror)
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
-             CALL do_pint_run(para_env,root_section,error=suberror)
+             CALL do_pint_run( para_env, root_section, globenv, error=suberror )
           CASE (none_run)
              ! do nothing
           CASE (energy_run, energy_force_run)

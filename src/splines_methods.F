@@ -30,6 +30,9 @@ MODULE splines_methods
   PUBLIC :: init_spline      ! generate table for spline (allocates y2)
   PUBLIC :: potential_s      ! return value of spline and 1. derivative
                              ! without checks (fast routine for pair_potential)
+  PUBLIC :: spline_value     ! return value of spline and 1. derivative
+                             ! without check (without assumption of 1/x^2 grid)
+
 CONTAINS
 
 ! *****************************************************************************
@@ -241,5 +244,67 @@ CONTAINS
     END IF
     potential_s = potential_s + spl_f%cutoff
   END FUNCTION potential_s
+
+  !******************************************************************************
+  !!****
+  !!****f* splines/spline_value [1.0] *
+  !!
+  !!   NAME
+  !!     spline_value
+  !!
+  !!   FUNCTION
+  !!     calculates the spline value at a given point
+  !!     (and possibly the first derivative) WITHOUT checks
+  !!     and without any funny scaling business, or weird 
+  !!     1/x^2 grid assumptions....
+  !!
+  !!   AUTHOR
+  !!     HAF
+  !!
+  !!   INPUTS
+  !!     spl : spline_data structure
+  !!     xx  : absissa value
+  !!
+  !!   OUTPUT
+  !!     spline interpolated value at xx
+  !!     y1 : 1. derivative at xx (optional)
+  !!
+  !!   NOTES
+  !!     the spline MUST have uniform x values and xx MUST be
+  !!     in the interpolation interval. No checks are done to ensure
+  !!     either condition.
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+
+  FUNCTION spline_value ( spl, xx, y1 )
+    ! Return value
+    TYPE(spline_data_type), POINTER          :: spl
+    REAL(KIND=dp), INTENT(IN)                :: xx
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: y1
+    REAL(KIND=dp)                            :: spline_value
+
+    REAL(KIND=dp), PARAMETER                 :: f13 = 1.0_dp/3.0_dp
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: a, b, h26, invh, y2hi, y2lo, &
+                                                yhi, ylo
+
+    h26 = spl%h26
+    invh = spl%invh
+    i = (xx-spl%x1)*invh + 1
+
+    a = (spl%x1-xx)*invh + REAL(i,kind=dp)
+    b = 1.0_dp - a
+    ylo = spl%y(i)
+    yhi = spl%y(i+1)
+    y2lo = spl%y2(i)
+    y2hi = spl%y2(i+1)
+    spline_value = a*ylo + b*yhi - ((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26
+    IF (PRESENT(y1)) y1 = invh*((yhi-ylo) + &
+                           ((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
+  END FUNCTION spline_value
 
 END MODULE splines_methods

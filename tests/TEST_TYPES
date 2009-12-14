@@ -1,4 +1,4 @@
-39
+40
 Total energy:!3
 POTENTIAL ENERGY!4
 Total energy \[eV\]:!4
@@ -7,7 +7,7 @@ BSSE-free interaction energy:!5
 Average Energy !4
 Total Energy               =!4
 VIB|Frequency !3
-EffPot = !6
+PINT| Total energy = !5
 BAND TOTAL ENERGY \[au\] !6
 ENERGY| Total FORCE_EVAL!9
 B2(T) =!4
@@ -38,6 +38,7 @@ ISSC| response: CheckSum =!5
 TDDFPT : CheckSum  =!5
 ISSC| CheckSum K =!5
 X=!2
+HELIUM| Total energy = !5
 #
 # these are the tests the can be selected for regtesting. 
 # do regtest will grep for test_grep (first column) and look if the numeric value

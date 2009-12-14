@@ -2464,11 +2464,13 @@ CONTAINS
 
     failure=.FALSE.
 
+    !TODO creating PINT section with option required=.TRUE. does not (luckily)
+    ! cause this section to be really required - however this is a bug (?)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="pint",&
+       CALL section_create(section,name="PINT",&
             description="The section that controls a path integral run",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=10, n_subsections=7, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
 
@@ -2483,8 +2485,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="num_steps",&
-            description="Specify number of steps to perform",repeats=.FALSE.,&
+            description="Number of steps (if MAX_STEP is not explicitly given"//&
+            " the program will perform this number of steps)",repeats=.FALSE.,&
             default_i_val=3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="MAX_STEP",&
+            description="Maximum step number (the program will stop if"//&
+            " ITERATION >= MAX_STEP even if NUM_STEPS has not been reached)",&
+            repeats=.FALSE., default_i_val=10, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="iteration",&
@@ -2527,9 +2536,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        NULLIFY(subsection,subsubsection)
-       CALL section_create(subsection,name="normalmode",&
-            description="The section that controls the normal mode transformation",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+       CALL section_create(subsection,name="NORMALMODE",&
+            description="Controls the normal mode transformation",&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
        CALL keyword_create(keyword, name="Q_CENTROID",&
             description="Value of the thermostat mass of centroid degree of freedom",&
@@ -2566,10 +2575,23 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL section_create(subsection,name="nose",&
-            description="The section that controls the nose-hoover thermostats",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+       CALL section_create( subsection, name="BEADS",&
+            description="Sets positions and velocities of the beads",&
+            n_keywords=0, n_subsections=2,&
+            repeats=.FALSE., required=.FALSE., error=error )
+       CALL create_coord_section(subsubsection,"BEADS",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+       CALL create_velocity_section(subsubsection,"BEADS",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create( subsection, name="NOSE",&
+            description="Controls the Nose-Hoover thermostats",&
+            n_keywords=1, n_subsections=2,&
+            repeats=.FALSE., required=.FALSE., error=error )
        CALL keyword_create(keyword, name="nnos",&
             description="length of nose-hoover chain. 0 means no thermostat",&
             repeats=.FALSE., default_i_val=2,error=error)
@@ -2584,21 +2606,9 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL section_create(subsection,name="beads",&
-            description="positions, velocities of the beads",&
-            repeats=.FALSE., required=.TRUE., error=error)
-       CALL create_coord_section(subsubsection,"BEADS",error=error)
-       CALL section_add_subsection(subsection,subsubsection,error=error)
-       CALL section_release(subsubsection,error=error)
-       CALL create_velocity_section(subsubsection,"BEADS",error=error)
-       CALL section_add_subsection(subsection,subsubsection,error=error)
-       CALL section_release(subsubsection,error=error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL section_create(subsection,name="init",&
-            description="initialization if no beads are present",&
-            repeats=.FALSE., required=.TRUE., error=error)
+       CALL section_create( subsection, name="INIT",&
+            description="Controls the initialization if the beads are not present",&
+            repeats=.FALSE., required=.FALSE., error=error)
        CALL keyword_create(keyword, name="randomize_pos",&
             description="add gaussian noise to the positions of the beads",&
             repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
@@ -2615,49 +2625,307 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL section_create(subsection,name="print",&
-            description="The section that controls the output of a path integral run",&
+       CALL create_helium_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="PRINT",&
+            description="Controls the output from the path integral run",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"restart",&
-            description="Controls how often a restart is written", &
-            print_level=low_print_level,each_iter_names=s2a("MD"),&
-            each_iter_values=(/20/),add_last=add_last_numeric,&
+
+       CALL cp_print_key_section_create(print_key,"ENER_INFO",&
+            description="Controls how often energy info is written", &
+            print_level=low_print_level,common_iter_levels=1,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CENTROIDS",&
+            description="Controls the output of the centroids", &
+            unit_str="angstrom",&
+            print_level=low_print_level,common_iter_levels=1,error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Output file format for the trajectory of centroids",&
             error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESTART",&
+            description="Controls how often the restart file is written", &
+            print_level=low_print_level,add_last=add_last_numeric,&
+            common_iter_levels=1,error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
-            description="Specifies the maximum index of backup copies.",&
+            description="Specifies the maximum number of backup copies.",&
             usage="BACKUP_COPIES {int}",&
             default_i_val=3, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)        
 
-       CALL cp_print_key_section_create(print_key,"ener_info",&
-            description="Controls how often energy info is written", &
-            print_level=low_print_level,each_iter_names=s2a("MD"),&
-            each_iter_values=(/20/),add_last=add_last_numeric,&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)        
-
-       CALL cp_print_key_section_create(print_key,"centroids",&
-            description="Controls how often the centroids are written", &
-            print_level=low_print_level,add_last=add_last_numeric,&
-            error=error)
-       CALL add_format_keyword(keyword, print_key, &
-            description="Specifies the format of the output file for the trajectory of centroids.",&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)        
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)        
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_pint_section
+
+! *****************************************************************************
+!> \brief creates the section for superfluid helium solvent
+!> \param section - the helium section created
+!> \param error - variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author lwalewsk
+! *****************************************************************************
+  SUBROUTINE create_helium_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_helium_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (failure) THEN
+      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
+
+    CALL section_create(section,name="HELIUM",&
+         description="The section that controls optional helium solvent"// &
+         " envirnoment (highly experimental, not for general use yet)",&
+         n_keywords=11, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+         description="Whether or not to actually use this section",&
+         usage="silent",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="HELIUM_ONLY",&
+         description="Simulate helium solvent only, "//&
+         "disregard solute entirely",&
+         repeats=.FALSE., default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.,&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="NUM_PROC", &
+         description="Number of processors used for helium calculations",&
+         repeats=.FALSE.,type_of_var=integer_t,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
+         description="Name of the Helium interaction potential file",&
+         repeats=.FALSE., default_lc_val="HELIUM.POT",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="NATOMS", &
+         description="Number of helium atoms",&
+         repeats=.FALSE., default_i_val=64,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="NBEADS", &
+         description="Number of helium path integral beads",&
+         repeats=.FALSE., default_i_val=25,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="INOROT", &
+         description="Number of MC iterations at the same time slice(s)",&
+         repeats=.FALSE., default_i_val=10000,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="IROT", &
+         description="how often to reselect the time slice(s) to work on",&
+         repeats=.FALSE., default_i_val=10000,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="BISECTION", &
+         description="how many time slices to change at once (+1). "//&
+         "Must be a power of 2 currently",&
+         repeats=.FALSE., default_i_val=8,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="MAX_PERM_CYCLE", &
+         description="how large cyclic permutations to try",&
+         repeats=.FALSE., default_i_val=6,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="PERIODIC", &
+         description="Use periodic boundary conditions for helium",&
+         repeats=.FALSE., default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="CELL_SHAPE", &
+         description="PBC unit cell shape for helium",&
+         usage="CELL_SHAPE (CUBE|OCTAHEDRON)",&
+         default_i_val=helium_cell_shape_cube,&
+         enum_c_vals=s2a("CUBE","OCTAHEDRON"),&
+         enum_i_vals=(/helium_cell_shape_cube,helium_cell_shape_octahedron/),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="DENSITY", &
+         description="trial density of helium for determining the helium "//&
+         "box size",&
+         repeats=.FALSE., &
+         default_r_val=cp_unit_to_cp2k(0.02186_dp,"angstrom^-3",error=error),&
+         unit_str="angstrom^-3",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="RDF",&
+         description="Radial distribution function generation settings",&
+         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    CALL keyword_create(keyword, name="MAXR", &
+         description="Maximum RDF range, defaults to unit cell size",&
+         repeats=.FALSE.,type_of_var=real_t,&
+         unit_str="angstrom",error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="NBIN", &
+         description="Number of bins",&
+         repeats=.FALSE.,&
+         default_i_val=700,&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL create_coord_section(subsection,"HELIUM",error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL section_create(subsection,name="PERM",&
+         description="Permutation state used for restart",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+         error=error)
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+         description="Specify particle index permutation for every "// &
+         "helium atom",repeats=.TRUE.,usage="<INT> <INT> .. <INT>",&
+         type_of_var=integer_t, n_var=-1, error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL section_create(subsection,name="FORCE",&
+         description="Forces exerted by the helium on the solute system"//&
+         " (used for restarts)",&
+         n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+         description="Number of real values should be 3 * "//&
+         "<num_solute_atoms> * <num_solute_beads>", repeats=.TRUE., &
+         usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, &
+         n_var=-1, error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL section_create(subsection,name="RNG_STATE",&
+         description="Random number generator state for all processors",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+         description="Three real arrays of DIMENSION(3,2) times two RNG "//&
+         "streams - 36 real values per processor",&
+         repeats=.TRUE.,usage="automatically filled, do not edit by hand",&
+         type_of_var=real_t, n_var=-1, error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL section_create(subsection,name="PRINT",&
+         description="The section that controls the output of the helium code",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY(print_key)
+    CALL cp_print_key_section_create(print_key,"ENER_INFO",&
+         description="Controls the output of the helium energies"//&
+         " (averaged over MC step)", &
+         print_level=low_print_level,common_iter_levels=1,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+    CALL cp_print_key_section_create(print_key,"WNUMBER",&
+         description="Controls the output of the helium winding number",&
+         print_level=low_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"COORDINATES",&
+         description="Controls the output of helium coordinates",&
+         print_level=medium_print_level,common_iter_levels=1,error=error)
+    CALL keyword_create(keyword, name="FORMAT",&
+         description="Output file format for the coordinates",&
+         usage="FORMAT (PDB|XYZ)",&
+         default_i_val=fmt_id_pdb,&
+         enum_c_vals=s2a("PDB","XYZ"),&
+         enum_i_vals= (/fmt_id_pdb,fmt_id_xyz/),&
+         enum_desc=s2a( "Bead coordinates and connectivity is written in PDB format",&
+                        "Only bead coordinates are written in XYZ format"),&
+            error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"SAMPLING",&
+         description="Controls the output of the helium MC sampling data"//&
+         " (does lot of I/O - use with care)", &
+         each_iter_names=s2a("MD"),each_iter_values=(/100/),&
+         print_level=high_print_level,common_iter_levels=1,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+    CALL cp_print_key_section_create(print_key,"RESTART",&
+         description="Controls the output of helium restart data",&
+         print_level=silent_print_level,add_last=add_last_numeric,&
+         common_iter_levels=1,error=error)
+    CALL keyword_create(keyword, name="BACKUP_COPIES",&
+         description="Specifies the maximum number of backup copies",&
+         usage="BACKUP_COPIES {int}",&
+         default_i_val=3, error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"RDF",&
+         description="Radial distribution function output settings", &
+         print_level=medium_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)        
+
+  END SUBROUTINE create_helium_section
 
 ! *****************************************************************************
 !> \brief creates the FORMAT keyword
