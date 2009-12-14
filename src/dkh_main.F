@@ -2032,8 +2032,8 @@ CONTAINS
 
     CALL cp_fm_struct_release(matrix_full, error=error)     
 
-    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
-    WRITE (*,*) "JT:  Now available in cp2k"
+!    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
+!    WRITE (*,*) "JT:  Now available in cp2k"
     RETURN
   END SUBROUTINE even2c
 
@@ -2167,8 +2167,8 @@ CONTAINS
 
     CALL cp_fm_struct_release(matrix_full, error=error)
 
-    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
-    WRITE (*,*) "JT:  Now available in cp2k"
+!    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
+!    WRITE (*,*) "JT:  Now available in cp2k"
     RETURN
   END SUBROUTINE even3b
 
@@ -2424,8 +2424,8 @@ CONTAINS
     DEALLOCATE(v,pvp,vh,pvph,w1w1,w1o1,o1w1,sum_1,sum_2)
     DEALLOCATE(scr_1,scr_2,scr_3,scr_4,scrh_1,scrh_2,scrh_3,scrh_4)
 
-    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
-    WRITE (*,*) "JT:   Now available in cp2k" 
+!    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
+!    WRITE (*,*) "JT:   Now available in cp2k" 
 
     RETURN
   END SUBROUTINE even4a
@@ -3184,8 +3184,8 @@ CONTAINS
 
     DEALLOCATE(v,vh,pvp,pvph,w1o1,o1w1)
 
-    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
-    WRITE (*,*) "!JT:  Now available in cp2k"
+!    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
+!    WRITE (*,*) "!JT:  Now available in cp2k"
     RETURN
   END SUBROUTINE even2c_a
 
@@ -3304,8 +3304,8 @@ CONTAINS
 
     DEALLOCATE(vh,pvph,w1w1,w1e1w1,scr_1,scr_2)
 
-    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
-    WRITE (*,*) "JT:  Now available in cp2k"
+!    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
+!    WRITE (*,*) "JT:  Now available in cp2k"
     RETURN
   END SUBROUTINE even3b_a
 
@@ -3560,8 +3560,8 @@ CONTAINS
     DEALLOCATE(v,pvp,vh,pvph,w1w1,w1o1,o1w1,sum_1,sum_2)
     DEALLOCATE(scr_1,scr_2,scr_3,scr_4,scrh_1,scrh_2,scrh_3,scrh_4)
 
-    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
-    WRITE (*,*) "JT:   Now available in cp2k" 
+!    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
+!    WRITE (*,*) "JT:   Now available in cp2k" 
 
     RETURN
   END SUBROUTINE even4a_a
