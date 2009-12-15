@@ -669,11 +669,11 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: name
     INTEGER, INTENT(OUT), OPTIONAL           :: distribution_type
+    REAL(KIND=dp), DIMENSION(3, 2), &
+      INTENT(OUT), OPTIONAL                  :: bg, cg, ig
+    LOGICAL, INTENT(OUT), OPTIONAL           :: antithetic, extended_precision
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: buffer
-    REAL(KIND=dp), DIMENSION(3, 2), INTENT(OUT), &
-      OPTIONAL                               :: bg, cg, ig
-    LOGICAL, INTENT(OUT), OPTIONAL           :: antithetic, extended_precision,&
-                                                buffer_filled
+    LOGICAL, INTENT(OUT), OPTIONAL           :: buffer_filled
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rng_stream', &
@@ -1357,11 +1357,11 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
     INTEGER, INTENT(IN), OPTIONAL            :: distribution_type
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: buffer
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: bg, cg, ig, seed
-    LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision,&
-                                                buffer_filled
+    LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: buffer
+    LOGICAL, INTENT(IN), OPTIONAL            :: buffer_filled
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_rng_stream', &

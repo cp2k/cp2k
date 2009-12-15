@@ -318,7 +318,7 @@ MODULE pint_io
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iter, unit_nr
+    INTEGER                                  :: unit_nr
     LOGICAL                                  :: failure, file_is_new
     REAL(kind=dp)                            :: t, temp
     TYPE(cp_logger_type), POINTER            :: logger

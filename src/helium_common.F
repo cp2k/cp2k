@@ -84,7 +84,8 @@ MODULE helium_common
 
     REAL(kind=dp)                            :: s
 
-      ! x coordinate
+! x coordinate
+
       s = helium%cell_size_inv * r(1)
       IF ( s > 0.5_dp ) THEN
         s = s - INT(s+0.5_dp)
