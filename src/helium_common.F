@@ -45,13 +45,13 @@ MODULE helium_common
 
   CONTAINS
 
-  ! ***************************************************************************
-  !> \brief  General PBC routine for helium.
-  !> \author Lukasz Walewski
-  !> \date   2009-09-30
-  !> \descr  Check wheather PBC should be applied, if yes call low level
-  !>         routine according to the unit cell shape.
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  General PBC routine for helium.
+!> \author Lukasz Walewski
+!> \date   2009-09-30
+!> \descr  Check wheather PBC should be applied, if yes call low level
+!>         routine according to the unit cell shape.
+! *****************************************************************************
   SUBROUTINE helium_pbc( helium, r )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -66,16 +66,16 @@ MODULE helium_common
 
   END SUBROUTINE helium_pbc
 
-  ! ***************************************************************************
-  !> \brief  Wrap r back to the helium box (if helium box is periodic)
-  !> \param    helium - helium environment for which to wrap
-  !> \param    r      - 3D vector to be wraped back to periodic box
-  !> \author hforbert
-  !> \par History
-  !>      2009-10-02 renamed, originally was helium_box
-  !>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]
-  !>      2009-10-02 redesigned so it now gets/returns a 3D vector [lwalewski]
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Wrap r back to the helium box (if helium box is periodic)
+!> \param    helium - helium environment for which to wrap
+!> \param    r      - 3D vector to be wraped back to periodic box
+!> \author hforbert
+!> \par History
+!>      2009-10-02 renamed, originally was helium_box
+!>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]
+!>      2009-10-02 redesigned so it now gets/returns a 3D vector [lwalewski]
+! *****************************************************************************
   SUBROUTINE helium_pbc_cube( helium, r )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -115,13 +115,12 @@ MODULE helium_common
     RETURN
   END SUBROUTINE helium_pbc_cube
 
-
-  ! ***************************************************************************
-  !> \brief  Apply PBC within truncated octahedral unit cell.
-  !> \date   2009-10-02
-  !> \author Lukasz Walewski
-  !> \note   Original Allen & Tildesley routine adapted for our helium code.
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Apply PBC within truncated octahedral unit cell.
+!> \date   2009-10-02
+!> \author Lukasz Walewski
+!> \note   Original Allen & Tildesley routine adapted for our helium code.
+! *****************************************************************************
   SUBROUTINE helium_pbc_trocta( helium, r )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -130,13 +129,11 @@ MODULE helium_common
 
     REAL(kind=dp)                            :: corr, r75, rx, ry, rz
 
-! *******************************************************************
 ! ** PERIODIC BOUNDARY CONDITIONS FOR A TRUNCATED OCTAHEDRON       **
 ! **                                                               **
 ! ** THE BOX IS CENTRED AT THE ORIGIN. THE AXES PASS THROUGH THE   **
 ! ** CENTRES OF THE SIX SQUARE FACES OF THE TRUNCATED OCTAHEDRON   **
 ! ** (SEE F1G. 1.10(A)). THE CONTAINING CUBE IS OF UNIT LENGTH     **
-! *******************************************************************
 
     PARAMETER ( r75 = 4.0_dp / 3.0_dp )
 
@@ -159,13 +156,13 @@ MODULE helium_common
     RETURN
   END SUBROUTINE helium_pbc_trocta
 
-  ! ***************************************************************************
-  !> \brief  Apply PBC within truncated octahedral unit cell.
-  !> \date   2009-10-22
-  !> \author hforbert
-  !> \note   Version of the original Allen & Tildesley routine optimized for
-  !>         g95 and intel compilers on x86-64.
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Apply PBC within truncated octahedral unit cell.
+!> \date   2009-10-22
+!> \author hforbert
+!> \note   Version of the original Allen & Tildesley routine optimized for
+!>         g95 and intel compilers on x86-64.
+! *****************************************************************************
   SUBROUTINE helium_pbc_trocta_opt( helium, r )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -234,17 +231,17 @@ MODULE helium_common
     RETURN
   END SUBROUTINE helium_pbc_trocta_opt
 
-  ! ***************************************************************************
-  !> \brief  Calculate the point equidistant from two other points a and b
-  !>         within the helium box - 3D version
-  !> \param    helium - helium environment for which
-  !> \param    a, b   - vectors for which to find the mean within the He box
-  !> \author hforbert
-  !> \par History
-  !>      2009-10-02 renamed, originally was helium_boxmean [lwalewski]
-  !>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]
-  !>      2009-10-02 redesigned so it now gets/returns a 3D vectors [lwalewski]
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Calculate the point equidistant from two other points a and b
+!>         within the helium box - 3D version
+!> \param    helium - helium environment for which
+!> \param    a, b   - vectors for which to find the mean within the He box
+!> \author hforbert
+!> \par History
+!>      2009-10-02 renamed, originally was helium_boxmean [lwalewski]
+!>      2009-10-02 redesigned so it is now called as a subroutine [lwalewski]
+!>      2009-10-02 redesigned so it now gets/returns a 3D vectors [lwalewski]
+! *****************************************************************************
   SUBROUTINE helium_boxmean_3d(helium, a, b, c)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -294,13 +291,13 @@ SUBROUTINE helium_calc_wnumber( helium )
    RETURN
 END SUBROUTINE helium_calc_wnumber
 
-  ! ***************************************************************************
-  !> \brief  Calculate helium radial distribution function wrt <r0>.
-  !> \author Lukasz Walewski
-  !> \date   2009-07-22
-  !> \note   Actually calculate the histogram only, the normalization is
-  !>         postponed to the postprocessing stage.
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Calculate helium radial distribution function wrt <r0>.
+!> \author Lukasz Walewski
+!> \date   2009-07-22
+!> \note   Actually calculate the histogram only, the normalization is
+!>         postponed to the postprocessing stage.
+! *****************************************************************************
   SUBROUTINE helium_calc_rdf( helium, pint_env, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -367,10 +364,10 @@ END SUBROUTINE helium_calc_wnumber
     RETURN
   END SUBROUTINE helium_calc_rdf
 
-  ! ***************************************************************************
-  !> \brief  Rotate helium particles (coordinates of helium beads) by nslices.
-  !> \author hforbert
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Rotate helium particles (coordinates of helium beads) by nslices.
+!> \author hforbert
+! *****************************************************************************
   SUBROUTINE helium_rotate(helium, nslices, error)
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: nslices
@@ -405,6 +402,7 @@ END SUBROUTINE helium_calc_wnumber
     RETURN
   END SUBROUTINE helium_rotate
 
+! *****************************************************************************
   FUNCTION helium_eval_expansion(helium,r,rp,tab,cut) RESULT(res)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -468,6 +466,7 @@ END SUBROUTINE helium_calc_wnumber
     RETURN
   END FUNCTION helium_eval_expansion
 
+! *****************************************************************************
   SUBROUTINE helium_update_transition_matrix(helium,error)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -829,6 +828,7 @@ END SUBROUTINE helium_calc_wnumber
   RETURN
 END SUBROUTINE helium_update_transition_matrix
 
+! *****************************************************************************
   FUNCTION helium_spline(spl, xx) RESULT(res)
     TYPE(spline_data_type), POINTER          :: spl
     REAL(KIND=dp), INTENT(IN)                :: xx
@@ -850,6 +850,7 @@ END SUBROUTINE helium_update_transition_matrix
     RETURN
   END FUNCTION helium_spline
 
+! *****************************************************************************
   FUNCTION helium_spline_1(spl, xx) RESULT(res)
     TYPE(spline_data_type), POINTER          :: spl
     REAL(KIND=dp), INTENT(IN)                :: xx
@@ -867,12 +868,12 @@ END SUBROUTINE helium_update_transition_matrix
     RETURN
   END FUNCTION helium_spline_1
 
-  ! ***************************************************************************
-  !> \brief  Return the distance <rij> between bead <ib> of atom <ia>
-  !>         and bead <jb> of atom <ja>.
-  !> \author Lukasz Walewski
-  !> \date   2009-07-17
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Return the distance <rij> between bead <ib> of atom <ia>
+!>         and bead <jb> of atom <ja>.
+!> \author Lukasz Walewski
+!> \date   2009-07-17
+! *****************************************************************************
   FUNCTION helium_bead_rij(helium, ia, ib, ja, jb) RESULT(rij)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -889,17 +890,17 @@ END SUBROUTINE helium_update_transition_matrix
     RETURN
   END FUNCTION helium_bead_rij
 
-  ! ***************************************************************************
-  !> \brief  Given the atom number and permutation state return the cycle
-  !>         number the atom belongs to.
-  !> \author Lukasz Walewski
-  !> \date   2009-07-21
-  !> \descr  Cycles (or paths) are numbered from 1 to <num_cycles>, where
-  !>         <num_cycles> is in the range of (1, <helium%atoms>).
-  !>         if (num_cycles .EQ. 1) then all atoms belong to one cycle
-  !>         if (num_cycles .EQ. helium%atoms) then there are no cycles of
-  !>         length greater than 1 (i.e. no atoms are connected)
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Given the atom number and permutation state return the cycle
+!>         number the atom belongs to.
+!> \author Lukasz Walewski
+!> \date   2009-07-21
+!> \descr  Cycles (or paths) are numbered from 1 to <num_cycles>, where
+!>         <num_cycles> is in the range of (1, <helium%atoms>).
+!>         if (num_cycles .EQ. 1) then all atoms belong to one cycle
+!>         if (num_cycles .EQ. helium%atoms) then there are no cycles of
+!>         length greater than 1 (i.e. no atoms are connected)
+! *****************************************************************************
   FUNCTION helium_cycle_number(helium, atom_number) RESULT(cycle_number)
 
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -994,12 +995,12 @@ END SUBROUTINE helium_update_transition_matrix
     RETURN
   END FUNCTION helium_cycle_number
 
-  ! ***************************************************************************
-  !> \brief  Given the atom number and permutation state return the length of
-  !>         the path this atom belongs to.
-  !> \author Lukasz Walewski
-  !> \date   2009-10-07
-  ! ***************************************************************************
+! *****************************************************************************
+!> \brief  Given the atom number and permutation state return the length of
+!>         the path this atom belongs to.
+!> \author Lukasz Walewski
+!> \date   2009-10-07
+! *****************************************************************************
   FUNCTION helium_path_length(helium, atom_number) RESULT(path_length)
 
     TYPE(helium_solvent_type), POINTER       :: helium

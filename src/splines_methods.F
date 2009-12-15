@@ -245,40 +245,14 @@ CONTAINS
     potential_s = potential_s + spl_f%cutoff
   END FUNCTION potential_s
 
-  !******************************************************************************
-  !!****
-  !!****f* splines/spline_value [1.0] *
-  !!
-  !!   NAME
-  !!     spline_value
-  !!
-  !!   FUNCTION
-  !!     calculates the spline value at a given point
-  !!     (and possibly the first derivative) WITHOUT checks
-  !!     and without any funny scaling business, or weird 
-  !!     1/x^2 grid assumptions....
-  !!
-  !!   AUTHOR
-  !!     HAF
-  !!
-  !!   INPUTS
-  !!     spl : spline_data structure
-  !!     xx  : absissa value
-  !!
-  !!   OUTPUT
-  !!     spline interpolated value at xx
-  !!     y1 : 1. derivative at xx (optional)
-  !!
-  !!   NOTES
-  !!     the spline MUST have uniform x values and xx MUST be
-  !!     in the interpolation interval. No checks are done to ensure
-  !!     either condition.
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
-
+! *****************************************************************************
+!> \brief calculates the spline value at a given point
+!>        (and possibly the first derivative) WITHOUT checks
+!>        and without any funny scaling business, or weird
+!>        1/x^2 grid assumptions
+!> 
+!> \author HAF
+! *****************************************************************************
   FUNCTION spline_value ( spl, xx, y1 )
     ! Return value
     TYPE(spline_data_type), POINTER          :: spl

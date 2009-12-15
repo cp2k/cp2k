@@ -35,83 +35,69 @@ MODULE helium_types
 
   PUBLIC :: helium_solvent_type
 
-  !!****s* pint_types/helium_solvent_type *
-  !!
-  !!   NAME
-  !!     helium_solvent_type
-  !!
-  !!   FUNCTION
-  !!     data of solvent helium
-  !!
-  !!   NOTES
-  !!
-  !!   ref_count     - reference count of this data structure
-  !!   id_nr         - identification number of this data structure
-  !!   input         - input data structure (the whole tree)
-  !!   num_proc      - number of processors/independent He environments
-  !!   periodic      - true if bulk liquid helium in periodic box
-  !!   cell_shape    - unit cell shape for PBC calculations
-  !!   cell_size     - size of the periodic box for helium only
-  !!   cell_size_inv - 1 / cell_size (inverse)
-  !!   cell_m_inv    - invrse  of the unit cell vectors' matrix
-  !!   tau           - 1/(k_B T p) with T being the He temperature, p - number of beads
-  !!   density       - helium density for free bulk in box
-  !!   e_corr        - potential correction energy due to finite box
-  !!   hb2m          - hbar squared over m for helium
-  !!   atoms         - number of helium atoms
-  !!   beads         - number of helium beads per atom (needs to be an integer
-  !!                     multiple of the solvated molecule bead number)
-  !!   pdx           - pair density expansion max exponent
-  !!   maxcycle      - maximum cyclic permutation change to attempt
-  !!   bisection     - power of 2 number for bisection algorithm
-  !!   relrot        - relative rotation in imaginary time with
-  !!                   respect to the normal system/starting configuration
-  !!   iter_norot    - number of iterations to try for a given
-  !!                   imaginary time slice rotation
-  !!   iter_rot      - number of rotations to try
-  !!                   total number of iterations is iter_norot*iter_rot
-  !!   iter          - number of iterations tried so far
-  !!   accepts       - number of accepted new configurations
-  !!   wnumber_inst  - winding number (instantaneous) REAL(3)
-  !!   wnumber_avrg  - winding number (averaged) REAL(3)
-  !!   pos           - position of the helium atoms REAL(3,ATOMS,BEADS)
-  !!   work          - same dimensions as pos
-  !!   tmatrix       - ? permutation probability related
-  !!   pmatrix       - ? permutation probability related
-  !!                   [use might change/new ones added/etc]
-  !!   pweight       - ? permutation probability related
-  !!   ptable        - proposed cyclic permutation
-  !!                   (dimension max_cycle)
-  !!   permutation   - current permutation state INTEGER(NATOMS)
-  !!   iperm         - inverse of the current permutation state INTEGER(NATOMS)
-  !!   uij           - pair density matrix coefficients (action)
-  !!   eij           - pair density matrix coefficients (energy)
-  !!   bead_ratio    - ratio of helium beads to system beads
-  !!   rng_stream_uniform - random numbers from uniform distribution
-  !!   rng_stream_gaussian - random numbers from gaussian distribution
-  !!   rdf_delr      - delta r for RDF
-  !!   rdf_maxr      - maximum r for RDF
-  !!   solute_present- switch the interactions with the solute on or off
-  !!   solute_atoms  - number of solute atoms (=pint_env%ndim/3)
-  !!   solute_beads  - number of solute beads (=pint_env%p)
-  !!   solute_element- element names of solute atoms (NDIM/3)
-  !!   solute_number - number of solute atoms of different atomic kinds
-  !!   solute_index  - indices of solute atoms sorted by atomic kinds
-  !!   solute_cell   - dimensions of the solvated system cell (a,b,c)
-  !!                   (not needed now and should be removed at some point)
-  !!   force_avrg    - averaged forces exerted by He solvent on the solute (P,NDIM)
-  !!   force_inst    - instantaneous forces exerted by He on the solute (P, NDIM)
-  !!   rtmp_p_ndim   - general purpose, real, 2D temp array (P, NDIM)
-  !!   itmp_atoms    - general purpose, integer, 1D temp array (ATOMS)
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     hforbert
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief data of solvent helium
+!> \note
+!>    ref_count     - reference count of this data structure
+!>    id_nr         - identification number of this data structure
+!>    input         - input data structure (the whole tree)
+!>    num_proc      - number of processors/independent He environments
+!>    periodic      - true if bulk liquid helium in periodic box
+!>    cell_shape    - unit cell shape for PBC calculations
+!>    cell_size     - size of the periodic box for helium only
+!>    cell_size_inv - 1 / cell_size (inverse)
+!>    cell_m_inv    - invrse  of the unit cell vectors' matrix
+!>    tau           - 1/(k_B T p) with T being the He temperature, p - number of beads
+!>    density       - helium density for free bulk in box
+!>    e_corr        - potential correction energy due to finite box
+!>    hb2m          - hbar squared over m for helium
+!>    atoms         - number of helium atoms
+!>    beads         - number of helium beads per atom (needs to be an integer
+!>                      multiple of the solvated molecule bead number)
+!>    pdx           - pair density expansion max exponent
+!>    maxcycle      - maximum cyclic permutation change to attempt
+!>    bisection     - power of 2 number for bisection algorithm
+!>    relrot        - relative rotation in imaginary time with
+!>                    respect to the normal system/starting configuration
+!>    iter_norot    - number of iterations to try for a given
+!>                    imaginary time slice rotation
+!>    iter_rot      - number of rotations to try
+!>                    total number of iterations is iter_norot*iter_rot
+!>    iter          - number of iterations tried so far
+!>    accepts       - number of accepted new configurations
+!>    wnumber_inst  - winding number (instantaneous) REAL(3)
+!>    wnumber_avrg  - winding number (averaged) REAL(3)
+!>    pos           - position of the helium atoms REAL(3,ATOMS,BEADS)
+!>    work          - same dimensions as pos
+!>    tmatrix       - ? permutation probability related
+!>    pmatrix       - ? permutation probability related
+!>                    [use might change/new ones added/etc]
+!>    pweight       - ? permutation probability related
+!>    ptable        - proposed cyclic permutation
+!>                    (dimension max_cycle)
+!>    permutation   - current permutation state INTEGER(NATOMS)
+!>    iperm         - inverse of the current permutation state INTEGER(NATOMS)
+!>    uij           - pair density matrix coefficients (action)
+!>    eij           - pair density matrix coefficients (energy)
+!>    bead_ratio    - ratio of helium beads to system beads
+!>    rng_stream_uniform - random numbers from uniform distribution
+!>    rng_stream_gaussian - random numbers from gaussian distribution
+!>    rdf_delr      - delta r for RDF
+!>    rdf_maxr      - maximum r for RDF
+!>    solute_present- switch the interactions with the solute on or off
+!>    solute_atoms  - number of solute atoms (=pint_env%ndim/3)
+!>    solute_beads  - number of solute beads (=pint_env%p)
+!>    solute_element- element names of solute atoms (NDIM/3)
+!>    solute_number - number of solute atoms of different atomic kinds
+!>    solute_index  - indices of solute atoms sorted by atomic kinds
+!>    solute_cell   - dimensions of the solvated system cell (a,b,c)
+!>                    (not needed now and should be removed at some point)
+!>    force_avrg    - averaged forces exerted by He solvent on the solute (P,NDIM)
+!>    force_inst    - instantaneous forces exerted by He on the solute (P, NDIM)
+!>    rtmp_p_ndim   - general purpose, real, 2D temp array (P, NDIM)
+!>    itmp_atoms    - general purpose, integer, 1D temp array (ATOMS)
+!> \author hforbert
+! *****************************************************************************
   TYPE helium_solvent_type
      INTEGER :: id_nr,ref_count
      TYPE(section_vals_type), POINTER :: input
@@ -152,7 +138,5 @@ MODULE helium_types
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: force_avrg, force_inst
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: rtmp_p_ndim
   END TYPE helium_solvent_type
-  !!***
-  !****************************************************************************
 
 END MODULE helium_types
