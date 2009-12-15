@@ -562,18 +562,18 @@ MODULE helium_io
           " Total number of solute particles:  ", helium%solute_atoms*&
           helium%solute_beads
         DO i = 1, 3
-          WRITE(unit_nr,'(T2,A,1X,I0,A,I0,A,$)') TRIM(my_label)//&
+          WRITE(unit_nr,'(T2,A,1X,I0,A,I0,A)', ADVANCE='NO') TRIM(my_label)//&
             " Solute atom type: ", i,&
             "(",helium%solute_number(i),")"
           first = .TRUE.
           DO j = 1, helium%solute_number(i)
             IF (first) THEN
-              WRITE(unit_nr,'(A,$)')", indices: "
+              WRITE(unit_nr,'(A)', ADVANCE='NO')", indices: "
               first = .FALSE.
             ELSE
-              WRITE(unit_nr,'(A,$)') ", "
+              WRITE(unit_nr,'(A)', ADVANCE='NO') ", "
             END IF
-            WRITE(unit_nr,'(I0,$)') helium%solute_index(i,j)
+            WRITE(unit_nr,'(I0)', ADVANCE='NO') helium%solute_index(i,j)
           END DO
           WRITE(unit_nr,'(1X)')
         END DO
