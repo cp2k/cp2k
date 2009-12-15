@@ -465,6 +465,26 @@
     ENDIF
   END SUBROUTINE iterator_next_2d_block_[nametype1]
 
+
+! *****************************************************************************
+!> \brief Sets a scalar in an encapsulated data structure
+!> \param[in] scalar                    scalar to encapsulate
+!> \result encapsulated_scalar          encapsulated scalar
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_[nametype1] (scalar) RESULT (encapsulated_scalar)
+    [type1], INTENT(IN)       :: scalar
+    TYPE(dbcsr_scalar_type)   :: encapsulated_scalar
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_[type1]', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    encapsulated_scalar%data_type = [dkind1]
+    encapsulated_scalar%[base1]_[prec1] = scalar
+  END FUNCTION dbcsr_scalar_[nametype1]
+
+
 #if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 #if defined(__PTR_RANK_REMAP)
 ! *****************************************************************************

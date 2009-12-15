@@ -961,6 +961,45 @@
     ENDDO
   END SUBROUTINE block_chol_inv_z
 
+  !> \brief Interface for matrix scaling by a scalar
+  SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha_scalar
+    INTEGER, INTENT(IN), OPTIONAL            :: last_column
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_z', &
+      routineP = moduleN//':'//routineN
+    CHARACTER                                :: scale_type
+
+    scale_type = 'S'
+    CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
+         scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
+  END SUBROUTINE dbcsr_scale_z
+
+  !> \brief Interface for matrix scaling by a matrix
+  SUBROUTINE dbcsr_scale_z_m(matrix_a, alpha_matrix,&
+       last_column, side, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)             :: matrix_a
+    COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN), TARGET  :: alpha_matrix
+    INTEGER, INTENT(IN), OPTIONAL              :: last_column
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL     :: side
+    TYPE(cp_error_type), INTENT(INOUT)         :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_z_m', &
+      routineP = moduleN//':'//routineN
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER             :: tmp_p
+    CHARACTER                                  :: scale_type
+    TYPE(dbcsr_data_obj)                       :: enc_alpha_mat
+
+    scale_type = 'M'
+    CALL dbcsr_data_init (enc_alpha_mat)
+    CALL dbcsr_data_new (enc_alpha_mat, dbcsr_type_complex_8)
+    tmp_p => alpha_matrix
+    CALL dbcsr_data_set_pointer (enc_alpha_mat, tmp_p)
+    CALL dbcsr_scale_anytype(matrix_a, last_column, error, scale_type,&
+         side=side, alpha_matrix = enc_alpha_mat)
+    CALL dbcsr_data_clear_pointer (enc_alpha_mat)
+    CALL dbcsr_data_release (enc_alpha_mat)
+  END SUBROUTINE dbcsr_scale_z_m
 
 #if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 ! *****************************************************************************

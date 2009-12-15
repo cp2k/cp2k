@@ -146,6 +146,13 @@ MODULE dbcsr_operations
                       dbcsr_get_tmp_block2d_c, dbcsr_get_tmp_block2d_z
   END INTERFACE
 
+  INTERFACE dbcsr_scale
+     MODULE PROCEDURE dbcsr_scale_s, dbcsr_scale_d,&
+                      dbcsr_scale_c, dbcsr_scale_z
+     MODULE PROCEDURE dbcsr_scale_s_m, dbcsr_scale_d_m,&
+                      dbcsr_scale_c_m, dbcsr_scale_z_m
+  END INTERFACE
+
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
@@ -2047,37 +2054,40 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_wm_add
 
+
 ! *****************************************************************************
 !> \brief Scales a DBCSR matrix by alpha
 !> \param[inout] matrix_a       DBCSR matrix
 !> \param[in] alpha_scalar      (optional) a scalar
 !> \param[in] alpha_vector      (optional) a vector
 !> \param[in] alpha_matrix      (optional) a list of matrices
-!> \param[in] scale_column      (optional) do we scale the columns?
 !> \param[in] side              (optional) ?
 !> \param[in] last_column       (optional) only scale up to this full column
-!> 
+!> \param[in] scale type        corresponds to scalar, vector, matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_scale(matrix_a, alpha_scalar, alpha_vector, alpha_matrix,&
-       last_column, side, error)
+  SUBROUTINE dbcsr_scale_anytype(matrix_a, last_column, error, scale_type,&
+         side,&
+         alpha_scalar, alpha_vector, alpha_matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar
-    REAL(dp), DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: alpha_vector, alpha_matrix
     INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    CHARACTER, INTENT(IN)                    :: scale_type
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: alpha_scalar
+    TYPE(dbcsr_data_obj), INTENT(IN), &
+      OPTIONAL                               :: alpha_vector, alpha_matrix
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_anytype', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: data_type
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
       col_offset, i, last_col, row_offset, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start, m_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: do_scale, limit_col, right, tr
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
+    TYPE(dbcsr_data_obj)                     :: buffer, data_any, mat_tmp
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -2085,7 +2095,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL timeset(routineN, timing_handle)
     !
     ! last_column => alpha_scalar
-    CALL cp_assert (.NOT. PRESENT (last_column) .OR. PRESENT (alpha_scalar),&
+    CALL cp_assert (.NOT. PRESENT (last_column) .OR. scale_type .EQ. 'S', &
          cp_fatal_level, cp_wrong_args_error, routineN,&
          "Column limiting supported only with scalar scaling")
     last_col = 0
@@ -2100,6 +2110,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL convert_sizes_to_offsets(array_data (matrix_a%m%col_blk_size), &
             col_start, col_end)
     ENDIF
+    data_type = dbcsr_get_data_type (matrix_a)
     !
     ! set vars
     right = .TRUE.
@@ -2111,28 +2122,15 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           CALL stop_program(routineN,"wrong side="//side)
        END SELECT
     ENDIF
-    !
-    ! check if we have enough infos
-    IF(.NOT.PRESENT(alpha_scalar).AND.&
-       .NOT.PRESENT(alpha_vector).AND.&
-       .NOT.PRESENT(alpha_matrix).AND.&
-       .NOT.PRESENT(side)) THEN
-       CALL stop_program(routineN,"missing an argument...")
-    ENDIF
-    !
-    ! check if we have too many infos
-    IF(PRESENT(alpha_scalar).AND.PRESENT(alpha_vector).OR.&
-       PRESENT(alpha_scalar).AND.PRESENT(alpha_matrix).OR.&
-       PRESENT(alpha_vector).AND.PRESENT(alpha_matrix)) THEN
-       CALL stop_program(routineN,"incompatible arguments...")
-    ENDIF
-    !
-    !
-    IF(PRESENT(alpha_matrix)) THEN
-       ALLOCATE(buff(MAXVAL(array_data (matrix_a%m%row_blk_size))*&
-                     MAXVAL(array_data (matrix_a%m%col_blk_size))))
-       buff = 0.0_dp
+    IF(scale_type .EQ. 'M') THEN     ! Matrix scaling
+       CALL dbcsr_data_init (buffer)
+       ! Clean up these maxvalues
+       CALL dbcsr_data_new (buffer, dbcsr_get_data_type(matrix_a),&
+            data_size=MAXVAL(array_data (matrix_a%m%row_blk_size)) &
+            *MAXVAL(array_data (matrix_a%m%col_blk_size)))
+       CALL dbcsr_data_clear (buffer) ! Zero the buffer
        !
+       ! TODO: Clean up these offsets using the matrix-supplied ones
        row_blk_size => array_data (matrix_a%m%row_blk_size)
        col_blk_size => array_data (matrix_a%m%col_blk_size)
        ALLOCATE(m_offset(dbcsr_nblkrows_total(matrix_a)))
@@ -2148,109 +2146,131 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
              m_offset(a_row) = m_offset(a_row-1) + a_row_size**2
           ENDDO
        ENDIF
+       !
+       ! This data area holds the current column
+       CALL dbcsr_data_init (mat_tmp)
+       CALL dbcsr_data_new (mat_tmp, dbcsr_get_data_type (alpha_matrix))
     ENDIF
     !
     ! quick return if possible
     do_scale = .TRUE.
-    IF(PRESENT(alpha_scalar)) THEN
-       IF(alpha_scalar.EQ.1.0_dp) do_scale = .FALSE.
-    ENDIF
+    IF (PRESENT (alpha_scalar)) THEN
+       SELECT CASE (alpha_scalar%data_type)
+       CASE (dbcsr_type_real_4)
+          IF (alpha_scalar%r_sp .EQ. 1.0_real_4) do_scale = .FALSE.
+       CASE (dbcsr_type_real_8)
+          IF (alpha_scalar%r_dp .EQ. 1.0_real_8) do_scale = .FALSE.
+       CASE (dbcsr_type_complex_4)
+          IF (alpha_scalar%c_sp .EQ. CMPLX(1.0, 0.0, real_4)) do_scale = .FALSE.
+       CASE (dbcsr_type_complex_8)
+          IF (alpha_scalar%c_dp .EQ. CMPLX(1.0, 0.0, real_8)) do_scale = .FALSE.
+       END SELECT
+    END IF
     !
     ! let's go
     IF(do_scale) THEN
+       CALL dbcsr_data_init (data_any)
+       CALL dbcsr_data_new (data_any, dbcsr_get_data_type (matrix_a))
        CALL dbcsr_iterator_start(iter, matrix_a)
        iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
-          CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_d, tr, a_blk,&
+          CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_any, tr,&
+               block_number=a_blk,&
                row_size=a_row_size, col_size=a_col_size, &
                row_offset=row_offset, col_offset=col_offset)
+          ! ### UB: Find where the transposed blocks come from.
+          !CALL cp_assert (.NOT. tr, cp_fatal_level, cp_unimplemented_error_nr,&
+          !     routineN, "No support for transposed blocks.")
           a_nze = a_row_size * a_col_size
           IF (a_nze .EQ. 0) CYCLE ! Skip empty blocks
           !
           ! let's scale
-          IF(PRESENT(alpha_scalar)) THEN
-             SELECT CASE (dbcsr_get_data_type(matrix_a))
-                !CASE (dbcsr_type_real_4)
-             CASE (dbcsr_type_real_8)
-                limit_col = last_col .GT. 0
-                IF (limit_col) limit_col = col_end(a_col).gt.last_col
-                IF (limit_col) THEN
-                   IF (col_start(a_col) .LE. last_col) THEN
-                      i = MIN(last_col, col_end(a_col)) - col_start(a_col) + 1
-                      CALL dscal(a_row_size*i, alpha_scalar, data_d(1), 1)
-                   ELSE
-                      ! Nothing to do, the block is beyond the boundry.
-                   ENDIF
+          IF(scale_type .EQ. 'S') THEN
+             limit_col = last_col .GT. 0
+             IF (limit_col) limit_col = col_end(a_col).gt.last_col
+             IF (limit_col) THEN
+                IF (col_start(a_col) .LE. last_col) THEN
+                   i = MIN(last_col, col_end(a_col)) - col_start(a_col) + 1
+                   a_nze = a_row_size*i
                 ELSE
-                   CALL dscal(a_nze,alpha_scalar,data_d(1),1)
+                   ! Nothing to do, the block is beyond the boundry.
+                   a_nze = 0
                 ENDIF
-                !CASE (dbcsr_type_complex_4)
-                !CASE (dbcsr_type_complex_8)
-             CASE default
-                CALL cp_unimplemented_error (routineN,&
-                     "unknown precision")
-             END SELECT
-          ELSEIF(PRESENT(alpha_vector)) THEN
-             CALL stop_program(routineN,"NYI")
-             IF(right) THEN
-                DO i = 1,a_col_size
-                   CALL dscal(a_row_size,alpha_vector(col_offset+i-1),&
-                        data_d((i-1)*a_row_size+1),1)
-                ENDDO
-             ELSE
-                DO i = 1,a_row_size
-                   CALL dscal(a_col_size,alpha_vector(row_offset+i-1),&
-                        data_d(i),a_col_size)
-                ENDDO
              ENDIF
-          ELSEIF(PRESENT(alpha_matrix)) THEN
+             IF (a_nze .GT. 0) THEN
+                CALL dbcsr_blas_scal (a_nze, alpha_scalar, data_any, 1)
+             ENDIF
+          ELSEIF(scale_type .EQ. 'V') THEN
+             CALL stop_program(routineN,"NYI")
+             !IF(right) THEN
+             !   DO i = 1,a_col_size
+             !      CALL dscal(a_row_size,alpha_vector(col_offset+i-1),&
+             !           data_d((i-1)*a_row_size+1),1)
+             !   ENDDO
+             !ELSE
+             !   DO i = 1,a_row_size
+             !      CALL dscal(a_col_size,alpha_vector(row_offset+i-1),&
+             !           data_d(i),a_col_size)
+             !   ENDDO
+             !ENDIF
+          ELSEIF(scale_type .EQ. 'M') THEN
              IF(right) THEN
                 !A = A * alpha
-                SELECT CASE (dbcsr_get_data_type(matrix_a))
-                   !CASE (dbcsr_type_real_4)
-                CASE (dbcsr_type_real_8)
-                   CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
-                        &     1.0_dp,data_d(1),a_row_size,&
-                        &            alpha_matrix(m_offset(a_col)),a_col_size,&
-                        &     0.0_dp,buff,a_row_size)
-                   CALL dcopy(a_nze,buff,1,data_d(1),1)
-                   !CASE (dbcsr_type_complex_4)
-                   !CASE (dbcsr_type_complex_8)
-                CASE default
-                   CALL cp_unimplemented_error (routineN,&
-                        "Only real double precision")
-                END SELECT
+                mat_tmp = pointer_view (mat_tmp, alpha_matrix, m_offset(a_col))
+                CALL dbcsr_blas_gemm ('N','N',&
+                     a_row_size, a_col_size, a_col_size,&
+                     dbcsr_scalar_one (alpha_matrix%d%data_type),&
+                     data_any, a_row_size,&
+                     mat_tmp, a_col_size,&
+                     dbcsr_scalar_zero (alpha_matrix%d%data_type),&
+                     buffer, a_row_size)
+                !CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
+                !     1.0_dp,data_any%d%r_dp(1),a_row_size,&
+                !     alpha_matrix%d%r_dp(m_offset(a_col)),a_col_size,&
+                !     0.0_dp,buffer%d%r_dp(1),a_row_size)
+                CALL dbcsr_blas_copy (a_nze, buffer, 1, data_any, 1)
              ELSE
                 !A = alpha * A
-                SELECT CASE (dbcsr_get_data_type(matrix_a))
-                   !CASE (dbcsr_type_real_4)
-                CASE (dbcsr_type_real_8)
-                   CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
-                        &     1.0_dp,alpha_matrix(m_offset(a_row)),a_row_size,&
-                        &            data_d(1),a_row_size,&
-                        &     0.0_dp,buff,a_row_size)
-                   CALL dcopy(a_nze,buff,1,data_d(1),1)
-                   !CASE (dbcsr_type_complex_4)
-                   !CASE (dbcsr_type_complex_8)
-                CASE default
-                   CALL cp_unimplemented_error (routineN,&
-                        "Only real double precision")
-                END SELECT
+                mat_tmp = pointer_view (mat_tmp, alpha_matrix, m_offset(a_row))
+                CALL dbcsr_blas_gemm ('N','N',&
+                     a_row_size, a_col_size, a_row_size,&
+                     dbcsr_scalar_one (alpha_matrix%d%data_type),&
+                     mat_tmp, a_row_size,&
+                     data_any, a_row_size,&
+                     dbcsr_scalar_zero (alpha_matrix%d%data_type),&
+                     buffer, a_row_size)
+                !CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
+                !        &     1.0_dp,alpha_matrix%d%r_dp(m_offset(a_col)),a_row_size,&
+                !        &            data_any%d%r_dp(1),a_row_size,&
+                !        &     0.0_dp,buffer%d%r_dp(1),a_row_size)
+                CALL dbcsr_blas_copy(a_nze, buffer, 1, data_any, 1)
              ENDIF
           ELSE
              CALL stop_program(routineN,"wrong logic")
           ENDIF
        ENDDO iterations
        CALL dbcsr_iterator_stop(iter)
-
+       CALL dbcsr_data_clear_pointer (data_any)
+       CALL dbcsr_data_release (data_any)
     ENDIF
 
-    IF(PRESENT(alpha_matrix)) DEALLOCATE(buff,m_offset)
+    IF(scale_type .EQ. 'M') THEN
+       DEALLOCATE(m_offset)
+       !@@@
+       write(*,*)"refs:", buffer%d%refcount, buffer%d%data_type
+       CALL dbcsr_data_release (buffer)
+       CALL dbcsr_data_clear_pointer (mat_tmp)
+       CALL dbcsr_data_release (mat_tmp)
+    ENDIF
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_scale
+  END SUBROUTINE dbcsr_scale_anytype
 
 
+! *****************************************************************************
+!> \brief Detransposes all blocks in a matrix
+!> \param[in,out] matrix      DBCSR matrix
+! *****************************************************************************
   SUBROUTINE dbcsr_make_untransposed_blocks(matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
 
@@ -2822,18 +2842,23 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[in]    keep_sparsity  (optional) keep the target matrix sparsity;
 !>                              default is False.
 !> \param[in]    shallow_data   (optional) shallow data copy
+!> \param[in]    keep_imaginary  (optional) when copy from complex to real,&
+!>                               the default is to keep only the real part; if
+!>                               this flag is set, the imaginary part is used
 ! *****************************************************************************
   SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, error, keep_sparsity,&
-       shallow_data)
+       shallow_data, keep_imaginary)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
     TYPE(cp_error_type), INTENT(INOUT)       :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity, shallow_data
+    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity, shallow_data, &
+                                                keep_imaginary
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: new_type
     INTEGER                                  :: timing_handle
     LOGICAL                                  :: keep_sparse, shallow
 
@@ -2845,6 +2870,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     keep_sparse = .FALSE.
     IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
 
+    !CALL cp_assert (dbcsr_is_initialized (matrix_b),&
+    !     cp_fatal_level, cp_wrong_args_error, routineN,&
+    !     "Target matrix must be initialized", error=error)
     CALL cp_assert (.not.keep_sparse.or.dbcsr_valid_index(matrix_b),&
          cp_fatal_level, cp_wrong_args_error, routineN,&
          "Target matrix must be valid to keep its sparsity", error=error)
@@ -2855,17 +2883,22 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        IF (PRESENT (name)) matrix_b%m%name = name
        CALL dbcsr_copy_into_existing(matrix_b, matrix_a, error)
     ELSE
+       IF (dbcsr_is_initialized (matrix_b)) THEN
+          new_type = dbcsr_get_data_type (matrix_b)
+       ELSE
+          new_type = dbcsr_get_data_type (matrix_a)
+       ENDIF
        IF(PRESENT(name)) THEN
           CALL dbcsr_create(matrix_b, name, &
                matrix_a%m%dist, matrix_a%m%matrix_type,&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
-               nblks=matrix_a%m%nblks, data_type=matrix_a%m%data_type,&
+               nblks=matrix_a%m%nblks, data_type=new_type,&
                special=matrix_a%m%special_memory, error=error)
        ELSE
           CALL dbcsr_create(matrix_b,'copy of '//matrix_a%m%name, &
                matrix_a%m%dist, matrix_a%m%matrix_type,&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
-               nblks=matrix_a%m%nblks, data_type=matrix_a%m%data_type,&
+               nblks=matrix_a%m%nblks, data_type=new_type,&
                special=matrix_a%m%special_memory, error=error)
        ENDIF
        CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index),&
@@ -2879,8 +2912,20 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                "Source matrix sizes not consistent!", error=error)
           CALL dbcsr_data_ensure_size (matrix_b%m%data_area,&
                dbcsr_get_data_size(matrix_a))
-          CALL dbcsr_data_copyall (matrix_b%m%data_area, matrix_a%m%data_area)
+          IF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_get_data_type(matrix_b))&
+               THEN
+             CALL dbcsr_data_copyall (matrix_b%m%data_area,&
+                  matrix_a%m%data_area)
+          ELSE
+             CALL dbcsr_data_convert (matrix_b%m%data_area,&
+                  matrix_a%m%data_area, drop_real=keep_imaginary)
+          ENDIF
        ELSE
+          CALL cp_assert (dbcsr_get_data_type(matrix_a) &
+               .EQ. dbcsr_get_data_type(matrix_b), cp_fatal_level,&
+               cp_wrong_args_error, routineN,&
+               "Shallow copy only possible when retaining data type.",&
+               error=error)
           CALL dbcsr_data_release (matrix_b%m%data_area)
           matrix_b%m%data_area = matrix_a%m%data_area
           CALL dbcsr_data_hold (matrix_b%m%data_area)

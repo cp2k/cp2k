@@ -33,8 +33,9 @@ MODULE dbcsr_util
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_data_copyall, dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_release, dbcsr_destroy, dbcsr_distribution_col_dist, &
+       dbcsr_data_clear_2d_pointer, dbcsr_data_copyall, dbcsr_data_hold, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_set_2d_pointer, dbcsr_destroy, dbcsr_distribution_col_dist, &
        dbcsr_distribution_hold, dbcsr_distribution_init, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
@@ -56,18 +57,19 @@ MODULE dbcsr_util
        dbcsr_distribution_obj, dbcsr_imagedistribution_type, dbcsr_iterator, &
        dbcsr_magic_number, dbcsr_meta_size, dbcsr_mp_obj, dbcsr_num_slots, &
        dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, &
-       dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, &
-       dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_type_transposed, &
-       dbcsr_work_type
+       dbcsr_repl_row, dbcsr_scalar_type, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
+       dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, &
+       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
+       dbcsr_type_transposed, dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE f77_blas
+  USE f77_blas_generic
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -160,7 +162,8 @@ MODULE dbcsr_util
   ! Ugly fortran hack
   INTERFACE pointer_view
      MODULE PROCEDURE pointer_view_s, pointer_view_d,&
-          pointer_view_c, pointer_view_z
+                      pointer_view_c, pointer_view_z
+     MODULE PROCEDURE pointer_view_a
   END INTERFACE
 
   INTERFACE pointer_set
@@ -187,7 +190,8 @@ MODULE dbcsr_util
   END INTERFACE
 
   INTERFACE dbcsr_assert
-     MODULE PROCEDURE bcsr_assert, dbcsr_int_assert, dbcsr_logical_assert
+     MODULE PROCEDURE bcsr_assert, dbcsr_int_assert, dbcsr_logical_assert,&
+                      dbcsr_not_assert, dbcsr_char_assert
   END INTERFACE
 
   INTERFACE create_bl_distribution
@@ -220,6 +224,8 @@ MODULE dbcsr_util
             dbcsr_create_dist2d_transposed, dbcsr_dist2d_to_dist
   ! Low-level printing
   PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
+  ! Encapsulated data routines
+  PUBLIC :: dbcsr_data_set, dbcsr_data_clear
   ! Utility routines
   PUBLIC :: dbcsr_addto_index_array,&
        addto_array, swap, ensure_array_size,&
@@ -233,13 +239,14 @@ MODULE dbcsr_util
        dbcsr_pack_meta,&
        dbcsr_unpack_i8_2i4,&
        pointer_view, pointer_set, pointer_replace, dbcsr_data_ensure_size,&
-       dbcsr_data_set,&
        dbcsr_use_mutable, dbcsr_wm_use_mutable,&
        convert_sizes_to_offsets, convert_offsets_to_sizes,&
        dbcsr_blk_row_size, dbcsr_blk_column_size,&
        dbcsr_add_wm_from_matrix, absmod
   ! Some higher-level operations
   PUBLIC :: dbcsr_set_diagonal
+  ! BLAS routines
+  PUBLIC :: dbcsr_blas_copy, dbcsr_blas_gemm, dbcsr_blas_scal
 
 
 
@@ -3725,7 +3732,7 @@ CONTAINS
             "dbcsr_int_assert", "Invalid relation specified: "//rel)
     END SELECT
     IF (.NOT. l) THEN
-       WRITE(*,'(1X,A,1X,I9,A,I9)')"ASSERTION FAILED:",&
+       WRITE(*,'(1X,A,1X,I9,A2,I9)')"ASSERTION FAILED:",&
             left, "."//rel//".", right
     ENDIF
     CALL cp_assert(l, cp_fatal_level, cp_internal_error, routine, msg)
@@ -3771,6 +3778,44 @@ CONTAINS
     ENDIF
     CALL cp_assert(l, cp_fatal_level, cp_internal_error, routine, msg)
     END SUBROUTINE dbcsr_logical_assert
+
+! *****************************************************************************
+!> \brief Assertion
+!> \param[in] left            left value
+!> \param[in] rel             relation
+!> \param[in] right           right value
+!> \param[in] level           error level
+!> \param[in] etype           error type
+!> \param[in] routine         Routine name
+!> \param[in] msg   Message to display if the assertion fails
+! *****************************************************************************
+  SUBROUTINE dbcsr_char_assert(left, rel, right, level, etype, routine, msg)
+    CHARACTER, INTENT(IN)                    :: left
+    CHARACTER(len=2), INTENT(IN)             :: rel
+    CHARACTER, INTENT(IN)                    :: right
+    INTEGER, INTENT(IN)                      :: level, etype
+    CHARACTER(len=*), INTENT(IN)             :: routine, msg
+
+    LOGICAL                                  :: l
+
+!   ---------------------------------------------------------------------------
+
+    SELECT CASE (rel)
+    CASE ("EQ")
+       l = left .EQ. right
+    CASE ("NE")
+       l = left .NE. right
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            "dbcsr_char_assert", "Invalid relation specified: "//rel)
+    END SELECT
+    IF (.NOT. l) THEN
+       WRITE(*,'(1X,A,1X,A1,1X,A2,1X,A1)')"ASSERTION FAILED:",&
+            left, "."//rel//".", right
+    ENDIF
+    CALL cp_assert(l, cp_fatal_level, cp_internal_error, routine, msg)
+  END SUBROUTINE dbcsr_char_assert
+
 
 ! *****************************************************************************
 !> \brief Assertion
@@ -5791,6 +5836,90 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Clears a data area
+!> \param[in,out] area   area with encapsulated data
+!> \param[in] lb         (optional) lower bound for clearing
+!> \param[in] ub         (optional) upper bound for clearing
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_clear (area, lb, ub)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: l, u
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (ASSOCIATED(area%d),&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "Data area must be setup.")
+    SELECT CASE (area%d%data_type)
+    CASE (dbcsr_type_real_4)
+       l = LBOUND(area%d%r_sp, 1)
+       u = UBOUND(area%d%r_sp, 1)
+       IF (PRESENT (lb)) THEN
+          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
+               cp_caller_error, routineN, "lower bound too low")
+          l = lb
+       ENDIF
+       IF (PRESENT (ub)) THEN
+          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
+               cp_caller_error, routineN, "upper bound too high")
+          u = ub
+       ENDIF
+       area%d%r_sp(l:u) = 0.0_real_4
+    CASE (dbcsr_type_real_8)
+       l = LBOUND(area%d%r_dp, 1)
+       u = UBOUND(area%d%r_dp, 1)
+       IF (PRESENT (lb)) THEN
+          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
+               cp_caller_error, routineN, "lower bound too low")
+          l = lb
+       ENDIF
+       IF (PRESENT (ub)) THEN
+          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
+               cp_caller_error, routineN, "upper bound too high")
+          u = ub
+       ENDIF
+       area%d%r_dp(l:u) = 0.0_real_8
+    CASE (dbcsr_type_complex_4)
+       l = LBOUND(area%d%c_sp, 1)
+       u = UBOUND(area%d%c_sp, 1)
+       IF (PRESENT (lb)) THEN
+          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
+               cp_caller_error, routineN, "lower bound too low")
+          l = lb
+       ENDIF
+       IF (PRESENT (ub)) THEN
+          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
+               cp_caller_error, routineN, "upper bound too high")
+          u = ub
+       ENDIF
+       area%d%c_sp(l:u) = CMPLX(0.0, real_4)
+    CASE (dbcsr_type_complex_8)
+       l = LBOUND(area%d%c_sp, 1)
+       u = UBOUND(area%d%c_sp, 1)
+       IF (PRESENT (lb)) THEN
+          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
+               cp_caller_error, routineN, "lower bound too low")
+          l = lb
+       ENDIF
+       IF (PRESENT (ub)) THEN
+          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
+               cp_caller_error, routineN, "upper bound too high")
+          u = ub
+       ENDIF
+       area%d%c_sp(l:u) = CMPLX(0.0, real_4)
+    CASE default
+       CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid or unsupported data type.")
+    END SELECT
+  END SUBROUTINE dbcsr_data_clear
+
+
+! *****************************************************************************
 !> \brief Copies metadata into an array.
 !> \param[in] matrix      Matrix
 !> \param[out] meta       Metadata elements
@@ -5913,6 +6042,60 @@ CONTAINS
     IF (ASSOCIATED (original_p)) DEALLOCATE (original_p)
     original_p => new_p
   END SUBROUTINE pointer_replace_i
+
+
+! *****************************************************************************
+!> \brief Repoints a pointer into a part of a data area
+!> \param[in,out] new_area    repoints this encapsulated pointer
+!> \param[in] area            area to point into
+!> \param[in] offset          point to this offset in area
+!> \param[in] len             (optional) length of data area to point to
+!> \result narea2             copy of new_area
+! *****************************************************************************
+  FUNCTION pointer_view_a (new_area, area, offset, len) RESULT (narea2)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: new_area
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER, INTENT(IN)                      :: offset
+    INTEGER, INTENT(IN), OPTIONAL            :: len
+    TYPE(dbcsr_data_obj)                     :: narea2
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pointer_view_a', &
+      routineP = moduleN//':'//routineN
+
+    CALL dbcsr_assert (area%d%data_type, "EQ", new_area%d%data_type,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Incompatible data types.")
+    IF (PRESENT (len)) THEN
+       SELECT CASE (area%d%data_type)
+       CASE (dbcsr_type_real_4)
+          new_area%d%r_sp => area%d%r_sp(offset:offset+len-1)
+       CASE (dbcsr_type_real_8)
+          new_area%d%r_dp => area%d%r_dp(offset:offset+len-1)
+       CASE (dbcsr_type_complex_4)
+          new_area%d%c_sp => area%d%c_sp(offset:offset+len-1)
+       CASE (dbcsr_type_complex_8)
+          new_area%d%c_dp => area%d%c_dp(offset:offset+len-1)
+       CASE default
+          CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+               routineN, "Invalid data type.")
+       END SELECT
+    ELSE
+       SELECT CASE (area%d%data_type)
+       CASE (dbcsr_type_real_4)
+          new_area%d%r_sp => area%d%r_sp(offset:)
+       CASE (dbcsr_type_real_8)
+          new_area%d%r_dp => area%d%r_dp(offset:)
+       CASE (dbcsr_type_complex_4)
+          new_area%d%c_sp => area%d%c_sp(offset:)
+       CASE (dbcsr_type_complex_8)
+          new_area%d%c_dp => area%d%c_dp(offset:)
+       CASE default
+          CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+               routineN, "Invalid data type.")
+       END SELECT
+    ENDIF
+    narea2 = new_area
+  END FUNCTION pointer_view_a
 
 ! *****************************************************************************
 !> \brief Creates a DBCSR distribution from a distribution_2d
@@ -6756,6 +6939,123 @@ CONTAINS
     ENDDO
     numints = current_int - 1
   END SUBROUTINE dbcsr_reblocking_targets
+
+
+!\> Interface to BLAS SCAL
+  SUBROUTINE dbcsr_blas_scal (N, alpha, x, INCX)
+    INTEGER, INTENT(IN)                      :: N
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: x
+    INTEGER, INTENT(IN)                      :: INCX
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_blas_scal', &
+      routineP = moduleN//':'//routineN
+
+    CALL dbcsr_assert (alpha%data_type, "EQ", x%d%data_type,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Incompatible data types")
+    SELECT CASE (alpha%data_type)
+    CASE (dbcsr_type_real_4)
+       CALL BL_SCAL (n, alpha%r_sp, x%d%r_sp, incx)
+    CASE (dbcsr_type_real_8)
+       CALL BL_SCAL (n, alpha%r_dp, x%d%r_dp, incx)
+    CASE (dbcsr_type_complex_4)
+       CALL BL_SCAL (n, alpha%c_sp, x%d%c_sp, incx)
+    CASE (dbcsr_type_complex_8)
+       CALL BL_SCAL (n, alpha%c_dp, x%d%c_dp, incx)
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid data type")
+    END SELECT
+  END SUBROUTINE dbcsr_blas_scal
+
+!\> Interface to BLAS DGEMM
+  SUBROUTINE dbcsr_blas_gemm(TRANSA,TRANSB,&
+       M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+    CHARACTER(LEN=1), INTENT(IN)             :: TRANSA, TRANSB
+    INTEGER, INTENT(IN)                      :: M, N, K
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: a
+    INTEGER, INTENT(IN)                      :: LDA
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: b
+    INTEGER, INTENT(IN)                      :: LDB
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: beta
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: c
+    INTEGER, INTENT(IN)                      :: LDC
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_blas_gemm', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_data_obj)                     :: a_tmp, b_tmp
+
+    CALL dbcsr_assert (alpha%data_type, "EQ", beta%data_type,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Incompatible data types, alpha/beta")
+    CALL dbcsr_assert (alpha%data_type, "EQ", a%d%data_type,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Incompatible data types, alpha, a")
+    CALL dbcsr_assert (alpha%data_type, "EQ", b%d%data_type,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Incompatible data types, alpha, b")
+    CALL dbcsr_assert (alpha%data_type, "EQ", c%d%data_type,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Incompatible data types, alpha, c")
+    a_tmp = a
+    CALL dbcsr_data_set_2d_pointer (a_tmp, lda)
+    b_tmp = b
+    CALL dbcsr_data_set_2d_pointer (b_tmp, ldb)
+    CALL dbcsr_data_set_2d_pointer (c, ldc)
+    SELECT CASE (alpha%data_type)
+    CASE (dbcsr_type_real_4)
+       CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%r_sp,&
+            a%d%r2_sp, LDA, b%d%r2_sp, LDB, beta%r_sp, c%d%r2_sp, LDC)
+    CASE (dbcsr_type_real_8)
+       CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%r_dp,&
+            a%d%r2_dp, LDA, b%d%r2_dp, LDB, beta%r_dp, c%d%r2_dp, LDC)
+    CASE (dbcsr_type_complex_4)
+       CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%c_sp,&
+            a%d%c2_sp, LDA, b%d%c2_sp, LDB, beta%c_sp, c%d%c2_sp, LDC)
+    CASE (dbcsr_type_complex_8)
+       CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%c_dp,&
+            a%d%c2_dp, LDA, b%d%c2_dp, LDB, beta%c_dp, c%d%c2_dp, LDC)
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid data type")
+    END SELECT
+    CALL dbcsr_data_clear_2d_pointer (a_tmp)
+    CALL dbcsr_data_clear_2d_pointer (b_tmp)
+    CALL dbcsr_data_clear_2d_pointer (c)
+  END SUBROUTINE dbcsr_blas_gemm
+
+  SUBROUTINE dbcsr_blas_copy(N,X,INCX,Y,INCY)
+    INTEGER, INTENT(IN)                      :: N
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: x
+    INTEGER, INTENT(IN)                      :: INCX
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: y
+    INTEGER, INTENT(IN)                      :: INCY
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_blas_copy', &
+      routineP = moduleN//':'//routineN
+
+    CALL dbcsr_assert (x%d%data_type, "EQ", y%d%data_type,&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Incompatible data types")
+    SELECT CASE (x%d%data_type)
+    CASE (dbcsr_type_real_4)
+       CALL BL_COPY (n, x%d%r_sp, incx, y%d%r_sp, incy)
+    CASE (dbcsr_type_real_8)
+       CALL BL_COPY (n, x%d%r_dp, incx, y%d%r_dp, incy)
+    CASE (dbcsr_type_complex_4)
+       CALL BL_COPY (n, x%d%c_sp, incx, y%d%c_sp, incy)
+    CASE (dbcsr_type_complex_8)
+       CALL BL_COPY (n, x%d%c_dp, incx, y%d%c_dp, incy)
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid data type")
+    END SELECT
+  END SUBROUTINE dbcsr_blas_copy
+
+
 
 
 ! *****************************************************************************

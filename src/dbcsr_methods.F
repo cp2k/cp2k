@@ -31,13 +31,14 @@ MODULE dbcsr_methods
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_iterator, dbcsr_magic_number, &
-       dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_scalar_type, &
+       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_symmetric
   USE distribution_2d_types,           ONLY: distribution_2d_release
   USE f77_blas
+  USE f77_blas_generic
   USE kinds,                           ONLY: default_string_length,&
                                              real_4,&
                                              real_8
@@ -55,6 +56,7 @@ MODULE dbcsr_methods
 
   PUBLIC :: dbcsr_init, dbcsr_hold, dbcsr_release, dbcsr_destroy,&
             dbcsr_valid_index, dbcsr_is_initialized
+  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release
   PUBLIC :: dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
@@ -78,7 +80,9 @@ MODULE dbcsr_methods
             dbcsr_uses_special_memory, dbcsr_get_occupation
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
-            dbcsr_data_set_pointer, dbcsr_data_area
+            dbcsr_data_set_pointer, dbcsr_data_area, dbcsr_data_convert,&
+            dbcsr_data_clear_pointer, dbcsr_data_set_2d_pointer,&
+            dbcsr_data_clear_2d_pointer
   PUBLIC :: dbcsr_get_num_blocks
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
             dbcsr_get_data_p_d, dbcsr_get_data_p_z
@@ -133,6 +137,16 @@ MODULE dbcsr_methods
      MODULE PROCEDURE set_data_p_2d_s, set_data_p_2d_d,&
                       set_data_p_2d_c, set_data_p_2d_z
      MODULE PROCEDURE set_data_area_area
+  END INTERFACE
+
+  INTERFACE dbcsr_get_data_type
+     MODULE PROCEDURE dbcsr_get_data_type_obj, data_get_data_type
+  END INTERFACE
+
+  !> \brief Encapsulates a scalar.
+  INTERFACE dbcsr_scalar
+     MODULE PROCEDURE dbcsr_scalar_s, dbcsr_scalar_d,&
+                      dbcsr_scalar_c, dbcsr_scalar_z
   END INTERFACE
 
   INTERFACE dbcsr_get_data_p
@@ -1268,7 +1282,17 @@ CONTAINS
     area%d%data_type = data_type
   END SUBROUTINE dbcsr_data_new
 
+! *****************************************************************************
+!> \brief Returns data type of a data area
+!> \param[in] area         data area
+!> \result data_type       data type of the data area
+! *****************************************************************************
+  PURE FUNCTION data_get_data_type (area) RESULT (data_type)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    CHARACTER                                :: data_type
 
+    data_type = area%d%data_type
+  END FUNCTION data_get_data_type
 
 ! *****************************************************************************
 !> \brief Removes a reference and/or clears the data area.
@@ -1360,6 +1384,47 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_data_release
 
+! *****************************************************************************
+!> \brief Clears pointers from the data area.
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_clear_pointer (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear_pointer', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       RETURN
+    ENDIF
+    CALL cp_assert (area%d%refcount .GT. 0, cp_warning_level, cp_caller_error,&
+         routineN, "Data seems to be unreferenced.")
+    SELECT CASE (area%d%data_type)
+    CASE (dbcsr_type_real_4)
+       NULLIFY (area%d%r_sp)
+    CASE (dbcsr_type_real_8)
+       NULLIFY (area%d%r_dp)
+    CASE (dbcsr_type_complex_4)
+       NULLIFY (area%d%c_sp)
+    CASE (dbcsr_type_complex_8)
+       NULLIFY (area%d%c_dp)
+    CASE (dbcsr_type_real_8_2d)
+       NULLIFY (area%d%r2_dp)
+    CASE (dbcsr_type_real_4_2d)
+       NULLIFY (area%d%r2_sp)
+    CASE (dbcsr_type_complex_8_2d)
+       NULLIFY (area%d%c2_dp)
+    CASE (dbcsr_type_complex_4_2d)
+       NULLIFY (area%d%c2_sp)
+    CASE default
+       CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
+            routineN, "Invalid data type.")
+    END SELECT
+  END SUBROUTINE dbcsr_data_clear_pointer
+
+
 
 ! *****************************************************************************
 !> \brief Registers another use of the data area
@@ -1414,12 +1479,12 @@ CONTAINS
 !> \param data_type           data_type (see dbcsr_types.F for possible
 !>                            values)
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_get_data_type (matrix) RESULT (data_type)
+  PURE FUNCTION dbcsr_get_data_type_obj (matrix) RESULT (data_type)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER                                :: data_type
 
     data_type = matrix%m%data_type
-  END FUNCTION dbcsr_get_data_type
+  END FUNCTION dbcsr_get_data_type_obj
 
 ! *****************************************************************************
 !> \brief Returns whether the matrix uses specially-allocated memory
@@ -1591,6 +1656,212 @@ CONTAINS
     ENDIF
     ! If we're releasing the last reference, then free the memory.
   END SUBROUTINE dbcsr_data_copyall
+
+! *****************************************************************************
+!> \brief Copies a data area, converting data type
+!> \param[inout] target_area     target data area
+!> \param[in]    source_area     source data area
+!> \param[in]    drop_real       (optional) drops real part of complex
+!>                               numbers instead of the imaginary part; default
+!>                               is false
+!> \param[in]    multiply_by_i   (optional) converts real to complex by placing
+!>                               into imaginary instead of real part
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_convert (target_area, source_area, drop_real,&
+       multiply_by_i)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: target_area
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: source_area
+    LOGICAL, INTENT(IN), OPTIONAL            :: drop_real, multiply_by_i
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_convert', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: s_data_c, t_data_c
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: s_data_z, t_data_z
+    INTEGER                                  :: n, ns, nt
+    LOGICAL                                  :: keep_real, noimult
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: s_data_r, t_data_r
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: s_data_d, t_data_d
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (ASSOCIATED (source_area%d), cp_warning_level,&
+         cp_caller_error, routineN, "Attempt to copy unassigned data")
+    CALL cp_assert (source_area%d%refcount .GT. 0, cp_warning_level,&
+         cp_caller_error, routineN, "Attempt to copy unheld data")
+    IF (.NOT. ASSOCIATED (source_area%d)) THEN
+       RETURN
+    ENDIF
+    keep_real = .TRUE.
+    IF (PRESENT (drop_real)) keep_real = .NOT. drop_real
+    noimult = .FALSE.
+    IF (PRESENT (multiply_by_i)) noimult = .NOT. multiply_by_i
+    ns = dbcsr_get_data_size (source_area)
+    nt = dbcsr_get_data_size (source_area)
+    n = MIN (ns, nt)
+    IF (n .GT. 0) THEN
+       SELECT CASE (source_area%d%data_type)
+       CASE (dbcsr_type_real_8)
+          CALL dbcsr_get_data (source_area, s_data_d)
+          SELECT CASE (target_area%d%data_type)
+          CASE(dbcsr_type_real_8)
+             CALL dbcsr_get_data (target_area, t_data_d)
+             t_data_d(1:n) = s_data_d(1:n)
+          CASE(dbcsr_type_real_4)
+             CALL dbcsr_get_data (target_area, t_data_r)
+             t_data_r(1:n) = REAL(s_data_d(1:n), KIND=real_4)
+          CASE(dbcsr_type_complex_8)
+             CALL dbcsr_get_data (target_area, t_data_z)
+             IF (noimult) THEN
+                t_data_z(1:n) = CMPLX(s_data_d(1:n), KIND=real_8)
+             ELSE
+                t_data_z(1:n) = CMPLX(0.0, s_data_d(1:n), KIND=real_8)
+             ENDIF
+          CASE(dbcsr_type_complex_4)
+             CALL dbcsr_get_data (target_area, t_data_c)
+             IF (noimult) THEN
+                t_data_c(1:n) = CMPLX(s_data_d(1:n), KIND=real_8)
+             ELSE
+                t_data_c(1:n) = CMPLX(0.0, s_data_d(1:n), KIND=real_8)
+             ENDIF
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
+                  routineN, "Invalid data type")
+          END SELECT
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_get_data (source_area, s_data_r)
+          SELECT CASE (target_area%d%data_type)
+          CASE(dbcsr_type_real_8)
+             CALL dbcsr_get_data (target_area, t_data_d)
+             t_data_d(1:n) = REAL(s_data_r(1:n), KIND=real_8)
+          CASE(dbcsr_type_real_4)
+             CALL dbcsr_get_data (target_area, t_data_r)
+             t_data_r(1:n) = s_data_r(1:n)
+          CASE(dbcsr_type_complex_8)
+             CALL dbcsr_get_data (target_area, t_data_z)
+             IF (noimult) THEN
+                t_data_z(1:n) = CMPLX(s_data_r(1:n), KIND=real_8)
+             ELSE
+                t_data_z(1:n) = CMPLX(0.0, s_data_r(1:n), KIND=real_8)
+             ENDIF
+          CASE(dbcsr_type_complex_4)
+             CALL dbcsr_get_data (target_area, t_data_c)
+             IF (noimult) THEN
+                t_data_c(1:n) = CMPLX(s_data_r(1:n), KIND=real_8)
+             ELSE
+                t_data_c(1:n) = CMPLX(0.0, s_data_r(1:n), KIND=real_8)
+             ENDIF
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
+                  routineN, "Invalid data type")
+          END SELECT
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_get_data (source_area, s_data_z)
+          SELECT CASE (target_area%d%data_type)
+          CASE(dbcsr_type_real_8)
+             CALL dbcsr_get_data (target_area, t_data_d)
+             IF (keep_real) THEN
+                t_data_d(1:n) = REAL(s_data_z(1:n), KIND=real_8)
+             ELSE
+                t_data_d(1:n) = AIMAG(s_data_z(1:n))
+             ENDIF
+          CASE(dbcsr_type_real_4)
+             CALL dbcsr_get_data (target_area, t_data_r)
+             IF (keep_real) THEN
+                t_data_r(1:n) = REAL(s_data_z(1:n), KIND=real_4)
+             ELSE
+                t_data_r(1:n) = REAL(AIMAG (s_data_z(1:n)), KIND=real_4)
+             ENDIF
+          CASE(dbcsr_type_complex_8)
+             CALL dbcsr_get_data (target_area, t_data_z)
+             t_data_z(1:n) = s_data_z(1:n)
+          CASE(dbcsr_type_complex_4)
+             CALL dbcsr_get_data (target_area, t_data_c)
+             t_data_c(1:n) = CMPLX(s_data_z(1:n), KIND=real_8)
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
+                  routineN, "Invalid data type")
+          END SELECT
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_get_data (source_area, s_data_c)
+          SELECT CASE (target_area%d%data_type)
+          CASE(dbcsr_type_real_8)
+             CALL dbcsr_get_data (target_area, t_data_d)
+             IF (keep_real) THEN
+                t_data_d(1:n) = REAL(s_data_c(1:n), KIND=real_8)
+             ELSE
+                t_data_d(1:n) = REAL(AIMAG(s_data_c(1:n)), KIND=real_8)
+             ENDIF
+          CASE(dbcsr_type_real_4)
+             CALL dbcsr_get_data (target_area, t_data_r)
+             IF (keep_real) THEN
+                t_data_r(1:n) = REAL(s_data_c(1:n), KIND=real_4)
+             ELSE
+                t_data_r(1:n) = AIMAG(s_data_c(1:n))
+             ENDIF
+          CASE(dbcsr_type_complex_8)
+             CALL dbcsr_get_data (target_area, t_data_z)
+             t_data_z(1:n) = CMPLX(s_data_c(1:n), KIND=real_8)
+          CASE(dbcsr_type_complex_4)
+             CALL dbcsr_get_data (target_area, t_data_c)
+             t_data_c(1:n) = s_data_c(1:n)
+          CASE default
+             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
+                  routineN, "Invalid data type")
+          END SELECT
+       CASE default
+          CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
+               routineN, "Invalid data type")
+       END SELECT
+    ENDIF
+  END SUBROUTINE dbcsr_data_convert
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar "1"
+!> \param[in] data_type       use the data type
+!> \result one                enpsulated value of one
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_one (data_type) RESULT (one)
+    CHARACTER, INTENT(IN)                    :: data_type
+    TYPE(dbcsr_scalar_type)                  :: one
+
+    one%data_type = data_type
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       one%r_sp = 1.0_real_4
+    CASE (dbcsr_type_real_8)
+       one%r_dp = 1.0_real_8
+    CASE (dbcsr_type_complex_4)
+       one%r_sp = CMPLX(1.0, 0.0, real_4)
+    CASE (dbcsr_type_complex_8)
+       one%r_dp = CMPLX(1.0, 0.0, real_8)
+    END SELECT
+  END FUNCTION dbcsr_scalar_one
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar "0"
+!> \param[in] data_type       use the data type
+!> \result zero               enpsulated value of zero
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_zero (data_type) RESULT (zero)
+    CHARACTER, INTENT(IN)                    :: data_type
+    TYPE(dbcsr_scalar_type)                  :: zero
+
+    zero%data_type = data_type
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       zero%r_sp = 0.0_real_4
+    CASE (dbcsr_type_real_8)
+       zero%r_dp = 0.0_real_8
+    CASE (dbcsr_type_complex_4)
+       zero%r_sp = CMPLX(0.0, 0.0, real_4)
+    CASE (dbcsr_type_complex_8)
+       zero%r_dp = CMPLX(0.0, 0.0, real_8)
+    END SELECT
+  END FUNCTION dbcsr_scalar_zero
+
 
 ! *****************************************************************************
 !> \brief Returns the number of blocks in the matrix
@@ -1983,7 +2254,7 @@ CONTAINS
        transposed, block_number, row_size, col_size, row_offset, col_offset)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
-    TYPE(dbcsr_data_obj), INTENT(OUT)        :: block
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: block
     LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
@@ -2120,7 +2391,7 @@ CONTAINS
           CALL pointer_d_rank_remap2(area%d%r2_dp, rsize, csize,&
                dbcsr_get_data_p_d (pointee, bp, bp+nze-1))
        ELSE
-          area%d%r_dp => dbcsr_get_data_p_d (pointee)
+          area%d%r_dp => dbcsr_get_data_p_d (pointee, bp, bp+nze-1)
        ENDIF
     CASE (dbcsr_type_complex_4_2d)
        area%d%c2_sp => dbcsr_get_data_p_2d_c (pointee)
@@ -2145,6 +2416,99 @@ CONTAINS
             routineN, "Invalid data type")
     END SELECT
   END SUBROUTINE set_data_area_area
+
+
+! *****************************************************************************
+!> \brief Points a 2-d pointer to current 1-d data
+!>
+!> \param[in,out] area         data area to work on
+!> \param[in] rowsize          row size of 2-d data
+!> \param[in] colsize          (optional) column size of 2-d data
+!> \param[in] offset           (optional) offset
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_set_2d_pointer (area, rowsize, colsize, offset)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN)                      :: rowsize
+    INTEGER, INTENT(IN), OPTIONAL            :: colsize, offset
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_set_2d_pointer', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: dt1
+    INTEGER                                  :: bp, csize, nze
+    LOGICAL                                  :: compatible
+
+!   ---------------------------------------------------------------------------
+
+    dt1 = area%d%data_type
+    compatible = dt1 .EQ. dbcsr_type_real_4&
+            .OR. dt1 .EQ. dbcsr_type_real_8&
+            .OR. dt1 .EQ. dbcsr_type_complex_4&
+            .OR. dt1 .EQ. dbcsr_type_complex_8
+    CALL cp_assert (compatible, cp_fatal_level,&
+         cp_wrong_args_error, routineN, "Must target 1-D data")
+    IF (PRESENT (offset)) THEN
+       bp = offset
+       nze = dbcsr_get_data_size (area) - offset + 1
+    ELSE
+       bp = 1
+       nze = dbcsr_get_data_size (area)
+    ENDIF
+    IF (PRESENT (colsize)) THEN
+       csize = colsize
+    ELSE
+       csize = nze / rowsize
+    ENDIF
+    SELECT CASE (dt1)
+    CASE (dbcsr_type_real_4)
+       CALL pointer_s_rank_remap2(area%d%r2_sp, rowsize, csize,&
+            dbcsr_get_data_p_s (area, bp, bp+nze-1))
+    CASE (dbcsr_type_real_8)
+       CALL pointer_d_rank_remap2(area%d%r2_dp, rowsize, csize,&
+            dbcsr_get_data_p_d (area, bp, bp+nze-1))
+    CASE (dbcsr_type_complex_4)
+       CALL pointer_c_rank_remap2(area%d%c2_sp, rowsize, csize,&
+            dbcsr_get_data_p_c (area, bp, bp+nze-1))
+    CASE (dbcsr_type_complex_8)
+       CALL pointer_z_rank_remap2(area%d%c2_dp, rowsize, csize,&
+            dbcsr_get_data_p_z (area, bp, bp+nze-1))
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+            routineN, "Invalid data type")
+    END SELECT
+  END SUBROUTINE dbcsr_data_set_2d_pointer
+
+! *****************************************************************************
+!> \brief Nullifies a 2-d pointer to current 1-d data
+!>
+!> \param[in,out] area         data area to work on
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_clear_2d_pointer (area)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear_2d_pointer', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: dt1
+
+!   ---------------------------------------------------------------------------
+
+    dt1 = area%d%data_type
+    SELECT CASE (dt1)
+    CASE (dbcsr_type_real_4)
+       NULLIFY (area%d%r2_sp)
+    CASE (dbcsr_type_real_8)
+       NULLIFY (area%d%r2_dp)
+    CASE (dbcsr_type_complex_4)
+       NULLIFY (area%d%c2_sp)
+    CASE (dbcsr_type_complex_8)
+       NULLIFY (area%d%c2_dp)
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+            routineN, "Invalid data type")
+    END SELECT
+  END SUBROUTINE dbcsr_data_clear_2d_pointer
+
 
 
 

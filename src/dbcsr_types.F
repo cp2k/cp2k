@@ -35,6 +35,7 @@ MODULE dbcsr_types
 
   PUBLIC :: dbcsr_obj,&
             dbcsr_type,&
+            dbcsr_scalar_type,&
             dbcsr_data_obj,&
             dbcsr_data_area_type,&
             dbcsr_work_type,&
@@ -151,6 +152,25 @@ MODULE dbcsr_types
      INTEGER                            :: row_decimation, col_decimation
      INTEGER                            :: row_multiplicity, col_multiplicity
   END TYPE dbcsr_imagedistribution_type
+
+! *****************************************************************************
+!> \brief Stores a scalar in any of the supported data types.
+!> \par Reasoning
+!>      Easier routine interfaces
+!> \var r_sp        stores real values in single precision
+!> \var r_dp        stores real values in double precision
+!> \var c_sp        stores complex values in single precision
+!> \var c_dp        stores complex values in double precision
+!> \var refcount    reference counter for current structure
+!> \var data_type   which of the data types is actually used
+! *****************************************************************************
+  TYPE dbcsr_scalar_type
+     REAL(KIND=real_4)    :: r_sp
+     REAL(KIND=real_8)    :: r_dp
+     COMPLEX(KIND=real_4) :: c_sp
+     COMPLEX(KIND=real_8) :: c_dp
+     CHARACTER            :: data_type
+  END TYPE dbcsr_scalar_type
 
 
 ! *****************************************************************************
