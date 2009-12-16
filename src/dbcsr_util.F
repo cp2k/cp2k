@@ -21,9 +21,6 @@ MODULE dbcsr_util
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
-                                             btree_destroy_d => btree_delete,&
-                                             btree_size_d => btree_get_entries
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
@@ -124,8 +121,11 @@ MODULE dbcsr_util
   END INTERFACE
 
   INTERFACE addto_array
-     MODULE PROCEDURE addto_array_i, addto_array_d, addto_array_ad,&
-          addto_array_as, addto_array_ac, addto_array_az
+     MODULE PROCEDURE addto_array_i
+     MODULE PROCEDURE addto_array_s, addto_array_d,&
+                      addto_array_c, addto_array_z
+     MODULE PROCEDURE addto_array_as, addto_array_ad,&
+                      addto_array_ac, addto_array_az
   END INTERFACE
 
   INTERFACE ensure_array_size
@@ -135,14 +135,19 @@ MODULE dbcsr_util
   END INTERFACE
 
   INTERFACE dbcsr_block_transpose
-     MODULE PROCEDURE block_transpose_inplace,&
-          block_transpose_copy_d, block_transpose_copy_s,&
-          block_transpose_copy_z, block_transpose_copy_c,&
-          block_transpose_copy_2d1d_d, block_transpose_copy_2d1d_s,&
-          block_transpose_copy_2d1d_z, block_transpose_copy_2d1d_c,&
-          block_transpose_copy_1d2d_d, block_transpose_copy_1d2d_s,&
-          block_transpose_copy_1d2d_z, block_transpose_copy_1d2d_c,&
-          dbcsr_block_transpose_aa
+     MODULE PROCEDURE block_transpose_inplace_s, block_transpose_inplace_d,&
+                      block_transpose_inplace_c, block_transpose_inplace_z
+     MODULE PROCEDURE block_transpose_copy_d, block_transpose_copy_s,&
+                      block_transpose_copy_z, block_transpose_copy_c
+     MODULE PROCEDURE block_transpose_copy_2d1d_d,&
+                      block_transpose_copy_2d1d_s,&
+                      block_transpose_copy_2d1d_z,&
+                      block_transpose_copy_2d1d_c
+     MODULE PROCEDURE block_transpose_copy_1d2d_d,&
+                      block_transpose_copy_1d2d_s,&
+                      block_transpose_copy_1d2d_z,&
+                      block_transpose_copy_1d2d_c
+     MODULE PROCEDURE dbcsr_block_transpose_aa, dbcsr_block_transpose_a
   END INTERFACE
 
   INTERFACE dbcsr_block_copy
@@ -3053,15 +3058,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_addto_index_array', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: deplus, space, timing_handle, &
-                                                ub, ub_new
+    INTEGER                                  :: deplus, space, ub, ub_new
     LOGICAL                                  :: dbg
 
 !   ---------------------------------------------------------------------------
 
     dbg = .FALSE.
-    CALL dbcsr_set_debug(dbg)
-    CALL timeset(routineN, timing_handle)
     CALL cp_assert (ASSOCIATED (matrix%index), cp_fatal_level,&
          cp_internal_error, routineP,&
          "Index must be preallocated.")
@@ -3114,7 +3116,6 @@ CONTAINS
     CALL dbcsr_repoint_index(matrix, slot)
     IF (PRESENT(DATA)) &
          matrix%index(matrix%index(slot):matrix%index(slot+1)) = DATA(:)
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_addto_index_array
 
 
@@ -3200,15 +3201,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_checksum', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: c_sp
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: c_dp
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm
     REAL(KIND=dp)                            :: blk_cs, local_cs
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
     TYPE(cp_error_type)                      :: e
 
     DEBUG_HEADER
@@ -3288,15 +3291,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ssum', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: c_sp
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: c_dp
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm
     REAL(KIND=dp)                            :: blk_cs, local_cs
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3371,16 +3376,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: c_sp
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: c_dp
     INTEGER                                  :: bc, blk, blk_p, br, m, mn, n, &
                                                 timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, &
                                                 row_blk_offset, row_blk_size
     LOGICAL                                  :: my_matlab_format, tr, yesprint
     REAL(KIND=dp)                            :: blk_cs
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3810,7 +3817,7 @@ CONTAINS
             "dbcsr_char_assert", "Invalid relation specified: "//rel)
     END SELECT
     IF (.NOT. l) THEN
-       WRITE(*,'(1X,A,1X,A1,1X,A2,1X,A1)')"ASSERTION FAILED:",&
+       WRITE(*,'(1X,A,1X,A1,1X,A4,1X,A1)')"ASSERTION FAILED:",&
             left, "."//rel//".", right
     ENDIF
     CALL cp_assert(l, cp_fatal_level, cp_internal_error, routine, msg)
@@ -4060,7 +4067,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_p
     INTEGER, DIMENSION(:), INTENT(IN)        :: old_blk_p, sizes
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dsts
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: src
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: src
     TYPE(dbcsr_data_obj), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: srcs
     INTEGER, DIMENSION(:), INTENT(IN), &
@@ -4205,8 +4212,9 @@ CONTAINS
                 CALL dbcsr_data_set (dst, ABS(blk_p(blk)), nze,&
                      src, source_lb=ABS(old_blk_p(blk)))
              ELSE
-                CALL dbcsr_block_transpose (dst, src, ABS(blk_p(blk)),&
-                     col_size, row_size, ABS(old_blk_p(blk)))
+                CALL dbcsr_block_transpose (dst, src,&
+                     col_size, row_size,&
+                     lb=ABS(blk_p(blk)), source_lb=ABS(old_blk_p(blk)))
              ENDIF
              nze_prev = nze
           ENDIF ! blk exists
@@ -4231,16 +4239,13 @@ CONTAINS
     INTEGER                                  :: blk, blk_p, i, nwms, nze, &
                                                 o_blk_p, prev_row, row, &
                                                 smallest, smallest_col, &
-                                                smallest_row, treesize
-    INTEGER(KIND=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: keys
+                                                smallest_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wm_blk_p
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: srt
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: finished, tree_based
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_2d
-    TYPE(btree_2d_data_d), ALLOCATABLE, &
-      DIMENSION(:)                           :: values_d
+
+!### outfactor tree-to-work conversion 
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -4256,51 +4261,19 @@ CONTAINS
     DO i = 1, nwms
        tree_based(i) = dbcsr_wm_use_mutable (matrix%wms(i))
        IF (tree_based(i)) THEN
-          IF (dbg) WRITE(*,'(1X,A,I5,A)')routineN//" Work matrix",i,&
-               " has mutable data"
-          ! srt = .TRUE. ! Not needed because of the copy
-          treesize = btree_size_d(matrix%wms(i)%mutable%m%btree_d)
-          IF (dbg) WRITE(*,*)routineN//" Declared size",matrix%wms(i)%lastblk,&
-               "present blocks",treesize
-          CALL cp_assert(matrix%wms(i)%lastblk .EQ. treesize,&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Mismatch in number of blocks")
-          ALLOCATE (keys(treesize), values_d(treesize))
-          CALL btree_destroy_d (matrix%wms(i)%mutable%m%btree_d, keys, values_d)
-          CALL ensure_array_size (matrix%wms(i)%row_i, ub=treesize)
-          CALL ensure_array_size (matrix%wms(i)%col_i, ub=treesize)
-          CALL dbcsr_unpack_i8_2i4 (keys, matrix%wms(i)%row_i,&
-               matrix%wms(i)%col_i)
-          ! For now we also fill the data, sloooowly, but this should
-          ! be avoided and the data should be copied directly from the
-          ! source in the subroutine's main loop.
-          CALL ensure_array_size (matrix%wms(i)%blk_p, ub=treesize)
-          CALL dbcsr_data_ensure_size (matrix%wms(i)%data_area,&
-               matrix%wms(i)%datasize)
-          blk_p = 1
-          DO blk = 1, treesize
-             block_2d => values_d(blk)%p
-             !write(*,*)"block", blk
-             !write(*,'(10(1X,F5.1))')block_2d
-
-             IF (.NOT. values_d(blk)%tr) THEN
-                matrix%wms(i)%blk_p(blk) = blk_p
-             ELSE
-                matrix%wms(i)%blk_p(blk) = -blk_p
-             ENDIF
-
-             CALL dbcsr_data_set (matrix%wms(i)%data_area, blk_p,&
-                  SIZE(block_2d),&
-                  RESHAPE (block_2d, (/SIZE(block_2d)/)), source_lb=1)
-             blk_p = blk_p + SIZE(block_2d)
-             DEALLOCATE (block_2d)
-          ENDDO
-          DEALLOCATE (keys, values_d)
-          CALL dbcsr_mutable_release (matrix%wms(i)%mutable)
-          !write(*,*)"final data",dbcsr_get_data_size (matrix%wms(i)%data_area),&
-          !     treesize
-          !write(*,'(10(1X,F5.1))')&
-          !dbcsr_get_data_p (matrix%wms(i)%data_area, 0.0_dp)
+          SELECT CASE (matrix%data_type)
+          CASE (dbcsr_type_real_4)
+             CALL tree_to_linear_s (matrix%wms(i))
+          CASE (dbcsr_type_real_8)
+             CALL tree_to_linear_d (matrix%wms(i))
+          CASE (dbcsr_type_complex_4)
+             CALL tree_to_linear_c (matrix%wms(i))
+          CASE (dbcsr_type_complex_8)
+             CALL tree_to_linear_z (matrix%wms(i))
+          CASE default
+             CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+                  routineN, "Invalid data type")
+          END SELECT
        ENDIF
     ENDDO
     FORALL (i = 1:nwms)
@@ -4915,7 +4888,7 @@ CONTAINS
 !> \param[in] divisor         modulo divisor
 !> \result absmod             resulting remainder
 ! *****************************************************************************
-  pure FUNCTION absmod(n, divisor)
+  PURE FUNCTION absmod(n, divisor)
     INTEGER, INTENT(IN)                      :: n, divisor
     INTEGER                                  :: absmod
 
@@ -4945,14 +4918,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: last, lb_t, s_f, s_t, start, &
-                                                timing_handle, ub_t
+                                                ub_t
     LOGICAL                                  :: spec
     REAL                                     :: f
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
     spec = .FALSE.
     IF (PRESENT (special)) spec = special
     s_f = SIZE(from, 1)
@@ -4979,75 +4951,7 @@ CONTAINS
             special=spec, error=error)
     ENDIF
     to(start:last) = from(:)
-    CALL timestop(timing_handle)
   END SUBROUTINE addto_array_i
-
-
-! *****************************************************************************
-!> \brief Copies an array into another array, ensuring that the target array
-!>        large enough.
-!> \par Makes use of FORTRAN's array bounds for array sections.
-!> \param to        array to copy to
-!> \param[in] from  array to copy from
-!> \param[in] offset          starting position in the target array
-!> \param[in] factor          factor for size increase
-!> \param error     cp2k error
-! *****************************************************************************
-  SUBROUTINE addto_array_d(to, from, offset, factor, special, error)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: to
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: from
-    INTEGER, INTENT(IN), OPTIONAL            :: offset
-    REAL, INTENT(IN), OPTIONAL               :: factor
-    LOGICAL, INTENT(IN), OPTIONAL            :: special
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'addto_array_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: last, lb_t, s_f, s_t, start, &
-                                                timing_handle, ub_t
-    LOGICAL                                  :: dbg, spec
-    REAL                                     :: f
-
-!   ---------------------------------------------------------------------------
-
-    dbg = .FALSE.
-    CALL dbcsr_set_debug(dbg)
-    CALL timeset(routineN, timing_handle)
-    spec = .FALSE.
-    IF (PRESENT (special)) spec = special
-    s_f = SIZE(from, 1)
-    IF (dbg) THEN
-       WRITE(*,*)routineP//' from size',SIZE(from),';', SIZE(from,1)
-       WRITE(*,*)routineP//' from lbound',LBOUND(from),';', LBOUND(from,1)
-       WRITE(*,*)routineP//' from ubound',UBOUND(from),';', UBOUND(from,1)
-    ENDIF
-    ub_t = UBOUND(to, 1)
-    lb_t = LBOUND(to, 1)
-    s_t = SIZE(to)
-    start = lb_t
-    IF (PRESENT (offset)) start = offset
-    ! assert offset > lb_t
-    last = start+s_f-1
-    IF(dbg) WRITE(*,*)routineP//' target array bounds',lb_t,':',ub_t,&
-         'starting at',start,'last',last,'source size', s_f
-    IF (ub_t .LT. last) THEN
-       IF (PRESENT (factor)) THEN
-          f = factor
-       ELSE
-          f = 1.4142136
-       ENDIF
-       !ub_t = MAX(lb_t + INT(s_t * f), lb_t+s_f-1)
-       ub_t = MAX(start + INT(s_t * f), last)
-       IF(dbg) WRITE(*,*)routineP//' expanding array from :',UBOUND(to),&
-            'to',ub_t
-       !CALL reallocate(to, lb_t, ub_t)
-       CALL ensure_array_size(to, lb_t, ub_t, factor=1.0, nocopy=.FALSE.,&
-            special=spec)
-    ENDIF
-    to(start:last) = from(:)
-    CALL timestop(timing_handle)
-  END SUBROUTINE addto_array_d
 
 
 ! *****************************************************************************
@@ -5100,7 +5004,6 @@ CONTAINS
     IF (PRESENT (zero_pad)) pad = zero_pad
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
-       !CALL timeset(routineN, timing_handle)
        failure = .FALSE.
        !CPPrecondition(.NOT.docopy, cp_warning_level, routineP, error, failure)
        failure = .TRUE.
@@ -5113,7 +5016,6 @@ CONTAINS
           ALLOCATE(array(lb_new:ub), stat=stat)
        ENDIF
        IF (stat /= 0) CALL stop_memory(routineP, 'array', ub-lb_new+1)
-       !CALL timestop(timing_handle)
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
@@ -5209,7 +5111,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lb_new, lb_orig, osize, stat, &
-                                                timing_handle, ub_new, ub_orig
+                                                ub_new, ub_orig
     INTEGER, DIMENSION(:, :), POINTER        :: newarray
     LOGICAL                                  :: dbg, docopy = .TRUE., &
                                                 failure = .TRUE., info
@@ -5234,7 +5136,6 @@ CONTAINS
        RETURN
     ENDIF
     ! A reallocation must be performed.
-    CALL timeset(routineN,timing_handle)
     IF (lb_orig.GT.lb_new) THEN
        IF (PRESENT(factor)) THEN
           lb_new = MIN(lb_orig, lb_new - NINT(REAL(lb_orig - lb_new)*factor))
@@ -5265,7 +5166,6 @@ CONTAINS
        DEALLOCATE(array)
     END IF
     array => newarray
-    CALL timestop(timing_handle)
   END SUBROUTINE ensure_array_size_i_2d
 
 
@@ -5294,7 +5194,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     dbg = .FALSE.
-    !CALL timeset(routineN, timing_handle)
     matrix%lastblk = matrix%lastblk+1
     CALL ensure_array_size(matrix%row_i, ub=matrix%lastblk)
     CALL ensure_array_size(matrix%col_i, ub=matrix%lastblk)
@@ -5312,41 +5211,7 @@ CONTAINS
        WRITE(*,*)routineP//' blk_p=',matrix%blk_p(1:matrix%lastblk)
     ENDIF
     IF (PRESENT (index)) index = matrix%lastblk
-    !CALL timestop(timing_handle)
   END SUBROUTINE add_work_coordinate
-
-
-!! *****************************************************************************
-!!> \brief Ensures that the data array is appropriately large.
-!!> \param[in,out] matrix      ensure data size of this matrix
-!!> \param[in] size            desired data size
-!!> \param[in] factor          (optional) factor by which to exagerrate
-!!>                            enlargements, default is no exagerration
-!!> \param[in] nocopy          (optional) copy array on enlargement; default
-!!>                            is to copy
-!!> \param error     cp2k error
-!! *****************************************************************************
-!  SUBROUTINE dbcsr_ensure_data_size (matrix, size, factor, nocopy, error)
-!    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-!    INTEGER, INTENT(IN)                      :: size
-!    REAL, INTENT(IN), OPTIONAL               :: factor
-!    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
-!
-!    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ensure_data_size', &
-!      routineP = moduleN//':'//routineN
-!
-!!   ---------------------------------------------------------------------------
-!
-!    CALL ensure_array_size (matrix%data, ub=size, factor=factor, nocopy=nocopy,&
-!         special=matrix%special_memory, error=error)
-!    SELECT CASE (matrix%data_type)
-!    CASE (dbcsr_type_real_8)
-!       CALL ensure_array_size (matrix%data_area%d%r_dp,&
-!            ub=size, factor=factor, nocopy=nocopy,&
-!            special=matrix%data_area%d%special, error=error)
-!    END SELECT
-!  END SUBROUTINE dbcsr_ensure_data_size
 
 
 ! *****************************************************************************
@@ -5640,47 +5505,29 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief In-place block transpose.
-!> \param[in,out] extent      Matrix in the form of a 1-d array
-!> \param[in] rows, columns   Input matrix size
-!> \param error     cp2k error
-! *****************************************************************************
-  PURE SUBROUTINE block_transpose_inplace(extent, rows, columns)
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(INOUT)                          :: extent
-    INTEGER, INTENT(IN)                      :: rows, columns
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_inplace', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    extent = RESHAPE(TRANSPOSE(&
-         RESHAPE(extent, (/rows, columns/))), (/rows*columns/))
-  END SUBROUTINE block_transpose_inplace
-
-! *****************************************************************************
 !> \brief Copy data from one data area to another.
 !>
 !> There are no checks done for correctness!
 !> \param[in] dst        destination data area
 !> \param[in] src        source data area
-!> \param[in] lb         lower bound for destination (and source if
+!> \param[in] row_size   row size of existing block
+!> \param[in] col_size   column size of existing block
+!> \param[in] lb         (optional) lower bound for destination (and source if
 !>                       not given explicity)
-!> \param[in] data_size  number of elements to copy
 !> \param[in] source_lb  (optional) lower bound of source
 ! *****************************************************************************
-  SUBROUTINE dbcsr_block_transpose_aa (dst, src, lb,& 
-       row_size, col_size, source_lb)
+  SUBROUTINE dbcsr_block_transpose_aa (dst, src, & 
+       row_size, col_size, lb, source_lb)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     TYPE(dbcsr_data_obj), INTENT(IN)         :: src
-    INTEGER, INTENT(IN)                      :: lb, row_size, col_size
-    INTEGER, INTENT(IN), OPTIONAL            :: source_lb
+    INTEGER, INTENT(IN)                      :: row_size, col_size
+    INTEGER, INTENT(IN), OPTIONAL            :: lb, source_lb
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_aa', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_size, lb_s, ub, ub_s
+    INTEGER                                  :: data_size, lb_s, lb_t, ub_s, &
+                                                ub_t
 
 !   ---------------------------------------------------------------------------
 
@@ -5695,29 +5542,67 @@ CONTAINS
             cp_warning_level, cp_caller_error, routineN, "Incorrect data type.")
     ENDIF
     data_size = row_size*col_size
-    ub = lb + data_size - 1
+    lb_t = 1
+    IF (PRESENT (lb)) lb_t = lb
+    ub_t = lb_t + data_size - 1
     IF (PRESENT (source_lb)) THEN
        lb_s = source_lb
        ub_s = source_lb + data_size-1
     ELSE
-       lb_s = lb
-       ub_s = ub
+       lb_s = lb_t
+       ub_s = ub_t
     ENDIF
     SELECT CASE (src%d%data_type)
     CASE (dbcsr_type_real_8)
-       CALL dbcsr_block_transpose (dst%d%r_dp(lb:ub), src%d%r_dp(lb_s:ub_s),&
+       CALL dbcsr_block_transpose (dst%d%r_dp(lb_t:ub_t), src%d%r_dp(lb_s:ub_s),&
             row_size, col_size)
     CASE (dbcsr_type_real_4)
-       CALL dbcsr_block_transpose (dst%d%r_sp(lb:ub), src%d%r_sp(lb_s:ub_s),&
+       CALL dbcsr_block_transpose (dst%d%r_sp(lb_t:ub_t), src%d%r_sp(lb_s:ub_s),&
             row_size, col_size)
     CASE (dbcsr_type_complex_8)
-       CALL dbcsr_block_transpose (dst%d%c_dp(lb:ub), src%d%c_dp(lb_s:ub_s),&
+       CALL dbcsr_block_transpose (dst%d%c_dp(lb_t:ub_t), src%d%c_dp(lb_s:ub_s),&
             row_size, col_size)
     CASE (dbcsr_type_complex_4)
-       CALL dbcsr_block_transpose (dst%d%c_sp(lb:ub), src%d%c_sp(lb_s:ub_s),&
+       CALL dbcsr_block_transpose (dst%d%c_sp(lb_t:ub_t), src%d%c_sp(lb_s:ub_s),&
             row_size, col_size)
     END SELECT
   END SUBROUTINE dbcsr_block_transpose_aa
+
+! *****************************************************************************
+!> \brief In-place transpose of encapsulated data
+!>
+!> There are no checks done for correctness!
+!> \param[in] area       encapsulated data area
+!> \param[in] row_size   number of rows in existing block
+!> \param[in] col_size   number of columns in existing block
+! *****************************************************************************
+  SUBROUTINE dbcsr_block_transpose_a (area, row_size, col_size)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN)                      :: row_size, col_size
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_a', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    SELECT CASE (area%d%data_type)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_block_transpose (area%d%r_dp,&
+            row_size, col_size)
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_block_transpose (area%d%r_sp,&
+            row_size, col_size)
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_block_transpose (area%d%c_dp,&
+            row_size, col_size)
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_block_transpose (area%d%c_sp,&
+            row_size, col_size)
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+            routineN, "Invalid data type")
+    END SELECT
+  END SUBROUTINE dbcsr_block_transpose_a
 
 
 ! *****************************************************************************
@@ -5840,10 +5725,13 @@ CONTAINS
 !> \param[in,out] area   area with encapsulated data
 !> \param[in] lb         (optional) lower bound for clearing
 !> \param[in] ub         (optional) upper bound for clearing
+!> \param[in] value      (optional) value to use for clearing
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_clear (area, lb, ub)
+  SUBROUTINE dbcsr_data_clear (area, lb, ub, value)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: value
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear', &
       routineP = moduleN//':'//routineN
@@ -5855,6 +5743,11 @@ CONTAINS
     CALL cp_assert (ASSOCIATED(area%d),&
          cp_fatal_level, cp_caller_error, routineN,&
          "Data area must be setup.")
+    IF (PRESENT (value)) THEN
+       CALL cp_assert (area%d%data_type .EQ. value%data_type,&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Incompatible data types")
+    ENDIF
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_4)
        l = LBOUND(area%d%r_sp, 1)
@@ -5869,7 +5762,11 @@ CONTAINS
                cp_caller_error, routineN, "upper bound too high")
           u = ub
        ENDIF
-       area%d%r_sp(l:u) = 0.0_real_4
+       IF (PRESENT (value)) THEN
+          area%d%r_sp(l:u) = value%r_sp
+       ELSE
+          area%d%r_sp(l:u) = 0.0_real_4
+       ENDIF
     CASE (dbcsr_type_real_8)
        l = LBOUND(area%d%r_dp, 1)
        u = UBOUND(area%d%r_dp, 1)
@@ -5883,7 +5780,11 @@ CONTAINS
                cp_caller_error, routineN, "upper bound too high")
           u = ub
        ENDIF
-       area%d%r_dp(l:u) = 0.0_real_8
+       IF (PRESENT (value)) THEN
+          area%d%r_dp(l:u) = value%r_dp
+       ELSE
+          area%d%r_dp(l:u) = 0.0_real_8
+       ENDIF
     CASE (dbcsr_type_complex_4)
        l = LBOUND(area%d%c_sp, 1)
        u = UBOUND(area%d%c_sp, 1)
@@ -5897,7 +5798,11 @@ CONTAINS
                cp_caller_error, routineN, "upper bound too high")
           u = ub
        ENDIF
-       area%d%c_sp(l:u) = CMPLX(0.0, real_4)
+       IF (PRESENT (value)) THEN
+          area%d%c_sp(l:u) = value%c_sp
+       ELSE
+          area%d%c_sp(l:u) = CMPLX(0.0, real_4)
+       ENDIF
     CASE (dbcsr_type_complex_8)
        l = LBOUND(area%d%c_sp, 1)
        u = UBOUND(area%d%c_sp, 1)
@@ -5911,7 +5816,11 @@ CONTAINS
                cp_caller_error, routineN, "upper bound too high")
           u = ub
        ENDIF
-       area%d%c_sp(l:u) = CMPLX(0.0, real_4)
+       IF (PRESENT (value)) THEN
+          area%d%c_dp(l:u) = value%c_dp
+       ELSE
+          area%d%c_dp(l:u) = CMPLX(0.0, real_8)
+       ENDIF
     CASE default
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error,&
             routineN, "Invalid or unsupported data type.")
@@ -7074,6 +6983,7 @@ CONTAINS
     IF (.FALSE.) THEN
        temp => dbcsr_get_data_p (data_area, 0.0_dp)
        CALL dbcsr_get_info (matrix)
+       CALL dbcsr_mutable_release(matrix%m%wms(0)%mutable)
     ENDIF
   END SUBROUTINE prettify_fooler
 

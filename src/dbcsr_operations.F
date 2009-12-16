@@ -110,14 +110,15 @@ MODULE dbcsr_operations
      MODULE PROCEDURE dbcsr_get_block_p_d, dbcsr_get_block_p_s,&
                       dbcsr_get_block_p_z, dbcsr_get_block_p_c
      MODULE PROCEDURE dbcsr_get_2d_block_p_d, dbcsr_get_2d_block_p_s,&
-                      dbcsr_get_2d_block_p_z, dbcsr_get_2d_block_p_c,&
-                      dbcsr_get_block_p_area
+                      dbcsr_get_2d_block_p_z, dbcsr_get_2d_block_p_c
+     MODULE PROCEDURE dbcsr_get_block_p_area
   END INTERFACE
 
   INTERFACE dbcsr_put_block
+     MODULE PROCEDURE dbcsr_put_block_area
      MODULE PROCEDURE dbcsr_put_block_d, dbcsr_put_block_s,&
-                      dbcsr_put_block_z, dbcsr_put_block_c,&
-                      dbcsr_put_block2d_d, dbcsr_put_block2d_s,&
+                      dbcsr_put_block_z, dbcsr_put_block_c
+     MODULE PROCEDURE dbcsr_put_block2d_d, dbcsr_put_block2d_s,&
                       dbcsr_put_block2d_z, dbcsr_put_block2d_c
   END INTERFACE
 
@@ -147,10 +148,22 @@ MODULE dbcsr_operations
   END INTERFACE
 
   INTERFACE dbcsr_scale
+     MODULE PROCEDURE dbcsr_scale_anytype
      MODULE PROCEDURE dbcsr_scale_s, dbcsr_scale_d,&
                       dbcsr_scale_c, dbcsr_scale_z
      MODULE PROCEDURE dbcsr_scale_s_m, dbcsr_scale_d_m,&
                       dbcsr_scale_c_m, dbcsr_scale_z_m
+  END INTERFACE
+
+  INTERFACE dbcsr_set
+     MODULE PROCEDURE dbcsr_set_anytype
+     MODULE PROCEDURE dbcsr_set_s, dbcsr_set_d, dbcsr_set_c, dbcsr_set_z
+  END INTERFACE
+
+  INTERFACE dbcsr_add
+     MODULE PROCEDURE dbcsr_add_anytype
+     MODULE PROCEDURE dbcsr_add_beta_s, dbcsr_add_beta_d,&
+                      dbcsr_add_beta_c, dbcsr_add_beta_z
   END INTERFACE
 
 
@@ -182,7 +195,7 @@ MODULE dbcsr_operations
      CHARACTER     :: type_a, type_b, type_c
      INTEGER       :: lrows_a, lcols_a, lrows_b, lcols_b, lrows_c, lcols_c
      INTEGER       :: last_k, last_n
-     REAL(KIND=dp) :: alpha, beta
+     TYPE(dbcsr_scalar_type) :: alpha, beta
      INTEGER       :: offset_a, nze_a, offset_b, nze_b, offset_c, nze_c
   END TYPE dgemm_parameters
 
@@ -204,14 +217,15 @@ CONTAINS
 !> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_mult_m_e_e (left_set, right_set, product_matrix,&
-       submatrix_selection, error, retain_sparsity, alpha_d, beta_d, flop)
+       submatrix_selection, error, retain_sparsity, alpha, beta, flop)
     TYPE(dbcsr_2d_array_type), &
       INTENT(INOUT), TARGET                  :: left_set, right_set
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
     INTEGER, DIMENSION(6), INTENT(IN)        :: submatrix_selection
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_d, beta_d
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: alpha, beta
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
@@ -222,6 +236,7 @@ CONTAINS
       '(A,1X,I4,"->",I4,2(1X,"(",I3,"x",I3,")"),1X,"IM (",I3,"x",I3,")"))'
     INTEGER, PARAMETER                       :: idata = 1, imeta = 2
 
+    CHARACTER                                :: data_type
     INTEGER :: debug_level, i, ithread, left_col_image, left_col_mult, &
       left_col_nimages, left_col_v_offset, left_dst_icol, left_dst_irow, &
       left_dst_p, left_dst_pcol, left_dst_prow, left_dst_v_col, &
@@ -259,8 +274,6 @@ CONTAINS
                                                 right_pgrid
     REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
                                                 trun, trun_t, tstart, tstop
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_rp, left_data_sp, &
-                                                right_data_rp, right_data_sp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_2d_array_type), POINTER       :: left_buffer_calc, &
                                                 left_buffer_comm, &
@@ -268,6 +281,8 @@ CONTAINS
                                                 right_buffer_comm
     TYPE(dbcsr_2d_array_type), TARGET        :: left_buffer_1, left_buffer_2, &
                                                 right_buffer_1, right_buffer_2
+    TYPE(dbcsr_data_obj)                     :: left_data_rp, left_data_sp, &
+                                                right_data_rp, right_data_sp
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
                                                 right_mp_obj
 
@@ -292,6 +307,7 @@ CONTAINS
     flop_total = 0
     trun_t = m_walltime ()
     ! Set up variables
+    data_type = dbcsr_get_data_type (product_matrix)
     left_row_nimages =  left_set%image_dist%row_decimation
     left_row_mult =     left_set%image_dist%row_multiplicity
     left_col_nimages =  left_set%image_dist%col_decimation
@@ -471,6 +487,16 @@ CONTAINS
     ALLOCATE (right_data_rr  (right_row_nimages, right_col_mult))
     ALLOCATE (right_index_rr (right_row_nimages, right_col_mult))
     !
+    ! Setup the send/receive data pointers
+    CALL dbcsr_data_init(left_data_sp)
+    CALL dbcsr_data_init(left_data_rp)
+    CALL dbcsr_data_init(right_data_sp)
+    CALL dbcsr_data_init(right_data_rp)
+    CALL dbcsr_data_new(left_data_sp, data_type)
+    CALL dbcsr_data_new(left_data_rp, data_type)
+    CALL dbcsr_data_new(right_data_sp, data_type)
+    CALL dbcsr_data_new(right_data_rp, data_type)
+    !
     ALLOCATE (infos (numnodes-1))
     !
     ! In the first loop iteration, the data is fetched from the
@@ -532,11 +558,16 @@ CONTAINS
                   dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
              !
              right_dst_p = right_pgrid(right_dst_prow, right_dst_pcol)
-             right_data_sp => pointer_view (&
-                  dbcsr_get_data_p (right_buffer_calc%mats(&
-                  v_ki+1, 1&
-                  )%m%data_area, 0.0_dp),&
-                  1, right_sizes(idata, right_dst_v_row, right_dst_v_col))
+             CALL dbcsr_data_set_pointer(&
+                  area=right_data_sp,&
+                  rsize=right_sizes(idata, right_dst_v_row, right_dst_v_col),&
+                  csize=1,&
+                  pointee=right_buffer_calc%mats(v_ki+1, 1)%m%data_area)
+             !right_data_sp => pointer_view (&
+             !     dbcsr_get_data_p (right_buffer_calc%mats(&
+             !     v_ki+1, 1&
+             !     )%m%data_area, 0.0_dp),&
+             !     1, right_sizes(idata, right_dst_v_row, right_dst_v_col))
              right_index_sp => right_buffer_calc%mats(&
                   v_ki+1, 1&
                   )%m%index(1:&
@@ -576,11 +607,16 @@ CONTAINS
              right_src_v_col = dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
              !
              right_src_p = right_pgrid(right_src_prow, right_src_pcol)
-             right_data_rp => pointer_view (&
-                  dbcsr_get_data_p (right_buffer_comm%mats(&
-                     v_ki+1, 1&
-                  )%m%data_area, 0.0_dp),&
-                  1, right_sizes(idata, right_src_v_row, right_src_v_col))
+             CALL dbcsr_data_set_pointer(&
+                  area=right_data_rp,&
+                  rsize=right_sizes(idata, right_src_v_row, right_src_v_col),&
+                  csize=1,&
+                  pointee=right_buffer_comm%mats(v_ki+1, 1)%m%data_area)
+             !right_data_rp => pointer_view (&
+             !     dbcsr_get_data_p (right_buffer_comm%mats(&
+             !        v_ki+1, 1&
+             !     )%m%data_area, 0.0_dp),&
+             !     1, right_sizes(idata, right_src_v_row, right_src_v_col))
              right_index_rp => right_buffer_comm%mats(&
                      v_ki+1, 1&
                   )%m%index(1:&
@@ -613,10 +649,28 @@ CONTAINS
                   right_dst_prow, right_dst_irow,&
                   right_dst_pcol, right_dst_icol,&
                   right_dst_v_row, right_dst_v_col
-             CALL mp_isend (right_data_sp, right_send_p,&
-                  mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-             CALL mp_irecv (right_data_rp, right_recv_p,&
-                  mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+             SELECT CASE (data_type)
+             CASE (dbcsr_type_real_4)
+                CALL mp_isend (right_data_sp%d%r_sp, right_send_p,&
+                     mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                CALL mp_irecv (right_data_rp%d%r_sp, right_recv_p,&
+                     mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+             CASE (dbcsr_type_real_8)
+                CALL mp_isend (right_data_sp%d%r_dp, right_send_p,&
+                     mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                CALL mp_irecv (right_data_rp%d%r_dp, right_recv_p,&
+                     mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+             CASE (dbcsr_type_complex_4)
+                CALL mp_isend (right_data_sp%d%c_sp, right_send_p,&
+                     mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                CALL mp_irecv (right_data_rp%d%c_sp, right_recv_p,&
+                     mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+             CASE (dbcsr_type_complex_8)
+                CALL mp_isend (right_data_sp%d%c_dp, right_send_p,&
+                     mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                CALL mp_irecv (right_data_rp%d%c_dp, right_recv_p,&
+                     mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+             END SELECT
              CALL mp_isend (right_index_sp, right_send_p,&
                   mp_group, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
              CALL mp_irecv (right_index_rp, right_recv_p,&
@@ -682,11 +736,16 @@ CONTAINS
                   "Wrong left dst col image")
              !
              left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
-             left_data_sp => pointer_view (&
-                  dbcsr_get_data_p (left_buffer_calc%mats(&
-                     1, v_ki+1&
-                  )%m%data_area, 0.0_dp),&
-                  1, left_sizes(idata, left_dst_v_row, left_dst_v_col))
+             CALL dbcsr_data_set_pointer(&
+                  area=left_data_sp,&
+                  rsize=left_sizes(idata, left_dst_v_row, left_dst_v_col),&
+                  csize=1,&
+                  pointee=left_buffer_calc%mats(1, v_ki+1)%m%data_area)
+             !left_data_sp => pointer_view (&
+             !     dbcsr_get_data_p (left_buffer_calc%mats(&
+             !        1, v_ki+1&
+             !     )%m%data_area, 0.0_dp),&
+             !     1, left_sizes(idata, left_dst_v_row, left_dst_v_col))
              left_index_sp => left_buffer_calc%mats(&
                      1, v_ki+1&
                   )%m%index(1:&
@@ -729,11 +788,16 @@ CONTAINS
                   "Wrong left src column image")
              !
              left_src_p = left_pgrid (left_src_prow, left_src_pcol)
-             left_data_rp => pointer_view (&
-                  dbcsr_get_data_p (left_buffer_comm%mats(&
-                     1, v_ki+1&
-                  )%m%data_area, 0.0_dp),&
-                  1, left_sizes(idata, left_src_v_row, left_src_v_col))
+             CALL dbcsr_data_set_pointer(&
+                  area=left_data_rp,&
+                  rsize=left_sizes(idata, left_src_v_row, left_src_v_col),&
+                  csize=1,&
+                  pointee=left_buffer_comm%mats(1, v_ki+1)%m%data_area)
+             !left_data_rp => pointer_view (&
+             !     dbcsr_get_data_p (left_buffer_comm%mats(&
+             !        1, v_ki+1&
+             !     )%m%data_area, 0.0_dp),&
+             !     1, left_sizes(idata, left_src_v_row, left_src_v_col))
              left_index_rp => left_buffer_comm%mats(&
                      1, v_ki+1&
                   )%m%index(1:&
@@ -766,10 +830,28 @@ CONTAINS
                   left_dst_prow, left_dst_irow,&
                   left_dst_pcol, left_dst_icol,&
                   left_dst_v_row, left_dst_v_col
-             CALL mp_isend (left_data_sp, left_send_p,&
-                  mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-             CALL mp_irecv (left_data_rp, left_recv_p,&
-                  mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+             SELECT CASE (data_type)
+             CASE (dbcsr_type_real_4)
+                CALL mp_isend (left_data_sp%d%r_sp, left_send_p,&
+                     mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                CALL mp_irecv (left_data_rp%d%r_sp, left_recv_p,&
+                     mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+             CASE (dbcsr_type_real_8)
+                CALL mp_isend (left_data_sp%d%r_dp, left_send_p,&
+                     mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                CALL mp_irecv (left_data_rp%d%r_dp, left_recv_p,&
+                     mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+             CASE (dbcsr_type_complex_4)
+                CALL mp_isend (left_data_sp%d%c_sp, left_send_p,&
+                     mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                CALL mp_irecv (left_data_rp%d%c_sp, left_recv_p,&
+                     mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+             CASE (dbcsr_type_complex_8)
+                CALL mp_isend (left_data_sp%d%c_dp, left_send_p,&
+                     mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                CALL mp_irecv (left_data_rp%d%c_dp, left_recv_p,&
+                     mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+             END SELECT
              CALL mp_isend (left_index_sp, left_send_p,&
                   mp_group, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
              CALL mp_irecv (left_index_rp, left_recv_p,&
@@ -796,7 +878,7 @@ CONTAINS
                   right_buffer_calc%mats(v_ki+1, 1)%m,&
                   product_matrix%m, submatrix_box=submatrix_selection,&
                   retain_sparsity=retain_sparsity,&
-                  alpha_d=alpha_d,&
+                  alpha=alpha,&
                   flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm)
              flop_total = flop_total + flop_single
@@ -840,6 +922,15 @@ CONTAINS
     CALL dbcsr_destroy_array (left_buffer_1)
     CALL dbcsr_destroy_array (left_buffer_2)
     DEALLOCATE (my_sizes)
+    !
+    CALL dbcsr_data_clear_pointer(left_data_sp)
+    CALL dbcsr_data_clear_pointer(left_data_rp)
+    CALL dbcsr_data_clear_pointer(right_data_sp)
+    CALL dbcsr_data_clear_pointer(right_data_rp)
+    CALL dbcsr_data_release(left_data_sp)
+    CALL dbcsr_data_release(left_data_rp)
+    CALL dbcsr_data_release(right_data_sp)
+    CALL dbcsr_data_release(right_data_rp)
     !
     CALL dbcsr_finalize(product_matrix)
     !
@@ -986,7 +1077,7 @@ CONTAINS
 !>                            floating point operations performed
 ! *****************************************************************************
   SUBROUTINE dbcsr_nn_mult_lin(left, right, product, submatrix_box, flop,&
-       retain_sparsity, alpha_d, beta_d,&
+       retain_sparsity, alpha, beta,&
        t_all, t_dgemm)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
@@ -994,17 +1085,14 @@ CONTAINS
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_d, beta_d
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: alpha, beta
     REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult_lin', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: beta_add = 1.0_dp, &
-                                                beta_new = 0.0_dp
 
-    CHARACTER                                :: a_type, b_type
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: left_data_z, right_data_z
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: left_data_c, right_data_c
+    CHARACTER                                :: a_type, b_type, data_type
     INTEGER :: a_blk, a_col, a_col_logical, a_col_size, a_col_size_logical, &
       a_nze, a_offset, a_row, a_row_l, a_row_logical, a_row_size, &
       a_row_size_logical, b_blk, b_col, b_col_logical, b_col_size, &
@@ -1026,18 +1114,22 @@ CONTAINS
       product_col_blk_offset, right_col_blk_offset, right_row_blk_offset
     LOGICAL :: block_exists, found, keep_sparsity, left_limit_rows, limit_k, &
       product_is_symmetric, right_limit_cols, tr_a, tr_b, tr_p
-    REAL(KIND=dp)                            :: epoch, mt_t_dgemm, my_alpha, &
+    REAL(KIND=dp)                            :: epoch, mt_t_dgemm
+    TYPE(dbcsr_scalar_type)                  :: beta_add, beta_new, my_alpha, &
                                                 my_beta, which_beta
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, right_data_d
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: left_data_r, right_data_r
     TYPE(dgemm_parameters), DIMENSION(16)    :: dgemm_parameter_stack
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
-    my_alpha = 1.0_dp ; IF (PRESENT (alpha_d)) my_alpha = alpha_d
-    my_beta = 0.0_dp ; IF (PRESENT (beta_d)) my_beta = beta_d
+    data_type = product%data_type
+    my_alpha = dbcsr_scalar_one (data_type)
+    IF (PRESENT (alpha)) my_alpha = alpha
+    my_beta = dbcsr_scalar_zero (data_type)
+    IF (PRESENT (beta)) my_beta = beta
+    beta_new = dbcsr_scalar_zero (data_type)
+    beta_add = dbcsr_scalar_one (data_type)
     keep_sparsity = .FALSE.
     IF (PRESENT (retain_sparsity)) THEN
        !WRITE(*,*)routineN//" Retaining sparsity!"
@@ -1094,20 +1186,6 @@ CONTAINS
        !write(*,*)routineN//" Limiting k", submatrix_box(5:6)
     ENDIF
     !
-    SELECT CASE (left%data_type)
-    CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (left%data_area, left_data_r)
-       CALL dbcsr_get_data (right%data_area, right_data_r)
-    CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (left%data_area, left_data_d)
-       CALL dbcsr_get_data (right%data_area, right_data_d)
-    CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (left%data_area, left_data_c)
-       CALL dbcsr_get_data (right%data_area, right_data_c)
-    CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (left%data_area, left_data_z)
-       CALL dbcsr_get_data (right%data_area, right_data_z)
-    END SELECT
     c_blk_p = product%wms(ithread+1)%datasize + 1
     DBG 'A rows:',left%nblkrows_total
     old_size = product%wms(ithread+1)%lastblk
@@ -1374,16 +1452,17 @@ CONTAINS
                 ! assert b_col_size_logical .eq. c_col_size_logical
              ENDIF
              IF (a_type .EQ. 'T' .AND. left%sym_negation) THEN
-                dgemm_parameter_stack(stack_pointer)%alpha = -my_alpha
+                dgemm_parameter_stack(stack_pointer)%alpha &
+                     = dbcsr_scalar_negative (my_alpha)
              ELSE
                 dgemm_parameter_stack(stack_pointer)%alpha = my_alpha
              ENDIF
              IF (b_type .EQ. 'T' .AND. right%sym_negation) &
                   dgemm_parameter_stack(stack_pointer)%alpha = &
-                  -dgemm_parameter_stack(stack_pointer)%alpha
+                  dbcsr_scalar_negative (dgemm_parameter_stack(stack_pointer)%alpha)
              IF (tr_p .AND. product%sym_negation) &
                   dgemm_parameter_stack(stack_pointer)%alpha = &
-                  -dgemm_parameter_stack(stack_pointer)%alpha
+                  dbcsr_scalar_negative (dgemm_parameter_stack(stack_pointer)%alpha)
              i = UBOUND (dgemm_parameter_stack,1)
              i = MIN (i, 3*i/4)
              IF (dbg) WRITE(*,*)routineN//" Before merge, stack pointer is at",stack_pointer
@@ -1499,8 +1578,8 @@ CONTAINS
        ENDIF
        IF (params(sp-1)%type_b .EQ. 'N'.AND. params(sp)%type_b .EQ. 'N' &
             .AND. params(sp-1)%type_c .EQ. 'N' .AND. params(sp)%type_c .EQ. 'N'&
-            .AND. params(sp-1)%beta .EQ. params(sp)%beta &
-            .AND. params(sp-1)%alpha .EQ. params(sp)%alpha &
+            .AND. dbcsr_scalar_are_equal(params(sp-1)%beta, params(sp)%beta) &
+            .AND. dbcsr_scalar_are_equal(params(sp-1)%alpha, params(sp)%alpha) &
             .AND. params(sp-1)%lcols_b .EQ. params(sp-1)%last_n &
             .AND. params(sp-1)%lcols_c .EQ. params(sp-1)%last_n &
             .AND. params(sp-1)%offset_a .EQ. params(sp)%offset_a &
@@ -1536,7 +1615,6 @@ CONTAINS
 !> \param[in,out] product_data-area     Data for results
 !> \param[out] lflop           (optional) Number of FLOPs used by DGEMM
 ! *****************************************************************************
-
   SUBROUTINE process_dgemm_stack(params, n,&
        left_data_area, right_data_area, product_data_area, lflop)
     INTEGER, INTENT(IN)                      :: n
@@ -1554,8 +1632,9 @@ CONTAINS
 
     INTEGER                                  :: c, lda, ldb, ldc, maxs, r, sp
     LOGICAL                                  :: do_resize
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: left_data_d, product_data_d, &
-                                                right_data_d
+    TYPE(dbcsr_data_obj)                     :: left_data, product_data, &
+                                                right_data
+    TYPE(dbcsr_scalar_type)                  :: any_zero
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -1578,6 +1657,14 @@ CONTAINS
        CALL dbcsr_data_ensure_size (product_data_area,&
             maxs, factor=resize_factor)
     ENDIF
+    ! Setup encapsulated data area
+    CALL dbcsr_data_init (left_data)
+    CALL dbcsr_data_init (right_data)
+    CALL dbcsr_data_init (product_data)
+    CALL dbcsr_data_new (left_data, left_data_area%d%data_type)
+    CALL dbcsr_data_new (right_data, right_data_area%d%data_type)
+    CALL dbcsr_data_new (product_data, product_data_area%d%data_type)
+    any_zero = dbcsr_scalar_zero(product_data%d%data_type)
     DO sp = 1, n
        IF (dbg) WRITE(*,*)routineN//" Stack pointer", sp
        IF (dbg) CALL print_dgemm_parameters(params(sp))
@@ -1609,44 +1696,66 @@ CONTAINS
           !stop
        ENDIF
 
-
-       product_data_d => pointer_view (dbcsr_get_data_p_d (&
-            product_data_area),&
-            params(sp)%offset_c,&
-            params(sp)%offset_c+params(sp)%nze_c-1)
-       left_data_d => pointer_view (dbcsr_get_data_p_d (&
-            left_data_area),&
-            params(sp)%offset_a,&
-            params(sp)%offset_a+params(sp)%nze_a-1)
-       right_data_d => pointer_view (dbcsr_get_data_p_d (&
-            right_data_area),&
-            params(sp)%offset_b,&
-            params(sp)%offset_b+params(sp)%nze_b-1)
-       IF (dbg) THEN
-          WRITE(*,*)'A'
-          CALL dbcsr_printmat (left_data_d,&
-               params(sp)%lrows_a, params(sp)%lcols_a,&
-               tr=params(sp)%type_a.eq.'T')
-          WRITE(*,*)'B'
-          CALL dbcsr_printmat (right_data_d,&
-               params(sp)%lrows_b, params(sp)%lcols_b,&
-               tr=params(sp)%type_b.eq.'T')
-          WRITE(*,*)'Cin'
-          CALL dbcsr_printmat (product_data_d,&
-               params(sp)%lrows_c, params(sp)%lcols_c,&
-               tr=params(sp)%type_c.eq.'T')
-       ENDIF
+       CALL dbcsr_data_set_pointer (product_data,&
+            rsize=params(sp)%nze_c, csize=1,&
+            source_lb=params(sp)%offset_c,&
+            pointee=product_data_area)
+       CALL dbcsr_data_set_pointer (left_data,&
+            rsize=params(sp)%nze_a, csize=1,&
+            source_lb=params(sp)%offset_a,&
+            pointee=left_data_area)
+       CALL dbcsr_data_set_pointer (right_data,&
+            rsize=params(sp)%nze_b, csize=1,&
+            source_lb=params(sp)%offset_b,&
+            pointee=right_data_area)
+       ! Keep the commented template below if needed for speed
+       !product_data_d => pointer_view (dbcsr_get_data_p_d (&
+       !     product_data_area),&
+       !     params(sp)%offset_c,&
+       !     params(sp)%offset_c+params(sp)%nze_c-1)
+       !left_data_d => pointer_view (dbcsr_get_data_p_d (&
+       !     left_data_area),&
+       !     params(sp)%offset_a,&
+       !     params(sp)%offset_a+params(sp)%nze_a-1)
+       !right_data_d => pointer_view (dbcsr_get_data_p_d (&
+       !     right_data_area),&
+       !     params(sp)%offset_b,&
+       !     params(sp)%offset_b+params(sp)%nze_b-1)
+       !IF (dbg) THEN
+       !   WRITE(*,*)'A'
+       !   CALL dbcsr_printmat (left_data_d,&
+       !        params(sp)%lrows_a, params(sp)%lcols_a,&
+       !        tr=params(sp)%type_a.eq.'T')
+       !   WRITE(*,*)'B'
+       !   CALL dbcsr_printmat (right_data_d,&
+       !        params(sp)%lrows_b, params(sp)%lcols_b,&
+       !        tr=params(sp)%type_b.eq.'T')
+       !   WRITE(*,*)'Cin'
+       !   CALL dbcsr_printmat (product_data_d,&
+       !        params(sp)%lrows_c, params(sp)%lcols_c,&
+       !        tr=params(sp)%type_c.eq.'T')
+       !ENDIF
        ! Avoid nagging compilers
-       IF (params(sp)%beta .EQ. 0.0_dp) THEN
+       IF (dbcsr_scalar_are_equal(params(sp)%beta, any_zero)) THEN
           IF (params(sp)%type_c .EQ. 'N'&
                .OR. params(sp)%last_n .EQ. params(sp)%lcols_c) THEN
-             product_data_d(1&
-                  :params(sp)%lrows_c*params(sp)%last_n) = 0.0_dp
+             CALL dbcsr_data_clear (product_data,&
+                  ub=params(sp)%lrows_c*params(sp)%last_n)
+             !product_data_d(1&
+             !     :params(sp)%lrows_c*params(sp)%last_n) = 0.0_dp
           ELSE
              ! It must be transposed.
-             FORALL (r = 1:params(sp)%lrows_c, c = 1:params(sp)%last_n)
-                product_data_d((r-1)*params(sp)%lcols_c+c) = 0.0_dp
-             END FORALL
+             !### optimize out the inner loop (turn into a range)
+             DO r = 1, params(sp)%lrows_c
+                DO c = 1, params(sp)%last_n
+                   CALL dbcsr_data_clear(product_data,&
+                        lb=(r-1)*params(sp)%lcols_c+c,&
+                        ub=(r-1)*params(sp)%lcols_c+c)
+                ENDDO
+             ENDDO
+             !FORALL (r = 1:params(sp)%lrows_c, c = 1:params(sp)%last_n)
+             !   product_data_d((r-1)*params(sp)%lcols_c+c) = 0.0_dp
+             !END FORALL
           ENDIF
        ENDIF
        IF (params(sp)%type_c .EQ. 'N') THEN
@@ -1667,14 +1776,23 @@ CONTAINS
                params(sp)%lrows_b, params(sp)%lcols_b)
           ldc = select_n_or_t (params(sp)%type_c,&
                params(sp)%lrows_c, params(sp)%lcols_c)
-          CALL DGEMM(params(sp)%type_a, params(sp)%type_b,&
+          CALL dbcsr_blas_gemm(&
+               params(sp)%type_a, params(sp)%type_b,&
                params(sp)%lrows_c, params(sp)%last_n,& !m, n
                params(sp)%last_k,& ! k
                params(sp)%alpha,&
-               left_data_d, lda,&
-               right_data_d, ldb,&
+               left_data, lda,&
+               right_data, ldb,&
                params(sp)%beta,&
-               product_data_d, ldc)
+               product_data, ldc)
+          !CALL DGEMM(params(sp)%type_a, params(sp)%type_b,&
+          !     params(sp)%lrows_c, params(sp)%last_n,& !m, n
+          !     params(sp)%last_k,& ! k
+          !     params(sp)%alpha,&
+          !     left_data_d, lda,&
+          !     right_data_d, ldb,&
+          !     params(sp)%beta,&
+          !     product_data_d, ldc)
           IF (PRESENT (lflop)) &
                lflop = lflop + INT(2, int_8) * &
                INT(params(sp)%lrows_c &
@@ -1698,27 +1816,42 @@ CONTAINS
                params(sp)%lrows_b, params(sp)%lcols_b)
           ldc = select_n_or_t (params(sp)%type_c,&
                params(sp)%lrows_c, params(sp)%lcols_c)
-          CALL DGEMM(flip_type(params(sp)%type_b),&
+          CALL dbcsr_blas_GEMM(flip_type(params(sp)%type_b),&
                flip_type(params(sp)%type_a),&
                params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
                params(sp)%last_k,& ! k
                params(sp)%alpha,&
-               right_data_d, ldb,&
-               left_data_d, lda,&
+               right_data, ldb,&
+               left_data, lda,&
                params(sp)%beta,&
-               product_data_d, ldc)
+               product_data, ldc)
+          !CALL DGEMM(flip_type(params(sp)%type_b),&
+          !     flip_type(params(sp)%type_a),&
+          !     params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
+          !     params(sp)%last_k,& ! k
+          !     params(sp)%alpha,&
+          !     right_data_d, ldb,&
+          !     left_data_d, lda,&
+          !     params(sp)%beta,&
+          !     product_data_d, ldc)
           IF (PRESENT (lflop)) &
                lflop = lflop + INT(2, int_8) * &
                INT(params(sp)%last_n &
                * params(sp)%lcols_c * params(sp)%last_k, int_8)
        ENDIF
-       IF (dbg) THEN
-          WRITE(*,*)'Cout'
-          CALL dbcsr_printmat (product_data_d,&
-               params(sp)%lrows_c, params(sp)%lcols_c,&
-               tr=params(sp)%type_c.eq.'T')
-       ENDIF
+       !IF (dbg) THEN
+       !   WRITE(*,*)'Cout'
+       !   CALL dbcsr_printmat (product_data_d,&
+       !        params(sp)%lrows_c, params(sp)%lcols_c,&
+       !        tr=params(sp)%type_c.eq.'T')
+       !ENDIF
     ENDDO
+    CALL dbcsr_data_clear_pointer (product_data)
+    CALL dbcsr_data_clear_pointer (left_data)
+    CALL dbcsr_data_clear_pointer (right_data)
+    CALL dbcsr_data_release (product_data)
+    CALL dbcsr_data_release (left_data)
+    CALL dbcsr_data_release (right_data)
   END SUBROUTINE process_dgemm_stack
 
   SUBROUTINE print_dgemm_parameters(params)
@@ -1908,151 +2041,151 @@ CONTAINS
   END SUBROUTINE merge_arrays
 
 
-! *****************************************************************************
-!> \brief Adds two DBCSR work matrices
-!> \param[in,out] wm          resulting DBCSR sum work matrix
-!> \param[in] addee           DBCSR work matrix to add to the wm matrix
-!> \param[out] flop           (optional) number of effective double-precision
-!>                            floating point operations performed
-! *****************************************************************************
-  SUBROUTINE dbcsr_wm_add(wm, addee, error, flop)
-    TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
-    TYPE(dbcsr_obj), INTENT(IN)              :: addee
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER, INTENT(OUT), OPTIONAL           :: flop
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_wm_add', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp, &
-                                                beta_add = 1.0_dp, &
-                                                beta_new = 0.0_dp
-
-    CHARACTER                                :: addee_type, sum_type
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: addee_data_z
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: addee_data_c
-    INTEGER :: addee_blk, addee_col, addee_col_size, addee_nze, addee_row, &
-      addee_row_size, ldaddee, ldsum, lflop, sum_blk, sum_blk_p, &
-      sum_col_size, sum_row_size, timing_handle
-    INTEGER, DIMENSION(:), POINTER           :: addee_col_blk_size, &
-                                                addee_row_blk_size
-    REAL(KIND=dp)                            :: tstart, tstop
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: addee_data, addee_data_d, &
-                                                sum_data
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: addee_data_r
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
-    IF (dbg) tstart = m_walltime ()
-    DBG "Doing WM matrix sum",' += ',addee%m%name
-    DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
-    DBG "Addee blk sizes, data", addee%m%nblks, addee%m%nze
-    addee_row_blk_size => array_data (addee%m%row_blk_size)
-    addee_col_blk_size => array_data (addee%m%col_blk_size)
-    SELECT CASE (addee%m%data_type)
-    CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (addee%m%data_area, addee_data_r)
-    CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (addee%m%data_area, addee_data_d)
-    CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (addee%m%data_area, addee_data_c)
-    CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (addee%m%data_area, addee_data_z)
-    END SELECT
-    !
-    ! The algorithm is a follows: go through all of addee's
-    ! blocks. For every block, see if a corresponding block already
-    ! exists in wm. If such a block exists, then add the two
-    ! blocks. In this case, the index does not change. If a
-    ! corresponding block does not exist, then simply add tho new
-    ! block. The data goes to the end of the data array and the index
-    ! information is appended to wm's index structure.
-    !
-    ! c_blk_ps contains the block pointers in the product's current row
-    lflop = 0
-    IF (wm%lastblk .GT. 0 .OR. addee%m%nblks .GT. 0) THEN
-    DO addee_row = 1, addee%m%nblkrows_total
-       DBG 'Addee row', addee_row,' with #cols=',&
-            addee%m%row_p(addee_row+1)-addee%m%row_p(addee_row)
-       ! Find the blocks present in addee_row.
-       addee_row_size = addee_row_blk_size(addee_row)
-       CALL dbcsr_data_ensure_size(wm%data_area,&
-            wm%datasize+addee_row_size*addee%m%nfullcols_total &
-            * MAX(1, (addee%m%nblkrows_total-addee_row)/4))
-       !CALL ensure_array_size(wm%data,&
-       !     ub=wm%datasize+addee_row_size*addee%m%nfullcols_total &
-       !     * MAX(1, (addee%m%nblkrows_total-addee_row)/4), error=error)
-       DO addee_blk = addee%m%row_p(addee_row)+1, addee%m%row_p(addee_row+1)
-          addee_col = addee%m%col_i(addee_blk)
-          DBG 'Addee col', addee_col
-          addee_col_size = addee_col_blk_size(addee_col)
-          addee_nze = addee_row_size * addee_col_size
-          addee_data_d => addee_data_d(ABS(addee%m%blk_p(addee_blk))&
-               :ABS(addee%m%blk_p(addee_blk))+addee_nze-1)
-          !addee_data => addee%m%data(ABS(addee%m%blk_p(addee_blk))&
-          !                   :ABS(addee%m%blk_p(addee_blk))+addee_nze-1)
-          IF (addee%m%blk_p(addee_blk) .LT. 0) THEN
-             addee_type = 'T'; ldaddee = addee_col_size
-          ELSE
-             addee_type = 'N'; ldaddee = addee_row_size
-          ENDIF
-          ! Attempt to find co-lying block in the sum wm matrix.
-          sum_blk_p = 0 ! Signifies colier not present.
-          find_sum_colier: DO sum_blk = 1, wm%lastblk
-             IF (wm%row_i(sum_blk) .EQ. addee_row .AND.&
-                  wm%col_i(sum_blk) .EQ. addee_col) THEN
-                sum_blk_p = wm%blk_p(sum_blk)
-                EXIT find_sum_colier
-             ENDIF
-          ENDDO find_sum_colier
-          ! If the colier is present, then sum the data, otherwise
-          ! augment the wm sum matrix with the data and coordinates.
-          IF (sum_blk_p .GT. 0) THEN
-             sum_data => pointer_view (dbcsr_get_data_p (wm%data_area, 0.0_dp),&
-                  ABS(sum_blk_p), ABS(sum_blk_p)+addee_nze-1)
-             !sum_data => wm%data(&
-             !     ABS(sum_blk_p):ABS(sum_blk_p)+addee_nze-1)
-             IF (wm%blk_p(sum_blk) .LT. 0) THEN
-                sum_type = 'T'; ldsum = sum_col_size
-             ELSE
-                sum_type = 'N'; ldsum = sum_row_size
-             ENDIF
-             IF (sum_type .EQ. addee_type) THEN
-                CALL DAXPY (addee_nze, 1.0_dp, addee_data, 1, sum_data, 1)
-             ELSE
-                CALL DAXPY (addee_nze, 1.0_dp,&
-temp_transpose(addee_data,addee_row_size,addee_col_size),&
-                     1, sum_data, 1)
-             ENDIF
-             lflop = lflop + addee_nze
-          ELSE
-             sum_blk_p = wm%datasize + 1
-             sum_data => pointer_view (dbcsr_get_data_p (wm%data_area, 0.0_dp),&
-                  ABS(sum_blk_p), ABS(sum_blk_p)+addee_nze-1)
-             !sum_data => wm%data(&
-             !     ABS(sum_blk_p):ABS(sum_blk_p)+addee_nze-1)
-             sum_data = addee_data
-             CALL add_work_coordinate(wm, addee_row, addee_col, sum_blk_p,&
-                  error=error)
-             wm%datasize = wm%datasize + addee_nze
-          END IF
-       ENDDO ! addee_blk
-    ENDDO ! addee_row
-    ELSE
-       DBG 'Both matrices were empty!'
-    ENDIF
-    DBG "Post-add blk sizes, data", wm%lastblk, wm%datasize
-    IF (dbg .AND. detailed_timing) THEN
-       tstop = m_walltime ()
-       IF (tstop-tstart .NE. 0) THEN
-          DBG tstop-tstart,'s',&
-               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
-       ENDIF
-    ENDIF
-    IF (PRESENT (flop)) flop = lflop
-    CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_wm_add
+!! *****************************************************************************
+!!> \brief Adds two DBCSR work matrices
+!!> \param[in,out] wm          resulting DBCSR sum work matrix
+!!> \param[in] addee           DBCSR work matrix to add to the wm matrix
+!!> \param[out] flop           (optional) number of effective double-precision
+!!>                            floating point operations performed
+!! *****************************************************************************
+!  SUBROUTINE dbcsr_wm_add(wm, addee, error, flop)
+!    TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
+!    TYPE(dbcsr_obj), INTENT(IN)              :: addee
+!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+!    INTEGER, INTENT(OUT), OPTIONAL           :: flop
+!
+!    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_wm_add', &
+!      routineP = moduleN//':'//routineN
+!    REAL(KIND=dp), PARAMETER                 :: alpha = 1.0_dp, &
+!                                                beta_add = 1.0_dp, &
+!                                                beta_new = 0.0_dp
+!
+!    CHARACTER                                :: addee_type, sum_type
+!    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: addee_data_z
+!    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: addee_data_c
+!    INTEGER :: addee_blk, addee_col, addee_col_size, addee_nze, addee_row, &
+!      addee_row_size, ldaddee, ldsum, lflop, sum_blk, sum_blk_p, &
+!      sum_col_size, sum_row_size, timing_handle
+!    INTEGER, DIMENSION(:), POINTER           :: addee_col_blk_size, &
+!                                                addee_row_blk_size
+!    REAL(KIND=dp)                            :: tstart, tstop
+!    REAL(KIND=dp), DIMENSION(:), POINTER     :: addee_data, addee_data_d, &
+!                                                sum_data
+!    REAL(KIND=sp), DIMENSION(:), POINTER     :: addee_data_r
+!
+!    DEBUG_HEADER
+!!   ---------------------------------------------------------------------------
+!    DEBUG_BODY
+!    CALL timeset(routineN, timing_handle)
+!    IF (dbg) tstart = m_walltime ()
+!    DBG "Doing WM matrix sum",' += ',addee%m%name
+!    DBG "Pre-mult blk sizes, data", wm%lastblk, wm%datasize
+!    DBG "Addee blk sizes, data", addee%m%nblks, addee%m%nze
+!    addee_row_blk_size => array_data (addee%m%row_blk_size)
+!    addee_col_blk_size => array_data (addee%m%col_blk_size)
+!    SELECT CASE (addee%m%data_type)
+!    CASE (dbcsr_type_real_4)
+!       CALL dbcsr_get_data (addee%m%data_area, addee_data_r)
+!    CASE (dbcsr_type_real_8)
+!       CALL dbcsr_get_data (addee%m%data_area, addee_data_d)
+!    CASE (dbcsr_type_complex_4)
+!       CALL dbcsr_get_data (addee%m%data_area, addee_data_c)
+!    CASE (dbcsr_type_complex_8)
+!       CALL dbcsr_get_data (addee%m%data_area, addee_data_z)
+!    END SELECT
+!    !
+!    ! The algorithm is a follows: go through all of addee's
+!    ! blocks. For every block, see if a corresponding block already
+!    ! exists in wm. If such a block exists, then add the two
+!    ! blocks. In this case, the index does not change. If a
+!    ! corresponding block does not exist, then simply add tho new
+!    ! block. The data goes to the end of the data array and the index
+!    ! information is appended to wm's index structure.
+!    !
+!    ! c_blk_ps contains the block pointers in the product's current row
+!    lflop = 0
+!    IF (wm%lastblk .GT. 0 .OR. addee%m%nblks .GT. 0) THEN
+!    DO addee_row = 1, addee%m%nblkrows_total
+!       DBG 'Addee row', addee_row,' with #cols=',&
+!            addee%m%row_p(addee_row+1)-addee%m%row_p(addee_row)
+!       ! Find the blocks present in addee_row.
+!       addee_row_size = addee_row_blk_size(addee_row)
+!       CALL dbcsr_data_ensure_size(wm%data_area,&
+!            wm%datasize+addee_row_size*addee%m%nfullcols_total &
+!            * MAX(1, (addee%m%nblkrows_total-addee_row)/4))
+!       !CALL ensure_array_size(wm%data,&
+!       !     ub=wm%datasize+addee_row_size*addee%m%nfullcols_total &
+!       !     * MAX(1, (addee%m%nblkrows_total-addee_row)/4), error=error)
+!       DO addee_blk = addee%m%row_p(addee_row)+1, addee%m%row_p(addee_row+1)
+!          addee_col = addee%m%col_i(addee_blk)
+!          DBG 'Addee col', addee_col
+!          addee_col_size = addee_col_blk_size(addee_col)
+!          addee_nze = addee_row_size * addee_col_size
+!          addee_data_d => addee_data_d(ABS(addee%m%blk_p(addee_blk))&
+!               :ABS(addee%m%blk_p(addee_blk))+addee_nze-1)
+!          !addee_data => addee%m%data(ABS(addee%m%blk_p(addee_blk))&
+!          !                   :ABS(addee%m%blk_p(addee_blk))+addee_nze-1)
+!          IF (addee%m%blk_p(addee_blk) .LT. 0) THEN
+!             addee_type = 'T'; ldaddee = addee_col_size
+!          ELSE
+!             addee_type = 'N'; ldaddee = addee_row_size
+!          ENDIF
+!          ! Attempt to find co-lying block in the sum wm matrix.
+!          sum_blk_p = 0 ! Signifies colier not present.
+!          find_sum_colier: DO sum_blk = 1, wm%lastblk
+!             IF (wm%row_i(sum_blk) .EQ. addee_row .AND.&
+!                  wm%col_i(sum_blk) .EQ. addee_col) THEN
+!                sum_blk_p = wm%blk_p(sum_blk)
+!                EXIT find_sum_colier
+!             ENDIF
+!          ENDDO find_sum_colier
+!          ! If the colier is present, then sum the data, otherwise
+!          ! augment the wm sum matrix with the data and coordinates.
+!          IF (sum_blk_p .GT. 0) THEN
+!             sum_data => pointer_view (dbcsr_get_data_p (wm%data_area, 0.0_dp),&
+!                  ABS(sum_blk_p), ABS(sum_blk_p)+addee_nze-1)
+!             !sum_data => wm%data(&
+!             !     ABS(sum_blk_p):ABS(sum_blk_p)+addee_nze-1)
+!             IF (wm%blk_p(sum_blk) .LT. 0) THEN
+!                sum_type = 'T'; ldsum = sum_col_size
+!             ELSE
+!                sum_type = 'N'; ldsum = sum_row_size
+!             ENDIF
+!             IF (sum_type .EQ. addee_type) THEN
+!                CALL DAXPY (addee_nze, 1.0_dp, addee_data, 1, sum_data, 1)
+!             ELSE
+!                CALL DAXPY (addee_nze, 1.0_dp,&
+!temp_transpose(addee_data,addee_row_size,addee_col_size),&
+!                     1, sum_data, 1)
+!             ENDIF
+!             lflop = lflop + addee_nze
+!          ELSE
+!             sum_blk_p = wm%datasize + 1
+!             sum_data => pointer_view (dbcsr_get_data_p (wm%data_area, 0.0_dp),&
+!                  ABS(sum_blk_p), ABS(sum_blk_p)+addee_nze-1)
+!             !sum_data => wm%data(&
+!             !     ABS(sum_blk_p):ABS(sum_blk_p)+addee_nze-1)
+!             sum_data = addee_data
+!             CALL add_work_coordinate(wm, addee_row, addee_col, sum_blk_p,&
+!                  error=error)
+!             wm%datasize = wm%datasize + addee_nze
+!          END IF
+!       ENDDO ! addee_blk
+!    ENDDO ! addee_row
+!    ELSE
+!       DBG 'Both matrices were empty!'
+!    ENDIF
+!    DBG "Post-add blk sizes, data", wm%lastblk, wm%datasize
+!    IF (dbg .AND. detailed_timing) THEN
+!       tstop = m_walltime ()
+!       IF (tstop-tstart .NE. 0) THEN
+!          DBG tstop-tstart,'s',&
+!               (REAL(lflop, dp)/1000000.0_dp)/(tstop-tstart),'MFLOPS'
+!       ENDIF
+!    ENDIF
+!    IF (PRESENT (flop)) flop = lflop
+!    CALL timestop(timing_handle)
+!  END SUBROUTINE dbcsr_wm_add
 
 
 ! *****************************************************************************
@@ -2256,7 +2389,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF(scale_type .EQ. 'M') THEN
        DEALLOCATE(m_offset)
        !@@@
-       write(*,*)"refs:", buffer%d%refcount, buffer%d%data_type
+       WRITE(*,*)"refs:", buffer%d%refcount, buffer%d%data_type
        CALL dbcsr_data_release (buffer)
        CALL dbcsr_data_clear_pointer (mat_tmp)
        CALL dbcsr_data_release (mat_tmp)
@@ -2282,29 +2415,43 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
                                                 row_size
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: sym_negation, tr
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
+    TYPE(dbcsr_data_obj)                     :: block_data
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
     rbs => array_data (dbcsr_row_block_sizes (matrix))
     cbs => array_data (dbcsr_col_block_sizes (matrix))
+    CALL dbcsr_data_init (block_data)
+    CALL dbcsr_data_new (block_data, dbcsr_get_data_type(matrix))
     CALL dbcsr_iterator_start (iter, matrix)
     sym_negation = matrix%m%sym_negation
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, r_dp, transposed=tr,&
+       CALL dbcsr_iterator_next_block (iter, row, col, block_data,&
+            transposed=tr,&
             block_number=blk)
        IF (tr) THEN
           row_size = rbs(row)
           col_size = cbs(col)
-          CALL dbcsr_block_transpose(r_dp, col_size, row_size)
+          CALL dbcsr_block_transpose(block_data, col_size, row_size)
           IF (sym_negation) THEN
-             r_dp(:) = -r_dp(:)
+             SELECT CASE (block_data%d%data_type)
+             CASE (dbcsr_type_real_4)
+                block_data%d%r_sp(:) = -block_data%d%r_sp(:)
+             CASE (dbcsr_type_real_8)
+                block_data%d%r_dp(:) = -block_data%d%r_dp(:)
+             CASE (dbcsr_type_complex_4)
+                block_data%d%c_sp(:) = -block_data%d%c_sp(:)
+             CASE (dbcsr_type_complex_8)
+                block_data%d%c_dp(:) = -block_data%d%c_dp(:)
+             END SELECT
           ENDIF
           matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
        ENDIF
     ENDDO
     CALL dbcsr_iterator_stop (iter)
+    CALL dbcsr_data_clear_pointer (block_data)
+    CALL dbcsr_data_release (block_data)
   END SUBROUTINE dbcsr_make_untransposed_blocks
 
 
@@ -2314,42 +2461,36 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[in] alpha           a scalar
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_set(matrix, alpha, error)
+  SUBROUTINE dbcsr_set_anytype(matrix, alpha, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    REAL(dp), INTENT(IN)                     :: alpha
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_anytype', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, row, timing_handle
     LOGICAL                                  :: tr
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
     !
-    !
+    CALL dbcsr_data_init (data_block)
+    CALL dbcsr_data_new (data_block, dbcsr_get_data_type (matrix))
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       SELECT CASE (dbcsr_get_data_type(matrix))
-       !CASE (dbcsr_type_real_4)
-       CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-          data_d(:,:) = alpha
-       !CASE (dbcsr_type_complex_4)
-       !CASE (dbcsr_type_complex_8)
-       CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Only real double precision")
-       END SELECT
+       CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
+       CALL dbcsr_data_clear (data_block, value=alpha)
     ENDDO
     CALL dbcsr_iterator_stop(iter)
-
+    CALL dbcsr_data_clear_pointer (data_block)
+    CALL dbcsr_data_release (data_block)
+    !
     CALL timestop(timing_handle)
-
-  END SUBROUTINE dbcsr_set
+  END SUBROUTINE dbcsr_set_anytype
 
 ! *****************************************************************************
 !> \brief Marks a block for removal from a DBCSR matrix. Handles
@@ -2404,35 +2545,35 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 !> \param[in] beta_scalar    (optional)
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+  SUBROUTINE dbcsr_add_anytype(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    REAL(dp), INTENT(IN), OPTIONAL           :: alpha_scalar, beta_scalar
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: alpha_scalar, beta_scalar
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_anytype', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: data_type
     INTEGER                                  :: blk, col, row, timing_handle
-    LOGICAL                                  :: tr
-    REAL(dp)                                 :: my_alpha_scalar, &
-                                                my_beta_scalar
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    LOGICAL                                  :: do_scale, tr
+    TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_scalar_type)                  :: my_alpha_scalar, &
+                                                my_beta_scalar
 
-!real(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
-!complex(KIND=sp), DIMENSION(:, :), POINTER  :: data_z
-!complex(KIND=dp), DIMENSION(:, :), POINTER  :: data_c
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
     
     IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b)) &
          CALL stop_program(routineN,"data types not consistent")
+    data_type = dbcsr_get_data_type(matrix_a)
     !
-    my_alpha_scalar = 1.0_dp
+    my_alpha_scalar = dbcsr_scalar_one (data_type)
     IF(PRESENT(alpha_scalar)) my_alpha_scalar = alpha_scalar
-    my_beta_scalar = 1.0_dp
+    my_beta_scalar = dbcsr_scalar_one (data_type)
     IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
     !
     ! let's go
@@ -2440,48 +2581,43 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        CALL stop_program(routineN,"matrices not consistent")
     ENDIF
 
-    CALL dbcsr_scale(matrix_a,alpha_scalar=my_alpha_scalar,error=error)
+    do_scale = dbcsr_scalar_are_equal (&
+         my_beta_scalar, dbcsr_scalar_one (data_type))
 
-    IF(my_beta_scalar.NE.0.0_dp) THEN
+    CALL dbcsr_scale(matrix_a,scale_type='S',&
+         alpha_scalar=my_alpha_scalar,error=error)
 
+    IF(.not.dbcsr_scalar_are_equal(my_beta_scalar,&
+                    dbcsr_scalar_zero(data_type))) THEN
+       CALL dbcsr_data_init (data_block)
+       CALL dbcsr_data_new (data_block, data_type)
        CALL dbcsr_iterator_start(iter, matrix_b)
 
        DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-          SELECT CASE (dbcsr_get_data_type(matrix_a))
-          !CASE (dbcsr_type_real_4)
-             !CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
-             !CALL dbcsr_put_block(matrix_a, row, col, data_r)
-          CASE (dbcsr_type_real_8)
-             CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
 
-             IF (my_beta_scalar.EQ.1.0_dp) THEN
-                CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
+             IF (do_scale) THEN
+                CALL dbcsr_put_block(matrix_a, row, col, data_block, tr,&
                      summation=.TRUE.)
              ELSE
-                CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
+                CALL dbcsr_put_block(matrix_a, row, col, data_block, tr,&
                      summation=.TRUE., scale=my_beta_scalar)
              ENDIF
-             !CASE (dbcsr_type_complex_4)
-             !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
-             !   CALL dbcsr_put_block(matrix_a, row, col, data_c)
-             !CASE (dbcsr_type_complex_8)
-             !   CALL dbcsr_iterator_next_block(iter, row, col, data_z, blk)
-             !   CALL dbcsr_put_block(matrix_a, row, col, data_z)
-          CASE DEFAULT
-             CALL cp_unimplemented_error (routineN,"Only real double precision")
-          END SELECT
 
        ENDDO
 
        CALL dbcsr_iterator_stop(iter)
        CALL dbcsr_finalize (matrix_a, error=error)
+       CALL dbcsr_data_clear_pointer (data_block)
+       CALL dbcsr_data_release (data_block)
 
     ENDIF
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_add
+  END SUBROUTINE dbcsr_add_anytype
+
 
 ! *****************************************************************************
 !> \brief Hadamard product
@@ -2498,11 +2634,11 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hadamard_product', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: data_type
     INTEGER                                  :: blk, col, col_size, nze, row, &
                                                 row_size, timing_handle
     LOGICAL                                  :: found, tr_a, tr_b
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: c_data_d
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: a_data_d, b_data_d
+    TYPE(dbcsr_data_obj)                     :: a_data, b_data, c_data
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -2517,22 +2653,38 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
        dbcsr_nblkrows_total(matrix_c).NE.dbcsr_nblkrows_total(matrix_a)) &
        CALL stop_program(routineN,"matrices not consistent")
 
-    ALLOCATE(c_data_d(dbcsr_max_row_size(matrix_a)*dbcsr_max_col_size(matrix_a)))
-    CALL dbcsr_set(matrix_c, 0.0_dp, error=error)
+    data_type = dbcsr_get_data_type(matrix_a)
+    CALL dbcsr_data_init (c_data)
+    CALL dbcsr_data_new (c_data, data_type,&
+         data_size=dbcsr_max_row_size(matrix_a)*dbcsr_max_col_size(matrix_a))
+    CALL dbcsr_set(matrix_c, dbcsr_scalar_zero(data_type), error=error)
+    CALL dbcsr_data_init (a_data)
+    CALL dbcsr_data_new (a_data, data_type)
+    CALL dbcsr_data_init (b_data)
+    CALL dbcsr_data_new (b_data, data_type)
     CALL dbcsr_iterator_start(iter, matrix_a)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix_a))
           !CASE (dbcsr_type_real_4)
        CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, a_data_d, tr_a, blk, &
+          CALL dbcsr_iterator_next_block(iter, row, col, a_data, tr_a, blk, &
                row_size=row_size, col_size=col_size)
           nze = row_size * col_size
-          CALL dbcsr_get_block_p(matrix_b, row, col, b_data_d, tr_b, found)
+          CALL dbcsr_get_block_p(matrix_b, row, col, b_data, tr_b, found)
           IF(tr_a.NEQV.tr_b) &
                CALL stop_program(routineN,"tr not consistent, need to fix that")
           IF(found) THEN
-             c_data_d(1:nze) = a_data_d(1:nze) * b_data_d(1:nze)
-             CALL dbcsr_put_block(matrix_c, row, col, c_data_d, tr_a, &
+             SELECT CASE (data_type)
+             CASE (dbcsr_type_real_4)
+                c_data%d%r_sp(1:nze) = a_data%d%r_sp(1:nze) * b_data%d%r_sp(1:nze)
+             CASE (dbcsr_type_real_8)
+                c_data%d%r_dp(1:nze) = a_data%d%r_dp(1:nze) * b_data%d%r_dp(1:nze)
+             CASE (dbcsr_type_complex_4)
+                c_data%d%c_sp(1:nze) = a_data%d%c_sp(1:nze) * b_data%d%c_sp(1:nze)
+             CASE (dbcsr_type_complex_8)
+                c_data%d%c_dp(1:nze) = a_data%d%c_dp(1:nze) * b_data%d%c_dp(1:nze)
+             END SELECT
+             CALL dbcsr_put_block(matrix_c, row, col, c_data, tr_a, &
                   summation=.FALSE.)
           ENDIF
           !CASE (dbcsr_type_complex_4)
@@ -2544,7 +2696,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_finalize (matrix_c, error=error)
-    DEALLOCATE(c_data_d)
+    CALL dbcsr_data_clear_pointer (c_data)
+    CALL dbcsr_data_clear_pointer (a_data)
+    CALL dbcsr_data_clear_pointer (b_data)
+    CALL dbcsr_data_release (c_data)
+    CALL dbcsr_data_release (a_data)
+    CALL dbcsr_data_release (b_data)
 
     CALL timestop(timing_handle)
 
@@ -2626,7 +2783,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 ! *****************************************************************************
   SUBROUTINE dbcsr_add_on_diag(matrix, alpha_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    REAL(dp), INTENT(IN)                     :: alpha_scalar
+    REAL(KIND=real_8), INTENT(IN)            :: alpha_scalar
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag', &
@@ -2634,7 +2791,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 
     INTEGER                                  :: blk, col, row, timing_handle
     LOGICAL                                  :: tr
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    REAL(kind=real_8), DIMENSION(:, :), &
+      POINTER                                :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -2646,8 +2804,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DO WHILE (dbcsr_iterator_blocks_left(iter))
 
        SELECT CASE (dbcsr_get_data_type(matrix))
-          !CASE (dbcsr_type_real_4)
-          !   CALL dbcsr_iterator_next_block(iter, row, col, data_r, blk)
+       !CASE (dbcsr_type_real_4)
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
           IF(row.EQ.col) CALL block_add_on_diag(SIZE(data_d,1),data_d,alpha_scalar)
@@ -2968,7 +3125,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     LOGICAL :: src_tr, dst_tr
     INTEGER :: dst_row, dst_col, dst_pos, row_size, col_size, rs, cs
     TYPE(dbcsr_iterator) :: src_iter, dst_iter
-    REAL(KIND=dp), DIMENSION(:), POINTER :: src_r_dp, dst_r_dp
+    TYPE(dbcsr_data_obj):: src_data, dst_data
     REAL(kind=dp) :: sm
 
 !   ---------------------------------------------------------------------------
@@ -2981,51 +3138,53 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
          error=error)
     data_type = dbcsr_get_data_type (matrix_b)
 
+    CALL dbcsr_data_init (src_data)
+    CALL dbcsr_data_init (dst_data)
+    CALL dbcsr_data_new (src_data, data_type)
+    CALL dbcsr_data_new (dst_data, data_type)
     CALL dbcsr_iterator_start (src_iter, matrix_a)
     CALL dbcsr_iterator_start (dst_iter, matrix_b)
     ! Iterate through the blocks of the source and destination
     ! matrix. There are three possibilites: 1. copy the data for
     ! blocks present in both; 2 skip source blocks not present in the
     ! target; 3 zero blocks not present in the source.
-    SELECT CASE (data_type)
-    CASE (dbcsr_type_real_8)
-       IF (dbcsr_iterator_blocks_left (src_iter)) THEN
-          CALL dbcsr_iterator_next_block (src_iter, src_row, src_col, src_r_dp,&
-               src_tr)
-       ELSE
-          src_row = 0 ; src_col = 0
-       ENDIF
-    CASE DEFAULT
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-              routineN, "Invalid matrix type")
-    END SELECT
+    IF (dbcsr_iterator_blocks_left (src_iter)) THEN
+       CALL dbcsr_iterator_next_block (src_iter, src_row, src_col, src_data,&
+            src_tr)
+    ELSE
+       src_row = 0 ; src_col = 0
+    ENDIF
     DO WHILE (dbcsr_iterator_blocks_left (dst_iter))
-       CALL dbcsr_iterator_next_block (dst_iter, dst_row, dst_col, dst_r_dp,&
+       CALL dbcsr_iterator_next_block (dst_iter, dst_row, dst_col, dst_data,&
             dst_tr, row_size=row_size, col_size=col_size)
        ! Now find the source position that is greater or equal to the
        ! target one. I.e, skip blocks that the target doesn't have.
        rel = pos_relation (dst_row, dst_col, src_row, src_col)
        DO WHILE (rel .EQ. 1 .AND. dbcsr_iterator_blocks_left (src_iter))
           CALL dbcsr_iterator_next_block (src_iter, src_row, src_col,&
-               src_r_dp, src_tr)
+               src_data, src_tr)
           rel = pos_relation (dst_row, dst_col, src_row, src_col)
        ENDDO
        SELECT CASE (rel)
        CASE (-1, 1)
            ! Target lags source or ran out of source
-          dst_r_dp(:) = 0.0_dp
+          CALL dbcsr_data_clear (dst_data)
+          !dst_r_dp(:) = 0.0_dp
        CASE (0)
           ! Copy the data
-          CALL cp_assert (SIZE (src_r_dp) .EQ. SIZE (dst_r_dp), cp_fatal_level,&
+          CALL cp_assert (dbcsr_get_data_size (src_data)&
+               .EQ. dbcsr_get_data_size (dst_data), cp_fatal_level,&
                cp_internal_error, routineN, "Block sizes not equal!",&
                error=error)
           IF (src_tr .EQV. dst_tr) THEN
-             dst_r_dp(:) = src_r_dp(:)
+             CALL dbcsr_data_copyall (dst_data, src_data)
+             !dst_r_dp(:) = src_r_dp(:)
           ELSE
              rs = row_size
              cs = col_size
              IF (src_tr) CALL swap (rs, cs)
-             CALL dbcsr_block_transpose (dst_r_dp, src_r_dp, rs, cs)
+             CALL dbcsr_block_transpose (dst_data, src_data, rs, cs)
+             !CALL dbcsr_block_transpose (dst_r_dp, src_r_dp, rs, cs)
           ENDIF
        CASE default
           CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
@@ -3034,6 +3193,10 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     END DO
     CALL dbcsr_iterator_stop (src_iter)
     CALL dbcsr_iterator_stop (dst_iter)
+    CALL dbcsr_data_clear_pointer (src_data)
+    CALL dbcsr_data_clear_pointer (dst_data)
+    CALL dbcsr_data_release (src_data)
+    CALL dbcsr_data_release (dst_data)
 
     CALL timestop(timing_handle)
   CONTAINS
@@ -4244,11 +4407,11 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
+    CHARACTER                                :: data_type
     CHARACTER(len=80)                        :: ifmt
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER :: blk, blk_ps, blks, col, dst_p, meta_l, mp_group, numnodes, &
-      nze, row, row_prev, src_p, stored_col_new, stored_row_new, timing_handle
+    INTEGER :: blk, blk_ps, blks, col, col_size, dst_p, meta_l, mp_group, &
+      numnodes, nze, row, row_prev, row_size, src_p, stored_col_new, &
+      stored_row_new, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -4260,11 +4423,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
       row_dist_new, row_dist_old
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
     LOGICAL                                  :: tr
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: recv_data
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
+    TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
+                                                send_data
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
@@ -4285,19 +4445,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CALL cp_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
          cp_warning_level, cp_caller_error, routineN,&
          "Can not redistribute replicated matrix.")
-    SELECT CASE (matrix%m%data_type)
-    CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
-    CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    END SELECT
+    data_type = matrix%m%data_type
     ! Get row and column start and end positions
     ! Old matrix
     dist_old = dbcsr_distribution (matrix)
@@ -4351,13 +4499,14 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     row_prev = 0
     dst_p = -1
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr)
+       CALL dbcsr_iterator_next_block (iter, row, col, blk, tr,&
+            row_size=row_size, col_size=col_size)
        CALL dbcsr_get_stored_coordinates (redist%m,&
             row, col, tr, dst_p)
        IF (dbg) WRITE(*,*)routinen//" Sending",row,col,"to",dst_p
-       nze = SIZE(r_dp)
+       nze = row_size*col_size
        send_count(1, dst_p) = send_count(1, dst_p) + 1
-       send_count(2, dst_p) = send_count(2, dst_p) + SIZE(r_dp)
+       send_count(2, dst_p) = send_count(2, dst_p) + nze
     ENDDO
     CALL dbcsr_iterator_stop (iter)
     DBG 'B'
@@ -4366,14 +4515,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DBG 'send counts',send_count
     DBG 'recv counts',recv_count
     ! Allocate data structures needed for data exchange.
-    ALLOCATE (recv_data(SUM(recv_count(2, :))))
+    CALL dbcsr_data_init (recv_data)
+    CALL dbcsr_data_new (recv_data, data_type, SUM(recv_count(2, :)))
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
-    ALLOCATE (send_data(SUM(send_count(2, :))))
+    CALL dbcsr_data_init (send_data)
+    CALL dbcsr_data_new (send_data, data_type, SUM(send_count(2, :)))
     ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
-    DBG 'send data len',SIZE (send_data)
-    DBG 'send meta len',SIZE (send_meta)
-    DBG 'recv data len',SIZE (recv_data)
-    DBG 'recv meta len',SIZE (recv_meta)
     ! Fill in the meta data structures and copy the data.
     DO dst_p = 0, numnodes-1
        total_send_count(1, dst_p) = send_count (1, dst_p)
@@ -4408,10 +4555,12 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF (dbg) THEN
        WRITE(*,*)'row_blk_size_new',row_blk_size_new
     ENDIF
+    CALL dbcsr_data_init (data_block)
+    CALL dbcsr_data_new (data_block, data_type)
     CALL dbcsr_iterator_start (iter, matrix)
     dst_p = -1
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
+       CALL dbcsr_iterator_next_block (iter, row, col, data_block, tr, blk)
        !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
        CALL dbcsr_get_stored_coordinates (redist%m,&
             row, col, tr, dst_p)
@@ -4422,27 +4571,53 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           send_meta(smp(dst_p)) = row
        ENDIF
        send_meta(smp(dst_p)+1) = col ! new blocked column
-       send_data(sdp(dst_p):sdp(dst_p)+SIZE(r_dp)-1) &
-            = r_dp(:)
-       sdp(dst_p) = sdp(dst_p) + SIZE(r_dp)
+       nze = dbcsr_get_data_size (data_block)
+       CALL dbcsr_data_set (send_data, lb=sdp(dst_p), data_size=nze,&
+            src=data_block, source_lb=1)
+       !send_data(sdp(dst_p):sdp(dst_p)+SIZE(r_dp)-1) &
+       !     = r_dp(:)
+       sdp(dst_p) = sdp(dst_p) + nze
     ENDDO
     CALL dbcsr_iterator_stop (iter)
+    CALL dbcsr_data_clear_pointer (data_block)
     ! Exchange the data and metadata structures.
     DBG 'E'
-    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
-         recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       CALL mp_alltoall(&
+            send_data%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_group)
+    CASE (dbcsr_type_real_8)
+       CALL mp_alltoall(&
+            send_data%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_group)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_alltoall(&
+            send_data%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_group)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_alltoall(&
+            send_data%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_group)
+    END SELECT
+    !CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
+    !     recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
     DBG 'F'
     DBG 'send_meta'
     IF (dbg) WRITE(ifmt,'("(",I2,"(1X,I5))")') metalen
     IF (dbg) WRITE(*,ifmt) send_meta
     DBG 'send_data'
-    IF (dbg) WRITE(*,'(10(1X,F5.2))') send_data
+    !IF (dbg) WRITE(*,'(10(1X,F5.2))') send_data
     CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
     DBG 'recv_meta'
     IF (dbg) WRITE(*,ifmt) recv_meta
     DBG 'recv_data'
-    IF (dbg) WRITE(*,'(10(1X,F5.2))') recv_data
+    !IF (dbg) WRITE(*,'(10(1X,F5.2))') recv_data
     DBG 'G'
     ! Now fill in the data.
     CALL dbcsr_work_create(redist,&
@@ -4463,13 +4638,18 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
           stored_row_new = ABS(row)
           stored_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+1)
           nze = row_blk_size_new(stored_row_new) * col_blk_size_new(stored_col_new)
-          r_dp => recv_data(blk_ps:blk_ps+nze-1)
-          CALL dbcsr_put_block(redist, stored_row_new, stored_col_new, r_dp, tr)
+          !r_dp => recv_data(blk_ps:blk_ps+nze-1)
+          !CALL dbcsr_put_block(redist, stored_row_new, stored_col_new, r_dp, tr)
+          !### this should be changed to be like the make images (i.e., copy data in finalize, not here & now)
+          data_block = pointer_view (data_block, recv_data, blk_ps, nze)
+          CALL dbcsr_put_block(redist, stored_row_new, stored_col_new, data_block, tr)
           blk_ps = blk_ps + nze
           blks = blks + 1
        ENDDO
     ENDDO
     IF (dbg) WRITE(*,*)routineN//" blk_p", redist%m%wms(1)%blk_p
+    CALL dbcsr_data_clear_pointer (data_block)
+    CALL dbcsr_data_release (data_block)
     !
     IF (dbg) THEN
        WRITE(*,*)routineN//" Declared blocks=",redist%m%wms(1)%lastblk,&
@@ -4479,6 +4659,8 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     ENDIF
     DBG 'Finalizing redistribution'
     CALL dbcsr_finalize(redist)
+    CALL dbcsr_data_release (recv_data)
+    CALL dbcsr_data_release (send_data)
     IF (dbg) CALL dbcsr_print (redist)
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
@@ -4486,9 +4668,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     DEALLOCATE(smp); DEALLOCATE(sm_disp)
     DEALLOCATE(rd_disp)
     DEALLOCATE(rm_disp)
-    DEALLOCATE(recv_data)
     DEALLOCATE(recv_meta)
-    DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
     DBG 'Done redistributing'
     CALL timestop(timing_handle)
@@ -5163,7 +5343,7 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
 ! *****************************************************************************
   SUBROUTINE dbcsr_get_block_p_area(matrix,row,col,block,tr,found,&
        row_size, col_size)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: block
     LOGICAL, INTENT(OUT)                     :: tr, found
@@ -5172,13 +5352,9 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_p_area', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, csize, iw, nze, offset, &
+    INTEGER                                  :: blk, csize, nze, offset, &
                                                 rsize, stored_col, stored_row
     LOGICAL                                  :: stored_tr
-    TYPE(btree_2d_data_c)                    :: data_block_c
-    TYPE(btree_2d_data_d)                    :: data_block_d
-    TYPE(btree_2d_data_s)                    :: data_block_s
-    TYPE(btree_2d_data_z)                    :: data_block_z
 
 !   ---------------------------------------------------------------------------
 
@@ -5192,65 +5368,88 @@ temp_transpose(addee_data,addee_row_size,addee_col_size),&
     IF (PRESENT (row_size)) row_size = rsize
     IF (PRESENT (col_size)) col_size = csize
 
+    CALL dbcsr_data_clear_pointer (block)
     IF(found) THEN
        nze = rsize*csize
-       IF(nze.eq.0) THEN
-          found = .FALSE.
-       ELSE
-          CALL dbcsr_data_set_pointer (block, rsize, csize, matrix%m%data_area,&
-               source_lb = offset)
-       ENDIF
+       !IF(nze.eq.0) THEN
+       !   found = .FALSE.
+       !ELSE
+       CALL dbcsr_data_set_pointer (block, rsize, csize, matrix%m%data_area,&
+            source_lb = offset)
+       !ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
-       iw = 1
-!$     iw = omp_get_thread_num()+1
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
-       IF (dbcsr_use_mutable (matrix%m)) THEN
-          IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
-             CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
-                  dbcsr_get_data_type(matrix))
-          ENDIF
-          SELECT CASE (dbcsr_get_data_type(matrix))
-          CASE (dbcsr_type_real_4)
-             CALL btree_get_s (&
-                  matrix%m%wms(iw)%mutable%m%btree_s,&
-                  make_coordinate_tuple(stored_row, stored_col),&
-                  data_block_s, found)
-             IF (found) THEN
-                CALL dbcsr_data_set_pointer (block, data_block_s%p)
-             ENDIF
-          CASE (dbcsr_type_real_8)
-             CALL btree_get_d (&
-                  matrix%m%wms(iw)%mutable%m%btree_d,&
-                  make_coordinate_tuple(stored_row, stored_col),&
-                  data_block_d, found)
-             IF (found) THEN
-                CALL dbcsr_data_set_pointer (block, data_block_d%p)
-             ENDIF
-          CASE (dbcsr_type_complex_4)
-             CALL btree_get_c (&
-                  matrix%m%wms(iw)%mutable%m%btree_c,&
-                  make_coordinate_tuple(stored_row, stored_col),&
-                  data_block_c, found)
-             IF (found) THEN
-                CALL dbcsr_data_set_pointer (block, data_block_c%p)
-             ENDIF
-          CASE (dbcsr_type_complex_8)
-             CALL btree_get_z (&
-                  matrix%m%wms(iw)%mutable%m%btree_z,&
-                  make_coordinate_tuple(stored_row, stored_col),&
-                  data_block_z, found)
-             IF (found) THEN
-                CALL dbcsr_data_set_pointer (block, data_block_z%p)
-             ENDIF
-          CASE default
-             CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-                  routineN, "Invalid data type.")
-          END SELECT
-       ENDIF
+       CALL cp_assert (.NOT.dbcsr_use_mutable (matrix%m), cp_failure_level,&
+            cp_caller_error, routineN,&
+            "Can not retrieve rank-1 block pointers from mutable work matrices.")
     ENDIF
   END SUBROUTINE dbcsr_get_block_p_area
+
+  SUBROUTINE dbcsr_put_block_area(matrix, row, col, block, transposed,&
+       summation, scale)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: row, col
+    TYPE(dbcsr_data_obj)                     :: block
+    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: scale
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_area', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: data_type
+    LOGICAL                                  :: do_scale
+
+    data_type = dbcsr_get_data_type (matrix)
+    do_scale = PRESENT (scale)
+    IF (do_scale) THEN
+       CALL cp_assert (data_type .EQ. scale%data_type, cp_fatal_level,&
+            cp_wrong_args_error, routineN, "Incompatible data types")
+    ENDIF
+    CALL cp_assert (ASSOCIATED (block%d), cp_fatal_level, cp_wrong_args_error,&
+         routineN, "Can only add valid data block!")
+    CALL cp_assert (data_type .EQ. block%d%data_type, cp_fatal_level,&
+         cp_wrong_args_error, routineN, "Incompatible data types")
+    SELECT CASE(data_type)
+    CASE (dbcsr_type_real_4)
+       IF (do_scale) THEN
+          CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, transposed,&
+               summation, scale=scale%r_sp)
+       ELSE
+          CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, transposed,&
+               summation)
+       ENDIF
+    CASE (dbcsr_type_real_8)
+       IF (do_scale) THEN
+          CALL dbcsr_put_block(matrix, row, col, block%d%r_dp, transposed,&
+               summation, scale=scale%r_dp)
+       ELSE
+          CALL dbcsr_put_block(matrix, row, col, block%d%r_dp, transposed,&
+               summation)
+       ENDIF
+    CASE (dbcsr_type_complex_4)
+       IF (do_scale) THEN
+          CALL dbcsr_put_block(matrix, row, col, block%d%c_sp, transposed,&
+               summation, scale=scale%c_sp)
+       ELSE
+          CALL dbcsr_put_block(matrix, row, col, block%d%c_sp, transposed,&
+               summation)
+       ENDIF
+    CASE (dbcsr_type_complex_8)
+       IF (do_scale) THEN
+          CALL dbcsr_put_block(matrix, row, col, block%d%c_dp, transposed,&
+               summation, scale=scale%c_dp)
+       ELSE
+          CALL dbcsr_put_block(matrix, row, col, block%d%c_dp, transposed,&
+               summation)
+       ENDIF
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid data type")
+    END SELECT
+  END SUBROUTINE dbcsr_put_block_area
 
 
 ! *****************************************************************************

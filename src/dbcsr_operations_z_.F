@@ -1001,6 +1001,48 @@
     CALL dbcsr_data_release (enc_alpha_mat)
   END SUBROUTINE dbcsr_scale_z_m
 
+  !> \brief Interface for dbcsr_set
+  SUBROUTINE dbcsr_set_z(matrix, alpha, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha), error)
+  END SUBROUTINE dbcsr_set_z
+
+  !> \brief Interface for dbcsr_add
+  SUBROUTINE dbcsr_add_alpha_z(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha_scalar
+    COMPLEX(kind=real_8), INTENT(IN), OPTIONAL            :: beta_scalar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    IF (PRESENT(beta_scalar)) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(alpha_scalar),&
+            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
+    ELSE
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(alpha_scalar), error=error)
+    ENDIF
+  END SUBROUTINE dbcsr_add_alpha_z
+  !> \brief Interface for dbcsr_add
+  SUBROUTINE dbcsr_add_beta_z(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    COMPLEX(kind=real_8), INTENT(IN), OPTIONAL            :: alpha_scalar
+    COMPLEX(kind=real_8), INTENT(IN)                      :: beta_scalar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    IF (PRESENT(alpha_scalar)) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(alpha_scalar),&
+            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
+    ELSE
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
+    ENDIF
+  END SUBROUTINE dbcsr_add_beta_z
+
+
 #if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 ! *****************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.

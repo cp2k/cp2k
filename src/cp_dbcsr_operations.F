@@ -53,7 +53,8 @@ MODULE cp_dbcsr_operations
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_valid_index
+       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
+       dbcsr_scalar_zero, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
        dbcsr_distribute, dbcsr_filter, dbcsr_get_block, dbcsr_get_block_p, &
@@ -65,8 +66,8 @@ MODULE cp_dbcsr_operations
        dbcsr_2d_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
        dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_normal, &
-       dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_obj, dbcsr_scalar_type, dbcsr_type, dbcsr_type_antisymmetric, &
+       dbcsr_type_normal, dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: &
        add_work_coordinate, convert_sizes_to_offsets, create_bl_distribution, &
        dbcsr_add_wm_from_matrix, dbcsr_checksum, dbcsr_create, &
@@ -84,6 +85,8 @@ MODULE cp_dbcsr_operations
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
+                                             real_4,&
+                                             real_8,&
                                              sp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
@@ -141,13 +144,12 @@ MODULE cp_dbcsr_operations
      MODULE PROCEDURE dbcsr_plus_fm_fm_t_native
   END INTERFACE
 
-  !INTERFACE dbcsr_put_block_node
-  !   MODULE PROCEDURE put_block_node, put_matrix_block
-  !END INTERFACE
-  !
-  !INTERFACE dbcsr_next_block_node
-  !   MODULE PROCEDURE next_block_node
-  !END INTERFACE
+  INTERFACE dbcsr_multiply
+     MODULE PROCEDURE dbcsr_multiply_anytype
+     MODULE PROCEDURE dbcsr_multiply_s, dbcsr_multiply_d,&
+                      dbcsr_multiply_c, dbcsr_multiply_z
+  END INTERFACE
+
 
 !> \brief Emulation of real_matrix_p_type
   TYPE dbcsr_obj_p_type
@@ -320,14 +322,15 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 !> \param[out] flop           (optional) effective flop
 ! *****************************************************************************
-  SUBROUTINE dbcsr_multiply(transa, transb, alpha, matrix_a, matrix_b, &
-       beta, matrix_c, first_row, last_row, first_column, last_column, first_k, last_k,&
+  SUBROUTINE dbcsr_multiply_anytype(transa, transb,&
+       alpha, matrix_a, matrix_b, beta, matrix_c,&
+       first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, error, flop)
     
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
-    REAL(kind=dp), INTENT(IN)                :: alpha
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
-    REAL(kind=dp), INTENT(IN)                :: beta
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: beta
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_column, last_column, &
@@ -337,7 +340,7 @@ CONTAINS
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_anytype', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_col, f_k, f_row, i, l_col, &
@@ -501,11 +504,12 @@ CONTAINS
     IF (PRESENT (retain_sparsity)) keep_sparsity=retain_sparsity
     !
     keep_product_data = keep_sparsity&
-         .OR. beta .NE. 0.0_dp&
+         .OR. .NOT. dbcsr_scalar_are_equal (beta, dbcsr_scalar_zero(beta%data_type))&
          .OR. (l_col .GT. 0 .AND. l_col .LT. dbcsr_nfullcols_total(matrix_c))
     !
-    IF (beta .NE. 1.0_dp .AND. keep_product_data) THEN
-       CALL dbcsr_scale (matrix_c, alpha_scalar=beta, error=error,&
+    IF (.NOT. dbcsr_scalar_are_equal (beta, dbcsr_scalar_one(beta%data_type)) .AND. keep_product_data) THEN
+       CALL dbcsr_scale (matrix_c, scale_type='S',&
+            alpha_scalar=beta, error=error,&
             last_column=last_column)
     ENDIF
     !
@@ -565,7 +569,7 @@ CONTAINS
     my_flop = 0
     CALL dbcsr_mult_m_e_e (m2s_left, m2s_right, product_matrix,&
          (/ f_row, l_row, f_col, l_col, f_k, l_k /),&
-         alpha_d=alpha, beta_d=beta, retain_sparsity=retain_sparsity,&
+         alpha=alpha, beta=beta, retain_sparsity=retain_sparsity,&
          error=error, flop=my_flop)
     IF (PRESENT (flop)) flop = my_flop
     !
@@ -592,7 +596,7 @@ CONTAINS
        WRITE(*,*)routineN//" Product checksum", cs
     ENDIF
     CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_multiply
+  END SUBROUTINE dbcsr_multiply_anytype
 
 
 
@@ -1017,7 +1021,9 @@ CONTAINS
     CALL dbcsr_create (matrix_c, "C", product_dist, dbcsr_type_normal,&
          matrix_a%m%row_blk_size, matrix_b%m%col_blk_size,&
          error=error)
-    CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_a, matrix_b, 0.0_dp, matrix_c,&
+    CALL dbcsr_multiply("N", "N",&
+         dbcsr_scalar(1.0_dp), matrix_a, matrix_b,&
+         dbcsr_scalar(0.0_dp), matrix_c,&
          error=error, flop=flop)
     !CALL dbcsr_multiply("N", "N", matrix_bt, matrix_a, matrix_c,&
     !     dist_result, hint, error)
@@ -1559,8 +1565,8 @@ CONTAINS
        CALL copy_fm_to_dbcsr(fm_in, in)
        CALL copy_fm_to_dbcsr(fm_out, out)
 
-       CALL dbcsr_multiply("N", "N", my_alpha, matrix, in,&
-            my_beta, out, last_column=ncol, error=error)
+       CALL dbcsr_multiply("N", "N", dbcsr_scalar(my_alpha), matrix, in,&
+            dbcsr_scalar(my_beta), out, last_column=ncol, error=error)
 
        CALL copy_dbcsr_to_fm(out, fm_out,error)
 
@@ -1687,14 +1693,14 @@ CONTAINS
        my_alpha = 1.0_dp
        IF(PRESENT (alpha)) my_alpha = alpha
        IF(PRESENT (matrix_g)) THEN
-          CALL dbcsr_multiply("N", "T", my_alpha, mat_v, mat_g,&
-               1.0_dp, sparse_matrix,&
+          CALL dbcsr_multiply("N", "T", dbcsr_scalar(my_alpha), mat_v, mat_g,&
+               dbcsr_scalar (1.0_dp), sparse_matrix,&
                retain_sparsity=.TRUE.,&
                last_k = ncol,&
                error=error)
        ELSE
-          CALL dbcsr_multiply("N", "T", my_alpha, mat_v, mat_v,&
-               1.0_dp, sparse_matrix,&
+          CALL dbcsr_multiply("N", "T", dbcsr_scalar(my_alpha), mat_v, mat_v,&
+               dbcsr_scalar (1.0_dp), sparse_matrix,&
                retain_sparsity=.TRUE.,&
                last_k = ncol,&
                error=error)
@@ -3985,6 +3991,100 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL timestop(timing_handle)
   END SUBROUTINE test_sm
+
+
+! *****************************************************************************
+! Here come the interface callers
+! *****************************************************************************
+  
+  SUBROUTINE dbcsr_multiply_s(transa, transb,&
+       alpha, matrix_a, matrix_b, beta, matrix_c,&
+       first_row, last_row, first_column, last_column, first_k, last_k,&
+       retain_sparsity, error, flop)
+    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
+    REAL(KIND=real_4), INTENT(IN)            :: alpha
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
+    REAL(KIND=real_4), INTENT(IN)            :: beta
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
+    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
+                                                first_column, last_column, &
+                                                first_k, last_k
+    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
+
+    CALL dbcsr_multiply_anytype(transa, transb,&
+         dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
+         first_row, last_row, first_column, last_column, first_k, last_k,&
+         retain_sparsity, error, flop=flop)
+  END SUBROUTINE dbcsr_multiply_s
+  SUBROUTINE dbcsr_multiply_d(transa, transb,&
+       alpha, matrix_a, matrix_b, beta, matrix_c,&
+       first_row, last_row, first_column, last_column, first_k, last_k,&
+       retain_sparsity, error, flop)
+    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
+    REAL(KIND=real_8), INTENT(IN)            :: alpha
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
+    REAL(KIND=real_8), INTENT(IN)            :: beta
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
+    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
+                                                first_column, last_column, &
+                                                first_k, last_k
+    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
+
+    CALL dbcsr_multiply_anytype(transa, transb,&
+         dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
+         first_row, last_row, first_column, last_column, first_k, last_k,&
+         retain_sparsity, error, flop=flop)
+  END SUBROUTINE dbcsr_multiply_d
+  SUBROUTINE dbcsr_multiply_c(transa, transb,&
+       alpha, matrix_a, matrix_b, beta, matrix_c,&
+       first_row, last_row, first_column, last_column, first_k, last_k,&
+       retain_sparsity, error, flop)
+    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
+    COMPLEX(KIND=real_4), INTENT(IN)         :: alpha
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
+    COMPLEX(KIND=real_4), INTENT(IN)         :: beta
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
+    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
+                                                first_column, last_column, &
+                                                first_k, last_k
+    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
+
+    CALL dbcsr_multiply_anytype(transa, transb,&
+         dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
+         first_row, last_row, first_column, last_column, first_k, last_k,&
+         retain_sparsity, error, flop=flop)
+  END SUBROUTINE dbcsr_multiply_c
+  SUBROUTINE dbcsr_multiply_z(transa, transb,&
+       alpha, matrix_a, matrix_b, beta, matrix_c,&
+       first_row, last_row, first_column, last_column, first_k, last_k,&
+       retain_sparsity, error, flop)
+    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
+    COMPLEX(KIND=real_8), INTENT(IN)         :: alpha
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
+    COMPLEX(KIND=real_8), INTENT(IN)         :: beta
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
+    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
+                                                first_column, last_column, &
+                                                first_k, last_k
+    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                               :: flop
+
+    CALL dbcsr_multiply_anytype(transa, transb,&
+         dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
+         first_row, last_row, first_column, last_column, first_k, last_k,&
+         retain_sparsity, error, flop=flop)
+  END SUBROUTINE dbcsr_multiply_z
 
 
 END MODULE cp_dbcsr_operations

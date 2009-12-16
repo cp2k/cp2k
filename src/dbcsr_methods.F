@@ -56,7 +56,8 @@ MODULE dbcsr_methods
 
   PUBLIC :: dbcsr_init, dbcsr_hold, dbcsr_release, dbcsr_destroy,&
             dbcsr_valid_index, dbcsr_is_initialized
-  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero
+  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
+            dbcsr_scalar_are_equal, dbcsr_scalar_negative
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release
   PUBLIC :: dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
@@ -1834,9 +1835,9 @@ CONTAINS
     CASE (dbcsr_type_real_8)
        one%r_dp = 1.0_real_8
     CASE (dbcsr_type_complex_4)
-       one%r_sp = CMPLX(1.0, 0.0, real_4)
+       one%c_sp = CMPLX(1.0, 0.0, real_4)
     CASE (dbcsr_type_complex_8)
-       one%r_dp = CMPLX(1.0, 0.0, real_8)
+       one%c_dp = CMPLX(1.0, 0.0, real_8)
     END SELECT
   END FUNCTION dbcsr_scalar_one
 
@@ -1856,11 +1857,65 @@ CONTAINS
     CASE (dbcsr_type_real_8)
        zero%r_dp = 0.0_real_8
     CASE (dbcsr_type_complex_4)
-       zero%r_sp = CMPLX(0.0, 0.0, real_4)
+       zero%c_sp = CMPLX(0.0, 0.0, real_4)
     CASE (dbcsr_type_complex_8)
-       zero%r_dp = CMPLX(0.0, 0.0, real_8)
+       zero%c_dp = CMPLX(0.0, 0.0, real_8)
     END SELECT
   END FUNCTION dbcsr_scalar_zero
+
+
+! *****************************************************************************
+!> \brief Returns whether an encapsulated scalar is equal to another value
+!> \param[in] s1                    one value
+!> \param[in] s2                    another value
+!> \result are_equal                whether values are equal
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_are_equal (s1, s2) RESULT (are_equal)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: s1, s2
+    LOGICAL                                  :: are_equal
+
+    IF (s1%data_type .NE. s2%data_type) THEN
+       are_equal = .FALSE.
+    ELSE
+       SELECT CASE (s1%data_type)
+       CASE (dbcsr_type_real_4)
+          are_equal = s1%r_sp .EQ. s2%r_sp
+       CASE (dbcsr_type_real_8)
+          are_equal = s1%r_dp .EQ. s2%r_dp
+       CASE (dbcsr_type_complex_4)
+          are_equal = s1%c_sp .EQ. s2%c_sp
+       CASE (dbcsr_type_complex_8)
+          are_equal = s1%c_dp .EQ. s2%c_dp
+       CASE default
+          are_equal = .FALSE.
+       END SELECT
+    ENDIF
+  END FUNCTION dbcsr_scalar_are_equal
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar as a negation of the given
+!> \param[in] v                    given value
+!> \result negated                 negated value
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_negative (s) RESULT (negated)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: s
+    TYPE(dbcsr_scalar_type)                  :: negated
+
+    negated%data_type = s%data_type
+    SELECT CASE (s%data_type)
+    CASE (dbcsr_type_real_4)
+       negated%r_sp = -s%r_sp
+    CASE (dbcsr_type_real_8)
+       negated%r_dp = -s%r_dp
+    CASE (dbcsr_type_complex_4)
+       negated%c_sp = -s%c_sp
+    CASE (dbcsr_type_complex_8)
+       negated%c_dp = -s%c_dp
+    CASE default
+       negated = dbcsr_scalar_zero (s%data_type)
+    END SELECT
+  END FUNCTION dbcsr_scalar_negative
+
 
 
 ! *****************************************************************************

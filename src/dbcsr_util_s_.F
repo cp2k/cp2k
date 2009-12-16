@@ -268,6 +268,26 @@
   END SUBROUTINE block_transpose_copy_1d2d_s
 
 
+! *****************************************************************************
+!> \brief In-place block transpose.
+!> \param[in,out] extent      Matrix in the form of a 1-d array
+!> \param[in] rows, columns   Input matrix size
+!> \param error     cp2k error
+! *****************************************************************************
+  PURE SUBROUTINE block_transpose_inplace_s(extent, rows, columns)
+    REAL(kind=real_4), DIMENSION(:), &
+      INTENT(INOUT)                          :: extent
+    INTEGER, INTENT(IN)                      :: rows, columns
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_inplace_s', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    extent = RESHAPE(TRANSPOSE(&
+         RESHAPE(extent, (/rows, columns/))), (/rows*columns/))
+  END SUBROUTINE block_transpose_inplace_s
+
 
 ! *****************************************************************************
 !> \brief Copy data from a double real array to a data area
@@ -522,4 +542,141 @@
     ENDIF
     to%d%r_sp(start:last) = from(:)
   END SUBROUTINE addto_array_as
+
+! *****************************************************************************
+!> \brief Copies an array into another array, ensuring that the target array
+!>        is large enough.
+!> \par Makes use of FORTRAN's array bounds for array sections.
+!> \param to        array to copy to
+!> \param[in] from  array to copy from
+!> \param[in] offset          starting position in the target array
+!> \param[in] factor          factor for size increase
+!> \param error     cp2k error
+! *****************************************************************************
+  SUBROUTINE addto_array_s(to, from, offset, factor, special, error)
+    REAL(kind=real_4), DIMENSION(:), POINTER           :: to
+    REAL(kind=real_4), DIMENSION(:), INTENT(IN)        :: from
+    INTEGER, INTENT(IN), OPTIONAL            :: offset
+    REAL, INTENT(IN), OPTIONAL               :: factor
+    LOGICAL, INTENT(IN), OPTIONAL            :: special
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'addto_array_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: last, lb_t, s_f, s_t, start, &
+                                                ub_t
+    LOGICAL                                  :: dbg, spec
+    REAL                                     :: f
+
+!   ---------------------------------------------------------------------------
+
+    dbg = .FALSE.
+    CALL dbcsr_set_debug(dbg)
+    spec = .FALSE.
+    IF (PRESENT (special)) spec = special
+    s_f = SIZE(from, 1)
+    IF (dbg) THEN
+       WRITE(*,*)routineP//' from size',SIZE(from),';', SIZE(from,1)
+       WRITE(*,*)routineP//' from lbound',LBOUND(from),';', LBOUND(from,1)
+       WRITE(*,*)routineP//' from ubound',UBOUND(from),';', UBOUND(from,1)
+    ENDIF
+    ub_t = UBOUND(to, 1)
+    lb_t = LBOUND(to, 1)
+    s_t = SIZE(to)
+    start = lb_t
+    IF (PRESENT (offset)) start = offset
+    ! assert offset > lb_t
+    last = start+s_f-1
+    IF(dbg) WRITE(*,*)routineP//' target array bounds',lb_t,':',ub_t,&
+         'starting at',start,'last',last,'source size', s_f
+    IF (ub_t .LT. last) THEN
+       IF (PRESENT (factor)) THEN
+          f = factor
+       ELSE
+          f = 1.4142136
+       ENDIF
+       !ub_t = MAX(lb_t + INT(s_t * f), lb_t+s_f-1)
+       ub_t = MAX(start + INT(s_t * f), last)
+       IF(dbg) WRITE(*,*)routineP//' expanding array from :',UBOUND(to),&
+            'to',ub_t
+       !CALL reallocate(to, lb_t, ub_t)
+       CALL ensure_array_size(to, lb_t, ub_t, factor=1.0, nocopy=.FALSE.,&
+            special=spec)
+    ENDIF
+    to(start:last) = from(:)
+  END SUBROUTINE addto_array_s
+
+
+! *****************************************************************************
+!> \brief Converts mutable data to linear (array) type.
+!>
+!> \param[in,out] wm      work matrix to convert
+! *****************************************************************************
+  SUBROUTINE tree_to_linear_s(wm)
+    USE btree_I8_k_sp2d_v,&
+        ONLY: btree_2d_data_s => sp2d,&
+              btree_destroy_s => btree_delete,&
+              btree_size_s => btree_get_entries
+    TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tree_to_linear_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, blk_p, i, treesize
+    INTEGER(KIND=int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: keys
+    REAL(kind=real_4), DIMENSION(:, :), POINTER        :: block_2d
+    TYPE(btree_2d_data_s), ALLOCATABLE, &
+      DIMENSION(:)                           :: values
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    IF (dbg) WRITE(*,'(1X,A,I5,A)')routineN//" Work matrix",i,&
+         " has mutable data"
+    ! srt = .TRUE. ! Not needed because of the copy
+    treesize = btree_size_s(wm%mutable%m%btree_s)
+    IF (dbg) WRITE(*,*)routineN//" Declared size",wm%lastblk,&
+         "present blocks",treesize
+    CALL cp_assert(wm%lastblk .EQ. treesize,&
+         cp_fatal_level, cp_internal_error, routineN,&
+         "Mismatch in number of blocks")
+    ALLOCATE (keys(treesize), values(treesize))
+    CALL btree_destroy_s (wm%mutable%m%btree_s, keys, values)
+    CALL ensure_array_size (wm%row_i, ub=treesize)
+    CALL ensure_array_size (wm%col_i, ub=treesize)
+    CALL dbcsr_unpack_i8_2i4 (keys, wm%row_i,&
+         wm%col_i)
+    ! For now we also fill the data, sloooowly, but this should
+    ! be avoided and the data should be copied directly from the
+    ! source in the subroutine's main loop.
+    CALL ensure_array_size (wm%blk_p, ub=treesize)
+    CALL dbcsr_data_ensure_size (wm%data_area,&
+         wm%datasize)
+    blk_p = 1
+    DO blk = 1, treesize
+       block_2d => values(blk)%p
+       !write(*,*)"block", blk
+       !write(*,'(10(1X,F5.1))')block_2d
+
+       IF (.NOT. values(blk)%tr) THEN
+          wm%blk_p(blk) = blk_p
+       ELSE
+          wm%blk_p(blk) = -blk_p
+       ENDIF
+
+       CALL dbcsr_data_set (wm%data_area, blk_p,&
+            SIZE(block_2d),&
+            RESHAPE (block_2d, (/SIZE(block_2d)/)), source_lb=1)
+       blk_p = blk_p + SIZE(block_2d)
+       DEALLOCATE (block_2d)
+    ENDDO
+    DEALLOCATE (keys, values)
+    CALL dbcsr_mutable_release (wm%mutable)
+    !write(*,*)"final data",dbcsr_get_data_size (wm%data_area),&
+    !     treesize
+    !write(*,'(10(1X,F5.1))')&
+    !dbcsr_get_data_p (wm%data_area, 0.0_dp)
+  END SUBROUTINE tree_to_linear_s
 
