@@ -1609,6 +1609,14 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        NULLIFY(subsection)
+       CALL create_exclude_list_section(subsection, "EXCLUDE_VDW_LIST", error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_exclude_list_section(subsection, "EXCLUDE_EI_LIST", error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_center_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection, error=error)
@@ -1623,6 +1631,46 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_topology_section
+
+! *****************************************************************************
+!> \brief Setup a list of fine exclusion elements
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] - 12.2009
+! *****************************************************************************
+  SUBROUTINE create_exclude_list_section(section, header, error)
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: header
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_exclude_list_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(keyword)
+       CALL section_create(section,TRIM(header),&
+            description="Speficy bonds (via atom kinds) for fine tuning of 1-2 "//&
+            "exclusion lists. If this section is not present the 1-2 exclusion is "//&
+            "applied to all bond kinds. When this section is present the 1-2 exclusion "//&
+            "is applied ONLY to the bonds defined herein. This section allows ONLY fine tuning of 1-2 "//&
+            "interactions. ",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="BOND",&
+            description="Specify the atom kinds involved in the bond for which 1-2 exclusion holds.",&
+            usage="BOND {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_exclude_list_section
 
 ! *****************************************************************************
 !> \brief Specify keywords used to center molecule in the box

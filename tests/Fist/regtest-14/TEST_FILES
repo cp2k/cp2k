@@ -14,4 +14,12 @@ imp_test_12.inp 11
 imp_test_21.inp 11
 imp_test_22.inp 11
 opbend_test.inp 11
-11_exvdw_12_exei.inp 11
+# new exclusions
+11_exvdw_12_exei.inp               11
+11_exvdw_11_exei.inp               11
+12_exvdw_12_exei.inp               11
+12_exvdw_12_exei_list_1.inp        11
+12_exvdw_12_exei_list_1_check.inp  11
+12_exvdw_12_exei_list_2.inp        11
+12_exvdw_12_exei_list_2_c.inp      11
+12_exvdw_12_exei_list_empty.inp    11

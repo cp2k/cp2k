@@ -24,7 +24,9 @@ MODULE topology_coordinate_util
                                              do_skip_12,&
                                              do_skip_13,&
                                              do_skip_14
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -101,15 +103,16 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist
-    LOGICAL                                  :: check, do_center, explicit, &
-                                                failure, found, my_qmmm
+    LOGICAL :: check, do_center, explicit, failure, found, my_qmmm, &
+      present_12_excl_ei_list, present_12_excl_vdw_list
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 bounds(2,3), cdims(3), &
                                                 dims(3), qeff, vec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, cpoint, mass
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: ex_bend_list, ex_bond_list, &
-                                                ex_onfo_list
+                                                ex_bond_list_ei, &
+                                                ex_bond_list_vdw, ex_onfo_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -118,12 +121,15 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    TYPE(section_vals_type), POINTER         :: exclude_section, &
+                                                topology_section
 
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
+    topology_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY",error=error)
     CALL timeset(routineN,handle)
         
     my_qmmm = .FALSE.
@@ -395,6 +401,45 @@ CPSourceFileRef,&
       N = SIZE(conn_info%bond_a)
       CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
     END IF
+
+    ! Check if a list of 1-2 exclusion bonds is defined.. if not use all bonds
+    NULLIFY(ex_bond_list_vdw, ex_bond_list_ei)
+    ! VdW
+    exclude_section => section_vals_get_subs_vals(topology_section,"EXCLUDE_VDW_LIST",error=error)
+    CALL section_vals_get(exclude_section, explicit=explicit, error=error)
+    present_12_excl_vdw_list = .FALSE.
+    IF (explicit) present_12_excl_vdw_list = .TRUE.
+    IF (present_12_excl_vdw_list) THEN
+       ALLOCATE(ex_bond_list_vdw(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I=1,natom
+          ALLOCATE(ex_bond_list_vdw(I)%array1(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       CALL setup_exclusion_list(exclude_section,"BOND", ex_bond_list, ex_bond_list_vdw,&
+                                 particle_set, error)
+    ELSE
+       ex_bond_list_vdw => ex_bond_list
+    END IF
+    ! EI
+    exclude_section => section_vals_get_subs_vals(topology_section,"EXCLUDE_EI_LIST",error=error)
+    CALL section_vals_get(exclude_section, explicit=explicit, error=error)
+    present_12_excl_ei_list = .FALSE.
+    IF (explicit) present_12_excl_ei_list = .TRUE.
+    IF (present_12_excl_ei_list) THEN
+       ALLOCATE(ex_bond_list_ei(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO I=1,natom
+          ALLOCATE(ex_bond_list_ei(I)%array1(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       CALL setup_exclusion_list(exclude_section,"BOND", ex_bond_list, ex_bond_list_ei,&
+                                 particle_set, error)
+    ELSE
+       ex_bond_list_ei => ex_bond_list
+    END IF
+
+
     ! Reorder bends
     ALLOCATE(ex_bend_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -427,7 +472,7 @@ CPSourceFileRef,&
        dim1 = 0
        IF  (topology%exclude_vdw==do_skip_12.OR. &
             topology%exclude_vdw==do_skip_13.OR. &
-            topology%exclude_vdw==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%array1)
+            topology%exclude_vdw==do_skip_14) dim1 = SIZE(ex_bond_list_vdw(iatom)%array1)
        dim1 = dim1 + dim0
        dim2 = 0
        IF  (topology%exclude_vdw==do_skip_13.OR. &
@@ -441,7 +486,7 @@ CPSourceFileRef,&
           ALLOCATE(wlist(dim3),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           wlist(  dim0:dim0) = iatom
-          IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list(iatom)%array1
+          IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list_vdw(iatom)%array1
           IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
           IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
           ! Get a unique list
@@ -464,7 +509,8 @@ CPSourceFileRef,&
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! Unique list completed
           NULLIFY(list2)
-          IF(topology%exclude_vdw==topology%exclude_ei) THEN
+          IF((topology%exclude_vdw==topology%exclude_ei).AND.&
+               (.NOT.present_12_excl_ei_list).AND.(.NOT.present_12_excl_vdw_list)) THEN
              list2 => list
           ELSE
              ! Setup exclusion list for EI : always exclude itself
@@ -473,7 +519,7 @@ CPSourceFileRef,&
              dim1 = 0
              IF  (topology%exclude_ei==do_skip_12.OR. &
                   topology%exclude_ei==do_skip_13.OR. &
-                  topology%exclude_ei==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%array1)
+                  topology%exclude_ei==do_skip_14) dim1 = SIZE(ex_bond_list_ei(iatom)%array1)
              dim1 = dim1 + dim0
              dim2 = 0
              IF  (topology%exclude_ei==do_skip_13.OR. &
@@ -487,7 +533,7 @@ CPSourceFileRef,&
                 ALLOCATE(wlist(dim3),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 wlist(  dim0:dim0) = iatom
-                IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list(iatom)%array1
+                IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list_ei(iatom)%array1
                 IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%array1
                 IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%array1
                 ! Get a unique list
@@ -547,6 +593,26 @@ CPSourceFileRef,&
     DEALLOCATE(ex_bend_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! deallocate bonds
+    IF (present_12_excl_ei_list) THEN
+       DO I=1,natom
+          DEALLOCATE(ex_bond_list_ei(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(ex_bond_list_ei,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       NULLIFY(ex_bond_list_ei)
+    END IF
+    IF (present_12_excl_vdw_list) THEN
+       DO I=1,natom
+          DEALLOCATE(ex_bond_list_vdw(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+       DEALLOCATE(ex_bond_list_vdw,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       NULLIFY(ex_bond_list_vdw)
+    END IF
     DO I=1,natom
        DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -626,4 +692,65 @@ CPSourceFileRef,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_coordinate_pack
 
+! *****************************************************************************
+!> \brief Builds the exclusion list for VDW and EI if an explicit list of terms
+!>        is provided by the user. Otherwise all possibilities are excluded
+!> \par History
+!>      Teodoro Laino [tlaino] - 12.2009
+! *****************************************************************************
+  SUBROUTINE setup_exclusion_list(exclude_section, keyword, ex_bond_list,&
+       ex_bond_list_w, particle_set, error)
+    TYPE(section_vals_type), POINTER         :: exclude_section
+    CHARACTER(LEN=*), INTENT(IN)             :: keyword
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: ex_bond_list, ex_bond_list_w
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_exclusion_list', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: flag1, flag2
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: names
+    INTEGER                                  :: i, ind, j, k, l, m, n_rep
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(ex_bond_list),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(ex_bond_list_w),cp_failure_level,routineP,error,failure)
+    SELECT CASE(keyword)
+    CASE ("BOND")
+       CALL section_vals_val_get(exclude_section,keyword,n_rep_val=n_rep,error=error)
+       DO j=1, SIZE(ex_bond_list)
+          CPPostcondition(ASSOCIATED(ex_bond_list(j)%array1),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ASSOCIATED(ex_bond_list_w(j)%array1),cp_failure_level,routineP,error,failure)
+
+          flag1=particle_set(j)%atomic_kind%name
+          m = SIZE(ex_bond_list(j)%array1)
+          CALL reallocate(ex_bond_list_w(j)%array1,1,m)
+
+          l = 0
+          DO k =1, m
+             ind = ex_bond_list(j)%array1(k)
+             flag2=particle_set(ind)%atomic_kind%name
+             DO i=1, n_rep
+                CALL section_vals_val_get(exclude_section,keyword,i_rep_val=i,&
+                     c_vals=names,error=error)
+                IF  (((TRIM(names(1))==TRIM(flag1)).AND.(TRIM(names(2))==TRIM(flag2))).OR.&
+                     ((TRIM(names(1))==TRIM(flag2)).AND.(TRIM(names(2))==TRIM(flag1)))) THEN
+                   l = l + 1
+                   ex_bond_list_w(j)%array1(l) = ind
+                END IF
+             END DO
+          END DO
+          CALL reallocate(ex_bond_list_w(j)%array1,1,l)
+       END DO
+    CASE DEFAULT
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+
+  END SUBROUTINE setup_exclusion_list
+  
 END MODULE topology_coordinate_util
