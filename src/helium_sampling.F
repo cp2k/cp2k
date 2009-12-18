@@ -156,6 +156,7 @@ MODULE helium_sampling
     solute_present = helium%solute_present
     helium%force_avrg(:,:) = 0.0_dp
     helium%energy_avrg(:) = 0.0_dp
+    helium%energy_inst(:) = 0.0_dp
     helium%wnumber_avrg(:) = 0.0_dp
     helium%rdf_avrg(:) = 0.0_dp
     helium%n_accepted_permutations = 0.0_dp
