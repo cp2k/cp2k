@@ -2837,7 +2837,9 @@ CPSourceFileRef,&
                          pw_out=v_xc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
                          idir=idir, error=error )
                  CASE default
-                    CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                    CALL cp_unimplemented_error(fromWhere=routineP, &
+                            message="XC_DERIV method not implemented for GPW-LSD!",&
+                            error=error, error_level=cp_failure_level)
                  END SELECT
               END DO ! ispin
 
@@ -3028,8 +3030,9 @@ CPSourceFileRef,&
                       pw_out=v_xc(1)%pw,coeffs=nn50_deriv_coeffs,&
                       idir=idir, error=error )
               CASE default
-                 WRITE (*,*) "Please provide a derivation method"
-                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                 CALL cp_unimplemented_error(fromWhere=routineP, &
+                         message="XC_DERIV method not implemented for GPW!",&
+                         error=error, error_level=cp_failure_level)
               END SELECT
 
            END DO
