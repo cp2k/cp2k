@@ -23,13 +23,12 @@ MODULE cg_test
                                              clebsch_gordon_deallocate,&
                                              clebsch_gordon_init,&
                                              y_lm
-  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_test'
   PUBLIC :: clebsch_gordon_test
 
 CONTAINS
@@ -39,17 +38,21 @@ SUBROUTINE clebsch_gordon_test (error)
 
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'clebsch_gordon_test', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: l = 7
 
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: a1, a2, a3
-    INTEGER                                  :: ierr, il, iw, l1, l2, ll, lp, &
-                                                m1, m2, mm, mp, na
+    INTEGER                                  :: il, iw, l1, l2, ll, lp, m1, &
+                                                m2, mm, mp, na, stat
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ca, cga(10), cn, rga(10,21), &
                                                 tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: b1, b2, b3, wa
     TYPE(cp_logger_type), POINTER            :: logger
 
+    failure = .FALSE.
     logger=>cp_error_get_logger(error)
     iw = cp_logger_get_default_io_unit(logger)  
 
@@ -62,13 +65,13 @@ SUBROUTINE clebsch_gordon_test (error)
      CALL init_lebedev_grids
      ll = get_number_of_lebedev_grid(n=na)
      na = lebedev_grid(ll)%n
-     ALLOCATE (wa(na), STAT=ierr)
-     IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","wa",na) 
-     ALLOCATE (a1(na),a2(na),a3(na), STAT=ierr)
-     IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","a",6*na) 
-     ALLOCATE (b1(na),b2(na),b3(na), STAT=ierr)
-     IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","b",3*na) 
-
+     ALLOCATE (wa(na), STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE (a1(na),a2(na),a3(na), STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE (b1(na),b2(na),b3(na), STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     
      wa(1:na) = 4.0_dp*pi*lebedev_grid(ll)%w(1:na)
 
      tstart = m_walltime ( )
@@ -154,12 +157,12 @@ SUBROUTINE clebsch_gordon_test (error)
        WRITE(iw,'(A,i2,A)') " Test for l = ",l1," done"
      END DO
 
-     DEALLOCATE ( wa, STAT=ierr)
-     IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","wa") 
-     DEALLOCATE (a1, a2, a3, STAT=ierr)
-     IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","a") 
-     DEALLOCATE (b1, b2, b3, STAT=ierr)
-     IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","b") 
+     DEALLOCATE ( wa, STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE (a1, a2, a3, STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE (b1, b2, b3, STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
      CALL deallocate_lebedev_grids()
      CALL clebsch_gordon_deallocate()

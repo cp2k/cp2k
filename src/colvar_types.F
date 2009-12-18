@@ -27,7 +27,6 @@ MODULE colvar_types
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1359,21 +1358,21 @@ CPSourceFileRef)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_p_reallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, j, lb1, lb1_old, ub1, &
+    INTEGER                                  :: j, lb1, lb1_old, stat, ub1, &
                                                 ub1_old
+    LOGICAL                                  :: failure
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: work
 
+    failure = .FALSE.
     NULLIFY(work)
     IF (ASSOCIATED(colvar_set)) THEN
        lb1_old = LBOUND(colvar_set,1)
        ub1_old = UBOUND(colvar_set,1)
        lb1 = MAX(lb1_new,lb1_old)
        ub1 = MIN(ub1_new,ub1_old)
-       ALLOCATE (work(lb1:ub1),STAT=istat)
-       IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"work")
-       END IF
+       ALLOCATE (work(lb1:ub1),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO j = lb1, ub1
           NULLIFY(work(j)%colvar)
           CALL colvar_clone(work(j)%colvar, colvar_set(j)%colvar, error=error)
@@ -1382,14 +1381,13 @@ CPSourceFileRef)
           CALL colvar_release(colvar_set(j)%colvar, error)
           NULLIFY(colvar_set(j)%colvar)
        END DO
-       DEALLOCATE(colvar_set, STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"colvar_set")
+       DEALLOCATE(colvar_set, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    ALLOCATE (colvar_set(lb1_new:ub1_new),STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"colvar_set")
-    END IF
+    ALLOCATE (colvar_set(lb1_new:ub1_new),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     DO j = lb1_new, ub1_new
        NULLIFY(colvar_set(j)%colvar)
     END DO
@@ -1403,10 +1401,8 @@ CPSourceFileRef)
           CALL colvar_release(work(j)%colvar, error)
           NULLIFY(work(j)%colvar)
        END DO
-       DEALLOCATE (work,STAT=istat)
-       IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,"work")
-       END IF
+       DEALLOCATE (work,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE colvar_p_reallocate
 
