@@ -20,3 +20,7 @@ Ne-hybrid-rcam-b3lyp.inp      1
 Li-hybrid-MCY3.inp            1
 Ne-hybrid-MCY3.inp            1
 H2_PW_HFX.inp                 22
+CH4-PBE0_TC.inp               1
+CH3-PBE0_TC.inp               1
+CH3-PBE0_TC_LRC.inp           1
+CH4-PBE0_TC_LRC.inp           1 
