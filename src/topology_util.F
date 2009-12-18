@@ -1309,7 +1309,7 @@ CPSourceFileRef,&
 
     ! Last chance.. are these atom_kinds of AMBER or CHARMM or GROMOS FF ?
     CALL uppercase(element_symbol)
-    IF (.NOT.found) THEN
+    IF ((.NOT.found).AND.(ASSOCIATED(amber_map))) THEN
        ! First we go through the AMBER library
        DO i = 1, SIZE(amber_map%kind)
           IF (element_symbol==amber_map%kind(i)) THEN
@@ -1321,7 +1321,7 @@ CPSourceFileRef,&
           element_out = amber_map%element(i)
        END IF
     END IF
-    IF (.NOT.found) THEN
+    IF ((.NOT.found).AND.(ASSOCIATED(charmm_map))) THEN
        ! Then we go through the CHARMM library
        DO i = 1, SIZE(charmm_map%kind)
           IF (element_symbol==charmm_map%kind(i)) THEN
@@ -1333,7 +1333,7 @@ CPSourceFileRef,&
           element_out = charmm_map%element(i)
        END IF
     END IF
-    IF (.NOT.found) THEN
+    IF ((.NOT.found).AND.(ASSOCIATED(gromos_map))) THEN
        ! Then we go through the GROMOS library
        DO i = 1, SIZE(gromos_map%kind)
           IF (element_symbol==gromos_map%kind(i)) THEN
