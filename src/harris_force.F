@@ -252,7 +252,7 @@ CONTAINS
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., error=error)
 
       rho_ao => qs_env%rho%rho_ao
@@ -630,10 +630,10 @@ CONTAINS
 
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw, error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., error=error)
 
-    rho_ao => qs_env%rho%rho_ao
+      rho_ao => qs_env%rho%rho_ao
 
       DO ispin = 1,nspins
         CALL pw_copy(v_rspace_new(ispin)%pw,v_rspace_new(ispin)%pw,error=error)
@@ -809,7 +809,7 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! *** The forces due to exchange and correlation *** !
-      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., error=error)
 
       ! *** Calculation of the forces of the xc-integral *** !
@@ -1138,7 +1138,7 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! *** Calculation of the forces of the xc-integral *** !
-      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy=.FALSE., harris=.TRUE., nsc_force=.TRUE., &
                          error=error)
       !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
@@ -1491,12 +1491,14 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force, force_tmp
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(section_vals_type), POINTER         :: input, xc_section
 
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
     NULLIFY(rho, v_rspace_new, matrix_ks, auxbas_pw_pool, pw_env, &
-            rho_core, force_tmp, v_tau_rspace, poisson_env, dft_control)
+            rho_core, force_tmp, v_tau_rspace, poisson_env, dft_control, input,&
+            xc_section)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -1513,7 +1515,9 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
-                      dft_control=dft_control, particle_set=particle_set, error=error)
+                      dft_control=dft_control, input=input, particle_set=particle_set, error=error)
+
+      xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
       natom = SIZE(particle_set)
       nkind = SIZE(force)
@@ -1569,7 +1573,7 @@ CONTAINS
                                    error=error)
 
       NULLIFY(v_rspace_new)
-      CALL qs_vxc_create(qs_env=qs_env, vxc_rho = v_rspace_new, vxc_tau=v_tau_rspace, &
+      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho = v_rspace_new, vxc_tau=v_tau_rspace, &
                          exc=Exc, just_energy = .FALSE., error=error)
 
       ! sum-up: v_hartree_rspace = v_hartree_rspace + v_rspace_new(ispin)

@@ -79,10 +79,8 @@ MODULE qs_ks_methods
        xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set
+                                             section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -314,8 +312,8 @@ CONTAINS
       do_ep, do_hfx, do_hfx_ri, do_ppl, explicit_potential, failure, gapw, &
       gapw_xc, hfx_treat_lsd_in_core, ionode, my_kg_gpw, my_print, scp_dft, &
       uniform_occupation, use_virial
-    REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_c, scale_dDFA, &
-      scale_ddW0, scale_dEx1, scale_dEx2, scale_x, total_energy_xc
+    REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
+      scale_dEx1, scale_dEx2, total_energy_xc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     REAL(KIND=dp)                            :: ddapc_order_p, ecore_ppl, &
                                                 ee_ener, mulliken_order_p, &
@@ -358,7 +356,7 @@ CONTAINS
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER :: adiabatic_rescaling_section, &
-      hfx_ri_section, hfx_sections, input, scf_section, xc_fun, xc_section
+      hfx_ri_section, hfx_sections, input, scf_section, xc_section
     TYPE(virial_type), POINTER               :: virial
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
@@ -367,7 +365,7 @@ CONTAINS
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
          input, poisson_env, scf_section,my_rho,becke, v_rspace_new_aux_fit,&
-         v_tau_rspace_aux_fit)
+         v_tau_rspace_aux_fit, xc_section)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -617,7 +615,22 @@ CONTAINS
           CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
           CALL get_qs_env(qs_env,mos=mos,wfn_fitting_env=wfn_fitting_env,error=error)
           
-          CALL fit_mo_coeffs(wfn_fitting_env, para_env, &
+          !! ** Wavefunction fitting can only be used with HFX
+          IF ( .NOT. do_hfx ) THEN
+            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Wavefunction fitting requested without Hartree-Fock."//&
+                           CPSourceFileRef,&
+                           only_ionode=.TRUE.)
+          END IF 
+          CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+          IF ( n_rep_hf > 1 ) THEN
+            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                           "Wavefunction fitting, can handle only one HF section."//&
+                           CPSourceFileRef,&
+                           only_ionode=.TRUE.)
+          END IF
+
+          CALL fit_mo_coeffs(qs_env, wfn_fitting_env, para_env, &
                              qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
                              mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
           CALL set_qs_env(qs_env,wfn_fitting_env=wfn_fitting_env,error=error)
@@ -646,33 +659,23 @@ CONTAINS
           ! *** associates v_rspace_new if the xc potential needs to be computed.
           ! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
           IF( dft_control%do_wfn_fitting ) THEN
-
-             !*************** HACK for PBE0 correction (just to have some regtests)
-             CALL get_qs_env(qs_env, input=input, error=error)
-             xc_section => section_vals_get_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",error=error)
-             xc_fun => section_vals_get_subs_vals2(xc_section,i_section=1,error=error)
-             CALL section_vals_val_get(xc_fun,"scale_c",r_val=scale_c,error=error)
-             CALL section_vals_val_get(xc_fun,"scale_x",r_val=scale_x,error=error)
              
-             CALL section_vals_val_set(xc_fun,"scale_c",r_val=0.0_dp,error=error)
-             CALL section_vals_val_set(xc_fun,"scale_x",r_val=0.25_dp,error=error)
+            xc_section => wfn_fitting_env%xc_section_aux
              
-             CALL qs_vxc_create(qs_env=qs_env,&
-                  vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
-                  just_energy=just_energy, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
-                  error=error)
-             
-             CALL section_vals_val_set(xc_fun,"scale_c",r_val=scale_c,error=error)
-             CALL section_vals_val_set(xc_fun,"scale_x",r_val=scale_x,error=error)
-             
-             energy%exc_aux_fit = -energy%exc_aux_fit
-             IF (.NOT. just_energy .AND. ASSOCIATED(v_rspace_new_aux_fit) ) THEN
-                DO ispin = 1,nspins
-                   v_rspace_new_aux_fit(ispin)%pw%cr3d  = - v_rspace_new_aux_fit(ispin)%pw%cr3d
-                END DO
-             END IF
+            CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
+                               vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
+                               just_energy=just_energy, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
+                               error=error)
+            
           END IF
-          CALL qs_vxc_create(qs_env=qs_env,&
+
+
+          IF( dft_control%do_wfn_fitting ) THEN
+            xc_section => wfn_fitting_env%xc_section_primary
+          ELSE
+            xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+          END IF
+          CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                just_energy=just_energy, gapw_xc=gapw_xc, error=error)
           IF (gapw .OR. gapw_xc) THEN
@@ -681,7 +684,9 @@ CONTAINS
        ELSE
           !! If we perform adiabatic rescaling, the xc potential has to be scaled by the xc- and
           !! HFX-energy. Thus, let us first calculate the energy 
-          CALL qs_vxc_create(qs_env=qs_env,&
+        
+          xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+          CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                just_energy=.TRUE., gapw_xc=gapw_xc, error=error)
           IF (gapw .OR. gapw_xc) THEN
@@ -829,8 +834,9 @@ CONTAINS
                                                 adiabatic_rescale_factor=scale_dEx2, error=error)
                 END IF
 
-             !! Calculate vxc and rescale it
-                CALL qs_vxc_create(qs_env=qs_env,&
+                !! Calculate vxc and rescale it
+                xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+                CALL qs_vxc_create(qs_env=qs_env,xc_section=xc_section, &
                      vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                      just_energy=just_energy, gapw_xc=gapw_xc, adiabatic_rescale_factor=scale_dDFA,&
                      error=error)
@@ -2552,12 +2558,13 @@ CONTAINS
 !>      - sic alterations [Joost VandeVondele]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
+  SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env, xc_section,&
        just_energy, harris, nsc_force, gapw_xc, epr_xc, adiabatic_rescale_factor, &
        basis_set_id, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp)                            :: exc
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: xc_section
     LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
                                                 nsc_force, gapw_xc, epr_xc
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: adiabatic_rescale_factor
@@ -2587,8 +2594,10 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, xc_pw_pool
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(section_vals_type), POINTER         :: input
     TYPE(virial_type), POINTER               :: virial
+
+!, xc_section
 
     CALL timeset( routineN ,handle)
 
@@ -2633,10 +2642,10 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
          pw_env=pw_env, cell=cell,virial=virial, error=error)
     IF(my_epr_xc) THEN
-       xc_section => section_vals_get_subs_vals(input,&
-            "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC",error=error)
+!       xc_section => section_vals_get_subs_vals(input,&
+!            "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC",error=error)
     ELSE
-       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+!       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
     END IF
     CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
          i_val=myfun,error=error)

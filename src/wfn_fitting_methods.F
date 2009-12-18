@@ -46,8 +46,18 @@ MODULE wfn_fitting_methods
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_type_normal
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
+  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
+                                             do_hfx_potential_short,&
+                                             do_hfx_potential_truncated,&
+                                             use_aux_fit_basis_set,&
                                              use_orb_basis_set
+  USE input_section_types,             ONLY: section_vals_duplicate,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2,&
+                                             section_vals_remove_values,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE mathconstants
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
@@ -74,7 +84,8 @@ MODULE wfn_fitting_methods
    
   PUBLIC fit_mo_coeffs, &
          merge_mo_derivs, &
-         calc_mixed_overlap_force
+         calc_mixed_overlap_force, &
+         create_wfn_fitting_xc_section
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wfn_fitting_methods'
 
@@ -99,9 +110,10 @@ MODULE wfn_fitting_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE fit_mo_coeffs(wfn_fitting_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+  SUBROUTINE fit_mo_coeffs(qs_env, wfn_fitting_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                            mos, mos_aux_fit, geometry_did_change, error) 
 
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
@@ -121,6 +133,7 @@ MODULE wfn_fitting_methods
     LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig_work
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(section_vals_type), POINTER         :: input, xc_section
 
     CALL timeset(routineN,handle)
 
@@ -128,6 +141,9 @@ MODULE wfn_fitting_methods
       CALL wfn_fitting_env_create(mos, mos_aux_fit, &
                                   para_env, wfn_fitting_env,&
                                   error)
+      CALL get_qs_env(qs_env, input=input, error=error)
+      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+      CALL create_wfn_fitting_xc_section(qs_env, xc_section, wfn_fitting_env, error)
     END IF
 
     nao_aux_fit = wfn_fitting_env%nao_aux_fit
@@ -881,5 +897,262 @@ MODULE wfn_fitting_methods
     CALL timestop(handle)
 
   END SUBROUTINE calc_overlap_force_general
+
+! *****************************************************************************
+!> \brief This routine modifies the xc section depending on the potential type
+!>        used for the HF exchange and the resulting correction term. Currently 
+!>        three types of corrections are implemented:
+!>        
+!>        coulomb:     Ex,hf = Ex,hf' + (PBEx-PBEx')
+!>        shortrange:  Ex,hf = Ex,hf' + (XWPBEX-XWPBEX')
+!>        truncated:   Ex,hf = Ex,hf' + ( (XWPBEX0-PBE_HOLE_TC_LR) -(XWPBEX0-PBE_HOLE_TC_LR)' )
+!>        
+!>        with ' denoting the auxiliary basis set and
+!>      
+!>          PBEx:           PBE exchange functional
+!>          XWPBEX:         PBE exchange hole for short-range potential (erfc(omega*r)/r)
+!>          XWPBEX0:        PBE exchange hole for standard coulomb potential
+!>          PBE_HOLE_TC_LR: PBE exchange hole for longrange truncated coulomb potential
+!>      
+!>      
+!> \param qs_env the qs environment 
+!> \param xc_section the original xc_section
+!> \param wfn_fitting_env the wfn fitting environment
+!> \param error 
+!>
+!> \par History
+!>      12.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE create_wfn_fitting_xc_section(qs_env, xc_section, wfn_fitting_env,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: xc_section
+    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: hfx_potential_type, ifun
+    LOGICAL                                  :: funct_found
+    REAL(dp)                                 :: cutoff_radius, hfx_fraction, &
+                                                omega, scale_x
+    TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section
+
+    NULLIFY(wfn_fitting_env%xc_section_aux, wfn_fitting_env%xc_section_primary)
+
+    !! ** Duplicate existing xc-section
+
+    CALL section_vals_duplicate(xc_section,wfn_fitting_env%xc_section_aux,error=error)
+    CALL section_vals_duplicate(xc_section,wfn_fitting_env%xc_section_primary,error=error)
+
+    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
+
+    !** Now modify the auxiliary basis
+    !** First remove all functionals
+    xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
+    ifun = 0
+    DO
+      ifun = ifun+1
+      xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+      IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+      CALL section_vals_remove_values(xc_fun, error=error)
+    END DO
+
+    hfx_potential_type = qs_env%x_data(1,1)%potential_parameter%potential_type
+    hfx_fraction = qs_env%x_data(1,1)%general_parameter%fraction
+
+    !! ** Add functionals evaluated with auxiliary basis
+    SELECT CASE (hfx_potential_type)
+    CASE (do_hfx_potential_coulomb)
+      CALL section_vals_val_set(xc_fun_section,"PBE%_SECTION_PARAMETERS_",&
+                                l_val=.TRUE.,error=error)
+      CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
+                                r_val=-hfx_fraction,error=error)
+      CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_C",&
+                                r_val=0.0_dp,error=error)
+    CASE (do_hfx_potential_short)
+      omega =  qs_env%x_data(1,1)%potential_parameter%omega
+      CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
+                                l_val=.TRUE.,error=error)
+      CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                r_val=-hfx_fraction,error=error)
+      CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                r_val=0.0_dp,error=error)
+      CALL section_vals_val_set(xc_fun_section,"XWPBE%OMEGA",&
+                                r_val=omega,error=error)
+    CASE (do_hfx_potential_truncated)
+      cutoff_radius = qs_env%x_data(1,1)%potential_parameter%cutoff_radius
+      CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_",&
+                                l_val=.TRUE.,error=error)
+      CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
+                                r_val=hfx_fraction,error=error)
+      CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
+                                r_val=cutoff_radius,error=error)
+      CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
+                                l_val=.TRUE.,error=error)
+      CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                r_val=0.0_dp,error=error)
+      CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                r_val=-hfx_fraction,error=error)
+    END SELECT
+
+
+    !** Now modify the functionals for the primary basis
+    !** First remove all functionals
+    xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
+
+    SELECT CASE (hfx_potential_type)
+    CASE (do_hfx_potential_coulomb)
+      ifun = 0
+      funct_found = .FALSE.
+      DO
+        ifun = ifun+1
+        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+        IF( xc_fun%section%name == "PBE" ) THEN
+          funct_found = .TRUE.
+        END IF
+      END DO
+      IF( .NOT. funct_found ) THEN
+        CALL section_vals_val_set(xc_fun_section,"PBE%_SECTION_PARAMETERS_",&
+                                  l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
+                                  r_val=hfx_fraction,error=error)
+        CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_C",&
+                                  r_val=0.0_dp,error=error)
+      ELSE
+        CALL section_vals_val_get(xc_fun_section,"PBE%SCALE_X",&
+                                  r_val=scale_x,error=error)
+        scale_x = scale_x + hfx_fraction
+        CALL section_vals_val_set(xc_fun_section,"PBE%SCALE_X",&
+                                  r_val=scale_x,error=error)
+      END IF
+    CASE (do_hfx_potential_short)
+      omega =  qs_env%x_data(1,1)%potential_parameter%omega
+      ifun = 0
+      funct_found = .FALSE.
+      DO
+        ifun = ifun+1
+        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+        IF( xc_fun%section%name == "XWPBE" ) THEN
+          funct_found = .TRUE.
+        END IF
+      END DO
+      IF( .NOT. funct_found ) THEN
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
+                                  l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                  r_val=hfx_fraction,error=error)
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                  r_val=0.0_dp,error=error)
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%OMEGA",&
+                                  r_val=omega,error=error)
+      ELSE
+        CALL section_vals_val_get(xc_fun_section,"XWPBE%SCALE_X",&
+                                  r_val=scale_x,error=error)
+        scale_x = scale_x + hfx_fraction
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                  r_val=scale_x,error=error)
+      END IF
+    CASE (do_hfx_potential_truncated)
+      cutoff_radius =  qs_env%x_data(1,1)%potential_parameter%cutoff_radius
+      ifun = 0
+      funct_found = .FALSE.
+      DO
+        ifun = ifun+1
+        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+        IF( xc_fun%section%name == "PBE_HOLE_T_C_LR" ) THEN
+          funct_found = .TRUE.
+        END IF
+      END DO
+      IF( .NOT. funct_found ) THEN
+        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_",&
+                                  l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
+                                  r_val=-hfx_fraction,error=error)
+        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
+                                  r_val=cutoff_radius,error=error)
+
+      ELSE
+        CALL section_vals_val_get(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
+                                  r_val=scale_x,error=error)
+        scale_x = scale_x - hfx_fraction
+        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%SCALE_X",&
+                                  r_val=scale_x,error=error)
+        CALL section_vals_val_set(xc_fun_section,"PBE_HOLE_T_C_LR%CUTOFF_RADIUS",&
+                                  r_val=cutoff_radius,error=error)
+      END IF
+      ifun = 0
+      funct_found = .FALSE.
+      DO
+        ifun = ifun+1
+        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+        IF( xc_fun%section%name == "XWPBE" ) THEN
+          funct_found = .TRUE.
+        END IF
+      END DO
+      IF( .NOT. funct_found ) THEN
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%_SECTION_PARAMETERS_",&
+                                  l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                  r_val=hfx_fraction,error=error)
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X",&
+                                  r_val=0.0_dp,error=error)
+
+      ELSE
+        CALL section_vals_val_get(xc_fun_section,"XWPBE%SCALE_X0",&
+                                  r_val=scale_x,error=error)
+        scale_x = scale_x + hfx_fraction
+        CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
+                                  r_val=scale_x,error=error)
+      END IF
+
+    END SELECT
+
+
+    IF( 0==1 ) THEN
+      WRITE(*,*) "primary"
+      xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
+      ifun = 0
+      funct_found = .FALSE.
+      DO
+        ifun = ifun+1
+        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+        CALL section_vals_val_get(xc_fun,"SCALE_X",&
+                                    r_val=scale_x,error=error)
+        IF( xc_fun%section%name == "XWPBE" ) THEN
+          CALL section_vals_val_get(xc_fun,"SCALE_X0",&
+                                    r_val=hfx_fraction,error=error)
+  
+           WRITE(*,*) xc_fun%section%name, scale_x, hfx_fraction
+        ELSE
+          WRITE(*,*) xc_fun%section%name, scale_x
+        END IF
+      END DO
+  
+      WRITE(*,*) "auxiliary"
+      xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
+      ifun = 0
+      funct_found = .FALSE.
+      DO
+        ifun = ifun+1
+        xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+        IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+        CALL section_vals_val_get(xc_fun,"SCALE_X",&
+                                    r_val=scale_x,error=error)
+        IF( xc_fun%section%name == "XWPBE" ) THEN
+          CALL section_vals_val_get(xc_fun,"SCALE_X0",&
+                                    r_val=hfx_fraction,error=error)
+  
+           WRITE(*,*) xc_fun%section%name, scale_x, hfx_fraction
+        ELSE
+          WRITE(*,*) xc_fun%section%name, scale_x
+        END IF
+      END DO
+    END IF
+
+  END SUBROUTINE create_wfn_fitting_xc_section
 
 END MODULE wfn_fitting_methods

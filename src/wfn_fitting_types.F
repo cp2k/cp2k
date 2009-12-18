@@ -20,6 +20,8 @@ MODULE wfn_fitting_types
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -105,6 +107,8 @@ MODULE wfn_fitting_types
     INTEGER                                  :: nao_orb, nao_aux_fit, nmo(2)
     TYPE(eigvals_p_type), DIMENSION(:), &
       POINTER                                :: eigvals_lambda
+    TYPE(section_vals_type), POINTER         :: xc_section_primary
+    TYPE(section_vals_type), POINTER         :: xc_section_aux
   END TYPE
 
   
@@ -343,8 +347,14 @@ MODULE wfn_fitting_types
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(wfn_fitting_env%mo_derivs_tmp,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+    CALL section_vals_release(wfn_fitting_env%xc_section_primary,error)
+    CALL section_vals_release(wfn_fitting_env%xc_section_aux,error)
+
     DEALLOCATE(wfn_fitting_env, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
   END SUBROUTINE wfn_fitting_env_release
 
 END MODULE wfn_fitting_types

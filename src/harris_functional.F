@@ -18,6 +18,8 @@ MODULE harris_functional
   USE harris_energy_types,             ONLY: harris_energy_type
   USE harris_env_types,                ONLY: harris_env_get,&
                                              harris_env_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -101,12 +103,13 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(section_vals_type), POINTER         :: input, xc_section
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(rho, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
-            rho_core, rho, harris_energy, poisson_env, dft_control)
+            rho_core, rho, harris_energy, poisson_env, dft_control, input, xc_section)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -124,8 +127,10 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
-      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
+      CALL get_qs_env(qs_env=qs_env, input=input, pw_env=pw_env, rho=rho, rho_core=rho_core, &
                       dft_control=dft_control, error=error)
+
+      xc_section => section_vals_get_subs_vals(input, "DFT%XC", error=error)
 
       nspins = dft_control%nspins
 
@@ -153,7 +158,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                                    error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
+      CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, vxc_rho=v_rspace_new, &
                          vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
                          just_energy=.FALSE., harris=.TRUE., error=error)
 

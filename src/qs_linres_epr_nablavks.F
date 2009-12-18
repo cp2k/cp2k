@@ -162,7 +162,8 @@ CONTAINS
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
-    TYPE(section_vals_type), POINTER         :: g_section, lr_section
+    TYPE(section_vals_type), POINTER         :: g_section, input, lr_section, &
+                                                xc_section
 
 ! R0
 ! R0
@@ -196,6 +197,8 @@ CONTAINS
     NULLIFY(subsys)
     NULLIFY(v_rspace_new)
     NULLIFY(v_tau_rspace)
+    NULLIFY(xc_section)
+    NULLIFY(input)
 
     logger => cp_error_get_logger(error)
     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
@@ -243,6 +246,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    input=input,&
                     cell=cell,&
                     dft_control=dft_control,&
                     para_env=para_env,&
@@ -904,7 +908,9 @@ CONTAINS
                            use_data=REALDATA3D,in_space=REALSPACE,&
                            error=error)
 
-    CALL qs_vxc_create(qs_env=qs_env,&
+    xc_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC", error=error)
+
+    CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section,&
          vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=exc, &
          just_energy=.FALSE., gapw_xc=gapw_xc, epr_xc=.TRUE., error=error)
 

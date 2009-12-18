@@ -329,22 +329,24 @@ MODULE xc_xwpbe
            END IF
         END IF
 
-        IF(ww<wcutoff .AND. ss*sscale>gcutoff) THEN
-          CALL xwpbe_lda_calc_1(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
-                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
-                                my_ndrho, omega, sscale, sx, order)
-        ELSE IF(ww<wcutoff .AND. ss*sscale<=gcutoff) THEN
-          CALL xwpbe_lda_calc_2(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip), &
-                                e_ndrho_rho(ip), e_ndrho_ndrho(ip),my_rho,&
-                                my_ndrho, omega, sscale, sx, order)
-        ELSE IF(ww>=wcutoff .AND. ss*sscale>gcutoff) THEN
-          CALL xwpbe_lda_calc_3(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
-                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
-                                my_ndrho, omega, sscale, sx, order)
-        ELSE
-          CALL xwpbe_lda_calc_4(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip),& 
-                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
-                                my_ndrho, omega, sscale, sx, order)
+        IF( sx /= 0.0_dp ) THEN
+          IF(ww<wcutoff .AND. ss*sscale>gcutoff) THEN
+            CALL xwpbe_lda_calc_1(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
+                                  e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                  my_ndrho, omega, sscale, sx, order)
+          ELSE IF(ww<wcutoff .AND. ss*sscale<=gcutoff) THEN
+            CALL xwpbe_lda_calc_2(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip), &
+                                  e_ndrho_rho(ip), e_ndrho_ndrho(ip),my_rho,&
+                                  my_ndrho, omega, sscale, sx, order)
+          ELSE IF(ww>=wcutoff .AND. ss*sscale>gcutoff) THEN
+            CALL xwpbe_lda_calc_3(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
+                                  e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                  my_ndrho, omega, sscale, sx, order)
+          ELSE
+            CALL xwpbe_lda_calc_4(e_0(ip), e_rho(ip), e_ndrho(ip), e_rho_rho(ip),& 
+                                  e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                  my_ndrho, omega, sscale, sx, order)
+          END IF
         END IF
       END IF
     END DO
@@ -5502,24 +5504,26 @@ MODULE xc_xwpbe
            e_0(ip) = e_0(ip) + 0.5_dp * e_0_temp
         END IF
         e_0_temp = 0.0_dp
-        IF(ww<wcutoff .AND. ss*sscale>gcutoff) THEN
-          CALL xwpbe_lda_calc_1(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
-                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
-                                my_ndrho, omega, sscale, sx, order)
-        ELSE IF(ww<wcutoff .AND. ss*sscale<=gcutoff) THEN
-          CALL xwpbe_lda_calc_2(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip), &
-                                e_ndrho_rho(ip), e_ndrho_ndrho(ip),my_rho,&
-                                my_ndrho, omega, sscale, sx, order)
-        ELSE IF(ww>=wcutoff .AND. ss*sscale>gcutoff) THEN
-          CALL xwpbe_lda_calc_3(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
-                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
-                                my_ndrho, omega, sscale, sx, order)
-        ELSE
-          CALL xwpbe_lda_calc_4(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),& 
-                                e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
-                                my_ndrho, omega, sscale, sx, order)
+        IF(sx/=0.0_dp) THEN
+          IF(ww<wcutoff .AND. ss*sscale>gcutoff) THEN
+            CALL xwpbe_lda_calc_1(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
+                                  e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                  my_ndrho, omega, sscale, sx, order)
+          ELSE IF(ww<wcutoff .AND. ss*sscale<=gcutoff) THEN
+            CALL xwpbe_lda_calc_2(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip), &
+                                  e_ndrho_rho(ip), e_ndrho_ndrho(ip),my_rho,&
+                                  my_ndrho, omega, sscale, sx, order)
+          ELSE IF(ww>=wcutoff .AND. ss*sscale>gcutoff) THEN
+            CALL xwpbe_lda_calc_3(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),&
+                                  e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                  my_ndrho, omega, sscale, sx, order)
+          ELSE
+            CALL xwpbe_lda_calc_4(e_0_temp, e_rho(ip), e_ndrho(ip), e_rho_rho(ip),& 
+                                  e_ndrho_rho(ip), e_ndrho_ndrho(ip), my_rho,&
+                                  my_ndrho, omega, sscale, sx, order)
+          END IF
+         !According to spin-scaling relation, we need only half of the energy
         END IF
-        !According to spin-scaling relation, we need only half of the energy
         e_0(ip) = e_0(ip) + 0.5_dp * e_0_temp
       END IF
     END DO
