@@ -781,3 +781,7 @@ H2O-ata.inp
 dynamics.inp
 # more to reset
 H2O-solv.inp
+# nag dbg numerics
+H2O-bloechl.inp
+H2O-bloechl-restraint.inp
+

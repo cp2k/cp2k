@@ -136,9 +136,9 @@ CONTAINS
        loc_tr(3) = zz
        ! Give back the translational vector
        IF (PRESENT(transl)) THEN
-          transl(1)=transl(1)+xx
-          transl(2)=transl(2)+yy
-          transl(3)=transl(3)+zz
+          transl(1)=transl(1)-xx
+          transl(2)=transl(2)-yy
+          transl(3)=transl(3)-zz
        END IF
        M = 0.0_dp
        !

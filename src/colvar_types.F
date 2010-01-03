@@ -16,7 +16,9 @@ MODULE colvar_types
                                              do_clv_geo_center,&
                                              do_clv_xyz,&
                                              plane_def_atoms,&
-                                             plane_def_vec
+                                             plane_def_vec,&
+                                             rmsd_all,&
+                                             rmsd_list
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -26,6 +28,7 @@ MODULE colvar_types
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
+  USE rmsd,                            ONLY: rmsd3
   USE string_utilities,                ONLY: uppercase
 #include "cp_common_uses.h"
 
@@ -64,7 +67,8 @@ MODULE colvar_types
             eval_point_mass,&
             post_process_colvar,&
             diff_colvar,&
-            gyration_colvar_type
+            gyration_colvar_type,&
+            rmsd_colvar_type
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id                = -2,&
                                 dist_colvar_id              =  1,&
@@ -80,7 +84,8 @@ MODULE colvar_types
                                 combine_colvar_id           = 11,&
                                 population_colvar_id        = 12,&
                                 plane_plane_angle_colvar_id = 13,&
-                                gyration_colvar_id          = 14
+                                gyration_colvar_id          = 14,&
+                                rmsd_colvar_id              = 15
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -133,7 +138,6 @@ MODULE colvar_types
      INTEGER                         :: n_atoms
      INTEGER, POINTER, DIMENSION (:) :: i_at
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: c_kinds
-     REAL(KIND=dp)                   :: r_0
   END TYPE gyration_colvar_type
 
 ! *****************************************************************************
@@ -221,6 +225,14 @@ MODULE colvar_types
           DIMENSION(:), POINTER               :: c_parameters, variables
      REAL(KIND=dp), DIMENSION(:), POINTER     :: v_parameters
   END TYPE combine_colvar_type
+! *****************************************************************************
+  TYPE rmsd_colvar_type
+     INTEGER                                  :: n_atoms, nr_frames, subset
+     INTEGER, POINTER, DIMENSION (:)          :: i_rmsd
+     LOGICAL :: align_frames
+     REAL(KIND=dp), DIMENSION(:), POINTER     :: weights
+     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: r_ref
+  END TYPE rmsd_colvar_type
 
 ! *****************************************************************************
   TYPE point_type
@@ -256,6 +268,7 @@ MODULE colvar_types
      TYPE(hydronium_colvar_type), POINTER        :: hydronium_param
      TYPE(reaction_path_colvar_type),POINTER     :: reaction_path_param
      TYPE(combine_colvar_type), POINTER          :: combine_cvs_param
+     TYPE(rmsd_colvar_type), POINTER             :: rmsd_param
      TYPE(point_type), DIMENSION(:), POINTER     :: points
   END TYPE colvar_type
 
@@ -281,6 +294,7 @@ MODULE colvar_types
      INTEGER :: nrestraint
      INTEGER :: npopulation
      INTEGER :: ngyration
+     INTEGER :: nrmsd
      INTEGER :: ntot
   END TYPE colvar_counters
 
@@ -323,6 +337,7 @@ CONTAINS
     NULLIFY(colvar%hydronium_param)
     NULLIFY(colvar%reaction_path_param)
     NULLIFY(colvar%combine_cvs_param)
+    NULLIFY(colvar%rmsd_param)
     ! More types to nullify
     NULLIFY(colvar%points)
     NULLIFY(colvar%dsdr)
@@ -373,6 +388,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(combine_colvar_id)
           ALLOCATE(colvar%combine_cvs_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(rmsd_colvar_id)
+          ALLOCATE(colvar%rmsd_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(no_colvar_id)
           ! Do nothing
@@ -783,6 +801,23 @@ CPSourceFileRef)
              list(idum) = i
           ENDDO
           CPPostcondition(idum==np,cp_failure_level,routinep,error,failure)
+       CASE(rmsd_colvar_id)
+          np = colvar%rmsd_param%n_atoms
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s=0
+          DO ii=1,colvar%rmsd_param%n_atoms
+             i = colvar%rmsd_param%i_rmsd(ii)
+             colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ENDDO
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          idum = 0
+          DO ii=1,colvar%rmsd_param%n_atoms
+            idum = idum+1
+            i = colvar%rmsd_param%i_rmsd(ii)
+            list(idum) = i
+          END DO
        CASE(reaction_path_colvar_id)
           colvar%n_atom_s=0
           DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
@@ -1021,6 +1056,15 @@ CPSourceFileRef)
        DEALLOCATE(colvar%combine_cvs_param%variables, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DEALLOCATE(colvar%combine_cvs_param,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (rmsd_colvar_id)
+       DEALLOCATE(colvar%rmsd_param%weights, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%rmsd_param%r_ref, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%rmsd_param%i_rmsd, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       DEALLOCATE(colvar%rmsd_param,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE(no_colvar_id)
        ! Do nothing
@@ -1287,6 +1331,29 @@ CPSourceFileRef)
        ALLOCATE(colvar_out%combine_cvs_param%variables(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%combine_cvs_param%variables    = colvar_in%combine_cvs_param%variables
+     CASE(rmsd_colvar_id)
+       colvar_out%rmsd_param%n_atoms   = colvar_in%rmsd_param%n_atoms  
+       colvar_out%rmsd_param%align_frames  = colvar_in%rmsd_param%align_frames
+       colvar_out%rmsd_param%nr_frames   = colvar_in%rmsd_param%nr_frames
+       colvar_out%rmsd_param%subset   = colvar_in%rmsd_param%subset
+       NULLIFY( colvar_out%rmsd_param%i_rmsd)
+       NULLIFY( colvar_out%rmsd_param%weights)
+       NULLIFY( colvar_out%rmsd_param%r_ref)
+       ! INDEX
+       ndim = SIZE(colvar_in%rmsd_param%i_rmsd)
+       ALLOCATE(colvar_out%rmsd_param%i_rmsd(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%rmsd_param%i_rmsd    = colvar_in%rmsd_param%i_rmsd + my_offset
+       ! A and Bconfigurations and weights
+       ndim = SIZE(colvar_in%rmsd_param%weights)
+       ALLOCATE(colvar_out%rmsd_param%weights(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%rmsd_param%weights    = colvar_in%rmsd_param%weights
+       ndim = SIZE(colvar_in%rmsd_param%r_ref,1)
+       ndim2 = SIZE(colvar_in%rmsd_param%r_ref,2)
+       ALLOCATE(colvar_out%rmsd_param%r_ref(ndim,ndim2),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%rmsd_param%r_ref    = colvar_in%rmsd_param%r_ref
     END SELECT
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone
@@ -1498,7 +1565,8 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=3)                         :: name_kind
-    INTEGER                                  :: i, j, natoms, nkinds, stat
+    INTEGER                                  :: i, ii, j, natoms, nkinds, &
+                                                nr_frame, stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1636,6 +1704,26 @@ CPSourceFileRef)
           CALL colvar_setup(colvar, error)
        END IF
     END IF
+
+    IF (colvar%type_id == rmsd_colvar_id) THEN
+      IF(colvar%rmsd_param%subset==rmsd_all .OR. colvar%rmsd_param%subset==rmsd_list) THEN
+         ! weights are masses
+         DO i=1,SIZE(colvar%rmsd_param%i_rmsd)
+           ii = colvar%rmsd_param%i_rmsd(i)
+           colvar%rmsd_param%weights(ii) = particles(ii)%atomic_kind%mass 
+         END DO
+      END IF
+
+      IF(colvar%rmsd_param%align_frames) THEN
+        nr_frame = SIZE(colvar%rmsd_param%r_ref,2)
+        DO i = 2,nr_frame
+          CALL rmsd3(particles, colvar%rmsd_param%r_ref(:,i), colvar%rmsd_param%r_ref(:,1), -1,&
+                     rotate=.TRUE., error=error)
+        END DO
+      END IF
+       
+    END IF
+
   END SUBROUTINE post_process_colvar
       
 ! *****************************************************************************

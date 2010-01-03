@@ -19,12 +19,20 @@ MODULE colvar_methods
        dist_colvar_id, eval_point_der, eval_point_mass, eval_point_pos, &
        gyration_colvar_id, hydronium_colvar_id, plane_distance_colvar_id, &
        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
-       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id
+       reaction_path_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
+       torsion_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                             parser_get_object
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_release
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -33,14 +41,9 @@ MODULE colvar_methods
                                              finalizef,&
                                              initf,&
                                              parsef
-  USE input_constants,                 ONLY: do_clv_x,&
-                                             do_clv_xy,&
-                                             do_clv_xz,&
-                                             do_clv_y,&
-                                             do_clv_yz,&
-                                             do_clv_z,&
-                                             plane_def_atoms,&
-                                             plane_def_vec
+  USE input_constants,                 ONLY: &
+       do_clv_x, do_clv_xy, do_clv_xz, do_clv_y, do_clv_yz, do_clv_z, &
+       plane_def_atoms, plane_def_vec, rmsd_all, rmsd_list, rmsd_weightlist
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -56,6 +59,7 @@ MODULE colvar_methods
   USE molecule_kind_types,             ONLY: fixd_constraint_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE rmsd,                            ONLY: rmsd3
   USE spherical_harmonics,             ONLY: dlegendre,&
                                              legendre
   USE string_utilities,                ONLY: compress,&
@@ -90,40 +94,42 @@ CONTAINS
 !>      04.2004 created [alessandro laio and fawzi mohamed]
 !> \author teo
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE colvar_read(colvar, icol, colvar_section, error)
+  RECURSIVE SUBROUTINE colvar_read(colvar, icol, colvar_section, para_env, error)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), POINTER         :: colvar_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=7)                         :: tag
-    CHARACTER(LEN=default_path_length)       :: path_function
-    CHARACTER(LEN=default_string_length)     :: tmpStr, tmpStr2
+    CHARACTER(LEN=default_path_length)       :: filename, path_function
+    CHARACTER(LEN=default_string_length)     :: dummy_char, tmpStr, tmpStr2
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: c_kinds, my_par
-    INTEGER                                  :: handle, i, iatm, iend, isize, &
-                                                istart, iw, iw1, j, k, kk, &
-                                                n_var, n_var_k, ncol, ndim, &
-                                                stat, v_count
+    INTEGER :: handle, i, iatm, iend, ii, isize, istart, iw, iw1, j, k, kk, &
+      n_var, n_var_k, natom, ncol, ndim, nr_frame, stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: check, failure
-    LOGICAL, DIMENSION(14)                   :: my_subsection
-    REAL(dp), DIMENSION(:), POINTER          :: s1
+    LOGICAL                                  :: check, explicit, failure, &
+                                                my_end
+    LOGICAL, DIMENSION(15)                   :: my_subsection
+    REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp), DIMENSION(1)              :: my_val
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g_range, grid_point, grid_sp, &
-                                                my_vals, range
+                                                my_vals, range, rptr
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
-      combine_section, coordination_section, dfunct_section, &
-      distance_section, gyration_section, hydronium_section, &
+      combine_section, coord_section, coordination_section, dfunct_section, &
+      distance_section, frame_section, gyration_section, hydronium_section, &
       plane_dist_section, plane_plane_angle_section, plane_sections, &
       point_section, population_section, qparm_section, &
-      reaction_path_section, rotation_section, torsion_section, wrk_section
+      reaction_path_section, rmsd_section, rotation_section, torsion_section, &
+      wrk_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -150,6 +156,7 @@ CONTAINS
                             can_return_null=.TRUE.,error=error)
     population_section   => section_vals_get_subs_vals(colvar_section,"POPULATION",i_rep_section=icol,error=error)
     gyration_section   => section_vals_get_subs_vals(colvar_section,"GYRATION_RADIUS",i_rep_section=icol,error=error)
+    rmsd_section   => section_vals_get_subs_vals(colvar_section,"RMSD",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
@@ -172,6 +179,7 @@ CONTAINS
     CALL section_vals_get(plane_plane_angle_section,&
          &                                      explicit=my_subsection(13), error=error)
     CALL section_vals_get(gyration_section,     explicit=my_subsection(14), error=error)
+    CALL section_vals_get(rmsd_section,         explicit=my_subsection(15), error=error)
 
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
@@ -379,6 +387,7 @@ CONTAINS
        END DO
        colvar%qparm_param%n_atoms_to = ndim
     ELSE IF (my_subsection(9)) THEN
+       ! Hydronium
        CALL colvar_create(colvar,hydronium_colvar_id, error)
        CALL section_vals_val_get(hydronium_section,"OXYGENS",i_vals=iatms,error=error)
        colvar%hydronium_param%n_oxygens = SIZE(iatms)
@@ -411,7 +420,7 @@ CONTAINS
        IF (.NOT. failure) THEN
           DO i= 1, ncol
              NULLIFY(colvar%reaction_path_param%colvar_p(i)%colvar)
-             CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection, error=error)
+             CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection, para_env, error=error)
           ENDDO
        ENDIF
        colvar%reaction_path_param%n_components=ncol
@@ -510,7 +519,7 @@ CONTAINS
        ! Parsing the real COLVARs
        DO i= 1, ncol
           NULLIFY(colvar%combine_cvs_param%colvar_p(i)%colvar)
-          CALL colvar_read(colvar%combine_cvs_param%colvar_p(i)%colvar,i,colvar_subsection, error=error)
+          CALL colvar_read(colvar%combine_cvs_param%colvar_p(i)%colvar,i,colvar_subsection, para_env, error=error)
        END DO
        ! Function definition
        CALL section_vals_val_get(combine_section,"FUNCTION",c_val=colvar%combine_cvs_param%function,error=error)
@@ -667,8 +676,8 @@ CPSourceFileRef)
        CALL colvar_check_points(colvar, gyration_section, error)
 
        NULLIFY(colvar%gyration_param%i_at, colvar%gyration_param%c_kinds)
-       ! This section can be repeated
 
+       ! This section can be repeated
        CALL section_vals_val_get(gyration_section,"ATOMS",n_rep_val=n_var,error=error)
        ndim = 0
        IF (n_var /= 0) THEN
@@ -698,7 +707,155 @@ CPSourceFileRef)
              CALL uppercase(colvar%gyration_param%c_kinds(k))
           END DO
        END IF
-!       CALL section_vals_val_get(gyration_section,"R0",r_val=colvar%gyration_param%r_0,error=error)
+    ELSE IF (my_subsection(15)) THEN
+       ! RMSD_AB
+       wrk_section => rmsd_section
+       CALL colvar_create(colvar, rmsd_colvar_id, error)
+
+       NULLIFY(colvar%rmsd_param%i_rmsd, colvar%rmsd_param%r_ref, colvar%rmsd_param%weights)
+       NULLIFY(rptr)
+
+       frame_section => section_vals_get_subs_vals(rmsd_section,"FRAME",error=error)
+       CALL section_vals_get(frame_section,n_repetition=nr_frame,error=error)
+  
+       colvar%rmsd_param%nr_frames=nr_frame
+       ! Calculation is aborted if reference frame are less than 2
+       CPPostcondition((nr_frame>=2),cp_failure_level,routineP,error,failure)
+       DO i = 1,nr_frame
+         coord_section => section_vals_get_subs_vals(frame_section,"COORD",i_rep_section=i,error=error)
+         CALL section_vals_get(coord_section,explicit=explicit,error=error)
+         ! Cartesian Coordinates
+         IF (explicit) THEN
+            CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+                  n_rep_val=natom,error=error)
+            IF(i==1) THEN
+              ALLOCATE(colvar%rmsd_param%r_ref(3*natom,nr_frame), STAT=stat)
+              CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+              colvar%rmsd_param%n_atoms = natom
+            ELSE
+             CPPostcondition(3*natom==SIZE(colvar%rmsd_param%r_ref,1),cp_failure_level,routineP,error,failure)
+            END IF
+            DO j = 1, natom
+                CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+                       i_rep_val=j,r_vals=rptr,error=error)
+                 colvar%rmsd_param%r_ref((j-1)*3+1:(j-1)*3+3,i) = rptr(1:3)
+            END DO ! natom
+         ELSE  
+            CALL section_vals_val_get(frame_section,"COORD_FILE_NAME",i_rep_section=i,c_val=filename,error=error)
+            CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,error,failure)
+            NULLIFY(parser)
+            ALLOCATE(rptr(3))
+            CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,&
+                                error=error)
+            CALL parser_get_next_line(parser,1,error=error)
+            ! Start parser             
+            CALL parser_get_object(parser,natom,error=error)
+            CALL parser_get_next_line(parser,1,error=error)
+            IF(i==1) THEN
+               ALLOCATE(colvar%rmsd_param%r_ref(3*natom,nr_frame), STAT=stat)
+               CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+               colvar%rmsd_param%n_atoms = natom
+            ELSE
+             CPPostcondition(3*natom==SIZE(colvar%rmsd_param%r_ref,1),cp_failure_level,routineP,error,failure)
+            END IF
+            DO j = 1, natom
+              ! Atom coordinates
+              CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+              CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
+                   "Number of lines in XYZ format not equal to the number of atoms."//&
+                   " Error in XYZ format for COORD_A (CV rmsd). Very probably the"//&
+                   " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
+CPSourceFileRef,&
+              only_ionode=.TRUE.)
+              READ(parser%input_line,*) dummy_char,rptr(1:3)
+              colvar%rmsd_param%r_ref((j-1)*3+1,i) = cp_unit_to_cp2k(rptr(1),"angstrom",error=error)
+              colvar%rmsd_param%r_ref((j-1)*3+2,i) = cp_unit_to_cp2k(rptr(2),"angstrom",error=error)
+              colvar%rmsd_param%r_ref((j-1)*3+3,i) = cp_unit_to_cp2k(rptr(3),"angstrom",error=error)
+            END DO ! natom
+            CALL parser_release(parser,error=error)
+            DEALLOCATE(rptr)
+         END IF
+       END DO  ! nr_frame
+
+       ALLOCATE(colvar%rmsd_param%weights(colvar%rmsd_param%n_atoms), STAT=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       colvar%rmsd_param%weights = 0.0_dp
+
+       CALL section_vals_val_get(rmsd_section,"SUBSET_TYPE",i_val=colvar%rmsd_param%subset,error=error)
+       IF (colvar%rmsd_param%subset==rmsd_all) THEN
+         ALLOCATE(colvar%rmsd_param%i_rmsd(colvar%rmsd_param%n_atoms),STAT=stat)
+         CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+         DO i = 1, colvar%rmsd_param%n_atoms
+            colvar%rmsd_param%i_rmsd(i) = i
+         END DO
+       ELSE IF (colvar%rmsd_param%subset==rmsd_list) THEN
+         ! This section can be repeated
+         CALL section_vals_val_get(rmsd_section,"ATOMS",n_rep_val=n_var,error=error)
+         ndim = 0
+         IF (n_var /= 0) THEN
+            ! INDEX LIST
+            DO k = 1, n_var
+               CALL section_vals_val_get(rmsd_section,"ATOMS",i_rep_val=k,i_vals=iatms,error=error)
+               CALL reallocate(colvar%rmsd_param%i_rmsd,1, ndim+SIZE(iatms))
+               colvar%rmsd_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms 
+               ndim = ndim + SIZE(iatms)
+            END DO
+            colvar%rmsd_param%n_atoms = ndim
+         ELSE
+            CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+            "CV RMSD: if SUBSET_TYPE=LIST a list of atoms needs to be provided "//&
+CPSourceFileRef)
+         END IF
+       ELSE IF (colvar%rmsd_param%subset==rmsd_weightlist) THEN
+         CALL section_vals_val_get(rmsd_section,"ATOMS",n_rep_val=n_var,error=error)
+         ndim = 0
+         IF (n_var /= 0) THEN
+            ! INDEX LIST
+            DO k = 1, n_var
+               CALL section_vals_val_get(rmsd_section,"ATOMS",i_rep_val=k,i_vals=iatms,error=error)
+               CALL reallocate(colvar%rmsd_param%i_rmsd,1, ndim+SIZE(iatms))
+               colvar%rmsd_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms 
+               ndim = ndim + SIZE(iatms)
+            END DO
+            colvar%rmsd_param%n_atoms = ndim
+         ELSE
+            CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+            "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms and a list of weight need to be provided "//&
+CPSourceFileRef)
+         END IF
+         CALL section_vals_val_get(rmsd_section,"WEIGHTS",n_rep_val=n_var,error=error)
+         ndim = 0
+         IF (n_var /= 0) THEN
+            ! INDEX LIST
+            DO k = 1, n_var
+               CALL section_vals_val_get(rmsd_section,"WEIGHTS",i_rep_val=k,r_vals=wei,error=error)
+               CALL reallocate(weights,1, ndim+SIZE(wei))
+               weights(ndim+1:ndim+SIZE(wei)) = wei
+               ndim = ndim + SIZE(wei)
+            END DO
+            CALL cp_assert(ndim==colvar%rmsd_param%n_atoms,cp_fatal_level,cp_assertion_failed,routineP,&
+              "CV RMSD: list of atoms and list of weights need to contain same number of entries. "//&
+CPSourceFileRef)
+            DO i = 1, ndim
+               ii = colvar%rmsd_param%i_rmsd(i)
+               colvar%rmsd_param%weights(ii) = weights(i)
+            END DO
+            DEALLOCATE (weights, STAT=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+         ELSE
+            CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+            "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of atoms and a list of weight need to be provided. "//&
+CPSourceFileRef)
+         END IF
+
+       ELSE
+         CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+            "CV RMSD: unknown SUBSET_TYPE."//&
+CPSourceFileRef)
+       END IF
+
+       CALL section_vals_val_get(rmsd_section,"ALIGN_FRAMES",l_val=colvar%rmsd_param%align_frames,error=error)
+
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -866,6 +1023,10 @@ CPSourceFileRef)
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Description header for HYDRONIUM COLVAR missing!!", &
                error=error, error_level=cp_warning_level)
+       CASE(rmsd_colvar_id)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Description header for RMSD COLVAR missing!!", &
+               error=error, error_level=cp_warning_level)
        END SELECT
        IF (colvar%use_points) THEN
           WRITE ( iw, '( A)') ' COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS'
@@ -893,7 +1054,6 @@ CPSourceFileRef)
     END IF
     CALL cp_print_key_finished_output(iw,logger,colvar_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
-
     CALL timestop(handle)
   END SUBROUTINE colvar_read
 
@@ -960,6 +1120,8 @@ CPSourceFileRef)
           CALL qparm_colvar(colvar,cell, particles=particles, error=error)
        CASE (hydronium_colvar_id)
           CALL hydronium_colvar(colvar,cell,particles=particles, error=error)
+       CASE(rmsd_colvar_id)
+          CALL rmsd_colvar(colvar,particles=particles,error=error)
        CASE (reaction_path_colvar_id)
           CALL reaction_path_colvar(colvar,cell,particles=particles, error=error)
        CASE (combine_colvar_id)
@@ -1031,6 +1193,8 @@ CPSourceFileRef)
           CALL qparm_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (hydronium_colvar_id)
           CALL hydronium_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE(rmsd_colvar_id)
+          CALL rmsd_colvar(colvar,subsys=subsys,error=error)
        CASE (reaction_path_colvar_id)
           CALL reaction_path_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (combine_colvar_id)
@@ -2367,6 +2531,7 @@ CPSourceFileRef)
           ss=ss-NINT(ss)
           xij=MATMUL(cell%hmat,ss)
           rij=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+          IF(rij < 1.0e-8_dp)CYCLE
           rdist_ij = rij/r_0_a
           IF(ABS(1.0_dp-rdist_ij) > EPSILON(0.0_dp)*1.0E+4_dp) THEN 
              num_ij=(1.0_dp-rdist_ij**p_a)
@@ -2394,6 +2559,7 @@ CPSourceFileRef)
                 ss=ss-NINT(ss)
                 xjk=MATMUL(cell%hmat,ss)
                 rjk=SQRT(xjk(1)**2+xjk(2)**2+xjk(3)**2)
+                IF(rjk < 1.0e-8_dp)CYCLE
                 rdist_jk = rjk/r_0_b
                 IF(ABS(1.0_dp-rdist_jk) > EPSILON(0.0_dp)*1.0E+4_dp) THEN
                    num_jk=(1.0_dp-rdist_jk**p_b)
@@ -2758,6 +2924,12 @@ CPSourceFileRef,&
     colvar%ss=population
   END SUBROUTINE population_colvar
 
+! *****************************************************************************
+!> \brief evaluates the force due to the gyration radius colvar
+!>        sum_i (r_i-rcom)^2/N
+!> \author MI
+!> \date  03.2009 
+! *****************************************************************************
   SUBROUTINE gyration_radius_colvar(colvar,cell,subsys,particles,error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -2773,7 +2945,7 @@ CPSourceFileRef,&
     INTEGER                                  :: i, ii, n_atoms
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dri2, func, gyration, inv_n, &
-                                                mass_tot, mi, r_0
+                                                mass_tot, mi
     REAL(dp), DIMENSION(3)                   :: dfunc, dxi, ftmp, ss, xpcom, &
                                                 xpi
     TYPE(particle_list_type), POINTER        :: particles_i
@@ -2782,7 +2954,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    NULLIFY(particles_i)
+    NULLIFY(particles_i,my_particles)
     CPPrecondition(colvar%type_id==gyration_colvar_id,cp_failure_level,routineP,error,failure)
     IF (PRESENT(particles)) THEN
        my_particles => particles
@@ -2792,7 +2964,7 @@ CPSourceFileRef,&
        my_particles => particles_i%els
     END IF
     n_atoms=colvar%gyration_param%n_atoms
-    r_0=colvar%gyration_param%r_0
+!    r_0=colvar%gyration_param%r_0
     inv_n = 1.0_dp/n_atoms
 
 
@@ -2814,7 +2986,7 @@ CPSourceFileRef,&
     DO ii = 1,n_atoms
        i=colvar%gyration_param%i_at(ii)
        CALL get_coordinates(colvar, i, xpi, my_particles)       
-       CALL get_mass(colvar, i, mi, my_particles)       
+!       CALL get_mass(colvar, i, mi, my_particles)       
        ss=MATMUL(cell%h_inv,xpi(:)-xpcom(:))
        ss=ss-NINT(ss)
        dxi=MATMUL(cell%hmat,ss)
@@ -2840,6 +3012,132 @@ CPSourceFileRef,&
     colvar%ss=gyration
 
   END SUBROUTINE gyration_radius_colvar
+
+! *****************************************************************************
+!> \brief evaluates the force due to the rmsd colvar
+!>        ss = (RMSDA-RMSDB)/(RMSDA+RMSDB)
+!>        RMSD is calculated with respect to two reference structures, A and B,
+!>        considering all the atoms of the system or only a subset of them,
+!>        as selected by the input keyword LIST
+!> \author MI
+!> \date  12.2009 
+! *****************************************************************************
+  SUBROUTINE rmsd_colvar(colvar,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rmsd_colvar', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    CPPrecondition(colvar%rmsd_param%nr_frames>=2,cp_failure_level,routineP,error,failure)
+    IF(colvar%rmsd_param%nr_frames==2) THEN
+      CALL rmsd_ab_colvar(colvar,subsys,particles,error)
+    ELSE
+!     NYI
+    END IF
+
+  END SUBROUTINE rmsd_colvar
+
+  SUBROUTINE rmsd_ab_colvar(colvar,subsys,particles,error)
+
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rmsd_ab_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, istat, natom
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: cv_val, dera, derb, f1, &
+                                                ftmp(3), rmsdA, rmsdB
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: r, r0a, r0b
+    REAL(kind=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: drmsdA, drmsdB
+    REAL(kind=dp), DIMENSION(:), POINTER     :: weights
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
+
+    failure=.FALSE.
+
+    NULLIFY(my_particles,particles_i,weights)
+    CPPrecondition(colvar%type_id==rmsd_colvar_id,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
+    natom = SIZE(my_particles)
+    ALLOCATE (drmsdA(3,natom),STAT=istat)
+    drmsdA = 0.0_dp
+    ALLOCATE (drmsdB(3,natom),STAT=istat)
+    drmsdB = 0.0_dp
+
+    ALLOCATE (r0a(3*natom),STAT=istat)
+    ALLOCATE (r0b(3*natom),STAT=istat)
+    ALLOCATE (r(3*natom),STAT=istat)
+
+    weights => colvar%rmsd_param%weights
+    DO i = 1,natom
+      ii = (i-1)*3
+      r0a(ii+1) = colvar%rmsd_param%r_ref(ii+1,1)
+      r0a(ii+2) = colvar%rmsd_param%r_ref(ii+2,1)
+      r0a(ii+3) = colvar%rmsd_param%r_ref(ii+3,1)
+      r0b(ii+1) = colvar%rmsd_param%r_ref(ii+1,2)
+      r0b(ii+2) = colvar%rmsd_param%r_ref(ii+2,2)
+      r0b(ii+3) = colvar%rmsd_param%r_ref(ii+3,2)
+      r(ii+1) = my_particles(i)%r(1)
+      r(ii+2) = my_particles(i)%r(2)
+      r(ii+3) = my_particles(i)%r(3)
+    END DO 
+    rmsdA = 0.0_dp
+    rmsdB = 0.0_dp
+
+    CALL rmsd3(my_particles,r,r0a,output_unit=-1,weights=weights,my_val=rmsdA,rotate=.FALSE.,drmsd3=drmsdA,error=error)
+    CALL rmsd3(my_particles,r,r0b,output_unit=-1,weights=weights,my_val=rmsdB,rotate=.FALSE.,drmsd3=drmsdB,error=error)
+
+    f1 = 1.0_dp/(rmsdA+rmsdB)
+    ! (rmsdA-rmsdB)/(rmsdA+rmsdB)
+    cv_val = (rmsdA-rmsdB)*f1
+    ! (rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
+    dera = f1-cv_val*f1
+    ! -(rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
+    derb = -f1-cv_val*f1
+
+    WRITE(*,*) ' rmsd' , rmsdA, rmsdB, cv_val
+
+    DO i = 1,colvar%rmsd_param%n_atoms
+      ii = colvar%rmsd_param%i_rmsd(i)
+      IF(weights(ii)>0.0_dp) THEN
+        ftmp(1) = dera*drmsdA(1,ii)+derb*drmsdB(1,ii)
+        ftmp(2) = dera*drmsdA(2,ii)+derb*drmsdB(2,ii)
+        ftmp(3) = dera*drmsdA(3,ii)+derb*drmsdB(3,ii)
+        CALL put_derivative(colvar, i, ftmp)
+      END IF
+    END DO
+
+    colvar%ss=cv_val
+
+    DEALLOCATE(r0a,STAT=istat)
+    DEALLOCATE(r0b,STAT=istat)
+    DEALLOCATE(r,STAT=istat)
+    DEALLOCATE(drmsdA,STAT=istat)
+    DEALLOCATE(drmsdB,STAT=istat)
+
+  END SUBROUTINE rmsd_ab_colvar
 
 ! *****************************************************************************
 !> \brief used to print reaction_path function values on an arbitrary dimensional grid

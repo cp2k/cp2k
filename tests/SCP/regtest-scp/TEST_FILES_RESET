@@ -175,3 +175,7 @@ w2.inp
 w2-r1.inp
 # turned on dbcsr_multiply_fm_fm_t
 w2-r2.inp
+# numerics
+w2.inp
+w2-r1.inp
+w2-r2.inp

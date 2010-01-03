@@ -84,7 +84,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        DO ig= 1, ncol
           NULLIFY(subsys%colvar_p(ig)%colvar)
-          CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section,  error=error)
+          CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, subsys%para_env, error=error)
        ENDDO
     ENDIF
   END SUBROUTINE cp_subsys_read_colvar

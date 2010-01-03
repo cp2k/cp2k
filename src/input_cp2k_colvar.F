@@ -159,6 +159,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_colvar_rmsd_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        IF(.NOT. skip_recursive_colvar)THEN
           CALL create_colvar_rpath_section(subsection,error)
           CALL section_add_subsection(section, subsection, error=error)
@@ -1162,6 +1166,85 @@ CONTAINS
   END SUBROUTINE create_colvar_hydronium_section
 
 ! *****************************************************************************
+! *****************************************************************************
+  SUBROUTINE create_colvar_rmsd_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rmsd_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection, subsubsection
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="rmsd",&
+            description="Section to define a CV as function of RMSD computed with respect to"//&
+            " given reference configurations",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword, subsection, subsubsection)
+
+       
+       CALL keyword_create(keyword, name="SUBSET_TYPE",&
+            description="Define the subsytem used to compute the RMSD",&
+            usage="SUBSET_TYPE ALL",&
+            enum_c_vals=s2a( "ALL","LIST", "WEIGHT_LIST"),&
+            enum_i_vals=(/ rmsd_all, rmsd_list, rmsd_weightlist/),&
+            default_i_val=rmsd_all, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    
+       CALL keyword_create(keyword, name="ALIGN_FRAMES",&
+            description="Whether the reference frames should be aligned to minimize the RMSD",&
+            usage="ALIGN_FRAME",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specify indexes of atoms building the subset. ",&
+            usage="ATOMS {integer} {integer} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHTS",&
+            description="Specify weights of atoms building the subset. ",&
+            usage="weightS {real} {real} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_create(subsection,name="FRAME",&
+            description="Specify coordinates of the frame",&
+            repeats=.TRUE., required=.TRUE., error=error)
+
+       CALL keyword_create(keyword, name="COORD_FILE_NAME",&
+            description="Name of the xyz file with coordinates (alternative to &COORD section)",&
+            usage="COORD_FILE_NAME <CHAR>",&
+            default_lc_val="",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_coord_section_cv(subsubsection,"RMSD",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+    END IF
+
+  END  SUBROUTINE create_colvar_rmsd_section
+
+! *****************************************************************************
 !> \brief collective variables specifying the space orthogonal to the reaction path
 !>        in the space spanned by the involved collective coordinates
 !> \param section the section to be created
@@ -1346,5 +1429,44 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_colvar_comb_section
+
+! *****************************************************************************
+!> \brief Creates the coord section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_coord_section_cv(section,name,error)
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: name
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section_cv', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="coord",&
+            description="The positions for "//TRIM(name)//" used for restart",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify positions of the system",repeats=.TRUE.,&
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_coord_section_cv
+
+
 
 END MODULE input_cp2k_colvar

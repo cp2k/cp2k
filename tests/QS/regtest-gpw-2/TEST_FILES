@@ -45,3 +45,5 @@ H2O_meta_pop.inp         1
 H2O_meta_langevin.inp    1
 #gyration radius
 Au13ico_mtd.inp    1
+# rmsd AB
+Au12_rmsd_mtd   1
