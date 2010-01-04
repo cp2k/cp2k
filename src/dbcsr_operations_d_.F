@@ -792,10 +792,18 @@
           CALL add_work_coordinate (matrix%m%wms(iw), row, col, blk_p)
           CALL dbcsr_data_ensure_size (matrix%m%wms(iw)%data_area,&
                matrix%m%wms(iw)%datasize+SIZE(block))
-          CALL addto_array (matrix%m%wms(iw)%data_area, block, ABS(blk_p))
+          IF (PRESENT (scale)) THEN
+             CALL addto_array (matrix%m%wms(iw)%data_area, scale*block, ABS(blk_p))
+          ELSE
+             CALL addto_array (matrix%m%wms(iw)%data_area, block, ABS(blk_p))
+          ENDIF
        ELSE
           ALLOCATE (data_block%p (row_size, col_size))
-          data_block%p(:,:) = RESHAPE (block, (/row_size, col_size/))
+          IF (PRESENT (scale)) THEN
+             data_block%p(:,:) = scale*RESHAPE (block, (/row_size, col_size/))
+          ELSE
+             data_block%p(:,:) = RESHAPE (block, (/row_size, col_size/))
+          ENDIF
           data_block%tr = tr
           IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
              CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
@@ -960,6 +968,28 @@
        ENDDO
     ENDDO
   END SUBROUTINE block_chol_inv_d
+
+  !> \brief Interface for matrix scaling by a vector
+  SUBROUTINE dbcsr_scale_by_vector_d(matrix_a, alpha, side, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix_a
+    REAL(kind=real_8), DIMENSION(:), INTENT(IN), TARGET :: alpha
+    CHARACTER(LEN=*), INTENT(IN)              :: side
+    TYPE(cp_error_type), INTENT(INOUT)        :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_by_vector_d', &
+      routineP = moduleN//':'//routineN
+    REAL(kind=real_8), DIMENSION(:), POINTER            :: tmp_p
+    CHARACTER                                 :: scale_type
+    TYPE(dbcsr_data_obj)                      :: enc_alpha_vec
+
+    scale_type = 'V'
+    CALL dbcsr_data_init (enc_alpha_vec)
+    CALL dbcsr_data_new (enc_alpha_vec, dbcsr_type_real_8)
+    tmp_p => alpha
+    CALL dbcsr_data_set_pointer (enc_alpha_vec, tmp_p)
+    CALL dbcsr_scale_by_vector_anytype(matrix_a, enc_alpha_vec, side, error)
+    CALL dbcsr_data_clear_pointer (enc_alpha_vec)
+    CALL dbcsr_data_release (enc_alpha_vec)
+  END SUBROUTINE dbcsr_scale_by_vector_d
 
   !> \brief Interface for matrix scaling by a scalar
   SUBROUTINE dbcsr_scale_d(matrix_a, alpha_scalar, last_column, error)

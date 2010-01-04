@@ -65,11 +65,12 @@ MODULE dbcsr_operations
             dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, &
             dbcsr_set_diag, dbcsr_get_block, dbcsr_get_block_p,&
             dbcsr_get_block_diag, dbcsr_hadamard_product, &
-            dbcsr_put_block, dbcsr_filter,&
-            dbcsr_replace_blocks,&
-            dbcsr_btriu, block_add_on_diag,&
+            dbcsr_put_block, dbcsr_filter, dbcsr_scale_by_vector,&
+            dbcsr_replace_blocks, dbcsr_conjg,&
+            dbcsr_btriu, dbcsr_triu, dbcsr_tril, block_add_on_diag,&
             block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm, &
-            dbcsr_gershgorin_norm, dbcsr_maxabs_norm, dbcsr_frobenius_norm
+            dbcsr_gershgorin_norm, dbcsr_maxabs_norm, dbcsr_frobenius_norm, &
+            dbcsr_symmetrize_block_diag
   PUBLIC :: dbcsr_desymmetrize_deep,&
             dbcsr_new_transposed,&
             dbcsr_complete_redistribute,&
@@ -155,6 +156,12 @@ MODULE dbcsr_operations
                       dbcsr_scale_c_m, dbcsr_scale_z_m
   END INTERFACE
 
+  INTERFACE dbcsr_scale_by_vector
+     MODULE PROCEDURE dbcsr_scale_by_vector_anytype
+     MODULE PROCEDURE dbcsr_scale_by_vector_s, dbcsr_scale_by_vector_d,&
+                      dbcsr_scale_by_vector_c, dbcsr_scale_by_vector_z
+  END INTERFACE
+
   INTERFACE dbcsr_set
      MODULE PROCEDURE dbcsr_set_anytype
      MODULE PROCEDURE dbcsr_set_s, dbcsr_set_d, dbcsr_set_c, dbcsr_set_z
@@ -186,7 +193,7 @@ MODULE dbcsr_operations
   INTEGER, PARAMETER, PRIVATE :: rpslot_oldblks = 4
   INTEGER, PARAMETER, PRIVATE :: rpslot_oldoffset = 5
   INTEGER, PARAMETER, PRIVATE :: rpslot_totaloffset = 6
- INTEGER, PARAMETER, PRIVATE :: rpnslots = 6
+  INTEGER, PARAMETER, PRIVATE :: rpnslots = 6
 
 
   LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
@@ -1437,7 +1444,7 @@ CONTAINS
              dgemm_parameter_stack(stack_pointer)%nze_a = a_nze
              dgemm_parameter_stack(stack_pointer)%offset_b = b_offset
              dgemm_parameter_stack(stack_pointer)%nze_b = b_nze
-             dgemm_parameter_stack(stack_pointer)%offset_c = c_offset
+             dgemm_parameter_stack(stack_pointer)%offset_c = ABS(c_offset)
              dgemm_parameter_stack(stack_pointer)%nze_c = c_nze
              dgemm_parameter_stack(stack_pointer)%beta = which_beta
              IF (.NOT. limit_k) THEN
@@ -1681,18 +1688,18 @@ CONTAINS
 
        IF(params(sp)%offset_c+params(sp)%nze_c-1.GT.&
             SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
-          WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
-               SIZE(dbcsr_get_data_p_d(product_data_area))
-          WRITE(*,*) 'params(sp)%offset_c+params(sp)%nze_c-1',&
-               params(sp)%offset_c+params(sp)%nze_c-1
+          !WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
+          !     SIZE(dbcsr_get_data_p_d(product_data_area))
+          !WRITE(*,*) 'params(sp)%offset_c+params(sp)%nze_c-1',&
+          !     params(sp)%offset_c+params(sp)%nze_c-1
           !stop
        ENDIF
        IF(params(sp)%offset_c.GT.&
             SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
-          WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
-               SIZE(dbcsr_get_data_p_d(product_data_area))
-          WRITE(*,*) 'params(sp)%offset_c',&
-               params(sp)%offset_c
+          !WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
+          !     SIZE(dbcsr_get_data_p_d(product_data_area))
+          !WRITE(*,*) 'params(sp)%offset_c',&
+          !     params(sp)%offset_c
           !stop
        ENDIF
 
@@ -2399,6 +2406,108 @@ CONTAINS
 
   END SUBROUTINE dbcsr_scale_anytype
 
+! *****************************************************************************
+!> \brief Scales a DBCSR matrix by alpha
+!> \param[inout] matrix_a       DBCSR matrix
+!> \param[in] alpha             the scaling vector
+!> \param[in] side              apply the scaling from the side
+! *****************************************************************************
+  SUBROUTINE dbcsr_scale_by_vector_anytype(matrix_a, alpha, side, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_data_obj), INTENT(IN), &
+      OPTIONAL                               :: alpha
+    CHARACTER(LEN=*), INTENT(IN)             :: side
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_scale_by_vector_anytype', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: data_type
+    INTEGER                                  :: a_blk, a_col, a_col_size, &
+                                                a_nze, a_row, a_row_size, &
+                                                col_offset, i, row_offset, &
+                                                timing_handle
+    LOGICAL                                  :: right, tr
+    TYPE(dbcsr_data_obj)                     :: data_any
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    !
+    ! check that alpha and matrix have the same data type
+    IF(dbcsr_get_data_type (matrix_a).NE.alpha%d%data_type) &
+         CALL stop_program(routineN,"wrong data type matrix_a="//&
+         dbcsr_get_data_type (matrix_a)//' alpha='//alpha%d%data_type)
+    !
+    ! set vars
+    right = .TRUE.
+    SELECT CASE(side)
+    CASE('right');right = .TRUE.
+    CASE('left' );right = .FALSE.
+    CASE DEFAULT
+       CALL stop_program(routineN,"wrong side="//side)
+    END SELECT
+    !
+    ! let's go
+    data_type = dbcsr_get_data_type (matrix_a)
+    CALL dbcsr_data_init(data_any)
+    CALL dbcsr_data_new(data_any, dbcsr_get_data_type (matrix_a))
+    CALL dbcsr_iterator_start(iter, matrix_a)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_any, tr,&
+            block_number=a_blk,&
+            row_size=a_row_size, col_size=a_col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+       a_nze = a_row_size * a_col_size
+       IF (a_nze .EQ. 0) CYCLE ! Skip empty blocks
+       !
+       ! let's scale
+       IF(right) THEN
+          DO i = 1,a_col_size
+             SELECT CASE (data_type)
+             CASE (dbcsr_type_real_4)
+                CALL sscal(a_row_size,alpha%d%r_sp(col_offset+i-1),&
+                     data_any%d%r_sp((i-1)*a_row_size+1),1)
+             CASE (dbcsr_type_real_8)
+                CALL dscal(a_row_size,alpha%d%r_dp(col_offset+i-1),&
+                     data_any%d%r_dp((i-1)*a_row_size+1),1)
+             CASE (dbcsr_type_complex_4)
+                CALL cscal(a_row_size,alpha%d%c_sp(col_offset+i-1),&
+                     data_any%d%c_sp((i-1)*a_row_size+1),1)
+             CASE (dbcsr_type_complex_8)
+                CALL zscal(a_row_size,alpha%d%c_dp(col_offset+i-1),&
+                     data_any%d%c_dp((i-1)*a_row_size+1),1)
+             END SELECT
+          ENDDO
+       ELSE
+          DO i = 1,a_row_size
+             SELECT CASE (data_type)
+             CASE (dbcsr_type_real_4)
+                CALL sscal(a_col_size,alpha%d%r_sp(row_offset+i-1),&
+                     data_any%d%r_sp(i),a_col_size)
+             CASE (dbcsr_type_real_8)
+                CALL dscal(a_col_size,alpha%d%r_dp(row_offset+i-1),&
+                     data_any%d%r_dp(i),a_col_size)
+             CASE (dbcsr_type_complex_4)
+                CALL cscal(a_col_size,alpha%d%c_sp(row_offset+i-1),&
+                     data_any%d%c_sp(i),a_col_size)
+             CASE (dbcsr_type_complex_8)
+                CALL zscal(a_col_size,alpha%d%c_dp(row_offset+i-1),&
+                     data_any%d%c_dp(i),a_col_size)
+             END SELECT
+          ENDDO
+       ENDIF
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_data_clear_pointer (data_any)
+    CALL dbcsr_data_release (data_any)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_scale_by_vector_anytype
+
 
 ! *****************************************************************************
 !> \brief Detransposes all blocks in a matrix
@@ -2491,6 +2600,48 @@ CONTAINS
     !
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_set_anytype
+
+! *****************************************************************************
+!> \brief Conjugate a DBCSR matrix
+!> \param[inout] matrix       DBCSR matrix
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_conjg(matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_conjg', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: data_type
+    INTEGER                                  :: blk, col, row, timing_handle
+    LOGICAL                                  :: tr
+    TYPE(dbcsr_data_obj)                     :: data_any
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+    !
+    data_type = dbcsr_get_data_type(matrix)
+    CALL dbcsr_data_init (data_any)
+    CALL dbcsr_data_new (data_any, data_type)
+    CALL dbcsr_iterator_start(iter, matrix)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, data_any, tr, blk)
+       SELECT CASE (data_type)
+       CASE (dbcsr_type_complex_4)
+          data_any%d%c_sp = CONJG(data_any%d%c_sp)
+       CASE (dbcsr_type_complex_8)
+          data_any%d%c_dp = CONJG(data_any%d%c_dp)
+       END SELECT
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_data_clear_pointer(data_any)
+    CALL dbcsr_data_release(data_any)
+    !
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_conjg
 
 ! *****************************************************************************
 !> \brief Marks a block for removal from a DBCSR matrix. Handles
@@ -2588,7 +2739,7 @@ CONTAINS
          alpha_scalar=my_alpha_scalar,error=error)
 
     IF(.not.dbcsr_scalar_are_equal(my_beta_scalar,&
-                    dbcsr_scalar_zero(data_type))) THEN
+         dbcsr_scalar_zero(data_type))) THEN
        CALL dbcsr_data_init (data_block)
        CALL dbcsr_data_new (data_block, data_type)
        CALL dbcsr_iterator_start(iter, matrix_b)
@@ -2624,7 +2775,6 @@ CONTAINS
 !>    C = A . B 
 !> \param[in,out] matrix_c        DBCSR matrix
 !> \param[in] matrix_a, matrix_b  DBCSR matrix
-!> 
 ! *****************************************************************************
   SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -2662,8 +2812,8 @@ CONTAINS
     CALL dbcsr_data_new (a_data, data_type)
     CALL dbcsr_data_init (b_data)
     CALL dbcsr_data_new (b_data, data_type)
-    CALL dbcsr_iterator_start(iter, matrix_a)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
+   CALL dbcsr_iterator_start(iter, matrix_a)
+   DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix_a))
           !CASE (dbcsr_type_real_4)
        CASE (dbcsr_type_real_8)
@@ -2693,10 +2843,8 @@ CONTAINS
           CALL cp_unimplemented_error (routineN,"Only real double precision")
        END SELECT
     ENDDO
-
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_finalize (matrix_c, error=error)
-    CALL dbcsr_data_clear_pointer (c_data)
     CALL dbcsr_data_clear_pointer (a_data)
     CALL dbcsr_data_clear_pointer (b_data)
     CALL dbcsr_data_release (c_data)
@@ -2779,7 +2927,6 @@ CONTAINS
 !> \brief add a constant to the diagonal of a matrix
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in]    alpha_scalar scalar
-!> \note  We assume the sparse matrix has at least its diagonal blocks.
 ! *****************************************************************************
   SUBROUTINE dbcsr_add_on_diag(matrix, alpha_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -2789,36 +2936,69 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, row, timing_handle
-    LOGICAL                                  :: tr
+    INTEGER                                  :: blk, col, hold, mynode, n, &
+                                                row, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
+    LOGICAL                                  :: found, tr
     REAL(kind=real_8), DIMENSION(:, :), &
-      POINTER                                :: data_d
+      POINTER                                :: buff, data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
 
-    CALL dbcsr_iterator_start(iter, matrix)
+    IF(dbcsr_nblkrows_total(matrix).NE.dbcsr_nblkcols_total(matrix).OR.&
+       dbcsr_nfullrows_total(matrix).NE.dbcsr_nfullrows_total(matrix)) &
+       CALL stop_program(routineN,"matrix not consistent")
 
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
+    row_blk_size => array_data(dbcsr_row_block_sizes(matrix))
+    mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
 
-       SELECT CASE (dbcsr_get_data_type(matrix))
-       !CASE (dbcsr_type_real_4)
-       CASE (dbcsr_type_real_8)
-          CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-          IF(row.EQ.col) CALL block_add_on_diag(SIZE(data_d,1),data_d,alpha_scalar)
-          !CASE (dbcsr_type_complex_4)
-          !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
-          !CASE (dbcsr_type_complex_8)
-          !   CALL dbcsr_iterator_next_block(iter, row, col, data_z, blk)
-       CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Only real double precision")
-       END SELECT
+    CALL dbcsr_work_create(matrix, work_mutable=.TRUE., error=error)
 
+    DO row = 1,dbcsr_nblkrows_total(matrix)
+       CALL dbcsr_get_stored_coordinates (matrix, row, row, tr, hold)
+       IF(hold.EQ.mynode) THEN
+          CALL dbcsr_get_block_p(matrix, row, row, data_d, tr, found)
+          IF(found) THEN
+             CALL block_add_on_diag(SIZE(data_d,1),data_d,alpha_scalar)
+          ELSE
+             n = row_blk_size(row)
+             ALLOCATE(buff(n,n))
+             buff(:,:) = 0.0_dp
+             CALL block_add_on_diag(SIZE(buff,1),buff,alpha_scalar)
+             CALL dbcsr_put_block(matrix, row, row, buff)
+             DEALLOCATE(buff)
+          ENDIF
+       ENDIF
     ENDDO
 
-    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_finalize(matrix, error=error)
+
+    IF(.FALSE.) THEN
+       CALL dbcsr_iterator_start(iter, matrix)
+
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+
+          SELECT CASE (dbcsr_get_data_type(matrix))
+             !CASE (dbcsr_type_real_4)
+          CASE (dbcsr_type_real_8)
+             CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+             IF(row.EQ.col) CALL block_add_on_diag(SIZE(data_d,1),data_d,alpha_scalar)
+             !CASE (dbcsr_type_complex_4)
+             !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
+             !CASE (dbcsr_type_complex_8)
+             !   CALL dbcsr_iterator_next_block(iter, row, col, data_z, blk)
+          CASE DEFAULT
+             CALL cp_unimplemented_error (routineN,"Only real double precision")
+          END SELECT
+
+       ENDDO
+
+       CALL dbcsr_iterator_stop(iter)
+
+    ENDIF
 
     CALL timestop(timing_handle)
 
@@ -3268,6 +3448,149 @@ CONTAINS
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_btriu
+
+! *****************************************************************************
+!> \brief  triu of a dbcsr matrix
+!> \param[inout] matrix_a  the matrix
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_triu(matrix_a, error)
+
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_triu', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, blk_nze, col, col_size, &
+                                                i, j, row, row_size, &
+                                                timing_handle
+    LOGICAL                                  :: tr
+    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    CALL dbcsr_iterator_start(iter, matrix_a)
+
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr, &
+            block_number=blk, row_size=row_size, col_size=col_size)
+       blk_nze = row_size * col_size
+       IF(row.GT.col) CALL dbcsr_remove_block(matrix_a, row, col, blk_nze, blk)
+       IF(row.EQ.col) THEN
+          DO j = 1,col_size
+          DO i = j+1,row_size
+             DATA(i,j) = 0.0_dp
+          ENDDO
+          ENDDO
+       ENDIF
+    ENDDO
+
+    CALL dbcsr_iterator_stop(iter)
+
+    CALL dbcsr_finalize (matrix_a, error=error)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_triu
+
+! *****************************************************************************
+!> \brief  symmetrize the block diagonal of a dbcsr matrix
+!> \param[inout] matrix_a  the matrix
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_symmetrize_block_diag(matrix_a, error)
+
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_symmetrize_block_diag', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_size, i, j, &
+                                                row, row_size, timing_handle
+    LOGICAL                                  :: tr
+    REAL(dp)                                 :: dum
+    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    CALL dbcsr_iterator_start(iter, matrix_a)
+
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr, &
+            block_number=blk, row_size=row_size, col_size=col_size)
+       IF(col.NE.row) CYCLE
+       DO j = 1,col_size
+       DO i = j+1,row_size
+          dum = (DATA(i,j) + DATA(j,i)) / 2.0_dp
+          DATA(i,j) = dum
+          DATA(j,i) = dum
+       ENDDO
+       ENDDO
+    ENDDO
+
+    CALL dbcsr_iterator_stop(iter)
+
+    CALL dbcsr_finalize(matrix_a, error=error)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_symmetrize_block_diag
+
+! *****************************************************************************
+!> \brief  tril of a dbcsr matrix
+!> \param[inout] matrix_a  the matrix
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_tril(matrix_a, error)
+
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_tril', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, blk_nze, col, col_size, &
+                                                i, j, row, row_size, &
+                                                timing_handle
+    LOGICAL                                  :: tr
+    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    CALL dbcsr_iterator_start(iter, matrix_a)
+
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, block=DATA, transposed=tr, &
+            block_number=blk, row_size=row_size, col_size=col_size)
+       blk_nze = row_size * col_size
+       IF(row.GT.col) CALL dbcsr_remove_block(matrix_a, row, col, blk_nze, blk)
+       IF(row.EQ.col) THEN
+          DO j = 1,col_size
+          DO i = 1,j-1
+             DATA(i,j) = 0.0_dp
+          ENDDO
+          ENDDO
+       ENDIF
+    ENDDO
+
+    CALL dbcsr_iterator_stop(iter)
+
+    CALL dbcsr_finalize (matrix_a, error=error)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE dbcsr_tril
 
 ! *****************************************************************************
 !> \brief filter a dbcsr matrix
@@ -3931,8 +4254,14 @@ CONTAINS
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 7
 
     CHARACTER(len=80)                        :: ifmt
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: send_data_z
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:), TARGET                   :: recv_data_z
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :), TARGET                :: c2_dp_buff
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: c2_dp
     INTEGER :: blk, blk_col_new, blk_col_prev_new, blk_ps, blk_row_new, blks, &
       cnt_fnd, cnt_new, cnt_skip, col, col_int, col_offset_new, &
       col_offset_old, col_rle, data_offset_l, dst_p, i, meta_l, mp_group, &
@@ -3960,9 +4289,7 @@ CONTAINS
       DIMENSION(:), TARGET                   :: recv_data
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :), TARGET                :: r2_dp_buff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r2_dp
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
@@ -3982,19 +4309,6 @@ CONTAINS
     CALL cp_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
          cp_warning_level, cp_caller_error, routineN,&
          "Can not redistribute replicated matrix.")
-    SELECT CASE (matrix%m%data_type)
-    CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
-    CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
-    END SELECT
     !
     my_keep_sparsity = .FALSE.
     IF (PRESENT (keep_sparsity)) my_keep_sparsity = my_keep_sparsity
@@ -4121,9 +4435,20 @@ CONTAINS
     DBG 'send counts',send_count
     DBG 'recv counts',recv_count
     ! Allocate data structures needed for data exchange.
-    ALLOCATE (recv_data(SUM(recv_count(2, :))))
+
+    SELECT CASE(dbcsr_get_data_type(matrix))
+    CASE(dbcsr_type_real_8)
+       ALLOCATE (recv_data(SUM(recv_count(2, :))))
+       ALLOCATE (send_data(SUM(send_count(2, :))))
+    CASE(dbcsr_type_complex_8)
+       ALLOCATE (recv_data_z(SUM(recv_count(2, :))))
+       ALLOCATE (send_data_z(SUM(send_count(2, :))))
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid matrix type")
+    END SELECT
+
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
-    ALLOCATE (send_data(SUM(send_count(2, :))))
     ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
     DBG 'send data len',SIZE (send_data)
     DBG 'send meta len',SIZE (send_meta)
@@ -4173,78 +4498,159 @@ CONTAINS
     row_prev = 0
     dst_p = -1
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, r2_dp, tr, blk)
-       IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
-       !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
-       col_offset_old = 1
-       DO col_int = n_col_reblocks (1,col),&
-            n_col_reblocks(1,col) + n_col_reblocks(2,col)-1
-          blk_col_new = col_reblocks(1, col_int)
-          row_offset_old = 1
-          DO row_int = n_row_reblocks (1, row),&
-               n_row_reblocks(1,row) + n_row_reblocks(2,row)-1
-             blk_row_new = row_reblocks(1, row_int)
-             loc_ok: IF (.NOT. sym .OR. blk_col_new .GE. blk_row_new) THEN
-                IF (dbg) &
-                     WRITE(*,*)'using block',blk_row_new,'x',blk_col_new
-                ! Start a new RLE run
-                tr = .FALSE.
-                CALL dbcsr_get_stored_coordinates (redist%m,&
-                     blk_row_new, blk_col_new, tr, dst_p)
-                row_rle = row_reblocks(2,row_int)
-                col_rle = col_reblocks(2,col_int)
-                row_offset_new = row_offset_old + row_start_old(row) - &
-                                 row_start_new(blk_row_new)
-                col_offset_new = col_offset_old + col_start_old(col) - &
-                                 col_start_new(blk_col_new)
-                smp(dst_p) = smp(dst_p) + metalen
-                send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
-                send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
-                send_meta(smp(dst_p)+2) = row_offset_new  ! row in new block
-                send_meta(smp(dst_p)+3) = col_offset_new  ! col in new block
-                send_meta(smp(dst_p)+4) = row_rle ! RLE rows
-                send_meta(smp(dst_p)+5) = col_rle ! RLE columns
-                send_meta(smp(dst_p)+6) = sdp(dst_p)-sd_disp(dst_p) ! Offset in data
-                nze_rle = row_rle * col_rle
-                IF (.NOT. tr) THEN
-                   IF (.NOT. PRESENT (alpha)) THEN
-                      CALL dbcsr_block_copy(&
-                           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
-                           r2_dp(&
-                             row_offset_old:row_offset_old+row_rle-1,&
-                             col_offset_old:col_offset_old+col_rle-1),&
-                           row_rle, col_rle)
+       SELECT CASE(dbcsr_get_data_type(matrix))
+       CASE(dbcsr_type_real_8)
+          CALL dbcsr_iterator_next_block (iter, row, col, r2_dp, tr, blk)
+          IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
+          !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
+          col_offset_old = 1
+          DO col_int = n_col_reblocks (1,col),&
+               n_col_reblocks(1,col) + n_col_reblocks(2,col)-1
+             blk_col_new = col_reblocks(1, col_int)
+             row_offset_old = 1
+             DO row_int = n_row_reblocks (1, row),&
+                  n_row_reblocks(1,row) + n_row_reblocks(2,row)-1
+                blk_row_new = row_reblocks(1, row_int)
+                loc_ok: IF (.NOT. sym .OR. blk_col_new .GE. blk_row_new) THEN
+                   IF (dbg) &
+                        WRITE(*,*)'using block',blk_row_new,'x',blk_col_new
+                   ! Start a new RLE run
+                   tr = .FALSE.
+                   CALL dbcsr_get_stored_coordinates (redist%m,&
+                        blk_row_new, blk_col_new, tr, dst_p)
+                   row_rle = row_reblocks(2,row_int)
+                   col_rle = col_reblocks(2,col_int)
+                   row_offset_new = row_offset_old + row_start_old(row) - &
+                        row_start_new(blk_row_new)
+                   col_offset_new = col_offset_old + col_start_old(col) - &
+                        col_start_new(blk_col_new)
+                   smp(dst_p) = smp(dst_p) + metalen
+                   send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
+                   send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
+                   send_meta(smp(dst_p)+2) = row_offset_new  ! row in new block
+                   send_meta(smp(dst_p)+3) = col_offset_new  ! col in new block
+                   send_meta(smp(dst_p)+4) = row_rle ! RLE rows
+                   send_meta(smp(dst_p)+5) = col_rle ! RLE columns
+                   send_meta(smp(dst_p)+6) = sdp(dst_p)-sd_disp(dst_p) ! Offset in data
+                   nze_rle = row_rle * col_rle
+                   IF (.NOT. tr) THEN
+                      IF (.NOT. PRESENT (alpha)) THEN
+                         CALL dbcsr_block_copy(&
+                              send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                              r2_dp(&
+                              row_offset_old:row_offset_old+row_rle-1,&
+                              col_offset_old:col_offset_old+col_rle-1),&
+                              row_rle, col_rle)
+                      ELSE
+                         CALL dbcsr_block_copy(&
+                              send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                              alpha*r2_dp(&
+                              row_offset_old:row_offset_old+row_rle-1,&
+                              col_offset_old:col_offset_old+col_rle-1),&
+                              row_rle, col_rle)
+                      ENDIF
                    ELSE
-                      CALL dbcsr_block_copy(&
-                           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
-                           alpha*r2_dp(&
-                             row_offset_old:row_offset_old+row_rle-1,&
-                             col_offset_old:col_offset_old+col_rle-1),&
-                           row_rle, col_rle)
+                      IF (.NOT. PRESENT (alpha)) THEN
+                         CALL dbcsr_block_transpose(&
+                              send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                              r2_dp(&
+                              col_offset_old:col_offset_old+col_rle-1,&
+                              row_offset_old:row_offset_old+row_rle-1),&
+                              row_rle, col_rle)
+                      ELSE
+                         CALL dbcsr_block_transpose(&
+                              send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                              alpha*r2_dp(&
+                              col_offset_old:col_offset_old+col_rle-1,&
+                              row_offset_old:row_offset_old+row_rle-1),&
+                              row_rle, col_rle)
+                      ENDIF
                    ENDIF
-                ELSE
-                   IF (.NOT. PRESENT (alpha)) THEN
-                      CALL dbcsr_block_transpose(&
-                           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
-                           r2_dp(&
-                             col_offset_old:col_offset_old+col_rle-1,&
-                             row_offset_old:row_offset_old+row_rle-1),&
-                           row_rle, col_rle)
+                   sdp(dst_p) = sdp(dst_p)+nze_rle
+                ENDIF loc_ok
+                row_offset_old = row_offset_old + row_reblocks(2, row_int)
+             ENDDO ! row_int
+             col_offset_old = col_offset_old + col_reblocks(2, col_int)
+          ENDDO ! col_int
+       CASE(dbcsr_type_complex_8)
+          CALL dbcsr_iterator_next_block (iter, row, col, c2_dp, tr, blk)
+          IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
+          !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
+          col_offset_old = 1
+          DO col_int = n_col_reblocks (1,col),&
+               n_col_reblocks(1,col) + n_col_reblocks(2,col)-1
+             blk_col_new = col_reblocks(1, col_int)
+             row_offset_old = 1
+             DO row_int = n_row_reblocks (1, row),&
+                  n_row_reblocks(1,row) + n_row_reblocks(2,row)-1
+                blk_row_new = row_reblocks(1, row_int)
+                loc_ok_c: IF (.NOT. sym .OR. blk_col_new .GE. blk_row_new) THEN
+                   IF (dbg) &
+                        WRITE(*,*)'using block',blk_row_new,'x',blk_col_new
+                   ! Start a new RLE run
+                   tr = .FALSE.
+                   CALL dbcsr_get_stored_coordinates (redist%m,&
+                        blk_row_new, blk_col_new, tr, dst_p)
+                   row_rle = row_reblocks(2,row_int)
+                   col_rle = col_reblocks(2,col_int)
+                   row_offset_new = row_offset_old + row_start_old(row) - &
+                        row_start_new(blk_row_new)
+                   col_offset_new = col_offset_old + col_start_old(col) - &
+                        col_start_new(blk_col_new)
+                   smp(dst_p) = smp(dst_p) + metalen
+                   send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
+                   send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
+                   send_meta(smp(dst_p)+2) = row_offset_new  ! row in new block
+                   send_meta(smp(dst_p)+3) = col_offset_new  ! col in new block
+                   send_meta(smp(dst_p)+4) = row_rle ! RLE rows
+                   send_meta(smp(dst_p)+5) = col_rle ! RLE columns
+                   send_meta(smp(dst_p)+6) = sdp(dst_p)-sd_disp(dst_p) ! Offset in data
+                   nze_rle = row_rle * col_rle
+                   IF (.NOT. tr) THEN
+                      IF (.NOT. PRESENT (alpha)) THEN
+                         CALL dbcsr_block_copy(&
+                              send_data_z(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                              c2_dp(&
+                              row_offset_old:row_offset_old+row_rle-1,&
+                              col_offset_old:col_offset_old+col_rle-1),&
+                              row_rle, col_rle)
+                      ELSE
+                         CALL dbcsr_block_copy(&
+                              send_data_z(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                              alpha*c2_dp(&
+                              row_offset_old:row_offset_old+row_rle-1,&
+                              col_offset_old:col_offset_old+col_rle-1),&
+                              row_rle, col_rle)
+                      ENDIF
                    ELSE
-                      CALL dbcsr_block_transpose(&
-                           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
-                           alpha*r2_dp(&
-                             col_offset_old:col_offset_old+col_rle-1,&
-                             row_offset_old:row_offset_old+row_rle-1),&
-                           row_rle, col_rle)
+                      CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+                           routineN, "complex conjugate here instead pf transpose????")
+                      IF (.NOT. PRESENT (alpha)) THEN
+                         CALL dbcsr_block_transpose(&
+                              send_data_z(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                              c2_dp(&
+                              col_offset_old:col_offset_old+col_rle-1,&
+                              row_offset_old:row_offset_old+row_rle-1),&
+                              row_rle, col_rle)
+                      ELSE
+                         CALL dbcsr_block_transpose(&
+                              send_data_z(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
+                              alpha*c2_dp(&
+                              col_offset_old:col_offset_old+col_rle-1,&
+                              row_offset_old:row_offset_old+row_rle-1),&
+                              row_rle, col_rle)
+                      ENDIF
                    ENDIF
-                ENDIF
-                sdp(dst_p) = sdp(dst_p)+nze_rle
-             ENDIF loc_ok
-             row_offset_old = row_offset_old + row_reblocks(2, row_int)
-          ENDDO ! row_int
-          col_offset_old = col_offset_old + col_reblocks(2, col_int)
-       ENDDO ! col_int
+                   sdp(dst_p) = sdp(dst_p)+nze_rle
+                ENDIF loc_ok_c
+                row_offset_old = row_offset_old + row_reblocks(2, row_int)
+             ENDDO ! row_int
+             col_offset_old = col_offset_old + col_reblocks(2, col_int)
+          ENDDO ! col_int
+       CASE default
+          CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+               routineN, "Invalid matrix type")
+       END SELECT
     ENDDO
     CALL dbcsr_iterator_stop (iter)
     ! Exchange the data and metadata structures.
@@ -4253,8 +4659,17 @@ CONTAINS
     t_fill = t_xfer2 - t_fill
     !
     DBG 'E'
-    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
-         recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
+    SELECT CASE(dbcsr_get_data_type(matrix))
+    CASE(dbcsr_type_real_8)
+       CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
+    CASE(dbcsr_type_complex_8)
+       CALL mp_alltoall(send_data_z(:), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data_z(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid matrix type")
+    END SELECT
     DBG 'F'
     DBG 'send_meta'
     WRITE(ifmt,'("(",I2,"(1X,I5))")') metalen
@@ -4286,74 +4701,149 @@ CONTAINS
     blks = 0
     t_blk2 = 0.0_dp
     cnt_fnd = 0 ; cnt_new = 0 ; cnt_skip = 0
-    ALLOCATE (r2_dp_buff (redist%m%max_rbs, redist%m%max_cbs))
-    r2_dp_buff(:,:) = 9.9_dp ! Needed for nagging compilers.
-    DO src_p = 0, numnodes-1
-       data_offset_l = rd_disp(src_p)
-       DO meta_l = 1, recv_count(1, src_p)
-          stored_row_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1))
-          stored_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+1)
-          row_offset_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+2)
-          col_offset_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+3)
-          row_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+4)
-          col_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+5)
-          data_offset_l = rd_disp(src_p)&
-               + recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+6)
-          DBG 'blk: p',blks,src_p,'; row, col',&
-               stored_row_new,stored_col_new,&
-               '; blk_ps',blk_ps
-          NULLIFY (r2_dp)
-          t_blk = m_walltime()
-          CALL dbcsr_get_block_p(redist, stored_row_new, stored_col_new,&
-               r2_dp, tr, found)
-          t_blk2 = t_blk2 + (m_walltime() - t_blk)
-          valid_block = found
-          IF (found) cnt_fnd = cnt_fnd + 1
-          IF (.NOT. found .AND. .NOT. my_keep_sparsity) THEN
-             r2_dp => r2_dp_buff(1:row_blk_size_new (stored_row_new),&
-                                 1:col_blk_size_new (stored_col_new))
-             r2_dp(:,:) = 0.0_dp
-             tr = .FALSE.
-             blks = blks + 1
-             blk_ps = blk_ps + row_blk_size_new (stored_row_new) * &
-                               col_blk_size_new (stored_col_new)
-             valid_block = .TRUE.
-             cnt_new = cnt_new + 1
-          ENDIF
-          nze_rle = row_rle*col_rle
-          IF (valid_block) THEN
-             IF (.NOT. tr) THEN
-                CALL dbcsr_block_copy (&
-                     r2_dp(&
+    SELECT CASE(dbcsr_get_data_type(matrix))
+    CASE(dbcsr_type_real_8)
+       ALLOCATE (r2_dp_buff (redist%m%max_rbs, redist%m%max_cbs))
+       r2_dp_buff(:,:) = 9.9_dp ! Needed for nagging compilers.
+       DO src_p = 0, numnodes-1
+          data_offset_l = rd_disp(src_p)
+          DO meta_l = 1, recv_count(1, src_p)
+             stored_row_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1))
+             stored_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+1)
+             row_offset_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+2)
+             col_offset_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+3)
+             row_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+4)
+             col_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+5)
+             data_offset_l = rd_disp(src_p)&
+                  + recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+6)
+             DBG 'blk: p',blks,src_p,'; row, col',&
+                  stored_row_new,stored_col_new,&
+                  '; blk_ps',blk_ps
+             NULLIFY (r2_dp)
+             t_blk = m_walltime()
+             CALL dbcsr_get_block_p(redist, stored_row_new, stored_col_new,&
+                  r2_dp, tr, found)
+             t_blk2 = t_blk2 + (m_walltime() - t_blk)
+             valid_block = found
+             IF (found) cnt_fnd = cnt_fnd + 1
+             IF (.NOT. found .AND. .NOT. my_keep_sparsity) THEN
+                r2_dp => r2_dp_buff(1:row_blk_size_new (stored_row_new),&
+                                    1:col_blk_size_new (stored_col_new))
+                r2_dp(:,:) = 0.0_dp
+                tr = .FALSE.
+                blks = blks + 1
+                blk_ps = blk_ps + row_blk_size_new (stored_row_new) * &
+                                  col_blk_size_new (stored_col_new)
+                valid_block = .TRUE.
+                cnt_new = cnt_new + 1
+             ENDIF
+             nze_rle = row_rle*col_rle
+             IF (valid_block) THEN
+                IF (.NOT. tr) THEN
+                   CALL dbcsr_block_copy (&
+                    r2_dp(&
                        row_offset_new:row_offset_new+row_rle-1,&
                        col_offset_new:col_offset_new+col_rle-1),&
                      recv_data(data_offset_l:data_offset_l+nze_rle-1),&
                      row_rle, col_rle)
-             ELSE
-                CALL dbcsr_block_transpose (&
+                ELSE
+                   CALL dbcsr_block_transpose (&
                      r2_dp(&
                        col_offset_new:col_offset_new+col_rle-1,&
                        row_offset_new:row_offset_new+row_rle-1),&
                      recv_data(data_offset_l:data_offset_l+nze_rle-1),&
                      row_rle, col_rle)
+                ENDIF
+             ELSE
+                cnt_skip = cnt_skip+1
              ENDIF
-          ELSE
-             cnt_skip = cnt_skip+1
-          ENDIF
-          data_offset_l = data_offset_l + nze_rle
-          IF (.NOT. found .AND. valid_block) THEN
-             IF (dbg) WRITE(*,*)routineN//" Adding new block at",&
-                  stored_row_new, stored_col_new
-             CALL dbcsr_put_block(redist, stored_row_new, stored_col_new,&
-                  r2_dp, tr)
-             !DEALLOCATE (r2_dp)
-          ELSE
-             IF (.NOT. my_keep_sparsity .AND. dbg) &
-                  WRITE(*,*)routineN//" Reusing block at",&
-                  stored_row_new, stored_col_new
-          ENDIF
+             data_offset_l = data_offset_l + nze_rle
+             IF (.NOT. found .AND. valid_block) THEN
+                IF (dbg) WRITE(*,*)routineN//" Adding new block at",&
+                     stored_row_new, stored_col_new
+                CALL dbcsr_put_block(redist, stored_row_new, stored_col_new,&
+                     r2_dp, tr)
+                !DEALLOCATE (r2_dp)
+             ELSE
+                IF (.NOT. my_keep_sparsity .AND. dbg) &
+                     WRITE(*,*)routineN//" Reusing block at",&
+                     stored_row_new, stored_col_new
+             ENDIF
+          ENDDO
        ENDDO
-    ENDDO
+    CASE(dbcsr_type_complex_8)
+       ALLOCATE (c2_dp_buff (redist%m%max_rbs, redist%m%max_cbs))
+       c2_dp_buff(:,:) = (9.9_dp,9.9_dp) ! Needed for nagging compilers.
+       DO src_p = 0, numnodes-1
+          data_offset_l = rd_disp(src_p)
+          DO meta_l = 1, recv_count(1, src_p)
+             stored_row_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1))
+             stored_col_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+1)
+             row_offset_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+2)
+             col_offset_new = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+3)
+             row_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+4)
+             col_rle = recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+5)
+             data_offset_l = rd_disp(src_p)&
+                  + recv_meta(rm_disp(src_p)+metalen*(meta_l-1)+6)
+             DBG 'blk: p',blks,src_p,'; row, col',&
+                  stored_row_new,stored_col_new,&
+                  '; blk_ps',blk_ps
+             NULLIFY (r2_dp)
+             t_blk = m_walltime()
+             CALL dbcsr_get_block_p(redist, stored_row_new, stored_col_new,&
+                  c2_dp, tr, found)
+             t_blk2 = t_blk2 + (m_walltime() - t_blk)
+             valid_block = found
+             IF (found) cnt_fnd = cnt_fnd + 1
+             IF (.NOT. found .AND. .NOT. my_keep_sparsity) THEN
+                c2_dp => c2_dp_buff(1:row_blk_size_new (stored_row_new),&
+                                    1:col_blk_size_new (stored_col_new))
+                c2_dp(:,:) = (0.0_dp,0.0_dp)
+                tr = .FALSE.
+                blks = blks + 1
+                blk_ps = blk_ps + row_blk_size_new (stored_row_new) * &
+                                  col_blk_size_new (stored_col_new)
+                valid_block = .TRUE.
+                cnt_new = cnt_new + 1
+             ENDIF
+             nze_rle = row_rle*col_rle
+             IF (valid_block) THEN
+                IF (.NOT. tr) THEN
+                   CALL dbcsr_block_copy (&
+                     c2_dp(&
+                       row_offset_new:row_offset_new+row_rle-1,&
+                       col_offset_new:col_offset_new+col_rle-1),&
+                     recv_data_z(data_offset_l:data_offset_l+nze_rle-1),&
+                     row_rle, col_rle)
+                ELSE
+                   CALL dbcsr_block_transpose (&
+                     c2_dp(&
+                       col_offset_new:col_offset_new+col_rle-1,&
+                       row_offset_new:row_offset_new+row_rle-1),&
+                     recv_data_z(data_offset_l:data_offset_l+nze_rle-1),&
+                     row_rle, col_rle)
+                ENDIF
+             ELSE
+                cnt_skip = cnt_skip+1
+             ENDIF
+             data_offset_l = data_offset_l + nze_rle
+             IF (.NOT. found .AND. valid_block) THEN
+                IF (dbg) WRITE(*,*)routineN//" Adding new block at",&
+                     stored_row_new, stored_col_new
+                CALL dbcsr_put_block(redist, stored_row_new, stored_col_new,&
+                     c2_dp, tr)
+                !DEALLOCATE (r2_dp)
+             ELSE
+                IF (.NOT. my_keep_sparsity .AND. dbg) &
+                     WRITE(*,*)routineN//" Reusing block at",&
+                     stored_row_new, stored_col_new
+             ENDIF
+          ENDDO
+       ENDDO
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid matrix type")
+    END SELECT
     !
     IF (dbg) THEN
        WRITE(*,*)routineN//" Declared blocks=",redist%m%wms(1)%lastblk,&
@@ -4369,9 +4859,20 @@ CONTAINS
     DEALLOCATE(smp); DEALLOCATE(sm_disp)
     DEALLOCATE(rd_disp)
     DEALLOCATE(rm_disp)
-    DEALLOCATE(recv_data)
+
+    SELECT CASE(dbcsr_get_data_type(matrix))
+    CASE(dbcsr_type_real_8)
+       DEALLOCATE (recv_data)
+       DEALLOCATE (send_data)
+    CASE(dbcsr_type_complex_8)
+       DEALLOCATE (recv_data_z)
+       DEALLOCATE (send_data_z)
+    CASE default
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid matrix type")
+    END SELECT
+
     DEALLOCATE(recv_meta)
-    DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
     DBG 'Done redistributing'
     t_unpack = m_walltime() - t_unpack
@@ -4677,6 +5178,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Transposes a DBCSR matrix.
+!> \par Distribution options
+!>      By default the distribution is transposed. If transpose_distribution
+!>      is false, then an undetermined distribution is created that is
+!>      compatible with the same process grid.
 !> \param[out] transposed     transposed DBCSR matrix
 !> \param[in] normal          input DBCSR matrix
 !> \param[in] shallow_data_copy         (optional) only shallow data_copy;
@@ -4685,15 +5190,18 @@ CONTAINS
 !> \param[in] transpose_data  (optional) transpose data blocks, default is True
 !> \param[in] transpose_distribution    (optional) transpose the distribution
 !>                                      from the input matrix, default is True
+!> \param[in] use_distribution          (optional) use this distribution
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_new_transposed (transposed, normal, shallow_data_copy,&
-       transpose_data, transpose_distribution, error)
+       transpose_data, transpose_distribution, use_distribution, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: transposed
     TYPE(dbcsr_obj), INTENT(IN)              :: normal
     LOGICAL, INTENT(IN), OPTIONAL            :: shallow_data_copy, &
                                                 transpose_data, &
                                                 transpose_distribution
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(IN), OPTIONAL                   :: use_distribution
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
@@ -4720,15 +5228,27 @@ CONTAINS
     tr_dist = .TRUE.
     IF (PRESENT (transpose_distribution)) tr_dist = transpose_distribution
     ! Prepare the distribution for the transposed matrix
-    IF (tr_dist) THEN
-       !write(*,*)' transposing mp dist...'
-       CALL dbcsr_transpose_distribution (new_dist, normal%m%dist)
+    IF (PRESENT (use_distribution)) THEN
+       CALL dbcsr_assert (dbcsr_distribution_nrows (use_distribution),&
+            "EQ", dbcsr_distribution_ncols (normal%m%dist), cp_fatal_level,&
+            cp_wrong_args_error, routineN,&
+            "Given distribution must be compatible"&
+            //" with the current distribution")
+       CALL dbcsr_assert (dbcsr_distribution_ncols (use_distribution),&
+            "EQ", dbcsr_distribution_nrows (normal%m%dist), cp_fatal_level,&
+            cp_wrong_args_error, routineN,&
+            "Given distribution must be compatible"&
+            //" with the current distribution")
+       new_dist = use_distribution
+       CALL dbcsr_distribution_hold (new_dist)
     ELSE
-       !write(*,*)' transposing dist not mp...'
-       CALL dbcsr_transpose_dims (new_dist, normal%m%dist)
+       IF (tr_dist) THEN
+          CALL dbcsr_transpose_distribution (new_dist, normal%m%dist)
+       ELSE
+          CALL dbcsr_transpose_dims (new_dist, normal%m%dist)
+       ENDIF
     ENDIF
     ! Create the transposed matrix
-    !CALL dbcsr_transposed_type (new_type, normal%m%matrix_type)
     new_type = normal%m%matrix_type
     CALL dbcsr_create (transposed, "transposed "//normal%m%name, new_dist,&
          new_type, normal%m%col_blk_size, normal%m%row_blk_size,&
@@ -4805,7 +5325,7 @@ CONTAINS
        CALL dbcsr_init (t2)
        CALL dbcsr_create (t2, transposed%m%name, transposed%m%dist,&
             dbcsr_type_normal, transposed%m%row_blk_size, transposed%m%col_blk_size,&
-            error=error)
+            0, 0, transposed%m%data_type, error=error)
        CALL dbcsr_redistribute (transposed, t2)
        CALL dbcsr_release (transposed)
        transposed = t2
@@ -5406,12 +5926,14 @@ CONTAINS
     do_scale = PRESENT (scale)
     IF (do_scale) THEN
        CALL cp_assert (data_type .EQ. scale%data_type, cp_fatal_level,&
-            cp_wrong_args_error, routineN, "Incompatible data types")
+            cp_wrong_args_error, routineN, "Incompatible data types matrix="//&
+            data_type//" scale="//scale%data_type)
     ENDIF
     CALL cp_assert (ASSOCIATED (block%d), cp_fatal_level, cp_wrong_args_error,&
          routineN, "Can only add valid data block!")
     CALL cp_assert (data_type .EQ. block%d%data_type, cp_fatal_level,&
-         cp_wrong_args_error, routineN, "Incompatible data types")
+         cp_wrong_args_error, routineN, "Incompatible data types matrix="//&
+            data_type//" block="//block%d%data_type)
     SELECT CASE(data_type)
     CASE (dbcsr_type_real_4)
        IF (do_scale) THEN

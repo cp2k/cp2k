@@ -56,18 +56,19 @@ MODULE cp_dbcsr_operations
        dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
        dbcsr_scalar_zero, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
-       block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, &
-       dbcsr_distribute, dbcsr_filter, dbcsr_get_block, dbcsr_get_block_p, &
-       dbcsr_get_tmp_block2d, dbcsr_mult_m_e_e, dbcsr_new_transposed, &
-       dbcsr_norm, dbcsr_put_block, dbcsr_remove_block, dbcsr_replace_blocks, &
-       dbcsr_replicate_all, dbcsr_reserve_block2d, dbcsr_scale, &
-       dbcsr_sum_replicated, dbcsr_trace
+       block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_conjg, &
+       dbcsr_copy, dbcsr_distribute, dbcsr_filter, dbcsr_get_block, &
+       dbcsr_get_block_p, dbcsr_get_tmp_block2d, dbcsr_mult_m_e_e, &
+       dbcsr_new_transposed, dbcsr_norm, dbcsr_put_block, dbcsr_remove_block, &
+       dbcsr_replace_blocks, dbcsr_replicate_all, dbcsr_reserve_block2d, &
+       dbcsr_scale, dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
        dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
        dbcsr_obj, dbcsr_scalar_type, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_normal, dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: &
        add_work_coordinate, convert_sizes_to_offsets, create_bl_distribution, &
        dbcsr_add_wm_from_matrix, dbcsr_checksum, dbcsr_create, &
@@ -391,8 +392,12 @@ CONTAINS
             transpose_distribution=.FALSE., error=error)
        new_left = .TRUE.
     CASE('C','c')
-       CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
-            routineN, "transa = C NYI")
+       CALL dbcsr_init(matrix_left)
+       CALL dbcsr_new_transposed (matrix_left, matrix_a, shallow_data_copy=.FALSE.,&
+            transpose_distribution=.FALSE., error=error)
+       CALL dbcsr_conjg(matrix_left, error=error)
+       !CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
+       !     routineN, "transa = C NYI")
        new_left = .TRUE.
     CASE DEFAULT
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
@@ -409,8 +414,12 @@ CONTAINS
             transpose_distribution=.FALSE., error=error)
        new_right = .TRUE.
     CASE('C','c')
-       CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
-            routineN, "transb = C NYI")
+       CALL dbcsr_init(matrix_right)
+       CALL dbcsr_new_transposed (matrix_right, matrix_b, shallow_data_copy=.FALSE.,&
+            transpose_distribution=.FALSE., error=error)
+       CALL dbcsr_conjg(matrix_right, error=error)
+       !CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
+       !     routineN, "transb = C NYI")
        new_right = .TRUE.
     CASE DEFAULT
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
@@ -3186,7 +3195,8 @@ END FUNCTION cp_dbcsr_get_id_nr
     ! Create the block-cyclic DBCSR matrix
     CALL dbcsr_init (bc_mat)
     CALL dbcsr_create (bc_mat, "Block-cyclic "//matrix%m%name, bc_dist,&
-         dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0)
+         dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
+         dbcsr_type_complex_8) ! type hard coded !
     !call dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (row_blk_size)
@@ -3233,7 +3243,6 @@ END FUNCTION cp_dbcsr_get_id_nr
     ! Copy the FM data to the block-cyclic DBCSR matrix.  This step
     ! could be skipped with appropriate DBCSR index manipulation.
     fm_block => fm%local_data
-
     CALL dbcsr_work_create (bc_mat, nblks_guess=nblkrows_local*nblkcols_local,&
          sizedata_guess=nfullrows_local*nfullcols_local, work_mutable=.FALSE.,&
          n=1)

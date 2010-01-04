@@ -15,17 +15,23 @@
 MODULE cp_dbcsr_diag
 
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-  USE cp_cfm_types,                    ONLY: cp_cfm_release,&
+  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                             cp_cfm_release,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
   USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
                                              copy_dbcsr_to_cfm,&
                                              copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
-  USE cp_fm_types,                     ONLY: cp_fm_release,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE kinds,                           ONLY: dp,&
@@ -47,27 +53,31 @@ MODULE cp_dbcsr_diag
 
   PUBLIC :: dbcsr_syevd, &
             dbcsr_syevr, &
-            dbcsr_syevx
+            dbcsr_syevx, &
+            dbcsr_heevd
 
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_syevd(matrix,eigenvectors,eigenvalues,error)
+  SUBROUTINE dbcsr_syevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
 
     ! Computes all eigenvalues and vectors of a real symmetric matrix
     ! should be quite a bit faster than syevx for that case
     ! especially in parallel with thightly clustered evals
     ! needs more workspace in the worst case, but much better distributed
 
-    TYPE(dbcsr_obj), POINTER                 :: matrix, eigenvectors
+    TYPE(dbcsr_obj)                          :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_syevd', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, istat, liwork, &
-                                                lwork, mypcol, myprow, n, nmo
+                                                lwork, mypcol, myprow, n, &
+                                                nfullrows_total, nmo
     INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure
@@ -75,14 +85,24 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_eigenvectors, fm_matrix
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
+    NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
+    CALL dbcsr_get_info(matrix,nfullrows_total=nfullrows_total)
+
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullrows_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
+    CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
     CALL copy_dbcsr_to_fm(matrix, fm_matrix)
-    CALL copy_dbcsr_to_fm(eigenvectors, fm_eigenvectors)
+    !CALL copy_dbcsr_to_fm(eigenvectors, fm_eigenvectors)
 
     context => fm_matrix%matrix_struct%context
     myprow = context%mepos(1)
@@ -180,7 +200,6 @@ CONTAINS
     CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
 
     CALL cp_fm_release(fm_matrix, error)
-
     CALL cp_fm_release(fm_eigenvectors, error)
 
     CALL timestop(handle)
@@ -650,11 +669,13 @@ CONTAINS
   END SUBROUTINE dbcsr_syevr
 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_heevd(matrix,eigenvectors,eigenvalues,error)
+  SUBROUTINE dbcsr_heevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(dbcsr_obj)                          :: matrix
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_heevd', &
@@ -664,19 +685,30 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: m, v
     INTEGER                                  :: handle, info, istat, liwork, &
-                                                lrwork, lwork, n
+                                                lrwork, lwork, n, &
+                                                nfullrows_total
     INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
     TYPE(cp_cfm_type), POINTER               :: fm_eigenvectors, fm_matrix
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
+    NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
+    CALL dbcsr_get_info(matrix,nfullrows_total=nfullrows_total)
+
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullrows_total,para_env=para_env,error=error)
+    CALL cp_cfm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
+    CALL cp_cfm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
     CALL copy_dbcsr_to_cfm(matrix, fm_matrix)
-    CALL copy_dbcsr_to_cfm(eigenvectors, fm_eigenvectors)
+    !CALL copy_dbcsr_to_cfm(eigenvectors, fm_eigenvectors)
 
     n = fm_matrix%matrix_struct%nrow_global
     m => fm_matrix%local_data
@@ -723,7 +755,6 @@ CONTAINS
     CALL copy_cfm_to_dbcsr(fm_eigenvectors, eigenvectors)
 
     CALL cp_cfm_release(fm_matrix, error)
-
     CALL cp_cfm_release(fm_eigenvectors, error)
 
     CALL timestop(handle)

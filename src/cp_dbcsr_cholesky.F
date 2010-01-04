@@ -14,9 +14,18 @@
 ! *****************************************************************************
 MODULE cp_dbcsr_cholesky
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-  USE cp_fm_types,                     ONLY: cp_fm_release,&
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE kinds,                           ONLY: dp,&
                                              sp
@@ -48,24 +57,37 @@ CONTAINS
 !>      12.2002 updated, added n optional parm [fawzi]
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE dbcsr_cholesky_decompose(matrix,n,error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+  SUBROUTINE dbcsr_cholesky_decompose(matrix,n,para_env,blacs_env,error)
+    TYPE(dbcsr_obj)                          :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: n
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cholesky_decompose', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, info, my_n
+    INTEGER                                  :: handle, info, my_n, &
+                                                nfullcols_total, &
+                                                nfullrows_total
     INTEGER, DIMENSION(9)                    :: desca
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_matrix
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
+
+    NULLIFY(fm_matrix, fm_struct)
+    CALL dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
 
     CALL copy_dbcsr_to_fm(matrix, fm_matrix)
 
@@ -118,9 +140,12 @@ CONTAINS
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE dbcsr_cholesky_invert(matrix,n,error)
-    TYPE(dbcsr_obj), POINTER                  :: matrix
+  SUBROUTINE dbcsr_cholesky_invert(matrix,n,para_env,blacs_env,upper_to_full,error)
+    TYPE(dbcsr_obj)                           :: matrix
     INTEGER, INTENT(in), OPTIONAL             :: n
+    TYPE(cp_para_env_type), POINTER           :: para_env
+    TYPE(cp_blacs_env_type), POINTER          :: blacs_env
+    LOGICAL, INTENT(IN)                       :: upper_to_full
     TYPE(cp_error_type), INTENT(inout)        :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='dbcsr_cholesky_invert',&
@@ -129,14 +154,23 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp
     INTEGER                                   :: info,handle
-    INTEGER                                   :: my_n
+    INTEGER                                   :: my_n, nfullrows_total, nfullcols_total
     INTEGER, DIMENSION(9)                     :: desca
     LOGICAL                                   :: failure
-    TYPE(cp_fm_type), POINTER                 :: fm_matrix
+    TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrix_tmp
+    TYPE(cp_fm_struct_type), POINTER          :: fm_struct
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
+
+    NULLIFY(fm_matrix, fm_struct)
+    CALL dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullrows_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
 
     CALL copy_dbcsr_to_fm(matrix, fm_matrix)
 
@@ -172,6 +206,12 @@ CONTAINS
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
+    IF(upper_to_full) THEN
+       CALL cp_fm_create(fm_matrix_tmp,fm_matrix%matrix_struct,name="fm_matrix_tmp",error=error)
+       CALL cp_fm_upper_to_full(fm_matrix, fm_matrix_tmp, error)
+       CALL cp_fm_release(fm_matrix_tmp, error)
+    ENDIF
+
     CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
     CALL cp_fm_release(fm_matrix, error)
@@ -194,8 +234,10 @@ CONTAINS
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE dbcsr_cholesky_reduce(matrix,matrixb,error)
-    TYPE(dbcsr_obj), POINTER                  :: matrix,matrixb
+  SUBROUTINE dbcsr_cholesky_reduce(matrix,matrixb,para_env,blacs_env,error)
+    TYPE(dbcsr_obj)                           :: matrix,matrixb
+    TYPE(cp_para_env_type), POINTER           :: para_env
+    TYPE(cp_blacs_env_type), POINTER          :: blacs_env
     TYPE(cp_error_type), INTENT(inout)        :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='dbcsr_cholesky_reduce',&
@@ -203,18 +245,35 @@ CONTAINS
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,b
     INTEGER                                   :: info,itype,handle
-    INTEGER                                   :: n
+    INTEGER                                   :: n, nfullrows_total, nfullcols_total
     INTEGER                                   :: nprow,npcol,myprow,mypcol
     INTEGER, DIMENSION(9)                     :: desca,descb
     REAL(KIND = dp)                           :: scale
     LOGICAL                                   :: failure
     TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrixb
+    TYPE(cp_fm_struct_type), POINTER          :: fm_struct
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
+    NULLIFY(fm_matrix, fm_struct)
+    CALL dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
     CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+
+    CALL dbcsr_get_info(matrixb,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrixb,fm_struct,name="fm_matrixb",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
     CALL copy_dbcsr_to_fm(matrixb, fm_matrixb)
 
     n = fm_matrix%matrix_struct%nrow_global
@@ -257,12 +316,14 @@ CPSourceFileRef,&
 !
 ! *****************************************************************************
   SUBROUTINE dbcsr_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,transa,&
-       error)
-    TYPE(dbcsr_obj), POINTER                       :: matrix,matrixb,matrixout
+       para_env,blacs_env,error)
+    TYPE(dbcsr_obj)                                :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                            :: neig
     CHARACTER ( LEN = * ), INTENT ( IN )           :: op
     CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: pos
     CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: transa
+    TYPE(cp_para_env_type), POINTER                :: para_env
+    TYPE(cp_blacs_env_type), POINTER               :: blacs_env
     TYPE(cp_error_type), INTENT(inout)             :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='dbcsr_cholesky_restore',&
@@ -274,15 +335,37 @@ CPSourceFileRef,&
     INTEGER                                   :: n
     LOGICAL                                   :: ionode, failure
     REAL(KIND = dp)                           :: alpha
-    INTEGER                                   :: myprow, mypcol, i
+    INTEGER                                   :: myprow, mypcol, i, nfullrows_total, &
+         nfullcols_total
     INTEGER, DIMENSION(9)                     :: desca,descb,descout
     TYPE(cp_blacs_env_type), POINTER          :: context
     CHARACTER                                 :: chol_pos,chol_transa
     TYPE(cp_fm_type), POINTER                 :: fm_matrix,fm_matrixb,fm_matrixout
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
+
+    NULLIFY(fm_matrix, fm_matrixb, fm_matrixout, fm_struct)
+
+    CALL dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
+    CALL dbcsr_get_info(matrixb,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrixb,fm_struct,name="fm_matrixb",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
+    CALL dbcsr_get_info(matrixout,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrixout,fm_struct,name="fm_matrixout",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
 
     CALL copy_dbcsr_to_fm(matrix, fm_matrix)
     CALL copy_dbcsr_to_fm(matrixb, fm_matrixb)
@@ -386,7 +469,7 @@ CPSourceFileRef,&
 
 #endif
 
-    CALL copy_fm_to_dbcsr(fm_matrixout, matrix)
+    CALL copy_fm_to_dbcsr(fm_matrixout, matrixout)
 
     CALL cp_fm_release(fm_matrix, error)
     CALL cp_fm_release(fm_matrixb, error)

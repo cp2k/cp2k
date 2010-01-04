@@ -54,7 +54,7 @@ MODULE dbcsr_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
 
-  PUBLIC :: dbcsr_init, dbcsr_hold, dbcsr_release, dbcsr_destroy,&
+  PUBLIC :: dbcsr_init, dbcsr_hold, dbcsr_release, dbcsr_release_p, dbcsr_destroy,&
             dbcsr_valid_index, dbcsr_is_initialized
   PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative
@@ -89,7 +89,7 @@ MODULE dbcsr_methods
             dbcsr_get_data_p_d, dbcsr_get_data_p_z
 
   PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_next_block,&
-            dbcsr_iterator_stop, dbcsr_iterator_blocks_left
+            dbcsr_iterator_stop, dbcsr_iterator_blocks_left,    iterator_next_2d_block_d
 
   PUBLIC :: dbcsr_allocate_matrix_array, dbcsr_array_new, dbcsr_array_put,&
             dbcsr_array_get, dbcsr_array_destroy, dbcsr_array_hold,&
@@ -371,6 +371,32 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_release
 
+
+! *****************************************************************************
+!> \brief Releases a reference for a DBCSR matrix
+!>
+!> If there are no references left, the matrix is destroyed.
+!> \param[in,out] set    DBCSR matrix
+! *****************************************************************************
+  SUBROUTINE dbcsr_release_p (matrix)
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_release_p', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (dbcsr_is_initialized (matrix),&
+         cp_warning_level, cp_caller_error, routineN,&
+         "Matrix not initialized")
+    IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
+       matrix%m%refcount = matrix%m%refcount - 1
+       IF (matrix%m%refcount .EQ. 0) THEN
+          CALL dbcsr_destroy (matrix)
+          DEALLOCATE(matrix)
+       ENDIF
+    ENDIF
+  END SUBROUTINE dbcsr_release_p
 
 ! *****************************************************************************
 !> \brief Deallocates and destroys a matrix.

@@ -3254,10 +3254,10 @@ CONTAINS
                 blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
                      &               r_sp(blk_p:blk_p+mn-1))
              CASE (dbcsr_type_complex_8)
-                blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
+                blk_cs = DOT_PRODUCT(CONJG(c_dp(blk_p:blk_p+mn-1)),&
                      &               c_dp(blk_p:blk_p+mn-1))
              CASE (dbcsr_type_complex_4)
-                blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
+                blk_cs = DOT_PRODUCT(CONJG(c_sp(blk_p:blk_p+mn-1)),&
                      &               c_sp(blk_p:blk_p+mn-1))
              END SELECT
              DBGV ' chksum for (',br,',',bc,') at', blk_p,'l',mn,'= ', blk_cs
@@ -3412,9 +3412,9 @@ CONTAINS
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix%m%data_area, r_sp)
     CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
+       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
     CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
+       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
     END SELECT
     DBGV 'index', matrix%m%index
     row_blk_size => array_data (matrix%m%row_blk_size)
@@ -3465,7 +3465,7 @@ CONTAINS
                    CASE (dbcsr_type_real_8)
                       !WRITE(*,'(10(1X,F7.2))')r_dp(blk_p:blk_p+mn-1)
                       IF(my_matlab_format) THEN
-                         CALL dbcsr_printmat_matlab(r_dp(blk_p:blk_p+mn-1),m,n, &
+                         CALL dbcsr_printmat_matlab_d(r_dp(blk_p:blk_p+mn-1),m,n, &
                               row_blk_offset(br), col_blk_offset(bc),tr=tr)
                       ELSE
                          CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
@@ -3473,7 +3473,12 @@ CONTAINS
                    CASE (dbcsr_type_real_4)
                       CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
                    CASE (dbcsr_type_complex_8)
-                      CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                      IF(my_matlab_format) THEN
+                         CALL dbcsr_printmat_matlab_z(c_dp(blk_p:blk_p+mn-1),m,n, &
+                              row_blk_offset(br), col_blk_offset(bc),tr=tr)
+                      ELSE
+                         CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                      ENDIF
                    CASE (dbcsr_type_complex_4)
                       CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
                    END SELECT
@@ -3494,7 +3499,7 @@ CONTAINS
 !>                  transposed
 ! *****************************************************************************
 
-  SUBROUTINE dbcsr_printmat_matlab(matrix, rows, cols, r_offset, c_offset, tr)
+  SUBROUTINE dbcsr_printmat_matlab_d(matrix, rows, cols, r_offset, c_offset, tr)
     REAL(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
     INTEGER, INTENT(IN)                      :: rows, cols, r_offset, c_offset
@@ -3523,13 +3528,52 @@ CONTAINS
     DO c = 1,cols
        DO r = 1,rows
           IF(.NOT.t) THEN
-             WRITE(*,'(A,I3,A,I3,A,E26.16,A)') 'a(',r+r_off-1,',',c+c_off-1,')=',matrix(r+(c-1)*rows),';'
+             WRITE(*,'(A,I3,A,I3,A,E23.16,A)') 'a(',r+r_off-1,',',c+c_off-1,')=',matrix(r+(c-1)*rows),';'
           ELSE
-             STOP
+             WRITE(*,'(A,I3,A,I3,A,E23.16,A)') 'a(',c+r_off-1,',',r+c_off-1,')=',matrix((r-1)*cols+c),';'
           ENDIF
        ENDDO
     ENDDO
-  END SUBROUTINE dbcsr_printmat_matlab
+  END SUBROUTINE dbcsr_printmat_matlab_d
+
+  SUBROUTINE dbcsr_printmat_matlab_z(matrix, rows, cols, r_offset, c_offset, tr)
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
+    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, c_offset
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+    INTEGER                                  :: c, c_off, m, n, r, r_off
+    LOGICAL                                  :: t
+
+!   ---------------------------------------------------------------------------
+
+    m = rows
+    n = cols
+    r_off = r_offset
+    c_off = c_offset
+    t = .FALSE.
+    IF(PRESENT(tr)) THEN
+       IF(tr) THEN
+          t = .TRUE.
+          m = cols
+          n = rows
+          r_off = c_offset
+          c_off = r_offset
+       ENDIF
+    ENDIF
+
+    DO c = 1,cols
+       DO r = 1,rows
+          IF(.NOT.t) THEN
+             WRITE(*,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') 'a(',r+r_off-1,',',c+c_off-1,')=',&
+                  REAL(matrix(r+(c-1)*rows)),'+',AIMAG(matrix(r+(c-1)*rows)),'i;'
+          ELSE
+             WRITE(*,'(A,I3,A,I3,A,E23.16,A,E23.16,A)') 'a(',c+r_off-1,',',r+c_off-1,')=',&
+                  REAL(matrix((r-1)*cols+c)),'+',AIMAG(matrix((r-1)*cols+c)),'i;'
+          ENDIF
+       ENDDO
+    ENDDO
+  END SUBROUTINE dbcsr_printmat_matlab_z
 
 ! *****************************************************************************
 !> \brief Verify the correctness of a BCSR matrix.
@@ -5804,8 +5848,8 @@ CONTAINS
           area%d%c_sp(l:u) = CMPLX(0.0, real_4)
        ENDIF
     CASE (dbcsr_type_complex_8)
-       l = LBOUND(area%d%c_sp, 1)
-       u = UBOUND(area%d%c_sp, 1)
+       l = LBOUND(area%d%c_dp, 1)
+       u = UBOUND(area%d%c_dp, 1)
        IF (PRESENT (lb)) THEN
           CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
                cp_caller_error, routineN, "lower bound too low")
