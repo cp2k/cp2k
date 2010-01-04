@@ -286,7 +286,7 @@ CONTAINS
           IF (iw>0) THEN
             CALL section_vals_val_get(atom_section,"PRINT%FIT_DENSITY%NUM_GTO", i_val=num_gto, error=error)
             powell_section => section_vals_get_subs_vals(atom_section,"POWELL",error=error)
-            CALL atom_fit_density(atom_info(in,im)%atom,num_gto,iw,powell_section,error)
+            CALL atom_fit_density(atom_info(in,im)%atom,0,num_gto,iw,powell_section,error)
           END IF
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%FIT_DENSITY",error=error)
 

@@ -55,12 +55,13 @@ MODULE atom_kind_orbitals
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,ispin,nspin,error)
+  SUBROUTINE calculate_atomic_orbitals (atomic_kind,iunit,pmat,ispin,nspin,confine,error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pmat
     INTEGER, INTENT(IN)                      :: ispin, nspin
+    LOGICAL, INTENT(IN), OPTIONAL            :: confine
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals', &
@@ -121,7 +122,11 @@ CONTAINS
 
     IF ( ASSOCIATED(gth_potential) ) THEN
       potential%ppot_type=gth_pseudo
-      potential%confinement=.TRUE. 
+      IF ( PRESENT(confine) ) THEN
+         potential%confinement=confine
+      ELSE
+         potential%confinement=.TRUE.
+      END IF
       potential%acon=0.1_dp
       potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
       potential%ncon=2
@@ -159,7 +164,14 @@ CONTAINS
       CALL set_atom(atom,zcore=NINT(zeff),potential=potential,error=error)
     ELSE
       potential%ppot_type=no_pseudo
-      potential%confinement=.FALSE.
+      IF ( PRESENT(confine) ) THEN
+         potential%confinement=confine
+      ELSE
+         potential%confinement=.FALSE.
+      END IF
+      potential%acon=0.1_dp
+      potential%rcon=2._dp*ptable(z)%vdw_radius*bohr
+      potential%ncon=2
       CALL set_atom(atom,zcore=z,potential=potential,error=error)
     END IF
 

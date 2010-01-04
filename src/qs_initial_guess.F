@@ -635,7 +635,7 @@ CPSourceFileRef,&
           DO ikind=1,SIZE(atomic_kind_set)
             atomic_kind => atomic_kind_set(ikind)
             NULLIFY(pmat(ikind)%mat)
-            CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,ispin=ispin, nspin=nspin,error=error)
+            CALL calculate_atomic_orbitals(atomic_kind,pmat=pmat(ikind)%mat,ispin=ispin,nspin=nspin,error=error)
             NULLIFY(atomic_kind)
           END DO
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
