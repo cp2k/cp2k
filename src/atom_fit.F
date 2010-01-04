@@ -19,15 +19,10 @@ MODULE atom_fit
        GTO_BASIS, atom_basis_type, atom_gthpot_type, atom_integrals, &
        atom_p_type, atom_potential_type, atom_type, create_opgrid, &
        opgrid_type, release_opgrid, set_atom
-  USE atom_utils,                      ONLY: atom_consistent_method,&
-                                             atom_denmat,&
-                                             atom_density,&
-                                             atom_orbital_charge,&
-                                             atom_orbital_max,&
-                                             atom_orbital_nodes,&
-                                             atom_wfnr0,&
-                                             get_maxn_occ,&
-                                             integrate_grid
+  USE atom_utils,                      ONLY: &
+       atom_consistent_method, atom_denmat, atom_density, &
+       atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, atom_wfnr0, &
+       get_maxn_occ, integrate_grid
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE f77_blas
@@ -385,10 +380,10 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
     INTEGER, DIMENSION(0:3)                  :: ncore
     LOGICAL                                  :: explicit, failure = .FALSE.
-    REAL(KIND=dp) :: charge, deig, drho, eig, fopt, oc, rcov, rmax, peig, pchg, pv, rcm,&
-      w_node = 1000._dp, w_semi = 10._dp, w_valence = 100._dp, &
-      w_virt = 0.01_dp, t_semi = 0.001_dp, t_valence = 0.00001_dp, &
-      t_virt = 0.001_dp, w_psir0 = 0._dp
+    REAL(KIND=dp) :: charge, deig, drho, eig, fopt, oc, pchg, peig, pv, rcm, &
+      rcov, rmax, t_semi = 0.001_dp, t_valence = 0.00001_dp, &
+      t_virt = 0.001_dp, w_node = 1000._dp, w_psir0 = 0._dp, w_semi = 10._dp, &
+      w_valence = 100._dp, w_virt = 0.01_dp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x, xi
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: wem
@@ -808,7 +803,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l, n, node
-    REAL(KIND=dp)                            :: charge, rcov, de, fde, tv, pv
+    REAL(KIND=dp)                            :: charge, de, fde, pv, rcov, tv
     TYPE(atom_integrals), POINTER            :: pp_int
     TYPE(atom_type), POINTER                 :: atom
 
@@ -939,7 +934,9 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: id
     REAL(dp), INTENT(IN)                     :: xval
     REAL(dp)                                 :: yval
+
     REAL(dp)                                 :: x1, x2
+
     IF ( id==1 ) THEN
       yval = TANH(0.1_dp*xval)**2
     ELSE IF ( id==-1 ) THEN

@@ -469,13 +469,10 @@ CONTAINS
     TYPE(atom_basis_type), INTENT(IN)        :: basis
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_nodes', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_wfnr0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, m, n
-    LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: ff
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: orb
+    INTEGER                                  :: i, m, n
 
     value=0._dp
     m=MAXVAL(MINLOC(basis%grid%rad))

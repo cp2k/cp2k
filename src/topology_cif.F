@@ -88,9 +88,9 @@ CONTAINS
                                                 threshold = 1.0E-3_dp
 
     CHARACTER(LEN=default_string_length)     :: s_tag
-    INTEGER                                  :: handle, ii, iln0, iln1, iln2, iln3, isym, &
-                                                itype, iw, jj, natom, &
-                                                natom_orig, newsize
+    INTEGER                                  :: handle, ii, iln0, iln1, iln2, &
+                                                iln3, isym, itype, iw, jj, &
+                                                natom, natom_orig, newsize
     INTEGER, DIMENSION(20)                   :: ifield
     INTEGER, DIMENSION(3)                    :: periodic
     LOGICAL                                  :: check, failure, found, &
