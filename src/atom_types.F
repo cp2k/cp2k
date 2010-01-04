@@ -147,6 +147,9 @@ MODULE atom_types
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: ener
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: refene,refchg,refnod
     REAL(KIND=dp),DIMENSION(:,:),POINTER          :: wrefene,wrefchg,wrefnod
+    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: crefene,crefchg,crefnod
+    REAL(KIND=dp),DIMENSION(:),POINTER            :: wpsir0
+    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: rcmax
   END TYPE atom_orbitals
 
 !> Operator matrices
@@ -695,6 +698,17 @@ CONTAINS
     orbs%wrefene = 0._dp
     orbs%wrefchg = 0._dp
     orbs%wrefnod = 0._dp
+    ALLOCATE(orbs%crefene(mo,0:3),orbs%crefchg(mo,0:3),orbs%crefnod(mo,0:3),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    orbs%crefene = 0._dp
+    orbs%crefchg = 0._dp
+    orbs%crefnod = 0._dp
+    ALLOCATE(orbs%rcmax(mo,0:3),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    orbs%rcmax = 0._dp
+    ALLOCATE(orbs%wpsir0(mo),STAT=ierr)
+    CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    orbs%wpsir0 = 0._dp
 
   END SUBROUTINE create_atom_orbs
   
@@ -756,6 +770,31 @@ CONTAINS
       DEALLOCATE(orbs%wrefnod,STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
       NULLIFY(orbs%wrefnod)
+    END IF
+    IF(ASSOCIATED(orbs%crefene)) THEN
+      DEALLOCATE(orbs%crefene,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%crefene)
+    END IF
+    IF(ASSOCIATED(orbs%crefchg)) THEN
+      DEALLOCATE(orbs%crefchg,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%crefchg)
+    END IF
+    IF(ASSOCIATED(orbs%crefnod)) THEN
+      DEALLOCATE(orbs%crefnod,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%crefnod)
+    END IF
+    IF(ASSOCIATED(orbs%rcmax)) THEN
+      DEALLOCATE(orbs%rcmax,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%rcmax)
+    END IF
+    IF(ASSOCIATED(orbs%wpsir0)) THEN
+      DEALLOCATE(orbs%wpsir0,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      NULLIFY(orbs%wpsir0)
     END IF
 
     DEALLOCATE(orbs,STAT=ierr)

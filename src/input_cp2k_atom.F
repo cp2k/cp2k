@@ -799,7 +799,7 @@ CONTAINS
        CALL keyword_create(keyword, name="WEIGHT_POT_SEMICORE",&
             description="Weight for semi core states in pseudopotential optimization",&
             usage="WEIGHT_POT_SEMICORE 1.0",&
-            default_r_val=10._dp,error=error)
+            default_r_val=1._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -828,6 +828,41 @@ CONTAINS
             description="Weight for different methods in optimization",&
             usage="WEIGHT_METHOD 1.0 0.1 ...",&
             n_var=-1,type_of_var=real_t, default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TARGET_POT_VIRTUAL",&
+            description="Target accuracy for virtual state eigenvalues in pseudopotential optimization",&
+            usage="TARGET_POT_VIRTUAL 0.0001",&
+            default_r_val=0.001_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TARGET_POT_VALENCE",&
+            description="Target accuracy for valence state eigenvalues in pseudopotential optimization",&
+            usage="TARGET_POT_VALENCE 0.0001",&
+            default_r_val=0.00001_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TARGET_POT_SEMICORE",&
+            description="Target accuracy for semicore state eigenvalues in pseudopotential optimization",&
+            usage="TARGET_POT_SEMICORE 0.01",&
+            default_r_val=0.001_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WEIGHT_PSIR0",&
+            description="Weight for the wavefunctions at r=0 (only occupied states)",&
+            usage="WEIGHT_PSIR0 0.01",&
+            default_r_val=0._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCOV_MULTIPLICATION",&
+            description="Multiply Rcov integration limit for charge conservation",&
+            usage="RCOV_MULTIPLICATION  1.10",&
+            default_r_val=1._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

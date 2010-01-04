@@ -48,6 +48,7 @@ MODULE atom_utils
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
   PUBLIC :: slater_density, wigner_slater_functional
   PUBLIC :: atom_orbital_charge, atom_orbital_nodes, atom_consistent_method
+  PUBLIC :: atom_orbital_max, atom_wfnr0
 
 !-----------------------------------------------------------------------------!
 
@@ -380,13 +381,51 @@ CONTAINS
       END DO
     END DO
     DO i=1,m
-      IF(basis%grid%rad(i) < rcov) den(i)=0._dp
+      IF(basis%grid%rad(i) > rcov) den(i)=0._dp
     END DO
     charge = SUM ( den(1:m) * basis%grid%wr(1:m) )
     DEALLOCATE(den,STAT=ierr)
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE atom_orbital_charge
+! *****************************************************************************
+  SUBROUTINE atom_orbital_max(rmax,wfn,rcov,l,basis,error)
+    REAL(KIND=dp), INTENT(OUT)               :: rmax
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
+    REAL(KIND=dp), INTENT(IN)                :: rcov
+    INTEGER, INTENT(IN)                      :: l
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_max', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, m, n
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: ff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dorb
+
+    m=SIZE(basis%bf,1)
+    ALLOCATE(dorb(m),STAT=ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    n=basis%nbas(l)
+    dorb=0._dp
+    DO i=1,n
+      ff=wfn(i)
+      dorb(1:m) = dorb(1:m) + ff*basis%dbf(1:m,i,l)
+    END DO
+    rmax=-1._dp
+    DO i=1,m-1
+      IF(basis%grid%rad(i) < 2*rcov) THEN
+        IF (dorb(i)*dorb(i+1) < 0._dp) THEN
+          rmax=MAX(rmax,basis%grid%rad(i))
+        END IF
+      END IF
+    END DO
+    DEALLOCATE(dorb,STAT=ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE atom_orbital_max
 ! *****************************************************************************
   SUBROUTINE atom_orbital_nodes(node,wfn,rcov,l,basis,error)
     INTEGER, INTENT(OUT)                     :: node
@@ -423,6 +462,28 @@ CONTAINS
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE atom_orbital_nodes
+! *****************************************************************************
+  SUBROUTINE atom_wfnr0(value,wfn,basis,error)
+    REAL(KIND=dp), INTENT(OUT)               :: value
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: wfn
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_orbital_nodes', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, m, n
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: ff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: orb
+
+    value=0._dp
+    m=MAXVAL(MINLOC(basis%grid%rad))
+    n=basis%nbas(0)
+    DO i=1,n
+      value = value + wfn(i)*basis%bf(m,i,0)
+    END DO
+  END SUBROUTINE atom_wfnr0
 ! *****************************************************************************
   SUBROUTINE atom_solve(hmat,umat,orb,ener,nb,nv,maxl,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
