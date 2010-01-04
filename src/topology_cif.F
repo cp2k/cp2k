@@ -85,10 +85,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 10
     REAL(KIND=dp), PARAMETER                 :: realloc_factor = 1.2_dp, &
-                                                threshold = 1.0E-6_dp
+                                                threshold = 1.0E-3_dp
 
     CHARACTER(LEN=default_string_length)     :: s_tag
-    INTEGER                                  :: handle, ii, iln1, iln2, isym, &
+    INTEGER                                  :: handle, ii, iln0, iln1, iln2, iln3, isym, &
                                                 itype, iw, jj, natom, &
                                                 natom_orig, newsize
     INTEGER, DIMENSION(20)                   :: ifield
@@ -225,6 +225,8 @@ CPSourceFileRef)
        CPPostcondition(ii<=20,cp_failure_level,routineP,error,failure)
 
        ifield (ii) = -1
+       ! Check for   _atom_site_type_symbol
+       IF (INDEX(parser%input_line,"_atom_site_type_symbol")/=0) ifield(ii) = 0
        ! Check for   _atom_site_fract_x
        IF (INDEX(parser%input_line,"_atom_site_fract_x")/=0) ifield(ii) = 1
        ! Check for   _atom_site_fract_y
@@ -316,14 +318,21 @@ CPSourceFileRef,&
        natom_orig = natom
        DO WHILE ((INDEX(parser%input_line,"loop_")==0).AND.(parser%input_line(1:1)/="_"))
           isym = isym + 1
-          iln1 = INDEX(parser%input_line(1:)     ,",")
+          iln0 = INDEX(parser%input_line(1:)     ,"'")
+          iln1 = INDEX(parser%input_line(iln0+1:)     ,",")+iln0
           iln2 = INDEX(parser%input_line(iln1+1:),",")+iln1
+          IF (iln0==0) THEN
+            iln3 = LEN_TRIM(parser%input_line)+1
+          ELSE
+            iln3 = INDEX(parser%input_line(iln2+1:),"'")+iln2
+          END IF
           CPPostcondition(iln1/=0,cp_failure_level,routineP,error,failure)
           CPPostcondition(iln2/=iln1,cp_failure_level,routineP,error,failure)
+          CPPostcondition(iln3/=iln2,cp_failure_level,routineP,error,failure)
           CALL initf(3)
-          CALL parsef(1,TRIM(parser%input_line(1:iln1-1))     ,s2a("x","y","z"))
+          CALL parsef(1,TRIM(parser%input_line(iln0+1:iln1-1)),s2a("x","y","z"))
           CALL parsef(2,TRIM(parser%input_line(iln1+1:iln2-1)),s2a("x","y","z"))
-          CALL parsef(3,TRIM(parser%input_line(iln2+1:))      ,s2a("x","y","z"))
+          CALL parsef(3,TRIM(parser%input_line(iln2+1:iln3-1)),s2a("x","y","z"))
           Loop_over_unique_atoms: DO ii = 1, natom_orig
              CALL real_to_scaled(s_tmp, atom_info%r(1:3,ii), cell)
              s(1) = evalf(1,(/s_tmp(1),s_tmp(2),s_tmp(3)/))
