@@ -3117,8 +3117,6 @@ CPSourceFileRef,&
     ! -(rmsdA+rmsdB)^-1-(rmsdA-rmsdB)/(rmsdA+rmsdB)^2
     derb = -f1-cv_val*f1
 
-    WRITE(*,*) ' rmsd' , rmsdA, rmsdB, cv_val
-
     DO i = 1,colvar%rmsd_param%n_atoms
       ii = colvar%rmsd_param%i_rmsd(i)
       IF(weights(ii)>0.0_dp) THEN
