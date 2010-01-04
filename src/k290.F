@@ -1,9 +1,13 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2010  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 ! *****************************************************************************
 !> \brief K-points and crystal symmetry routines
 !> \par History
 !> \author jgh
 ! *****************************************************************************
-!
 MODULE k290
   USE f77_blas
   USE kinds,                           ONLY: dp
