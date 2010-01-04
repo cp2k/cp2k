@@ -491,7 +491,7 @@
        nze = rsize*csize
        !
        block => pointer_view (&
-            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset&
+            dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1&
             )
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
