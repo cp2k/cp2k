@@ -1,0 +1,582 @@
+data_global
+
+#=======================================================================
+
+# 1. SUBMISSION DETAILS
+
+_publ_contact_author_name         'Professor W. Clegg'
+_publ_contact_author_address
+;
+School of Natural Sciences (Chemistry)
+University of Newcastle
+Newcastle upon Tyne NE1 7RU
+England
+;
+_publ_contact_author_phone        '0191 222 6649'
+_publ_contact_author_fax          '0191 222 6929'
+_publ_contact_author_email        w.clegg@ncl.ac.uk
+_publ_requested_journal           'Acta Crystallographica E'
+_publ_requested_category          EM
+_publ_requested_coeditor_name     ?
+
+_publ_contact_letter
+;
+#8 February 2007
+
+Please consider this CIF submission for publication in Acta 
+Crystallographica E as a new-style paper.  
+All required files have been provided.
+
+The manuscript has passed the checkcif tests and generates an acceptable 
+printcif output.
+
+Yours sincerely
+Bill Clegg
+;
+
+#=======================================================================
+
+# 2. PROCESSING SUMMARY (IUCr Office Use Only)
+
+_journal_date_recd_electronic     2007-02-08
+_journal_date_to_coeditor         ?
+_journal_date_from_coeditor       2007-02-15
+_journal_date_accepted            2007-02-15
+_journal_date_printers_first      2007-02-15
+_journal_date_printers_final      ?
+_journal_date_proofs_out          2007-02-19
+_journal_date_proofs_in           ?
+_journal_coeditor_name            ?
+_journal_coeditor_code            WN2117
+_journal_paper_category          QM
+_journal_coeditor_notes
+; ?
+;
+_journal_techeditor_code          E070780
+_iucr_compatibility_tag          ACTA95
+_journal_techeditor_notes
+; ?
+;
+_journal_coden_ASTM               ACSEBH
+_journal_name_full                'Acta Crystallographica, Section E'
+_journal_year                     2007
+_journal_volume                   63
+_journal_issue                    03
+_journal_page_first               m856
+_journal_page_last                m856
+_journal_suppl_publ_number        ?
+_journal_suppl_publ_pages         ?
+
+#============================================================================
+
+# 3. TITLE AND AUTHOR LIST
+
+_publ_section_title
+;
+<i>trans</i>-Bis(aniline-\k<i>N</i>)dichlorobis(ethanol-\k<i>O</i>)cobalt(II)
+;
+
+loop_
+_publ_author_name
+_publ_author_address
+'Clegg, William'
+;
+School of Natural Sciences (Chemistry)
+Newcastle University 
+Newcastle upon Tyne NE1 7RU
+England
+;
+'Martin, Nicola C.'
+;
+School of Natural Sciences (Chemistry)
+Newcastle University 
+Newcastle upon Tyne NE1 7RU
+England
+;
+
+#=========================================================================
+
+# 4. TEXT
+
+_publ_section_abstract
+;
+The title compound, [CoCl~2~(C~6~H~7~N)~2~(C~2~H~6~O)~2~], was obtained
+unintentionally as the product of an attempted synthesis of a
+polycarboxylate-bridged network complex of cobalt(II) using aniline as a base
+to deprotonate the organic acid. The molecule is centrosymmetric, so pairs of
+equivalent ligands lie <i>trans</i> to each other in a slightly distorted
+octahedral coordination geometry. Molecules are linked by O---H...Cl and
+N---H...Cl hydrogen bonds involving all the potential donors, generating
+sheets parallel to (001). The phenyl rings protrude on both sides of these
+sheets and have normal hydrophobic contacts with each other, involving no
+intercalation or stacking interactions.
+;
+
+_publ_section_comment
+;
+The molecule of the title complex, (I) (Fig. 1), is centrosymmetric, so pairs
+of equivalent ligands lie <i>trans</i> to each other in a slightly distorted
+octahedral coordination geometry, <i>cis</i> angles deviating from 90\% by
+less than 4\%.
+
+Molecules are linked by O---H...Cl and N---H...Cl hydrogen bonds involving all
+potential donors, generating sheets parallel to (001), as shown in Fig. 2. The
+phenyl rings protrude on both sides of these sheets and have normal
+hydrophobic contacts with each other, involving no intercalation or stacking
+interactions. 
+
+The corresponding four-coordinate complex without ethanol has tetrahedral
+geometry (Burrow <i>et al.</i>, 1997), with layers of molecules linked
+by
+N---H...Cl hydrogen bonds.
+;
+
+_publ_section_related_literature
+; 
+The corresponding four-coordinate complex without ethanol has tetrahedral 
+geometry (Burrow et al., 1997), with layers of molecules linked by N---H...Cl
+hydrogen bonds.
+;
+
+_publ_section_exptl_prep
+;
+The title compound was obtained unintentionally as the product of an attempted
+synthesis of a polymeric network complex of cobalt with pyromellitic acid,
+using vapour diffusion of aniline into an ethanol solution of cobalt(II)
+chloride and pyromellitic acid at room temperature.
+;
+
+_publ_section_exptl_refinement
+;
+H atoms bonded to N and O atoms were located in a difference map and refined
+with distance restraints of O---H = 0.84(2) and N---H = 0.87(2) \%A, and with
+<i>U</i>~iso~(H) = 1.2<i>U</i>~eq~(N,O). Other H atoms were positioned
+geometrically and refined using a riding model (including free rotation about
+the ethanol C---C bond), 
+with C---H = 0.95--0.99 \%A and 
+with <i>U</i>~iso~(H) = 1.2
+(1.5 for methyl groups) times <i>U</i>~eq~(C).
+;
+
+_publ_section_references
+;
+Bruker  (2001). <i>SMART</i> and <i>SAINT</i>. Bruker AXS Inc., Madison,
+Wisconsin, USA.
+
+Burrow, R. A., Horner, M., Lang, L. S., Neves, A. & Vencato, I. (1997).
+<i>Z. Kristallogr. New Cryst. Struct.</i> <b>212</b>, 41--41.
+
+Sheldrick, G. M. (2001). <i>SHELXTL</i>. Version 5.0. Bruker AXS Inc.,
+Madison, Wisconsin, USA.
+
+Sheldrick, G. M. (2004). <i>SADABS</i>. University of G\"ottingen,
+Germany.
+;
+
+
+_publ_section_figure_captions
+;
+Fig. 1. The molecular structure of (I), with atom labels and 50% probability
+displacement ellipsoids for non-H atoms.
+
+Fig. 2. The packing of (I), viewed down the <i>c</i> axis, showing one layer of
+molecules connected by O---H...Cl and N---H...Cl hydrogen bonds (dashed
+lines). H atoms not involved in hydrogen bonding have been omitted.
+;
+
+_publ_section_table_legends
+; 
+Table 1. Selected geometric parameters (\%A, \%).
+
+Table 2. Hydrogen bonding geometry (\%A, \%).
+;
+_publ_section_acknowledgements
+;
+The authors thank the EPSRC for financial support.
+;
+
+#==============================================================================
+
+data_I
+
+#==============================================================================
+
+# 5. GENERAL AND CHEMICAL DATA
+
+_audit_creation_method            SHELXL97
+
+
+_chemical_name_systematic
+;
+trans-Bis(aniline-\kN)dichlorobis(ethanol-\kO)cobalt(II)
+;
+_chemical_name_common             ?
+_chemical_melting_point           ?
+_chemical_compound_source         ?
+_chemical_formula_iupac           '[Co Cl2 (C6 H7 N)2 (C2 H6 O)2]'
+_chemical_formula_moiety          'C16 H26 Cl2 Co N2 O2'
+_chemical_formula_sum             'C16 H26 Cl2 Co N2 O2'
+_chemical_formula_weight          408.22
+
+loop_
+ _atom_type_symbol
+ _atom_type_description
+ _atom_type_scat_dispersion_real
+ _atom_type_scat_dispersion_imag
+ _atom_type_scat_source
+ 'C'  'C'   0.0033   0.0016
+ 'International Tables Vol C Tables 4.2.6.8 and 6.1.1.4'
+ 'H'  'H'   0.0000   0.0000
+ 'International Tables Vol C Tables 4.2.6.8 and 6.1.1.4'
+ 'N'  'N'   0.0061   0.0033
+ 'International Tables Vol C Tables 4.2.6.8 and 6.1.1.4'
+ 'O'  'O'   0.0106   0.0060
+ 'International Tables Vol C Tables 4.2.6.8 and 6.1.1.4'
+ 'Cl'  'Cl'   0.1484   0.1585
+ 'International Tables Vol C Tables 4.2.6.8 and 6.1.1.4'
+ 'Co'  'Co'   0.3494   0.9721
+ 'International Tables Vol C Tables 4.2.6.8 and 6.1.1.4'
+
+#==============================================================================
+
+# 6. CRYSTAL DATA
+
+_symmetry_cell_setting            triclinic
+_symmetry_space_group_name_H-M    'P -1'
+
+loop_
+ _symmetry_equiv_pos_as_xyz
+ 'x, y, z'
+ '-x, -y, -z'
+
+_cell_length_a                    5.8166(16)
+_cell_length_b                    6.8339(19)
+_cell_length_c                    12.263(3)
+_cell_angle_alpha                 87.642(5)
+_cell_angle_beta                  81.726(5)
+_cell_angle_gamma                 73.017(5)
+_cell_volume                      461.3(2)
+_cell_formula_units_Z             1
+_cell_measurement_temperature     160(2)
+_cell_measurement_reflns_used     2052
+_cell_measurement_theta_min       3.12
+_cell_measurement_theta_max       28.64
+
+_exptl_crystal_description        block
+_exptl_crystal_colour             pink
+_exptl_crystal_size_max           0.30
+_exptl_crystal_size_mid           0.20
+_exptl_crystal_size_min           0.04
+_exptl_crystal_density_meas       ?
+_exptl_crystal_density_diffrn     1.469
+_exptl_crystal_density_method     'not measured'
+_exptl_crystal_F_000              213
+_exptl_absorpt_coefficient_mu     1.229
+_exptl_absorpt_correction_type    multi-scan
+_exptl_absorpt_correction_T_min   0.710
+_exptl_absorpt_correction_T_max   0.950
+_exptl_absorpt_process_details    '(SADABS; Sheldrick, 2004)'
+
+#==============================================================================
+
+# 7. EXPERIMENTAL DATA
+
+_exptl_special_details
+;
+;
+
+_diffrn_ambient_temperature       160(2)
+_diffrn_radiation_wavelength      0.71073
+_diffrn_radiation_type            MoK\a
+_diffrn_radiation_source          'sealed tube'
+_diffrn_radiation_monochromator   graphite
+_diffrn_measurement_device_type   'Bruker SMART 1K CCD area-detector'
+_diffrn_measurement_method        'thin-slice \w'
+_diffrn_detector_area_resol_mean  8.192
+_diffrn_standards_number          0
+_diffrn_standards_interval_count  ?
+_diffrn_standards_interval_time   ?
+_diffrn_standards_decay_%         ?
+_diffrn_reflns_number             2296
+_diffrn_reflns_av_R_equivalents   0.0271
+_diffrn_reflns_av_sigmaI/netI     0.0480
+_diffrn_reflns_limit_h_min       -6
+_diffrn_reflns_limit_h_max        6
+_diffrn_reflns_limit_k_min       -8
+_diffrn_reflns_limit_k_max        7
+_diffrn_reflns_limit_l_min       -14
+_diffrn_reflns_limit_l_max        14
+_diffrn_reflns_theta_min          1.68
+_diffrn_reflns_theta_max          25.00
+_reflns_number_total              1583
+_reflns_number_gt                 1278
+_reflns_threshold_expression      I>2\s(I)
+
+_computing_data_collection        'SMART (Bruker, 2001)'
+_computing_cell_refinement        'SAINT (Bruker, 2001)'
+_computing_data_reduction         'SAINT'
+_computing_structure_solution     'SHELXTL (Sheldrick, 2001)'
+_computing_structure_refinement    SHELXTL
+_computing_molecular_graphics      SHELXTL
+_computing_publication_material   'SHELXTL and local programs'
+
+#==============================================================================
+
+# 8. REFINEMENT DATA
+
+_refine_special_details
+;
+;
+
+_refine_ls_structure_factor_coef  Fsqd
+_refine_ls_matrix_type            full
+_refine_ls_weighting_scheme       calc
+_refine_ls_weighting_details
+ 'w = 1/[\s^2^(Fo^2^)+(0.0677P)^2^] where P=(Fo^2^+2Fc^2^)/3'
+_atom_sites_solution_primary      direct
+_atom_sites_solution_secondary    difmap
+_atom_sites_solution_hydrogens    mixed
+_refine_ls_hydrogen_treatment     mixed
+_refine_ls_extinction_method      none
+_refine_ls_extinction_coef        ?
+_refine_ls_number_reflns          1583
+_refine_ls_number_parameters      116
+_refine_ls_number_restraints      3
+_refine_ls_R_factor_all           0.0509
+_refine_ls_R_factor_gt            0.0401
+_refine_ls_wR_factor_ref          0.1050
+_refine_ls_wR_factor_gt           0.1004
+_refine_ls_goodness_of_fit_ref    1.028
+_refine_ls_restrained_S_all       1.027
+_refine_ls_shift/su_max           0.000
+_refine_ls_shift/su_mean          0.000
+_diffrn_measured_fraction_theta_max    0.983
+_diffrn_reflns_theta_full              25.00
+_diffrn_measured_fraction_theta_full   0.983
+_refine_diff_density_max          0.819
+_refine_diff_density_min         -0.948
+
+#==============================================================================
+
+# 9. ATOMIC COORDINATES AND DISPLACEMENT PARAMETERS
+
+loop_
+ _atom_site_label
+ _atom_site_type_symbol
+ _atom_site_fract_x
+ _atom_site_fract_y
+ _atom_site_fract_z
+ _atom_site_U_iso_or_equiv
+ _atom_site_adp_type
+ _atom_site_occupancy
+ _atom_site_symmetry_multiplicity
+ _atom_site_calc_flag
+ _atom_site_refinement_flags
+ _atom_site_disorder_assembly
+ _atom_site_disorder_group
+Co Co 0.5000 0.5000 0.5000 0.0127(2) Uani 1 2 d S . .
+Cl Cl 0.26740(13) 0.26735(11) 0.45695(6) 0.0178(2) Uani 1 1 d . . .
+O O 0.2256(4) 0.5979(3) 0.63639(18) 0.0165(5) Uani 1 1 d D . .
+H1O H 0.095(4) 0.608(5) 0.613(3) 0.020 Uiso 1 1 d D . .
+C1 C 0.2075(6) 0.7554(5) 0.7133(3) 0.0215(8) Uani 1 1 d . . .
+H1A H 0.1462 0.8907 0.6787 0.026 Uiso 1 1 calc R . .
+H1B H 0.3710 0.7442 0.7319 0.026 Uiso 1 1 calc R . .
+C2 C 0.0399(7) 0.7412(6) 0.8177(3) 0.0291(9) Uani 1 1 d . . .
+H2A H -0.1218 0.7512 0.7995 0.044 Uiso 1 1 calc R . .
+H2B H 0.0287 0.8532 0.8674 0.044 Uiso 1 1 calc R . .
+H2C H 0.1041 0.6099 0.8539 0.044 Uiso 1 1 calc R . .
+N N 0.2846(5) 0.7522(4) 0.4102(2) 0.0158(6) Uani 1 1 d D . .
+H1C H 0.293(7) 0.860(3) 0.444(3) 0.019 Uiso 1 1 d D . .
+H1D H 0.139(3) 0.743(5) 0.432(3) 0.019 Uiso 1 1 d D . .
+C3 C 0.3387(6) 0.7559(4) 0.2928(3) 0.0153(7) Uani 1 1 d . . .
+C4 C 0.5275(6) 0.8296(5) 0.2440(3) 0.0225(8) Uani 1 1 d . . .
+H4 H 0.6184 0.8803 0.2885 0.027 Uiso 1 1 calc R . .
+C5 C 0.5829(7) 0.8292(5) 0.1308(3) 0.0267(8) Uani 1 1 d . . .
+H5 H 0.7112 0.8811 0.0979 0.032 Uiso 1 1 calc R . .
+C6 C 0.4557(7) 0.7549(5) 0.0649(3) 0.0292(9) Uani 1 1 d . . .
+H6 H 0.4958 0.7547 -0.0130 0.035 Uiso 1 1 calc R . .
+C7 C 0.2666(7) 0.6797(5) 0.1139(3) 0.0274(8) Uani 1 1 d . . .
+H7 H 0.1777 0.6273 0.0692 0.033 Uiso 1 1 calc R . .
+C8 C 0.2086(6) 0.6813(5) 0.2273(3) 0.0209(8) Uani 1 1 d . . .
+H8 H 0.0789 0.6311 0.2603 0.025 Uiso 1 1 calc R . .
+
+loop_
+ _atom_site_aniso_label
+ _atom_site_aniso_U_11
+ _atom_site_aniso_U_22
+ _atom_site_aniso_U_33
+ _atom_site_aniso_U_23
+ _atom_site_aniso_U_13
+ _atom_site_aniso_U_12
+Co 0.0061(3) 0.0094(3) 0.0209(4) -0.0010(2) -0.0035(2) 0.0015(2)
+Cl 0.0090(4) 0.0140(4) 0.0297(5) -0.0037(3) -0.0050(3) -0.0008(3)
+O 0.0090(12) 0.0161(11) 0.0240(13) -0.0030(9) -0.0058(10) -0.0006(9)
+C1 0.0161(18) 0.0168(17) 0.031(2) -0.0049(14) -0.0039(15) -0.0030(14)
+C2 0.029(2) 0.0248(19) 0.031(2) -0.0067(16) 0.0007(17) -0.0056(16)
+N 0.0097(14) 0.0112(13) 0.0248(16) -0.0015(11) -0.0049(12) 0.0009(11)
+C3 0.0124(17) 0.0069(14) 0.0227(17) 0.0009(12) -0.0032(13) 0.0036(12)
+C4 0.0173(19) 0.0158(16) 0.035(2) 0.0042(14) -0.0069(15) -0.0046(14)
+C5 0.0185(19) 0.0197(18) 0.036(2) 0.0078(15) 0.0019(16) 0.0002(15)
+C6 0.030(2) 0.0197(18) 0.028(2) 0.0035(15) -0.0001(16) 0.0065(16)
+C7 0.030(2) 0.0189(17) 0.032(2) -0.0043(15) -0.0120(16) -0.0016(15)
+C8 0.0184(18) 0.0155(17) 0.0280(19) -0.0004(14) -0.0042(14) -0.0030(14)
+
+#==============================================================================
+
+# 10. GEOMETRY
+
+_geom_special_details
+;
+ ?
+;
+
+loop_
+ _geom_bond_atom_site_label_1
+ _geom_bond_atom_site_label_2
+ _geom_bond_distance
+ _geom_bond_site_symmetry_2
+ _geom_bond_publ_flag
+Co Cl 2.4836(9) . y
+Co Cl 2.4835(9) 2_666 ?
+Co O 2.120(2) . y
+Co O 2.120(2) 2_666 ?
+Co N 2.175(3) . y
+Co N 2.175(3) 2_666 ?
+O H1O 0.833(10) . ?
+O C1 1.431(4) . ?
+C1 H1A 0.990 . ?
+C1 H1B 0.990 . ?
+C1 C2 1.512(5) . ?
+C2 H2A 0.980 . ?
+C2 H2B 0.980 . ?
+C2 H2C 0.980 . ?
+N H1C 0.873(10) . ?
+N H1D 0.869(10) . ?
+N C3 1.431(4) . ?
+C3 C4 1.388(5) . ?
+C3 C8 1.382(5) . ?
+C4 H4 0.950 . ?
+C4 C5 1.378(5) . ?
+C5 H5 0.950 . ?
+C5 C6 1.372(6) . ?
+C6 H6 0.950 . ?
+C6 C7 1.396(6) . ?
+C7 H7 0.950 . ?
+C7 C8 1.383(5) . ?
+C8 H8 0.950 . ?
+
+loop_
+ _geom_angle_atom_site_label_1
+ _geom_angle_atom_site_label_2
+ _geom_angle_atom_site_label_3
+ _geom_angle
+ _geom_angle_site_symmetry_1
+ _geom_angle_site_symmetry_3
+ _geom_angle_publ_flag
+Cl Co Cl 180 . 2_666 ?
+Cl Co O 86.06(6) . . y
+Cl Co O 86.06(7) 2_666 2_666 ?
+Cl Co O 93.94(7) 2_666 . ?
+Cl Co O 93.94(6) . 2_666 ?
+Cl Co N 92.33(8) . . y
+Cl Co N 87.67(8) 2_666 . ?
+Cl Co N 92.33(8) 2_666 2_666 ?
+Cl Co N 87.67(8) . 2_666 ?
+O Co O 180 . 2_666 ?
+O Co N 86.22(10) . . y
+O Co N 93.78(10) 2_666 . ?
+O Co N 86.22(10) 2_666 2_666 ?
+O Co N 93.78(10) . 2_666 ?
+N Co N 180 . 2_666 ?
+Co O H1O 106(3) . . ?
+Co O C1 126.4(2) . . ?
+H1O O C1 113(3) . . ?
+O C1 H1A 109.3 . . ?
+O C1 H1B 109.3 . . ?
+O C1 C2 111.8(3) . . ?
+H1A C1 H1B 107.9 . . ?
+H1A C1 C2 109.3 . . ?
+H1B C1 C2 109.3 . . ?
+C1 C2 H2A 109.5 . . ?
+C1 C2 H2B 109.5 . . ?
+C1 C2 H2C 109.5 . . ?
+H2A C2 H2B 109.5 . . ?
+H2A C2 H2C 109.5 . . ?
+H2B C2 H2C 109.5 . . ?
+Co N H1C 103(2) . . ?
+Co N H1D 101(2) . . ?
+Co N C3 118.62(19) . . ?
+H1C N H1D 106(3) . . ?
+H1C N C3 115(2) . . ?
+H1D N C3 112(2) . . ?
+N C3 C4 119.9(3) . . ?
+N C3 C8 120.5(3) . . ?
+C4 C3 C8 119.6(3) . . ?
+C3 C4 H4 120.1 . . ?
+C3 C4 C5 119.9(3) . . ?
+H4 C4 C5 120.1 . . ?
+C4 C5 H5 119.5 . . ?
+C4 C5 C6 121.1(4) . . ?
+H5 C5 C6 119.5 . . ?
+C5 C6 H6 120.4 . . ?
+C5 C6 C7 119.1(4) . . ?
+H6 C6 C7 120.4 . . ?
+C6 C7 H7 119.9 . . ?
+C6 C7 C8 120.1(3) . . ?
+H7 C7 C8 119.9 . . ?
+C3 C8 C7 120.2(3) . . ?
+C3 C8 H8 119.9 . . ?
+C7 C8 H8 119.9 . . ?
+
+loop_
+ _geom_torsion_atom_site_label_1
+ _geom_torsion_atom_site_label_2
+ _geom_torsion_atom_site_label_3
+ _geom_torsion_atom_site_label_4
+ _geom_torsion
+ _geom_torsion_site_symmetry_1
+ _geom_torsion_site_symmetry_2
+ _geom_torsion_site_symmetry_3
+ _geom_torsion_site_symmetry_4
+ _geom_torsion_publ_flag
+Cl Co O C1 -177.0(2) . . . . ?
+Cl Co O C1 3.0(2) 2_666 . . . ?
+N Co O C1 -84.4(2) . . . . ?
+N Co O C1 95.6(2) 2_666 . . . ?
+Co O C1 C2 -162.3(2) . . . . ?
+Cl Co N C3 -79.7(2) . . . . ?
+Cl Co N C3 100.3(2) 2_666 . . . ?
+O Co N C3 -165.6(2) . . . . ?
+O Co N C3 14.4(2) 2_666 . . . ?
+Co N C3 C4 -81.7(3) . . . . ?
+Co N C3 C8 96.5(3) . . . . ?
+N C3 C4 C5 178.7(3) . . . . ?
+C8 C3 C4 C5 0.4(5) . . . . ?
+C3 C4 C5 C6 -0.6(5) . . . . ?
+C4 C5 C6 C7 0.3(5) . . . . ?
+C5 C6 C7 C8 0.3(5) . . . . ?
+N C3 C8 C7 -178.1(3) . . . . ?
+C4 C3 C8 C7 0.2(5) . . . . ?
+C6 C7 C8 C3 -0.5(5) . . . . ?
+
+loop_
+ _geom_hbond_atom_site_label_D
+ _geom_hbond_atom_site_label_H
+ _geom_hbond_atom_site_label_A
+ _geom_hbond_distance_DH
+ _geom_hbond_distance_HA
+ _geom_hbond_distance_DA
+ _geom_hbond_angle_DHA
+ _geom_hbond_site_symmetry_A
+ _geom_hbond_publ_flag
+O H1O Cl  0.833(10) 2.306(14) 3.114(2) 163(3) 2_566 y
+N H1C Cl  0.873(10) 2.756(18) 3.560(3) 154(3) 1_565 y
+N H1D Cl  0.869(10) 2.574(13) 3.422(3) 165(3) 2_566 y
+
+#=====================  End of CIF submission =================================
+
+
+
+
+
+
