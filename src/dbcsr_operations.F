@@ -1129,7 +1129,6 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
     data_type = product%data_type
     my_alpha = dbcsr_scalar_one (data_type)
     IF (PRESENT (alpha)) my_alpha = alpha
@@ -1544,7 +1543,6 @@ CONTAINS
     t_all = t_all + (m_walltime() - epoch)
     t_dgemm = t_dgemm + mt_t_dgemm
     !WRITE(*,*)'Goodbye! I am thread',ithread
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_nn_mult_lin
 
 ! *****************************************************************************
