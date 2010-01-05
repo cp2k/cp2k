@@ -1111,7 +1111,7 @@ CONTAINS
       lastblk, new_blk, new_row_blks, nthreads, old_blk, old_row_begin_blk
     INTEGER :: old_size, row_begin_blk, row_blk, rpt, size_c_blk_ps, &
       stack_pointer, stat, submat_f_col, submat_f_row, submat_l_col, &
-      submat_l_row, this_right_limit, timing_handle
+      submat_l_row, this_right_limit
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: coordinate, lflop, one_flop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
@@ -2934,13 +2934,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, hold, mynode, n, &
-                                                row, timing_handle
+    INTEGER                                  :: hold, mynode, n, row, &
+                                                timing_handle
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: found, tr
     REAL(kind=real_8), DIMENSION(:, :), &
       POINTER                                :: buff, data_d
-    TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
@@ -2973,30 +2972,6 @@ CONTAINS
     ENDDO
 
     CALL dbcsr_finalize(matrix, error=error)
-
-    IF(.FALSE.) THEN
-       CALL dbcsr_iterator_start(iter, matrix)
-
-       DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-          SELECT CASE (dbcsr_get_data_type(matrix))
-             !CASE (dbcsr_type_real_4)
-          CASE (dbcsr_type_real_8)
-             CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
-             IF(row.EQ.col) CALL block_add_on_diag(SIZE(data_d,1),data_d,alpha_scalar)
-             !CASE (dbcsr_type_complex_4)
-             !   CALL dbcsr_iterator_next_block(iter, row, col, data_c, blk)
-             !CASE (dbcsr_type_complex_8)
-             !   CALL dbcsr_iterator_next_block(iter, row, col, data_z, blk)
-          CASE DEFAULT
-             CALL cp_unimplemented_error (routineN,"Only real double precision")
-          END SELECT
-
-       ENDDO
-
-       CALL dbcsr_iterator_stop(iter)
-
-    ENDIF
 
     CALL timestop(timing_handle)
 
@@ -3753,7 +3728,6 @@ CONTAINS
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
 !> \param[out] norm
-!> \param[in] which_norm
 !> 
 ! *****************************************************************************
   FUNCTION dbcsr_gershgorin_norm(matrix)
@@ -3764,12 +3738,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_gershgorin_norm', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: data_z
+    COMPLEX(KIND=sp), DIMENSION(:, :), &
+      POINTER                                :: data_c
     INTEGER                                  :: blk, col, col_offset, i, j, &
                                                 nc, nr, row, row_offset, &
                                                 timing_handle
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: any_sym, tr
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff_d
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -3779,6 +3758,9 @@ CONTAINS
     nr = dbcsr_nfullrows_total(matrix)
     nc = dbcsr_nfullcols_total(matrix)
 
+    any_sym = dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
+              dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric
+
     IF(nr.NE.nc) CALL stop_program(routineN,"not a square matrix")
     dbcsr_gershgorin_norm = 0.0_dp
     ALLOCATE(buff_d(nr))
@@ -3786,30 +3768,50 @@ CONTAINS
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix))
-          !CASE (dbcsr_type_real_4)
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_r, tr, blk, &
+               row_offset=row_offset, col_offset=col_offset)
+          DO j=1,SIZE(data_r,2)
+          DO i=1,SIZE(data_r,1)
+             buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_r(i,j))
+             IF(any_sym.AND.row.NE.col) &
+                  buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_r(i,j))
+          ENDDO
+          ENDDO
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk, &
                row_offset=row_offset, col_offset=col_offset)
-          IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
-              dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
-              row.NE.col) THEN
-             DO j=1,SIZE(data_d,2)
-             DO i=1,SIZE(data_d,1)
-                buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
-                buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_d(i,j))
-             ENDDO
-             ENDDO
-          ELSE
-             DO j=1,SIZE(data_d,2)
-             DO i=1,SIZE(data_d,1)
-                buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
-             ENDDO
-             ENDDO
-          ENDIF
-          !CASE (dbcsr_type_complex_4)
-          !CASE (dbcsr_type_complex_8)
+          DO j=1,SIZE(data_d,2)
+          DO i=1,SIZE(data_d,1)
+             buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_d(i,j))
+             IF(any_sym.AND.row.NE.col) &
+                  buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_d(i,j))
+          ENDDO
+          ENDDO
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk, &
+               row_offset=row_offset, col_offset=col_offset)
+          DO j=1,SIZE(data_c,2)
+          DO i=1,SIZE(data_c,1)
+             buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_c(i,j))
+             IF(any_sym.AND.row.NE.col) &
+                  CALL cp_unimplemented_error(routineN,"Only nonsymmetric matrix so far")
+             !     buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_c(i,j))
+          ENDDO
+          ENDDO
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk, &
+               row_offset=row_offset, col_offset=col_offset)
+          DO j=1,SIZE(data_z,2)
+          DO i=1,SIZE(data_z,1)
+             buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_z(i,j))
+             IF(any_sym.AND.row.NE.col) &
+                  CALL cp_unimplemented_error(routineN,"Only nonsymmetric matrix so far")
+             !     buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_z(i,j))
+          ENDDO
+          ENDDO
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Only real double precision")
+          CALL cp_unimplemented_error (routineN,"Wrong data type")
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -3825,7 +3827,6 @@ CONTAINS
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
 !> \param[out] norm
-!> \param[in] which_norm
 !> 
 ! *****************************************************************************
   FUNCTION dbcsr_maxabs_norm(matrix)
@@ -3835,9 +3836,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_maxabs_norm', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: data_z
+    COMPLEX(KIND=sp), DIMENSION(:, :), &
+      POINTER                                :: data_c
     INTEGER                                  :: blk, col, row, timing_handle
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -3848,14 +3854,20 @@ CONTAINS
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix))
-          !CASE (dbcsr_type_real_4)
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_r, tr, blk)
+          dbcsr_maxabs_norm = MAX(dbcsr_maxabs_norm,REAL(MAXVAL(ABS(data_r)),dp))
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
           dbcsr_maxabs_norm = MAX(dbcsr_maxabs_norm,MAXVAL(ABS(data_d)))
-          !CASE (dbcsr_type_complex_4)
-          !CASE (dbcsr_type_complex_8)
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk)
+          dbcsr_maxabs_norm = MAX(dbcsr_maxabs_norm,REAL(MAXVAL(ABS(data_c)),dp))
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
+          dbcsr_maxabs_norm = MAX(dbcsr_maxabs_norm,MAXVAL(ABS(data_z)))
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Only real double precision")
+          CALL cp_unimplemented_error (routineN,"Wrong data type")
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -3869,7 +3881,6 @@ CONTAINS
 !> \brief compute a norm of a dbcsr matrix
 !> \param[in] matrix  the matrix
 !> \param[out] norm
-!> \param[in] which_norm
 !> 
 ! *****************************************************************************
   FUNCTION dbcsr_frobenius_norm(matrix)
@@ -3880,32 +3891,52 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_frobenius_norm', &
       routineP = moduleN//':'//routineN
 
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: data_z
+    COMPLEX(KIND=sp), DIMENSION(:, :), &
+      POINTER                                :: data_c
     INTEGER                                  :: blk, col, row, timing_handle
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: any_sym, tr
     REAL(dp)                                 :: fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
 
+    any_sym = dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
+              dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric
+
     dbcsr_frobenius_norm = 0.0_dp
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        SELECT CASE (dbcsr_get_data_type(matrix))
-          !CASE (dbcsr_type_real_4)
+       CASE (dbcsr_type_real_4)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_r, tr, blk)
+          fac = 1.0_dp
+          IF(any_sym.AND.row.NE.col) fac = 2.0_dp
+          dbcsr_frobenius_norm = dbcsr_frobenius_norm + fac * SUM(data_r**2)
        CASE (dbcsr_type_real_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
           fac = 1.0_dp
-          IF((dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
-              dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric).AND.&
-              row.NE.col) fac = 2.0_dp
+          IF(any_sym.AND.row.NE.col) fac = 2.0_dp
           dbcsr_frobenius_norm = dbcsr_frobenius_norm + fac * SUM(data_d**2)
-          !CASE (dbcsr_type_complex_4)
-          !CASE (dbcsr_type_complex_8)
+       CASE (dbcsr_type_complex_4)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk)
+          fac = 1.0_dp
+          IF(any_sym.AND.row.NE.col) &
+               CALL cp_unimplemented_error(routineN,"Only nonsymmetric matrix so far")
+          dbcsr_frobenius_norm = dbcsr_frobenius_norm + fac * SUM(CONJG(data_c)*data_c)
+       CASE (dbcsr_type_complex_8)
+          CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
+          fac = 1.0_dp
+          IF(any_sym.AND.row.NE.col) &
+               CALL cp_unimplemented_error(routineN,"Only nonsymmetric matrix so far")
+          dbcsr_frobenius_norm = dbcsr_frobenius_norm + fac * SUM(CONJG(data_z)*data_z)
        CASE DEFAULT
-          CALL cp_unimplemented_error(routineN,"Only real double precision")
+          CALL cp_unimplemented_error(routineN,"Wrong data type")
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)

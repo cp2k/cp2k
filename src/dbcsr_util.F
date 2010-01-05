@@ -3254,10 +3254,10 @@ CONTAINS
                 blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
                      &               r_sp(blk_p:blk_p+mn-1))
              CASE (dbcsr_type_complex_8)
-                blk_cs = DOT_PRODUCT(CONJG(c_dp(blk_p:blk_p+mn-1)),&
+                blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
                      &               c_dp(blk_p:blk_p+mn-1))
              CASE (dbcsr_type_complex_4)
-                blk_cs = DOT_PRODUCT(CONJG(c_sp(blk_p:blk_p+mn-1)),&
+                blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
                      &               c_sp(blk_p:blk_p+mn-1))
              END SELECT
              DBGV ' chksum for (',br,',',bc,') at', blk_p,'l',mn,'= ', blk_cs

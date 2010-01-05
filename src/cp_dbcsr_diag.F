@@ -102,7 +102,6 @@ CONTAINS
     CALL cp_fm_struct_release(fm_struct,error=error)
 
     CALL copy_dbcsr_to_fm(matrix, fm_matrix)
-    !CALL copy_dbcsr_to_fm(eigenvectors, fm_eigenvectors)
 
     context => fm_matrix%matrix_struct%context
     myprow = context%mepos(1)
@@ -215,7 +214,8 @@ CONTAINS
 !>          work_syevx evec calculation only, is the fraction of the working buffer allowed (1.0 use full buffer)
 !>                     reducing this saves time, but might cause the routine to fail
 ! *****************************************************************************
-  SUBROUTINE dbcsr_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,error)
+  SUBROUTINE dbcsr_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,&
+       para_env,blacs_env,error)
 
     ! Diagonalise the symmetric n by n matrix using the LAPACK library.
 
@@ -224,6 +224,8 @@ CONTAINS
     REAL(KIND = dp), OPTIONAL, INTENT(IN)        :: work_syevx
     INTEGER, INTENT(IN), OPTIONAL                :: neig
     REAL(KIND = dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "dbcsr_syevx",&
@@ -247,6 +249,7 @@ CONTAINS
     CHARACTER(LEN=1)                           :: job_type
     TYPE(cp_fm_type), POINTER                  :: fm_matrix
     TYPE(cp_fm_type), POINTER                  :: fm_eigenvectors
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
     REAL(KIND = dp), EXTERNAL :: dlamch
 
@@ -259,14 +262,20 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! by default all
-    CALL dbcsr_get_info(matrix,nblkrows_total=n)
+    CALL dbcsr_get_info(matrix,nfullrows_total=n)
     neig_local=n
     IF (PRESENT(neig)) neig_local=neig
     IF (neig_local == 0) RETURN
 
-    NULLIFY(eigenvectors)
+    NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=n,&
+         ncol_global=n,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
+    IF(PRESENT(eigenvectors)) &
+         CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
     CALL copy_dbcsr_to_fm(matrix, fm_matrix)
-    IF(PRESENT(eigenvectors)) CALL copy_dbcsr_to_fm(eigenvectors, fm_eigenvectors)
 
     needs_evecs=PRESENT(eigenvectors)
 
@@ -464,9 +473,7 @@ CONTAINS
                                      "w")
 
     IF(PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
-
     IF(PRESENT(eigenvectors)) CALL cp_fm_release(fm_eigenvectors, error)
-
     CALL cp_fm_release(fm_matrix, error)
 
     CALL timestop(handle)
@@ -482,12 +489,14 @@ CONTAINS
 !>          subsets of eigenvalues/vectors can be selected by
 !>          specifying a range of values or a range of indices for the desired eigenvalues.
 ! *****************************************************************************
-  SUBROUTINE dbcsr_syevr(matrix,eigenvectors,eigenvalues,ilow,iup,error)
+  SUBROUTINE dbcsr_syevr(matrix,eigenvectors,eigenvalues,ilow,iup,para_env,blacs_env,error)
 
     TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(dbcsr_obj), POINTER, OPTIONAL       :: eigenvectors
     REAL(KIND = dp), DIMENSION(:), INTENT(OUT)   :: eigenvalues
     INTEGER, INTENT(IN), OPTIONAL                :: ilow,iup
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "dbcsr_syevr",&
@@ -509,6 +518,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER              :: logger
     TYPE(cp_fm_type), POINTER                  :: fm_matrix
     TYPE(cp_fm_type), POINTER                  :: fm_eigenvectors
+    TYPE(cp_fm_struct_type), POINTER           :: fm_struct
 
     REAL(KIND = dp), EXTERNAL :: dlamch
 
@@ -519,8 +529,18 @@ CONTAINS
 
     ! -------------------------------------------------------------------------
 
+    NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
+    CALL dbcsr_get_info(matrix,nfullrows_total=n)
+
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=n,&
+         ncol_global=n,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
+    CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+
     ! by default all
-    CALL dbcsr_get_info(matrix,nblkrows_total=n)
     neig=n
     iup_local = n
     ilow_local = 1
@@ -659,9 +679,7 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
-
     IF(PRESENT(eigenvectors)) CALL cp_fm_release(fm_eigenvectors, error)
-
     CALL cp_fm_release(fm_matrix, error)
 
     CALL timestop(handle)
@@ -708,7 +726,6 @@ CONTAINS
     CALL cp_fm_struct_release(fm_struct,error=error)
 
     CALL copy_dbcsr_to_cfm(matrix, fm_matrix)
-    !CALL copy_dbcsr_to_cfm(eigenvectors, fm_eigenvectors)
 
     n = fm_matrix%matrix_struct%nrow_global
     m => fm_matrix%local_data
@@ -760,6 +777,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE dbcsr_heevd
-
 
 END MODULE cp_dbcsr_diag
