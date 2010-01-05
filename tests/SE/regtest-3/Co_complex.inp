@@ -1,0 +1,64 @@
+&GLOBAL
+  PROJECT Co
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  &PRINT
+    &FORCES
+    &END
+  &END
+  METHOD Quickstep
+  &DFT
+    LSD
+    &QS
+      METHOD PM6
+      &SE
+        &COULOMB
+          CUTOFF [angstrom] 5.000
+        &END
+        &EXCHANGE
+          CUTOFF [angstrom] 5.000
+        &END
+      &END
+    &END QS
+    &SCF
+      MAX_SCF 10
+      EPS_SCF 1.0E-5
+      SCF_GUESS mopac
+      &OT 
+        MINIMIZER CG
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+       a [angstrom]     5.817     0.000     0.000 
+       b [angstrom]     1.996     6.536     0.000
+       c [angstrom]     1.765    -0.011    12.135
+    &END CELL
+    &TOPOLOGY
+      COORDINATE CIF
+      COORD_FILE_NAME  ../sample_cif/Co_complex.cif
+      CONNECTIVITY OFF
+      &DUMP_PDB
+      &END
+      &DUMP_PSF
+      &END
+    &END
+    &PRINT
+      &CELL
+        UNIT angstrom
+      &END
+      &TOPOLOGY_INFO
+        CIF_INFO
+      &END
+      &KINDS
+        BASIS_SET
+        POTENTIAL
+      &END KINDS
+    &END PRINT
+  &END SUBSYS
+&END FORCE_EVAL

@@ -34,3 +34,5 @@ SiO2_lr_quad.inp   11
 Al2O3.inp          11
 #angvel_tol
 gly_noangvel.inp    2
+#extended cif test
+Co_complex.inp     11
