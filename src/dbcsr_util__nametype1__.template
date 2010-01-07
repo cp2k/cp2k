@@ -115,6 +115,62 @@
 
 
 ! *****************************************************************************
+!> \brief Copies a block subset
+!> \see block_partial_copy_a
+! *****************************************************************************
+  SUBROUTINE block_partial_copy_[nametype1](dst, dst_rs, dst_cs, dst_tr,&
+       src, src_rs, src_cs, src_tr,&
+       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+    [type1], DIMENSION(:), &
+      INTENT(INOUT)                          :: dst
+    INTEGER, INTENT(IN)                      :: dst_rs, dst_cs
+    LOGICAL                                  :: dst_tr
+    [type1], DIMENSION(:), &
+      INTENT(IN)                             :: src
+    INTEGER, INTENT(IN)                      :: src_rs, src_cs
+    LOGICAL                                  :: src_tr
+    INTEGER, INTENT(IN)                      :: dst_r_lb, dst_c_lb, src_r_lb, &
+                                                src_c_lb, nrow, ncol
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_partial_copy_[nametype1]', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col, row
+
+!   ---------------------------------------------------------------------------
+! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
+
+    IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
+                = src(src_r_lb+row+(src_c_lb+col-1)*src_rs)
+       END FORALL
+       !DO col = 1, ncol
+       !   DO row = 1, nrow
+       !      dst(dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
+       !    = src(src_r_lb+row+(src_c_lb+col-1)*src_rs)
+       !   ENDDO
+       !ENDDO
+    ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_c_lb+col + (dst_r_lb+row-1)*dst_rs) &
+              = src(src_r_lb+row+(src_c_lb+col-1)*src_rs)
+       END FORALL
+    ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
+             = src(src_c_lb+col+(src_r_lb+row-1)*src_rs)
+       END FORALL
+    ELSEIF (dst_tr .AND. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_c_lb+col + (dst_r_lb+row-1)*dst_rs) = src(src_c_lb+col+(src_r_lb+row-1)*src_rs)
+       END FORALL
+    ENDIF
+  END SUBROUTINE block_partial_copy_[nametype1]
+
+
+
+! *****************************************************************************
 !> \brief Returns a pointer with different bounds.
 !> \param[in] original   original data pointer
 !> \param[in] lb, ub     lower and upper bound for the new pointer view

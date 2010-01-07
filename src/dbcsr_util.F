@@ -157,6 +157,14 @@ MODULE dbcsr_util
           block_copy_1d2d_c, block_copy_1d2d_z
   END INTERFACE
 
+  INTERFACE dbcsr_block_partial_copy
+     MODULE PROCEDURE block_partial_copy_a
+     MODULE PROCEDURE block_partial_copy_d,&
+                      block_partial_copy_s,&
+                      block_partial_copy_z,&
+                      block_partial_copy_c
+  END INTERFACE
+
   ! Supports copy between two data areas, or to a data area from a
   ! given explicit array.
   INTERFACE dbcsr_data_set
@@ -247,7 +255,8 @@ MODULE dbcsr_util
        dbcsr_use_mutable, dbcsr_wm_use_mutable,&
        convert_sizes_to_offsets, convert_offsets_to_sizes,&
        dbcsr_blk_row_size, dbcsr_blk_column_size,&
-       dbcsr_add_wm_from_matrix, absmod
+       dbcsr_add_wm_from_matrix, absmod,&
+       dbcsr_block_partial_copy
   ! Some higher-level operations
   PUBLIC :: dbcsr_set_diagonal
   ! BLAS routines
@@ -5870,6 +5879,78 @@ CONTAINS
             routineN, "Invalid or unsupported data type.")
     END SELECT
   END SUBROUTINE dbcsr_data_clear
+
+
+! *****************************************************************************
+!> \brief Copies a block subset
+!> \param[in,out] dst  target data area
+!> \param[in] dst_rs   target block row size (logical)
+!> \param[in] dst_cs   target block column size (logical)
+!> \param[in] dst_tr   whether target block is transposed
+!> \param[in] src      source data area
+!> \param[in] src_rs   source block row size (logical)
+!> \param[in] src_cs   source block column size (logical)
+!> \param[in] src_tr   whether source block is transposed
+!> \param[in] dst_r_lb   first row in target
+!> \param[in] dst_c_lb   first column in target
+!> \param[in] src_r_lb   first_row in source
+!> \param[in] src_r_lb   first column in target
+!> \param[in] nrow       number of rows to copy
+!> \param[in] ncol       number of columns to copy
+! *****************************************************************************
+  SUBROUTINE block_partial_copy_a(dst, dst_rs, dst_cs, dst_tr,&
+       src, src_rs, src_cs, src_tr,&
+       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
+    INTEGER, INTENT(IN)                      :: dst_rs, dst_cs
+    LOGICAL                                  :: dst_tr
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: src
+    INTEGER, INTENT(IN)                      :: src_rs, src_cs
+    LOGICAL                                  :: src_tr
+    INTEGER, INTENT(IN)                      :: dst_r_lb, dst_c_lb, src_r_lb, &
+                                                src_c_lb, nrow, ncol
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_partial_copy_a', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: verification = .TRUE.
+
+!   ---------------------------------------------------------------------------
+
+    CALL cp_assert (dbcsr_get_data_type (dst) .EQ. dbcsr_get_data_type(src),&
+         cp_fatal_level, cp_wrong_args_error, routineN,&
+         "Incompatible data types.")
+    IF (verification) THEN
+       CALL cp_assert (dst_r_lb+nrow-1 .LE. dst_rs, cp_fatal_level,&
+            cp_wrong_args_error, routineN, "Incompatible dst row sizes")
+       CALL cp_assert (dst_c_lb+ncol-1 .LE. dst_cs, cp_fatal_level,&
+            cp_wrong_args_error, routineN, "Incompatible dst col sizes")
+       CALL cp_assert (src_r_lb+nrow-1 .LE. src_rs, cp_fatal_level,&
+            cp_wrong_args_error, routineN, "Incompatible src row sizes")
+       CALL cp_assert (src_c_lb+ncol-1 .LE. src_cs, cp_fatal_level,&
+            cp_wrong_args_error, routineN, "Incompatible src col sizes")
+    ENDIF
+    SELECT CASE (dbcsr_get_data_type (dst))
+    CASE (dbcsr_type_real_4)
+       CALL dbcsr_block_partial_copy(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
+            src%d%r_sp, src_rs, src_cs, src_tr,&
+            dst_r_lb, dst_c_lb, src_r_lb, src_r_lb, nrow, ncol)
+    CASE (dbcsr_type_real_8)
+       CALL dbcsr_block_partial_copy(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
+            src%d%r_dp, src_rs, src_cs, src_tr,&
+            dst_r_lb, dst_c_lb, src_r_lb, src_r_lb, nrow, ncol)
+    CASE (dbcsr_type_complex_4)
+       CALL dbcsr_block_partial_copy(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
+            src%d%c_sp, src_rs, src_cs, src_tr,&
+            dst_r_lb, dst_c_lb, src_r_lb, src_r_lb, nrow, ncol)
+    CASE (dbcsr_type_complex_8)
+       CALL dbcsr_block_partial_copy(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
+            src%d%c_dp, src_rs, src_cs, src_tr,&
+            dst_r_lb, dst_c_lb, src_r_lb, src_r_lb, nrow, ncol)
+    CASE default
+       !CALL 
+       STOP
+    END SELECT
+  END SUBROUTINE block_partial_copy_a
 
 
 ! *****************************************************************************

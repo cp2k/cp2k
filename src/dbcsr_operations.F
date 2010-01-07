@@ -3272,14 +3272,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle, rel
     CHARACTER                                :: data_type
-    INTEGER :: src_row, src_col, src_pos
-    LOGICAL :: src_tr, dst_tr
-    INTEGER :: dst_row, dst_col, dst_pos, row_size, col_size, rs, cs
-    TYPE(dbcsr_iterator) :: src_iter, dst_iter
-    TYPE(dbcsr_data_obj):: src_data, dst_data
-    REAL(kind=dp) :: sm
+    INTEGER                                  :: col_size, cs, dst_col, &
+                                                dst_row, rel, row_size, rs, &
+                                                src_col, src_row, &
+                                                timing_handle
+    LOGICAL                                  :: dst_tr, src_tr
+    TYPE(dbcsr_data_obj)                     :: dst_data, src_data
+    TYPE(dbcsr_iterator)                     :: dst_iter, src_iter
 
 !   ---------------------------------------------------------------------------
 
@@ -3352,32 +3352,178 @@ CONTAINS
     CALL dbcsr_data_release (dst_data)
 
     CALL timestop(timing_handle)
-  CONTAINS
-    !> \brief Determines the relation between two matrix positions.
-    !> \retval relation  Relation between positions 1 and 2.
-    !>                    0: same
-    !>                   -1: pos1 < pos2
-    !>                    1: pos1 > pos2
-    elemental FUNCTION pos_relation (row1, col1, row2, col2)&
-         RESULT (relation)
-    INTEGER, INTENT(in)                      :: row1, col1, row2, col2
+  END SUBROUTINE dbcsr_copy_into_existing
+
+
+! *****************************************************************************
+!> \brief Copy only a subset of matrix columns (element-wise, not block-size)
+!> \par Column block compatibility
+!>      The process column distributions of the copied columns must be
+!>      equal. Therefore, the source and target offsets must also be
+!>      the same.
+!> \param[in,out] matrix_b      target DBCSR matrix
+!> \param[in]    matrix_a       source DBCSR matrix
+!> \param[in]    ncol           number of elemental column to copy
+!> \param[in]    source_start   starting elemental column in source
+!> \param[in]    target_start   starting elemental column in target
+!> \param[in,out] error         cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_copy_columns(matrix_b, matrix_a,&
+       ncol, source_start, target_start, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    INTEGER, INTENT(IN)                      :: ncol, source_start, &
+                                                target_start
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_columns', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: data_type
+    INTEGER :: col_size, dst_col, dst_row, first_col, last_col, num_col, rel, &
+      row_size, src_col, src_row, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: dst_col_offsets, &
+                                                dst_col_sizes, &
+                                                src_col_offsets, src_col_sizes
+    LOGICAL                                  :: dst_tr, src_tr
+    TYPE(dbcsr_data_obj)                     :: dst_data, src_data, tmp_buffer
+    TYPE(dbcsr_iterator)                     :: dst_iter, src_iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN, timing_handle)
+
+    CALL cp_assert (dbcsr_get_data_type(matrix_b)&
+         .EQ. dbcsr_get_data_type(matrix_a), cp_fatal_level,&
+         cp_wrong_args_error, routineN, "Matrices have different data types.",&
+         error=error)
+    data_type = dbcsr_get_data_type (matrix_b)
+
+    CALL cp_assert (source_start .EQ. target_start, cp_fatal_level,&
+         cp_unimplemented_error_nr, routineN, "Column shifting not supported",&
+         error=error)
+
+    src_col_offsets = array_data (matrix_a%m%col_blk_offset)
+    dst_col_offsets = array_data (matrix_b%m%col_blk_offset)
+    src_col_sizes = array_data (matrix_a%m%col_blk_size)
+    dst_col_sizes = array_data (matrix_b%m%col_blk_size)
+
+    CALL dbcsr_data_init (src_data)
+    CALL dbcsr_data_init (dst_data)
+    CALL dbcsr_data_init (tmp_buffer)
+    CALL dbcsr_data_new (src_data, data_type)
+    CALL dbcsr_data_new (dst_data, data_type)
+    CALL dbcsr_data_new (tmp_buffer, data_type,&
+         matrix_a%m%max_rbs*matrix_a%m%max_cbs)
+    CALL dbcsr_iterator_start (src_iter, matrix_a)
+    CALL dbcsr_iterator_start (dst_iter, matrix_b)
+    ! Iterate through the blocks of the source and destination
+    ! matrix. There are three possibilites: 1 copy data for blocks
+    ! present in both that are fully within the specified range; 2
+    ! copy partial data for blacks partially within the specified
+    ! range; 3 add (partial or full) data for blocks present in source
+    ! but not in the target
+    IF (dbcsr_iterator_blocks_left (src_iter)) THEN
+       CALL dbcsr_iterator_next_block (src_iter, src_row, src_col, src_data,&
+            src_tr)
+    ELSE
+       src_row = 0 ; src_col = 0
+    ENDIF
+    DO WHILE (dbcsr_iterator_blocks_left (dst_iter))
+       CALL dbcsr_iterator_next_block (dst_iter, dst_row, dst_col, dst_data,&
+            dst_tr, row_size=row_size, col_size=col_size)
+       ! Now find the source position that is greater or equal to the
+       ! target one. I.e, skip blocks that the target doesn't have.
+       rel = pos_relation (dst_row, dst_col, src_row, src_col)
+       DO WHILE (rel .EQ. 1 .AND. dbcsr_iterator_blocks_left (src_iter))
+          CALL dbcsr_iterator_next_block (src_iter, src_row, src_col,&
+               src_data, src_tr)
+          rel = pos_relation (dst_row, dst_col, src_row, src_col)
+       ENDDO
+       SELECT CASE (rel)
+       CASE (0) ! Equal block coordinates; block exists in both src and dst
+          ! Check if the full block is being copied
+          CALL cp_assert (src_col_sizes(src_col) .EQ. dst_col_sizes(dst_col),&
+               cp_fatal_level, cp_internal_error, routineN,&
+               "Unequal column sizes", error=error)
+          !CALL cp_unimplemented_error (routineN, "Partial block copy not tested",&
+          !     error=error, error_level=cp_warning_level)
+          CALL cp_assert (src_col_offsets(src_col).eq.dst_col_offsets(dst_col),&
+               cp_fatal_level, cp_internal_error, routineN,&
+               "Block offsets must be equal", error=error)
+          first_col = 1 + MAX (src_col_offsets(src_col), source_start)&
+               - src_col_offsets(src_col)
+          last_col = MIN (src_col_offsets(src_col)+ncol-1, source_start+ncol-1) - &
+               src_col_offsets(src_col+1)-1 + 1
+          num_col = last_col - first_col + 1
+          IF (num_col .GT. 0) THEN
+             CALL dbcsr_block_partial_copy(&
+                  dst_data, row_size, col_size, dst_tr,&
+                  src_data, row_size, col_size, src_tr,&
+                  1, first_col, 1, first_col,& ! offsets
+                  row_size, num_col) ! sizes
+          ENDIF
+       CASE (-1) ! Block exists in dst but must be added to dst
+          IF (source_start .GE. src_col_offsets(src_col) .AND. &
+              src_col_offsets(src_col)+ncol-1 .LE. source_start+ncol-1) THEN
+             CALL dbcsr_put_block (matrix_b, src_row, src_col, src_data,&
+                  transposed=src_tr)
+          ELSE
+             CALL cp_unimplemented_error (routineN,&
+                  "Partial block addition not yet tested",&
+                  error=error, error_level=cp_warning_level)
+             CALL dbcsr_data_clear (tmp_buffer)
+             CALL dbcsr_block_partial_copy (&
+                  tmp_buffer, row_size, col_size, src_tr,&
+                  src_data, row_size, col_size, src_tr,&
+                  1, first_col, 1, first_col,&
+                  row_size, num_col)
+             CALL dbcsr_put_block (matrix_b, src_row, src_col, tmp_buffer,&
+                  src_tr)
+          ENDIF
+       CASE (1)
+          ! Ran out of source. Do nothing.
+       CASE default
+          CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
+               routineN, "Trouble syncing iterators", error=error)
+       END SELECT
+    END DO
+    CALL dbcsr_iterator_stop (src_iter)
+    CALL dbcsr_iterator_stop (dst_iter)
+    CALL dbcsr_data_clear_pointer (src_data)
+    CALL dbcsr_data_clear_pointer (dst_data)
+    CALL dbcsr_data_release (src_data)
+    CALL dbcsr_data_release (dst_data)
+
+    CALL timestop(timing_handle)
+  END SUBROUTINE dbcsr_copy_columns
+
+
+! *****************************************************************************
+!> \brief Determines the relation between two matrix positions.
+!> \retval relation  Relation between positions 1 and 2.
+!>                    0: same
+!>                   -1: pos1 < pos2
+!>                    1: pos1 > pos2
+! *****************************************************************************
+  ELEMENTAL FUNCTION pos_relation (row1, col1, row2, col2) RESULT (relation)
+    INTEGER, INTENT(IN)                      :: row1, col1, row2, col2
     INTEGER                                  :: relation
 
-      IF (row1 .LT. row2) THEN
-         relation = -1
-      ELSEIF (row1 .GT. row2) THEN
-         relation = 1
-      ELSE ! rows are equal, check column
-         IF (col1 .LT. col2) THEN
-            relation = -1
-         ELSEIF (col1 .GT. col2) THEN
-            relation = 1
-         ELSE
-            relation = 0
-         ENDIF
-      ENDIF
-    END FUNCTION pos_relation
-  END SUBROUTINE dbcsr_copy_into_existing
+    IF (row1 .LT. row2) THEN
+       relation = -1
+    ELSEIF (row1 .GT. row2) THEN
+       relation = 1
+    ELSE ! rows are equal, check column
+       IF (col1 .LT. col2) THEN
+          relation = -1
+       ELSEIF (col1 .GT. col2) THEN
+          relation = 1
+       ELSE
+          relation = 0
+       ENDIF
+    ENDIF
+  END FUNCTION pos_relation
 
 
 ! *****************************************************************************
