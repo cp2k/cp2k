@@ -333,7 +333,8 @@ MODULE input_constants
                                               do_ff_amber=9,&
                                               do_ff_mm2=10,&
                                               do_ff_mm3=11,&
-                                              do_ff_mm4=12
+                                              do_ff_mm4=12,&
+                                              do_ff_fues=13
 
   INTEGER, PARAMETER, PUBLIC               :: do_stress_none=0,&
                                               do_stress_analytical=1,&

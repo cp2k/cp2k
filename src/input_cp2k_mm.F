@@ -837,15 +837,17 @@ CONTAINS
        CALL keyword_create(keyword=keyword, name="KIND",&
             description="Define the kind of"//TRIM(tag)//"potential.",&
             usage="KIND HARMONIC",&
-            enum_c_vals=s2a("HARMONIC","CHARMM","AMBER","G87","G96","QUARTIC","MORSE","CUBIC"),&
+            enum_c_vals=s2a("HARMONIC","CHARMM","AMBER","G87","G96","QUARTIC",&
+                            "MORSE","CUBIC","FUES"),&
             enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
                           "Functional Form (CHARMM|AMBER): K*(R-R0)^2",&
                           "Functional Form (CHARMM|AMBER): K*(R-R0)^2",&
                           "Functional Form (HARMONIC|G87): 1/2*K*(R-R0)^2",&
                           "Functional Form (G96): 1/4*K*(R-R0)^2",&
                           "Functional Form (QUARTIC): (1/2*K1+[1/3*K2+1/4*K3*|R-R0|]*|R-R0|)(R-R0)^2",&
-                          "Functional Form (Morse): K1*[(1-exp(-K2*(R-R0)))**2-1])",&
-                          "Functional Form (Cubic): K*(R-R0)**2*(1+cs*(R-R0)+7/12*(cs**2*(R-R0)**2))"),&
+                          "Functional Form (MORSE): K1*[(1-exp(-K2*(R-R0)))^2-1])",&
+                          "Functional Form (CUBIC): K*(R-R0)^2*(1+cs*(R-R0)+7/12*(cs^2*(R-R0)^2))",&
+                          "Functional Form (FUES): 1/2*K*R0^2*(1+R0/R*(R0/R-2))"),&
             enum_i_vals=(/ do_ff_harmonic,&
                            do_ff_charmm,&
                            do_ff_amber,&
@@ -853,7 +855,8 @@ CONTAINS
                            do_ff_g96,&
                            do_ff_quartic, &
                            do_ff_morse, &
-                           do_ff_cubic/),&
+                           do_ff_cubic, &
+                           do_ff_fues/),&
             default_i_val=do_ff_charmm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

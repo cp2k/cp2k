@@ -23,3 +23,5 @@ opbend_test.inp 11
 12_exvdw_12_exei_list_2.inp        11
 12_exvdw_12_exei_list_2_c.inp      11
 12_exvdw_12_exei_list_empty.inp    11
+#fues
+H2O-1-fues.inp  11

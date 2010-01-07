@@ -11,9 +11,9 @@
 MODULE mol_force
   USE f77_blas
   USE input_constants,                 ONLY: &
-       do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_g87, do_ff_g96, &
-       do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_mm2, do_ff_mm3, &
-       do_ff_mm4, do_ff_morse, do_ff_quartic
+       do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_fues, do_ff_g87, &
+       do_ff_g96, do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_mm2, &
+       do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
@@ -89,6 +89,11 @@ CONTAINS
           energy  = f12*k(1)*disp*disp
           fscalar = k(1)*disp / dij
        END IF
+    CASE (do_ff_fues)
+       dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
+       disp = r0/dij
+       energy  = f12*k(1)*r0*r0*(1.0_dp+disp*(disp-2.0_dp))
+       fscalar = k(1)*r0*disp*disp*(1.0_dp-disp) / dij
     CASE DEFAULT
        CALL stop_program (routineP,"unmatched bond kind")
     END SELECT
