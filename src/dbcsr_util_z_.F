@@ -120,10 +120,12 @@
 ! *****************************************************************************
   SUBROUTINE block_partial_copy_z(dst, dst_rs, dst_cs, dst_tr,&
        src, src_rs, src_cs, src_tr,&
-       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+       dst_offset, src_offset)
     COMPLEX(kind=real_8), DIMENSION(:), &
       INTENT(INOUT)                          :: dst
     INTEGER, INTENT(IN)                      :: dst_rs, dst_cs
+    INTEGER, INTENT(IN)                      :: src_offset, dst_offset
     LOGICAL                                  :: dst_tr
     COMPLEX(kind=real_8), DIMENSION(:), &
       INTENT(IN)                             :: src
@@ -139,31 +141,31 @@
 
 !   ---------------------------------------------------------------------------
 ! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
-
     IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
        FORALL (col = 0:ncol-1, row=0:nrow-1)
-          dst(dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
-                = src(src_r_lb+row+(src_c_lb+col-1)*src_rs)
+          dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
+                = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
        END FORALL
        !DO col = 1, ncol
        !   DO row = 1, nrow
-       !      dst(dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
-       !    = src(src_r_lb+row+(src_c_lb+col-1)*src_rs)
+       !      dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
+       !    = src(src_offset+src_r_lb+row + (src_c_lb+col-1)*src_rs)
        !   ENDDO
        !ENDDO
     ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
        FORALL (col = 0:ncol-1, row=0:nrow-1)
-          dst(dst_c_lb+col + (dst_r_lb+row-1)*dst_rs) &
-              = src(src_r_lb+row+(src_c_lb+col-1)*src_rs)
+          dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_rs) &
+              = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
        END FORALL
     ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
        FORALL (col = 0:ncol-1, row=0:nrow-1)
-          dst(dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
-             = src(src_c_lb+col+(src_r_lb+row-1)*src_rs)
+          dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
+             = src(src_offset+src_c_lb+col+(src_r_lb+row-1)*src_rs)
        END FORALL
     ELSEIF (dst_tr .AND. src_tr) THEN
        FORALL (col = 0:ncol-1, row=0:nrow-1)
-          dst(dst_c_lb+col + (dst_r_lb+row-1)*dst_rs) = src(src_c_lb+col+(src_r_lb+row-1)*src_rs)
+          dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_rs)&
+             = src(src_offset + src_c_lb+col+(src_r_lb+row-1)*src_rs)
        END FORALL
     ENDIF
   END SUBROUTINE block_partial_copy_z

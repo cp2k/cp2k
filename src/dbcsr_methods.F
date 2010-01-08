@@ -101,6 +101,8 @@ MODULE dbcsr_methods
 
   PUBLIC :: dbcsr_modify_lock, dbcsr_modify_unlock
 
+  PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
+
   PRIVATE
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
@@ -2457,7 +2459,8 @@ CONTAINS
     rmp = dt1 .NE. dt2
     SELECT CASE (dt2)
     CASE (dbcsr_type_real_4_2d)
-       area%d%r2_sp => dbcsr_get_data_p_2d_s (pointee)
+       !area%d%r2_sp => dbcsr_get_data_p_2d_s (pointee)
+       area%d%r2_sp => pointee%d%r2_sp(1:rsize,1:csize)
     CASE (dbcsr_type_real_4)
        IF (rmp) THEN
           CALL pointer_s_rank_remap2(area%d%r2_sp, rsize, csize,&
@@ -2466,7 +2469,8 @@ CONTAINS
           area%d%r_sp => dbcsr_get_data_p_s (pointee, bp, bp+nze-1)
        ENDIF
     CASE (dbcsr_type_real_8_2d)
-       area%d%r2_dp => dbcsr_get_data_p_2d_d (pointee)
+       !area%d%r2_dp => dbcsr_get_data_p_2d_d (pointee)
+       area%d%r2_dp => pointee%d%r2_dp(1:rsize,1:csize)
     CASE (dbcsr_type_real_8)
        IF (rmp) THEN
           CALL pointer_d_rank_remap2(area%d%r2_dp, rsize, csize,&
@@ -2475,7 +2479,8 @@ CONTAINS
           area%d%r_dp => dbcsr_get_data_p_d (pointee, bp, bp+nze-1)
        ENDIF
     CASE (dbcsr_type_complex_4_2d)
-       area%d%c2_sp => dbcsr_get_data_p_2d_c (pointee)
+       !area%d%c2_sp => dbcsr_get_data_p_2d_c (pointee)
+       area%d%c2_sp => pointee%d%c2_sp(1:rsize,1:csize)
     CASE (dbcsr_type_complex_4)
        IF (rmp) THEN
           CALL pointer_c_rank_remap2(area%d%c2_sp, rsize, csize,&
@@ -2484,7 +2489,8 @@ CONTAINS
           area%d%c_sp => dbcsr_get_data_p_c (pointee, bp, bp+nze-1)
        ENDIF
     CASE (dbcsr_type_complex_8_2d)
-       area%d%c2_dp => dbcsr_get_data_p_2d_z (pointee)
+       !area%d%c2_dp => dbcsr_get_data_p_2d_z (pointee)
+       area%d%c2_dp => pointee%d%c2_dp(1:rsize,1:csize)
     CASE (dbcsr_type_complex_8)
        IF (rmp) THEN
           CALL pointer_z_rank_remap2(area%d%c2_dp, rsize, csize,&
@@ -3053,6 +3059,81 @@ CONTAINS
 
     instantiated = ASSOCIATED (mutable%m)
   END FUNCTION dbcsr_mutable_instantiated
+
+! *****************************************************************************
+!> \brief Checks whether the data type is 2-D.
+!> \result Data type is 2-D.
+! *****************************************************************************
+  PURE FUNCTION dbcsr_type_is_2d (data_type)
+    CHARACTER, INTENT(IN)                    :: data_type
+    LOGICAL                                  :: dbcsr_type_is_2d
+
+    dbcsr_type_is_2d = data_type .EQ. dbcsr_type_real_4_2d .OR.&
+         data_type .EQ. dbcsr_type_real_8_2d .OR.&
+         data_type .EQ. dbcsr_type_complex_4_2d .OR.&
+         data_type .EQ. dbcsr_type_complex_8
+  END FUNCTION dbcsr_type_is_2d
+
+! *****************************************************************************
+!> \brief Returns 1-d data type corresponding to the given 2-D one.
+!> \result 1-D data type
+! *****************************************************************************
+  PURE FUNCTION dbcsr_type_2d_to_1d (data_type)
+    CHARACTER, INTENT(IN)                    :: data_type
+    CHARACTER                                :: dbcsr_type_2d_to_1d
+
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4_2d)
+       dbcsr_type_2d_to_1d = dbcsr_type_real_4
+    CASE (dbcsr_type_real_8_2d)
+       dbcsr_type_2d_to_1d = dbcsr_type_real_8
+    CASE (dbcsr_type_complex_4_2d)
+       dbcsr_type_2d_to_1d = dbcsr_type_complex_4
+    CASE (dbcsr_type_complex_8_2d)
+       dbcsr_type_2d_to_1d = dbcsr_type_complex_8
+    CASE (dbcsr_type_real_4)
+       dbcsr_type_2d_to_1d = dbcsr_type_real_4
+    CASE (dbcsr_type_real_8)
+       dbcsr_type_2d_to_1d = dbcsr_type_real_8
+    CASE (dbcsr_type_complex_4)
+       dbcsr_type_2d_to_1d = dbcsr_type_complex_4
+    CASE (dbcsr_type_complex_8)
+       dbcsr_type_2d_to_1d = dbcsr_type_complex_8
+    CASE default
+       dbcsr_type_2d_to_1d = '0'
+    END SELECT
+  END FUNCTION dbcsr_type_2d_to_1d
+
+! *****************************************************************************
+!> \brief Returns 2-D data type corresponding to the given 1-D one.
+!> \result 2-D data type
+! *****************************************************************************
+  PURE FUNCTION dbcsr_type_1d_to_2d (data_type)
+    CHARACTER, INTENT(IN)                    :: data_type
+    CHARACTER                                :: dbcsr_type_1d_to_2d
+
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       dbcsr_type_1d_to_2d = dbcsr_type_real_4_2d
+    CASE (dbcsr_type_real_8)
+       dbcsr_type_1d_to_2d = dbcsr_type_real_8_2d
+    CASE (dbcsr_type_complex_4)
+       dbcsr_type_1d_to_2d = dbcsr_type_complex_4_2d
+    CASE (dbcsr_type_complex_8)
+       dbcsr_type_1d_to_2d = dbcsr_type_complex_8_2d
+    CASE (dbcsr_type_real_4_2d)
+       dbcsr_type_1d_to_2d = dbcsr_type_real_4_2d
+    CASE (dbcsr_type_real_8_2d)
+       dbcsr_type_1d_to_2d = dbcsr_type_real_8_2d
+    CASE (dbcsr_type_complex_4_2d)
+       dbcsr_type_1d_to_2d = dbcsr_type_complex_4_2d
+    CASE (dbcsr_type_complex_8_2d)
+       dbcsr_type_1d_to_2d = dbcsr_type_complex_8_2d
+    CASE default
+       dbcsr_type_1d_to_2d = '0'
+    END SELECT
+  END FUNCTION dbcsr_type_1d_to_2d
+
 
 #include "dbcsr_methods_d_.F"
 #include "dbcsr_methods_z_.F"

@@ -48,7 +48,8 @@ MODULE dbcsr_util
        dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
        dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
-       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_valid_index
+       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_type_2d_to_1d, &
+       dbcsr_type_is_2d, dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_array_type, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_imagedistribution_type, dbcsr_iterator, &
@@ -57,9 +58,11 @@ MODULE dbcsr_util
        dbcsr_repl_row, dbcsr_scalar_type, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
        dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
-       dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
-       dbcsr_type_transposed, dbcsr_work_type
+       dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_type_complex_8_2d, dbcsr_type_normal, dbcsr_type_real_4, &
+       dbcsr_type_real_4_2d, dbcsr_type_real_8, dbcsr_type_real_8_2d, &
+       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_type_transposed, &
+       dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
                                              distribution_2d_release,&
@@ -3203,7 +3206,8 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION dbcsr_checksum(matrix, error, local) RESULT(checksum)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(cp_error_type), INTENT(IN)          :: error
+    TYPE(cp_error_type), INTENT(IN), &
+      OPTIONAL                               :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: local
     REAL(KIND=dp)                            :: checksum
 
@@ -3221,7 +3225,6 @@ CONTAINS
     REAL(KIND=dp)                            :: blk_cs, local_cs
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
-    TYPE(cp_error_type)                      :: e
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3232,7 +3235,6 @@ CONTAINS
          routineN, "Invalid matrix.")
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
-    e = error
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
     local_cs = 0.0_dp
@@ -5568,19 +5570,25 @@ CONTAINS
 !> \param[in] lb         (optional) lower bound for destination (and source if
 !>                       not given explicity)
 !> \param[in] source_lb  (optional) lower bound of source
+!> \param[in] scale      (optional) scale data
+!> \param[in] lb2        (optional) lower bound of 2nd dimension for target
+!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
 ! *****************************************************************************
   SUBROUTINE dbcsr_block_transpose_aa (dst, src, & 
-       row_size, col_size, lb, source_lb)
+       row_size, col_size, lb, source_lb, scale, lb2, source_lb2)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     TYPE(dbcsr_data_obj), INTENT(IN)         :: src
     INTEGER, INTENT(IN)                      :: row_size, col_size
     INTEGER, INTENT(IN), OPTIONAL            :: lb, source_lb
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: scale
+    INTEGER, INTENT(IN), OPTIONAL            :: lb2, source_lb2
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_aa', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_size, lb_s, lb_t, ub_s, &
-                                                ub_t
+    INTEGER                                  :: data_size, lb2_s, lb2_t, &
+                                                lb_s, lb_t, ub_s, ub_t
 
 !   ---------------------------------------------------------------------------
 
@@ -5590,9 +5598,22 @@ CONTAINS
             "Data areas must be setup.")
        CALL cp_assert (dst%d%data_type .EQ. src%d%data_type, cp_fatal_level,&
             cp_caller_error, routineN, "Data type must be the same.")
-       CALL cp_assert (dst%d%data_type.EQ.dbcsr_type_real_8.OR.dst%d%data_type.EQ.dbcsr_type_real_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8.OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
+       CALL cp_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
             cp_warning_level, cp_caller_error, routineN, "Incorrect data type.")
+    ENDIF
+    IF (PRESENT (scale)) THEN
+       IF (dbcsr_type_is_2d (src%d%data_type)) THEN
+          CALL cp_assert (scale%data_type &
+               .EQ. dbcsr_type_2d_to_1d (src%d%data_type),&
+               cp_fatal_level, cp_wrong_args_error, routineN,&
+               "Incompatible data types")
+       ELSE
+          CALL cp_assert (scale%data_type .EQ. src%d%data_type, cp_fatal_level,&
+               cp_wrong_args_error, routineN, "Incompatible data types")
+       ENDIF
     ENDIF
     data_size = row_size*col_size
     lb_t = 1
@@ -5605,19 +5626,101 @@ CONTAINS
        lb_s = lb_t
        ub_s = ub_t
     ENDIF
+    lb2_t = 1
+    IF (PRESENT (lb2)) lb2_t = lb2
+    IF (PRESENT (source_lb2)) THEN
+       lb2_s = source_lb2
+    ELSE
+       lb2_s = lb2_t
+    ENDIF
     SELECT CASE (src%d%data_type)
     CASE (dbcsr_type_real_8)
-       CALL dbcsr_block_transpose (dst%d%r_dp(lb_t:ub_t), src%d%r_dp(lb_s:ub_s),&
-            row_size, col_size)
+       IF (PRESENT (scale)) THEN
+          CALL dbcsr_block_transpose (dst%d%r_dp(lb_t:ub_t),&
+               src%d%r_dp(lb_s:ub_s) * scale%r_dp,&
+               row_size, col_size)
+       ELSE
+          CALL dbcsr_block_transpose (dst%d%r_dp(lb_t:ub_t),&
+               src%d%r_dp(lb_s:ub_s),&
+               row_size, col_size)
+       ENDIF
     CASE (dbcsr_type_real_4)
-       CALL dbcsr_block_transpose (dst%d%r_sp(lb_t:ub_t), src%d%r_sp(lb_s:ub_s),&
-            row_size, col_size)
+       IF (PRESENT (scale)) THEN
+          CALL dbcsr_block_transpose (dst%d%r_sp(lb_t:ub_t),&
+               src%d%r_sp(lb_s:ub_s) * scale%r_sp,&
+               row_size, col_size)
+       ELSE
+          CALL dbcsr_block_transpose (dst%d%r_sp(lb_t:ub_t),&
+               src%d%r_sp(lb_s:ub_s),&
+               row_size, col_size)
+       ENDIF
     CASE (dbcsr_type_complex_8)
-       CALL dbcsr_block_transpose (dst%d%c_dp(lb_t:ub_t), src%d%c_dp(lb_s:ub_s),&
-            row_size, col_size)
+       IF (PRESENT (scale)) THEN
+          CALL dbcsr_block_transpose (dst%d%c_dp(lb_t:ub_t),&
+               src%d%c_dp(lb_s:ub_s) * scale%c_dp,&
+               row_size, col_size)
+       ELSE
+          CALL dbcsr_block_transpose (dst%d%c_dp(lb_t:ub_t),&
+               src%d%c_dp(lb_s:ub_s),&
+               row_size, col_size)
+       ENDIF
     CASE (dbcsr_type_complex_4)
-       CALL dbcsr_block_transpose (dst%d%c_sp(lb_t:ub_t), src%d%c_sp(lb_s:ub_s),&
-            row_size, col_size)
+       IF (PRESENT (scale)) THEN
+          CALL dbcsr_block_transpose (dst%d%c_sp(lb_t:ub_t),&
+               src%d%c_sp(lb_s:ub_s) * scale%c_sp,&
+               row_size, col_size)
+       ELSE
+          CALL dbcsr_block_transpose (dst%d%c_sp(lb_t:ub_t),&
+               src%d%c_sp(lb_s:ub_s),&
+               row_size, col_size)
+       ENDIF
+    CASE (dbcsr_type_real_8_2d)
+       IF (PRESENT (scale)) THEN
+          dst%d%r2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+               TRANSPOSE(&
+               src%d%r2_dp(lb_s:lb_s+row_size-1,lb2_s:lb2_s+col_size-1) &
+               * scale%r_dp)
+       ELSE
+          dst%d%r2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+               TRANSPOSE(&
+               src%d%r2_dp(lb_s:lb_s+row_size-1,lb2_s:lb2_s+col_size-1))
+       ENDIF
+    CASE (dbcsr_type_real_4_2d)
+       IF (PRESENT (scale)) THEN
+          dst%d%r2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+               TRANSPOSE(&
+               src%d%r2_sp(lb_s:lb_s+row_size-1,lb2_s:lb2_s+col_size-1) &
+               * scale%r_sp)
+       ELSE
+          dst%d%r2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+               TRANSPOSE(&
+               src%d%r2_sp(lb_s:lb_s+row_size-1,lb2_s:lb2_s+col_size-1))
+       ENDIF
+    CASE (dbcsr_type_complex_8_2d)
+       IF (PRESENT (scale)) THEN
+          dst%d%c2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+               TRANSPOSE(&
+               src%d%c2_dp(lb_s:lb_s+row_size-1,lb2_s:lb2_s+col_size-1) &
+               * scale%c_dp)
+       ELSE
+          dst%d%c2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+               TRANSPOSE(&
+               src%d%c2_dp(lb_s:lb_s+row_size-1,lb2_s:lb2_s+col_size-1))
+       ENDIF
+    CASE (dbcsr_type_complex_4_2d)
+       IF (PRESENT (scale)) THEN
+          dst%d%c2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+               TRANSPOSE(&
+               src%d%c2_sp(lb_s:lb_s+row_size-1,lb2_s:lb2_s+col_size-1) &
+               * scale%c_sp)
+       ELSE
+          dst%d%c2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+               TRANSPOSE(&
+               src%d%c2_sp(lb_s:lb_s+row_size-1,lb2_s:lb2_s+col_size-1))
+       ENDIF
+    CASE default
+       CALL cp_assert (.FALSE.,&
+            cp_fatal_level, cp_caller_error, routineN, "Incorrect data type.")
     END SELECT
   END SUBROUTINE dbcsr_block_transpose_aa
 
@@ -5668,18 +5771,27 @@ CONTAINS
 !> \param[in] data_size  number of elements to copy
 !> \param[in] src        source data area
 !> \param[in] source_lb  (optional) lower bound of source
+!> \param[in] scale      (optional) scale by this factor
+!> \param[in] lb2        (optional) 2nd dimension lower bound
+!> \param[in] data_size2 (optional) 2nd dimension data size
+!> \param[in] source_lb2 (optional) 2nd dimension lower bound for source
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_copy_aa (dst, lb, data_size, src, source_lb)
+  SUBROUTINE dbcsr_data_copy_aa (dst, lb, data_size, src, source_lb, scale,&
+       lb2, data_size2, source_lb2)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     INTEGER, INTENT(IN)                      :: lb, data_size
     TYPE(dbcsr_data_obj), INTENT(IN)         :: src
     INTEGER, INTENT(IN), OPTIONAL            :: source_lb
+    TYPE(dbcsr_scalar_type), INTENT(IN), &
+      OPTIONAL                               :: scale
+    INTEGER, INTENT(IN), OPTIONAL            :: lb2, data_size2, source_lb2
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_aa', &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER                                  :: lb_s, ub, ub_s
+    INTEGER                                  :: lb2_s, lb_s, ub, ub2, ub2_s, &
+                                                ub_s
 
 !   ---------------------------------------------------------------------------
 
@@ -5689,9 +5801,23 @@ CONTAINS
             "Data areas must be setup.")
        CALL cp_assert (dst%d%data_type .EQ. src%d%data_type, cp_fatal_level,&
             cp_caller_error, routineN, "Data type must be the same.")
-       CALL cp_assert (dst%d%data_type.EQ.dbcsr_type_real_8.OR.dst%d%data_type.EQ.dbcsr_type_real_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8.OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
-            cp_warning_level, cp_caller_error, routineN, "Incorrect data type.")
+       !CALL cp_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
+       !     .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
+       !     .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
+       !     .OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
+       !     cp_warning_level, cp_caller_error, routineN,&
+       !     "Incorrect data types: "//dst%d%data_type//", "//src%d%data_type)
+    ENDIF
+    IF (PRESENT (scale)) THEN
+       IF (dbcsr_type_is_2d(src%d%data_type)) THEN
+          CALL cp_assert (scale%data_type&
+               .EQ. dbcsr_type_2d_to_1d (src%d%data_type),&
+               cp_fatal_level, cp_wrong_args_error, routineN,&
+               "Incomptable data types")
+       ELSE
+          CALL cp_assert (scale%data_type .EQ. src%d%data_type, cp_fatal_level,&
+               cp_wrong_args_error, routineN, "Incomptable data types")
+       ENDIF
     ENDIF
     ub = lb + data_size - 1
     IF (PRESENT (source_lb)) THEN
@@ -5700,6 +5826,29 @@ CONTAINS
     ELSE
        lb_s = lb
        ub_s = ub
+    ENDIF
+    CALL cp_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
+         .OR. PRESENT (lb2),&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "Must specify lb2 for 2-D data area")
+    CALL cp_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
+         .OR. PRESENT (data_size2),&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "Must specify data_size2 for 2-D data area")
+    !write(*,*)routineN//" lb,ub D <- S",lb, ub, lb_s, ub_s
+    IF (PRESENT (lb2)) THEN
+       CALL cp_assert (dbcsr_type_is_2d (src%d%data_type),&
+            cp_warning_level, cp_caller_error, routineN,&
+            "Should not specify lb2 for 1-D data")
+       ub2 = lb2 + data_size2 - 1
+       IF (PRESENT (source_lb2)) THEN
+          lb2_s = source_lb2
+          ub2_s = source_lb2 + data_size2 - 1
+       ELSE
+          lb2_s = lb2
+          ub2_s = ub2
+       ENDIF
+       !write(*,*)routineN//" lb,ub2D <- S",lb2, ub2, lb2_s, ub2_s
     ENDIF
     SELECT CASE (src%d%data_type)
     CASE (dbcsr_type_real_4)
@@ -5717,7 +5866,11 @@ CONTAINS
           CALL cp_assert(ub_s.LE.UBOUND(src%d%r_sp,1),cp_fatal_level,&
                cp_caller_error, routineN, "ub src%d%r_sp")
        ENDIF
-       dst%d%r_sp(lb:ub) = src%d%r_sp(lb_s:ub_s)
+       IF (PRESENT (scale)) THEN
+          dst%d%r_sp(lb:ub) = scale%r_sp * src%d%r_sp(lb_s:ub_s)
+       ELSE
+          dst%d%r_sp(lb:ub) = src%d%r_sp(lb_s:ub_s)
+       ENDIF
     CASE (dbcsr_type_real_8)
        IF (dbg) THEN
           CALL cp_assert(ASSOCIATED(dst%d%r_dp),cp_fatal_level,&
@@ -5733,7 +5886,11 @@ CONTAINS
           CALL cp_assert(ub_s.LE.UBOUND(src%d%r_dp,1),cp_fatal_level,&
                cp_caller_error, routineN, "ub src%d%r_dp")
        ENDIF
-       dst%d%r_dp(lb:ub) = src%d%r_dp(lb_s:ub_s)
+       IF (PRESENT (scale)) THEN
+          dst%d%r_dp(lb:ub) = scale%r_dp * src%d%r_dp(lb_s:ub_s)
+       ELSE
+          dst%d%r_dp(lb:ub) = src%d%r_dp(lb_s:ub_s)
+       ENDIF
     CASE (dbcsr_type_complex_4)
        IF (dbg) THEN
           CALL cp_assert(ASSOCIATED(dst%d%c_sp),cp_fatal_level,&
@@ -5749,7 +5906,11 @@ CONTAINS
           CALL cp_assert(ub_s.LE.UBOUND(src%d%c_sp,1),cp_fatal_level,&
                cp_caller_error, routineN, "ub src%d%c_sp")
        ENDIF
-       dst%d%c_sp(lb:ub) = src%d%c_sp(lb_s:ub_s)
+       IF (PRESENT (scale)) THEN
+          dst%d%c_sp(lb:ub) = scale%c_sp * src%d%c_sp(lb_s:ub_s)
+       ELSE
+          dst%d%c_sp(lb:ub) = src%d%c_sp(lb_s:ub_s)
+       ENDIF
     CASE (dbcsr_type_complex_8)
        IF (dbg) THEN
           CALL cp_assert(ASSOCIATED(dst%d%c_dp),cp_fatal_level,&
@@ -5765,10 +5926,42 @@ CONTAINS
           CALL cp_assert(ub_s.LE.UBOUND(src%d%c_dp,1),cp_fatal_level,&
                cp_caller_error, routineN, "ub src%d%c_dp")
        ENDIF
-       dst%d%c_dp(lb:ub) = src%d%c_dp(lb_s:ub_s)
+       IF (PRESENT (scale)) THEN
+          dst%d%c_dp(lb:ub) = scale%c_dp * src%d%c_dp(lb_s:ub_s)
+       ELSE
+          dst%d%c_dp(lb:ub) = src%d%c_dp(lb_s:ub_s)
+       ENDIF
+    CASE (dbcsr_type_real_4_2d)
+       IF (PRESENT (scale)) THEN
+          dst%d%r2_sp(lb:ub, lb2:ub2) =&
+               scale%r_sp * src%d%r2_sp(lb_s:ub_s, lb2_s:ub2_s)
+       ELSE
+          dst%d%r2_sp(lb:ub, lb2:ub2) = src%d%r2_sp(lb_s:ub_s, lb2_s:ub2_s)
+       ENDIF
+    CASE (dbcsr_type_real_8_2d)
+       IF (PRESENT (scale)) THEN
+          dst%d%r2_dp(lb:ub, lb2:ub2) =&
+               scale%r_dp * src%d%r2_dp(lb_s:ub_s, lb2_s:ub2_s)
+       ELSE
+          dst%d%r2_dp(lb:ub, lb2:ub2) = src%d%r2_dp(lb_s:ub_s, lb2_s:ub2_s)
+       ENDIF
+    CASE (dbcsr_type_complex_4_2d)
+       IF (PRESENT (scale)) THEN
+          dst%d%c2_sp(lb:ub, lb2:ub2) =&
+               scale%c_sp * src%d%c2_sp(lb_s:ub_s, lb2_s:ub2_s)
+       ELSE
+          dst%d%c2_sp(lb:ub, lb2:ub2) = src%d%c2_sp(lb_s:ub_s, lb2_s:ub2_s)
+       ENDIF
+    CASE (dbcsr_type_complex_8_2d)
+       IF (PRESENT (scale)) THEN
+          dst%d%c2_dp(lb:ub, lb2:ub2) =&
+               scale%c_dp * src%d%c2_dp(lb_s:ub_s, lb2_s:ub2_s)
+       ELSE
+          dst%d%c2_dp(lb:ub, lb2:ub2) = src%d%c2_dp(lb_s:ub_s, lb2_s:ub2_s)
+       ENDIF
     CASE default
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            routineN, "Can not copy rank-2 data areas")
+            routineN, "Invalid data type")
     END SELECT
   END SUBROUTINE dbcsr_data_copy_aa
 
@@ -5776,20 +5969,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Clears a data area
 !> \param[in,out] area   area with encapsulated data
-!> \param[in] lb         (optional) lower bound for clearing
-!> \param[in] ub         (optional) upper bound for clearing
+!> \param[in] lb, lb2    (optional) lower bound for clearing
+!> \param[in] ub, ub2    (optional) upper bound for clearing
 !> \param[in] value      (optional) value to use for clearing
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_clear (area, lb, ub, value)
+  SUBROUTINE dbcsr_data_clear (area, lb, ub, value, lb2, ub2)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: value
+    INTEGER, INTENT(IN), OPTIONAL            :: lb2, ub2
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: l, u
+    INTEGER                                  :: l, l2, u, u2
 
 !   ---------------------------------------------------------------------------
 
@@ -5874,6 +6068,126 @@ CONTAINS
        ELSE
           area%d%c_dp(l:u) = CMPLX(0.0, real_8)
        ENDIF
+    CASE (dbcsr_type_real_4_2d)
+       l = LBOUND(area%d%r2_sp, 1)
+       u = UBOUND(area%d%r2_sp, 1)
+       l2 = LBOUND(area%d%r2_sp, 2)
+       u2 = UBOUND(area%d%r2_sp, 2)
+       IF (PRESENT (lb)) THEN
+          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
+               cp_caller_error, routineN, "lower bound too low")
+          l = lb
+       ENDIF
+       IF (PRESENT (ub)) THEN
+          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
+               cp_caller_error, routineN, "upper bound too high")
+          u = ub
+       ENDIF
+       IF (PRESENT (lb2)) THEN
+          CALL dbcsr_assert(lb2, "GE", l2, cp_fatal_level,&
+               cp_caller_error, routineN, "lower2 bound too low")
+          l2 = lb2
+       ENDIF
+       IF (PRESENT (ub2)) THEN
+          CALL dbcsr_assert(ub2, "LE", u2, cp_fatal_level,&
+               cp_caller_error, routineN, "upper2 bound too high")
+          u2 = ub2
+       ENDIF
+       IF (PRESENT (value)) THEN
+          area%d%r2_sp(l:u, l2:u2) = value%r_sp
+       ELSE
+          area%d%r2_sp(l:u, l2:u2) = 0.0_real_4
+       ENDIF
+    CASE (dbcsr_type_real_8_2d)
+       l = LBOUND(area%d%r2_dp, 1)
+       u = UBOUND(area%d%r2_dp, 1)
+       l2 = LBOUND(area%d%r2_dp, 2)
+       u2 = UBOUND(area%d%r2_dp, 2)
+       IF (PRESENT (lb)) THEN
+          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
+               cp_caller_error, routineN, "lower bound too low")
+          l = lb
+       ENDIF
+       IF (PRESENT (ub)) THEN
+          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
+               cp_caller_error, routineN, "upper bound too high")
+          u = ub
+       ENDIF
+       IF (PRESENT (lb2)) THEN
+          CALL dbcsr_assert(lb2, "GE", l2, cp_fatal_level,&
+               cp_caller_error, routineN, "lower2 bound too low")
+          l2 = lb2
+       ENDIF
+       IF (PRESENT (ub2)) THEN
+          CALL dbcsr_assert(ub2, "LE", u2, cp_fatal_level,&
+               cp_caller_error, routineN, "upper2 bound too high")
+          u2 = ub2
+       ENDIF
+       IF (PRESENT (value)) THEN
+          area%d%r2_dp(l:u, l2:u2) = value%r_dp
+       ELSE
+          area%d%r2_dp(l:u, l2:u2) = 0.0_real_8
+       ENDIF
+    CASE (dbcsr_type_complex_4_2d)
+       l = LBOUND(area%d%c2_sp, 1)
+       u = UBOUND(area%d%c2_sp, 1)
+       l2 = LBOUND(area%d%c2_sp, 2)
+       u2 = UBOUND(area%d%c2_sp, 2)
+       IF (PRESENT (lb)) THEN
+          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
+               cp_caller_error, routineN, "lower bound too low")
+          l = lb
+       ENDIF
+       IF (PRESENT (ub)) THEN
+          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
+               cp_caller_error, routineN, "upper bound too high")
+          u = ub
+       ENDIF
+       IF (PRESENT (lb2)) THEN
+          CALL dbcsr_assert(lb2, "GE", l2, cp_fatal_level,&
+               cp_caller_error, routineN, "lower2 bound too low")
+          l2 = lb2
+       ENDIF
+       IF (PRESENT (ub2)) THEN
+          CALL dbcsr_assert(ub2, "LE", u2, cp_fatal_level,&
+               cp_caller_error, routineN, "upper2 bound too high")
+          u2 = ub2
+       ENDIF
+       IF (PRESENT (value)) THEN
+          area%d%c2_sp(l:u, l2:u2) = value%c_sp
+       ELSE
+          area%d%c2_sp(l:u, l2:u2) = 0.0_real_4
+       ENDIF
+    CASE (dbcsr_type_complex_8_2d)
+       l = LBOUND(area%d%c2_dp, 1)
+       u = UBOUND(area%d%c2_dp, 1)
+       l2 = LBOUND(area%d%c2_dp, 2)
+       u2 = UBOUND(area%d%c2_dp, 2)
+       IF (PRESENT (lb)) THEN
+          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
+               cp_caller_error, routineN, "lower bound too low")
+          l = lb
+       ENDIF
+       IF (PRESENT (ub)) THEN
+          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
+               cp_caller_error, routineN, "upper bound too high")
+          u = ub
+       ENDIF
+       IF (PRESENT (lb2)) THEN
+          CALL dbcsr_assert(lb2, "GE", l2, cp_fatal_level,&
+               cp_caller_error, routineN, "lower2 bound too low")
+          l2 = lb2
+       ENDIF
+       IF (PRESENT (ub2)) THEN
+          CALL dbcsr_assert(ub2, "LE", u2, cp_fatal_level,&
+               cp_caller_error, routineN, "upper2 bound too high")
+          u2 = ub2
+       ENDIF
+       IF (PRESENT (value)) THEN
+          area%d%c2_dp(l:u, l2:u2) = value%c_dp
+       ELSE
+          area%d%c2_dp(l:u, l2:u2) = 0.0_real_8
+       ENDIF
     CASE default
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error,&
             routineN, "Invalid or unsupported data type.")
@@ -5897,10 +6211,13 @@ CONTAINS
 !> \param[in] src_r_lb   first column in target
 !> \param[in] nrow       number of rows to copy
 !> \param[in] ncol       number of columns to copy
+!> \param[in] dst_offset offset in target
+!> \param[in] src_offset offset in source
 ! *****************************************************************************
   SUBROUTINE block_partial_copy_a(dst, dst_rs, dst_cs, dst_tr,&
        src, src_rs, src_cs, src_tr,&
-       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+       dst_offset, src_offset)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     INTEGER, INTENT(IN)                      :: dst_rs, dst_cs
     LOGICAL                                  :: dst_tr
@@ -5909,16 +6226,22 @@ CONTAINS
     LOGICAL                                  :: src_tr
     INTEGER, INTENT(IN)                      :: dst_r_lb, dst_c_lb, src_r_lb, &
                                                 src_c_lb, nrow, ncol
+    INTEGER, INTENT(IN), OPTIONAL            :: dst_offset, src_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_partial_copy_a', &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: verification = .TRUE.
+
+    INTEGER                                  :: dst_o, src_o
 
 !   ---------------------------------------------------------------------------
 
     CALL cp_assert (dbcsr_get_data_type (dst) .EQ. dbcsr_get_data_type(src),&
          cp_fatal_level, cp_wrong_args_error, routineN,&
          "Incompatible data types.")
+    dst_o = 0 ; src_o = 0
+    IF (PRESENT (dst_offset)) dst_o = dst_offset
+    IF (PRESENT (src_offset)) src_o = src_offset
     IF (verification) THEN
        CALL cp_assert (dst_r_lb+nrow-1 .LE. dst_rs, cp_fatal_level,&
             cp_wrong_args_error, routineN, "Incompatible dst row sizes")
@@ -5933,22 +6256,26 @@ CONTAINS
     CASE (dbcsr_type_real_4)
        CALL dbcsr_block_partial_copy(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
             src%d%r_sp, src_rs, src_cs, src_tr,&
-            dst_r_lb, dst_c_lb, src_r_lb, src_r_lb, nrow, ncol)
+            dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+            dst_offset=dst_o, src_offset=src_o)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_block_partial_copy(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
             src%d%r_dp, src_rs, src_cs, src_tr,&
-            dst_r_lb, dst_c_lb, src_r_lb, src_r_lb, nrow, ncol)
+            dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+            dst_offset=dst_o, src_offset=src_o)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_block_partial_copy(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
             src%d%c_sp, src_rs, src_cs, src_tr,&
-            dst_r_lb, dst_c_lb, src_r_lb, src_r_lb, nrow, ncol)
+            dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+            dst_offset=dst_o, src_offset=src_o)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_block_partial_copy(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
             src%d%c_dp, src_rs, src_cs, src_tr,&
-            dst_r_lb, dst_c_lb, src_r_lb, src_r_lb, nrow, ncol)
+            dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+            dst_offset=dst_o, src_offset=src_o)
     CASE default
-       !CALL 
-       STOP
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
+            routineN, "Invalid data type or 2-d not supported")
     END SELECT
   END SUBROUTINE block_partial_copy_a
 

@@ -3111,7 +3111,13 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_finalize (bc_mat, reshuffle=.FALSE.)
 
     ! Now convert to the desired matrix distribution
-    CALL dbcsr_complete_redistribute (bc_mat, matrix, alpha=alpha,keep_sparsity=keep_sparsity)
+    IF (PRESENT (alpha)) THEN
+       CALL dbcsr_complete_redistribute (bc_mat, matrix,&
+            alpha=dbcsr_scalar(alpha),keep_sparsity=keep_sparsity)
+    ELSE
+       CALL dbcsr_complete_redistribute (bc_mat, matrix,&
+            keep_sparsity=keep_sparsity)
+    ENDIF
     CALL dbcsr_release (bc_mat)
 
     CALL timestop(handle)
