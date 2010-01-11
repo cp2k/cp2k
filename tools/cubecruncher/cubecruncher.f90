@@ -27,7 +27,6 @@
 !   - fold atom coordinates in the box
 !
 ! currently limited to
-!    - orthorombic cubes
 !    - machines with enough memory
 !    - correct inputs
 !    - tested only with Quickstep cubes
@@ -39,7 +38,7 @@ MODULE cubecruncher
      INTEGER :: npoints(3)
      REAL, DIMENSION(:,:,:), POINTER :: grid
      REAL    :: origin(3)
-     REAL    :: dr(3)
+     REAL    :: dr(3), dh(3,3), h(3,3),  hinv(3,3)
      CHARACTER(LEN=80) :: title1,title2
      INTEGER :: Natom
      REAL, DIMENSION(:,:), POINTER :: coords
@@ -59,6 +58,7 @@ CONTAINS
     NULLIFY(cube%grid)
     cube%origin=0.0
     cube%dr=0.0
+    cube%dh=0.0
     cube%title1=""
     cube%title2=""
     cube%Natom=0
@@ -78,6 +78,7 @@ CONTAINS
     IF (ASSOCIATED(cube%grid))     DEALLOCATE(cube%grid)
     cube%origin=0.0
     cube%dr=0.0
+    cube%dh=0.0
     cube%title1=""
     cube%title2=""
     cube%Natom=0
@@ -91,25 +92,29 @@ CONTAINS
 ! notice that it just truncates the last points if stride does not divide the number
 ! of actual points
 !-------------------------------------------------------------------------------
-  SUBROUTINE write_cube(cube,iunit,stride)
+  SUBROUTINE write_cube(cube,iunit,stride,mult_fact)
     TYPE(cube_type), POINTER :: cube
     INTEGER                  :: iunit
     INTEGER                  :: stride
+    REAL                     :: mult_fact
 
     INTEGER                  :: I1,I2,I3
 
     write(iunit,'(A80)') cube%title1
     write(iunit,'(A80)') cube%title2
     WRITE(iunit,'(I5,3f12.6)') cube%Natom,cube%origin
-    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(1)-1)/stride,cube%dr(1)*stride,0.0,0.0
-    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(2)-1)/stride,0.0,cube%dr(2)*stride,0.0
-    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(3)-1)/stride,0.0,0.0,cube%dr(3)*stride
+    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(1)-1)/stride,cube%dh(1,1)*stride,&
+                               cube%dh(2,1)*stride,cube%dh(3,1)*stride
+    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(2)-1)/stride,cube%dh(1,2)*stride,&
+                               cube%dh(2,2)*stride,cube%dh(3,2)*stride
+    WRITE(iunit,'(I5,3f12.6)') 1+(cube%npoints(3)-1)/stride,cube%dh(1,3)*stride,&
+                               cube%dh(2,3)*stride,cube%dh(3,3)*stride
     DO I1=1,cube%Natom
        WRITE(iunit,'(I5,4f12.6)') cube%Zatom(I1),cube%auxfield(I1),cube%coords(:,I1)
     ENDDO
     DO I1=1,cube%npoints(1),stride
        DO I2=1,cube%npoints(2),stride
-        WRITE(iunit,'(6E13.5)') (cube%grid(I1,I2,I3),I3=1,cube%npoints(3),stride)
+        WRITE(iunit,'(6E13.5)') (cube%grid(I1,I2,I3)*mult_fact,I3=1,cube%npoints(3),stride)
        ENDDO
     ENDDO
   END SUBROUTINE write_cube
@@ -127,9 +132,18 @@ CONTAINS
     READ(iunit,'(A80)') cube%title1
     READ(iunit,'(A80)') cube%title2
     READ(iunit,'(I5,3f12.6)') cube%Natom,cube%origin
-    READ(iunit,'(I5,3f12.6)') cube%npoints(1), cube%dr(1), dum, dum
-    READ(iunit,'(I5,3f12.6)') cube%npoints(2), dum, cube%dr(2), dum
-    READ(iunit,'(I5,3f12.6)') cube%npoints(3), dum, dum, cube%dr(3)
+    READ(iunit,'(I5,3f12.6)') cube%npoints(1), cube%dh(1,1), cube%dh(2,1),cube%dh(3,1)
+    cube%h(1,1) = cube%npoints(1)*cube%dh(1,1)
+    cube%h(2,1) = cube%npoints(1)*cube%dh(2,1)
+    cube%h(3,1) = cube%npoints(1)*cube%dh(3,1)
+    READ(iunit,'(I5,3f12.6)') cube%npoints(2), cube%dh(1,2), cube%dh(2,2),cube%dh(3,2)
+    cube%h(1,2) = cube%npoints(2)*cube%dh(1,2)
+    cube%h(2,2) = cube%npoints(2)*cube%dh(2,2)
+    cube%h(3,2) = cube%npoints(2)*cube%dh(3,2)
+    READ(iunit,'(I5,3f12.6)') cube%npoints(3), cube%dh(1,3), cube%dh(2,3),cube%dh(3,3)
+    cube%h(1,3) = cube%npoints(3)*cube%dh(1,3)
+    cube%h(2,3) = cube%npoints(3)*cube%dh(2,3)
+    cube%h(3,3) = cube%npoints(3)*cube%dh(3,3)
 
     ALLOCATE(cube%Zatom(cube%Natom))
     ALLOCATE(cube%auxfield(cube%Natom))
@@ -177,6 +191,47 @@ CONTAINS
 
   END SUBROUTINE read_xyz
 
+  SUBROUTINE boxmat(cube)
+
+    TYPE(cube_type), POINTER :: cube
+    integer :: i
+    real :: uvol, vol
+
+    vol=cube%h(1,1)*(cube%h(2,2)*cube%h(3,3)-cube%h(2,3)*cube%h(3,2)) &
+       -cube%h(2,1)*(cube%h(1,2)*cube%h(3,3)-cube%h(3,2)*cube%h(1,3)) &
+       +cube%h(3,1)*(cube%h(1,2)*cube%h(2,3)-cube%h(2,2)*cube%h(1,3))
+    IF(vol < 1.0E-10) stop
+    uvol=1.d0/vol
+      cube%hinv(1,1)= (cube%h(2,2)*cube%h(3,3)-cube%h(3,2)*cube%h(2,3))*uvol
+      cube%hinv(2,1)=-(cube%h(2,1)*cube%h(3,3)-cube%h(3,1)*cube%h(2,3))*uvol
+      cube%hinv(3,1)= (cube%h(2,1)*cube%h(3,2)-cube%h(3,1)*cube%h(2,2))*uvol
+      cube%hinv(2,2)= (cube%h(1,1)*cube%h(3,3)-cube%h(1,3)*cube%h(3,1))*uvol
+      cube%hinv(3,2)=-(cube%h(1,1)*cube%h(3,2)-cube%h(1,2)*cube%h(3,1))*uvol
+      cube%hinv(3,3)= (cube%h(1,1)*cube%h(2,2)-cube%h(1,2)*cube%h(2,1))*uvol
+      cube%hinv(1,2)=-(cube%h(1,2)*cube%h(3,3)-cube%h(1,3)*cube%h(3,2))*uvol
+      cube%hinv(1,3)= (cube%h(1,2)*cube%h(2,3)-cube%h(1,3)*cube%h(2,2))*uvol
+      cube%hinv(2,3)=-(cube%h(1,1)*cube%h(2,3)-cube%h(2,1)*cube%h(1,3))*uvol
+
+  END SUBROUTINE
+
+function pbc(r,cube) result(r_pbc)
+   
+    TYPE(cube_type), POINTER :: cube
+    REAL, DIMENSION(3), INTENT(IN) :: r
+    REAL, DIMENSION(3) :: r_pbc
+    REAL, DIMENSION(3) :: s
+
+    s(1) = cube%hinv(1,1)*r(1) + cube%hinv(1,2)*r(2) + cube%hinv(1,3)*r(3)
+    s(2) = cube%hinv(2,1)*r(1) + cube%hinv(2,2)*r(2) + cube%hinv(2,3)*r(3)
+    s(3) = cube%hinv(3,1)*r(1) + cube%hinv(3,2)*r(2) + cube%hinv(3,3)*r(3)
+    s(1) = s(1) - ANINT(s(1))
+    s(2) = s(2) - ANINT(s(2))
+    s(3) = s(3) - ANINT(s(3))
+    r_pbc(1) =  cube%h(1,1)*s(1) + cube%h(1,2)*s(2) + cube%h(1,3)*s(3)
+    r_pbc(2) =  cube%h(2,1)*s(1) + cube%h(2,2)*s(2) + cube%h(2,3)*s(3)
+    r_pbc(3) =  cube%h(3,1)*s(1) + cube%h(3,2)*s(2) + cube%h(3,3)*s(3)
+end function pbc
+
 !-------------------------------------------------------------------------------
 ! fold the cube to center around a given center
 !-------------------------------------------------------------------------------
@@ -186,24 +241,52 @@ CONTAINS
 
     INTEGER                  :: I1,I2,I3,O1,O2,O3
     INTEGER, DIMENSION(3)    :: C
-
+    REAL :: h(3,3), hinv(3,3), uvol, vol, dvec(3)
     REAL, DIMENSION(:,:,:), POINTER :: grid
     ALLOCATE(grid(cube%npoints(1),cube%npoints(2),cube%npoints(3)))
 
+    h = cube%dh
+    vol=h(1,1)*(h(2,2)*h(3,3)-h(2,3)*h(3,2)) &
+          -h(2,1)*(h(1,2)*h(3,3)-h(3,2)*h(1,3)) &
+          +h(3,1)*(h(1,2)*h(2,3)-h(2,2)*h(1,3))
+    uvol=1.d0/vol
+    hinv(1,1)= (h(2,2)*h(3,3)-h(3,2)*h(2,3))*uvol
+    hinv(2,1)=-(h(2,1)*h(3,3)-h(3,1)*h(2,3))*uvol
+    hinv(3,1)= (h(2,1)*h(3,2)-h(3,1)*h(2,2))*uvol
+    hinv(2,2)= (h(1,1)*h(3,3)-h(1,3)*h(3,1))*uvol
+    hinv(3,2)=-(h(1,1)*h(3,2)-h(1,2)*h(3,1))*uvol
+    hinv(3,3)= (h(1,1)*h(2,2)-h(1,2)*h(2,1))*uvol
+    hinv(1,2)=-(h(1,2)*h(3,3)-h(1,3)*h(3,2))*uvol
+    hinv(1,3)= (h(1,2)*h(2,3)-h(1,3)*h(2,2))*uvol
+    hinv(2,3)=-(h(1,1)*h(2,3)-h(2,1)*h(1,3))*uvol
+
     ! find coordinates of the lower left corner, centered around the atom
-    C=ANINT((center-cube%origin)/cube%dr)-cube%npoints/2
-    cube%origin=C*cube%dr+cube%origin
+
+    dvec(1) = hinv(1,1)*(center(1)-cube%origin(1)) + &
+              hinv(1,2)*(center(2)-cube%origin(2)) + &
+              hinv(1,3)*(center(3)-cube%origin(3))
+    dvec(2) = hinv(2,1)*(center(1)-cube%origin(1)) + &
+              hinv(2,2)*(center(2)-cube%origin(2)) + &
+              hinv(2,3)*(center(3)-cube%origin(3))
+    dvec(3) = hinv(3,1)*(center(1)-cube%origin(1)) + &
+              hinv(3,2)*(center(2)-cube%origin(2)) + &
+              hinv(3,3)*(center(3)-cube%origin(3))
+    C=ANINT(dvec)-cube%npoints/2
+    cube%origin(1)=C(1)*h(1,1)+C(2)*h(1,2)+C(3)*h(1,3)+cube%origin(1)
+    cube%origin(2)=C(1)*h(2,1)+C(2)*h(2,2)+C(3)*h(2,3)+cube%origin(2)
+    cube%origin(3)=C(1)*h(3,1)+C(2)*h(3,2)+C(3)*h(3,3)+cube%origin(3)
     DO I3=1,cube%npoints(3)
-       O3=MODULO(C(3)+I3-1, cube%npoints(3))+1
-    DO I2=1,cube%npoints(2)
-       O2=MODULO(C(2)+I2-1, cube%npoints(2))+1
-    DO I1=1,cube%npoints(1)
-       O1=MODULO(C(1)+I1-1, cube%npoints(1))+1
-       grid(I1,I2,I3)=cube%grid(O1,O2,O3) 
-    ENDDO
-    ENDDO
+      O3=MODULO(C(3)+I3-1, cube%npoints(3))+1
+      DO I2=1,cube%npoints(2)
+        O2=MODULO(C(2)+I2-1, cube%npoints(2))+1
+        DO I1=1,cube%npoints(1)
+          O1=MODULO(C(1)+I1-1, cube%npoints(1))+1
+          grid(I1,I2,I3)=cube%grid(O1,O2,O3) 
+        ENDDO
+      ENDDO
     ENDDO
     cube%grid=grid
+    cube%hinv = hinv
     DEALLOCATE(grid) 
 
   END SUBROUTINE
@@ -227,19 +310,117 @@ CONTAINS
     TYPE(cube_type), POINTER :: cube
     LOGICAL :: smart_hydrogen 
 
-    INTEGER                  :: I1,I2,closest
+    INTEGER                  :: i, I1,I2,closest
+    INTEGER :: n1, n2, n3, no1, no2, no3
     REAL, DIMENSION(3)       :: edges,center,displ
-    REAL                     :: d2
+    REAL                     :: d2, x,y,z
+    REAL :: h11h22,h11h33,h11h32,h11h23,h33h22,h31h22,h13h22,h31h13,h31h23,&
+           h12h21,h12h23,h12h31,h12h33,h32h21,h32h23,h32h13,h21h32,h21h33,&
+           h21h13,h32h11h23,h12h23h31,h21h32h13,h11h22h33,h31h22h13,h21h12h33,deth
+    REAL, DIMENSION(3)       :: A, O, r, r_pbc
 
-    edges=cube%dr*cube%npoints
-    center=cube%origin+edges/2.0
-
+    DO i = 1,3
+      center(i)=cube%origin(i)+cube%h(i,1)/2.0 + cube%h(i,2)/2.0 + cube%h(i,3)/2.0
+    END DO
     DO I1=1,cube%natom
-       cube%coords(:,I1)=fold(cube%coords(:,I1),center=center,edges=edges)
+       r = cube%coords(:,I1)
+       r_pbc = pbc(r,cube)
+       cube%coords(:,I1) = r_pbc
     ENDDO
 
+    A(1) = -cube%h(1,1)/2.0-cube%h(1,2)/2.0-cube%h(1,3)/2.0
+    A(2) = -cube%h(2,1)/2.0-cube%h(2,2)/2.0-cube%h(2,3)/2.0
+    A(3) = -cube%h(3,1)/2.0-cube%h(3,2)/2.0-cube%h(3,3)/2.0
+    O = cube%origin
+
+    h11h22 = cube%h(1,1)*cube%h(2,2) 
+    h11h33 = cube%h(1,1)*cube%h(3,3) 
+    h11h32 = cube%h(1,1)*cube%h(3,2) 
+    h11h23 = cube%h(1,1)*cube%h(2,3) 
+    h33h22 = cube%h(3,3)*cube%h(2,2) 
+    h31h22 = cube%h(3,1)*cube%h(2,2) 
+    h13h22 = cube%h(1,3)*cube%h(2,2) 
+    h31h13 = cube%h(3,1)*cube%h(1,3) 
+    h31h23 = cube%h(3,1)*cube%h(2,3) 
+    h12h21 = cube%h(1,2)*cube%h(2,1) 
+    h12h23 = cube%h(1,2)*cube%h(2,3) 
+    h12h31 = cube%h(1,2)*cube%h(3,1) 
+    h12h33 = cube%h(1,2)*cube%h(3,3) 
+    h32h21 = cube%h(3,2)*cube%h(2,1) 
+    h32h23 = cube%h(3,2)*cube%h(2,3) 
+    h32h13 = cube%h(3,2)*cube%h(1,3) 
+    h21h32 = cube%h(2,1)*cube%h(3,2) 
+    h21h33 = cube%h(2,1)*cube%h(3,3) 
+    h21h13 = cube%h(2,1)*cube%h(1,3) 
+  
+    h32h11h23 = -cube%h(1,1)*cube%h(3,2)*cube%h(2,3)
+    h12h23h31 = cube%h(1,2)*cube%h(2,3)*cube%h(3,1)
+    h21h32h13 = cube%h(3,2)*cube%h(2,1)*cube%h(1,3)
+    h11h22h33 = cube%h(1,1)*cube%h(2,2)*cube%h(3,3)
+    h31h22h13 = -cube%h(3,1)*cube%h(2,2)*cube%h(1,3)
+    h21h12h33 = -cube%h(3,3)*cube%h(2,1)*cube%h(1,2)
+    deth = h11h22h33+h12h23h31+h21h32h13+h32h11h23+h31h22h13+h21h12h33
+  
+    z = (-h21h32*O(1)-h12h21*A(3)+h21h32*A(1)+h12h21*O(3)+h31h22*O(1)+h12h31*A(2)+&
+         h11h32*O(2)-h31h22*A(1)-h11h22*O(3)-h12h31*O(2)+h11h22*A(3)-h11h32*A(2))/deth
+    IF(z<0.)THEN
+      n3 = 1 + ABS(INT(z))
+    ELSEIF(z>0) THEN
+      n3 = -1-ABS(INT(z))
+    END IF
+  
+    y = -(h11h23*A(3)-h11h23*O(3)+h11h33*O(2)-h11h33*A(2)+A(2)*h31h13+h21h13*O(3)-&
+          h31h23*A(1)-h21h13*A(3)-h21h33*O(1)+h21h33*A(1)+h31h23*O(1)-O(2)*h31h13)/deth
+    IF(y<0.)THEN
+      n2 = 1 + ABS(INT(y))
+    ELSEIF(z>0) THEN
+      n2 = -1-ABS(INT(y))
+    END IF
+  
+    x = (h13h22*O(3)-h13h22*A(3)+h12h23*A(3)-h12h23*O(3)+A(1)*h33h22-O(1)*h33h22-&
+        A(2)*h12h33+O(2)*h12h33+A(2)*h32h13-O(2)*h32h13+h32h23*O(1)-h32h23*A(1))/deth
+    IF(x<0.)THEN
+      n1 = 1 + ABS(INT(x))
+    ELSEIF(z>0) THEN
+      n1 = -1-ABS(INT(x))
+    END IF
+
+    DO I1=1,cube%natom
+       r = cube%coords(:,I1)
+       z = (-h21h32*O(1)-h12h21*r(3)+h21h32*r(1)+h12h21*O(3)+h31h22*O(1)+h12h31*r(2)+&
+            h11h32*O(2)-h31h22*r(1)-h11h22*O(3)-h12h31*O(2)+h11h22*r(3)-h11h32*r(2))/deth
+
+       y = -(h11h23*r(3)-h11h23*O(3)+h11h33*O(2)-h11h33*r(2)+r(2)*h31h13+h21h13*O(3)-&
+             h31h23*r(1)-h21h13*r(3)-h21h33*O(1)+h21h33*r(1)+h31h23*O(1)-O(2)*h31h13)/deth
+
+       x = (h13h22*O(3)-h13h22*r(3)+h12h23*r(3)-h12h23*O(3)+r(1)*h33h22-O(1)*h33h22-&
+           r(2)*h12h33+O(2)*h12h33+r(2)*h32h13-O(2)*h32h13+h32h23*O(1)-h32h23*r(1))/deth
+
+       IF(X<0.0 .OR. x>1.0) THEN
+          r(1) = r(1) + n1*cube%h(1,1)
+          r(2) = r(2) + n1*cube%h(2,1)
+          r(3) = r(3) + n1*cube%h(3,1)
+       END IF
+       IF(y<0.0 .OR. y>1.0) THEN
+          r(1) = r(1) + n2*cube%h(1,2)
+          r(2) = r(2) + n2*cube%h(2,2)
+          r(3) = r(3) + n2*cube%h(3,2)
+       END IF
+       IF(z<0.0 .OR. z>1.0) THEN
+          r(1) = r(1) + n3*cube%h(1,3)
+          r(2) = r(2) + n3*cube%h(2,3)
+          r(3) = r(3) + n3*cube%h(3,3)
+       END IF
+       cube%coords(:,I1) = r
+    END DO
+
     ! quadratic search for nearest heavy atom and move hydrogen to it
+    ! this works only for orthorhombic cells (not yet converted to general cell)
     IF (smart_hydrogen) THEN
+       cube%dr(1) = cube%dh(1,1) 
+       cube%dr(2) = cube%dh(2,2) 
+       cube%dr(3) = cube%dh(3,3) 
+       edges=cube%dr*cube%npoints
        DO I1=1,cube%natom
           IF (cube%Zatom(I1)==1) THEN
              d2=HUGE(d2)
@@ -276,8 +457,9 @@ MODULE command_line_tools
     CHARACTER(LEN=200) :: xyz_name
     LOGICAL :: do_xyz, do_center, do_fold, do_foldsmart,do_center_atom,do_center_geo, do_center_point
     LOGICAL :: have_input, have_output, write_help, write_version, do_subtract
-    INTEGER :: atom_center, stride
-    REAL    :: center_point(3)
+    LOGICAL :: do_iso, do_slice, do_1d_profile
+    INTEGER :: atom_center, stride, cube, index_profile
+    REAL    :: center_point(3), slice(3), iso_level(3), iso_hmin, iso_hmax, delta_profile, mult_fact
   END TYPE
 CONTAINS
 !-------------------------------------------------------------------------------
@@ -292,12 +474,22 @@ CONTAINS
     input%do_center_geo=.FALSE.
     input%do_center_point=.FALSE.
     input%center_point=(/0.0,0.0,0.0/)
+    input%slice=(/0.0,0.0,0.0/)
+    input%do_slice=.FALSE.
+    input%iso_level=(/0.0,0.0,0.0/)
+    input%do_iso=.FALSE.
+    input%iso_hmin=-1.0
+    input%iso_hmax=-1.0
+    input%index_profile=0
+    input%delta_profile=0.0D0
+    input%do_1d_profile=.FALSE.
     input%do_fold=.FALSE.
     input%do_foldsmart=.FALSE.
     input%do_subtract=.FALSE.
     input%write_help=.FALSE.
     input%write_version=.FALSE.
     input%stride=1
+    input%mult_fact=1.0D0
     input%have_input=.FALSE.
     input%have_output=.FALSE.
   END SUBROUTINE init_input
@@ -325,6 +517,15 @@ CONTAINS
       write(6,'(A80)') " -point x y z            : coordinates of the center point                     "
       write(6,'(A80)') " -foldsmart              : idem, but place hydrogens near heavier atoms        " 
       write(6,'(A80)') " -stride #               : reduces resolution writing grids with stride #      " 
+      write(6,'(A80)') " -multiply #             : multiply all values of cube by the given factor     " 
+      write(6,'(A80)') " -1d_profile dir delta   : compute the profile along the cartesian axiz dir    "
+      write(6,'(A80)') "                          and a smoothed profile with smoothing interval delta " 
+      write(6,'(A80)') " -slice h1 h2 h3         : extract the values of the cube slice at height h#,  "
+      write(6,'(A80)') "                           along the cartesian axis #, if h#/=0,               "
+      write(6,'(A80)') "                           reads three reals, takes the first /=0              "
+      write(6,'(A80)') " -iso l1 l2 l3           : compute the iso-surface at level l#, recording height"
+      write(6,'(A80)') "                           along the axis #, if l#/=0,                         "
+      write(6,'(A80)') "                           reads three reals, takes the first /=0              "
       write(6,'(A80)') " -help                   : print this message                                  "
       write(6,'(A80)') " -v                      : print a version string                              "
       write(6,'(A80)') ""
@@ -382,10 +583,41 @@ CONTAINS
         READ(nextarg,*) input%center_point(2)
         CALL getarg(I+3,nextarg)
         READ(nextarg,*) input%center_point(3)
+      CASE("-slice")
+        input%do_slice=.TRUE.
+        CALL getarg(I+1,nextarg)
+        READ(nextarg,*) input%slice(1)
+        CALL getarg(I+2,nextarg)
+        READ(nextarg,*) input%slice(2)
+        CALL getarg(I+3,nextarg)
+        READ(nextarg,*) input%slice(3)
+      CASE("-iso")
+        input%do_iso=.TRUE.
+        CALL getarg(I+1,nextarg)
+        READ(nextarg,*) input%iso_level(1)
+        CALL getarg(I+2,nextarg)
+        READ(nextarg,*) input%iso_level(2)
+        CALL getarg(I+3,nextarg)
+        READ(nextarg,*) input%iso_level(3)
+      CASE("-isorange")
+        CALL getarg(I+1,nextarg)
+        READ(nextarg,*) input%iso_hmin
+        CALL getarg(I+2,nextarg)
+        READ(nextarg,*) input%iso_hmax
+      CASE("-1d_profile")
+        input%do_1d_profile=.TRUE.
+        CALL getarg(I+1,nextarg)
+        READ(nextarg,*) input%index_profile
+        CALL getarg(I+2,nextarg)
+        READ(nextarg,*) input%delta_profile
       CASE("-stride")
         CALL getarg(I+1,nextarg)
         READ(nextarg,*) input%stride
         WRITE(6,*) "write cube with stride     ",input%stride
+      CASE("-multiply")
+        CALL getarg(I+1,nextarg)
+        READ(nextarg,*) input%mult_fact
+        WRITE(6,*) "multiply cube values by factor ",input%mult_fact
       CASE("-fold")
         input%do_fold=.TRUE.
         WRITE(6,*) "Folding atoms in the cube "
@@ -403,16 +635,427 @@ CONTAINS
   END SUBROUTINE parse_command_line
 END MODULE
 
+MODULE cube_post_process
+
+!  USE cubecruncher, ONLY: cube_type
+   USE cubecruncher
+
+  IMPLICIT NONE
+!  REAL, PARAMETER :: a2au = 1.0/0.5291772083D0 ! multiply angstrom by a2au to get bohr
+  REAL, PARAMETER :: au2a = 0.5291772083D0 ! multiply bohr by au2a to get angstrom 
+
+CONTAINS
+
+  SUBROUTINE compute_profile(cube,index,delta)
+
+   TYPE(cube_type), POINTER :: cube
+   INTEGER, INTENT(IN) :: index
+   REAL, INTENT(IN) :: delta
+
+   CHARACTER(LEN=80) :: filename
+   INTEGER :: i, ip_low, ip_up,j,k, ncount, np, npp
+   REAL,DIMENSION(:), ALLOCATABLE :: pos, av_val
+   REAL :: length, p, val
+
+   ALLOCATE(pos(cube%npoints(index)))
+   ALLOCATE(av_val(cube%npoints(index)))
+   DO i=1,cube%npoints(index)
+     pos(i) = (i-1)*cube%dh(index,index)*au2a+cube%origin(index)*au2a
+   END DO
+   IF(index==3) THEN
+
+     IF(cube%dh(1,3)/=0.0d0 .OR. cube%dh(2,3)/=0.0D0) THEN
+      write(*,*) ' Calculation of profile along a non orthogonal direction not implemented'
+      STOP
+     END IF
+     ncount = cube%npoints(1)*cube%npoints(2)
+     DO i=1,cube%npoints(3)
+       val = 0.0D0
+       DO j=1,cube%npoints(2)
+         DO k=1,cube%npoints(1)
+           val =val + cube%grid(k,j,i)
+         END DO
+       END DO
+       av_val(i) = val/REAL(ncount)
+     END DO
+
+   ELSE IF(index==1) THEN
+
+     IF(cube%dh(2,1)/=0.0d0 .OR. cube%dh(3,1)/=0.0D0) THEN
+      write(*,*) ' Calculation of profile along a non orthogonal direction not implemented'
+      STOP
+     END IF
+     ncount = cube%npoints(2)*cube%npoints(3)
+     DO i=1,cube%npoints(1)
+       val = 0.0D0
+       DO j=1,cube%npoints(3)
+         DO k=1,cube%npoints(2)
+           val =val + cube%grid(i,k,j)
+         END DO
+       END DO
+       av_val(i) = val/REAL(ncount)
+     END DO
+
+   ELSE IF(index==2) THEN
+
+    IF(cube%dh(2,1)/=0.0d0 .OR. cube%dh(2,3)/=0.0D0) THEN
+      write(*,*) ' Calculation of profile along a non orthogonal direction not implemented'
+      STOP
+     END IF
+     ncount = cube%npoints(1)*cube%npoints(3)
+     DO i=1,cube%npoints(2)
+       val = 0.0D0
+       DO j=1,cube%npoints(3)
+         DO k=1,cube%npoints(1)
+           val =val + cube%grid(k,i,j)
+         END DO
+       END DO
+       av_val(i) = val/REAL(ncount)
+     END DO
+
+
+   END IF
+
+   WRITE(filename,'(A8,I1,A4)')  'profile_',index,'.dat'
+   OPEN(101,FILE=TRIM(filename)) 
+   DO i =1,cube%npoints(index)
+     WRITE(101,*) pos(i), av_val(i)
+   END DO
+   CLOSE(101)
+
+   WRITE(filename,'(A12,I1,A4)')  'profile_int_',index,'.dat'
+   OPEN(101,FILE=TRIM(filename)) 
+   write(*,*) 'delta ', delta
+   length = pos(cube%npoints(index))-pos(1)
+   write(*,*) 'length ', length
+   np = INT(length/delta) + 1
+   npp = INT(delta/(cube%dh(index,index)*au2a)) +1
+   write(*,*) 'integration intervals and points per interval ', np, npp
+
+   DO j=1,np
+     ip_low = (j-1)*npp +1
+     ip_up  = MIN(j*npp,cube%npoints(index)) 
+     p = pos(ip_low)+delta/2.0D0
+     val = 0.0D0
+     DO i =ip_low,ip_up
+       val = val + av_val(i)
+     END DO
+     val = val/REAL(ip_up-ip_low+1)
+     WRITE(101,*) p, val
+     IF(ip_up==cube%npoints(index)) EXIT
+   END DO
+   CLOSE(101)
+   
+
+   DEALLOCATE(pos, av_val)
+  END SUBROUTINE compute_profile
+
+  SUBROUTINE  compute_slice(cube,dir,height)
+
+   TYPE(cube_type), POINTER :: cube
+   INTEGER, INTENT(IN) ::dir 
+   REAL, INTENT(IN) :: height
+
+   CHARACTER(LEN=80) :: filename
+   INTEGER :: index_plane, d1,d2
+   INTEGER :: i, j,k
+   REAL :: r, r1, r2 , val
+
+
+   d1=dir+1; if(d1>3) d1=1
+   d2=dir-1; if(d2<1) d2=3
+   IF(d1>d2) THEN
+     d2=d2+2; d1=d1-2
+   END IF
+
+   DO i = 1,cube%npoints(dir)
+      r=sqrt((real(i-1)*cube%dh(1,dir)-cube%origin(1))**2&
+               +(real(i-1)*cube%dh(2,dir)-cube%origin(2))**2+&
+                (real(i-1)*cube%dh(3,dir)-cube%origin(3))**2)
+      IF(r*au2a>=height) THEN
+        index_plane = i
+        EXIT
+      END IF
+   END DO
+   write(*,*) ' selected slice near the grid plane labelled ', Index_plane
+   
+
+   WRITE(filename,'(A6,I1,A2,I3,A4)')  'slice_',dir,'_h',index_plane,'.dat'
+   OPEN(101,FILE=TRIM(filename))
+
+   DO i = 1,cube%npoints(d1)
+     DO j = 1,cube%npoints(d2)
+
+       IF(dir==3)THEN
+         val = (cube%grid(i,j,index_plane-1)+cube%grid(i,j,index_plane))*0.5D0
+         r1 = real(i-1)*cube%dh(1,1)+real(j-1)*cube%dh(1,2)+real(index_plane-1)*cube%dh(1,3)
+         r2 = real(i-1)*cube%dh(2,1)+real(j-1)*cube%dh(2,2)+real(index_plane-1)*cube%dh(2,3)
+       ELSEIF(dir==1) THEN
+         val = (cube%grid(index_plane-1,i,j)+cube%grid(index_plane,i,j))*0.5D0
+         r1 = real(index_plane-1)*cube%dh(2,1)+real(i-1)*cube%dh(2,2)+real(j-1)*cube%dh(2,3)
+         r2 = real(index_plane-1)*cube%dh(3,1)+real(i-1)*cube%dh(3,2)+real(j-1)*cube%dh(3,3)
+       ELSEIF(dir==2) THEN
+         val = (cube%grid(i,index_plane-1,j)+cube%grid(i,index_plane,j))*0.5D0
+         r1 = real(i-1)*cube%dh(1,1)+real(index_plane-1)*cube%dh(1,2)+real(j-1)*cube%dh(1,3)
+         r2 = real(i-1)*cube%dh(3,1)+real(index_plane-1)*cube%dh(3,2)+real(j-1)*cube%dh(3,3)
+       END IF
+
+       WRITE(101,*) r1*au2a, r2*au2a, val 
+     END DO
+   END DO
+
+   CLOSE(101)
+  END SUBROUTINE compute_slice
+
+  SUBROUTINE compute_iso_surf(cube,dir,iso_val,h_min, h_max)
+
+   TYPE(cube_type), POINTER :: cube
+   INTEGER, INTENT(IN) ::dir
+   REAL, INTENT(IN) :: iso_val, h_min, h_max
+
+   CHARACTER(LEN=80) :: filename
+   LOGICAL :: found_val
+   INTEGER ::  d1,d2, iold, jold, kold
+   INTEGER :: i, ipoint, j,k, index_min, index_max
+   REAL :: fac1, fac2, r, r1, r2 , val1, val2
+   REAL, ALLOCATABLE, DIMENSION(:,:,:) :: data_grid
+   REAL :: delta, det, height, L1, L2, r1_shift, r2_shift, tmp
+   INTEGER :: ii, jj, im, ip, jm, jp, np1, np2 
+
+
+   d1=dir+1; if(d1>3) d1=1
+   d2=dir-1; if(d2<1) d2=3
+   IF(d1>d2)THEN
+      d2=d2+2; d1=d1-2
+   END IF
+
+   allocate(data_grid(3,cube%npoints(d1),cube%npoints(d2)))
+   !Find starting plane
+   IF(h_min<-10000.0D0) THEN
+     index_min = 1
+   ELSE
+     DO i = 1,cube%npoints(dir)
+!       r=sqrt((real(i-1)*cube%dh(1,dir)+cube%origin(1))**2&
+!               +(real(i-1)*cube%dh(2,dir)+cube%origin(2))**2+&
+!                (real(i-1)*cube%dh(3,dir)+cube%origin(3))**2)
+       r  = cube%origin(dir) + real(i-1)*cube%dh(dir,dir)
+       IF(r*au2a>=h_min)THEN
+         index_min = i-1
+         EXIT
+       END IF
+     END DO
+   END IF
+   !Find starting plane
+   IF(h_max<-10000.0D0) THEN
+     index_max = cube%npoints(dir) - 1
+   ELSE
+     DO i = index_min,cube%npoints(dir)
+!       r=sqrt((real(i-1)*cube%dh(1,dir)+cube%origin(1))**2&
+!               +(real(i-1)*cube%dh(2,dir)+cube%origin(2))**2+&
+!                (real(i-1)*cube%dh(3,dir)+cube%origin(3))**2)
+       r  = cube%origin(dir) + real(i-1)*cube%dh(dir,dir)
+       IF(r*au2a>=h_max)THEN
+         index_max = i
+         EXIT
+       END IF
+     END DO
+   END IF
+   IF(index_max==cube%npoints(dir)) index_max = index_max-1
+
+   write(*,*) ' Start search for iso surface at value ', iso_val, ' in the height range between ', h_min, ' and ', h_max
+   write(*,*) ' Number of considered planes ', index_max-index_min + 1
+
+   WRITE(filename,'(A6,I1,A2,F10.8,A4)')  'isosurf_',dir,'_v',iso_val,'.dat'
+   OPEN(101,FILE=TRIM(filename))
+
+   jold = 1
+   kold = index_min
+   DO i = 1,cube%npoints(d1)
+     DO j = 1,cube%npoints(d2)
+       found_val = .FALSE. 
+       DO k = index_min, index_max
+         IF(dir==3)THEN
+           val1 = cube%grid(i,j,k)
+           val2 = cube%grid(i,j,k+1)
+         ELSEIF(dir==2)THEN
+           val1 = cube%grid(i,k,j)
+           val2 = cube%grid(i,k+1,j)
+         ELSEIF(dir==1)THEN
+           val1 = cube%grid(k,i,j)
+           val2 = cube%grid(k+1,i,j)
+         END IF
+         IF(val1<val2) THEN 
+             IF(iso_val<val2 .AND. iso_val>val1) THEN
+               found_val = .TRUE.
+               fac1 = (iso_val-val1)/(val2-val1)
+               fac2 = (val2-iso_val)/(val2-val1)
+             END IF
+         ELSE
+             IF(iso_val<val1 .AND. iso_val>val2) THEN
+               found_val = .TRUE.
+               fac2 = (iso_val-val2)/(val1-val2)
+               fac1 = (val1-iso_val)/(val1-val2)
+             END IF
+         END IF
+         IF(found_val) THEN
+             r  = cube%origin(dir) + real(i-1)*cube%dh(dir,d1)+real(j-1)*cube%dh(dir,d2)&
+               +real(k-1)*cube%dh(dir,dir)*fac1+real(k)*cube%dh(dir,dir)*fac2
+             r1 = cube%origin(d1) + real(i-1)*cube%dh(d1,d1) +real(j-1)*cube%dh(d1,d2) &
+                +real(k-1)*cube%dh(d1,dir) *fac1+real(k)*cube%dh(d1,dir)*fac2
+             r2 = cube%origin(d2) + real(i-1)*cube%dh(d2,d1) +real(j-1)*cube%dh(d2,d2) &
+                +real(k-1)*cube%dh(d2,dir) *fac1+real(k)*cube%dh(d2,dir)*fac2
+             data_grid(1,i,j) = r1
+             data_grid(2,i,j) = r2
+             data_grid(3,i,j) = r
+            
+             jold = j
+             iold = i
+             kold = k
+             EXIT
+         END IF 
+       END DO ! k
+       IF(.NOT. found_val) THEN
+          r1 = cube%origin(d1) + real(i-1)*cube%dh(d1,d1) +real(j-1)*cube%dh(d1,d2) &
+               +real(kold-1)*cube%dh(d1,dir)
+          r2 = cube%origin(d2) + real(i-1)*cube%dh(d2,d1) +real(j-1)*cube%dh(d2,d2) &
+               +real(kold-1)*cube%dh(d2,dir)
+          r = data_grid(3,iold,jold)
+          data_grid(1,i,j) = r1
+          data_grid(2,i,j) = r2
+          data_grid(3,i,j) = r
+          jold = j
+          iold = i
+         write(*,'(A,2F10.5,A,F12.8,A, F16.8)') ' At grid point ', r1*au2a, r2*au2a, ' no value close to ', iso_val, &
+                    ' has been found; assigned : ',r
+       ELSE
+         WRITE(101,*) r1*au2a, r2*au2a, r*au2a
+       END IF
+     END DO ! j
+   END DO  ! i
+
+   CLOSE(101)
+
+   OPEN(102,FILE="gird_data_index.dat")
+     
+   DO i = 1,cube%npoints(d1)
+     DO j = 1,cube%npoints(d2)
+       write(102,*) i, j, data_grid(3,i,j)*au2a 
+     END DO
+     write(102,*) " "
+   END DO
+   CLOSE(102)
+
+   OPEN(103,FILE="grid_data_pos.dat")
+   L1 = cube%dh(d1,d1) * (cube%npoints(d1)-1) + cube%dh(d1,d2) * (cube%npoints(d2)-1)
+   L2 = cube%dh(d2,d1) * (cube%npoints(d1)-1) + cube%dh(d2,d2) * (cube%npoints(d2)-1)
+
+   delta = 0.5D0
+
+   np1 = INT(L1/delta) + 1
+   np2 = INT(L2/delta) + 1
+
+   det = (cube%dh(d1,d1)*cube%dh(d2,d2) - cube%dh(d1,d2)*cube%dh(d2,d1))
+   det = 1.0D0/det
+   DO ii = 1,np1
+     r1 = delta*real(ii-1)
+     DO jj = 1,np2
+       r2 = delta*real(jj-1)
+       tmp = (cube%dh(d2,d2)*r1-cube%dh(d1,d2)*r2)*det
+       i = int(tmp)+1
+       tmp = (cube%dh(d1,d1)*r2-cube%dh(d2,d1)*r1)*det
+       j = int(tmp)+1
+       IF(i<1) THEN
+        r1_shift = r1+cube%npoints(d1)*cube%dh(d1,d1)
+        r2_shift = r2+cube%npoints(d1)*cube%dh(d2,d1)
+        tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
+        i = int(tmp)+1
+        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
+        j = int(tmp)+1
+       ELSEIF(i>cube%npoints(d1)) THEN
+        r1_shift = r1-cube%npoints(d1)*cube%dh(d1,d1)
+        r2_shift = r2-cube%npoints(d1)*cube%dh(d2,d1)
+        tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
+        i = int(tmp)+1
+        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
+        j = int(tmp)+1
+       END IF
+
+       im = i 
+       ip = i
+       jm = j 
+       jp = j
+       IF(i>1) im = i-1
+       IF(j>1) jm = j-1
+       IF(i<cube%npoints(d1)) ip = i+1
+       IF(j<cube%npoints(d2)) jp = j+1
+       height = (data_grid(3,i,j)+data_grid(3,im,j)+data_grid(3,ip,j)+&
+                 data_grid(3,i,jm)+data_grid(3,i,jp))/5.D0
+       write(103,'(3f16.8)') (r1+cube%origin(d1))*au2a, (r2+cube%origin(d2))*au2a,height*au2a 
+     END DO
+     write(103,*) " "
+   END DO
+   CLOSE(103)
+
+   OPEN(104,FILE="grid_data_pos_b.dat")
+   DO ipoint = 1,np1*np2
+     jj = int(real(ipoint)/real(np1))+1
+     ii = ipoint-(jj-1)*np1
+
+     r1 = delta*real(ii-1)
+     r2 = delta*real(jj-1)
+     i=int((cube%dh(d2,d2)*r1-cube%dh(d1,d2)*r2)*det) + 1
+     j=int((cube%dh(d1,d1)*r2-cube%dh(d2,d1)*r1)*det) + 1
+     IF(i<1) THEN
+        r1_shift = r1+cube%npoints(d1)*cube%dh(d1,d1)
+        r2_shift = r2+cube%npoints(d1)*cube%dh(d2,d1)
+        tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
+        i = int(tmp)+1
+        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
+        j = int(tmp)+1
+     ELSEIF(i>cube%npoints(d1)) THEN
+        r1_shift = r1-cube%npoints(d1)*cube%dh(d1,d1)
+        r2_shift = r2-cube%npoints(d1)*cube%dh(d2,d1)
+        tmp = (cube%dh(d2,d2)*r1_shift-cube%dh(d1,d2)*r2_shift)*det
+        i = int(tmp)+1
+        tmp = (cube%dh(d1,d1)*r2_shift-cube%dh(d2,d1)*r1_shift)*det
+        j = int(tmp)+1
+     END IF
+
+     im = i
+     ip = i
+     jm = j
+     jp = j
+     IF(i>1) im = i-1
+     IF(j>1) jm = j-1
+     IF(i<cube%npoints(d1)) ip = i+1
+     IF(j<cube%npoints(d2)) jp = j+1
+     height = (data_grid(3,i,j)+data_grid(3,im,j)+data_grid(3,ip,j)+&
+               data_grid(3,i,jm)+data_grid(3,i,jp))/5.D0
+     write(104,'(3f16.8)') (r1+cube%origin(d1))*au2a, (r2+cube%origin(d2))*au2a,height*au2a
+   END DO
+   CLOSE(104)
+
+   DEALLOCATE(data_grid)
+
+  END SUBROUTINE compute_iso_surf
+
+
+END MODULE cube_post_process
+
+
 PROGRAM main
    USE cubecruncher
    USE periodic_table
    USE command_line_tools
+   USE cube_post_process
    IMPLICIT NONE
 
    TYPE(cube_type), POINTER :: cube,cube_subtract
 
    INTEGER :: iunit_cube_in,iunit_cube_out,iunit_xyz,narg
+   INTEGER :: dir
    LOGICAL :: did_something
+   REAL :: height, iso_val
    REAL, DIMENSION(3) :: center
    TYPE(input_type) :: input
   
@@ -440,7 +1083,6 @@ PROGRAM main
      CALL init_periodic_table() 
 
      ALLOCATE(cube)
-     CALL init_cube(cube)
      CALL init_cube(cube)
    
      iunit_cube_in=117
@@ -476,6 +1118,8 @@ PROGRAM main
         CLOSE(iunit_xyz)
         write(6,*) "Done"
      ENDIF
+
+     CALL boxmat(cube)
   
      ! fold grid around a given atom or the geometrical center of the molecule
      IF (input%do_center) THEN
@@ -505,10 +1149,52 @@ PROGRAM main
         write(6,*) "Done"
      ENDIF
 
+     IF (input%do_1d_profile) THEN
+        write(6,FMT='(A, I4)') "Calculation of the profile along direction ",&
+                 input%index_profile
+        CALL  compute_profile(cube,input%index_profile,input%delta_profile)
+        write(6,*) "Done"
+     ENDIF
+
+     IF (input%do_slice) THEN
+        IF(input%slice(1)/=0.0D0) THEN
+           dir = 1
+           height = input%slice(1)
+        ELSE IF(input%slice(2)/=0.0D0) THEN
+           dir = 2
+           height = input%slice(2)
+        ELSE IF(input%slice(3)/=0.0D0) THEN
+           dir = 3
+           height = input%slice(3)
+        END IF
+        write(6,FMT='(A, I4, A, F10.4)') "Calculation of a cube slice perpendicular to direction",&
+                dir, ' at height ', height 
+        CALL  compute_slice(cube,dir,height)
+        write(6,*) "Done"
+     ENDIF
+
+     IF(input%do_iso) THEN
+        IF(input%iso_level(1)/=0.0D0) THEN
+           dir = 1
+           iso_val = input%iso_level(1)
+        ELSE IF(input%iso_level(2)/=0.0D0) THEN
+           dir = 2
+           iso_val = input%iso_level(2)
+        ELSE IF(input%iso_level(3)/=0.0D0) THEN
+           dir = 3
+           iso_val = input%iso_level(3)
+        END IF
+        write(6,FMT='(A, I4, A, F10.4)') "Calculation of a iso surface, recording the height along direction",&
+                dir, ' at level ', iso_val 
+        CALL compute_iso_surf(cube, dir, iso_val, input%iso_hmin ,input%iso_hmax)
+        write(6,*) "Done"
+     END IF
+
+
      ! final out
      write(6,FMT='(A)',ADVANCE="No") "Writing cube ... "
      OPEN(iunit_cube_out,FILE=TRIM(input%cube_name_out)) 
-     CALL write_cube(cube,iunit_cube_out,input%stride)
+     CALL write_cube(cube,iunit_cube_out,input%stride,input%mult_fact)
      CLOSE(iunit_cube_out)
      write(6,*) "Done"
 
