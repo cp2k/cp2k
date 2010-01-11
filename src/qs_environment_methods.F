@@ -333,7 +333,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
           ENDIF
           CALL generate_qs_task_list(qs_env, &
                  task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv,&
-                 soft_valid=.FALSE., error=error)
+                 reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., error=error)
        ENDIF
        ! generate the soft task list
        IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
@@ -344,7 +344,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
           ENDIF
           CALL generate_qs_task_list(qs_env, &
                  task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv,&
-                 soft_valid = .TRUE., error=error)
+                 reorder_rs_grid_ranks=.TRUE., soft_valid = .TRUE., error=error)
        ENDIF
     ENDIF
 
@@ -357,7 +357,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       ENDIF
       CALL generate_qs_task_list(qs_env,&
            task_list%tasks, task_list%dist_ab, task_list%ntasks, task_list%atom_pair_send, task_list%atom_pair_recv, &
-           soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, error=error)
+           reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, error=error)
     END IF
 
     ! *** environment for ddapc ***

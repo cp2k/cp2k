@@ -85,9 +85,17 @@ CONTAINS
 ! *****************************************************************************
 !> \par History
 !>      01.2008 factored out of calculate_rho_elec [Joost VandeVondele]
+!> \param reorder_rs_grid_ranks Flag that indicates if this routine should
+!>        or should not overwrite the rs descriptor (see comment below)
+!> \note  If this routine is called several times with different task lists,
+!>        the default behaviour is to re-optimize the grid ranks and overwrite
+!>        the rs descriptor. reorder_rs_grid_ranks = .FALSE. prevents the code
+!>        of performing a new optimization by leaving the rank order in 
+!>        its current state.
 ! *****************************************************************************
-  SUBROUTINE generate_qs_task_list(qs_env, tasks, dist_ab, ntasks, atom_pair_send, atom_pair_recv,soft_valid, &
-                                   basis_set_id, error)
+  SUBROUTINE generate_qs_task_list(qs_env, tasks, dist_ab, ntasks, atom_pair_send, atom_pair_recv,&
+                                   reorder_rs_grid_ranks, soft_valid, basis_set_id, error)
+                                   
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -96,6 +104,7 @@ CONTAINS
     INTEGER                                  :: ntasks
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_send, atom_pair_recv
+    LOGICAL, INTENT(IN)                      :: reorder_rs_grid_ranks
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -312,7 +321,8 @@ CONTAINS
     ! redistribute the task list so that all tasks map on the local rs grids
     CALL distribute_tasks (rs_rho,ntasks, natoms,&
             maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
-            atom_pair_recv=atom_pair_recv, symmetric=.TRUE., error=error)
+            atom_pair_recv=atom_pair_recv, symmetric=.TRUE., &
+            reorder_rs_grid_ranks=reorder_rs_grid_ranks, error=error)
     IF (ASSOCIATED(rs_rho)) THEN
       DO i=1, SIZE(rs_rho)
         CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
@@ -1640,7 +1650,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE distribute_tasks ( rs_rho, ntasks, natoms,&
        maxset,maxpgf,  tasks, rval, atom_pair_send, atom_pair_recv,&
-       symmetric, error)
+       symmetric, reorder_rs_grid_ranks, error)
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
@@ -1650,7 +1660,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rval
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_send, atom_pair_recv
-    LOGICAL, INTENT(IN)                      :: symmetric
+    LOGICAL, INTENT(IN)                      :: symmetric, &
+                                                reorder_rs_grid_ranks
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_tasks', &
@@ -1727,69 +1738,70 @@ CONTAINS
 
        ! Now we adjust the rank ordering based on the current loads
        ! we leave the first distributed level and all the replicated levels in the default order
-
-       fixed_first_grid=.FALSE.
-       DO igrid_level=1,SIZE(rs_rho)
-         IF (rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
-           IF (fixed_first_grid .EQV. .FALSE.) THEN
-             total_loads = loads(:,igrid_level)
-             fixed_first_grid = .TRUE.
-           ELSE
-             ALLOCATE(trial_loads(0:rs%desc%group_size-1),STAT=stat)
-             IF (stat/=0) CALL stop_memory("distribute_tasks","trial_loads",rs%desc%group_size)
-
-             trial_loads = total_loads + loads(:,igrid_level)
-             max_load = MAXVAL(trial_loads)
-             load_gap = 0
-             DO irank=0, rs%desc%group_size-1
-               load_gap = load_gap + max_load - trial_loads(irank)
-             END DO 
-             
-             ! If there is not enough replicated load to load balance well enough
-             ! then we will reorder this grid level
-             IF (load_gap > replicated_load * 1.05_dp) THEN
-
-               ALLOCATE(INDEX(0:rs%desc%group_size-1),STAT=stat)
-               IF (stat/=0) CALL stop_memory("distribute_tasks","index",rs%desc%group_size)
-               ALLOCATE(total_index(0:rs%desc%group_size-1),STAT=stat)
-               IF (stat/=0) CALL stop_memory("distribute_tasks","total_index",rs%desc%group_size)
-               ALLOCATE(total_loads_tmp(0:rs%desc%group_size-1),STAT=stat)
-               IF (stat/=0) CALL stop_memory("distribute_tasks","total_loads_tmp",rs%desc%group_size)
-               ALLOCATE(real2virtual(0:rs%desc%group_size-1),STAT=stat)
-               IF (stat/=0) CALL stop_memory("distribute_tasks","real2virtual",rs%desc%group_size)
-
-               total_loads_tmp = total_loads
-               CALL sort(total_loads_tmp, rs%desc%group_size, total_index)
-               CALL sort(loads(:,igrid_level), rs%desc%group_size, index)
-
-               ! Reorder so that the rank with smallest load on this grid level is paired with
-               ! the highest load in total
-               DO irank=0, rs%desc%group_size-1
-                 total_loads(total_index(irank)-1) = total_loads(total_index(irank)-1) + &
-                             loads(rs%desc%group_size - irank - 1, igrid_level)
-                 real2virtual(total_index(irank)-1)=INDEX(rs%desc%group_size - irank - 1) - 1
-               END DO
-
-               CALL rs_grid_reorder_ranks(rs_rho(igrid_level)%rs_grid, real2virtual, error)
-
-               DEALLOCATE(index,STAT=stat)
-               IF (stat/=0) CALL stop_memory("distribute_tasks","index",rs%desc%group_size)
-               DEALLOCATE(total_index,STAT=stat)
-               IF (stat/=0) CALL stop_memory("distribute_tasks","total_index",rs%desc%group_size)
-               DEALLOCATE(total_loads_tmp,STAT=stat)
-               IF (stat/=0) CALL stop_memory("distribute_tasks","total_loads_tmp",rs%desc%group_size)
-               DEALLOCATE(real2virtual,STAT=stat)
-               IF (stat/=0) CALL stop_memory("distribute_tasks","real2virtual",rs%desc%group_size)
+       IF (reorder_rs_grid_ranks) THEN
+         fixed_first_grid=.FALSE.
+         DO igrid_level=1,SIZE(rs_rho)
+           IF (rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
+             IF (fixed_first_grid .EQV. .FALSE.) THEN
+               total_loads = loads(:,igrid_level)
+               fixed_first_grid = .TRUE.
              ELSE
-               total_loads = trial_loads
+               ALLOCATE(trial_loads(0:rs%desc%group_size-1),STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","trial_loads",rs%desc%group_size)
+  
+               trial_loads = total_loads + loads(:,igrid_level)
+               max_load = MAXVAL(trial_loads)
+               load_gap = 0
+               DO irank=0, rs%desc%group_size-1
+                 load_gap = load_gap + max_load - trial_loads(irank)
+               END DO 
+               
+               ! If there is not enough replicated load to load balance well enough
+               ! then we will reorder this grid level
+               IF (load_gap > replicated_load * 1.05_dp) THEN
+  
+                 ALLOCATE(INDEX(0:rs%desc%group_size-1),STAT=stat)
+                 IF (stat/=0) CALL stop_memory("distribute_tasks","index",rs%desc%group_size)
+                 ALLOCATE(total_index(0:rs%desc%group_size-1),STAT=stat)
+                 IF (stat/=0) CALL stop_memory("distribute_tasks","total_index",rs%desc%group_size)
+                 ALLOCATE(total_loads_tmp(0:rs%desc%group_size-1),STAT=stat)
+                 IF (stat/=0) CALL stop_memory("distribute_tasks","total_loads_tmp",rs%desc%group_size)
+                 ALLOCATE(real2virtual(0:rs%desc%group_size-1),STAT=stat)
+                 IF (stat/=0) CALL stop_memory("distribute_tasks","real2virtual",rs%desc%group_size)
+  
+                 total_loads_tmp = total_loads
+                 CALL sort(total_loads_tmp, rs%desc%group_size, total_index)
+                 CALL sort(loads(:,igrid_level), rs%desc%group_size, index)
+  
+                 ! Reorder so that the rank with smallest load on this grid level is paired with
+                 ! the highest load in total
+                 DO irank=0, rs%desc%group_size-1
+                   total_loads(total_index(irank)-1) = total_loads(total_index(irank)-1) + &
+                               loads(rs%desc%group_size - irank - 1, igrid_level)
+                   real2virtual(total_index(irank)-1)=INDEX(rs%desc%group_size - irank - 1) - 1
+                 END DO
+  
+                 CALL rs_grid_reorder_ranks(rs_rho(igrid_level)%rs_grid, real2virtual, error)
+  
+                 DEALLOCATE(index,STAT=stat)
+                 IF (stat/=0) CALL stop_memory("distribute_tasks","index",rs%desc%group_size)
+                 DEALLOCATE(total_index,STAT=stat)
+                 IF (stat/=0) CALL stop_memory("distribute_tasks","total_index",rs%desc%group_size)
+                 DEALLOCATE(total_loads_tmp,STAT=stat)
+                 IF (stat/=0) CALL stop_memory("distribute_tasks","total_loads_tmp",rs%desc%group_size)
+                 DEALLOCATE(real2virtual,STAT=stat)
+                 IF (stat/=0) CALL stop_memory("distribute_tasks","real2virtual",rs%desc%group_size)
+               ELSE
+                 total_loads = trial_loads
+               ENDIF
+  
+               DEALLOCATE(trial_loads,STAT=stat)
+               IF (stat/=0) CALL stop_memory("distribute_tasks","trial_loads",rs%desc%group_size)
+  
              ENDIF
-
-             DEALLOCATE(trial_loads,STAT=stat)
-             IF (stat/=0) CALL stop_memory("distribute_tasks","trial_loads",rs%desc%group_size)
-
            ENDIF
-         ENDIF
-       END DO
+         END DO
+       END IF
 
        ! Now we use the replicated tasks to balance out the rest of the load
        CALL load_balance_replicated(rs_rho, ntasks, tasks, natoms,maxset,maxpgf, error)
