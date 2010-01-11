@@ -15,6 +15,7 @@ MODULE atom_utils
                                              GTO_BASIS,&
                                              atom_basis_type,&
                                              atom_state,&
+                                             atom_type,&
                                              eri
   USE basis_set_types,                 ONLY: srules
   USE erf_fn,                          ONLY: erf
@@ -48,7 +49,7 @@ MODULE atom_utils
   PUBLIC :: numpot_matrix, ceri_contract, eeri_contract, err_matrix
   PUBLIC :: slater_density, wigner_slater_functional
   PUBLIC :: atom_orbital_charge, atom_orbital_nodes, atom_consistent_method
-  PUBLIC :: atom_orbital_max, atom_wfnr0
+  PUBLIC :: atom_orbital_max, atom_wfnr0, atom_print_pseudo
 
 !-----------------------------------------------------------------------------!
 
@@ -481,6 +482,13 @@ CONTAINS
       value = value + wfn(i)*basis%bf(m,i,0)
     END DO
   END SUBROUTINE atom_wfnr0
+! *****************************************************************************
+  SUBROUTINE atom_print_pseudo(iunit,aref,atom,error)
+    INTEGER, INTENT(IN)                      :: iunit
+    TYPE(atom_type), POINTER                 :: aref, atom
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+  END SUBROUTINE atom_print_pseudo
 ! *****************************************************************************
   SUBROUTINE atom_solve(hmat,umat,orb,ener,nb,nv,maxl,error)
     REAL(KIND=dp), DIMENSION(:, :, 0:), &

@@ -21,8 +21,8 @@ MODULE atom_fit
        opgrid_type, release_opgrid, set_atom
   USE atom_utils,                      ONLY: &
        atom_consistent_method, atom_denmat, atom_density, &
-       atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, atom_wfnr0, &
-       get_maxn_occ, integrate_grid
+       atom_orbital_charge, atom_orbital_max, atom_orbital_nodes, &
+       atom_print_pseudo, atom_wfnr0, get_maxn_occ, integrate_grid
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE f77_blas
@@ -390,7 +390,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: pval
     REAL(KIND=dp), DIMENSION(:), POINTER     :: w
-    TYPE(atom_type), POINTER                 :: atom
+    TYPE(atom_type), POINTER                 :: aref, atom
     TYPE(opt_state_type)                     :: ostate
 
 ! weights for the optimization
@@ -610,6 +610,9 @@ CONTAINS
                WRITE(iunit,'("    s-states"," N=",I5,T40,"Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k,pv,NINT(pchg)
             END DO
           END IF
+          ! Print wfn information
+          aref => atom_refs(i,j)%atom
+          CALL atom_print_pseudo(iunit,aref,atom,error)
         END DO
       END DO
     END IF
@@ -826,7 +829,7 @@ CONTAINS
               rcov = atom%orbitals%rcmax(k,l)
               tv = atom%orbitals%crefene(k,l)
               de = ABS(atom%orbitals%ener(k,l)-atom%orbitals%refene(k,l))
-              fde = 1._dp/(1._dp+EXP(0.1_dp-de/10._dp*tv))
+              fde = 1._dp/(1._dp+EXP(10._dp*(1._dp-de/tv)))
               pv = atom%weight*atom%orbitals%wrefene(k,l)*de*de*fde
               afun = afun + pv
               pval(1,k,l,j,i) = pv
