@@ -10,7 +10,6 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE wfn_fitting_methods 
-  
   USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -40,11 +39,17 @@ MODULE wfn_fitting_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
+                                             dbcsr_distribution,&
+                                             dbcsr_init,&
+                                             dbcsr_row_block_sizes,&
+                                             dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_type_normal
+  USE dbcsr_util,                      ONLY: dbcsr_create,&
+                                             dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
                                              do_hfx_potential_short,&
@@ -459,15 +464,12 @@ MODULE wfn_fitting_methods
 
 
     ALLOCATE(matrix_w_s)
-    CALL dbcsr_init(matrix_w_s)
-    CALL dbcsr_copy(matrix_w_s,matrix_s_aux_fit(1)%matrix,&
-                    name="W MATRIX AUX S",error=error)
-
-    ! *** The W matrix has NOT the same symmetry as the S matrix
-    matrix_w_s%m%matrix_type = dbcsr_type_normal
-
-
-    ! *** allocate all blocks
+    CALL dbcsr_init (matrix_w_s, error)
+    CALL dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
+         dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_normal, dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
+         dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), matrix_s_aux_fit(1)%matrix%m%nblks, matrix_s_aux_fit(1)%matrix%m%nze,&
+         matrix_s_aux_fit(1)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_s_aux_fit(1)%matrix), error=error)
+    CALL dbcsr_finalize(matrix_w_s, error=error)
     CALL dbcsr_alloc_block_from_nbl(matrix_w_s,qs_env%sab_aux_fit_asymm,error=error)
 
     ALLOCATE(matrix_w_p)

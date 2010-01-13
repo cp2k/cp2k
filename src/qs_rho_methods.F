@@ -135,7 +135,7 @@ CONTAINS
     CASE (use_aux_fit_basis_set)
       CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
            matrix_s_aux_fit=matrix_s,&
-           sab_orb=sab_orb,&
+           sab_aux_fit=sab_orb,&
            distribution_2d=distribution_2d,&
            error=error)
     END SELECT

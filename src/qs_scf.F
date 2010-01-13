@@ -2269,7 +2269,7 @@ CPSourceFileRef)
             CALL dbcsr_finalize(matrix_ks_aux_fit(ispin)%matrix,error=error)
             CALL cp_dbcsr_add_dist2d (matrix_ks_aux_fit(ispin)%matrix%m, distribution_2d, error)
             ! for hfx we need to allocate the blocks
-            CALL dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_orb,&
+            CALL dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
                  error=error)
             CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
          ENDDO
