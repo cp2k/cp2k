@@ -38,7 +38,7 @@ MODULE cubecruncher
      INTEGER :: npoints(3)
      REAL, DIMENSION(:,:,:), POINTER :: grid
      REAL    :: origin(3)
-     REAL    :: dr(3), dh(3,3), h(3,3),  hinv(3,3)
+     REAL    :: dh(3,3), h(3,3),  hinv(3,3)
      CHARACTER(LEN=80) :: title1,title2
      INTEGER :: Natom
      REAL, DIMENSION(:,:), POINTER :: coords
@@ -57,7 +57,6 @@ CONTAINS
     cube%npoints=0
     NULLIFY(cube%grid)
     cube%origin=0.0
-    cube%dr=0.0
     cube%dh=0.0
     cube%title1=""
     cube%title2=""
@@ -77,7 +76,6 @@ CONTAINS
     IF (ASSOCIATED(cube%auxfield)) DEALLOCATE(cube%auxfield)
     IF (ASSOCIATED(cube%grid))     DEALLOCATE(cube%grid)
     cube%origin=0.0
-    cube%dr=0.0
     cube%dh=0.0
     cube%title1=""
     cube%title2=""
@@ -202,15 +200,15 @@ CONTAINS
        +cube%h(3,1)*(cube%h(1,2)*cube%h(2,3)-cube%h(2,2)*cube%h(1,3))
     IF(vol < 1.0E-10) stop
     uvol=1.d0/vol
-      cube%hinv(1,1)= (cube%h(2,2)*cube%h(3,3)-cube%h(3,2)*cube%h(2,3))*uvol
-      cube%hinv(2,1)=-(cube%h(2,1)*cube%h(3,3)-cube%h(3,1)*cube%h(2,3))*uvol
-      cube%hinv(3,1)= (cube%h(2,1)*cube%h(3,2)-cube%h(3,1)*cube%h(2,2))*uvol
-      cube%hinv(2,2)= (cube%h(1,1)*cube%h(3,3)-cube%h(1,3)*cube%h(3,1))*uvol
-      cube%hinv(3,2)=-(cube%h(1,1)*cube%h(3,2)-cube%h(1,2)*cube%h(3,1))*uvol
-      cube%hinv(3,3)= (cube%h(1,1)*cube%h(2,2)-cube%h(1,2)*cube%h(2,1))*uvol
-      cube%hinv(1,2)=-(cube%h(1,2)*cube%h(3,3)-cube%h(1,3)*cube%h(3,2))*uvol
-      cube%hinv(1,3)= (cube%h(1,2)*cube%h(2,3)-cube%h(1,3)*cube%h(2,2))*uvol
-      cube%hinv(2,3)=-(cube%h(1,1)*cube%h(2,3)-cube%h(2,1)*cube%h(1,3))*uvol
+    cube%hinv(1,1)= (cube%h(2,2)*cube%h(3,3)-cube%h(3,2)*cube%h(2,3))*uvol
+    cube%hinv(2,1)=-(cube%h(2,1)*cube%h(3,3)-cube%h(3,1)*cube%h(2,3))*uvol
+    cube%hinv(3,1)= (cube%h(2,1)*cube%h(3,2)-cube%h(3,1)*cube%h(2,2))*uvol
+    cube%hinv(2,2)= (cube%h(1,1)*cube%h(3,3)-cube%h(1,3)*cube%h(3,1))*uvol
+    cube%hinv(3,2)=-(cube%h(1,1)*cube%h(3,2)-cube%h(1,2)*cube%h(3,1))*uvol
+    cube%hinv(3,3)= (cube%h(1,1)*cube%h(2,2)-cube%h(1,2)*cube%h(2,1))*uvol
+    cube%hinv(1,2)=-(cube%h(1,2)*cube%h(3,3)-cube%h(1,3)*cube%h(3,2))*uvol
+    cube%hinv(1,3)= (cube%h(1,2)*cube%h(2,3)-cube%h(1,3)*cube%h(2,2))*uvol
+    cube%hinv(2,3)=-(cube%h(1,1)*cube%h(2,3)-cube%h(2,1)*cube%h(1,3))*uvol
 
   END SUBROUTINE
 
@@ -221,15 +219,10 @@ function pbc(r,cube) result(r_pbc)
     REAL, DIMENSION(3) :: r_pbc
     REAL, DIMENSION(3) :: s
 
-    s(1) = cube%hinv(1,1)*r(1) + cube%hinv(1,2)*r(2) + cube%hinv(1,3)*r(3)
-    s(2) = cube%hinv(2,1)*r(1) + cube%hinv(2,2)*r(2) + cube%hinv(2,3)*r(3)
-    s(3) = cube%hinv(3,1)*r(1) + cube%hinv(3,2)*r(2) + cube%hinv(3,3)*r(3)
-    s(1) = s(1) - ANINT(s(1))
-    s(2) = s(2) - ANINT(s(2))
-    s(3) = s(3) - ANINT(s(3))
-    r_pbc(1) =  cube%h(1,1)*s(1) + cube%h(1,2)*s(2) + cube%h(1,3)*s(3)
-    r_pbc(2) =  cube%h(2,1)*s(1) + cube%h(2,2)*s(2) + cube%h(2,3)*s(3)
-    r_pbc(3) =  cube%h(3,1)*s(1) + cube%h(3,2)*s(2) + cube%h(3,3)*s(3)
+    s=MATMUL(cube%hinv,r)
+    s=s-ANINT(s)
+    r_pbc=MATMUL(cube%h,s)
+
 end function pbc
 
 !-------------------------------------------------------------------------------
@@ -245,6 +238,7 @@ end function pbc
     REAL, DIMENSION(:,:,:), POINTER :: grid
     ALLOCATE(grid(cube%npoints(1),cube%npoints(2),cube%npoints(3)))
 
+    ! notice h and hinv here correspond to dh and dhinv, do not overwrite cube%xxx fields with them
     h = cube%dh
     vol=h(1,1)*(h(2,2)*h(3,3)-h(2,3)*h(3,2)) &
           -h(2,1)*(h(1,2)*h(3,3)-h(3,2)*h(1,3)) &
@@ -286,7 +280,6 @@ end function pbc
       ENDDO
     ENDDO
     cube%grid=grid
-    cube%hinv = hinv
     DEALLOCATE(grid) 
 
   END SUBROUTINE
@@ -306,7 +299,6 @@ end function pbc
 ! and are not really folded
 !-------------------------------------------------------------------------------
   SUBROUTINE fold_coords(cube, smart_hydrogen)
-    USE utils, ONLY : fold
     TYPE(cube_type), POINTER :: cube
     LOGICAL :: smart_hydrogen 
 
@@ -319,115 +311,23 @@ end function pbc
            h21h13,h32h11h23,h12h23h31,h21h32h13,h11h22h33,h31h22h13,h21h12h33,deth
     REAL, DIMENSION(3)       :: A, O, r, r_pbc
 
-    DO i = 1,3
-      center(i)=cube%origin(i)+cube%h(i,1)/2.0 + cube%h(i,2)/2.0 + cube%h(i,3)/2.0
-    END DO
+    center(:)=cube%origin(:)+cube%h(:,1)/2.0 + cube%h(:,2)/2.0 + cube%h(:,3)/2.0
+
     DO I1=1,cube%natom
-       r = cube%coords(:,I1)
+       r = cube%coords(:,I1)-center
        r_pbc = pbc(r,cube)
-       cube%coords(:,I1) = r_pbc
+       cube%coords(:,I1) = r_pbc+center
     ENDDO
 
-    A(1) = -cube%h(1,1)/2.0-cube%h(1,2)/2.0-cube%h(1,3)/2.0
-    A(2) = -cube%h(2,1)/2.0-cube%h(2,2)/2.0-cube%h(2,3)/2.0
-    A(3) = -cube%h(3,1)/2.0-cube%h(3,2)/2.0-cube%h(3,3)/2.0
-    O = cube%origin
-
-    h11h22 = cube%h(1,1)*cube%h(2,2) 
-    h11h33 = cube%h(1,1)*cube%h(3,3) 
-    h11h32 = cube%h(1,1)*cube%h(3,2) 
-    h11h23 = cube%h(1,1)*cube%h(2,3) 
-    h33h22 = cube%h(3,3)*cube%h(2,2) 
-    h31h22 = cube%h(3,1)*cube%h(2,2) 
-    h13h22 = cube%h(1,3)*cube%h(2,2) 
-    h31h13 = cube%h(3,1)*cube%h(1,3) 
-    h31h23 = cube%h(3,1)*cube%h(2,3) 
-    h12h21 = cube%h(1,2)*cube%h(2,1) 
-    h12h23 = cube%h(1,2)*cube%h(2,3) 
-    h12h31 = cube%h(1,2)*cube%h(3,1) 
-    h12h33 = cube%h(1,2)*cube%h(3,3) 
-    h32h21 = cube%h(3,2)*cube%h(2,1) 
-    h32h23 = cube%h(3,2)*cube%h(2,3) 
-    h32h13 = cube%h(3,2)*cube%h(1,3) 
-    h21h32 = cube%h(2,1)*cube%h(3,2) 
-    h21h33 = cube%h(2,1)*cube%h(3,3) 
-    h21h13 = cube%h(2,1)*cube%h(1,3) 
-  
-    h32h11h23 = -cube%h(1,1)*cube%h(3,2)*cube%h(2,3)
-    h12h23h31 = cube%h(1,2)*cube%h(2,3)*cube%h(3,1)
-    h21h32h13 = cube%h(3,2)*cube%h(2,1)*cube%h(1,3)
-    h11h22h33 = cube%h(1,1)*cube%h(2,2)*cube%h(3,3)
-    h31h22h13 = -cube%h(3,1)*cube%h(2,2)*cube%h(1,3)
-    h21h12h33 = -cube%h(3,3)*cube%h(2,1)*cube%h(1,2)
-    deth = h11h22h33+h12h23h31+h21h32h13+h32h11h23+h31h22h13+h21h12h33
-  
-    z = (-h21h32*O(1)-h12h21*A(3)+h21h32*A(1)+h12h21*O(3)+h31h22*O(1)+h12h31*A(2)+&
-         h11h32*O(2)-h31h22*A(1)-h11h22*O(3)-h12h31*O(2)+h11h22*A(3)-h11h32*A(2))/deth
-    IF(z<0.)THEN
-      n3 = 1 + ABS(INT(z))
-    ELSEIF(z>0) THEN
-      n3 = -1-ABS(INT(z))
-    END IF
-  
-    y = -(h11h23*A(3)-h11h23*O(3)+h11h33*O(2)-h11h33*A(2)+A(2)*h31h13+h21h13*O(3)-&
-          h31h23*A(1)-h21h13*A(3)-h21h33*O(1)+h21h33*A(1)+h31h23*O(1)-O(2)*h31h13)/deth
-    IF(y<0.)THEN
-      n2 = 1 + ABS(INT(y))
-    ELSEIF(z>0) THEN
-      n2 = -1-ABS(INT(y))
-    END IF
-  
-    x = (h13h22*O(3)-h13h22*A(3)+h12h23*A(3)-h12h23*O(3)+A(1)*h33h22-O(1)*h33h22-&
-        A(2)*h12h33+O(2)*h12h33+A(2)*h32h13-O(2)*h32h13+h32h23*O(1)-h32h23*A(1))/deth
-    IF(x<0.)THEN
-      n1 = 1 + ABS(INT(x))
-    ELSEIF(z>0) THEN
-      n1 = -1-ABS(INT(x))
-    END IF
-
-    DO I1=1,cube%natom
-       r = cube%coords(:,I1)
-       z = (-h21h32*O(1)-h12h21*r(3)+h21h32*r(1)+h12h21*O(3)+h31h22*O(1)+h12h31*r(2)+&
-            h11h32*O(2)-h31h22*r(1)-h11h22*O(3)-h12h31*O(2)+h11h22*r(3)-h11h32*r(2))/deth
-
-       y = -(h11h23*r(3)-h11h23*O(3)+h11h33*O(2)-h11h33*r(2)+r(2)*h31h13+h21h13*O(3)-&
-             h31h23*r(1)-h21h13*r(3)-h21h33*O(1)+h21h33*r(1)+h31h23*O(1)-O(2)*h31h13)/deth
-
-       x = (h13h22*O(3)-h13h22*r(3)+h12h23*r(3)-h12h23*O(3)+r(1)*h33h22-O(1)*h33h22-&
-           r(2)*h12h33+O(2)*h12h33+r(2)*h32h13-O(2)*h32h13+h32h23*O(1)-h32h23*r(1))/deth
-
-       IF(X<0.0 .OR. x>1.0) THEN
-          r(1) = r(1) + n1*cube%h(1,1)
-          r(2) = r(2) + n1*cube%h(2,1)
-          r(3) = r(3) + n1*cube%h(3,1)
-       END IF
-       IF(y<0.0 .OR. y>1.0) THEN
-          r(1) = r(1) + n2*cube%h(1,2)
-          r(2) = r(2) + n2*cube%h(2,2)
-          r(3) = r(3) + n2*cube%h(3,2)
-       END IF
-       IF(z<0.0 .OR. z>1.0) THEN
-          r(1) = r(1) + n3*cube%h(1,3)
-          r(2) = r(2) + n3*cube%h(2,3)
-          r(3) = r(3) + n3*cube%h(3,3)
-       END IF
-       cube%coords(:,I1) = r
-    END DO
-
     ! quadratic search for nearest heavy atom and move hydrogen to it
-    ! this works only for orthorhombic cells (not yet converted to general cell)
     IF (smart_hydrogen) THEN
-       cube%dr(1) = cube%dh(1,1) 
-       cube%dr(2) = cube%dh(2,2) 
-       cube%dr(3) = cube%dh(3,3) 
-       edges=cube%dr*cube%npoints
        DO I1=1,cube%natom
           IF (cube%Zatom(I1)==1) THEN
              d2=HUGE(d2)
              closest=-1
              DO I2=1,cube%natom
                 IF (cube%Zatom(I2)/=1) THEN
-                   displ=fold(cube%coords(:,I1)-cube%coords(:,I2),center=(/0.0,0.0,0.0/),edges=edges) 
+                   displ=pbc(cube%coords(:,I1)-cube%coords(:,I2),cube)
                    IF (d2>SUM(displ**2)) THEN
                       closest=I2
                       d2=SUM(displ**2)
@@ -435,7 +335,7 @@ end function pbc
                 ENDIF
              ENDDO
              IF (closest/=-1) THEN
-                displ=fold(cube%coords(:,I1)-cube%coords(:,closest),center=(/0.0,0.0,0.0/),edges=edges)
+                displ=pbc(cube%coords(:,I1)-cube%coords(:,closest),cube)
                 cube%coords(:,I1)=cube%coords(:,closest)+displ
              ENDIF
           ENDIF
@@ -518,12 +418,12 @@ CONTAINS
       write(6,'(A80)') " -foldsmart              : idem, but place hydrogens near heavier atoms        " 
       write(6,'(A80)') " -stride #               : reduces resolution writing grids with stride #      " 
       write(6,'(A80)') " -multiply #             : multiply all values of cube by the given factor     " 
-      write(6,'(A80)') " -1d_profile dir delta   : compute the profile along the cartesian axiz dir    "
+      write(6,'(A80)') " -1d_profile dir delta   : compute the profile along the cartesian axis dir    "
       write(6,'(A80)') "                          and a smoothed profile with smoothing interval delta " 
       write(6,'(A80)') " -slice h1 h2 h3         : extract the values of the cube slice at height h#,  "
       write(6,'(A80)') "                           along the cartesian axis #, if h#/=0,               "
       write(6,'(A80)') "                           reads three reals, takes the first /=0              "
-      write(6,'(A80)') " -iso l1 l2 l3           : compute the iso-surface at level l#, recording height"
+      write(6,'(A80)') " -iso l1 l2 l3           : compute the isosurface at level l#, recording height"
       write(6,'(A80)') "                           along the axis #, if l#/=0,                         "
       write(6,'(A80)') "                           reads three reals, takes the first /=0              "
       write(6,'(A80)') " -help                   : print this message                                  "
