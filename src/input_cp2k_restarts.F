@@ -903,7 +903,7 @@ CONTAINS
        IF (meta_env%do_hills.AND.meta_env%hills_env%n_hills/=0) THEN
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_POS",error=error)
           CALL meta_hills_val_set_ss(work_section, meta_env, error=error)
-          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_AMPL",error=error)
+          work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_SCALE",error=error)
           CALL meta_hills_val_set_ds(work_section, meta_env, error=error)
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_HEIGHT",error=error)
           CALL meta_hills_val_set_ww(work_section, meta_env, error=error)

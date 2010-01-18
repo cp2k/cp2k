@@ -326,8 +326,8 @@ CPSourceFileRef,&
                 CASE(do_wall_gaussian)
                    WRITE (iw,'(A,T70,F11.6)')    ' METAVARS| Height of the Wall Gaussian',&
                         meta_env%metavar(i)%walls(j)%ww_gauss
-                   WRITE (iw,'(A,T70,F11.6)')    ' METAVARS| Amplitude of the Wall Gaussian',&
-                        meta_env%metavar(i)%walls(j)%sigma_gauss 
+                   WRITE (iw,'(A,T70,F11.6)')    ' METAVARS| Scale of the Wall Gaussian',&
+                        meta_env%metavar(i)%walls(j)%sigma_gauss
                 END SELECT
                 WRITE (iw,'(A,T70,F11.6)')    ' METAVARS| Wall location',&
                      meta_env%metavar(i)%walls(j)%pos
@@ -647,7 +647,7 @@ CPSourceFileRef,&
           ss_history(1:n_colvar,i)=rvals
        END DO
        !
-       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_AMPL",error=error)
+       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_SCALE",error=error)
        CALL section_vals_get(hills_history, explicit=explicit, error=error)
        IF (explicit) THEN
           ! delta_s_history
@@ -661,7 +661,7 @@ CPSourceFileRef,&
           END DO
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Section SPAWNED_HILLS_AMPL is not present! Setting the amplitudes of the"//&
+               "Section SPAWNED_HILLS_SCALE is not present! Setting the scales of the"//&
                "restarted hills according the parameters specified in the input file. "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)

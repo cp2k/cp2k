@@ -494,8 +494,8 @@ CONTAINS
        CALL section_add_subsection(metadyn_section, section, error=error)
        CALL section_release(section,error=error)
 
-       CALL section_create(section,name="SPAWNED_HILLS_AMPL",&
-            description="The amplitude of the spawned hills during metadynamics."//&
+       CALL section_create(section,name="SPAWNED_HILLS_SCALE",&
+            description="The scales of the spawned hills during metadynamics."//&
             "Used for RESTART.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
