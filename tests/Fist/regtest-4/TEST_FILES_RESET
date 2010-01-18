@@ -223,3 +223,10 @@ H2O-meta-combine.inp
 nh3-meta-walks_2r.inp
 #
 nh3-meta-walks_2r.inp
+# adding hills energy to the total energy
+nh3-meta-1.inp
+nh3-meta-2.inp
+nh3-meta-walks_1.inp
+nh3-meta-walks_1r.inp
+nh3-meta-walks_2.inp
+nh3-meta-walks_2r.inp

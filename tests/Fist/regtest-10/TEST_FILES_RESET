@@ -37,3 +37,10 @@ nh3-meta-3.inp
 nh3-meta-4.inp
 #
 nh3-meta-0.inp
+# adding hills energy to the total energy
+c60_meta_lagr.inp
+nh3-meta-0.inp
+nh3-meta-1.inp
+nh3-meta-2.inp
+nh3-meta-3.inp
+nh3-meta-4.inp

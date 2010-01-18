@@ -299,3 +299,5 @@ H2O-32.inp
 H2O-32.inp
 # Numerics change 
 ZrF2-PM6.inp
+# adding hills energy to the total energy
+h2o_meta.inp

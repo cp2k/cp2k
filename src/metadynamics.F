@@ -532,14 +532,15 @@ CONTAINS
                (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%ff_walls,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%vvp,i=1,meta_env%n_colvar), &
+                meta_env%cv_energy, &
+                meta_env%hills_env%energy, &
                (meta_env%ekin_s)*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
        ELSE
-          WRITE(iw,'(f12.1,40f13.5)')meta_env%time*femtoseconds, &
-               (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar), &
-               (meta_env%metavar(i)%ss,i=1,meta_env%n_colvar), &
-               (meta_env%metavar(i)%ff_s,i=1,meta_env%n_colvar), &
+          WRITE(iw,'(f12.1,40f13.5)') meta_env%time*femtoseconds,&
+               (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar),&
                (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar),&
-               (meta_env%metavar(i)%ff_walls,i=1,meta_env%n_colvar)
+               (meta_env%metavar(i)%ff_walls,i=1,meta_env%n_colvar),&
+                meta_env%hills_env%energy
        END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&
@@ -712,6 +713,7 @@ CONTAINS
     ! Computes forces due to the hills: history dependent term
     ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    hills_env%energy = 0.0_dp
     DO ih=1,n_colvar
        colvars(ih)%ff_hills = 0.0_dp
     ENDDO
@@ -727,9 +729,10 @@ CONTAINS
           dp2 = dp2 + ddp(i)**2
        ENDDO
        ! ff_hills contains the "force" due to the hills
-       dfunc=-hills_env%ww_history(ih)*EXP(-0.5_dp*dp2)
+       dfunc = hills_env%ww_history(ih)*EXP(-0.5_dp*dp2)
+       hills_env%energy = hills_env%energy + dfunc
        DO i=1,n_colvar
-          colvars(i)%ff_hills=colvars(i)%ff_hills-ddp(i)/hills_env%delta_s_history(i,ih)*dfunc
+          colvars(i)%ff_hills = colvars(i)%ff_hills + ddp(i)/hills_env%delta_s_history(i,ih)*dfunc
        ENDDO
     ENDDO
     DEALLOCATE(ddp, stat=stat)

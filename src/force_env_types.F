@@ -541,7 +541,9 @@ CONTAINS
        ! adjust the total energy for the metadynamics
        IF (ASSOCIATED(force_env%meta_env)) THEN
          IF (PRESENT(potential_energy)) THEN
-           potential_energy=potential_energy+force_env%meta_env%cv_energy
+           potential_energy=potential_energy + &
+                            force_env%meta_env%cv_energy + &
+                            force_env%meta_env%hills_env%energy
          END IF
          IF (PRESENT(kinetic_energy)) THEN
            kinetic_energy=kinetic_energy+force_env%meta_env%ekin_s

@@ -613,3 +613,7 @@ hcn_meta_chaincoord.inp
 hcn_meta_chaincoord_kind.inp
 hcn_meta_coord.inp
 hcn_ts.inp
+# adding hills energy to the total energy
+H2O-meta_coord_1.inp
+H2O-meta_coord_2.inp
+H2O-meta_coord.inp

@@ -44,7 +44,7 @@ MODULE metadynamics_types
   TYPE hills_env_type
      LOGICAL                                   :: restart
      !RG Adaptive hills
-     REAL(KIND=dp)                             :: ww, min_disp
+     REAL(KIND=dp)                             :: ww, min_disp, energy
      INTEGER                                   :: n_hills, nt_hills 
      INTEGER                                   :: old_hill_number, old_hill_step      
      !RG Adaptive hills
@@ -184,6 +184,7 @@ CONTAINS
        ALLOCATE(meta_env%hills_env%ww_history(0), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        meta_env%hills_env%n_hills = 0
+       meta_env%hills_env%energy = 0.0_dp
        meta_env%hills_env%restart = .TRUE.
 
        ! Colvar

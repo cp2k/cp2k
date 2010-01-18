@@ -127,3 +127,5 @@ si8_pulay_inverse.inp
 si8_pulay_off.inp
 si8_broy_kry.inp
 si8_broy_kry_r.inp
+# adding hills energy to the total energy
+H2O-meta-mindisp.inp

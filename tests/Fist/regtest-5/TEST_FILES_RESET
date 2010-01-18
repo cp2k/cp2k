@@ -175,3 +175,5 @@ H2O-1-GENPOT-2.inp
 H2O-1-GENPOT.inp
 # FFTW3 now plans to use SSE by default 
 N3dye_vib_bfgs.inp
+# adding hills energy to the total energy
+argon_GENPOT_fcc-ql.inp

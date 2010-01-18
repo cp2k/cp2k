@@ -101,3 +101,5 @@ H2O-32_PME_distr.inp
 argon_ext.inp
 #reset dof bug fix
 argon_ext.inp
+# adding hills energy to the total energy
+nh3-meta-1_g.inp
