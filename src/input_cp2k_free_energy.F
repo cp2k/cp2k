@@ -135,7 +135,10 @@ CONTAINS
        NULLIFY(subsection,keyword,print_key)
 
        CALL keyword_create(keyword, name="NT_HILLS",&
-            description="Specify the number the interval of time step to spawn the hills.",&
+            description="Specify the time step interval between spawning "//&
+            "two hills. When negative, no new hills are spawned and only "//&
+            "the hills read from SPAWNED_HILLS_* are in effect. The latter"//&
+            "is useful when one wants to add a custom constant bias potential.",&
             usage="NT_HILLS {integer}",default_i_val=30,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -644,7 +644,8 @@ CONTAINS
     END IF
 
     !RG keep into account adaptive hills
-    IF (((MODULO(n_step-hills_env%old_hill_step,hills_env%nt_hills)==0).OR.force_gauss).AND.(.NOT.meta_env%restart)) THEN
+    IF (((MODULO(n_step-hills_env%old_hill_step,hills_env%nt_hills)==0).OR.force_gauss)&
+        .AND.(.NOT.meta_env%restart).AND.(hills_env%nt_hills>0)) THEN
        IF (meta_env%do_multiple_walkers) multiple_walkers => meta_env%multiple_walkers
 
        n_hills_start = hills_env%n_hills
