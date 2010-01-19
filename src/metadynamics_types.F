@@ -70,7 +70,7 @@ MODULE metadynamics_types
      LOGICAL                                   :: do_wall, periodic
      REAL(KIND=dp)                             :: mass, lambda, vvp
      REAL(KIND=dp)                             :: gamma
-     REAL(KIND=dp)                             :: epot_s, delta_s
+     REAL(KIND=dp)                             :: epot_s, delta_s, epot_walls
      REAL(KIND=dp)                             :: ss, ss0, ff_s, ff_hills, ff_walls
      TYPE(wall_type), DIMENSION(:), POINTER    :: walls
   END TYPE metavar_type
@@ -97,7 +97,8 @@ MODULE metadynamics_types
      LOGICAL                                   :: extended_lagrange
      LOGICAL                                   :: langevin
      INTEGER                                   :: n_colvar
-     REAL(KIND=dp)                             :: ekin_s, epot_s, dt, avg_temp
+     REAL(KIND=dp)                             :: ekin_s, epot_s, dt, &
+                                                  avg_temp, epot_walls
      LOGICAL                                   :: tempcontrol, restart
      REAL(KIND=dp)                             :: temp_wanted,toll_temp
      INTEGER                                   :: n_steps
@@ -170,6 +171,7 @@ CONTAINS
 
        meta_env%ekin_s      = 0.0_dp
        meta_env%epot_s      = 0.0_dp
+       meta_env%epot_walls  = 0.0_dp
        meta_env%n_steps     = 0
        meta_env%dt          = dt
        meta_env%tempcontrol = .FALSE.
@@ -192,20 +194,21 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DO i = 1, n_colvar
           NULLIFY(meta_env%metavar(i)%walls)
-          meta_env%metavar(i)%mass      = -HUGE(0.0_dp)
-          meta_env%metavar(i)%lambda    = -HUGE(0.0_dp)
-          meta_env%metavar(i)%gamma     = 0.0_dp
-          meta_env%metavar(i)%ss        = 0.0_dp
-          meta_env%metavar(i)%ss0       = 0.0_dp
-          meta_env%metavar(i)%ff_s      = 0.0_dp
-          meta_env%metavar(i)%vvp       = 0.0_dp
-          meta_env%metavar(i)%epot_s    = 0.0_dp
-          meta_env%metavar(i)%delta_s   = 0.0_dp
-          meta_env%metavar(i)%ff_hills  = 0.0_dp
-          meta_env%metavar(i)%ff_walls  = 0.0_dp
-          meta_env%metavar(i)%do_wall   = .FALSE.
-          meta_env%metavar(i)%periodic  = .FALSE.
-          meta_env%metavar(i)%icolvar   = 0
+          meta_env%metavar(i)%mass       = -HUGE(0.0_dp)
+          meta_env%metavar(i)%lambda     = -HUGE(0.0_dp)
+          meta_env%metavar(i)%gamma      = 0.0_dp
+          meta_env%metavar(i)%ss         = 0.0_dp
+          meta_env%metavar(i)%ss0        = 0.0_dp
+          meta_env%metavar(i)%ff_s       = 0.0_dp
+          meta_env%metavar(i)%vvp        = 0.0_dp
+          meta_env%metavar(i)%epot_s     = 0.0_dp
+          meta_env%metavar(i)%epot_walls = 0.0_dp
+          meta_env%metavar(i)%delta_s    = 0.0_dp
+          meta_env%metavar(i)%ff_hills   = 0.0_dp
+          meta_env%metavar(i)%ff_walls   = 0.0_dp
+          meta_env%metavar(i)%do_wall    = .FALSE.
+          meta_env%metavar(i)%periodic   = .FALSE.
+          meta_env%metavar(i)%icolvar    = 0
        END DO
 
        ! Multiple Walkers

@@ -732,7 +732,7 @@ CPSourceFileRef,&
     INTEGER                                  :: ih, iwall
     LOGICAL                                  :: failure
     REAL(dp)                                 :: ddp, delta_s, dfunc, diff_ss, &
-                                                dp2, ww
+                                                dp2, efunc, ww
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
 
@@ -741,6 +741,7 @@ CPSourceFileRef,&
     ! Forces from the Walls
     DO ih=1,SIZE(colvars)
        IF (colvars(ih)%do_wall) THEN 
+          colvars(ih)%epot_walls=0.0_dp
           colvars(ih)%ff_walls=0.0_dp
           DO iwall = 1, SIZE(colvars(ih)%walls)
              SELECT CASE(colvars(ih)%walls(iwall)%id_type)
@@ -753,17 +754,20 @@ CPSourceFileRef,&
                    ! The difference of a periodic COLVAR is always within [-pi,pi]
                    diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
                 END IF
+                efunc = colvars(ih)%walls(iwall)%k_quadratic*diff_ss**2
                 dfunc = 2.0_dp*colvars(ih)%walls(iwall)%k_quadratic*diff_ss
                 SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                 CASE(do_wall_p)
                    IF (diff_ss>0.0_dp) THEN
                      colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                     colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF
                 CASE(do_wall_m)
                    IF (diff_ss<0.0_dp) THEN
                      colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                     colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF
                 END SELECT
              CASE(do_wall_quartic)
@@ -772,17 +776,20 @@ CPSourceFileRef,&
                    ! The difference of a periodic COLVAR is always within [-pi,pi]
                    diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
                 END IF
+                efunc = colvars(ih)%walls(iwall)%k_quartic*diff_ss*diff_ss**4
                 dfunc = 4.0_dp*colvars(ih)%walls(iwall)%k_quartic*diff_ss**3
                 SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                 CASE(do_wall_p)
                    IF (diff_ss>0.0_dp) THEN 
-                      colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
-                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                     colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                     colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                     colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF
                 CASE(do_wall_m)
                    IF (diff_ss<0.0_dp) THEN
-                      colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
-                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                     colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                     colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                     colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF
                 END SELECT
              CASE(do_wall_gaussian)
@@ -795,9 +802,11 @@ CPSourceFileRef,&
                 delta_s = colvars(ih)%walls(iwall)%sigma_gauss
                 ddp = (diff_ss)/delta_s
                 dp2 = ddp**2
-                dfunc=-ww*EXP(-0.5_dp*dp2)
-                colvars(ih)%ff_hills=colvars(ih)%ff_hills-ddp/delta_s*dfunc
-                colvars(ih)%ff_walls=colvars(ih)%ff_walls-ddp/delta_s*dfunc
+                efunc = ww*EXP(-0.5_dp*dp2)
+                dfunc = -efunc*ddp/delta_s
+                colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
+                colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
+                colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
              END SELECT
           END DO
        END IF

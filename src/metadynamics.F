@@ -213,10 +213,12 @@ CONTAINS
     IF(.NOT.meta_env%extended_lagrange)THEN
        meta_env%ekin_s = 0.0_dp
        meta_env%epot_s = 0.0_dp
+       meta_env%epot_walls = 0.0_dp
        DO i_c = 1, meta_env%n_colvar
           cv => meta_env%metavar(i_c)
           cv%epot_s = 0.0_dp
           cv%ff_s   = 0.0_dp
+          meta_env%epot_walls = meta_env%epot_walls + cv%epot_walls
           icolvar=cv%icolvar
           NULLIFY(particles)
           CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
@@ -253,6 +255,7 @@ CONTAINS
              cv%vvp = cv%vvp+dt*fft/cv%mass
              meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
              meta_env%epot_s = meta_env%epot_s + cv%epot_s
+             meta_env%epot_walls = meta_env%epot_walls + cv%epot_walls
           END IF
        ENDDO
        !  velocity rescaling on the s0
@@ -419,6 +422,7 @@ CONTAINS
        cv%vvp = cv%vvp+0.5_dp*dt*fft/cv%mass-0.5_dp*dt*cv%gamma*cv%vvp+&
                 0.5_dp*SQRT(dt)*sigma*rand(i_c)
        meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
+       meta_env%epot_walls = meta_env%epot_walls + cv%epot_walls
     ENDDO
     CALL timestop(handle)
 
@@ -534,13 +538,15 @@ CONTAINS
                (meta_env%metavar(i)%vvp,i=1,meta_env%n_colvar), &
                 meta_env%epot_s, &
                 meta_env%hills_env%energy, &
+                meta_env%epot_walls, &
                (meta_env%ekin_s)*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
        ELSE
           WRITE(iw,'(f12.1,40f13.5)') meta_env%time*femtoseconds,&
                (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar),&
                (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar),&
                (meta_env%metavar(i)%ff_walls,i=1,meta_env%n_colvar),&
-                meta_env%hills_env%energy
+                meta_env%hills_env%energy,&
+                meta_env%epot_walls
        END IF
     END IF
     CALL cp_print_key_finished_output(iw,logger,meta_env%metadyn_section,&

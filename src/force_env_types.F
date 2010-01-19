@@ -543,6 +543,7 @@ CONTAINS
          IF (PRESENT(potential_energy)) THEN
            potential_energy=potential_energy + &
                             force_env%meta_env%epot_s + &
+                            force_env%meta_env%epot_walls + &
                             force_env%meta_env%hills_env%energy
          END IF
          IF (PRESENT(kinetic_energy)) THEN
