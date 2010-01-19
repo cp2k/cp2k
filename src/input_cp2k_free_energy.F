@@ -256,9 +256,16 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"COLVAR",&
             description="Controls the printing of COLVAR summary information during"//&
-            " metadynamics. The files contains: colvar value of the extended lagrangian, "//&
-            " instantaneous colvar value, force due to the armonic term of the extended "//&
-            " lagrangian and the force due to the previously spawned hills.", &
+            " metadynamics. When an extended Lagrangian use used, the files"//&
+            " contain (in order): colvar value of the extended Lagrangian, "//&
+            " instantaneous colvar value, force due to the harmonic term of the extended "//&
+            " Lagrangian and the force due to the previously spawned hills,"//&
+            " the force due to the walls, the velocities in the extended "//&
+            " Lagrangian, the potential of the harmonic term of the"//&
+            " Lagrangian, the potential energy of the hills, the potential"//&
+            " energy of the walls and the temperature of the extended"//&
+            " Lagrangian. When the extended Lagrangian is not used, all"//&
+            " related fields are omitted.",&
             print_level=low_print_level,each_iter_names=s2a("MD","METADYNAMICS"),&
             each_iter_values=(/1,1/),add_last=add_last_numeric,filename="COLVAR",&
             error=error)
