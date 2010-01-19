@@ -732,14 +732,26 @@ CONTAINS
              ! The difference of a periodic COLVAR is always within [-pi,pi]
              diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
           END IF
-          ddp(i) = (diff_ss)/hills_env%delta_s_history(i,ih)
+          IF (hills_env%delta_s_history(i,ih) == 0.0_dp) THEN
+            ! trick: scale = 0 is interpreted as infinitely wide Gaussian hill
+            ! instead of infinitely narrow. This way one can combine several
+            ! one-dimensional bias potentials in a multi-dimensional metadyn
+            ! simulation.
+            ddp(i) = 0.0_dp
+          ELSE
+            ddp(i) = (diff_ss)/hills_env%delta_s_history(i,ih)
+          END IF
           dp2 = dp2 + ddp(i)**2
        ENDDO
        ! ff_hills contains the "force" due to the hills
        dfunc = hills_env%ww_history(ih)*EXP(-0.5_dp*dp2)
        hills_env%energy = hills_env%energy + dfunc
        DO i=1,n_colvar
-          colvars(i)%ff_hills = colvars(i)%ff_hills + ddp(i)/hills_env%delta_s_history(i,ih)*dfunc
+          IF (hills_env%delta_s_history(i,ih) /= 0.0_dp) THEN
+            ! only apply a force when the Gaussian hill has a finite width in
+            ! this direction
+            colvars(i)%ff_hills = colvars(i)%ff_hills + ddp(i)/hills_env%delta_s_history(i,ih)*dfunc
+          END IF
        ENDDO
     ENDDO
     DEALLOCATE(ddp, stat=stat)

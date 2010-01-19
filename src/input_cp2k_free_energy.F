@@ -506,7 +506,11 @@ CONTAINS
 
        CALL section_create(section,name="SPAWNED_HILLS_SCALE",&
             description="The scales of the spawned hills during metadynamics."//&
-            "Used for RESTART.",&
+            "Used for RESTART. When a scale is zero in one or more "//&
+            "directions, the Gaussian hill is assumed to be infinitely wide "//&
+            "in those directions. The latter can be used to combine spawned "//&
+            "hills from multiple 1D metadynamics runs in one multidimensional "//&
+            "metadynamics run.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
