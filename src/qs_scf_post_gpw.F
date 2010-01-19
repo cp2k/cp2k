@@ -534,7 +534,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, ispin, output_unit,handle
+    INTEGER                                  :: handle, homo, ispin, &
+                                                output_unit
     LOGICAL                                  :: do_homo
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(cp_fm_type), POINTER                :: mo_localized
@@ -625,8 +626,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, ispin, istat, n, nao, &
-                                                nmo, output_unit, handle
+    INTEGER                                  :: handle, homo, ispin, istat, &
+                                                n, nao, nmo, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -706,7 +707,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_mo_eig', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, ispin, nmo, output_unit, handle
+    INTEGER                                  :: handle, homo, ispin, nmo, &
+                                                output_unit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_deriv
     TYPE(cp_logger_type), POINTER            :: logger
@@ -782,8 +784,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: homo, i, ilast_intocc, ilow, ispin, iup, n_mo(2), n_mos(2), &
-      nao, nelectron, nhomo, nmo, nmoloc(2), output_unit, handle
+    INTEGER :: handle, homo, i, ilast_intocc, ilow, ispin, iup, n_mo(2), &
+      n_mos(2), nao, nelectron, nmo, nmoloc(2), output_unit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, occupation
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -893,7 +895,7 @@ CONTAINS
        END IF
     ELSE
        ! Let's inform in case the section is not present in the input
-       write(*,*)do_homo,'HOMO?'
+       WRITE(*,*)do_homo,'HOMO?'
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
             "User requested the calculation of the localized wavefunction but the section "//&
             "LOCALIZE (located in: DFT%LOCALIZE) was not specified. Localization "//&

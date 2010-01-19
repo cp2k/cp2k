@@ -210,9 +210,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, ir, n_list, n_rep, &
-                                                n_state, nline, &
-                                                nloc_states(2), output_unit
-    INTEGER, DIMENSION(:), POINTER           :: list, loc_states
+                                                n_state, nline, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, my_do_xas
     REAL(dp), POINTER                        :: ene(:)
     TYPE(cp_logger_type), POINTER            :: logger
@@ -476,7 +475,6 @@ CONTAINS
 
     INTEGER                                  :: i, iloc, ispin, istat, &
                                                 max_iloc, max_nmoloc
-    INTEGER, DIMENSION(:), POINTER           :: loc_states
     LOGICAL                                  :: failure
 
     failure = .FALSE.
