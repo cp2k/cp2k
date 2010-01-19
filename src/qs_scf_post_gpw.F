@@ -895,7 +895,6 @@ CONTAINS
        END IF
     ELSE
        ! Let's inform in case the section is not present in the input
-       WRITE(*,*)do_homo,'HOMO?'
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
             "User requested the calculation of the localized wavefunction but the section "//&
             "LOCALIZE (located in: DFT%LOCALIZE) was not specified. Localization "//&
