@@ -106,6 +106,7 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
+       CALL section_vals_val_get(ff_section,"IGNORE_MISSING_CRITICAL_PARAMS",l_val=ff_type%ignore_missing_critical,error=error)
        CPPostcondition(ff_type%max_energy<=ff_type%emax_spline,cp_failure_level,routineP,error,failure)
        ! Read the parameter file name only if the force field type requires it..
        SELECT CASE(ff_type%ff_type)

@@ -232,7 +232,8 @@ MODULE force_field_types
                                                  nonbonded,&
                                                  nonbonded14,&
                                                  electrostatics,&
-                                                 multiple_potential
+                                                 multiple_potential,&
+                                                 ignore_missing_critical
     INTEGER                                   :: ff_type
     REAL(KIND=dp)                             :: rcut_nb
     REAL(KIND=dp)                             :: ei_scale14

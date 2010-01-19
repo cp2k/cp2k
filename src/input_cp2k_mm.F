@@ -302,6 +302,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="IGNORE_MISSING_CRITICAL_PARAMS",&
+            description="Do not abort when critical force-field parameters "//&
+            "are missing. CP2K will run as if the terms containing the "//&
+            "missing parameters are zero.",&
+            usage="IGNORE_MISSING_BOND_PARAMS T",default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MULTIPLE_POTENTIAL",&
             description="Enables the possibility to define NONBONDED and NONBONDED14 as a"//&
             " sum of different kinds of potential. Useful for piecewise defined potentials.",&

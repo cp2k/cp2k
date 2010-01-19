@@ -120,7 +120,8 @@ CONTAINS
     INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
     LOGICAL                                  :: do_zbl, failure, fatal, &
-                                                my_qmmm, shell_present
+                                                ignore_fatal, my_qmmm, &
+                                                shell_present
     REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -135,6 +136,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     fatal   = .FALSE.
+    ignore_fatal = ff_type%ignore_missing_critical
     NULLIFY(logger, Ainfo)
     logger => cp_error_get_logger(error)
     ! Error unit
@@ -210,7 +212,7 @@ CONTAINS
     CALL force_field_pack_bend (particle_set, molecule_kind_set, molecule_set,   &
          fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
     ! Give information and abort if any bond or angle parameter is missing..
-    CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
+    CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 10. Urey-Bradley
@@ -238,7 +240,7 @@ CONTAINS
 
     ! Give information only if any Urey-Bradley, Torsion, improper or opbend is missing
     ! continue calculation..
-    CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
+    CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 14. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
@@ -247,7 +249,7 @@ CONTAINS
          Ainfo, my_qmmm, inp_info, error)
 
     ! Give information only if charge is missing and abort..
-    CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
+    CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 15. Set up  Shell potential
@@ -265,7 +267,7 @@ CONTAINS
             chm_info, inp_info, gro_info, amb_info, potparm_bond, ewald_env, &
             spline_bond_env, iw2, iw3, iw4, error)
        ! Give information if any 1-4 is missing.. continue calculation..
-       CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
+       CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
        !--------------------------------------------------------------------------
        ! 16.(a) ONFO
@@ -282,7 +284,7 @@ CONTAINS
             fatal, iw, Ainfo, chm_info, inp_info, gro_info, amb_info, &
             potparm_nonbond, error)
        ! Give information and abort if any pair potential spline is missing..
-       CALL release_FF_missing_par(fatal,AInfo,output_unit,iw,error)
+       CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
        ! 17.(a) create the pair potential spline environment
        !--------------------------------------------------------------------------
@@ -330,8 +332,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Store informations on possible missing ForceFields parameters
 ! *****************************************************************************
-  SUBROUTINE release_FF_missing_par(fatal, array, output_unit, iw, error)
-    LOGICAL, INTENT(INOUT), OPTIONAL         :: fatal
+  SUBROUTINE release_FF_missing_par(fatal, ignore_fatal, array, output_unit, iw, error)
+    LOGICAL, INTENT(INOUT)                   :: fatal, ignore_fatal
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: array
     INTEGER, INTENT(IN)                      :: output_unit, iw
@@ -366,7 +368,19 @@ CONTAINS
        DEALLOCATE(array,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF (fatal) CALL stop_program(TRIM(routineN),"Missing critical ForceField parameters! Abort..")
+    IF (fatal) THEN
+      IF (ignore_fatal) THEN
+        IF (output_unit>0) THEN
+          WRITE(output_unit,*)
+          WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
+               " WARNING: Ignoring missing critical FF parameters! CP2K GOES!",&
+               " Critical parameters are: Bonds, Bends and Charges",&
+               " All missing parameters will not contribute to the potential energy!"
+        END IF
+      ELSE
+        CALL stop_program(TRIM(routineN),"Missing critical ForceField parameters! Abort..")
+      END IF
+    END IF
   END SUBROUTINE release_FF_missing_par
 
 ! *****************************************************************************

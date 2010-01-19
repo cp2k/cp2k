@@ -2077,11 +2077,16 @@ CPSourceFileRef,&
              END IF
           END IF
        END IF
-       IF (.NOT.found) CALL store_FF_missing_par(atm1=TRIM(atmname),&
-                                                 fatal=fatal,&
-                                                 type_name="Charge",&
-                                                 array=Ainfo,&
-                                                 error=error)
+       IF (.NOT.found) THEN
+         ! Set the charge to zero anyway in case the user decides to ignore
+         ! missing critical parameters.
+         charge(i) = 0.0_dp
+         CALL store_FF_missing_par(atm1=TRIM(atmname),&
+                                   fatal=fatal,&
+                                   type_name="Charge",&
+                                   array=Ainfo,&
+                                   error=error)
+       END IF
        !
        ! QM/MM modifications
        !
