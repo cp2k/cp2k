@@ -231,6 +231,7 @@ CONTAINS
     ELSE
        meta_env%ekin_s = 0.0_dp
        meta_env%epot_s = 0.0_dp
+       meta_env%epot_walls = 0.0_dp
        DO i_c= 1, meta_env%n_colvar
           cv => meta_env%metavar(i_c)
           diff_ss = cv%ss-cv%ss0
@@ -407,6 +408,7 @@ CONTAINS
 
     ! Evolve Velocities
     meta_env%ekin_s = 0.0_dp
+    meta_env%epot_walls = 0.0_dp
     DO i_c= 1, meta_env%n_colvar
        cv => meta_env%metavar(i_c)
        diff_ss = cv%ss-cv%ss0
