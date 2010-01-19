@@ -305,7 +305,7 @@ CONTAINS
 !>      04.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,error)
+  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,lumo_coeff,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(localized_wfn_control_type), &
@@ -313,6 +313,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN), OPTIONAL            :: myspin
     LOGICAL, INTENT(IN), OPTIONAL            :: do_localize
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: lumo_coeff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
@@ -329,7 +331,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: moloc_coeff
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_type), POINTER                :: mat_ptr, mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -343,7 +345,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(mos,matrix_s,moloc_coeff,particle_set,para_env,cell,local_molecules,occupations)
+    NULLIFY(mos,matrix_s,moloc_coeff,particle_set,para_env,cell,local_molecules,occupations,mat_ptr)
     IF (PRESENT(do_localize)) qs_loc_env%do_localize = do_localize
     IF (qs_loc_env%do_localize) THEN
        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, cell=cell, &
@@ -366,13 +368,16 @@ CONTAINS
           nmosub = localized_wfn_control%nloc_states(ispin)
           CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                ncol_global=nmosub,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
-
           CALL cp_fm_create (moloc_coeff(ispin)%matrix , tmp_fm_struct ,error=error)
 
           CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
                ncol_global=nmosub,error=error)
           CPPostcondition(nao==naosub,cp_failure_level,routineP,error,failure)
-          CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
+          IF(localized_wfn_control%do_homo)THEN
+             CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,error,failure)
+          ELSE
+             CPPostcondition(nao-nmo>=nmosub,cp_failure_level,routineP,error,failure)
+          END IF
           CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp,error=error)
           CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
        END DO  ! ispin
@@ -387,23 +392,30 @@ CONTAINS
           IF(localized_wfn_control%set_of_states == state_loc_list) THEN
              ALLOCATE(vecbuffer(1,nao),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             IF(localized_wfn_control%do_homo)THEN
+                 my_occ =  occupations(localized_wfn_control%loc_states(1))
+             END IF
              nmosub = SIZE(localized_wfn_control%loc_states,1)
              CPPostcondition(nmosub>0,cp_failure_level,routineP,error,failure)
              imoloc = 0
-             my_occ =  occupations(localized_wfn_control%loc_states(1))
              DO i = lb,ub
                 ! Get the index in the subset
                 imoloc = imoloc + 1
                 ! Get the index in the full set
                 imo = localized_wfn_control%loc_states(i)
-                occ_imo = occupations(imo)
-                IF(ABS(occ_imo-my_occ) > localized_wfn_control% eps_occ) THEN
-                   IF(localized_wfn_control%localization_method /= do_loc_none) &
-                        CALL stop_program(routineP,"States with different occupations"//&
-                        " cannot be rotated together")
+                IF(localized_wfn_control%do_homo)THEN
+                   occ_imo = occupations(imo)
+                   IF(ABS(occ_imo-my_occ) > localized_wfn_control% eps_occ) THEN
+                      IF(localized_wfn_control%localization_method /= do_loc_none) &
+                           CALL stop_program(routineP,"States with different occupations"//&
+                           " cannot be rotated together")
+                   END IF
+                   mat_ptr=>mo_coeff
+                ELSE
+                   mat_ptr=>lumo_coeff(ispin)%matrix
                 END IF
                 ! Take the imo vector from the full set and copy in the imoloc vector of the subset
-                CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,imo,&
+                CALL cp_fm_get_submatrix(mat_ptr,vecbuffer,1,imo,&
                      nao,1,transpose=.TRUE.,error=error)
                 CALL cp_fm_set_submatrix(moloc_coeff(ispin)%matrix,vecbuffer,1,imoloc,&
                      nao,1,transpose=.TRUE.,error=error)

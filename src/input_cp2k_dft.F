@@ -732,11 +732,31 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="LIST",&
-            description="Indexes of the wfn to be localized"//&
+            description="Indexes of the occupied wfn to be localized"//&
             "This keyword can be repeated several times"//&
             "(useful if you have to specify many indexes).",&
             usage="LIST 1 2",&
             n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="LIST_UNOCCUPIED",&
+            description="Indexes of the unoccupied states to be localized, "//&
+            "up to now only valid in combination with GPW. "//&
+            "This keyword has to be present if unoccupied states should be localized. "//&
+            "This keyword can be repeated several times"//&
+            "(useful if you have to specify many indexes).",&
+            usage="LIST 1 2",&
+            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="STATES",&
+            description="Which states to localize, LUMO up to now only available in GPW",&
+            usage="STATES (HOMO|LUMO|ALL)",&
+            enum_c_vals=s2a("OCCUPIED","UNOCCUPIED","ALL"),&
+            enum_i_vals=(/do_loc_homo, do_loc_lumo,do_loc_both/),&
+            default_i_val=do_loc_homo,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -70,6 +70,7 @@ MODULE qs_loc_control
     LOGICAL                              :: print_cubes, jacobi_fallback
     LOGICAL                              :: print_centers
     LOGICAL                              :: print_spreads
+    LOGICAL                              :: do_homo
     INTEGER, POINTER, DIMENSION(:)       :: loc_states
     TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set
   END TYPE localized_wfn_control_type
@@ -120,6 +121,7 @@ CONTAINS
     localized_wfn_control%print_cubes = .FALSE.
     localized_wfn_control%print_centers = .FALSE.
     localized_wfn_control%print_spreads = .FALSE.
+    localized_wfn_control%do_homo = .TRUE.
     NULLIFY(localized_wfn_control%loc_states)
     NULLIFY(localized_wfn_control%centers_set(1)%array)
     NULLIFY(localized_wfn_control%centers_set(2)%array)
@@ -208,8 +210,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, ir, n_list, n_rep, &
-                                                n_state, nline, output_unit
-    INTEGER, DIMENSION(:), POINTER           :: list
+                                                n_state, nline, &
+                                                nloc_states(2), output_unit
+    INTEGER, DIMENSION(:), POINTER           :: list, loc_states
     LOGICAL                                  :: failure, my_do_xas
     REAL(dp), POINTER                        :: ene(:)
     TYPE(cp_logger_type), POINTER            :: logger
@@ -254,7 +257,8 @@ CONTAINS
           CALL section_vals_val_get(loc_section,"OPERATOR",&
                i_val=localized_wfn_control%operator_type,error=error)
 
-          ! List of States
+          IF(localized_wfn_control%do_homo)THEN
+          ! List of States HOMO
           CALL section_vals_val_get(loc_section,"LIST",  n_rep_val=n_rep,error=error)
           IF(n_rep>0) THEN
             n_list = 0
@@ -271,6 +275,27 @@ CONTAINS
                END IF
             END DO ! ir
             IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list
+          END IF
+
+          ELSE
+          ! List of States LUMO
+          CALL section_vals_val_get(loc_section,"LUMO_LIST",  n_rep_val=n_rep,error=error)
+          IF(n_rep>0) THEN
+            n_list = 0
+            DO ir = 1,n_rep
+               NULLIFY(list)
+               CALL section_vals_val_get(loc_section,"LUMO_LIST",i_rep_val=ir,i_vals=list,error=error)
+               IF(ASSOCIATED(list)) THEN
+                  CALL reallocate(localized_wfn_control%loc_states,1,n_list+SIZE(list))
+                  DO i = 1, SIZE(list)
+                     localized_wfn_control%loc_states(n_list+i) = list(i)
+                  END DO ! i
+                  localized_wfn_control%nloc_states(1) = n_list + SIZE(list)
+                  n_list = n_list +  SIZE(list)
+               END IF
+            END DO ! ir
+            IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list
+          END IF
           END IF
 
           IF(localized_wfn_control%set_of_states == 0) THEN
@@ -451,6 +476,7 @@ CONTAINS
 
     INTEGER                                  :: i, iloc, ispin, istat, &
                                                 max_iloc, max_nmoloc
+    INTEGER, DIMENSION(:), POINTER           :: loc_states
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -471,7 +497,9 @@ CONTAINS
           IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
           DO i = 1,nmoloc(ispin)
              iloc = localized_wfn_control%loc_states(i)
-             CPPostcondition(iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
+             IF(localized_wfn_control%do_homo)THEN
+                CPPostcondition(iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
+             END IF
           ENDDO
        END DO
     CASE(state_loc_range)

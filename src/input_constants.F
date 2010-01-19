@@ -370,6 +370,10 @@ MODULE input_constants
                                               energy_loc_range=3,&
                                               state_loc_none=4
 
+  INTEGER, PARAMETER, PUBLIC               :: do_loc_homo=0,&
+                                              do_loc_lumo=1,&
+                                              do_loc_both=2
+
   INTEGER, PARAMETER, PUBLIC               :: orb_s=0,&
                                               orb_px=1,&
                                               orb_py=2,&

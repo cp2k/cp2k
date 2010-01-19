@@ -663,7 +663,7 @@ CONTAINS
          localized_wfn_control=localized_wfn_control,&
          moloc_coeff=moloc_coeff,op_sm_set=op_sm_set, op_fm_set=op_fm_set,cell=cell,&
          weights=weights, dim_op=dim_op, error=error)
-
+ 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,&
          para_env=para_env, mos=mos, error=error)
 
@@ -707,6 +707,7 @@ CONTAINS
              END DO
           END DO
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+           
 
           CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set,&
                op_fm_set, para_env, cell, weights, ispin, loc_section, print_loc_section,  error=error)
@@ -845,7 +846,8 @@ CONTAINS
           END IF
 
           CALL qs_print_cubes(qs_env,moloc_coeff(ispin)%matrix,ncubes,list_cubes,centers,&
-               print_key,"loc",ispin=ispin,file_position=my_pos,error=error)
+               print_key,"loc"//TRIM(ADJUSTL(qs_loc_env%tag_mo)),&
+               ispin=ispin,file_position=my_pos,error=error)
 
           DEALLOCATE(centers,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
