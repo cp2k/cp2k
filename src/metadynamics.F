@@ -211,12 +211,12 @@ CONTAINS
 
     meta_env%restart = .FALSE.
     IF(.NOT.meta_env%extended_lagrange)THEN
-       meta_env%ekin_s    = 0.0_dp
-       meta_env%cv_energy = 0.0_dp
+       meta_env%ekin_s = 0.0_dp
+       meta_env%epot_s = 0.0_dp
        DO i_c = 1, meta_env%n_colvar
           cv => meta_env%metavar(i_c)
-          cv%cv_energy = 0.0_dp
-          cv%ff_s      = 0.0_dp
+          cv%epot_s = 0.0_dp
+          cv%ff_s   = 0.0_dp
           icolvar=cv%icolvar
           NULLIFY(particles)
           CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
@@ -227,8 +227,8 @@ CONTAINS
           ENDDO
        ENDDO
     ELSE
-       meta_env%ekin_s    = 0.0_dp
-       meta_env%cv_energy = 0.0_dp
+       meta_env%ekin_s = 0.0_dp
+       meta_env%epot_s = 0.0_dp
        DO i_c= 1, meta_env%n_colvar
           cv => meta_env%metavar(i_c)
           diff_ss = cv%ss-cv%ss0
@@ -236,9 +236,9 @@ CONTAINS
              ! The difference of a periodic COLVAR is always within [-pi,pi]
              diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
           END IF
-          cv%cv_energy = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
-          cv%ff_s      = cv%lambda*(diff_ss)
-          icolvar      = cv%icolvar
+          cv%epot_s = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
+          cv%ff_s   = cv%lambda*(diff_ss)
+          icolvar   = cv%icolvar
           ! forces on the atoms
           NULLIFY(particles)
           CALL cp_subsys_get(subsys, colvar_p=colvar_p, &
@@ -251,8 +251,8 @@ CONTAINS
           IF (.NOT.meta_env%langevin) THEN
              fft    = cv%ff_s+cv%ff_hills
              cv%vvp = cv%vvp+dt*fft/cv%mass
-             meta_env%ekin_s    = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
-             meta_env%cv_energy = meta_env%cv_energy + cv%cv_energy
+             meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
+             meta_env%epot_s = meta_env%epot_s + cv%epot_s
           END IF
        ENDDO
        !  velocity rescaling on the s0
@@ -411,8 +411,8 @@ CONTAINS
           ! The difference of a periodic COLVAR is always within [-pi,pi]
           diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
        END IF
-       cv%cv_energy = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
-       cv%ff_s      = cv%lambda*(diff_ss)
+       cv%epot_s = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
+       cv%ff_s   = cv%lambda*(diff_ss)
        
        fft    = cv%ff_s+cv%ff_hills
        sigma  = SQRT((meta_env%temp_wanted*kelvin)*2.0_dp*(boltzmann/joule)*cv%gamma/cv%mass)
@@ -503,8 +503,8 @@ CONTAINS
     ! follows the correct Verlet integration.. This will have to be made
     ! uniform in the future (Teodoro Laino - 01.2009)
     IF (meta_env%langevin) THEN
-       meta_env%ekin_s    = 0.0_dp
-       meta_env%cv_energy = 0.0_dp
+       meta_env%ekin_s = 0.0_dp
+       meta_env%epot_s = 0.0_dp
        DO i_c= 1, meta_env%n_colvar
           cv => meta_env%metavar(i_c)
           diff_ss = cv%ss-cv%ss0
@@ -512,11 +512,11 @@ CONTAINS
              ! The difference of a periodic COLVAR is always within [-pi,pi]
              diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
           END IF
-          cv%cv_energy = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
-          cv%ff_s      = cv%lambda*(diff_ss)
+          cv%epot_s = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
+          cv%ff_s   = cv%lambda*(diff_ss)
           
-          meta_env%cv_energy = meta_env%cv_energy + cv%cv_energy
-          meta_env%ekin_s    = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
+          meta_env%epot_s = meta_env%epot_s + cv%epot_s
+          meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
        ENDDO
     END IF
 
@@ -532,7 +532,7 @@ CONTAINS
                (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%ff_walls,i=1,meta_env%n_colvar), &
                (meta_env%metavar(i)%vvp,i=1,meta_env%n_colvar), &
-                meta_env%cv_energy, &
+                meta_env%epot_s, &
                 meta_env%hills_env%energy, &
                (meta_env%ekin_s)*2.0_dp/(REAL(meta_env%n_colvar,KIND=dp))*kelvin
        ELSE

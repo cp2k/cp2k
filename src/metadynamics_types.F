@@ -70,7 +70,7 @@ MODULE metadynamics_types
      LOGICAL                                   :: do_wall, periodic
      REAL(KIND=dp)                             :: mass, lambda, vvp
      REAL(KIND=dp)                             :: gamma
-     REAL(KIND=dp)                             :: cv_energy, delta_s
+     REAL(KIND=dp)                             :: epot_s, delta_s
      REAL(KIND=dp)                             :: ss, ss0, ff_s, ff_hills, ff_walls
      TYPE(wall_type), DIMENSION(:), POINTER    :: walls
   END TYPE metavar_type
@@ -97,7 +97,7 @@ MODULE metadynamics_types
      LOGICAL                                   :: extended_lagrange
      LOGICAL                                   :: langevin
      INTEGER                                   :: n_colvar
-     REAL(KIND=dp)                             :: ekin_s,cv_energy, dt, avg_temp
+     REAL(KIND=dp)                             :: ekin_s, epot_s, dt, avg_temp
      LOGICAL                                   :: tempcontrol, restart
      REAL(KIND=dp)                             :: temp_wanted,toll_temp
      INTEGER                                   :: n_steps
@@ -169,7 +169,7 @@ CONTAINS
        CALL cp_para_env_retain(para_env,error=error)
 
        meta_env%ekin_s      = 0.0_dp
-       meta_env%cv_energy   = 0.0_dp
+       meta_env%epot_s      = 0.0_dp
        meta_env%n_steps     = 0
        meta_env%dt          = dt
        meta_env%tempcontrol = .FALSE.
@@ -199,7 +199,7 @@ CONTAINS
           meta_env%metavar(i)%ss0       = 0.0_dp
           meta_env%metavar(i)%ff_s      = 0.0_dp
           meta_env%metavar(i)%vvp       = 0.0_dp
-          meta_env%metavar(i)%cv_energy = 0.0_dp
+          meta_env%metavar(i)%epot_s    = 0.0_dp
           meta_env%metavar(i)%delta_s   = 0.0_dp
           meta_env%metavar(i)%ff_hills  = 0.0_dp
           meta_env%metavar(i)%ff_walls  = 0.0_dp
