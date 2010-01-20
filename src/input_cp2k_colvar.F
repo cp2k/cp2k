@@ -168,6 +168,10 @@ CONTAINS
           CALL section_add_subsection(section, subsection, error=error)
           CALL section_release(subsection,error=error)
 
+          CALL create_colvar_dpath_section(subsection,error)
+          CALL section_add_subsection(section, subsection, error=error)
+          CALL section_release(subsection,error=error)
+
           CALL create_colvar_comb_section(subsection,error)
           CALL section_add_subsection(section, subsection, error=error)
           CALL section_release(subsection,error=error)
@@ -1260,8 +1264,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
 
@@ -1275,6 +1277,49 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             citations=(/Branduardi2007/), &
             error=error)
+
+       CALL keywords_colvar_path(section,error)
+    END IF
+  END SUBROUTINE create_colvar_rpath_section
+
+  SUBROUTINE create_colvar_dpath_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dpath_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="DISTANCE_FROM_PATH",&
+            description="Section defining the distance from a one dimensional reaction ",//&
+            "path in an Q-dimensional space of colvars. "//&
+            "Constraining this colvar, allows to sample the space equidistant to the reaction path, "//&
+            "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "//&
+            "For the details of the function see cited literature.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Branduardi2007/), &
+            error=error)
+
+       CALL keywords_colvar_path(section,error)
+    END IF
+  END SUBROUTINE create_colvar_dpath_section
+
+
+  SUBROUTINE keywords_colvar_path(section,error)
+
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'keywords_colvar_path', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
 
        NULLIFY(keyword, subsection,print_key)
        CALL create_colvar_section(subsection,skip_recursive_colvar=.TRUE.,error=error)
@@ -1328,7 +1373,7 @@ CONTAINS
             description="Activating this print key will print once a file with the values of the FUNCTION on a grid "//&
             "of COLVAR values in a specified range. "//&
             "GRID_SPACING and RANGE for every COLVAR has to be specified again in the same order as they are in the input.", &
-            print_level=high_print_level,filename="FUNCTION_MAP",&
+            print_level=high_print_level,filename="PATH",&
             error=error)
 
        CALL keyword_create(keyword,name="RANGE",&
@@ -1348,8 +1393,8 @@ CONTAINS
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-    END IF
-  END SUBROUTINE create_colvar_rpath_section
+
+  END SUBROUTINE keywords_colvar_path
 
 ! *****************************************************************************
 !> \brief Colvar allowing a combination of COLVARS

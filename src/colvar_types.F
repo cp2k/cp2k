@@ -85,7 +85,8 @@ MODULE colvar_types
                                 population_colvar_id        = 12,&
                                 plane_plane_angle_colvar_id = 13,&
                                 gyration_colvar_id          = 14,&
-                                rmsd_colvar_id              = 15
+                                rmsd_colvar_id              = 15,&
+                                distance_from_path_colvar_id     = 16
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -384,6 +385,9 @@ CONTAINS
           ALLOCATE(colvar%hydronium_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(reaction_path_colvar_id)
+          ALLOCATE(colvar%reaction_path_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(distance_from_path_colvar_id)
           ALLOCATE(colvar%reaction_path_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(combine_colvar_id)
@@ -818,7 +822,7 @@ CPSourceFileRef)
             i = colvar%rmsd_param%i_rmsd(ii)
             list(idum) = i
           END DO
-       CASE(reaction_path_colvar_id)
+       CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
           colvar%n_atom_s=0
           DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
              colvar%n_atom_s=colvar%n_atom_s+colvar%reaction_path_param%colvar_p(ii)%colvar%n_atom_s
@@ -1033,7 +1037,7 @@ CPSourceFileRef)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        DEALLOCATE(colvar%hydronium_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-    CASE (reaction_path_colvar_id)
+    CASE (reaction_path_colvar_id, distance_from_path_colvar_id)
        DO i=1,SIZE(colvar%reaction_path_param%colvar_p)
           CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar,error)
        END DO
@@ -1284,7 +1288,7 @@ CPSourceFileRef)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%hydronium_param%i_oxygens    = colvar_in%hydronium_param%i_oxygens + my_offset
        colvar_out%hydronium_param%i_hydrogens      = colvar_in%hydronium_param%i_oxygens + my_offset
-    CASE(reaction_path_colvar_id)
+    CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
        ndim=SIZE(colvar_in%reaction_path_param%colvar_p)
        ALLOCATE(colvar_out%reaction_path_param%colvar_p(ndim),stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)       
