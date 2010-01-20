@@ -1296,7 +1296,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="DISTANCE_FROM_PATH",&
-            description="Section defining the distance from a one dimensional reaction ",//&
+            description="Section defining the distance from a one dimensional reaction "//&
             "path in an Q-dimensional space of colvars. "//&
             "Constraining this colvar, allows to sample the space equidistant to the reaction path, "//&
             "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "//&
