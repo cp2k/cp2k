@@ -37,17 +37,17 @@ MODULE cp_dbcsr_operations
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
+       dbcsr_distribution, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_no_threads, &
+       dbcsr_distribution_nrows, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+       dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_get_coordinates, &
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
@@ -75,10 +75,9 @@ MODULE cp_dbcsr_operations
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_elemental, &
        dbcsr_create_dist_fullest, dbcsr_create_dist_r_rot, &
        dbcsr_create_dist_r_unrot, dbcsr_create_image_dist, &
-       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_dist2d_to_dist, &
-       dbcsr_finalize, dbcsr_get_stored_coordinates, dbcsr_make_images, &
-       dbcsr_make_index_canonical, dbcsr_print, dbcsr_set_debug, &
-       dbcsr_verify_matrix, dbcsr_work_create, swap
+       dbcsr_dist2d_to_dist, dbcsr_finalize, dbcsr_get_stored_coordinates, &
+       dbcsr_make_images, dbcsr_make_index_canonical, dbcsr_print, &
+       dbcsr_set_debug, dbcsr_verify_matrix, dbcsr_work_create, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -288,6 +287,7 @@ CONTAINS
 
   END SUBROUTINE dbcsr_alloc_block_from_nbl
 
+
 ! *****************************************************************************
 !> \brief Performs a multiplication of two dbcsr_type matrices.
 !> \par Matrices m_a and m_b are multiplied into the m_c product matrix. If the
@@ -303,6 +303,11 @@ CONTAINS
 !>      dimension of the product matrix, then the scaling of the
 !>      product matrix with beta is limited to the submatrix specified
 !>      by last_column.
+!> \par Sets
+!>      The left and right sets may be passed in (if the left_set or
+!>      right_set argument is present and non-NULL), or they may be
+!>      requeseted to be saved (present and NULL). No verification is done
+!>      that the set is consistent with the given matrix.
 !> \param[in] transa, transb  specifies the form of op( A or B ) to be used in 
 !>                            the matrix multiplication 
 !> \param[in] alpha           scaling of product
@@ -320,13 +325,15 @@ CONTAINS
 !>                            product
 !> \param[in] retain_sparsity (optional) enforce the sparsity pattern of the
 !>                            existing product matrix; default is no
+!> \param[in,out] left_set    (optional) multiplication set for left matrix
+!> \param[in,out] right_set   (optional) multiplication set for right matrix
 !> \param[in,out] error       cp2k error
 !> \param[out] flop           (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_anytype(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, error, flop)
+       retain_sparsity, left_set, right_set, error, flop)
     
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
@@ -337,6 +344,8 @@ CONTAINS
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(dbcsr_2d_array_type), OPTIONAL, &
+      POINTER                                :: left_set, right_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -347,11 +356,10 @@ CONTAINS
     INTEGER                                  :: f_col, f_k, f_row, i, l_col, &
                                                 l_k, l_row, timing_handle
     INTEGER(KIND=int_8)                      :: my_flop
-    LOGICAL                                  :: keep_product_data, &
-                                                keep_sparsity, new_left, &
-                                                new_right, product_reindex
+    LOGICAL :: keep_product_data, keep_sparsity, left_set_given, new_left, &
+      new_right, product_reindex, right_set_given
     REAL(KIND=dp)                            :: cs
-    TYPE(dbcsr_2d_array_type)                :: m2s_left, m2s_right
+    TYPE(dbcsr_2d_array_type), POINTER       :: m2s_left, m2s_right
     TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
     TYPE(dbcsr_obj)                          :: matrix_left, matrix_right, &
                                                 product_matrix
@@ -559,10 +567,44 @@ CONTAINS
          match_col_pdist = array_data (dbcsr_distribution_row_dist (rdist_right%main)),&
          match_col_idist = array_data (rdist_right%row_image),&
          match_col_nbins = dbcsr_mp_nprows (dbcsr_distribution_mp(matrix_right%m%dist)))
-    CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
-         predistribute="R", error=error)
-    CALL dbcsr_make_images (matrix_left, m2s_left, rdist_left,&
-         predistribute="L", error=error)
+    NULLIFY (m2s_right)
+    right_set_given = .FALSE.
+    IF (PRESENT (right_set)) THEN
+       IF (ASSOCIATED (right_set)) THEN
+          right_set_given = .TRUE.
+          m2s_right => right_set
+       ENDIF
+    ENDIF
+    NULLIFY (m2s_left)
+    left_set_given = .FALSE.
+    IF (PRESENT (left_set)) THEN
+       IF (ASSOCIATED (left_set)) THEN
+          left_set_given = .TRUE.
+          m2s_left => left_set
+       ENDIF
+    ENDIF
+    IF (.NOT. right_set_given) THEN
+       ALLOCATE (m2s_right)
+       CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
+            predistribute="R", error=error)
+       IF (PRESENT (right_set)) THEN
+          right_set => m2s_right
+          right_set%image_dist = rdist_right
+       ENDIF
+    ELSE
+       m2s_right => right_set
+    ENDIF
+    IF (.NOT. left_set_given) THEN
+       ALLOCATE (m2s_left)
+       CALL dbcsr_make_images (matrix_left, m2s_left, rdist_left,&
+            predistribute="L", error=error)
+       IF (PRESENT (left_set)) THEN
+          left_set =>  m2s_left
+          left_set%image_dist = rdist_left
+       ENDIF
+    ELSE
+       m2s_left => left_set
+    ENDIF
     IF (dbg) THEN
        DO i = 1, SIZE (m2s_right%mats,1)
           CALL dbcsr_verify_matrix(m2s_right%mats(i,1), error)
@@ -595,10 +637,28 @@ CONTAINS
     IF (dbg) THEN
        CALL dbcsr_print (matrix_c, nodata=.TRUE.)
     ENDIF
-    CALL dbcsr_destroy_image_dist (rdist_left)
-    CALL dbcsr_destroy_image_dist (rdist_right)
-    CALL dbcsr_destroy_array (m2s_left)
-    CALL dbcsr_destroy_array (m2s_right)
+    IF (.NOT. PRESENT (left_set)) THEN
+       CALL dbcsr_destroy_array (m2s_left)
+       CALL dbcsr_destroy_image_dist (rdist_left)
+       DEALLOCATE (m2s_left)
+    ELSE
+       IF (.NOT. left_set_given) THEN
+          left_set%image_dist = rdist_left
+       ELSE
+          CALL dbcsr_destroy_image_dist (rdist_left)
+       ENDIF
+    ENDIF
+    IF (.NOT. PRESENT (right_set)) THEN
+       CALL dbcsr_destroy_array (m2s_right)
+       CALL dbcsr_destroy_image_dist (rdist_right)
+       DEALLOCATE (m2s_right)
+    ELSE
+       IF (.not.right_set_given) THEN
+          right_set%image_dist = rdist_right
+       ELSE
+          CALL dbcsr_destroy_image_dist (rdist_right)
+       ENDIF
+    ENDIF
     IF (dbg) THEN
        CALL dbcsr_verify_matrix (matrix_c)
        cs = dbcsr_checksum (matrix_c, error)
@@ -4015,7 +4075,7 @@ END FUNCTION cp_dbcsr_get_id_nr
   SUBROUTINE dbcsr_multiply_s(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, error, flop)
+       retain_sparsity, left_set, right_set, error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(KIND=real_4), INTENT(IN)            :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -4025,6 +4085,8 @@ END FUNCTION cp_dbcsr_get_id_nr
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(dbcsr_2d_array_type), OPTIONAL, &
+      POINTER                                :: left_set, right_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -4032,12 +4094,12 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_multiply_anytype(transa, transb,&
          dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
   END SUBROUTINE dbcsr_multiply_s
   SUBROUTINE dbcsr_multiply_d(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, error, flop)
+       retain_sparsity, left_set, right_set, error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(KIND=real_8), INTENT(IN)            :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -4047,6 +4109,8 @@ END FUNCTION cp_dbcsr_get_id_nr
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(dbcsr_2d_array_type), OPTIONAL, &
+      POINTER                                :: left_set, right_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -4054,12 +4118,12 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_multiply_anytype(transa, transb,&
          dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
   END SUBROUTINE dbcsr_multiply_d
   SUBROUTINE dbcsr_multiply_c(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, error, flop)
+       retain_sparsity, left_set, right_set, error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(KIND=real_4), INTENT(IN)         :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -4069,6 +4133,8 @@ END FUNCTION cp_dbcsr_get_id_nr
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(dbcsr_2d_array_type), OPTIONAL, &
+      POINTER                                :: left_set, right_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -4076,12 +4142,12 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_multiply_anytype(transa, transb,&
          dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
   END SUBROUTINE dbcsr_multiply_c
   SUBROUTINE dbcsr_multiply_z(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, error, flop)
+       retain_sparsity, left_set, right_set, error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(KIND=real_8), INTENT(IN)         :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -4091,6 +4157,8 @@ END FUNCTION cp_dbcsr_get_id_nr
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    TYPE(dbcsr_2d_array_type), OPTIONAL, &
+      POINTER                                :: left_set, right_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -4098,7 +4166,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_multiply_anytype(transa, transb,&
          dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
   END SUBROUTINE dbcsr_multiply_z
 
 

@@ -29,8 +29,9 @@ MODULE dbcsr_methods
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                              btree_new_z => btree_new
   USE dbcsr_types,                     ONLY: &
-       dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_data_obj, &
-       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_magic_number, &
+       dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
+       dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
+       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_magic_number, &
        dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_scalar_type, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
@@ -94,6 +95,7 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_allocate_matrix_array, dbcsr_array_new, dbcsr_array_put,&
             dbcsr_array_get, dbcsr_array_destroy, dbcsr_array_hold,&
             dbcsr_array_release
+  PUBLIC :: dbcsr_destroy_array, dbcsr_destroy_image_dist
 
   PUBLIC :: dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_destroy,&
             dbcsr_mutable_release, dbcsr_mutable_hold,&
@@ -205,6 +207,11 @@ MODULE dbcsr_methods
      MODULE PROCEDURE array_release_1d, array_release_2d
   END INTERFACE
 
+  INTERFACE dbcsr_destroy_array
+     MODULE PROCEDURE dbcsr_destroy_2d_array, dbcsr_destroy_1d_array
+  END INTERFACE
+
+
 CONTAINS
 
 
@@ -237,6 +244,7 @@ CONTAINS
     CALL array_nullify (matrix%col_blk_offset)
     NULLIFY (matrix%wms)
     NULLIFY (matrix%dist2d)
+    NULLIFY (matrix%predistributed)
   END SUBROUTINE dbcsr_init_type
 
 ! *****************************************************************************
@@ -354,7 +362,7 @@ CONTAINS
 !> If there are no references left, the matrix is destroyed.
 !> \param[in,out] set    DBCSR matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_release (matrix)
+  RECURSIVE SUBROUTINE dbcsr_release (matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_release', &
@@ -406,7 +414,7 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 !> \param[in] force           (optional) force deallocation
 ! *****************************************************************************
-  SUBROUTINE dbcsr_destroy(matrix, error, force)
+  RECURSIVE SUBROUTINE dbcsr_destroy(matrix, error, force)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -443,6 +451,15 @@ CONTAINS
           CALL cp_error_init(my_error)
           IF (ASSOCIATED (matrix%m%dist2d)) &
                CALL distribution_2d_release(matrix%m%dist2d,my_error)
+          IF (ASSOCIATED (matrix%m%predistributed)) THEN
+             CALL cp_assert (ASSOCIATED (matrix%m%predistributed%mats),&
+                  cp_fatal_level, cp_internal_error, routineN,&
+                  "Predistributed data should exist if allocated")
+             CALL dbcsr_destroy_array (matrix%m%predistributed)
+             CALL dbcsr_destroy_image_dist (matrix%m%predistributed%image_dist)
+             DEALLOCATE (matrix%m%predistributed)
+          ENDIF
+          NULLIFY (matrix%m%predistributed)
           CALL dbcsr_data_release (matrix%m%data_area)
           CALL array_release (matrix%m%row_blk_size)
           CALL array_release (matrix%m%col_blk_size)
@@ -2928,6 +2945,71 @@ CONTAINS
        CALL dbcsr_array_destroy (array)
     ENDIF
   END SUBROUTINE array_release_2d
+
+! *****************************************************************************
+!> \brief Releases all matrices in a 1-d arrray.
+!> \param[in] source          input matrix
+!> \param[in,out] marray      matrix array
+! *****************************************************************************
+  SUBROUTINE dbcsr_destroy_1d_array(marray)
+    TYPE(dbcsr_array_type), INTENT(INOUT)    :: marray
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy_1d_array', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+!   ---------------------------------------------------------------------------
+
+    DO i = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
+       CALL dbcsr_destroy (marray%mats(i), force=.TRUE.)
+    ENDDO
+    DEALLOCATE (marray%mats)
+    !CALL dbcsr_destroy_image_dist(marray%image_dist)
+  END SUBROUTINE dbcsr_destroy_1d_array
+
+
+! *****************************************************************************
+!> \brief Releases all matrices in 2-d arrray.
+!> \param[in] source          input matrix
+!> \param[in,out] marray      matrix array
+! *****************************************************************************
+  SUBROUTINE dbcsr_destroy_2d_array(marray)
+    TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: marray
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy_2d_array', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col, row
+
+!   ---------------------------------------------------------------------------
+
+    DO row = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
+       DO col = LBOUND(marray%mats,2), UBOUND (marray%mats,2)
+          CALL dbcsr_destroy (marray%mats(row, col), force=.TRUE.)
+       ENDDO
+    ENDDO
+    DEALLOCATE (marray%mats)
+    NULLIFY (marray%mats)
+  END SUBROUTINE dbcsr_destroy_2d_array
+
+! *****************************************************************************
+!> \brief Destroys a DBCSR distribution for a matrix multiplication based on
+!>        the right matrix
+!> \param[inout] imgdist_product        product distribution repetition
+! *****************************************************************************
+  SUBROUTINE dbcsr_destroy_image_dist(imgdist)
+    TYPE(dbcsr_imagedistribution_type), &
+      INTENT(INOUT)                          :: imgdist
+
+!
+!   ---------------------------------------------------------------------------
+
+    CALL array_release (imgdist%row_image)
+    CALL array_release (imgdist%col_image)
+    CALL dbcsr_distribution_release (imgdist%main)
+  END SUBROUTINE dbcsr_destroy_image_dist
+
 
 ! *****************************************************************************
 ! Mutable data

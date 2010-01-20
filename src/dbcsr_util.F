@@ -32,7 +32,8 @@ MODULE dbcsr_util
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_clear_2d_pointer, dbcsr_data_copyall, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-       dbcsr_data_set_2d_pointer, dbcsr_destroy, dbcsr_distribution_col_dist, &
+       dbcsr_data_set_2d_pointer, dbcsr_destroy_array, &
+       dbcsr_destroy_image_dist, dbcsr_distribution_col_dist, &
        dbcsr_distribution_hold, dbcsr_distribution_init, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
@@ -51,11 +52,11 @@ MODULE dbcsr_util
        dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_type_2d_to_1d, &
        dbcsr_type_is_2d, dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_array_type, dbcsr_data_obj, &
-       dbcsr_distribution_obj, dbcsr_imagedistribution_type, dbcsr_iterator, &
-       dbcsr_magic_number, dbcsr_meta_size, dbcsr_mp_obj, dbcsr_num_slots, &
-       dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, &
-       dbcsr_repl_row, dbcsr_scalar_type, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
+       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
+       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_magic_number, &
+       dbcsr_meta_size, dbcsr_mp_obj, dbcsr_num_slots, dbcsr_obj, &
+       dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
+       dbcsr_scalar_type, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
        dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
@@ -201,10 +202,6 @@ MODULE dbcsr_util
           dbcsr_set_diagonal_z, dbcsr_set_diagonal_c
   END INTERFACE
 
-  INTERFACE dbcsr_destroy_array
-     MODULE PROCEDURE dbcsr_destroy_2d_array, dbcsr_destroy_1d_array
-  END INTERFACE
-
   INTERFACE dbcsr_assert
      MODULE PROCEDURE bcsr_assert, dbcsr_int_assert, dbcsr_logical_assert,&
                       dbcsr_not_assert, dbcsr_char_assert
@@ -232,8 +229,7 @@ MODULE dbcsr_util
   ! Images and their distributions
   PUBLIC ::&
        dbcsr_create_col_image_dist,&
-       dbcsr_create_image_dist, dbcsr_destroy_image_dist,&
-       dbcsr_destroy_array,&
+       dbcsr_create_image_dist,&
        dbcsr_make_images
   ! distribution_2d_type compatibility
   PUBLIC :: dbcsr_create_dist2d_r, dbcsr_create_dist2d_r_unrot,&
@@ -928,6 +924,7 @@ CONTAINS
             cp_wrong_args_error, routineP, "Invalid matrix type.")
     END SELECT
     matrix%m%matrix_type = mt
+    NULLIFY (matrix%m%predistributed)
 !$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
   END SUBROUTINE dbcsr_create
 
@@ -1089,6 +1086,15 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
+    CALL cp_assert (.NOT. ASSOCIATED (matrix%m%predistributed),&
+         cp_warning_level,&
+         cp_internal_error, routineN, "Submatrices exist")
+    IF (ASSOCIATED (matrix%m%predistributed)) THEN
+          CALL dbcsr_destroy_array (matrix%m%predistributed)
+          CALL dbcsr_destroy_image_dist (matrix%m%predistributed%image_dist)
+          DEALLOCATE (matrix%m%predistributed)
+    ENDIF
+    NULLIFY (matrix%m%predistributed)
     CALL cp_assert (dbcsr_is_initialized (matrix),&
          cp_fatal_level, cp_caller_error,&
          routineN, "Can not finalize uninitialized matrix.")
@@ -5297,7 +5303,7 @@ CONTAINS
     CALL cp_assert(ASSOCIATED (area%d), cp_fatal_level, cp_caller_error,&
          routineN, "Data area must be setup.")
     current_size = dbcsr_get_data_size (area)
-    IF (current_size .GT. data_size) RETURN
+    IF (current_size .GT. 1 .AND. current_size .GE. data_size) RETURN
     !
     nocp = .FALSE.
     IF (PRESENT (nocopy)) nocp = nocopy
@@ -7022,23 +7028,6 @@ CONTAINS
   END SUBROUTINE dbcsr_create_image_dist
 
 ! *****************************************************************************
-!> \brief Destroys a DBCSR distribution for a matrix multiplication based on
-!>        the right matrix
-!> \param[inout] imgdist_product        product distribution repetition
-! *****************************************************************************
-  SUBROUTINE dbcsr_destroy_image_dist(imgdist)
-    TYPE(dbcsr_imagedistribution_type), &
-      INTENT(INOUT)                          :: imgdist
-
-!
-!   ---------------------------------------------------------------------------
-
-    CALL array_release (imgdist%row_image)
-    CALL array_release (imgdist%col_image)
-    CALL dbcsr_distribution_release (imgdist%main)
-  END SUBROUTINE dbcsr_destroy_image_dist
-
-! *****************************************************************************
 !> \brief Splits an array of int8 values into two int4 arrays.
 !> \param[in] merged          array of merged values
 !> \param[out] array_upper    array to fill with the upper bytes of the merged
@@ -7072,53 +7061,6 @@ CONTAINS
     ENDDO
 !$OMP END DO
   END SUBROUTINE dbcsr_unpack_i8_2i4
-
-
-! *****************************************************************************
-!> \brief Releases all matrices in a 1-d arrray.
-!> \param[in] source          input matrix
-!> \param[in,out] marray      matrix array
-! *****************************************************************************
-  SUBROUTINE dbcsr_destroy_1d_array(marray)
-    TYPE(dbcsr_array_type), INTENT(INOUT)    :: marray
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy_1d_array', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-
-!   ---------------------------------------------------------------------------
-
-    DO i = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
-       CALL dbcsr_destroy (marray%mats(i), force=.TRUE.)
-    ENDDO
-    DEALLOCATE (marray%mats)
-    !CALL dbcsr_destroy_image_dist(marray%image_dist)
-  END SUBROUTINE dbcsr_destroy_1d_array
-
-
-! *****************************************************************************
-!> \brief Releases all matrices in 2-d arrray.
-!> \param[in] source          input matrix
-!> \param[in,out] marray      matrix array
-! *****************************************************************************
-  SUBROUTINE dbcsr_destroy_2d_array(marray)
-    TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: marray
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy_2d_array', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: col, row
-
-!   ---------------------------------------------------------------------------
-
-    DO row = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
-       DO col = LBOUND(marray%mats,2), UBOUND (marray%mats,2)
-          CALL dbcsr_destroy (marray%mats(row, col), force=.TRUE.)
-       ENDDO
-    ENDDO
-    DEALLOCATE (marray%mats)
-  END SUBROUTINE dbcsr_destroy_2d_array
 
 
 !! *****************************************************************************
@@ -7346,21 +7288,24 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_blas_gemm', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: assertions = .FALSE.
 
     TYPE(dbcsr_data_obj)                     :: a_tmp, b_tmp
 
-    CALL dbcsr_assert (alpha%data_type, "EQ", beta%data_type,&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types, alpha/beta")
-    CALL dbcsr_assert (alpha%data_type, "EQ", a%d%data_type,&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types, alpha, a")
-    CALL dbcsr_assert (alpha%data_type, "EQ", b%d%data_type,&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types, alpha, b")
-    CALL dbcsr_assert (alpha%data_type, "EQ", c%d%data_type,&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types, alpha, c")
+    IF (assertions) THEN
+       CALL dbcsr_assert (alpha%data_type, "EQ", beta%data_type,&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Incompatible data types, alpha/beta")
+       CALL dbcsr_assert (alpha%data_type, "EQ", a%d%data_type,&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Incompatible data types, alpha, a")
+       CALL dbcsr_assert (alpha%data_type, "EQ", b%d%data_type,&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Incompatible data types, alpha, b")
+       CALL dbcsr_assert (alpha%data_type, "EQ", c%d%data_type,&
+            cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Incompatible data types, alpha, c")
+    ENDIF
     a_tmp = a
     CALL dbcsr_data_set_2d_pointer (a_tmp, lda)
     b_tmp = b

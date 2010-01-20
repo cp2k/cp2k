@@ -1072,6 +1072,278 @@
     ENDIF
   END SUBROUTINE dbcsr_add_beta_s
 
+! *****************************************************************************
+!> \brief Issues actual DGEMM calls.
+!>
+!> \param[in] params           Stack of DGEMM parameters
+!> \param[in] n                Number of parameters
+!> \param[in] left_data_a      Left-matrix data
+!> \param[in] right_data_a     Right-matrix data
+!> \param[in,out] product_data_area  Data for results
+!> \param[out] lflop           (optional) Number of FLOPs used by DGEMM
+! *****************************************************************************
+  SUBROUTINE process_dgemm_stack_s(params, n,&
+       left_data_a, right_data_a, product_data_area, lflop)
+    INTEGER, INTENT(IN)                       :: n
+    TYPE(dgemm_parameters), DIMENSION(1:n), &
+      INTENT(IN)                              :: params
+    REAL(kind=real_4), DIMENSION(:), TARGET, INTENT(IN) :: left_data_a, &
+                                                 right_data_a
+    TYPE(dbcsr_data_obj), INTENT(INOUT)       :: product_data_area
+    INTEGER(KIND=int_8), INTENT(OUT), &
+      OPTIONAL                                :: lflop
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'process_dgemm_stack_s', &
+      routineP = moduleN//':'//routineN
+    REAL, PARAMETER                          :: resize_factor = 1.618034
+
+    INTEGER                                  :: c, lda, ldb, ldc, maxs, r, sp,&
+                                                poff
+    LOGICAL                                  :: do_resize
+    REAL(kind=real_4), DIMENSION(:), POINTER           :: left_data, product_data, &
+                                                right_data
+    TYPE(dbcsr_scalar_type)                  :: any_zero
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+
+    IF (PRESENT (lflop)) lflop = INT(0, int_8)
+    ! Increase product data area size if necessary.
+    do_resize = .FALSE.
+    maxs = dbcsr_get_data_size(product_data_area)
+    DO sp = 1, n
+       IF (params(sp)%offset_c+params(sp)%nze_c-1 .GT. maxs) THEN
+          maxs = params(sp)%offset_c+params(sp)%nze_c-1
+          do_resize = .TRUE.
+       ENDIF
+    ENDDO
+    IF (do_resize) THEN
+       !IF (dbg) &
+            WRITE(*,*)routineN//" Data area too small, increasing!", &
+            maxs, dbcsr_get_data_size(product_data_area)
+       CALL dbcsr_data_ensure_size (product_data_area,&
+            maxs, factor=resize_factor)
+    ENDIF
+    ! Setup encapsulated data area
+    any_zero = dbcsr_scalar_zero(product_data_area%d%data_type)
+    DO sp = 1, n
+       IF (dbg) WRITE(*,*)routineN//" Stack pointer", sp
+       IF (dbg) CALL print_dgemm_parameters(params(sp))
+       IF (params(sp)%type_c .EQ. '0') THEN
+          IF (dbg) WRITE(*,*)routineN//" Skipping", sp
+          CYCLE
+       ENDIF
+       IF (params(sp)%nze_c .EQ. 0&
+            .or.params(sp)%nze_a .EQ. 0&
+            .or.params(sp)%nze_b .EQ. 0) THEN
+          IF (dbg) WRITE(*,*)routineN//" Skipping empty blocks"
+          CYCLE
+       ENDIF
+
+       !IF(params(sp)%offset_c+params(sp)%nze_c-1.GT.&
+       !     SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
+          !WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
+          !     SIZE(dbcsr_get_data_p_d(product_data_area))
+          !WRITE(*,*) 'params(sp)%offset_c+params(sp)%nze_c-1',&
+          !     params(sp)%offset_c+params(sp)%nze_c-1
+          !stop
+       !ENDIF
+       !IF(params(sp)%offset_c.GT.&
+       !     SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
+          !WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
+          !     SIZE(dbcsr_get_data_p_d(product_data_area))
+          !WRITE(*,*) 'params(sp)%offset_c',&
+          !     params(sp)%offset_c
+          !stop
+       !ENDIF
+       poff = params(sp)%offset_c
+       product_data => product_data_area%d%r_sp(&
+            params(sp)%offset_c:&
+            params(sp)%offset_c+params(sp)%nze_c-1)
+       !CALL dbcsr_data_set_pointer (product_data,&
+       !     rsize=params(sp)%nze_c, csize=1,&
+       !     source_lb=params(sp)%offset_c,&
+       !     pointee=product_data_area)
+       left_data => left_data_a(&
+            params(sp)%offset_a:&
+            params(sp)%offset_a+params(sp)%nze_a-1)
+       !CALL dbcsr_data_set_pointer (left_data,&
+       !     rsize=params(sp)%nze_a, csize=1,&
+       !     source_lb=params(sp)%offset_a,&
+       !     pointee=left_data_area)
+       right_data => right_data_a(&
+            params(sp)%offset_b:&
+            params(sp)%offset_b+params(sp)%nze_b-1)
+       !CALL dbcsr_data_set_pointer (right_data,&
+       !     rsize=params(sp)%nze_b, csize=1,&
+       !     source_lb=params(sp)%offset_b,&
+       !     pointee=right_data_area)
+       ! Keep the commented template below if needed for speed
+       !product_data_d => pointer_view (dbcsr_get_data_p_d (&
+       !     product_data_area),&
+       !     params(sp)%offset_c,&
+       !     params(sp)%offset_c+params(sp)%nze_c-1)
+       !left_data_d => pointer_view (dbcsr_get_data_p_d (&
+       !     left_data_area),&
+       !     params(sp)%offset_a,&
+       !     params(sp)%offset_a+params(sp)%nze_a-1)
+       !right_data_d => pointer_view (dbcsr_get_data_p_d (&
+       !     right_data_area),&
+       !     params(sp)%offset_b,&
+       !     params(sp)%offset_b+params(sp)%nze_b-1)
+       !IF (dbg) THEN
+       !   WRITE(*,*)'A'
+       !   CALL dbcsr_printmat (left_data_d,&
+       !        params(sp)%lrows_a, params(sp)%lcols_a,&
+       !        tr=params(sp)%type_a.eq.'T')
+       !   WRITE(*,*)'B'
+       !   CALL dbcsr_printmat (right_data_d,&
+       !        params(sp)%lrows_b, params(sp)%lcols_b,&
+       !        tr=params(sp)%type_b.eq.'T')
+       !   WRITE(*,*)'Cin'
+       !   CALL dbcsr_printmat (product_data_d,&
+       !        params(sp)%lrows_c, params(sp)%lcols_c,&
+       !        tr=params(sp)%type_c.eq.'T')
+       !ENDIF
+       ! Avoid nagging compilers
+       IF (dbcsr_scalar_are_equal(params(sp)%beta, any_zero)) THEN
+          IF (params(sp)%type_c .EQ. 'N'&
+               .OR. params(sp)%last_n .EQ. params(sp)%lcols_c) THEN
+             CALL dbcsr_data_clear (product_data_area,&
+                  lb=poff,&
+                  ub=poff-1+params(sp)%lrows_c*params(sp)%last_n)
+             !CALL dbcsr_data_clear (product_data,&
+             !     ub=params(sp)%lrows_c*params(sp)%last_n)
+             !product_data_d(1&
+             !     :params(sp)%lrows_c*params(sp)%last_n) = 0.0_dp
+          ELSE
+             ! It must be transposed.
+             !### optimize out the inner loop (turn into a range)
+             DO r = 1, params(sp)%lrows_c
+                DO c = 1, params(sp)%last_n
+                   CALL dbcsr_data_clear(product_data_area,&
+                        lb=poff-1+(r-1)*params(sp)%lcols_c+c,&
+                        ub=poff-1+(r-1)*params(sp)%lcols_c+c)
+                   !CALL dbcsr_data_clear(product_data,&
+                   !     lb=(r-1)*params(sp)%lcols_c+c,&
+                   !     ub=(r-1)*params(sp)%lcols_c+c)
+                ENDDO
+             ENDDO
+             !FORALL (r = 1:params(sp)%lrows_c, c = 1:params(sp)%last_n)
+             !   product_data_d((r-1)*params(sp)%lcols_c+c) = 0.0_dp
+             !END FORALL
+          ENDIF
+       ENDIF
+       IF (params(sp)%type_c .EQ. 'N') THEN
+          IF (dbg) &
+               WRITE(*,'("DGN",A,1X,A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
+               params(sp)%type_c,&
+               params(sp)%type_a, params(sp)%type_b,&
+               params(sp)%lrows_c, params(sp)%last_n,& !m, n
+               params(sp)%last_k,& ! k
+               params(sp)%alpha,&
+               params(sp)%offset_a, params(sp)%nze_a,&
+               params(sp)%offset_b, params(sp)%nze_b,&
+               params(sp)%beta,&
+               params(sp)%offset_c, params(sp)%nze_c
+          lda = select_n_or_t (params(sp)%type_a,&
+               params(sp)%lrows_a, params(sp)%lcols_a)
+          ldb = select_n_or_t (params(sp)%type_b,&
+               params(sp)%lrows_b, params(sp)%lcols_b)
+          ldc = select_n_or_t (params(sp)%type_c,&
+               params(sp)%lrows_c, params(sp)%lcols_c)
+          CALL DGEMM(&
+               params(sp)%type_a, params(sp)%type_b,&
+               params(sp)%lrows_c, params(sp)%last_n,& !m, n
+               params(sp)%last_k,& ! k
+               params(sp)%alpha%r_sp,&
+               left_data, lda,&
+               right_data, ldb,&
+               params(sp)%beta%r_sp,&
+               product_data, ldc)
+          !CALL dbcsr_blas_gemm(&
+          !     params(sp)%type_a, params(sp)%type_b,&
+          !     params(sp)%lrows_c, params(sp)%last_n,& !m, n
+          !     params(sp)%last_k,& ! k
+          !     params(sp)%alpha,&
+          !     left_data, lda,&
+          !     right_data, ldb,&
+          !     params(sp)%beta,&
+          !     product_data, ldc)
+          !CALL DGEMM(params(sp)%type_a, params(sp)%type_b,&
+          !     params(sp)%lrows_c, params(sp)%last_n,& !m, n
+          !     params(sp)%last_k,& ! k
+          !     params(sp)%alpha,&
+          !     left_data_d, lda,&
+          !     right_data_d, ldb,&
+          !     params(sp)%beta,&
+          !     product_data_d, ldc)
+          IF (PRESENT (lflop)) &
+               lflop = lflop + INT(2, int_8) * &
+               INT(params(sp)%lrows_c &
+               * params(sp)%last_n * params(sp)%last_k, int_8)
+       ELSE
+          IF (dbg) &
+               WRITE(*,'("DGT",A,1X,A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
+               params(sp)%type_c,&
+               flip_type(params(sp)%type_a),&
+               flip_type(params(sp)%type_b),&
+               params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
+               params(sp)%last_k,& ! k
+               params(sp)%alpha,&
+               params(sp)%offset_a, params(sp)%nze_a,&
+               params(sp)%offset_b, params(sp)%nze_b,&
+               params(sp)%beta,&
+               params(sp)%offset_c, params(sp)%nze_c
+          lda = select_n_or_t (params(sp)%type_a,&
+               params(sp)%lrows_a, params(sp)%lcols_a)
+          ldb = select_n_or_t (params(sp)%type_b,&
+               params(sp)%lrows_b, params(sp)%lcols_b)
+          ldc = select_n_or_t (params(sp)%type_c,&
+               params(sp)%lrows_c, params(sp)%lcols_c)
+          CALL DGEMM(&
+               flip_type(params(sp)%type_b),&
+               flip_type(params(sp)%type_a),&
+               params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
+               params(sp)%last_k,& ! k
+               params(sp)%alpha%r_sp,&
+               right_data, ldb,&
+               left_data, lda,&
+               params(sp)%beta%r_sp,&
+               product_data, ldc)
+          !CALL dbcsr_blas_GEMM(flip_type(params(sp)%type_b),&
+          !     flip_type(params(sp)%type_a),&
+          !     params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
+          !     params(sp)%last_k,& ! k
+          !     params(sp)%alpha,&
+          !     right_data, ldb,&
+          !     left_data, lda,&
+          !     params(sp)%beta,&
+          !     product_data, ldc)
+          !CALL DGEMM(flip_type(params(sp)%type_b),&
+          !     flip_type(params(sp)%type_a),&
+          !     params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
+          !     params(sp)%last_k,& ! k
+          !     params(sp)%alpha,&
+          !     right_data_d, ldb,&
+          !     left_data_d, lda,&
+          !     params(sp)%beta,&
+          !     product_data_d, ldc)
+          IF (PRESENT (lflop)) &
+               lflop = lflop + INT(2, int_8) * &
+               INT(params(sp)%last_n &
+               * params(sp)%lcols_c * params(sp)%last_k, int_8)
+       ENDIF
+       !IF (dbg) THEN
+       !   WRITE(*,*)'Cout'
+       !   CALL dbcsr_printmat (product_data_d,&
+       !        params(sp)%lrows_c, params(sp)%lcols_c,&
+       !        tr=params(sp)%type_c.eq.'T')
+       !ENDIF
+    ENDDO
+  END SUBROUTINE process_dgemm_stack_s
+
 
 #if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 ! *****************************************************************************

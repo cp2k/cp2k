@@ -384,6 +384,7 @@ MODULE dbcsr_types
      INTEGER                 :: refcount
      LOGICAL                 :: work_mutable
 !$   INTEGER(KIND=omp_lock_kind) :: modification_lock
+     TYPE(dbcsr_2d_array_type), POINTER :: predistributed
   END TYPE dbcsr_type
 
   INTEGER, PARAMETER :: dbcsr_magic_number = 879546213
@@ -464,7 +465,6 @@ MODULE dbcsr_types
 ! *****************************************************************************
 !> \brief A 2-d array of DBCSR matrices
 !> \var mats        the matrices
-!> \var data_windows, index_windows     RMA windows
 !> \var image_dist  image distribution
 ! *****************************************************************************
   TYPE dbcsr_2d_array_type
