@@ -36,3 +36,7 @@ Al2O3.inp          11
 gly_noangvel.inp    2
 #extended cif test
 Co_complex.inp     11
+#cv distance from path
+N3_rp_md.inp       11
+N3_dp_md.inp       11
+N3_rp_dp_md.inp    11

@@ -1,0 +1,234 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD PM6
+      EPS_DEFAULT 1.0E-10
+      &SE
+        ANALYTICAL_GRADIENTS T
+        &COULOMB
+          CUTOFF   [angstrom]     12.0
+          RC_RANGE [bohr]          1.0
+        &END
+        &EXCHANGE
+          CUTOFF   [angstrom]     4.9325
+          RC_TAPER [angstrom]     12.0
+          RC_RANGE [bohr]          1.0
+        &END
+      &END
+    &END QS
+    &SCF
+      &PRINT
+         &RESTART OFF
+         &END
+         &RESTART_HISTORY OFF
+         &END
+      &END
+      SCF_GUESS MOPAC
+      EPS_SCF 1.0E-5
+      MAX_SCF 45
+      &OT
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        MINIMIZER DIIS
+        N_DIIS 9
+      &END
+      &OUTER_SCF
+          MAX_SCF 8
+          EPS_SCF 1.0E-5
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      PERIODIC NONE
+      ABC  16.0000  16.0000000  16.0000
+    &END CELL
+    &COLVAR
+       &DISTANCE_FROM_PATH
+	  LAMBDA 5.0
+          STEP_SIZE 0.01
+          RANGE -2.0 37.0
+          VARIABLE T
+	  FUNCTION 6.70208+3.8*sin(-0.131993*T+7.1788)+0.0678055*T
+          &MAP
+            RANGE 2 12
+            RANGE 2 12
+            GRID_SPACING 0.5
+            GRID_SPACING 0.5
+          &END
+	  &COLVAR
+            &DISTANCE
+               ATOMS 26 32
+	    &END
+          &END
+          FUNCTION 7.34534+3.8*sin(-0.100683*T+5.23466)+0.0728908*T
+          &COLVAR
+            &DISTANCE
+               ATOMS 26 30
+            &END
+          &END
+       &END
+    &END
+    &COORD
+  O        -4.4247387624       -0.5309572750        0.5697230862
+  H        -5.0183448733       -2.6944585590        1.3203736786
+  C        -3.6109170457       -1.3741775205        0.8680427212
+  O        -4.0237717839       -2.6214903530        1.2703514467
+  C        -2.1306370189       -1.2791406640        0.8535019283
+  C        -1.3120456446       -2.3978600881        1.1275197410
+  H        -1.7701653707       -3.3666124305        1.3548030036
+  C         0.0688545253       -2.2437189267        1.1156801180
+  H         0.7574075334       -3.0761272058        1.3486991675
+  N         0.6738559410       -1.0371313768        0.8361136511
+  C        -0.1389885304        0.0574156107        0.5692682480
+  C        -1.5454296273       -0.0457404425        0.5761779393
+  H        -2.1704627231        0.8321461706        0.3801763635
+  C         0.5913111673        1.2918018616        0.2805097546
+  C        -0.0299604321        2.4779270180       -0.1639273497
+  H        -1.1228367654        2.5372055901       -0.2444243606
+  C         0.7663086277        3.5666879578       -0.5045075502
+  C         0.1920272309        4.8496216484       -0.9668879613
+  O        -1.1836917368        4.8023669936       -0.9803620784
+  O         0.7656701641        5.8524002130       -1.3220490954
+  C         2.1762122923        3.4640311228       -0.4070263504
+  H         2.8012745440        4.3073721391       -0.7188446821
+  C         2.7340753851        2.2923512744        0.0769505212
+  H         3.8188537022        2.1726101379        0.1961014861
+  N         1.9703552650        1.1968447154        0.4447247525
+ Ru         2.6808139034       -0.6268135255        1.0491515077
+  N         3.2563830464       -2.5532275954        1.5027135434
+  C         3.4490476757       -3.6669628938        1.8370067213
+  S         3.7025486662       -5.2038677765        2.2394078258
+  N         2.1955375549       -0.3650270770        3.0173819208
+  C         1.6049936707        0.3098036981        3.7855301635
+  S         0.8289774632        1.2452756100        4.8086474146
+  N         3.3853640961       -0.9960228944       -0.8720138955
+  C         2.6610011074       -1.5613188486       -1.8986641089
+  H         1.5915143243       -1.7170221188       -1.6810559568
+  C         3.2453301524       -1.9340252113       -3.1029040105
+  H         2.6589980673       -2.4156892719       -3.8913029786
+  C         4.6278759505       -1.7104040677       -3.2859858733
+  C         5.3108087788       -2.0657932775       -4.5535542391
+  O         6.4687902929       -1.8960108056       -4.8530811803
+  H        10.0999394091        1.8836409660        2.4997876783
+  O         4.4387949377       -2.6355643612       -5.4502144227
+  C         5.3859781105       -1.1418894308       -2.2656271240
+  H         6.4625500813       -0.9854422725       -2.3976463282
+  C         4.7478203106       -0.7953695233       -1.0558453820
+  C         5.4376024832       -0.2248315007        0.1002998824
+  C         6.7974932647        0.1530791814        0.1052796969
+  H         7.4226310419        0.0133029862       -0.7846209826
+  C         7.3399526057        0.7040767770        1.2625106413
+  C         8.7635758427        1.1048269295        1.2588255996
+  O         9.5655997786        1.0448892034        0.3558301760
+  O         9.1376353505        1.6165130959        2.4790228433
+  C         6.5282331717        0.8715673047        2.4115537092
+  H         6.9561129325        1.2952014265        3.3275244791
+  C         5.2007233179        0.4774776840        2.3595740688
+  H         4.5207036878        0.5633558687        3.2285882081
+  N         4.6296913260       -0.0725021202        1.2253520131
+  H         4.8874702054       -2.8845712381       -6.3088218514
+  H        -1.5910323092        5.6705894857       -1.2601791678
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT N3_dp_md
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&MOTION
+
+ &FREE_ENERGY
+   &METADYN
+     DO_HILLS F
+     LAGRANGE
+     NT_HILLS 10
+     WW 1.0e-4
+     TEMPERATURE 100.
+     TEMP_TOL  50
+     &METAVAR
+       COLVAR 1
+       LAMBDA 4.5
+       MASS   2.0
+       SCALE  0.03
+     &END
+
+     &PRINT
+       &COLVAR
+          COMMON_ITERATION_LEVELS 3
+         &EACH
+           MD 1
+         &END
+       &END
+       &HILLS
+         COMMON_ITERATION_LEVELS 3
+          &EACH
+            MD 1
+          &END
+        &END
+     &END
+   &END METADYN
+ &END FREE_ENERGY
+
+  &MD
+    ENSEMBLE NVT
+    STEPS  20
+    TIMESTEP 1
+    TEMPERATURE 300.0
+    TEMP_TOL 50
+
+    &THERMOSTAT
+      TYPE NOSE
+      &NOSE
+        LENGTH 6
+        YOSHIDA 3
+        TIMECON 1500
+        MTS 2
+      &END NOSE
+    &END THERMOSTAT
+
+    &PRINT
+      &ENERGY
+        &EACH
+          MD 10
+        &END
+        ADD_LAST NUMERIC
+      &END
+    &END PRINT
+  &END MD
+
+  &PRINT
+    &TRAJECTORY
+      &EACH
+        MD      10
+      &END
+    &END
+    &RESTART
+      &EACH
+        MD      100
+      &END
+    &END
+    &RESTART_HISTORY OFF
+    &END
+  &END
+
+&END MOTION
+
+#&EXT_RESTART
+#  RESTART_FILE_NAME N3_dp_md-1.restart
+#  RESTART_COUNTERS
+#  RESTART_POS
+#  RESTART_VEL
+#  RESTART_THERMOSTAT
+#  RESTART_METADYNAMICS
+#&END EXT_RESTART
+
+
+
