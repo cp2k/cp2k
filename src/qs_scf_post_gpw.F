@@ -34,6 +34,7 @@ MODULE qs_scf_post_gpw
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -204,7 +205,8 @@ CONTAINS
       POINTER                                :: occupied_evals, &
                                                 unoccupied_evals
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: occupied_orbs, unoccupied_orbs
+      POINTER                                :: occupied_orbs, unoccupied_orbs,&
+                       homo_localized, lumo_localized, lumo_ptr
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -242,7 +244,7 @@ CONTAINS
     NULLIFY(dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo,qs_loc_env_lumo, scf_control, &
          unoccupied_orbs, mo_eigenvalues, unoccupied_evals, molecule_set, &
-         tddfpt_control, subsys, particles, input, print_key, kinetic_m)
+         tddfpt_control, subsys, particles, input, print_key, kinetic_m,lumo_ptr)
 
     has_homo=.FALSE.
     has_lumo=.FALSE.
@@ -314,7 +316,7 @@ CONTAINS
        CALL section_vals_val_get(localize_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep,error=error)
        IF(n_rep==0.AND.p_loc_lumo)THEN
            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-              "No LUMO_LIST was specified, therefore localization of unoccupied states will be skipped!"//&
+              "No LIST_UNOCCUPIED was specified, therefore localization of unoccupied states will be skipped!"//&
               CPSourceFileRef,&
               only_ionode=.TRUE.)
            p_loc_lumo=.FALSE.
@@ -373,14 +375,19 @@ CONTAINS
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(occupied_evals(dft_control%nspins),stat=istat)
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(homo_localized(dft_control%nspins),stat=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              DO ispin=1,dft_control%nspins
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                      eigenvalues=mo_eigenvalues)
                 occupied_orbs(ispin)%matrix=>mo_coeff
                 occupied_evals(ispin)%array=>mo_eigenvalues
+                CALL cp_fm_create(homo_localized(ispin)%matrix,occupied_orbs(ispin)%matrix%matrix_struct,error=error)
+                CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix,homo_localized(ispin)%matrix,error=error)
              END DO
-             CALL get_localization_info(qs_env,qs_loc_env_homo,dft_section, wf_r, wf_g,particles,&
+             CALL get_localization_info(qs_env,qs_loc_env_homo,dft_section,homo_localized, wf_r, wf_g,particles,&
                   occupied_orbs,occupied_evals,error=error)
+             CALL cp_fm_vect_dealloc(homo_localized,error)
              DEALLOCATE(occupied_orbs,stat=istat)
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE(occupied_evals,stat=istat)
@@ -410,10 +417,12 @@ CONTAINS
           ALLOCATE(unoccupied_evals(dft_control%nspins),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           CALL  make_lumo(qs_env,scf_env,unoccupied_orbs,unoccupied_evals,min_lumos,nlumos,error)
+          lumo_ptr=>unoccupied_orbs
           DO ispin=1,dft_control%nspins
              has_lumo=.TRUE.
              homo_lumo(ispin,2)=unoccupied_evals(ispin)%array(1)
              IF(check_write)THEN
+                IF(p_loc_lumo.AND.nlumo.NE.-1)nlumos=MIN(nlumo,nlumos)
                 ! Prints the cube files of UNOCCUPIED ORBITALS
                 CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
                      unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, error)
@@ -431,10 +440,17 @@ CONTAINS
           END IF
 
           IF(p_loc_lumo)THEN
+             ALLOCATE(lumo_localized(dft_control%nspins),STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             DO ispin=1,dft_control%nspins
+                CALL cp_fm_create(lumo_localized(ispin)%matrix,unoccupied_orbs(ispin)%matrix%matrix_struct,error=error)
+                CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix,lumo_localized(ispin)%matrix,error=error) 
+             END DO
              CALL qs_loc_env_init(qs_loc_env_lumo,qs_loc_env_lumo%localized_wfn_control,qs_env,&
                   lumo_coeff=unoccupied_orbs,error=error) 
-             CALL get_localization_info(qs_env,qs_loc_env_lumo,dft_section, wf_r, wf_g,particles,&
+             CALL get_localization_info(qs_env,qs_loc_env_lumo,dft_section, lumo_localized, wf_r, wf_g,particles,&
                   unoccupied_orbs,unoccupied_evals,error=error)
+             lumo_ptr=>lumo_localized
           END IF
        ENDIF
 
@@ -468,7 +484,7 @@ CONTAINS
 
        ! generate a mix of wfns, and write to a restart
        CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, &
-                    unoccupied_orbs, scf_env, matrix_s, output_unit, error)
+                    lumo_ptr, scf_env, matrix_s, output_unit, error)
 
        ! Compute the optical conductivity (needs homos and lumos)
        CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
@@ -517,7 +533,7 @@ CONTAINS
   ! *****************************************************************************
   !> \brief Performs localization of the orbitals
   ! *****************************************************************************
-  SUBROUTINE get_localization_info(qs_env,qs_loc_env,dft_section,&
+  SUBROUTINE get_localization_info(qs_env,qs_loc_env,dft_section,mo_local,&
                                    wf_r, wf_g,particles,coeff,evals,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -525,6 +541,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(pw_p_type)                          :: wf_r, wf_g
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_local
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: coeff
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
@@ -568,8 +586,6 @@ CONTAINS
        ELSE
           qs_loc_env%tag_mo="LUMO"
        END IF
-       CALL cp_fm_create(mo_localized,coeff(ispin)%matrix%matrix_struct,error=error)
-       CALL cp_fm_to_fm(coeff(ispin)%matrix,mo_localized,error=error)
 
        IF (qs_loc_env%do_localize) THEN
           ! Do the Real localization..
@@ -583,7 +599,7 @@ CONTAINS
           scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
 
           CALL qs_loc_driver(qs_env,qs_loc_env,localize_section,localization_section,&
-               myspin=ispin,ext_mo_coeff=mo_localized,error=error)
+               myspin=ispin,ext_mo_coeff=mo_local(ispin)%matrix,error=error)
 
           ! maps wfc to molecules, and compute the molecular dipoles if required
           IF (( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
@@ -597,12 +613,11 @@ CONTAINS
           ! Compute the molecular states
           IF ( BTEST(cp_print_key_should_output(logger%iter_info,localization_section,&
                "MOLECULAR_STATES",error=error),cp_p_file)) THEN
-             CALL construct_molecular_states(molecule_set, mo_localized, coeff(ispin)%matrix,& 
+             CALL construct_molecular_states(molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix,& 
                   evals(ispin)%array,ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
                   localization_section=localization_section, particles=particles, error=error)
           ENDIF
        END IF
-       CALL cp_fm_release(mo_localized,error=error)
     ENDDO
 
     CALL timestop(handle)

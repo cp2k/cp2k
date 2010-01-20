@@ -278,12 +278,12 @@ CONTAINS
 
           ELSE
           ! List of States LUMO
-          CALL section_vals_val_get(loc_section,"LUMO_LIST",  n_rep_val=n_rep,error=error)
+          CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep,error=error)
           IF(n_rep>0) THEN
             n_list = 0
             DO ir = 1,n_rep
                NULLIFY(list)
-               CALL section_vals_val_get(loc_section,"LUMO_LIST",i_rep_val=ir,i_vals=list,error=error)
+               CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",i_rep_val=ir,i_vals=list,error=error)
                IF(ASSOCIATED(list)) THEN
                   CALL reallocate(localized_wfn_control%loc_states,1,n_list+SIZE(list))
                   DO i = 1, SIZE(list)
