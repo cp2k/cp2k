@@ -11,10 +11,10 @@ MODULE qs_loc_molecules
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_p_file
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas

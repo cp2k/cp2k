@@ -36,7 +36,6 @@ MODULE molecular_states
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_maxloc
@@ -86,7 +85,7 @@ CONTAINS
     TYPE(pw_p_type), INTENT(INOUT)           :: wf_r, wf_g
     TYPE(section_vals_type), POINTER         :: localization_section
     TYPE(particle_list_type), POINTER        :: particles
-    CHARACTER(LEN=default_string_length)        :: tag
+    CHARACTER(LEN=*), INTENT(IN)             :: tag
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_molecular_states', &

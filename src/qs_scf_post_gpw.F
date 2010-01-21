@@ -616,7 +616,8 @@ CONTAINS
                "MOLECULAR_STATES",error=error),cp_p_file)) THEN
              CALL construct_molecular_states(molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix,& 
                   evals(ispin)%array,ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
-                  localization_section=localization_section, particles=particles, tag=qs_loc_env%tag_mo, error=error)
+                  localization_section=localization_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo),&
+                  error=error)
           ENDIF
        END IF
     ENDDO
