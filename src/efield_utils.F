@@ -148,8 +148,6 @@ CONTAINS
                (sim_step.LE.efield%envelop_i_vars(2).OR.efield%envelop_i_vars(2).LT.0))THEN
              field=field+strength*COS(sim_time*nu*2.0_dp*pi+&
                   efield%phase_offset*pi)*pol(:)
-          ELSE
-             field=0.0_dp
           END IF
        END IF
        IF(efield%envelop_id==ramp_env)THEN
