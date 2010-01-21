@@ -486,6 +486,8 @@ CONTAINS
        ! generate a mix of wfns, and write to a restart
        CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, &
                     lumo_ptr, scf_env, matrix_s, output_unit, error)
+       IF(p_loc_lumo)CALL cp_fm_vect_dealloc(lumo_localized,error)
+          
 
        ! Compute the optical conductivity (needs homos and lumos)
        CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
