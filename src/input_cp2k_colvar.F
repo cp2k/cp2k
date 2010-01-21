@@ -1194,8 +1194,6 @@ CONTAINS
             error=error)
         
        NULLIFY(keyword, subsection, subsubsection)
-
-       
        CALL keyword_create(keyword, name="SUBSET_TYPE",&
             description="Define the subsytem used to compute the RMSD",&
             usage="SUBSET_TYPE ALL",&
@@ -1282,6 +1280,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_colvar_rpath_section
 
+! *****************************************************************************
+!> \brief Distance from reaction path
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author 01.2010
+! *****************************************************************************
   SUBROUTINE create_colvar_dpath_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1292,7 +1297,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="DISTANCE_FROM_PATH",&
@@ -1309,7 +1313,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_colvar_dpath_section
 
-
+! *****************************************************************************
+!> \brief Section describinf keywords for both reaction path and distance from reaction path
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author 01.2010
+! *****************************************************************************
   SUBROUTINE keywords_colvar_path(section,error)
 
     TYPE(section_type), POINTER              :: section

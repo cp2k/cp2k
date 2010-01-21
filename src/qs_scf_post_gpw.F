@@ -205,8 +205,9 @@ CONTAINS
       POINTER                                :: occupied_evals, &
                                                 unoccupied_evals
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: occupied_orbs, unoccupied_orbs,&
-                       homo_localized, lumo_localized, lumo_ptr
+      POINTER                                :: homo_localized, &
+                                                lumo_localized, lumo_ptr, &
+                                                occupied_orbs, unoccupied_orbs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -539,10 +540,10 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(pw_p_type)                          :: wf_r, wf_g
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_local
+    TYPE(pw_p_type)                          :: wf_r, wf_g
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: coeff
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
@@ -556,7 +557,6 @@ CONTAINS
                                                 output_unit
     LOGICAL                                  :: do_homo
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
-    TYPE(cp_fm_type), POINTER                :: mo_localized
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
@@ -580,7 +580,6 @@ CONTAINS
 
     DO ispin=1,dft_control%nspins
        !
-       NULLIFY(mo_localized)
        IF(do_homo)THEN
           qs_loc_env%tag_mo="HOMO"
        ELSE
