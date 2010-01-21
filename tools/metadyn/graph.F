@@ -301,13 +301,13 @@ PROGRAM graph
      ENDIF
   ENDDO
 
+  ! Revert the order so we can perform averages (when projecting FES) more
+  ! efficiently
+  i_map=ndim-i_map+1
+
   ! Tag the periodic COLVAR according the new internal order
   DO id=1,nprd
-     DO i = 1, ndim
-        IF (i_map(i)==iprd(id)) EXIT
-     END DO
-     IF (i==ndim+1) STOP "Error assigning the periodicity of COLVAR" 
-     iperd(i)=1
+     iperd(i_map(iprd(id)))=1
   END DO
 
   ! Grid size
@@ -323,10 +323,6 @@ PROGRAM graph
   ELSE
      ngrid=100
   END IF
-
-  ! Revert the order so we can perform averages (when projecting FES) more
-  ! efficiently
-  i_map=ndim-i_map+1
 
   WRITE(iw,'(/,70("*"))')
   WRITE(iw,'("FES|",T7,A,/)')"Parsing file:   <"//TRIM(file)//">"
