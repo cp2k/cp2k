@@ -36,6 +36,7 @@ MODULE molecular_states
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_maxloc
@@ -70,9 +71,11 @@ MODULE molecular_states
 CONTAINS
 
 ! *****************************************************************************
+!> \brief constructs molecular states. mo_localized gets overwritten! 
+! *****************************************************************************
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
-       localization_section, particles, error)
+       localization_section, particles, tag, error)
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -83,6 +86,7 @@ CONTAINS
     TYPE(pw_p_type), INTENT(INOUT)           :: wf_r, wf_g
     TYPE(section_vals_type), POINTER         :: localization_section
     TYPE(particle_list_type), POINTER        :: particles
+    CHARACTER(LEN=default_string_length)        :: tag
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_molecular_states', &
@@ -103,7 +107,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: b, c, d, D_igk, e_vectors, &
-                                                rot_e_vectors, smo
+                                                rot_e_vectors, smo, storage
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -165,6 +169,8 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ALLOCATE(nstates(2),STAT=isos)
     IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
+
+    CALL cp_fm_create(storage,mo_localized%matrix_struct,name='storage',error=error)
 
     DO imol = 1, SIZE(molecule_set)
        nstates(1) = molecule_set(imol)%lmi%nstates
@@ -228,9 +234,10 @@ CONTAINS
        IF (output_unit>0) WRITE(output_unit,*)"NUMBER OF STATES  ", ns
        IF (output_unit>0) WRITE(output_unit,*)"EIGENVALUES"
        IF (output_unit>0) WRITE(output_unit,*)""
+       IF (output_unit>0) WRITE(output_unit,*)"ENERGY      original MO-index"
 
        DO k=1,ns
-          IF (output_unit>0) WRITE(output_unit,*) evals(k)
+          IF (output_unit>0) WRITE(output_unit,*) evals(k), ind(k)
        END DO
        IF (unit_report>0) THEN
           WRITE(unit_report,*) imol,ns, " imol, number of states"
@@ -242,6 +249,9 @@ CONTAINS
        CALL cp_fm_gemm('N','N',nrow_global,ns,ns,1.0_dp, &
             b,e_vectors,0.0_dp,rot_e_vectors,error=error)
 
+       DO i=1,ns
+          CALL cp_fm_to_fm ( rot_e_vectors, storage, 1, i, ind ( i ))
+       END DO
 
        ! compute Eq. 6 from P. Hunt et al. (CPL 376, p. 68-74)
        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns, &
@@ -281,8 +291,9 @@ CONTAINS
                   wf_g, atomic_kind_set,cell,dft_control,particle_set, &
                   pw_env, error = error )
 
-             WRITE(filename,'(a9,I4.4,a1,I5.5)')"MOLECULE_",imol,"_",i
-             WRITE(title,'(A,I0,A,I0,A,F16.8)') "Molecular Eigenstate ",i," of ",ns,". Energy [a.u.] = ",evals(i)
+             WRITE(filename,'(a9,I4.4,a1,I5.5,a4)')"MOLECULE_",imol,"_",i,tag
+             WRITE(title,'(A,I0,A,I0,A,F16.8,A,I0)') "Molecular Eigenstate ",i," of ",ns,". Energy [a.u.] = ",&
+                                                    evals(i)," Original index ",ind(i)
              unit_nr=cp_print_key_unit_nr(logger,localization_section,"MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
              CALL pw_to_cube(wf_r%pw,unit_nr,particles=particles,title=title,&
@@ -307,6 +318,8 @@ CONTAINS
 
     END DO
     CALL cp_fm_release(smo,error=error)
+    CALL cp_fm_to_fm(storage,mo_localized,error)
+    CALL cp_fm_release(storage,error)
     DEALLOCATE(nstates,STAT=isos)
     IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
     CALL cp_print_key_finished_output(unit_report,logger,localization_section,&

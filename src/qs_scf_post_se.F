@@ -374,7 +374,7 @@ CPSourceFileRef,&
                    IF ( p_molstates ) THEN
                       CALL construct_molecular_states(molecule_set, mo_localized, mo_coeff, mo_eigenvalues,&
                            ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env,  wf_r, wf_g,&
-                           localization_section=localization_section, particles=particles, error=error)
+                           localization_section=localization_section, particles=particles, tag="HOMO", error=error)
                    ENDIF
                 END IF
                 CALL cp_fm_release(mo_localized,error=error)

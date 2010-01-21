@@ -12,7 +12,9 @@ MODULE qs_loc_molecules
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
@@ -91,17 +93,19 @@ CONTAINS
     logger => cp_error_get_logger(error)
     
     ! Molecular Dipoles availables only for nspin == 1
-    IF (nspins>1) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Molecular Dipoles not implemented for SPIN multiplicity "//&
-            "larger than 1!", error=error, error_level=cp_failure_level)
+    IF( BTEST(cp_print_key_should_output(logger%iter_info,loc_print_key,&
+               "MOLECULAR_DIPOLES",error=error),cp_p_file))THEN
+       IF (nspins>1) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Molecular Dipoles not implemented for SPIN multiplicity "//&
+               "larger than 1!", error=error, error_level=cp_failure_level)
+       END IF
+
+       ! Setup reference point and some warning..
+       reference = section_get_ival(loc_print_key,keyword_name="MOLECULAR_DIPOLES%REFERENCE",error=error)
+       CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%REF_POINT",r_vals=ref_point,error=error)
+       CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%PERIODIC",l_val=do_berry,error=error)    
     END IF
-
-    ! Setup reference point and some warning..
-    reference = section_get_ival(loc_print_key,keyword_name="MOLECULAR_DIPOLES%REFERENCE",error=error)
-    CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%REF_POINT",r_vals=ref_point,error=error)
-    CALL section_vals_val_get(loc_print_key,"MOLECULAR_DIPOLES%PERIODIC",l_val=do_berry,error=error)    
-
     particle_set => qs_loc_env%particle_set
     para_env     => qs_loc_env%para_env
     local_molecules => qs_loc_env%local_molecules
@@ -214,10 +218,13 @@ CONTAINS
           END IF
        END DO
     END IF
-
+    
     !---------------------------------------------------------------------------
     ! Figure out dipole of the molecule.
     !---------------------------------------------------------------------------
+    IF( BTEST(cp_print_key_should_output(logger%iter_info,loc_print_key,&
+               "MOLECULAR_DIPOLES",error=error),cp_p_file))THEN
+
     particle_set => qs_loc_env%particle_set
     para_env => qs_loc_env%para_env
     local_molecules => qs_loc_env%local_molecules
@@ -341,6 +348,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,loc_print_key,&
          "MOLECULAR_DIPOLES",error=error)
     DEALLOCATE(dipole_set,charge_set)
+ END IF
     !---------------------------------------------------------------------------
     ! end of molecular dipole calculation
     !---------------------------------------------------------------------------
