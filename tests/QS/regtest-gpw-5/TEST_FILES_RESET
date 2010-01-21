@@ -137,4 +137,5 @@ si8_noort_broy_wc_jacobi_all.inp
 si8_noort_broy_wc_jacobi_ene2.inp
 si8_noort_broy_wc_jacobi_ene1.inp
 si8_noort_broy_wc_direct_ene.inp
- 
+#small change
+si8_broy_wc_crazy.inp 
