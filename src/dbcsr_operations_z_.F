@@ -1275,7 +1275,7 @@
                params(sp)%lrows_b, params(sp)%lcols_b)
           ldc = select_n_or_t (params(sp)%type_c,&
                params(sp)%lrows_c, params(sp)%lcols_c)
-          CALL DGEMM(&
+          CALL ZGEMM(&
                params(sp)%type_a, params(sp)%type_b,&
                params(sp)%lrows_c, params(sp)%last_n,& !m, n
                params(sp)%last_k,& ! k
@@ -1324,7 +1324,7 @@
                params(sp)%lrows_b, params(sp)%lcols_b)
           ldc = select_n_or_t (params(sp)%type_c,&
                params(sp)%lrows_c, params(sp)%lcols_c)
-          CALL DGEMM(&
+          CALL ZGEMM(&
                flip_type(params(sp)%type_b),&
                flip_type(params(sp)%type_a),&
                params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)

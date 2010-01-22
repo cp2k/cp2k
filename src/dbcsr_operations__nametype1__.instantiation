@@ -7,6 +7,7 @@
 	'base1':     'r',
 	'prec1':     'dp',
         'dotname1':  'DDOT',
+        'gemmname1': 'DGEMM',
         'zero1':     '0.0_real_8',
         'one1':      '1.0_real_8'
 },
@@ -18,6 +19,7 @@
 	'base1':     'r',
         'prec1':     'sp',
         'dotname1':  'SDOT',
+        'gemmname1': 'SGEMM',
         'zero1':     '0.0_real_4',
         'one1':      '1.0_real_4'
 },
@@ -29,6 +31,7 @@
 	'base1':     'c',
         'prec1':     'dp',
         'dotname1':  'ZDOTU',
+        'gemmname1': 'ZGEMM',
         'zero1':     'CMPLX(0.0, 0.0, real_8)',
         'one1':      'CMPLX(1.0, 0.0, real_8)'
 },
@@ -40,6 +43,7 @@
 	'base1':     'c',
         'prec1':     'sp',
         'dotname1':  'CDOTU',
+        'gemmname1': 'CGEMM',
         'zero1':     'CMPLX(0.0, 0.0, real_4)',
         'one1':      'CMPLX(1.0, 0.0, real_4)'
 },
