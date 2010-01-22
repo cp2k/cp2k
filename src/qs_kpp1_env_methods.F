@@ -571,7 +571,7 @@ CONTAINS
     my_diff=my_diff/2.0_dp
     DO ispin=1,SIZE(k_p_p1)
        CALL dbcsr_add(rho%rho_ao(ispin)%matrix,rho1%rho_ao(ispin)%matrix,&
-            beta_scalar=my_diff,error=error)
+            alpha_scalar=1.0_dp,beta_scalar=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&
@@ -595,7 +595,7 @@ CONTAINS
     my_diff=-2.0_dp*my_diff
     DO ispin=1,nspins
        CALL dbcsr_add(rho%rho_ao(ispin)%matrix,rho1%rho_ao(ispin)%matrix,&
-            beta_scalar=my_diff,error=error)
+            alpha_scalar=1.0_dp,beta_scalar=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&
@@ -611,7 +611,7 @@ CONTAINS
     my_diff=-0.5_dp*my_diff
     DO ispin=1,nspins
        CALL dbcsr_add(rho%rho_ao(ispin)%matrix,rho1%rho_ao(ispin)%matrix,&
-            beta_scalar=my_diff,error=error)
+            alpha_scalar=1.0_dp,beta_scalar=my_diff,error=error)
        rho%rho_r(ispin)%pw%cr3d=rho%rho_r(ispin)%pw%cr3d+&
             my_diff*rho1%rho_r(ispin)%pw%cr3d
        rho%rho_g(ispin)%pw%cc=rho%rho_g(ispin)%pw%cc+&

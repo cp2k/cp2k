@@ -1476,19 +1476,22 @@ END SUBROUTINE qs_scf_print_summary
        ! this is not the first iteration
        ! this is useful to avoid the build-up of numerical noise
        ! however, we can not play this trick if restricted (don't mix non-equivalent orbs)
-       IF (scf_control%outer_scf%have_scf .AND. .NOT. dft_control%restricted) THEN
-          IF (scf_env%outer_scf%iter_count>0) THEN
-             DO ispin=1,dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
-               IF (has_unit_metric) THEN
-                  CALL make_basis_simple(mo_coeff,nmo,error=error)
-               ELSE
-                  CALL make_basis_sm(mo_coeff,nmo,matrix_s(1)%matrix,error=error)
-               ENDIF
-             ENDDO
+       IF(scf_control%do_outer_scf_reortho) THEN
+          IF (scf_control%outer_scf%have_scf .AND. .NOT. dft_control%restricted) THEN
+             IF (scf_env%outer_scf%iter_count>0) THEN
+                DO ispin=1,dft_control%nspins
+                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+                   IF (has_unit_metric) THEN
+                      CALL make_basis_simple(mo_coeff,nmo,error=error)
+                   ELSE
+                      CALL make_basis_sm(mo_coeff,nmo,matrix_s(1)%matrix,error=error)
+                   ENDIF
+                ENDDO
+             ENDIF
           ENDIF
+       ELSE
+          ! dont need any dirty trick for the numerically stable irac algorithm.
        ENDIF
-
 
        IF (.NOT.ASSOCIATED(scf_env%qs_ot_env)) THEN
 

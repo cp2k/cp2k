@@ -783,21 +783,12 @@ CONTAINS
        SELECT CASE (data_type)
        CASE (dbcsr_type_real_4)
           matrix%m%data_type = dbcsr_type_real_4
-          CALL cp_unimplemented_error (routineN,&
-               "Single precision real matrices not yet tested or fully supported",&
-               error_level=cp_warning_level)
        CASE (dbcsr_type_real_8)
           matrix%m%data_type = dbcsr_type_real_8
        CASE (dbcsr_type_complex_4)
           matrix%m%data_type = dbcsr_type_complex_4
-          CALL cp_unimplemented_error (routineN,&
-               "Complex matrices not yet tested or fully supported",&
-               error_level=cp_warning_level)
        CASE (dbcsr_type_complex_8)
           matrix%m%data_type = dbcsr_type_complex_8
-          CALL cp_unimplemented_error (routineN,&
-               "Complex matrices not yet tested or fully supported",&
-               error_level=cp_warning_level)
        CASE DEFAULT
          CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
               routineN, "Invalid matrix type")
@@ -2953,19 +2944,31 @@ CONTAINS
     DEBUG_BODY
 
     ! Row sizes
-    nblkrows = nrows / nrow_block
-    sz = MOD(nrows, nrow_block)
+    IF(nrow_block.EQ.0) THEN
+       nblkrows = 0
+       sz = 0
+    ELSE
+       nblkrows = nrows / nrow_block
+       sz = MOD(nrows, nrow_block)
+    ENDIF
     IF (sz .GT. 0) nblkrows = nblkrows + 1
     ALLOCATE (rbs_data(nblkrows), rd_data(nblkrows))
     rbs_data(1:nblkrows) = nrow_block
     IF (sz .NE. 0) rbs_data(nblkrows) = sz
+
     ! Column sizes
-    nblkcols = ncolumns / ncol_block
-    sz = MOD(ncolumns, ncol_block)
+    IF(ncol_block.EQ.0) THEN
+       nblkcols = 0
+       sz = 0
+    ELSE
+       nblkcols = ncolumns / ncol_block
+       sz = MOD(ncolumns, ncol_block)
+    ENDIF
     IF (sz .GT. 0) nblkcols = nblkcols + 1
     ALLOCATE (cbs_data(nblkcols), cd_data(nblkcols))
     cbs_data(1:nblkcols) = ncol_block
     IF (sz .NE. 0) cbs_data(nblkcols) = sz
+
     CALL array_new (row_blk_sizes, rbs_data, gift=.TRUE.)
     CALL array_new (col_blk_sizes, cbs_data, gift=.TRUE.)
     !
@@ -4739,13 +4742,15 @@ CONTAINS
     ! Calculate the displacements for rows on processors needed for
     ! the exchanges. (Used to avoid critical sections in the following
     ! DO loop that copies data into the send buffer.)
-    row_dst_offsets(:,0,1) = 1
-    DO dst_p = 1, numproc-1
-       row_dst_offsets(1, dst_p, 1) = row_dst_offsets(1, dst_p-1, 1)&
-            + metalen*total_send_count(1, dst_p-1)
-       row_dst_offsets(2, dst_p, 1) = row_dst_offsets(2, dst_p-1, 1)&
-            + total_send_count(2, dst_p-1)
-    ENDDO
+    IF(sm%nblkrows_total.GT.0) THEN
+       row_dst_offsets(:,0,1) = 1
+       DO dst_p = 1, numproc-1
+          row_dst_offsets(1, dst_p, 1) = row_dst_offsets(1, dst_p-1, 1)&
+               + metalen*total_send_count(1, dst_p-1)
+          row_dst_offsets(2, dst_p, 1) = row_dst_offsets(2, dst_p-1, 1)&
+               + total_send_count(2, dst_p-1)
+       ENDDO
+    ENDIF
     DO row = 2, sm%nblkrows_total
        row_dst_offsets(:, :, row) =&
             + row_dst_offsets(:, :, row-1)&
@@ -7214,9 +7219,17 @@ CONTAINS
     current_int = 1
     current_src = 1
     current_dst = 1
-    s_src = src_sizes (current_src)
-    s_dst = dst_sizes (current_dst)
-    n_src_dsts(:,1) = (/ 1, 0 /)
+    IF(n_src.GT.0) THEN
+       s_src = src_sizes (current_src)
+       n_src_dsts(:,1) = (/ 1, 0 /)
+    ELSE
+       s_src = HUGE(0)
+    ENDIF
+    IF(n_dst.GT.0) THEN
+       s_dst = dst_sizes (current_dst)
+    ELSE
+       s_dst = HUGE(0)
+    ENDIF
     DO WHILE (current_src .LE. n_src .AND. current_dst .LE. n_dst)
        ! Calculate many elements do the current blocks have in common
        ! and record these as going to the current target block.

@@ -20,7 +20,7 @@ MODULE scf_control_types
   USE f77_blas
   USE input_constants,                 ONLY: &
        atomic_guess, core_guess, diag_ot, direct_p_mix, general_roks, &
-       high_spin_roks, outer_scf_becke_constraint, &
+       high_spin_roks, ot_algo_taylor_or_diag, outer_scf_becke_constraint, &
        outer_scf_ddapc_constraint, outer_scf_none, &
        outer_scf_optimizer_bisect, outer_scf_optimizer_diis, &
        outer_scf_optimizer_none, outer_scf_optimizer_sd, &
@@ -135,7 +135,7 @@ MODULE scf_control_types
     INTEGER                               :: max_scf,nrow_block,max_scf_hist,&
                                              ncol_block,maxl,nkind
     LOGICAL                               :: do_diag_sub,gradient_functional,gth_potential_present,&
-                                             use_cholesky,use_ot,use_diag
+                                             use_cholesky,use_ot,use_diag,do_outer_scf_reortho
     INTEGER                               :: ref_count,id_nr
     INTEGER, DIMENSION(2)                 :: added_mos
     INTEGER                               :: roks_scheme
@@ -192,6 +192,7 @@ CONTAINS
       scf_control%use_diag = .TRUE.
       scf_control%do_diag_sub = .FALSE.
       scf_control%use_ot = .FALSE.
+      scf_control%do_outer_scf_reortho = .TRUE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
       scf_control%ref_count=1
@@ -360,7 +361,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cholesky_flag, stat
+    INTEGER                                  :: cholesky_flag, ialgo, stat
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: do_mixing, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
@@ -391,6 +392,8 @@ CONTAINS
           ! set default to diagonalization
           scf_control%use_diag = .TRUE.
        END IF
+       CALL section_vals_val_get(scf_section,"OT%ALGORITHM",i_val=ialgo,error=error)
+       scf_control%do_outer_scf_reortho = ialgo.EQ.ot_algo_taylor_or_diag
        CALL section_vals_val_get(scf_section,"SCF_GUESS",i_val=scf_control%density_guess,error=error)
        CALL section_vals_val_get(scf_section,"EPS_DIIS",r_val=scf_control%eps_diis,error=error)
        CALL section_vals_val_get(scf_section,"eps_eigval",r_val=scf_control%eps_eigval,error=error)

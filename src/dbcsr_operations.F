@@ -70,7 +70,7 @@ MODULE dbcsr_operations
             dbcsr_btriu, dbcsr_triu, dbcsr_tril, block_add_on_diag,&
             block_chol_inv, block_set, dbcsr_remove_block, dbcsr_norm, &
             dbcsr_gershgorin_norm, dbcsr_maxabs_norm, dbcsr_frobenius_norm, &
-            dbcsr_symmetrize_block_diag
+            dbcsr_symmetrize_block_diag, dbcsr_copy_columns
   PUBLIC :: dbcsr_desymmetrize_deep,&
             dbcsr_new_transposed,&
             dbcsr_complete_redistribute,&
@@ -96,7 +96,7 @@ MODULE dbcsr_operations
   INTERFACE dbcsr_trace
      MODULE PROCEDURE dbcsr_trace_a_s, dbcsr_trace_a_d,&
           dbcsr_trace_a_c, dbcsr_trace_a_z,&
-          dbcsr_trace_ab_s, dbcsr_trace_ab_d,&
+          dbcsr_trace_ab_s, dbcsr_trace_a_b_d,&!dbcsr_trace_ab_d,&
           dbcsr_trace_ab_c, dbcsr_trace_ab_z
   END INTERFACE
 
@@ -169,8 +169,8 @@ MODULE dbcsr_operations
 
   INTERFACE dbcsr_add
      MODULE PROCEDURE dbcsr_add_anytype
-     MODULE PROCEDURE dbcsr_add_beta_s, dbcsr_add_beta_d,&
-                      dbcsr_add_beta_c, dbcsr_add_beta_z
+     MODULE PROCEDURE dbcsr_add_s, dbcsr_add_d,&
+                      dbcsr_add_c, dbcsr_add_z
   END INTERFACE
 
 
@@ -973,8 +973,9 @@ CONTAINS
                dbcsr_get_matrix_type (source_matrix),&
                dbcsr_row_block_sizes (source_matrix),&
                dbcsr_col_block_sizes (source_matrix),&
-               nblks=index_size, nze=data_size, special=.TRUE.,&
-               error=error)
+               nblks=index_size, nze=data_size, &
+               data_type=dbcsr_get_data_type(source_matrix),&
+               special=.TRUE., error=error)
           CALL dbcsr_data_ensure_size (&
                buffer_set%mats(row_image, col_image)%m%data_area,&
                data_size, nocopy=.TRUE.)
@@ -1118,7 +1119,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: new_index
     INTEGER, DIMENSION(:), POINTER :: left_col_blk_offset, left_local_rows, &
       left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
-      product_col_blk_offset, right_col_blk_offset, right_row_blk_offset
+      product_col_blk_offset, right_col_blk_offset
     LOGICAL :: block_exists, found, keep_sparsity, left_limit_rows, limit_k, &
       negate_alpha, product_is_symmetric, right_limit_cols, tr_a, tr_b, tr_p
     REAL(KIND=dp)                            :: epoch, mt_t_dgemm
@@ -1152,7 +1153,6 @@ CONTAINS
          product%wms(ithread+1)%datasize
     left_row_blk_offset => array_data (left%row_blk_offset)
     left_col_blk_offset => array_data (left%col_blk_offset)
-    right_row_blk_offset => array_data (right%row_blk_offset)
     right_col_blk_offset => array_data (right%col_blk_offset)
     product_col_blk_offset => array_data (product%col_blk_offset)
     !left_thread_dist => array_data (dbcsr_distribution_thread_dist (product%dist))
@@ -1721,23 +1721,22 @@ CONTAINS
           CYCLE
        ENDIF
 
-       IF(params(sp)%offset_c+params(sp)%nze_c-1.GT.&
-            SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
+       !IF(params(sp)%offset_c+params(sp)%nze_c-1.GT.&
+       !     SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
           !WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
           !     SIZE(dbcsr_get_data_p_d(product_data_area))
           !WRITE(*,*) 'params(sp)%offset_c+params(sp)%nze_c-1',&
           !     params(sp)%offset_c+params(sp)%nze_c-1
           !stop
-       ENDIF
-       IF(params(sp)%offset_c.GT.&
-            SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
+       !ENDIF
+       !IF(params(sp)%offset_c.GT.&
+       !     SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
           !WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
           !     SIZE(dbcsr_get_data_p_d(product_data_area))
           !WRITE(*,*) 'params(sp)%offset_c',&
           !     params(sp)%offset_c
           !stop
-       ENDIF
-
+       !ENDIF
        CALL dbcsr_data_set_pointer (product_data,&
             rsize=params(sp)%nze_c, csize=1,&
             source_lb=params(sp)%offset_c,&
@@ -2234,7 +2233,6 @@ CONTAINS
 !> \brief Scales a DBCSR matrix by alpha
 !> \param[inout] matrix_a       DBCSR matrix
 !> \param[in] alpha_scalar      (optional) a scalar
-!> \param[in] alpha_vector      (optional) a vector
 !> \param[in] alpha_matrix      (optional) a list of matrices
 !> \param[in] side              (optional) ?
 !> \param[in] last_column       (optional) only scale up to this full column
@@ -2242,7 +2240,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_scale_anytype(matrix_a, last_column, error, scale_type,&
          side,&
-         alpha_scalar, alpha_vector, alpha_matrix)
+         alpha_scalar, alpha_matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     INTEGER, INTENT(IN), OPTIONAL            :: last_column
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -2251,7 +2249,7 @@ CONTAINS
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha_scalar
     TYPE(dbcsr_data_obj), INTENT(IN), &
-      OPTIONAL                               :: alpha_vector, alpha_matrix
+      OPTIONAL                               :: alpha_matrix
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_anytype', &
       routineP = moduleN//':'//routineN
@@ -2374,19 +2372,6 @@ CONTAINS
              IF (a_nze .GT. 0) THEN
                 CALL dbcsr_blas_scal (a_nze, alpha_scalar, data_any, 1)
              ENDIF
-          ELSEIF(scale_type .EQ. 'V') THEN
-             CALL stop_program(routineN,"NYI")
-             !IF(right) THEN
-             !   DO i = 1,a_col_size
-             !      CALL dscal(a_row_size,alpha_vector(col_offset+i-1),&
-             !           data_d((i-1)*a_row_size+1),1)
-             !   ENDDO
-             !ELSE
-             !   DO i = 1,a_row_size
-             !      CALL dscal(a_col_size,alpha_vector(row_offset+i-1),&
-             !           data_d(i),a_col_size)
-             !   ENDDO
-             !ENDIF
           ELSEIF(scale_type .EQ. 'M') THEN
              IF(right) THEN
                 !A = A * alpha
@@ -2440,6 +2425,97 @@ CONTAINS
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_scale_anytype
+
+  !> \brief Interface for matrix scaling by a scalar
+  SUBROUTINE dbcsr_scale_d(matrix_a, alpha_scalar, last_column, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    REAL(real_8), INTENT(IN)                 :: alpha_scalar
+    INTEGER, INTENT(IN), OPTIONAL            :: last_column
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_d', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: scale_type
+
+    scale_type = 'S'
+    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8) THEN
+       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
+            scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4) THEN
+       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
+            scale_type=scale_type, alpha_scalar=dbcsr_scalar (REAL(alpha_scalar,real_4)))
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid data type")
+    ENDIF
+  END SUBROUTINE dbcsr_scale_d
+
+  SUBROUTINE dbcsr_scale_s(matrix_a, alpha_scalar, last_column, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    REAL(real_4), INTENT(IN)                 :: alpha_scalar
+    INTEGER, INTENT(IN), OPTIONAL            :: last_column
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_s', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: scale_type
+
+    scale_type = 'S'
+    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4) THEN
+       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
+            scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid data type")
+    ENDIF
+  END SUBROUTINE dbcsr_scale_s
+  
+SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    COMPLEX(real_8), INTENT(IN)              :: alpha_scalar
+    INTEGER, INTENT(IN), OPTIONAL            :: last_column
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_z', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: scale_type
+
+    scale_type = 'S'
+    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_8) THEN
+       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
+            scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_4) THEN
+       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
+            scale_type=scale_type, alpha_scalar=dbcsr_scalar (CMPLX(alpha_scalar,KIND=real_4)))
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid data type")
+    ENDIF
+  END SUBROUTINE dbcsr_scale_z
+
+  SUBROUTINE dbcsr_scale_c(matrix_a, alpha_scalar, last_column, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    COMPLEX(real_4), INTENT(IN)              :: alpha_scalar
+    INTEGER, INTENT(IN), OPTIONAL            :: last_column
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_c', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: scale_type
+
+    scale_type = 'S'
+    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_4) THEN
+       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
+            scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid data type")
+    ENDIF
+  END SUBROUTINE dbcsr_scale_c
 
 ! *****************************************************************************
 !> \brief Scales a DBCSR matrix by alpha
@@ -2669,6 +2745,8 @@ CONTAINS
           data_any%d%c_sp = CONJG(data_any%d%c_sp)
        CASE (dbcsr_type_complex_8)
           data_any%d%c_dp = CONJG(data_any%d%c_dp)
+       CASE DEFAULT
+          ! needed for g95
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -2741,7 +2819,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_anytype', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
+    CHARACTER                                :: data_type_a, data_type_b
     INTEGER                                  :: blk, col, row, timing_handle
     LOGICAL                                  :: do_scale, tr
     TYPE(dbcsr_data_obj)                     :: data_block
@@ -2753,13 +2831,12 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     
-    IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b)) &
-         CALL stop_program(routineN,"data types not consistent")
-    data_type = dbcsr_get_data_type(matrix_a)
+    data_type_a = dbcsr_get_data_type(matrix_a)
+    data_type_b = dbcsr_get_data_type(matrix_b)
     !
-    my_alpha_scalar = dbcsr_scalar_one (data_type)
+    my_alpha_scalar = dbcsr_scalar_one (data_type_a)
     IF(PRESENT(alpha_scalar)) my_alpha_scalar = alpha_scalar
-    my_beta_scalar = dbcsr_scalar_one (data_type)
+    my_beta_scalar = dbcsr_scalar_one (data_type_b)
     IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
     !
     ! let's go
@@ -2768,15 +2845,15 @@ CONTAINS
     ENDIF
 
     do_scale = dbcsr_scalar_are_equal (&
-         my_beta_scalar, dbcsr_scalar_one (data_type))
+         my_beta_scalar, dbcsr_scalar_one (data_type_b))
 
     CALL dbcsr_scale(matrix_a,scale_type='S',&
          alpha_scalar=my_alpha_scalar,error=error)
 
-    IF(.not.dbcsr_scalar_are_equal(my_beta_scalar,&
-         dbcsr_scalar_zero(data_type))) THEN
+    IF(.NOT.dbcsr_scalar_are_equal(my_beta_scalar,&
+         dbcsr_scalar_zero(data_type_b))) THEN
        CALL dbcsr_data_init (data_block)
-       CALL dbcsr_data_new (data_block, data_type)
+       CALL dbcsr_data_new (data_block, data_type_b)
        CALL dbcsr_iterator_start(iter, matrix_b)
 
        DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -2804,10 +2881,110 @@ CONTAINS
 
   END SUBROUTINE dbcsr_add_anytype
 
+  !> \brief Interface for dbcsr_add
+  SUBROUTINE dbcsr_add_d(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    REAL(real_8), INTENT(IN)                 :: alpha_scalar, beta_scalar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_d', &
+      routineP = moduleN//':'//routineN
+
+    IF(    dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(alpha_scalar),&
+            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(REAL(alpha_scalar,real_4)),&
+            beta_scalar=dbcsr_scalar(REAL(beta_scalar,real_4)), error=error)
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(alpha_scalar),&
+            beta_scalar=dbcsr_scalar(REAL(beta_scalar,real_4)), error=error)
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(REAL(alpha_scalar,real_4)),&
+            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI")
+    ENDIF
+  END SUBROUTINE dbcsr_add_d
+
+  SUBROUTINE dbcsr_add_s(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    REAL(real_4), INTENT(IN)                 :: alpha_scalar, beta_scalar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_s', &
+      routineP = moduleN//':'//routineN
+
+    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
+       dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(alpha_scalar),&
+            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI")
+    ENDIF
+  END SUBROUTINE dbcsr_add_s
+
+  SUBROUTINE dbcsr_add_z(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    COMPLEX(real_8), INTENT(IN)              :: alpha_scalar, beta_scalar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_z', &
+      routineP = moduleN//':'//routineN
+
+    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_8 .AND. &
+       dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_complex_8) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(alpha_scalar),&
+            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_4 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_complex_4) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(CMPLX(alpha_scalar,KIND=real_4)),&
+            beta_scalar=dbcsr_scalar(CMPLX(beta_scalar,KIND=real_4)), error=error)
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI")
+    ENDIF
+  END SUBROUTINE dbcsr_add_z
+
+  SUBROUTINE dbcsr_add_c(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    COMPLEX(real_4), INTENT(IN)              :: alpha_scalar, beta_scalar
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_c', &
+      routineP = moduleN//':'//routineN
+
+    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_4 .AND. &
+       dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_complex_4) THEN
+       CALL dbcsr_add_anytype(matrix_a, matrix_b,&
+            alpha_scalar=dbcsr_scalar(alpha_scalar),&
+            beta_scalar=dbcsr_scalar(beta_scalar), error=error)
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI")
+    ENDIF
+  END SUBROUTINE dbcsr_add_c
 
 ! *****************************************************************************
 !> \brief Hadamard product
-!>    C = A . B 
+!>    C = A . B (C needs to be different from A and B)
 !> \param[in,out] matrix_c        DBCSR matrix
 !> \param[in] matrix_a, matrix_b  DBCSR matrix
 ! *****************************************************************************
@@ -3440,10 +3617,10 @@ CONTAINS
          cp_unimplemented_error_nr, routineN, "Column shifting not supported",&
          error=error)
 
-    src_col_offsets = array_data (matrix_a%m%col_blk_offset)
-    dst_col_offsets = array_data (matrix_b%m%col_blk_offset)
-    src_col_sizes = array_data (matrix_a%m%col_blk_size)
-    dst_col_sizes = array_data (matrix_b%m%col_blk_size)
+    src_col_offsets => array_data (matrix_a%m%col_blk_offset)
+    dst_col_offsets => array_data (matrix_b%m%col_blk_offset)
+    src_col_sizes => array_data (matrix_a%m%col_blk_size)
+    dst_col_sizes => array_data (matrix_b%m%col_blk_size)
 
     CALL dbcsr_data_init (src_data)
     CALL dbcsr_data_init (dst_data)
@@ -4451,15 +4628,12 @@ CONTAINS
 !>        matrix.
 !> \param[in] matrix          matrix to redistribute
 !> \param[in,out] redist      redistributed matrix
-!> \param[in] alpha           (optional) scaling of input matrix
 !> \param[in] keep_sparsity   (optional) retains the sparsity of the redist
 !>                            matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_complete_redistribute(matrix, redist, alpha, keep_sparsity)
+  SUBROUTINE dbcsr_complete_redistribute(matrix, redist, keep_sparsity)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_obj), INTENT(INOUT)           :: redist
-    TYPE(dbcsr_scalar_type), INTENT(IN), &
-      OPTIONAL                               :: alpha
     LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_complete_redistribute', &
@@ -4481,8 +4655,7 @@ CONTAINS
       n_row_reblocks, recv_count, row_reblocks, send_count, total_recv_count, &
       total_send_count
     INTEGER, DIMENSION(:), POINTER :: col_blk_size_new, col_blk_size_old, &
-      col_dist_new, col_dist_old, row_blk_size_new, row_blk_size_old, &
-      row_dist_new, row_dist_old
+      col_dist_new, row_blk_size_new, row_blk_size_old, row_dist_new
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
     LOGICAL                                  :: found, my_keep_sparsity, &
                                                 new_meta, sym, tr, valid_block
@@ -4494,8 +4667,6 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
-
-!REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -4532,8 +4703,6 @@ CONTAINS
          row_start_old, row_end_old)
     CALL convert_sizes_to_offsets (col_blk_size_old,&
          col_start_old, col_end_old)
-    row_dist_old => array_data (dbcsr_distribution_row_dist (dist_old))
-    col_dist_old => array_data (dbcsr_distribution_col_dist (dist_old))
     ! New matrix
     dist_new = dbcsr_distribution (redist)
     row_blk_size_new => array_data (redist%m%row_blk_size)
@@ -4761,6 +4930,7 @@ CONTAINS
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_data_clear_pointer (data_block)
     CALL dbcsr_data_release (data_block)
+
     ! Exchange the data and metadata structures.
     !
     t_xfer2 = m_walltime()
@@ -4816,6 +4986,7 @@ CONTAINS
          redist%m%max_rbs, redist%m%max_cbs)
     CALL dbcsr_data_new (data_block, dbcsr_type_1d_to_2d (data_type))
     CALL dbcsr_data_new (src_2d, dbcsr_type_1d_to_2d (data_type))
+
     !blk_p = 1
     !blk = 1
     blk_ps = 0
@@ -4836,12 +5007,14 @@ CONTAINS
           DBG 'blk: p',blks,src_p,'; row, col',&
                stored_row_new,stored_col_new,&
                '; blk_ps',blk_ps
+
           CALL dbcsr_data_clear_pointer (data_block)
           t_blk = m_walltime()
           CALL dbcsr_get_block_p(redist, stored_row_new, stored_col_new,&
                data_block, tr, found)
           t_blk2 = t_blk2 + (m_walltime() - t_blk)
           valid_block = found
+
           IF (found) cnt_fnd = cnt_fnd + 1
           IF (.NOT. found .AND. .NOT. my_keep_sparsity) THEN
              ! We have to set up a buffer block
@@ -4861,10 +5034,12 @@ CONTAINS
              cnt_new = cnt_new + 1
           ENDIF
           nze_rle = row_rle*col_rle
+
           IF (valid_block) THEN
              CALL dbcsr_data_set_pointer (src_2d,&
                   rsize=row_rle, csize=col_rle,&
                   pointee=recv_data, source_lb=data_offset_l)
+
              IF (.NOT. tr) THEN
                 CALL dbcsr_data_set (dst=data_block,&
                      lb=row_offset_new, data_size=row_rle,&
@@ -4893,6 +5068,7 @@ CONTAINS
           ELSE
              cnt_skip = cnt_skip+1
           ENDIF
+
           data_offset_l = data_offset_l + nze_rle
           IF (.NOT. found .AND. valid_block) THEN
              IF (dbg) WRITE(*,*)routineN//" Adding new block at",&
@@ -4907,6 +5083,7 @@ CONTAINS
           ENDIF
        ENDDO
     ENDDO
+
     CALL dbcsr_data_clear_pointer(data_block)
     CALL dbcsr_data_clear_pointer(src_2d)
     CALL dbcsr_data_release (buff_data)
@@ -4920,7 +5097,9 @@ CONTAINS
             "actual=",blk_ps
     ENDIF
     DBG 'Finalizing redistribution'
+
     CALL dbcsr_finalize(redist)
+
     DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
     DEALLOCATE(sdp); DEALLOCATE(sd_disp)
@@ -4979,9 +5158,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count, &
                                                 total_recv_count, &
                                                 total_send_count
-    INTEGER, DIMENSION(:), POINTER :: col_blk_size_new, col_blk_size_old, &
-      col_dist_new, col_dist_old, row_blk_size_new, row_blk_size_old, &
-      row_dist_new, row_dist_old
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size_new, &
+                                                col_dist_new, &
+                                                row_blk_size_new, row_dist_new
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
@@ -5010,10 +5189,6 @@ CONTAINS
     ! Get row and column start and end positions
     ! Old matrix
     dist_old = dbcsr_distribution (matrix)
-    row_blk_size_old => array_data (matrix%m%row_blk_size)
-    col_blk_size_old => array_data (matrix%m%col_blk_size)
-    row_dist_old => array_data (dbcsr_distribution_row_dist (dist_old))
-    col_dist_old => array_data (dbcsr_distribution_col_dist (dist_old))
     ! New matrix
     dist_new = dbcsr_distribution (redist)
     row_blk_size_new => array_data (redist%m%row_blk_size)
@@ -5708,10 +5883,8 @@ CONTAINS
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER                                  :: blk, col, mp_group, mynode, &
                                                 nblks, numnodes, nze, p, row
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist, &
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size, &
                                                 tmp_index
-    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
     LOGICAL                                  :: mini, tr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
@@ -5751,14 +5924,10 @@ CONTAINS
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
     dist = dbcsr_distribution (matrix)
-    row_dist => array_data (dbcsr_distribution_row_dist (dist))
-    col_dist => array_data (dbcsr_distribution_col_dist (dist))
     mp_obj = dbcsr_distribution_mp (dist)
     numnodes = dbcsr_mp_numnodes (mp_obj)
     mp_group = dbcsr_mp_group (mp_obj)
     mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dist))
-    pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (dist))
-
     !
     IF (mini) THEN
        ! We just mark the blocks as deleted.
@@ -6009,6 +6178,17 @@ CONTAINS
     ENDIF
   END SUBROUTINE dbcsr_get_block_p_area
 
+
+! *****************************************************************************
+!> \brief 
+!>          We allow : 
+!>                  matrix(dp) [+]= [scale(dp)] * block(dp)
+!>                  matrix(dp) [+]= [scale(dp)] * block(sp)
+!>                  matrix(sp) [+]= [scale(dp)] * block(sp)
+!> \param[in]  
+!> \param[out] 
+!>
+! *****************************************************************************
   SUBROUTINE dbcsr_put_block_area(matrix, row, col, block, transposed,&
        summation, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -6021,30 +6201,40 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_area', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
+    CHARACTER                                :: data_type_m
     LOGICAL                                  :: do_scale
 
-    data_type = dbcsr_get_data_type (matrix)
+    data_type_m = dbcsr_get_data_type (matrix)
     do_scale = PRESENT (scale)
     IF (do_scale) THEN
-       CALL cp_assert (data_type .EQ. scale%data_type, cp_fatal_level,&
-            cp_wrong_args_error, routineN, "Incompatible data types matrix="//&
-            data_type//" scale="//scale%data_type)
+       !CALL cp_assert (data_type_m .EQ. scale%data_type, cp_fatal_level,&
+       !     cp_wrong_args_error, routineN, "Incompatible data types matrix="//&
+       !     data_type_m//" scale="//scale%data_type)
     ENDIF
     CALL cp_assert (ASSOCIATED (block%d), cp_fatal_level, cp_wrong_args_error,&
          routineN, "Can only add valid data block!")
-    CALL cp_assert (data_type .EQ. dbcsr_type_2d_to_1d(block%d%data_type),&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types matrix="//&
-            data_type//" block="//block%d%data_type)
+    !CALL cp_assert (data_type_m .EQ. dbcsr_type_2d_to_1d(block%d%data_type),&
+    !     cp_fatal_level, cp_wrong_args_error, routineN,&
+    !     "Incompatible data types matrix="//&
+    !        data_type_m//" block="//block%d%data_type)
     SELECT CASE(block%d%data_type)
     CASE (dbcsr_type_real_4)
        IF (do_scale) THEN
-          CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, transposed,&
-               summation, scale=scale%r_sp)
+          IF(data_type_m.EQ.dbcsr_type_real_4) THEN
+             CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, transposed,&
+                  summation, scale=scale%r_sp)
+          ELSEIF(data_type_m.EQ.dbcsr_type_real_8) THEN
+             CALL dbcsr_put_block(matrix, row, col, REAL(block%d%r_sp,real_8), transposed,&
+                  summation, scale=REAL(scale%r_sp,real_8))
+          ENDIF
        ELSE
-          CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, transposed,&
-               summation)
+          IF(data_type_m.EQ.dbcsr_type_real_4) THEN
+             CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, transposed,&
+                  summation)
+          ELSEIF(data_type_m.EQ.dbcsr_type_real_8) THEN
+             CALL dbcsr_put_block(matrix, row, col, REAL(block%d%r_sp,real_8), transposed,&
+                  summation)
+          ENDIF
        ENDIF
     CASE (dbcsr_type_real_8)
        IF (do_scale) THEN
@@ -6148,6 +6338,37 @@ CONTAINS
        CALL btree_get_z (bt_z, key, bt_dz)
     ENDIF
   END SUBROUTINE prettify_fooler
+
+  SUBROUTINE dbcsr_trace_a_b_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
+    REAL(kind=real_8), INTENT(INOUT)         :: trace
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
+    LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_b_d', &
+      routineP = moduleN//':'//routineN
+
+    REAL(kind=real_4)                        :: trace_4
+
+    IF(    dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8 .OR. &
+           dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8 .OR. &
+           dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
+       CALL dbcsr_trace_ab_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
+       trace_4 = 0.0_real_4
+       CALL dbcsr_trace_ab_s(matrix_a, matrix_b, trace_4, trans_a, trans_b, local_sum, error)
+       trace = REAL(trace_4,real_8)
+    ELSE
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI")
+    ENDIF
+  END SUBROUTINE dbcsr_trace_a_b_d
+
 
 !  INCLUDE "dbcsr_operations_d_.F"
 !  INCLUDE "dbcsr_operations_z_.F"

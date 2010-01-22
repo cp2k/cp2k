@@ -55,7 +55,7 @@ MODULE dbcsr_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
 
-  PUBLIC :: dbcsr_init, dbcsr_hold, dbcsr_release, dbcsr_release_p, dbcsr_destroy,&
+  PUBLIC :: dbcsr_init, dbcsr_init_p, dbcsr_hold, dbcsr_release, dbcsr_release_p, dbcsr_destroy,&
             dbcsr_valid_index, dbcsr_is_initialized
   PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative
@@ -79,7 +79,8 @@ MODULE dbcsr_methods
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
             dbcsr_nfullrows_local, dbcsr_nfullcols_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
-            dbcsr_uses_special_memory, dbcsr_get_occupation
+            dbcsr_uses_special_memory, dbcsr_get_occupation,&
+            dbcsr_is_real, dbcsr_is_complex
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area, dbcsr_data_convert,&
@@ -119,6 +120,10 @@ MODULE dbcsr_methods
      MODULE PROCEDURE dbcsr_init_type, dbcsr_init_obj
   END INTERFACE
 
+  INTERFACE dbcsr_init_p
+     MODULE PROCEDURE dbcsr_init_obj_p
+  END INTERFACE
+
   INTERFACE dbcsr_valid_index
      MODULE PROCEDURE dbcsr_valid_index_type, dbcsr_valid_index_obj
   END INTERFACE
@@ -146,6 +151,14 @@ MODULE dbcsr_methods
 
   INTERFACE dbcsr_get_data_type
      MODULE PROCEDURE dbcsr_get_data_type_obj, data_get_data_type
+  END INTERFACE
+
+  INTERFACE dbcsr_is_real
+     MODULE PROCEDURE dbcsr_is_real_obj
+  END INTERFACE
+
+  INTERFACE dbcsr_is_complex
+     MODULE PROCEDURE dbcsr_is_complex_obj
   END INTERFACE
 
   !> \brief Encapsulates a scalar.
@@ -267,6 +280,26 @@ CONTAINS
   END SUBROUTINE dbcsr_init_obj
 
 
+! *****************************************************************************
+!> \brief Initializes a DBCSR matrix but does not allocate any memory.
+!> \param[out] matrix         uninitialized matrix
+!> \param[in,out] error       cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_init_obj_p (matrix, error)
+    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj_p', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    IF(ASSOCIATED(matrix)) CALL dbcsr_release_p(matrix)
+    ALLOCATE(matrix)
+    CALL dbcsr_init(matrix%m)
+    matrix%m%initialized = 0
+  END SUBROUTINE dbcsr_init_obj_p
 
 ! *****************************************************************************
 !> \brief Returns whether the index structure of the matrix is valid.
@@ -396,14 +429,16 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (dbcsr_is_initialized (matrix),&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Matrix not initialized")
-    IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
-       matrix%m%refcount = matrix%m%refcount - 1
-       IF (matrix%m%refcount .EQ. 0) THEN
-          CALL dbcsr_destroy (matrix)
-          DEALLOCATE(matrix)
+    IF(ASSOCIATED(matrix)) THEN
+       CALL cp_assert (dbcsr_is_initialized (matrix),&
+            cp_warning_level, cp_caller_error, routineN,&
+            "Matrix not initialized")
+       IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
+          matrix%m%refcount = matrix%m%refcount - 1
+          IF (matrix%m%refcount .EQ. 0) THEN
+             CALL dbcsr_destroy (matrix)
+             DEALLOCATE(matrix)
+          ENDIF
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_release_p
@@ -1531,6 +1566,40 @@ CONTAINS
 
     data_type = matrix%m%data_type
   END FUNCTION dbcsr_get_data_type_obj
+
+! *****************************************************************************
+!> \brief Returns true if the data type of the matrix is real
+!> \param[in]  matrix              query this matrix
+!> \param[out] is_real             
+! *****************************************************************************
+  PURE FUNCTION dbcsr_is_real_obj (matrix) RESULT (is_real)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    LOGICAL                                  :: is_real
+
+    IF(matrix%m%data_type.EQ.dbcsr_type_real_4.OR.&
+       matrix%m%data_type.EQ.dbcsr_type_real_8) THEN
+       is_real = .TRUE.
+    ELSE
+       is_real = .FALSE.
+    ENDIF
+  END FUNCTION dbcsr_is_real_obj
+
+! *****************************************************************************
+!> \brief Returns true if the data type of the matrix is complex
+!> \param[in]  matrix              query this matrix
+!> \param[out] is_complex             
+! *****************************************************************************
+  PURE FUNCTION dbcsr_is_complex_obj (matrix) RESULT (is_complex)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    LOGICAL                                  :: is_complex
+
+    IF(matrix%m%data_type.EQ.dbcsr_type_complex_4.OR.&
+       matrix%m%data_type.EQ.dbcsr_type_complex_8) THEN
+       is_complex = .TRUE.
+    ELSE
+       is_complex = .FALSE.
+    ENDIF
+  END FUNCTION dbcsr_is_complex_obj
 
 ! *****************************************************************************
 !> \brief Returns whether the matrix uses specially-allocated memory
@@ -3153,7 +3222,7 @@ CONTAINS
     dbcsr_type_is_2d = data_type .EQ. dbcsr_type_real_4_2d .OR.&
          data_type .EQ. dbcsr_type_real_8_2d .OR.&
          data_type .EQ. dbcsr_type_complex_4_2d .OR.&
-         data_type .EQ. dbcsr_type_complex_8
+         data_type .EQ. dbcsr_type_complex_8_2d
   END FUNCTION dbcsr_type_is_2d
 
 ! *****************************************************************************

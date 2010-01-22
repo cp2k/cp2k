@@ -87,14 +87,20 @@
 
     CHARACTER(LEN=1)                         :: my_trans_a, my_trans_b
     INTEGER :: a_blk, a_col, a_col_size, a_row_size, b_blk, b_col_size, &
-      b_frst_blk, b_last_blk, b_row_size, nze, row, timing_handle
+      b_frst_blk, b_last_blk, b_row_size, nze, row, timing_handle, a_beg, a_end, b_beg, b_end
     INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
                                                 a_row_blk_size, &
                                                 b_col_blk_size, b_row_blk_size
     REAL(kind=real_8)                                  :: sym_fac, fac
     LOGICAL                                  :: found, my_local_sum
-    REAL(kind=real_8), EXTERNAL                        :: DDOT
-    REAL(kind=real_8), DIMENSION(:), POINTER           :: a_data_p, b_data_p
+    REAL(real_4), EXTERNAL                   :: SDOT
+    REAL(real_8), EXTERNAL                   :: DDOT
+    COMPLEX(real_4), EXTERNAL                :: CDOTU
+    COMPLEX(real_8), EXTERNAL                :: ZDOTU
+    REAL(real_4), DIMENSION(:), POINTER      :: a_data_r, b_data_r
+    REAL(real_8), DIMENSION(:), POINTER      :: a_data_d, b_data_d
+    COMPLEX(real_4), DIMENSION(:), POINTER   :: a_data_c, b_data_c
+    COMPLEX(real_8), DIMENSION(:), POINTER   :: a_data_z, b_data_z
 
 !   ---------------------------------------------------------------------------
 
@@ -118,8 +124,14 @@
     a_col_blk_size => array_data (matrix_a%m%col_blk_size)
     b_row_blk_size => array_data (matrix_b%m%row_blk_size)
     b_col_blk_size => array_data (matrix_b%m%col_blk_size)
-    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_p)
-    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_p)
+    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_r)
+    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_r)
+    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_d)
+    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_d)
+    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_c)
+    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_c)
+    CALL dbcsr_get_data (matrix_a%m%data_area, a_data_z)
+    CALL dbcsr_get_data (matrix_b%m%data_area, b_data_z)
     
     my_trans_a = 'T'
     IF(PRESENT(trans_a)) my_trans_a = trans_a
@@ -164,11 +176,43 @@
              IF(nze.GT.0) THEN
                 !
                 ! let's trace the blocks
+                a_beg = ABS(matrix_a%m%blk_p(a_blk))
+                a_end = a_beg + nze - 1
+                b_beg = ABS(matrix_b%m%blk_p(b_blk))
+                b_end = b_beg + nze - 1
                 fac = 1.0_dp
                 IF(row.NE.a_col) fac = sym_fac
-                trace = trace + fac * DDOT (nze,&
-                        a_data_p(ABS(matrix_a%m%blk_p(a_blk))),1,&
-                        b_data_p(ABS(matrix_b%m%blk_p(b_blk))),1)
+                IF(    matrix_a%m%data_type.EQ.dbcsr_type_real_4.AND.&
+                       matrix_b%m%data_type.EQ.dbcsr_type_real_4) THEN
+                   trace = trace + fac * SDOT (nze,&
+                        a_data_r(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                        b_data_r(ABS(matrix_b%m%blk_p(b_blk))),1)
+                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_4.AND.&
+                     matrix_b%m%data_type.EQ.dbcsr_type_real_8) THEN
+                   trace = trace + &
+                        fac * SUM ( a_data_r(a_beg:a_end) * b_data_d(b_beg:b_end) )
+                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_8.AND.&
+                       matrix_b%m%data_type.EQ.dbcsr_type_real_4) THEN
+                   trace = trace + &
+                        fac * SUM ( a_data_d(a_beg:a_end) * b_data_r(b_beg:b_end) )
+                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_real_8.AND.&
+                       matrix_b%m%data_type.EQ.dbcsr_type_real_8) THEN
+                   trace = trace + fac * DDOT (nze,&
+                        a_data_d(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                        b_data_d(ABS(matrix_b%m%blk_p(b_blk))),1)
+                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_complex_4.AND.&
+                       matrix_b%m%data_type.EQ.dbcsr_type_complex_4) THEN
+                   trace = trace + fac * CDOTU (nze,&
+                        a_data_c(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                        b_data_c(ABS(matrix_b%m%blk_p(b_blk))),1)
+                ELSEIF(matrix_a%m%data_type.EQ.dbcsr_type_complex_8.AND.&
+                       matrix_b%m%data_type.EQ.dbcsr_type_complex_8) THEN
+                   trace = trace + fac * ZDOTU (nze,&
+                        a_data_z(ABS(matrix_a%m%blk_p(a_blk))),1,&
+                        b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1)
+                ELSE
+                   CALL stop_program(routineN,"combination of types NYI")                   
+                ENDIF
              ENDIF
           ENDIF
        ENDDO ! a_col
@@ -208,10 +252,9 @@
     
     REAL(kind=real_8), DIMENSION(:), POINTER           :: block_1d
     INTEGER                                  :: rsize, csize,&
-                                                blk, last_blk, nze, offset,&
-                                                frst_blk, stored_row,&
+                                                blk, nze, offset,&
+                                                stored_row,&
                                                 stored_col, iw
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     TYPE(btree_2d_data_d)          :: data_block
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
@@ -296,10 +339,9 @@
     
     REAL(kind=real_8), DIMENSION(:), POINTER           :: block_1d
     INTEGER                                  :: rsize, csize,&
-                                                blk, last_blk, nze, offset,&
-                                                frst_blk, stored_row,&
+                                                blk, nze, offset,&
+                                                stored_row,&
                                                 stored_col, iw
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     TYPE(btree_2d_data_d)          :: data_block
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
@@ -378,12 +420,11 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, csize, frst_blk, &
-                                                last_blk, nze, offset, &
+    INTEGER                                  :: blk, csize, &
+                                                nze, offset, &
                                                 rsize, stored_row,&
                                                 stored_col, iw
     LOGICAL                                  :: stored_tr
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     TYPE(btree_2d_data_d)          :: data_block
     REAL(kind=real_8), DIMENSION(:), POINTER           :: block_1d
 !   ---------------------------------------------------------------------------
@@ -465,13 +506,11 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_p_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, csize, frst_blk, &
-                                                last_blk, nze, offset, &
+    INTEGER                                  :: blk, csize, &
+                                                nze, offset, &
                                                 rsize, stored_row,&
                                                 stored_col
     LOGICAL                                  :: stored_tr
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    TYPE(btree_2d_data_d)          :: data_block
 !   ---------------------------------------------------------------------------
     CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_real_8,&
          cp_fatal_level, cp_caller_error,&
@@ -525,13 +564,11 @@
       routineP = moduleN//':'//routineN
 
     TYPE(btree_2d_data_d)          :: data_block, data_block2
-    INTEGER                                  :: blk, col_size, frst_blk, &
-                                                last_blk, nze, offset, &
-                                                row_size, blk_p,&
-                                                stored_row, stored_col, i,&
+    INTEGER                                  :: col_size, row_size, &
+                                                stored_row, stored_col, &
                                                 iw
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: found, gift, tr, tr2
+    LOGICAL                                  :: found, gift, tr
     REAL(kind=real_8), DIMENSION(:,:), POINTER         :: original_block
 
 !   ---------------------------------------------------------------------------
@@ -714,8 +751,8 @@
       routineP = moduleN//':'//routineN
 
     TYPE(btree_2d_data_d)          :: data_block, data_block2
-    INTEGER                                  :: blk, col_size, frst_blk, &
-                                                last_blk, nze, offset, &
+    INTEGER                                  :: blk, col_size, &
+                                                nze, offset, &
                                                 row_size, blk_p,&
                                                 stored_row, stored_col,&
                                                 iw
@@ -990,21 +1027,6 @@
     CALL dbcsr_data_clear_pointer (enc_alpha_vec)
     CALL dbcsr_data_release (enc_alpha_vec)
   END SUBROUTINE dbcsr_scale_by_vector_d
-
-  !> \brief Interface for matrix scaling by a scalar
-  SUBROUTINE dbcsr_scale_d(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(kind=real_8), INTENT(IN)                      :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_d', &
-      routineP = moduleN//':'//routineN
-    CHARACTER                                :: scale_type
-
-    scale_type = 'S'
-    CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
-         scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
-  END SUBROUTINE dbcsr_scale_d
 
   !> \brief Interface for matrix scaling by a matrix
   SUBROUTINE dbcsr_scale_d_m(matrix_a, alpha_matrix,&
@@ -1343,7 +1365,6 @@
        !ENDIF
     ENDDO
   END SUBROUTINE process_dgemm_stack_d
-
 
 #if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
 ! *****************************************************************************

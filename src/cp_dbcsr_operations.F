@@ -31,6 +31,7 @@ MODULE cp_dbcsr_operations
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
@@ -67,8 +68,8 @@ MODULE cp_dbcsr_operations
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
        dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
        dbcsr_obj, dbcsr_scalar_type, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_8, &
-       dbcsr_type_symmetric
+       dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: &
        add_work_coordinate, convert_sizes_to_offsets, create_bl_distribution, &
        dbcsr_add_wm_from_matrix, dbcsr_checksum, dbcsr_create, &
@@ -130,6 +131,8 @@ MODULE cp_dbcsr_operations
             cp_dbcsr_get_id_nr,&
             dbcsr_alloc_block_from_nbl
 
+  PUBLIC :: dbcsr_copy_columns_hack
+
   INTERFACE dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
   END INTERFACE
@@ -140,7 +143,6 @@ MODULE cp_dbcsr_operations
   END INTERFACE
 
   INTERFACE dbcsr_plus_fm_fm_t
-     !MODULE PROCEDURE dbcsr_plus_fm_fm_t_hack_hack
      MODULE PROCEDURE dbcsr_plus_fm_fm_t_native
   END INTERFACE
 
@@ -149,7 +151,6 @@ MODULE cp_dbcsr_operations
      MODULE PROCEDURE dbcsr_multiply_s, dbcsr_multiply_d,&
                       dbcsr_multiply_c, dbcsr_multiply_z
   END INTERFACE
-
 
 !> \brief Emulation of real_matrix_p_type
   TYPE dbcsr_obj_p_type
@@ -169,6 +170,55 @@ MODULE cp_dbcsr_operations
 
 
 CONTAINS
+
+
+! *****************************************************************************
+!> \brief hack for dbcsr_copy_columns
+!> \author vw
+! *****************************************************************************
+  SUBROUTINE dbcsr_copy_columns_hack(matrix_b, matrix_a,&
+       ncol, source_start, target_start, para_env, blacs_env, error)
+
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    INTEGER, INTENT(IN)                      :: ncol, source_start, &
+                                                target_start
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_columns_hack', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nfullcols_total, &
+                                                nfullrows_total
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_a, fm_matrix_b
+
+    NULLIFY(fm_matrix_a, fm_matrix_b, fm_struct)
+    CALL dbcsr_get_info(matrix_a,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix_a,fm_struct,name="fm_matrix_a",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
+    CALL dbcsr_get_info(matrix_b,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
+         ncol_global=nfullcols_total,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_matrix_b,fm_struct,name="fm_matrix_b",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+
+    CALL copy_dbcsr_to_fm(matrix_a, fm_matrix_a)
+    CALL copy_dbcsr_to_fm(matrix_b, fm_matrix_b)
+
+    CALL cp_fm_to_fm(fm_matrix_a, fm_matrix_b, ncol, source_start, target_start)
+
+    CALL copy_fm_to_dbcsr(fm_matrix_b, matrix_b)
+
+    CALL cp_fm_release(fm_matrix_a, error=error)
+    CALL cp_fm_release(fm_matrix_b, error=error)
+
+  END SUBROUTINE dbcsr_copy_columns_hack
 
 ! *****************************************************************************
 !> \brief allocate the blocks of a dbcsr based on the neighbor list
@@ -289,7 +339,8 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Performs a multiplication of two dbcsr_type matrices.
+!> \brief Performs a multiplication of two dbcsr_type matrices,
+!>        as  C := alpha * op( A ) * op( B ) + beta * C.
 !> \par Matrices m_a and m_b are multiplied into the m_c product matrix. If the
 !>      dist2d parameter is not specified, then a new distribution_2d is
 !>      determined for it.
@@ -310,6 +361,9 @@ CONTAINS
 !>      that the set is consistent with the given matrix.
 !> \param[in] transa, transb  specifies the form of op( A or B ) to be used in 
 !>                            the matrix multiplication 
+!>                            transx = 'N' or 'n',  op( X ) = X.
+!>                            transx = 'T' or 't',  op( X ) = transpose(X).
+!>                            transx = 'C' or 'c',  op( X ) = transpose(conjg(X)).
 !> \param[in] alpha           scaling of product
 !> \param[in] matrix_a        left BCSR matrix
 !> \param[in] matrix_b        right BCSR matrix
@@ -404,8 +458,6 @@ CONTAINS
        CALL dbcsr_new_transposed (matrix_left, matrix_a, shallow_data_copy=.FALSE.,&
             transpose_distribution=.FALSE., error=error)
        CALL dbcsr_conjg(matrix_left, error=error)
-       !CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
-       !     routineN, "transa = C NYI")
        new_left = .TRUE.
     CASE DEFAULT
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
@@ -426,8 +478,6 @@ CONTAINS
        CALL dbcsr_new_transposed (matrix_right, matrix_b, shallow_data_copy=.FALSE.,&
             transpose_distribution=.FALSE., error=error)
        CALL dbcsr_conjg(matrix_right, error=error)
-       !CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
-       !     routineN, "transb = C NYI")
        new_right = .TRUE.
     CASE DEFAULT
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
@@ -450,7 +500,8 @@ CONTAINS
     ENDIF
     IF (PRESENT (last_row)) THEN
        CALL cp_assert(last_row .GE. 1&
-            .AND. last_row .LE. dbcsr_nfullrows_total(matrix_c),&
+            .AND. last_row .LE. dbcsr_nfullrows_total(matrix_c)&
+            .OR. last_row .LT. 1 ,&
             cp_fatal_level, cp_wrong_args_error, routineN,&
             "Invalid last row specified")
        l_row = last_row
@@ -464,11 +515,13 @@ CONTAINS
     ENDIF
     IF (PRESENT (last_column)) THEN
        CALL cp_assert(last_column .GE. 1&
-            .AND. last_column .LE. dbcsr_nfullcols_total(matrix_c),&
+            .AND. last_column .LE. dbcsr_nfullcols_total(matrix_c)&
+            .OR. last_column .LT. 1,&
             cp_fatal_level, cp_wrong_args_error, routineN,&
             "Invalid last column specified (C)")
        CALL cp_assert(last_column .GE. 1&
-            .AND. last_column .LE. dbcsr_nfullcols_total(matrix_right),&
+            .AND. last_column .LE. dbcsr_nfullcols_total(matrix_right)&
+            .OR. last_column .LT. 1,&
             cp_fatal_level, cp_wrong_args_error, routineN,&
             "Invalid last column specified (B)")
        l_col = last_column
@@ -482,7 +535,8 @@ CONTAINS
     ENDIF
     IF (PRESENT (last_k)) THEN
        CALL cp_assert(last_k.GE. 1&
-            .AND. last_k .LE. dbcsr_nfullcols_total(matrix_left),&
+            .AND. last_k .LE. dbcsr_nfullcols_total(matrix_left)&
+            .OR. last_k  .LT. 1,&
             cp_fatal_level, cp_wrong_args_error, routineN,&
             "Invalid last k specified (A)")
        l_k = last_k
@@ -1386,9 +1440,6 @@ CONTAINS
     !write(*,*) 'dbcsr_multiply_vec: prow, pcol',prow, pcol
     CALL packed_vec_alltoall(pkd_b, pcol, 'column', nblkcols_total, &
          row_blk_size*col_blk_size(b_col), mp_obj, error)
-
-!write(*,*) 'pkd_b',pkd_b(1:int(pkd_b(nblkcols_total+1))-1)
-
     !
     ! local multiply
     CALL dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd, error)
@@ -1396,9 +1447,6 @@ CONTAINS
     ! sum the local products
     CALL packed_vec_alltoall(pkd, -1, 'all', nblkcols_total, &
          row_blk_size*col_blk_size(b_col), mp_obj, error)
-
-!write(*,*) 'pkd',pkd(1:int(pkd(nblkcols_total+1))-1)
-
     DEALLOCATE(pkd_b)
 
     CALL timestop(timing_handle)
@@ -1825,51 +1873,6 @@ CONTAINS
     CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_plus_fm_fm_t_native
-
-  SUBROUTINE dbcsr_plus_fm_fm_t_hack_hack(sparse_matrix,matrix_v,matrix_g,ncol,&
-       alpha,error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: sparse_matrix
-    TYPE(cp_fm_type), POINTER                :: matrix_v
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
-    INTEGER, INTENT(IN)                      :: ncol
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_plus_fm_fm_t_hack_hack', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: k, timing_handle
-    TYPE(dbcsr_obj), POINTER                 :: sparse_matrix2
-    TYPE(real_matrix_type), POINTER          :: sparse_matrix_sm
-
-    CALL timeset(routineN, timing_handle)
-
-    NULLIFY(sparse_matrix_sm,sparse_matrix2)
-
-    IF (ncol .GT. 0) THEN
-
-       CALL cp_fm_get_info(matrix_v, ncol_global=k, error=error)
-       !IF(k.NE.ncol) CALL stop_program(routineN,"NYI ncol")
-
-       CALL sm_from_dbcsr(sparse_matrix_sm,sparse_matrix,error=error)
-
-       CALL cp_sm_plus_fm_fm_t(sparse_matrix_sm,matrix_v,matrix_g,ncol,alpha,error)
-
-       ALLOCATE(sparse_matrix2)
-       CALL dbcsr_init(sparse_matrix2)
-       CALL dbcsr_from_sm(sparse_matrix2,sparse_matrix_sm,error=error)
-
-       CALL dbcsr_copy(sparse_matrix,sparse_matrix2,error=error)
-
-       CALL dbcsr_deallocate_matrix (sparse_matrix2, error)
-
-       CALL deallocate_matrix (sparse_matrix_sm, error)
-
-    ENDIF
-
-    CALL timestop(timing_handle)
-
-  END SUBROUTINE dbcsr_plus_fm_fm_t_hack_hack
 
 ! *****************************************************************************
 !> \brief pack a row or column of a dbcsr
@@ -3027,8 +3030,9 @@ END FUNCTION cp_dbcsr_get_id_nr
     INTEGER, DIMENSION(:), POINTER           :: cbs, local_cols, local_rows, &
                                                 rbs
     REAL(kind=dp)                            :: my_beta
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: blk_1d
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: blk_1d_dp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm_block
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: blk_1d_sp
     REAL(kind=sp), DIMENSION(:, :), POINTER  :: fm_block_sp
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -3077,7 +3081,9 @@ END FUNCTION cp_dbcsr_get_id_nr
     ! Create the block-cyclic DBCSR matrix
     CALL dbcsr_init (bc_mat)
     CALL dbcsr_create (bc_mat, "Block-cyclic "//matrix%m%name, bc_dist,&
-         dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0)
+         dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
+         data_type=dbcsr_get_data_type(matrix))
+
     !call dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (row_blk_size)
@@ -3149,17 +3155,21 @@ END FUNCTION cp_dbcsr_get_id_nr
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
           CALL add_work_coordinate(bc_mat%m%wms(1), row, col, blk_p)
-          blk_1d => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
+          IF (fm%use_sp) THEN
+             blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
+          ELSE
+             blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
+          ENDIF
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
                cp_fatal_level, cp_internal_error, routineN,&
                "Block size does not match block row/col sizes")
           IF (fm%use_sp) THEN
-             blk_1d(1:nze) = REAL( RESHAPE(&
+             blk_1d_sp(1:nze) = RESHAPE(&
                   fm_block_sp(&
                      first_row(row):last_row(row),first_col(col):last_col(col)&
-                  ), (/ nze /)), dp)
+                  ), (/ nze /))
           ELSE
-             blk_1d(1:nze) = RESHAPE(&
+             blk_1d_dp(1:nze) = RESHAPE(&
                   fm_block(&
                      first_row(row):last_row(row),first_col(col):last_col(col)&
                   ), (/ nze /))
@@ -3172,8 +3182,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     ! Now convert to the desired matrix distribution
     IF (PRESENT (alpha)) THEN
-       CALL dbcsr_complete_redistribute (bc_mat, matrix,&
-            alpha=dbcsr_scalar(alpha),keep_sparsity=keep_sparsity)
+       CALL stop_program(routineN,'no more alpha... cleanme')
     ELSE
        CALL dbcsr_complete_redistribute (bc_mat, matrix,&
             keep_sparsity=keep_sparsity)
@@ -3188,10 +3197,10 @@ END FUNCTION cp_dbcsr_get_id_nr
 !>
 !>          real_matrix=beta*real_matrix+alpha*fm
 !>          beta defaults to 0, alpha to 1
-!> \author  Urban Borstnik
-!> \date    2009-10-13
+!> \author  VW
+!> \date    2010
 !> \par History
-!>          2009-10-13 rewritten based on copy_dbcsr_to_fm
+!>          2010  copied from copy_dbcsr_to_fm
 !> \version 2.0
 !> \param[in] fm              full matrix
 !> \param[out] matrix         DBCSR matrix
@@ -3570,7 +3579,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL dbcsr_init (bc_mat)
     CALL dbcsr_create (bc_mat, "Block-cyclic"//matrix%m%name, bc_dist,&
-         dbcsr_type_normal, rbs, cbs, 0, 0)
+         dbcsr_type_normal, rbs, cbs, 0, 0, dbcsr_get_data_type(matrix))
     CALL dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (rbs)
@@ -4115,10 +4124,28 @@ END FUNCTION cp_dbcsr_get_id_nr
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
-    CALL dbcsr_multiply_anytype(transa, transb,&
-         dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
-         first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_d', &
+      routineP = moduleN//':'//routineN
+
+    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND.&
+       dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4 .AND.&
+       dbcsr_get_data_type(matrix_c) .EQ. dbcsr_type_real_4) THEN
+       CALL dbcsr_multiply_anytype(transa, transb,&
+            dbcsr_scalar(REAL(alpha,real_4)), matrix_a, matrix_b, &
+            dbcsr_scalar(REAL(beta,real_4)), matrix_c,&
+            first_row, last_row, first_column, last_column, first_k, last_k,&
+            retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
+    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND.&
+           dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8 .AND.&
+           dbcsr_get_data_type(matrix_c) .EQ. dbcsr_type_real_8) THEN
+       CALL dbcsr_multiply_anytype(transa, transb,&
+            dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
+            first_row, last_row, first_column, last_column, first_k, last_k,&
+            retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
+    ELSE
+       CALL cp_assert (.FALSE., cp_failure_level, cp_internal_error,&
+            routineP, "This combination of data types NYI")       
+    ENDIF
   END SUBROUTINE dbcsr_multiply_d
   SUBROUTINE dbcsr_multiply_c(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
