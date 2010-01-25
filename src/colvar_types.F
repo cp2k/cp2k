@@ -208,12 +208,15 @@ MODULE colvar_types
 ! *****************************************************************************
   TYPE reaction_path_colvar_type
      INTEGER                                  :: type_id
-     TYPE(colvar_p_type),POINTER,DIMENSION(:) :: colvar_p
-     INTEGER                                  :: n_components
+     INTEGER                                  :: n_components, nr_frames, subset
      INTEGER,DIMENSION(2)                     :: function_bounds
+     INTEGER, POINTER, DIMENSION (:)          :: i_rmsd
+     LOGICAL                                  :: align_frames, dist_rmsd
      REAL(KIND=dp), DIMENSION (:,:), POINTER  :: f_vals
+     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: r_ref
      REAL(KIND=dp)                            :: lambda
      REAL(KIND=dp)                            :: step_size
+     TYPE(colvar_p_type),POINTER,DIMENSION(:) :: colvar_p
   END TYPE reaction_path_colvar_type
 
 ! *****************************************************************************
@@ -230,7 +233,7 @@ MODULE colvar_types
   TYPE rmsd_colvar_type
      INTEGER                                  :: n_atoms, nr_frames, subset
      INTEGER, POINTER, DIMENSION (:)          :: i_rmsd
-     LOGICAL :: align_frames
+     LOGICAL                                  :: align_frames
      REAL(KIND=dp), DIMENSION(:), POINTER     :: weights
      REAL(KIND=dp), DIMENSION(:,:), POINTER   :: r_ref
   END TYPE rmsd_colvar_type
@@ -824,17 +827,29 @@ CPSourceFileRef)
           END DO
        CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
           colvar%n_atom_s=0
-          DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
-             colvar%n_atom_s=colvar%n_atom_s+colvar%reaction_path_param%colvar_p(ii)%colvar%n_atom_s
-          END DO
+          IF(colvar%reaction_path_param%dist_rmsd) THEN
+            colvar%n_atom_s = colvar%reaction_path_param%n_components
+          ELSE
+            DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
+               colvar%n_atom_s=colvar%n_atom_s+colvar%reaction_path_param%colvar_p(ii)%colvar%n_atom_s
+            END DO
+          END IF
           ALLOCATE(list(colvar%n_atom_s))
           idum=0
-          DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
-             DO j=1,colvar%reaction_path_param%colvar_p(ii)%colvar%n_atom_s
-                idum=idum+1
-                list(idum)=colvar%reaction_path_param%colvar_p(ii)%colvar%i_atom(j)
-             END DO
-          END DO
+          IF(colvar%reaction_path_param%dist_rmsd) THEN
+            DO ii=1,SIZE(colvar%reaction_path_param%i_rmsd)
+               idum = idum + 1
+               i = colvar%reaction_path_param%i_rmsd(ii)
+               list(idum) = i
+            END DO
+          ELSE
+            DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
+               DO j=1,colvar%reaction_path_param%colvar_p(ii)%colvar%n_atom_s
+                  idum=idum+1
+                  list(idum)=colvar%reaction_path_param%colvar_p(ii)%colvar%i_atom(j)
+               END DO
+            END DO
+          END IF
        CASE(combine_colvar_id)
           colvar%n_atom_s=0
           DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
@@ -1038,13 +1053,20 @@ CPSourceFileRef)
        DEALLOCATE(colvar%hydronium_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (reaction_path_colvar_id, distance_from_path_colvar_id)
-       DO i=1,SIZE(colvar%reaction_path_param%colvar_p)
-          CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar,error)
-       END DO
-       DEALLOCATE(colvar%reaction_path_param%colvar_p, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)       
-       DEALLOCATE(colvar%reaction_path_param%f_vals, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       IF(colvar%reaction_path_param%dist_rmsd) THEN
+         DEALLOCATE(colvar%reaction_path_param%r_ref,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+         DEALLOCATE(colvar%reaction_path_param%i_rmsd,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ELSE
+         DO i=1,SIZE(colvar%reaction_path_param%colvar_p)
+             CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar,error)
+         END DO
+         DEALLOCATE(colvar%reaction_path_param%colvar_p, stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)       
+         DEALLOCATE(colvar%reaction_path_param%f_vals, stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       END IF
        DEALLOCATE(colvar%reaction_path_param,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (combine_colvar_id)
@@ -1289,24 +1311,41 @@ CPSourceFileRef)
        colvar_out%hydronium_param%i_oxygens    = colvar_in%hydronium_param%i_oxygens + my_offset
        colvar_out%hydronium_param%i_hydrogens      = colvar_in%hydronium_param%i_oxygens + my_offset
     CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
-       ndim=SIZE(colvar_in%reaction_path_param%colvar_p)
-       ALLOCATE(colvar_out%reaction_path_param%colvar_p(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)       
-       DO i=1,ndim
-          NULLIFY(colvar_out%reaction_path_param%colvar_p(i)%colvar)
-          CALL colvar_clone(colvar_out%reaction_path_param%colvar_p(i)%colvar,&
-                            colvar_in%reaction_path_param%colvar_p(i)%colvar,&
-                            my_offset,error)
-       END DO
-       colvar_out%reaction_path_param%n_components     = colvar_in%reaction_path_param%n_components
-       colvar_out%reaction_path_param% function_bounds = colvar_in%reaction_path_param%  function_bounds
-       ndim=SIZE(colvar_in%reaction_path_param%f_vals,1)
-       ndim2=SIZE(colvar_in%reaction_path_param%f_vals,2)
-       ALLOCATE(colvar_out%reaction_path_param%f_vals(ndim,ndim2),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       colvar_out%reaction_path_param%f_vals           = colvar_in%reaction_path_param%f_vals 
-       colvar_out%reaction_path_param%lambda           = colvar_in%reaction_path_param%lambda  
+       colvar_out%reaction_path_param%dist_rmsd = colvar_in%reaction_path_param%dist_rmsd
+       IF(colvar_in%reaction_path_param%dist_rmsd) THEN
+         colvar_out%reaction_path_param%align_frames = colvar_in%reaction_path_param%align_frames
+         colvar_out%reaction_path_param%nr_frames = colvar_in%reaction_path_param%nr_frames
+         colvar_out%reaction_path_param%subset = colvar_in%reaction_path_param%subset
+         NULLIFY(colvar_out%reaction_path_param%i_rmsd)
+         NULLIFY(colvar_out%reaction_path_param%r_ref)
+         ndim = SIZE(colvar_in%reaction_path_param%i_rmsd)
+         ALLOCATE(colvar_out%reaction_path_param%i_rmsd(ndim),stat=stat)
+         colvar_out%reaction_path_param%i_rmsd = colvar_in%reaction_path_param%i_rmsd
+         ndim = SIZE(colvar_in%reaction_path_param%r_ref,1)
+         ndim2 = SIZE(colvar_in%reaction_path_param%r_ref,2)
+         ALLOCATE(colvar_out%reaction_path_param%r_ref(ndim,ndim2),stat=stat)
+         colvar_out%reaction_path_param%r_ref = colvar_in%reaction_path_param%r_ref
+       ELSE
+         ndim=SIZE(colvar_in%reaction_path_param%colvar_p)
+         ALLOCATE(colvar_out%reaction_path_param%colvar_p(ndim),stat=stat)
+         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)       
+         DO i=1,ndim
+            NULLIFY(colvar_out%reaction_path_param%colvar_p(i)%colvar)
+            CALL colvar_clone(colvar_out%reaction_path_param%colvar_p(i)%colvar,&
+                              colvar_in%reaction_path_param%colvar_p(i)%colvar,&
+                              my_offset,error)
+         END DO
+         colvar_out%reaction_path_param% function_bounds = colvar_in%reaction_path_param%  function_bounds
+         NULLIFY(colvar_out%reaction_path_param%f_vals)
+         ndim=SIZE(colvar_in%reaction_path_param%f_vals,1)
+         ndim2=SIZE(colvar_in%reaction_path_param%f_vals,2)
+         ALLOCATE(colvar_out%reaction_path_param%f_vals(ndim,ndim2),stat=stat)
+         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+         colvar_out%reaction_path_param%f_vals           = colvar_in%reaction_path_param%f_vals 
+       END IF
        colvar_out%reaction_path_param%step_size        = colvar_in%reaction_path_param%step_size
+       colvar_out%reaction_path_param%n_components     = colvar_in%reaction_path_param%n_components
+       colvar_out%reaction_path_param%lambda           = colvar_in%reaction_path_param%lambda  
     CASE(combine_colvar_id)
        ndim=SIZE(colvar_in%combine_cvs_param%colvar_p)
        ALLOCATE(colvar_out%combine_cvs_param%colvar_p(ndim),stat=stat)
@@ -1726,6 +1765,18 @@ CPSourceFileRef)
         END DO
       END IF
        
+    END IF
+
+    IF (colvar%type_id == distance_from_path_colvar_id .OR. colvar%type_id == reaction_path_colvar_id) THEN
+      IF(colvar%reaction_path_param%dist_rmsd) THEN
+         IF(colvar%reaction_path_param%align_frames) THEN
+           nr_frame = colvar%reaction_path_param%nr_frames
+           DO i = 2,nr_frame
+             CALL rmsd3(particles, colvar%reaction_path_param%r_ref(:,i), colvar%reaction_path_param%r_ref(:,1), -1,&
+                     rotate=.TRUE., error=error)
+            END DO
+         END IF
+      END IF
     END IF
 
   END SUBROUTINE post_process_colvar

@@ -1329,12 +1329,61 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
+    TYPE(section_type), POINTER              :: print_key, subsection, &
+                                                subsubsection
 
-       NULLIFY(keyword, subsection,print_key)
+       NULLIFY(keyword, subsection, subsubsection, print_key)
        CALL create_colvar_section(subsection,skip_recursive_colvar=.TRUE.,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
+
+       CALL keyword_create(keyword, name="DISTANCES_RMSD",&
+            description=" ",&
+            usage="DISTANCES_RMSD T", &
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SUBSET_TYPE",&
+            description="Define the subsytem used to compute the RMSD",&
+            usage="SUBSET_TYPE ALL",&
+            enum_c_vals=s2a( "ALL","LIST"),&
+            enum_i_vals=(/ rmsd_all, rmsd_list/),&
+            default_i_val=rmsd_all, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    
+       CALL keyword_create(keyword, name="ALIGN_FRAMES",&
+            description="Whether the reference frames should be aligned to minimize the RMSD",&
+            usage="ALIGN_FRAME",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specify indexes of atoms building the subset. ",&
+            usage="ATOMS {integer} {integer} ..",required=.FALSE.,repeats=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_create(subsection,name="FRAME",&
+            description="Specify coordinates of the frame",&
+            repeats=.TRUE., required=.FALSE., error=error)
+
+       CALL keyword_create(keyword, name="COORD_FILE_NAME",&
+            description="Name of the xyz file with coordinates (alternative to &COORD section)",&
+            usage="COORD_FILE_NAME <CHAR>",&
+            default_lc_val="",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_coord_section_cv(subsubsection,"RMSD",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error) 
 
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the ith element of the vector valued function that defines the reaction path. "//&

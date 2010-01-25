@@ -16,3 +16,7 @@ c60_pl_pl_angl1_restr.inp   2
 c60_pl_pl_angl2_restr.inp   2
 #METADYN LANGEVIN ON COLVARS
 c60_meta_lagr.inp           2
+#Reaction path Colvar  
+2gly_mtd_rp_dp_rmsd.inp     2
+2gly_mtd_rprmsd.inp         2
+2gly_mtd_dprmsd.inp         2

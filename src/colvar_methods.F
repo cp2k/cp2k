@@ -107,31 +107,31 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: fmid
     CHARACTER(LEN=7)                         :: tag
-    CHARACTER(LEN=default_path_length)       :: filename, path_function
-    CHARACTER(LEN=default_string_length)     :: dummy_char, tmpStr, tmpStr2
+    CHARACTER(LEN=default_path_length)       :: path_function
+    CHARACTER(LEN=default_string_length)     :: tmpStr, tmpStr2
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: c_kinds, my_par
     INTEGER :: handle, i, iatm, iend, ifunc, ii, isize, istart, iw, iw1, j, &
-      k, kk, n_var, n_var_k, natom, ncol, ndim, nr_frame, stat, v_count
+      k, kk, n_var, n_var_k, ncol, ndim, nr_frame, stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: check, explicit, failure, &
-                                                my_end
+    LOGICAL                                  :: check, explicit, failure
     LOGICAL, DIMENSION(16)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp), DIMENSION(1)              :: my_val
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g_range, grid_point, grid_sp, &
-                                                my_vals, range, rptr
+                                                my_vals, range
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_parser_type), POINTER            :: parser
     TYPE(section_vals_type), POINTER :: angle_section, colvar_subsection, &
-      combine_section, coord_section, coordination_section, dfunct_section, &
+      combine_section, coordination_section, dfunct_section, &
       distance_from_path_section, distance_section, frame_section, &
       gyration_section, hydronium_section, path_section, plane_dist_section, &
       plane_plane_angle_section, plane_sections, point_section, &
       population_section, qparm_section, reaction_path_section, rmsd_section, &
       rotation_section, torsion_section, wrk_section
+
+!, &
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -431,89 +431,131 @@ CONTAINS
          ifunc=2
        END IF
        colvar%use_points=.FALSE.
-       colvar_subsection => section_vals_get_subs_vals(path_section,"COLVAR",error=error)
-       CALL section_vals_get(colvar_subsection,n_repetition=ncol,error=error)
-       ALLOCATE(colvar%reaction_path_param%colvar_p(ncol),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (.NOT. failure) THEN
-          DO i= 1, ncol
-             NULLIFY(colvar%reaction_path_param%colvar_p(i)%colvar)
-             CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection, para_env, error=error)
-          ENDDO
-       ENDIF
-       colvar%reaction_path_param%n_components=ncol
-       NULLIFY(range)
-       CALL section_vals_val_get(path_section,"RANGE",r_vals=range,error=error)
-       CALL section_vals_val_get(path_section,"STEP_SIZE",r_val=colvar%reaction_path_param%step_size,error=error)     
        CALL section_vals_val_get(path_section,"LAMBDA",r_val=colvar%reaction_path_param%lambda,error=error)
-       iend=CEILING(MAX(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
-       istart=FLOOR(MIN(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
-       colvar%reaction_path_param%function_bounds(1)=istart
-       colvar%reaction_path_param%function_bounds(2)=iend
-       ALLOCATE(colvar%reaction_path_param%f_vals(ncol,istart:iend),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-       CALL section_vals_val_get(path_section,"VARIABLE",c_vals=my_par,i_rep_val=1,error=error)
-       CALL section_vals_val_get(path_section,"FUNCTION",n_rep_val=ncol,error=error)
-       check = (ncol==SIZE(colvar%reaction_path_param%colvar_p))
-       CPPostcondition(check,cp_failure_level,routinep,error,failure)     
-       CALL initf(ncol)
-       DO i=1,ncol
-          CALL section_vals_val_get(path_section,"FUNCTION",c_val=path_function,i_rep_val=i,error=error)
-          CALL compress(path_function, full=.TRUE.)
-          CALL parsef(i,TRIM(path_function),my_par)
-          DO j=istart,iend
-             my_val=REAL(j,kind=dp)*colvar%reaction_path_param%step_size
-             colvar%reaction_path_param%f_vals(i,j)=evalf(i,my_val)
-          END DO
-       END DO
-       CALL finalizef()
+       CALL section_vals_val_get(path_section,"DISTANCES_RMSD",l_val=colvar%reaction_path_param%dist_rmsd,error=error)
+       IF(colvar%reaction_path_param%dist_rmsd) THEN
 
-       iw1= cp_print_key_unit_nr(logger,path_section,&
-            "MAP",middle_name=fmid,extension=".dat",file_status="REPLACE",error=error)
-       IF(iw1>0)THEN
-          CALL section_vals_val_get(path_section,"MAP%GRID_SPACING",n_rep_val=ncol,error=error)
-          ALLOCATE(grid_sp(ncol),stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          DO i=1,ncol
-             CALL section_vals_val_get(path_section,"MAP%GRID_SPACING",r_val=grid_sp(i),error=error)
-          END DO
-          CALL section_vals_val_get(path_section,"MAP%RANGE",n_rep_val=ncol,error=error)
-          CPPostcondition(ncol ==SIZE(grid_sp) ,cp_failure_level,routinep,error,failure)
-          ALLOCATE(p_range(2,ncol),stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          ALLOCATE(p_bounds(2,ncol),stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          DO i=1,ncol
-             CALL section_vals_val_get(path_section,"MAP%RANGE",r_vals=g_range,error=error)
-             p_range(:,i)=g_range(:)
-             p_bounds(2,i)=CEILING( MAX(p_range(1,i),p_range(2,i))/grid_sp(i))
-             p_bounds(1,i)=FLOOR(MIN(p_range(1,i) , p_range(2,i))/grid_sp(i))
-          END DO
-          ALLOCATE(s1v(2,istart:iend),stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          ALLOCATE(s1(2),stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          ALLOCATE(grid_point(ncol),stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          v_count=0
-          kk=rec_eval_grid(iw1,ncol,colvar%reaction_path_param%f_vals,v_count,&
-               grid_point,grid_sp,colvar%reaction_path_param%step_size,istart,&
-               iend,s1v,s1,p_bounds,colvar%reaction_path_param%lambda,ifunc=ifunc)
-          DEALLOCATE(grid_sp,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          DEALLOCATE(p_range,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          DEALLOCATE(p_bounds,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          DEALLOCATE(s1v,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          DEALLOCATE(s1,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-          DEALLOCATE(grid_point,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+         NULLIFY(colvar%reaction_path_param%i_rmsd, colvar%reaction_path_param%r_ref)
+
+         frame_section => section_vals_get_subs_vals(path_section,"FRAME",error=error)
+         CALL section_vals_get(frame_section,n_repetition=nr_frame,error=error)
+         
+         colvar%reaction_path_param%nr_frames=nr_frame
+         CALL read_frames(frame_section,para_env,nr_frame,colvar%reaction_path_param%r_ref,&
+              colvar%reaction_path_param%n_components,error=error)
+         CALL section_vals_val_get(path_section,"SUBSET_TYPE",i_val=colvar%reaction_path_param%subset,error=error)
+         IF (colvar%reaction_path_param%subset==rmsd_all) THEN
+           ALLOCATE(colvar%reaction_path_param%i_rmsd(colvar%reaction_path_param%n_components),STAT=stat)
+           CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+           DO i = 1, colvar%reaction_path_param%n_components
+              colvar%reaction_path_param%i_rmsd(i) = i
+           END DO
+         ELSE IF (colvar%reaction_path_param%subset==rmsd_list) THEN
+           ! This section can be repeated
+           CALL section_vals_val_get(path_section,"ATOMS",n_rep_val=n_var,error=error)
+           ndim = 0
+           IF (n_var /= 0) THEN
+              ! INDEX LIST
+              DO k = 1, n_var
+                 CALL section_vals_val_get(path_section,"ATOMS",i_rep_val=k,i_vals=iatms,error=error)
+                 CALL reallocate(colvar%reaction_path_param%i_rmsd,1, ndim+SIZE(iatms))
+                 colvar%reaction_path_param%i_rmsd(ndim+1:ndim+SIZE(iatms)) = iatms 
+                 ndim = ndim + SIZE(iatms)
+              END DO
+              colvar%reaction_path_param%n_components = ndim
+           ELSE
+              CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+              "CV REACTION PATH: if SUBSET_TYPE=LIST a list of atoms needs to be provided "//&
+CPSourceFileRef)
+           END IF
+         END IF
+
+         CALL section_vals_val_get(path_section,"ALIGN_FRAMES",l_val=colvar%reaction_path_param%align_frames,error=error)
+  
+       ELSE
+         colvar_subsection => section_vals_get_subs_vals(path_section,"COLVAR",error=error)
+         CALL section_vals_get(colvar_subsection,n_repetition=ncol,error=error)
+         ALLOCATE(colvar%reaction_path_param%colvar_p(ncol),stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         IF (.NOT. failure) THEN
+            DO i= 1, ncol
+               NULLIFY(colvar%reaction_path_param%colvar_p(i)%colvar)
+               CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection, para_env, error=error)
+            ENDDO
+         ENDIF
+         colvar%reaction_path_param%n_components=ncol
+         NULLIFY(range)
+         CALL section_vals_val_get(path_section,"RANGE",r_vals=range,error=error)
+         CALL section_vals_val_get(path_section,"STEP_SIZE",r_val=colvar%reaction_path_param%step_size,error=error)     
+         iend=CEILING(MAX(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
+         istart=FLOOR(MIN(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
+         colvar%reaction_path_param%function_bounds(1)=istart
+         colvar%reaction_path_param%function_bounds(2)=iend
+         ALLOCATE(colvar%reaction_path_param%f_vals(ncol,istart:iend),stat=stat)
+         CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+         CALL section_vals_val_get(path_section,"VARIABLE",c_vals=my_par,i_rep_val=1,error=error)
+         CALL section_vals_val_get(path_section,"FUNCTION",n_rep_val=ncol,error=error)
+         check = (ncol==SIZE(colvar%reaction_path_param%colvar_p))
+         CPPostcondition(check,cp_failure_level,routinep,error,failure)     
+         CALL initf(ncol)
+         DO i=1,ncol
+            CALL section_vals_val_get(path_section,"FUNCTION",c_val=path_function,i_rep_val=i,error=error)
+            CALL compress(path_function, full=.TRUE.)
+            CALL parsef(i,TRIM(path_function),my_par)
+            DO j=istart,iend
+               my_val=REAL(j,kind=dp)*colvar%reaction_path_param%step_size
+               colvar%reaction_path_param%f_vals(i,j)=evalf(i,my_val)
+            END DO
+         END DO
+         CALL finalizef()
+   
+         iw1= cp_print_key_unit_nr(logger,path_section,&
+              "MAP",middle_name=fmid,extension=".dat",file_status="REPLACE",error=error)
+         IF(iw1>0)THEN
+            CALL section_vals_val_get(path_section,"MAP%GRID_SPACING",n_rep_val=ncol,error=error)
+            ALLOCATE(grid_sp(ncol),stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            DO i=1,ncol
+               CALL section_vals_val_get(path_section,"MAP%GRID_SPACING",r_val=grid_sp(i),error=error)
+            END DO
+            CALL section_vals_val_get(path_section,"MAP%RANGE",n_rep_val=ncol,error=error)
+            CPPostcondition(ncol ==SIZE(grid_sp) ,cp_failure_level,routinep,error,failure)
+            ALLOCATE(p_range(2,ncol),stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            ALLOCATE(p_bounds(2,ncol),stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            DO i=1,ncol
+               CALL section_vals_val_get(path_section,"MAP%RANGE",r_vals=g_range,error=error)
+               p_range(:,i)=g_range(:)
+               p_bounds(2,i)=CEILING( MAX(p_range(1,i),p_range(2,i))/grid_sp(i))
+               p_bounds(1,i)=FLOOR(MIN(p_range(1,i) , p_range(2,i))/grid_sp(i))
+            END DO
+            ALLOCATE(s1v(2,istart:iend),stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            ALLOCATE(s1(2),stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            ALLOCATE(grid_point(ncol),stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            v_count=0
+            kk=rec_eval_grid(iw1,ncol,colvar%reaction_path_param%f_vals,v_count,&
+                 grid_point,grid_sp,colvar%reaction_path_param%step_size,istart,&
+                 iend,s1v,s1,p_bounds,colvar%reaction_path_param%lambda,ifunc=ifunc)
+            DEALLOCATE(grid_sp,stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            DEALLOCATE(p_range,stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            DEALLOCATE(p_bounds,stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            DEALLOCATE(s1v,stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            DEALLOCATE(s1,stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            DEALLOCATE(grid_point,stat=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+         END IF
+         CALL cp_print_key_finished_output(iw1,logger,path_section,&
+              "MAP", error=error)
        END IF
-       CALL cp_print_key_finished_output(iw1,logger,path_section,&
-            "MAP", error=error)
 
     ELSE IF(my_subsection(11))THEN
        ! combine colvar
@@ -731,7 +773,6 @@ CPSourceFileRef)
        CALL colvar_create(colvar, rmsd_colvar_id, error)
 
        NULLIFY(colvar%rmsd_param%i_rmsd, colvar%rmsd_param%r_ref, colvar%rmsd_param%weights)
-       NULLIFY(rptr)
 
        frame_section => section_vals_get_subs_vals(rmsd_section,"FRAME",error=error)
        CALL section_vals_get(frame_section,n_repetition=nr_frame,error=error)
@@ -739,61 +780,8 @@ CPSourceFileRef)
        colvar%rmsd_param%nr_frames=nr_frame
        ! Calculation is aborted if reference frame are less than 2
        CPPostcondition((nr_frame>=2),cp_failure_level,routineP,error,failure)
-       DO i = 1,nr_frame
-         coord_section => section_vals_get_subs_vals(frame_section,"COORD",i_rep_section=i,error=error)
-         CALL section_vals_get(coord_section,explicit=explicit,error=error)
-         ! Cartesian Coordinates
-         IF (explicit) THEN
-            CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-                  n_rep_val=natom,error=error)
-            IF(i==1) THEN
-              ALLOCATE(colvar%rmsd_param%r_ref(3*natom,nr_frame), STAT=stat)
-              CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-              colvar%rmsd_param%n_atoms = natom
-            ELSE
-             CPPostcondition(3*natom==SIZE(colvar%rmsd_param%r_ref,1),cp_failure_level,routineP,error,failure)
-            END IF
-            DO j = 1, natom
-                CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-                       i_rep_val=j,r_vals=rptr,error=error)
-                 colvar%rmsd_param%r_ref((j-1)*3+1:(j-1)*3+3,i) = rptr(1:3)
-            END DO ! natom
-         ELSE  
-            CALL section_vals_val_get(frame_section,"COORD_FILE_NAME",i_rep_section=i,c_val=filename,error=error)
-            CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,error,failure)
-            NULLIFY(parser)
-            ALLOCATE(rptr(3))
-            CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,&
-                                error=error)
-            CALL parser_get_next_line(parser,1,error=error)
-            ! Start parser             
-            CALL parser_get_object(parser,natom,error=error)
-            CALL parser_get_next_line(parser,1,error=error)
-            IF(i==1) THEN
-               ALLOCATE(colvar%rmsd_param%r_ref(3*natom,nr_frame), STAT=stat)
-               CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-               colvar%rmsd_param%n_atoms = natom
-            ELSE
-             CPPostcondition(3*natom==SIZE(colvar%rmsd_param%r_ref,1),cp_failure_level,routineP,error,failure)
-            END IF
-            DO j = 1, natom
-              ! Atom coordinates
-              CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
-              CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
-                   "Number of lines in XYZ format not equal to the number of atoms."//&
-                   " Error in XYZ format for COORD_A (CV rmsd). Very probably the"//&
-                   " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
-CPSourceFileRef,&
-              only_ionode=.TRUE.)
-              READ(parser%input_line,*) dummy_char,rptr(1:3)
-              colvar%rmsd_param%r_ref((j-1)*3+1,i) = cp_unit_to_cp2k(rptr(1),"angstrom",error=error)
-              colvar%rmsd_param%r_ref((j-1)*3+2,i) = cp_unit_to_cp2k(rptr(2),"angstrom",error=error)
-              colvar%rmsd_param%r_ref((j-1)*3+3,i) = cp_unit_to_cp2k(rptr(3),"angstrom",error=error)
-            END DO ! natom
-            CALL parser_release(parser,error=error)
-            DEALLOCATE(rptr)
-         END IF
-       END DO  ! nr_frame
+       CALL read_frames(frame_section,para_env,nr_frame,colvar%rmsd_param%r_ref,&
+              colvar%rmsd_param%n_atoms,error=error)
 
        ALLOCATE(colvar%rmsd_param%weights(colvar%rmsd_param%n_atoms), STAT=stat)
        CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
@@ -2753,14 +2741,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'reaction_path_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iend, ii, istart, j, k, &
-                                                ncolv, stat
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: lambda, step_size
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s1, ss_vals
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, f_vals, fi, s1v
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: ds1v
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -2776,6 +2757,33 @@ CPSourceFileRef,&
        my_particles => particles_i%els
     END IF
 
+    IF(colvar%reaction_path_param%dist_rmsd) THEN
+      CALL rpath_dist_rmsd(colvar,my_particles,error=error)
+    ELSE
+       CALL rpath_colvar(colvar,cell,my_particles,error)
+    END IF
+
+  END SUBROUTINE reaction_path_colvar
+
+  SUBROUTINE rpath_colvar(colvar,cell,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rpath_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iend, ii, istart, j, k, &
+                                                ncolv, stat
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: lambda, step_size
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s1, ss_vals
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, f_vals, fi, s1v
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ds1v
+
     istart=colvar%reaction_path_param%function_bounds(1)
     iend=colvar%reaction_path_param%function_bounds(2)
 
@@ -2789,7 +2797,7 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
 
     DO i=1,ncolv
-       CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,my_particles,error)
+       CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,particles,error)
        ss_vals(i)=colvar%reaction_path_param%colvar_p(i)%colvar%ss
     ENDDO
 
@@ -2807,9 +2815,8 @@ CPSourceFileRef,&
        s1v(1,k)=REAL(k,kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
        s1v(2,k)=EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
        DO j=1,ncolv
-          ds1v(j,1,k) =REAL(k,kind=dp)*step_size*(f_vals(j,k))*&
-               EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
-          ds1v(j,2,k) =(f_vals(j,k))*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
+           ds1v(j,1,k) = f_vals(j,k)* s1v(1,k)
+           ds1v(j,2,k) = f_vals(j,k) * s1v(2,k)
        END DO
     END DO
     DO i=1,2
@@ -2850,7 +2857,142 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ds1,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-  END SUBROUTINE reaction_path_colvar
+  END SUBROUTINE rpath_colvar
+
+  SUBROUTINE rpath_dist_rmsd(colvar,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rpath_dist_rmsd', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
+                                                rmsd_atom, stat
+    INTEGER, DIMENSION(:), POINTER           :: iatom
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: lambda, s1(2), sum_exp
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, vec_dif
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dvec_dif, fi, riat, s1v
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ds1
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: ds1v
+    REAL(dp), DIMENSION(:, :), POINTER       :: path_conf
+
+    failure=.FALSE.
+
+    nconf=colvar%reaction_path_param%nr_frames
+    rmsd_atom=colvar%reaction_path_param%n_components
+    lambda=colvar%reaction_path_param%lambda
+    path_conf => colvar%reaction_path_param%r_ref
+    iatom => colvar%reaction_path_param%i_rmsd
+
+    natom = SIZE(particles)
+
+    ALLOCATE(r0(3*natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(r(3*natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(riat(3,rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(vec_dif(rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(dvec_dif(3,rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(s1v(2,nconf),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1v(3,rmsd_atom,2,nconf),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1(3,rmsd_atom,2),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DO i = 1,natom
+      ii = (i-1)*3
+      r0(ii+1) = particles(i)%r(1)
+      r0(ii+2) = particles(i)%r(2)
+      r0(ii+3) = particles(i)%r(3)
+    END DO
+
+    DO iat = 1,rmsd_atom
+      ii = iatom(iat)
+      riat(:,iat) = particles(ii)%r
+    END DO
+
+    DO ik = 1, nconf
+       DO i = 1,natom
+        ii = (i-1)*3
+        r(ii+1) = path_conf(ii+1,ik)
+        r(ii+2) = path_conf(ii+2,ik)
+        r(ii+3) = path_conf(ii+3,ik)
+       END DO
+
+       CALL rmsd3(particles,r,r0,output_unit=-1,rotate=.TRUE.,error=error)
+
+       sum_exp = 0.0_dp
+       DO iat  = 1,rmsd_atom
+         i = iatom(iat)
+         ii = (i-1)*3
+         vec_dif(iat) = (riat(1,iat)-r(ii+1))**2+(riat(2,iat)-r(ii+2))**2+(riat(3,iat)-r(ii+3))**2
+         sum_exp =  sum_exp + vec_dif(iat) 
+       END DO
+       s1v(1,ik) = REAL(ik-1,dp)*EXP(-lambda*sum_exp)
+       s1v(2,ik) = EXP(-lambda*sum_exp)
+       DO  iat  = 1,rmsd_atom
+         i = iatom(iat)
+         ii = (i-1)*3
+         ds1v(1,iat,1,ik) = r(ii+1)*s1v(1,ik)
+         ds1v(1,iat,2,ik) = r(ii+1)*s1v(2,ik)
+         ds1v(2,iat,1,ik) = r(ii+2)*s1v(1,ik)
+         ds1v(2,iat,2,ik) = r(ii+2)*s1v(2,ik)
+         ds1v(3,iat,1,ik) = r(ii+3)*s1v(1,ik)
+         ds1v(3,iat,2,ik) = r(ii+3)*s1v(2,ik)
+       END DO
+
+    END DO
+    s1(1) = accurate_sum(s1v(1,:))
+    s1(2) = accurate_sum(s1v(2,:))
+    DO i = 1,2
+      DO iat =  1,rmsd_atom
+        ds1(1,iat,i) = accurate_sum(ds1v(1,iat,i,:))
+        ds1(2,iat,i) = accurate_sum(ds1v(2,iat,i,:))
+        ds1(3,iat,i) = accurate_sum(ds1v(3,iat,i,:))
+      END DO
+    END DO
+
+    colvar%ss = s1(1)/s1(2)/REAL(nconf-1,dp)
+
+    ALLOCATE(fi(3,rmsd_atom),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+    DO iat = 1,rmsd_atom
+      fi(1,iat) = 2.0_dp*lambda/s1(2)*REAL(nconf-1,dp)*(ds1(1,iat,1) - ds1(1,iat,2)*s1(1)/s1(2))
+      fi(2,iat) = 2.0_dp*lambda/s1(2)*REAL(nconf-1,dp)*(ds1(2,iat,1) - ds1(2,iat,2)*s1(1)/s1(2))
+      fi(3,iat) = 2.0_dp*lambda/s1(2)*REAL(nconf-1,dp)*(ds1(3,iat,1) - ds1(3,iat,2)*s1(1)/s1(2))
+      CALL put_derivative(colvar,iat,fi(:,iat))
+    END DO
+
+    DEALLOCATE(fi,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(r0,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(r,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(riat,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(vec_dif,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(dvec_dif,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(s1v,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1v,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+
+  END SUBROUTINE rpath_dist_rmsd
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) distance from reaction path collective variable
@@ -2868,12 +3010,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'distance_from_path_colvar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iend, ii, istart, j, k, &
-                                                ncolv, stat
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: lambda, s1, step_size
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ds1, s1v, ss_vals
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1v, f_vals, fi
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
@@ -2889,10 +3026,34 @@ CPSourceFileRef,&
        my_particles => particles_i%els
     END IF
 
+    IF(colvar%reaction_path_param%dist_rmsd) THEN
+      CALL dpath_dist_rmsd(colvar,my_particles,error=error)
+    ELSE
+      CALL dpath_colvar(colvar,cell,my_particles,error=error)
+    END IF
+
+  END SUBROUTINE  distance_from_path_colvar
+
+  SUBROUTINE  dpath_colvar(colvar,cell,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dpath_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iend, ii, istart, j, k, &
+                                                ncolv, stat
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: lambda, s1
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ds1, s1v, ss_vals
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1v, f_vals, fi
+
     istart=colvar%reaction_path_param%function_bounds(1)
     iend=colvar%reaction_path_param%function_bounds(2)
 
-    step_size=colvar%reaction_path_param%step_size
     ncolv=colvar%reaction_path_param%n_components 
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
@@ -2902,7 +3063,7 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)    
 
     DO i=1,ncolv
-       CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,my_particles,error)
+       CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,particles,error)
        ss_vals(i)=colvar%reaction_path_param%colvar_p(i)%colvar%ss
     ENDDO
 
@@ -2916,7 +3077,7 @@ CPSourceFileRef,&
     DO k=istart,iend
        s1v(k)=EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
        DO j=1,ncolv
-         ds1v(j,k)=f_vals(j,k)*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
+         ds1v(j,k)=f_vals(j,k)*s1v(k)
        END DO
     END DO 
 
@@ -2955,7 +3116,157 @@ CPSourceFileRef,&
     DEALLOCATE(ds1,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
-  END SUBROUTINE distance_from_path_colvar
+  END SUBROUTINE dpath_colvar
+
+  SUBROUTINE dpath_dist_rmsd(colvar,particles,error)
+
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dpath_dist_rmsd', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
+                                                rmsd_atom, stat
+    INTEGER, DIMENSION(:), POINTER           :: iatom
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: lambda, s1, sum_exp
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, s1v, vec_dif
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, dvec_dif, fi, riat
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ds1v
+    REAL(dp), DIMENSION(:, :), POINTER       :: path_conf
+
+    failure=.FALSE.
+
+    nconf=colvar%reaction_path_param%nr_frames
+    rmsd_atom=colvar%reaction_path_param%n_components
+    lambda=colvar%reaction_path_param%lambda
+    path_conf => colvar%reaction_path_param%r_ref
+    iatom => colvar%reaction_path_param%i_rmsd
+
+    natom = SIZE(particles)
+
+    ALLOCATE(r0(3*natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(r(3*natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(riat(3,rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(vec_dif(rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(dvec_dif(3,rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(s1v(nconf),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1v(3,rmsd_atom,nconf),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1(3,rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DO i = 1,natom
+      ii = (i-1)*3
+      r0(ii+1) = particles(i)%r(1)
+      r0(ii+2) = particles(i)%r(2)
+      r0(ii+3) = particles(i)%r(3)
+!dbg
+!    write(*,*) 'present pos' , i , r0(ii+1),r0(ii+2),r0(ii+3)
+!dbg
+    END DO
+
+    DO iat = 1,rmsd_atom
+      ii = iatom(iat)
+      riat(:,iat) = particles(ii)%r
+    END DO
+
+    DO ik = 1, nconf
+!dbg
+!       write(*,*) 'conf ' , ik
+!dbg
+       DO i = 1,natom
+        ii = (i-1)*3
+        r(ii+1) = path_conf(ii+1,ik)
+        r(ii+2) = path_conf(ii+2,ik)
+        r(ii+3) = path_conf(ii+3,ik)
+!!dbg
+!       write(*,*) 'i ' , i , r(ii+1), r(ii+2), r(ii+3)
+!dbg
+       END DO
+
+       CALL rmsd3(particles,r,r0,output_unit=-1,rotate=.TRUE.,error=error)
+!dbg
+!      DO i = 1,natom
+!        ii = (i-1)*3
+!       write(*,*) 'i ' , i , r(ii+1), r(ii+2), r(ii+3)
+!     END DO
+!dbg
+
+       sum_exp = 0.0_dp
+       DO iat  = 1,rmsd_atom
+         i = iatom(iat)
+         ii = (i-1)*3
+         vec_dif(iat) = (riat(1,iat)-r(ii+1))**2+(riat(2,iat)-r(ii+2))**2+(riat(3,iat)-r(ii+3))**2
+         sum_exp =  sum_exp + vec_dif(iat) 
+         dvec_dif(1,iat) = r(ii+1)
+         dvec_dif(2,iat) = r(ii+2)
+         dvec_dif(3,iat) = r(ii+3)
+       END DO 
+       s1v(ik)=EXP(-lambda*sum_exp)
+!dbg 
+!    write(*,*) ik, sum_exp, s1v(ik) 
+!dbg
+       DO iat = 1,rmsd_atom
+         ds1v(1,iat,ik) = dvec_dif(1,iat) * s1v(ik)
+         ds1v(2,iat,ik) = dvec_dif(2,iat) * s1v(ik)
+         ds1v(3,iat,ik) = dvec_dif(3,iat) * s1v(ik)
+       END DO
+    END DO
+    
+    s1 = accurate_sum(s1v(:))
+    DO iat = 1,rmsd_atom
+      ds1(1,iat) = accurate_sum( ds1v(1,iat,:))
+      ds1(2,iat) = accurate_sum( ds1v(2,iat,:))
+      ds1(3,iat) = accurate_sum( ds1v(3,iat,:))
+    END DO
+    colvar%ss=-1.0_dp/lambda*LOG(s1)
+!dbg
+!  write(*,*) lambda, s1, colvar%ss
+! stop 's1'
+
+    ALLOCATE(fi(3,rmsd_atom),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+    DO iat = 1,rmsd_atom
+      fi(:,iat) = 2.0_dp*(riat(:,iat)-ds1(:,iat)/s1) 
+!dbg
+!    write(*,*) 'force ', iat, fi(:,iat)
+      CALL put_derivative(colvar,iat,fi(:,iat))
+    END DO
+!dbg
+!    stop
+
+    DEALLOCATE(fi,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(r0,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(r,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(riat,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(vec_dif,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(dvec_dif,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(s1v,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1v,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+
+  END SUBROUTINE  dpath_dist_rmsd
 
 ! *****************************************************************************
 !> \brief evaluates the force due to population colvar
@@ -3319,5 +3630,86 @@ CPSourceFileRef,&
        WRITE(iw1, '(5F10.5)')gp(:),-lambda*LOG(s1(1))
     END IF
   END FUNCTION rec_eval_grid
+
+  SUBROUTINE read_frames(frame_section,para_env,nr_frames,r_ref,n_atoms,error)
+
+    TYPE(section_vals_type), POINTER         :: frame_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: nr_frames
+    REAL(dp), DIMENSION(:, :), POINTER       :: r_ref
+    INTEGER, INTENT(OUT)                     :: n_atoms
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_frames', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: dummy_char
+    INTEGER                                  :: i, j, natom, stat
+    LOGICAL                                  :: explicit, failure, my_end
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rptr
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(section_vals_type), POINTER         :: coord_section
+
+     failure = .FALSE.
+     NULLIFY(rptr)
+   
+     DO i = 1,nr_frames
+       coord_section => section_vals_get_subs_vals(frame_section,"COORD",i_rep_section=i,error=error)
+       CALL section_vals_get(coord_section,explicit=explicit,error=error)
+       ! Cartesian Coordinates
+       IF (explicit) THEN
+          CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+                n_rep_val=natom,error=error)
+          IF(i==1) THEN
+            ALLOCATE(r_ref(3*natom,nr_frames), STAT=stat)
+            CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+            n_atoms = natom
+          ELSE
+           CPPostcondition(3*natom==SIZE(r_ref,1),cp_failure_level,routineP,error,failure)
+          END IF
+          DO j = 1, natom
+              CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+                     i_rep_val=j,r_vals=rptr,error=error)
+               r_ref((j-1)*3+1:(j-1)*3+3,i) = rptr(1:3)
+          END DO ! natom
+       ELSE  
+          CALL section_vals_val_get(frame_section,"COORD_FILE_NAME",i_rep_section=i,c_val=filename,error=error)
+          CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,error,failure)
+          NULLIFY(parser)
+          ALLOCATE(rptr(3))
+          CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,&
+                              error=error)
+          CALL parser_get_next_line(parser,1,error=error)
+          ! Start parser             
+          CALL parser_get_object(parser,natom,error=error)
+          CALL parser_get_next_line(parser,1,error=error)
+          IF(i==1) THEN
+             ALLOCATE(r_ref(3*natom,nr_frames), STAT=stat)
+             CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+             n_atoms = natom
+          ELSE
+           CPPostcondition(3*natom==SIZE(r_ref,1),cp_failure_level,routineP,error,failure)
+          END IF
+          DO j = 1, natom
+            ! Atom coordinates
+            CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+            CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
+                 "Number of lines in XYZ format not equal to the number of atoms."//&
+                 " Error in XYZ format for COORD_A (CV rmsd). Very probably the"//&
+                 " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+            READ(parser%input_line,*) dummy_char,rptr(1:3)
+            r_ref((j-1)*3+1,i) = cp_unit_to_cp2k(rptr(1),"angstrom",error=error)
+            r_ref((j-1)*3+2,i) = cp_unit_to_cp2k(rptr(2),"angstrom",error=error)
+            r_ref((j-1)*3+3,i) = cp_unit_to_cp2k(rptr(3),"angstrom",error=error)
+          END DO ! natom
+          CALL parser_release(parser,error=error)
+          DEALLOCATE(rptr)
+       END IF
+     END DO  ! nr_frames
+
+  END SUBROUTINE  read_frames
 
 END MODULE colvar_methods
