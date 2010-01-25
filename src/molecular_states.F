@@ -291,8 +291,8 @@ CONTAINS
                   pw_env, error = error )
 
              WRITE(filename,'(a9,I4.4,a1,I5.5,a4)')"MOLECULE_",imol,"_",i,tag
-             WRITE(title,'(A,I0,A,I0,A,F16.8,A,I0)') "Molecular Eigenstate ",i," of ",ns,". Energy [a.u.] = ",&
-                                                    evals(i)," Original index ",ind(i)
+             WRITE(title,'(A,I0,A,I0,A,F14.6,A,I0)') "Mol. Eigenstate ",i," of ",ns," E [a.u.] = ",&
+                                                    evals(i)," Orig. index ",ind(i)
              unit_nr=cp_print_key_unit_nr(logger,localization_section,"MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
              CALL pw_to_cube(wf_r%pw,unit_nr,particles=particles,title=title,&
