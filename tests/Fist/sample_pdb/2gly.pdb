@@ -1,0 +1,20 @@
+REMARK  NGLY                                                        
+ATOM      1  N   GLY     1       3.326   1.548   0.000
+ATOM      2  H1  GLY     1       4.046   0.840   0.000
+ATOM      3  H2  GLY     1       2.823   1.500  -0.875
+ATOM      4  H3  GLY     1       2.823   1.500   0.875
+ATOM      5  CA  GLY     1       3.970   2.846   0.000
+ATOM      6 2HA  GLY     1       3.672   3.400  -0.890
+ATOM      7 3HA  GLY     1       3.672   3.400   0.890
+ATOM      8  C   GLY     1       5.484   2.687   0.000
+ATOM      9  O   GLY     1       5.993   1.568   0.000
+ATOM     10  N   GLY     2       6.203   3.811   0.000
+ATOM     11  H   GLY     2       5.738   4.708   0.000
+ATOM     12  CA  GLY     2       7.652   3.794   0.000
+ATOM     13 2HA  GLY     2       8.009   3.276   0.890
+ATOM     14 3HA  GLY     2       8.009   3.276  -0.890
+ATOM     15  C   GLY     2       8.200   5.214   0.000
+ATOM     16  O   GLY     2       7.436   6.177   0.000
+ATOM     17  OXT GLY     2       9.412   5.414   0.000
+TER   
+END   

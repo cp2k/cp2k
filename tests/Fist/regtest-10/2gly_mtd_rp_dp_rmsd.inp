@@ -1,0 +1,182 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/2gly.pot
+      parmtype CHM
+      &SPLINE
+        EMAX_ACCURACY 500.0
+        EMAX_SPLINE  1.0E10
+        EPS_SPLINE 1.0E-6
+        R0_NB [bohr] 0.0001
+        RCUT_NB  20.0
+      &END
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+        SPLINE_INFO
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30.0 30.0 30.0
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE_NAME ../sample_pdb/2gly.pdb
+      COORDINATE PDB
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME  ../sample_psf/2gly.psf
+    &END TOPOLOGY
+
+    &COLVAR
+       &REACTION_PATH
+          LAMBDA 0.1
+          DISTANCES_RMSD
+
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.0.xyz
+          &END
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.1.xyz
+          &END
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.2.xyz
+          &END
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.3.xyz
+          &END
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.4.xyz
+          &END
+          SUBSET_TYPE LIST
+          ATOMS 1 5 8 9 10 12 15 16 17
+          ALIGN_FRAMES  T
+       &END
+    &END
+
+    &COLVAR
+       &DISTANCE_FROM_PATH
+          LAMBDA 0.1
+          DISTANCES_RMSD
+
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.0.xyz
+          &END
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.1.xyz
+          &END
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.2.xyz
+          &END
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.3.xyz
+          &END
+          &FRAME
+            COORD_FILE_NAME  ../sample_xyz/MOL.4.xyz
+          &END
+          SUBSET_TYPE LIST
+          ATOMS 1 5 8 9 10 12 15 16 17
+          ALIGN_FRAMES  T
+       &END
+    &END
+
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT  2gly_mtd_rp_dp_rmsd_a
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+
+ &FREE_ENERGY
+   &METADYN
+     DO_HILLS F
+     LAGRANGE
+     NT_HILLS 40
+     WW 1.0e-4
+     TEMPERATURE 100.
+     TEMP_TOL  50
+     &METAVAR
+       COLVAR 1
+       LAMBDA 4.5
+       MASS   2.0
+       SCALE  0.03
+     &END
+
+     &METAVAR
+       COLVAR 2
+       LAMBDA 4.5
+       MASS   2.0
+       SCALE  0.03
+     &END
+
+     &PRINT
+       &COLVAR
+          COMMON_ITERATION_LEVELS 3
+         &EACH
+           MD 1
+         &END
+       &END
+       &HILLS
+         COMMON_ITERATION_LEVELS 3
+          &EACH
+            MD 1
+          &END
+        &END
+     &END
+   &END METADYN
+ &END FREE_ENERGY
+
+  &MD
+    ENSEMBLE NVT
+    STEPS  50
+    TIMESTEP 1
+    TEMPERATURE 300.0
+    TEMP_TOL 50
+
+    &THERMOSTAT
+      TYPE NOSE
+      &NOSE
+        LENGTH 6
+        YOSHIDA 3
+        TIMECON 1500
+        MTS 2
+      &END NOSE
+    &END THERMOSTAT
+
+    &PRINT
+      &ENERGY
+        &EACH
+          MD 10
+        &END
+        ADD_LAST NUMERIC
+      &END
+    &END PRINT
+  &END MD
+
+  &PRINT
+    &RESTART
+       &EACH
+         MD 100
+       &END
+    &END
+    &TRAJECTORY
+      &EACH
+        MD      10
+      &END
+    &END
+    &RESTART_HISTORY OFF
+    &END
+  &END
+&END MOTION
