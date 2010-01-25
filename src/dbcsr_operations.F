@@ -30,16 +30,16 @@ MODULE dbcsr_operations
                                              btree_add_z => btree_add,&
                                              btree_get_z => btree_find,&
                                              btree_z => btree
-  USE dbcsr_methods
-  USE dbcsr_types
-  USE dbcsr_util
-  USE distribution_2d_types,           ONLY: distribution_2d_retain
-  USE kinds,                           ONLY: dp,&
+  USE dbcsr_kinds,                     ONLY: dp,&
                                              int_4,&
                                              int_8,&
                                              real_4,&
                                              real_8,&
                                              sp
+  USE dbcsr_methods
+  USE dbcsr_types
+  USE dbcsr_util
+  USE distribution_2d_types,           ONLY: distribution_2d_retain
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_alltoall,&
@@ -51,8 +51,7 @@ MODULE dbcsr_operations
                                              mp_waitall
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -2292,7 +2291,9 @@ CONTAINS
        CASE('right');right = .TRUE.
        CASE('left' );right = .FALSE.
        CASE DEFAULT
-          CALL stop_program(routineN,"wrong side="//side)
+          CALL cp_assert (.FALSE., cp_fatal_level,&
+               cp_wrong_args_error, routineN,&
+               "wrong side="//side)
        END SELECT
     ENDIF
     IF(scale_type .EQ. 'M') THEN     ! Matrix scaling
@@ -2405,7 +2406,9 @@ CONTAINS
                 CALL dbcsr_blas_copy(a_nze, buffer, 1, data_any, 1)
              ENDIF
           ELSE
-             CALL stop_program(routineN,"wrong logic")
+             CALL cp_assert (.FALSE., cp_fatal_level,&
+                  cp_wrong_args_error, routineN,&
+                  "wrong logic")
           ENDIF
        ENDDO iterations
        CALL dbcsr_iterator_stop(iter)
@@ -2548,8 +2551,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL timeset(routineN, timing_handle)
     !
     ! check that alpha and matrix have the same data type
-    IF(dbcsr_get_data_type (matrix_a).NE.alpha%d%data_type) &
-         CALL stop_program(routineN,"wrong data type matrix_a="//&
+    CALL cp_assert (dbcsr_get_data_type (matrix_a).EQ.alpha%d%data_type, cp_fatal_level,&
+         cp_wrong_args_error, routineN, "wrong data type matrix_a="//&
          dbcsr_get_data_type (matrix_a)//' alpha='//alpha%d%data_type)
     !
     ! set vars
@@ -2558,7 +2561,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CASE('right');right = .TRUE.
     CASE('left' );right = .FALSE.
     CASE DEFAULT
-       CALL stop_program(routineN,"wrong side="//side)
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, &
+            routineN, "wrong side="//side)
     END SELECT
     !
     ! let's go
@@ -2840,9 +2844,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
     !
     ! let's go
-    IF(dbcsr_nblkrows_total(matrix_a).NE.dbcsr_nblkrows_total(matrix_b)) THEN
-       CALL stop_program(routineN,"matrices not consistent")
-    ENDIF
+    CALL cp_assert (dbcsr_nblkrows_total(matrix_a).EQ.dbcsr_nblkrows_total(matrix_b), &
+         cp_fatal_level, cp_wrong_args_error, routineN, "matrices not consistent")
 
     do_scale = dbcsr_scalar_are_equal (&
          my_beta_scalar, dbcsr_scalar_one (data_type_b))
@@ -3006,14 +3009,16 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
-    
-    IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b).OR.&
-       dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_c)) &
-       CALL stop_program(routineN,"data types not consistent, need to fix that")
 
-    IF(dbcsr_nblkrows_total(matrix_a).NE.dbcsr_nblkrows_total(matrix_b).OR.&
-       dbcsr_nblkrows_total(matrix_c).NE.dbcsr_nblkrows_total(matrix_a)) &
-       CALL stop_program(routineN,"matrices not consistent")
+    CALL cp_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b).AND.&
+         dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_c), &
+         cp_fatal_level, cp_wrong_args_error, routineN, &
+         "data types not consistent, need to fix that")
+
+    CALL cp_assert (dbcsr_nblkrows_total(matrix_a).EQ.dbcsr_nblkrows_total(matrix_b).AND.&
+         dbcsr_nblkrows_total(matrix_c).EQ.dbcsr_nblkrows_total(matrix_a), &
+         cp_fatal_level, cp_wrong_args_error, routineN, &
+         "matrices not consistent")
 
     data_type = dbcsr_get_data_type(matrix_a)
     CALL dbcsr_data_init (c_data)
@@ -3033,8 +3038,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
                row_size=row_size, col_size=col_size)
           nze = row_size * col_size
           CALL dbcsr_get_block_p(matrix_b, row, col, b_data, tr_b, found)
-          IF(tr_a.NEQV.tr_b) &
-               CALL stop_program(routineN,"tr not consistent, need to fix that")
+          CALL cp_assert (tr_a.EQV.tr_b, cp_fatal_level, cp_wrong_args_error, routineN, &
+               "tr not consistent, need to fix that")
           IF(found) THEN
              SELECT CASE (data_type)
              CASE (dbcsr_type_real_4)
@@ -3095,15 +3100,13 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
-    
-    IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b)) &
-         CALL stop_program(routineN,"data types not consistent")
 
+    CALL cp_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b), &
+         cp_fatal_level, cp_wrong_args_error, routineN, "data types not consistent")
     !
     ! let's go
-    IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total) THEN
-       CALL stop_program(routineN,"matrices not consistent")
-    ENDIF
+    CALL cp_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total, &
+         cp_fatal_level, cp_wrong_args_error, routineN, "matrices not consistent")
 
     CALL dbcsr_iterator_start(iter, matrix_b)
 
@@ -3159,9 +3162,9 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL timeset(routineN, timing_handle)
 
-    IF(dbcsr_nblkrows_total(matrix).NE.dbcsr_nblkcols_total(matrix).OR.&
-       dbcsr_nfullrows_total(matrix).NE.dbcsr_nfullrows_total(matrix)) &
-       CALL stop_program(routineN,"matrix not consistent")
+    CALL cp_assert (dbcsr_nblkrows_total(matrix).EQ.dbcsr_nblkcols_total(matrix).AND.&
+         dbcsr_nfullrows_total(matrix).EQ.dbcsr_nfullrows_total(matrix), &
+         cp_fatal_level, cp_wrong_args_error, routineN, "matrices not consistent")
 
     row_blk_size => array_data(dbcsr_row_block_sizes(matrix))
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
@@ -3266,8 +3269,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL timeset(routineN, timing_handle)
 
-    IF(dbcsr_nfullrows_total(matrix).GT.SIZE(diag)) &
-         CALL stop_program(routineN,"SIZE(diag) too small") 
+    CALL cp_assert (dbcsr_nfullrows_total(matrix).LE.SIZE(diag), &
+         cp_fatal_level, cp_wrong_args_error, routineN, "SIZE(diag) too small")
 
     diag = 0.0_dp
 
@@ -3327,8 +3330,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL timeset(routineN, timing_handle)
 
-    IF(dbcsr_nfullrows_total(matrix).GT.SIZE(diag)) &
-         CALL stop_program(routineN,"SIZE(diag) too small")
+    CALL cp_assert (dbcsr_nfullrows_total(matrix).LE.SIZE(diag), &
+         cp_fatal_level, cp_wrong_args_error, routineN, "SIZE(diag) too small")
 
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -4078,7 +4081,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CASE DEFAULT
 
-       CALL stop_program(routineN,"this norm is NYI")
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN, "this norm is NYI")
 
     END SELECT
 
@@ -4121,7 +4124,9 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     any_sym = dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
               dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric
 
-    IF(nr.NE.nc) CALL stop_program(routineN,"not a square matrix")
+    CALL cp_assert (nr.EQ.nc, cp_fatal_level, cp_wrong_args_error, &
+         routineN, "not a square matrix")
+
     dbcsr_gershgorin_norm = 0.0_dp
     ALLOCATE(buff_d(nr))
     buff_d = 0.0_dp

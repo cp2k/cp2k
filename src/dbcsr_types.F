@@ -18,11 +18,11 @@ MODULE dbcsr_types
   USE btree_I8_k_DP2D_v,               ONLY: btree_2d_d => btree
   USE btree_I8_k_SP2D_v,               ONLY: btree_2d_s => btree
   USE btree_I8_k_ZP2D_v,               ONLY: btree_2d_z => btree
-  USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE kinds,                           ONLY: default_string_length,&
+  USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              dp,&
                                              real_4,&
                                              real_8
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE message_passing,                 ONLY: mp_window_type
 
   !$ USE OMP_LIB

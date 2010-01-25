@@ -35,7 +35,7 @@
     col_dist => array_data (dbcsr_distribution_col_dist (dist))
     !
     ! let's go
-    trace = 0.0_sp
+    trace = REAL(0.0,real_4)
     DO a_row = 1, matrix_a%m%nblkrows_total
        a_row_size = row_blk_size(a_row)
        DO a_blk = matrix_a%m%row_p(a_row)+1,matrix_a%m%row_p(a_row+1)
@@ -47,7 +47,8 @@
                   row_dist, col_dist)) CYCLE
           ENDIF
           a_col_size = col_blk_size(a_col)
-          IF(a_row_size.NE.a_col_size) CALL stop_program(routineN,"is that a square matrix?")
+          CALL cp_assert (a_row_size.EQ.a_col_size, cp_fatal_level,&
+               cp_internal_error, routineN, "is that a square matrix?")
           a_nze = a_row_size**2
           a_data => pointer_view (data_p, ABS(matrix_a%m%blk_p(a_blk)),&
                ABS(matrix_a%m%blk_p(a_blk))+a_nze-1)
@@ -114,11 +115,11 @@
             "Trace of product of replicated matrices not yet possible.")
     ENDIF
 
-    sym_fac = 1.0_sp
+    sym_fac = REAL(1.0,real_4)
     IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
         dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).AND.&
        (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
-        dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) sym_fac = 2.0_sp
+        dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) sym_fac = REAL(2.0,real_4)
 
     a_row_blk_size => array_data (matrix_a%m%row_blk_size)
     a_col_blk_size => array_data (matrix_a%m%col_blk_size)
@@ -137,20 +138,21 @@
     IF(PRESENT(trans_a)) my_trans_a = trans_a
     my_trans_b = 'N'
     IF(PRESENT(trans_b)) my_trans_b = trans_b
-    IF(my_trans_a.NE.'T'.OR.my_trans_b.NE.'N') CALL stop_program(routineN,"NYI")
+    CALL cp_assert (my_trans_a.EQ.'T'.AND.my_trans_b.EQ.'N', cp_fatal_level,&
+         cp_unimplemented_error_nr, routineN, "this combination of transpose is NYI")
     !
     ! let's go
-    trace = 0.0_sp
-    IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total) THEN
-       CALL stop_program(routineN,"matrices not consistent")
-    ENDIF
+    trace = REAL(0.0,real_4)
+    CALL cp_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total,&
+         cp_fatal_level, cp_internal_error, routineN, "this combination of transpose is NYI")
     DO row = 1, matrix_a%m%nblkrows_total
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
        IF(a_row_size.NE.b_row_size) THEN
           WRITE(*,*) 'a_row_size',a_row_size
           WRITE(*,*) 'b_row_size',b_row_size
-          CALL stop_program(routineN,"matrices not consistent")
+          CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, &
+               routineN, "matrices not consistent")
        ENDIF
        b_blk = matrix_b%m%row_p(row)+1
        b_frst_blk = matrix_b%m%row_p(row)+1
@@ -168,7 +170,8 @@
              IF(a_col_size.NE.b_col_size)  THEN
                 WRITE(*,*) 'a_col_size',a_col_size
                 WRITE(*,*) 'b_col_size',b_col_size
-                CALL stop_program(routineN,"matrices not consistent")
+                CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, &
+                     routineN, "matrices not consistent")
              ENDIF
              !
              nze = a_row_size*a_col_size
@@ -180,7 +183,7 @@
                 a_end = a_beg + nze - 1
                 b_beg = ABS(matrix_b%m%blk_p(b_blk))
                 b_end = b_beg + nze - 1
-                fac = 1.0_sp
+                fac = REAL(1.0,real_4)
                 IF(row.NE.a_col) fac = sym_fac
                 IF(    matrix_a%m%data_type.EQ.dbcsr_type_real_4.AND.&
                        matrix_b%m%data_type.EQ.dbcsr_type_real_4) THEN
@@ -211,7 +214,8 @@
                         a_data_z(ABS(matrix_a%m%blk_p(a_blk))),1,&
                         b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1)
                 ELSE
-                   CALL stop_program(routineN,"combination of types NYI")                   
+                   CALL cp_assert (.FALSE., cp_fatal_level, cp_unimplemented_error_nr, &
+                        routineN, "combination of types NYI")
                 ENDIF
              ENDIF
           ENDIF
@@ -932,9 +936,11 @@
           ENDIF
        ENDDO
     CASE('all')
-       CALL stop_program(routineN,"more work here")
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_unimplemented_error_nr, &
+            routineN, "combination of types NYI")
     CASE DEFAULT
-       CALL stop_program(routineN,"how do you wanna bcast")
+       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, &
+            routineN, "how do you wanna bcast")
     END SELECT
     DEALLOCATE(buff)
 
@@ -970,8 +976,8 @@
 
 !   ---------------------------------------------------------------------------
 
-    my_beta = 0.0_sp
-    my_alpha = 0.0_sp
+    my_beta = REAL(0.0,real_4)
+    my_alpha = REAL(0.0,real_4)
     IF(PRESENT(alpha)) my_alpha = alpha
     IF(PRESENT(beta)) my_beta = beta
     blk(:,:) = my_beta
@@ -994,9 +1000,11 @@
 !   ---------------------------------------------------------------------------
 
     CALL spotrf( 'U', m, blk, m, info )
-    IF(info.NE.0)CALL stop_program(routineN,"error in dpotrf")
+    CALL cp_assert (info.EQ.0, cp_fatal_level, cp_internal_error, &
+            routineN, "error in dpotrf")
     CALL spotri( 'U', m, blk, m, info )
-    IF(info.NE.0)CALL stop_program(routineN,"error in dpotri")
+    CALL cp_assert (info.EQ.0, cp_fatal_level, cp_internal_error, &
+            routineN, "error in dpotri")
     !
     ! symmetrize
     DO i=1,m

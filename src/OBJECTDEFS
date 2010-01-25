@@ -149,6 +149,7 @@ OBJECTS_GENERIC =\
  cuda_cublas.o\
  cuda_memory.o\
  d3_poly.o\
+ dbcsr_kinds.o\
  dbcsr_methods.o\
  dbcsr_operations.o\
  dbcsr_types.o\

@@ -29,6 +29,12 @@ MODULE dbcsr_util
                                              get_blacs_info
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE dbcsr_kinds,                     ONLY: dp,&
+                                             int_4,&
+                                             int_8,&
+                                             real_4,&
+                                             real_8,&
+                                             sp
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_clear_2d_pointer, dbcsr_data_copyall, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
@@ -71,12 +77,6 @@ MODULE dbcsr_util
                                              distribution_2d_write
   USE f77_blas
   USE f77_blas_generic
-  USE kinds,                           ONLY: dp,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8,&
-                                             sp
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: gcd,&
                                              lcm
@@ -86,7 +86,7 @@ MODULE dbcsr_util
                                              mp_sum
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory,stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -407,9 +407,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF(.NOT.matrix%m%initialized.EQ.dbcsr_magic_number)&
-         CALL stop_program (routineP, 'matrix%m not associated') 
-
+    CALL cp_assert (matrix%m%initialized.EQ.dbcsr_magic_number,&
+         cp_fatal_level, cp_caller_error, routineN,&
+         "matrix%m not associated")
     IF (PRESENT (processor)) THEN
        CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose, processor)
     ELSE

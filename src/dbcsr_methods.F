@@ -28,6 +28,9 @@ MODULE dbcsr_methods
                                              btree_new_s => btree_new
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                              btree_new_z => btree_new
+  USE dbcsr_kinds,                     ONLY: default_string_length,&
+                                             real_4,&
+                                             real_8
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
@@ -40,9 +43,6 @@ MODULE dbcsr_methods
   USE distribution_2d_types,           ONLY: distribution_2d_release
   USE f77_blas
   USE f77_blas_generic
-  USE kinds,                           ONLY: default_string_length,&
-                                             real_4,&
-                                             real_8
   USE message_passing,                 ONLY: mp_allocate,&
                                              mp_deallocate,&
                                              mp_sum
