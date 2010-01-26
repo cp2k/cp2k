@@ -59,18 +59,19 @@
     </dd>
     <dt><b>${VAR}</b> or <b>$VAR</b></dt>
     <dd>
-     Expand the variable <i>VAR</i>. The text <i>${VAR}</i> (or  <i>$VAR</i>) is replaced with the value assigned
-     to <i>VAR</i> in the last @SET directive. There can be multiple variable statements
-     per line. The expansion process is repeated until no more variables are found.
+     Expand the variable <i>VAR</i>. The text <i>${VAR}</i> (or  <i>$VAR</i>) is replaced
+     with the value assigned to <i>VAR</i> in the last @SET directive.
+     There can be multiple variable statements per line. The expansion process is repeated
+     until no more variables are found.
     </dd>
-     <dt><b>@IF / @ENDIF</b></dt>
-     <dd>
-      Conditional block. The text from the @IF line up to the next line with a valid "
-      @ENDIF is skipped, if the expression following @IF resolves to <i>false</i>.
-      Available expressions are lexical comparisons for equality '==' or inequality '/='.
-      If none of the two operators are found, a '0' or whitespace resolves to <i>false</i>
-      while any text resolves to <i>true</i>. @IF/@ENDIF blocks cannot be nested and
-      cannot span across files. There can be only one test (== or /=) per @IF statement.
+    <dt><b>@IF / @ENDIF</b></dt>
+    <dd>
+     Conditional block. The text from the @IF line up to the next line with a valid "
+     @ENDIF is skipped, if the expression following @IF resolves to <i>false</i>.
+     Available expressions are lexical comparisons for equality '==' or inequality '/='.
+     If none of the two operators are found, a '0' or whitespace resolves to <i>false</i>
+     while any text resolves to <i>true</i>. @IF/@ENDIF blocks cannot be nested and
+     cannot span across files. There can be only one test (== or /=) per @IF statement.
     </dd>
    </dl>
    <h2>Input structure</h2>
@@ -526,11 +527,19 @@
       <td class="l">
       </td>
       <td class="r">
-       The lone keyword behaves as a switch to
-       <big class="uctt">
-        <xsl:if test="LONE_KEYWORD_VALUE = 'T'">.TRUE.</xsl:if>
-        <xsl:if test="LONE_KEYWORD_VALUE = 'F'">.FALSE.</xsl:if>
-       </big>
+       <xsl:if test="DATA_TYPE/@kind = 'logical'">
+        The lone keyword behaves as a switch to
+        <big class="uctt">
+         <xsl:if test="LONE_KEYWORD_VALUE = 'T'">.TRUE.</xsl:if>
+         <xsl:if test="LONE_KEYWORD_VALUE = 'F'">.FALSE.</xsl:if>
+        </big>
+       </xsl:if>
+       <xsl:if test="DATA_TYPE/@kind = 'integer' or DATA_TYPE/@kind = 'real'">
+        The lone keyword defaults to
+        <big class="uctt">
+         <xsl:value-of select="LONE_KEYWORD_VALUE"/>
+        </big>
+       </xsl:if>
       </td>
      </tr>
     </xsl:if>
