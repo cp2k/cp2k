@@ -2729,6 +2729,8 @@ CPSourceFileRef,&
 !> \author fschiff
 !> \note the system is still able to move in the space spanned by the CV
 !>       perpendicular to the path 
+!> \par History
+!>      extended MI 01.2010
 ! *****************************************************************************
   SUBROUTINE reaction_path_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -2766,8 +2768,10 @@ CPSourceFileRef,&
   END SUBROUTINE reaction_path_colvar
 
 ! *****************************************************************************
-!> \brief  MISSING DESCRIPTION
-!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+!> \brief  position along the path calculated using selected colvars 
+!>         as compared to functions describing the variation of these same colvars
+!>         along the path given as reference
+!> \author fschiff
 ! *****************************************************************************
   SUBROUTINE rpath_colvar(colvar,cell,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -2861,11 +2865,15 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ds1,stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
   END SUBROUTINE rpath_colvar
 
 ! *****************************************************************************
-!> \brief  MISSING DESCRIPTION
-!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+!> \brief  position along the path calculated from the positions of a selected list of
+!>         atoms as compared to the same positions in reference
+!>         configurations belonging to the given path.
+!> \author MI
+!> \date  01.2010
 ! *****************************************************************************
   SUBROUTINE rpath_dist_rmsd(colvar,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -3004,6 +3012,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) distance from reaction path collective variable
 !> \author MI
+!> \date 01.2010
 ! *****************************************************************************
   SUBROUTINE  distance_from_path_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -3041,8 +3050,11 @@ CPSourceFileRef,&
   END SUBROUTINE  distance_from_path_colvar
 
 ! *****************************************************************************
-!> \brief  MISSING DESCRIPTION
-!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+!> \brief  distance from path calculated using selected colvars 
+!>         as compared to functions describing the variation of these same colvars
+!>         along the path given as reference
+!> \author MI
+!> \date  01.2010 
 ! *****************************************************************************
   SUBROUTINE  dpath_colvar(colvar,cell,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -3129,8 +3141,11 @@ CPSourceFileRef,&
   END SUBROUTINE dpath_colvar
 
 ! *****************************************************************************
-!> \brief  MISSING DESCRIPTION
-!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+!> \brief  distance from path calculated from the positions of a selected list of
+!>         atoms as compared to the same positions in reference
+!>         configurations belonging to the given path.
+!> \author MI
+!> \date  01.2010 
 ! *****************************************************************************
   SUBROUTINE dpath_dist_rmsd(colvar,particles,error)
 
@@ -3397,7 +3412,6 @@ CPSourceFileRef,&
        my_particles => particles_i%els
     END IF
     n_atoms=colvar%gyration_param%n_atoms
-!    r_0=colvar%gyration_param%r_0
     inv_n = 1.0_dp/n_atoms
 
 
@@ -3419,7 +3433,6 @@ CPSourceFileRef,&
     DO ii = 1,n_atoms
        i=colvar%gyration_param%i_at(ii)
        CALL get_coordinates(colvar, i, xpi, my_particles)       
-!       CALL get_mass(colvar, i, mi, my_particles)       
        ss=MATMUL(cell%h_inv,xpi(:)-xpcom(:))
        ss=ss-NINT(ss)
        dxi=MATMUL(cell%hmat,ss)
@@ -3448,10 +3461,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief evaluates the force due to the rmsd colvar
-!>        ss = (RMSDA-RMSDB)/(RMSDA+RMSDB)
-!>        RMSD is calculated with respect to two reference structures, A and B,
-!>        considering all the atoms of the system or only a subset of them,
-!>        as selected by the input keyword LIST
+!> \note  could be extended to be used with more than 2 reference structures
 !> \author MI
 !> \date  12.2009 
 ! *****************************************************************************
@@ -3479,8 +3489,13 @@ CPSourceFileRef,&
   END SUBROUTINE rmsd_colvar
 
 ! *****************************************************************************
-!> \brief  MISSING DESCRIPTION
-!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+!> \brief  evaluates the force due to the rmsd colvar
+!>        ss = (RMSDA-RMSDB)/(RMSDA+RMSDB)
+!>        RMSD is calculated with respect to two reference structures, A and B,
+!>        considering all the atoms of the system or only a subset of them,
+!>        as selected by the input keyword LIST 
+!> \author MI
+!> \date  12.2009
 ! *****************************************************************************
   SUBROUTINE rmsd_ab_colvar(colvar,subsys,particles,error)
 
@@ -3622,8 +3637,10 @@ CPSourceFileRef,&
   END FUNCTION rec_eval_grid
 
 ! *****************************************************************************
-!> \brief  MISSING DESCRIPTION
-!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+!> \brief  Reads the coordinates of reference configurations given in input
+!>         either as xyz files or in &COORD section
+!> \author MI
+!> \date 01.2010
 ! *****************************************************************************
   SUBROUTINE read_frames(frame_section,para_env,nr_frames,r_ref,n_atoms,error)
 
