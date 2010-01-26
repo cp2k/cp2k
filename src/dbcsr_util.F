@@ -2968,7 +2968,8 @@ CONTAINS
     ALLOCATE (cbs_data(nblkcols), cd_data(nblkcols))
     cbs_data(1:nblkcols) = ncol_block
     IF (sz .NE. 0) cbs_data(nblkcols) = sz
-
+    CALL array_nullify (row_blk_sizes)
+    CALL array_nullify (col_blk_sizes)
     CALL array_new (row_blk_sizes, rbs_data, gift=.TRUE.)
     CALL array_new (col_blk_sizes, cbs_data, gift=.TRUE.)
     !
@@ -2980,14 +2981,14 @@ CONTAINS
     ENDIF
     ! Calculate process row distribution
     nprows = dbcsr_mp_nprows (mp_env)
-    FORALL (pdim = 0 : nprows-1)
-       rd_data(1+pdim:nblkrows:nprows) = pdim
+    FORALL (pdim = 0 : MIN(nprows-1,nblkrows-1))
+       rd_data(1+pdim:nblkrows:MIN(nprows,nblkrows)) = pdim
     END FORALL
     CALL array_new (row_dist, rd_data, gift=.TRUE.)
     ! Calculate process column distribution
     npcols = dbcsr_mp_npcols (mp_env)
-    FORALL (pdim = 0 : npcols-1)
-       cd_data(1+pdim:nblkcols:npcols) = pdim
+    FORALL (pdim = 0 : MIN(npcols-1, nblkcols-1))
+       cd_data(1+pdim:nblkcols:MIN(npcols,nblkcols)) = pdim
     END FORALL
     CALL array_new (col_dist, cd_data, gift=.TRUE.)
     !
