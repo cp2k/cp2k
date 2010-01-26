@@ -2982,13 +2982,13 @@ CONTAINS
     ! Calculate process row distribution
     nprows = dbcsr_mp_nprows (mp_env)
     FORALL (pdim = 0 : MIN(nprows-1,nblkrows-1))
-       rd_data(1+pdim:nblkrows:MIN(nprows,nblkrows)) = pdim
+       rd_data(1+pdim:nblkrows:nprows) = pdim
     END FORALL
     CALL array_new (row_dist, rd_data, gift=.TRUE.)
     ! Calculate process column distribution
     npcols = dbcsr_mp_npcols (mp_env)
     FORALL (pdim = 0 : MIN(npcols-1, nblkcols-1))
-       cd_data(1+pdim:nblkcols:MIN(npcols,nblkcols)) = pdim
+       cd_data(1+pdim:nblkcols:npcols) = pdim
     END FORALL
     CALL array_new (col_dist, cd_data, gift=.TRUE.)
     !
