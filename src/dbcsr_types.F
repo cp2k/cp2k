@@ -22,7 +22,6 @@ MODULE dbcsr_types
                                              dp,&
                                              real_4,&
                                              real_8
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE message_passing,                 ONLY: mp_window_type
 
   !$ USE OMP_LIB
@@ -366,7 +365,6 @@ MODULE dbcsr_types
           &                                col_blk_offset
      INTEGER                            :: max_rbs, max_cbs
 
-     TYPE(distribution_2d_type), POINTER :: dist2d
      INTEGER                             :: sparsity_id
      INTEGER                             :: id_nr ! use in sm_pool
 

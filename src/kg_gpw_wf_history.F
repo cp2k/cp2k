@@ -17,6 +17,7 @@ MODULE kg_gpw_wf_history
                                              dbcsr_obj_p_type,&
                                              sm_from_dbcsr
   USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
                                              mol_make_basis,&
                                              multiply_sparse_mol_mo
@@ -65,7 +66,7 @@ CONTAINS
 !>      i.e. when all the terms have been added to the final mos
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE kg_gpw_fm_mol_linear(alpha,set_a,beta,set_b,matrix_p_b,matrix_s_b,error)
+  SUBROUTINE kg_gpw_fm_mol_linear(alpha,set_a,beta,set_b,matrix_p_b,matrix_s_b,distribution_2d,error)
 
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -75,6 +76,7 @@ CONTAINS
       POINTER                                :: set_b
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_p_b, matrix_s_b
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_linear', &
@@ -107,7 +109,7 @@ CONTAINS
        CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
        DO ispin=1,SIZE(matrix_s)!sm->dbcsr
           CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-               matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+               distribution_2d,error)!sm->dbcsr
        ENDDO!sm->dbcsr
     ENDIF
 
@@ -116,7 +118,7 @@ CONTAINS
     CALL allocate_matrix_set( matrix_p, SIZE(matrix_p_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_p(ispin)%matrix, matrix_p_b(ispin)%matrix, &
-            matrix_p_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
     ENDIF
 
@@ -186,13 +188,14 @@ CONTAINS
 
               ! Multiply Overlap matric and Coefficient matrix
               CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block_a,&
-                                           natom,mo_coeff_a,nmo_a,s_mo,error=error)
+                                           natom,mo_coeff_a,nmo_a,s_mo,&
+distribution_2d=distribution_2d,error=error)
               ! orthogonalize the molecular orbitals
               CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
 
               CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
-                   natom, matrix_p(ispin)%matrix, error=error)
-            END IF
+                   natom, matrix_p(ispin)%matrix, distribution_2d=distribution_2d,error=error)
+           END IF
           END DO  ! ispin
 
         END DO  ! imol
@@ -211,7 +214,7 @@ CONTAINS
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
        CALL dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
        ALLOCATE(matrix_p_b(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error, distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
     ENDIF
@@ -239,8 +242,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE kg_gpw_fm_mol_ps(set_a, beta, set_b, ov_b_b, set_last, &
-                              matrix_p_b, matrix_s_b, error )
-
+                              matrix_p_b, matrix_s_b,  distribution_2d, error )
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_a
     REAL(dp), INTENT(IN), OPTIONAL           :: beta
@@ -251,6 +253,7 @@ CONTAINS
       POINTER                                :: set_last
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_p_b, matrix_s_b
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_ps', &
@@ -280,7 +283,7 @@ CONTAINS
 !
 
     NULLIFY(ov_b)!sm->dbcsr
-    CALL sm_from_dbcsr(ov_b, ov_b_b, ov_b_b%m%dist2d,error)!sm->dbcsr
+    CALL sm_from_dbcsr(ov_b, ov_b_b, distribution_2d,error)!sm->dbcsr
 
     failure = .FALSE.
     calculate_density = .FALSE.
@@ -291,7 +294,7 @@ CONTAINS
        CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
        DO ispin=1,SIZE(matrix_s)!sm->dbcsr
           CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-               matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+               distribution_2d,error)!sm->dbcsr
        ENDDO!sm->dbcsr
     ENDIF
 
@@ -300,7 +303,7 @@ IF(PRESENT(matrix_p_b)) THEN!sm->dbcsr
     CALL allocate_matrix_set( matrix_p, SIZE(matrix_p_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_p(ispin)%matrix, matrix_p_b(ispin)%matrix, &
-            matrix_p_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 ENDIF
 
@@ -396,12 +399,13 @@ ENDIF
             IF(calculate_density) THEN
               ! Multiply Overlap matric and Coefficient matrix
               CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block_a,&
-                                           natom,mo_coeff_a,nmo_a,s_mo,error=error)
+                                           natom,mo_coeff_a,nmo_a,s_mo,&
+                                           distribution_2d=distribution_2d,error=error)
               ! orthogonalize the molecular orbitals
               CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
 
               CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
-                   natom, matrix_p(ispin)%matrix, error=error)
+                   natom, matrix_p(ispin)%matrix, distribution_2d=distribution_2d,error=error)
             END IF
 
           END DO  ! ispin
@@ -443,12 +447,13 @@ ENDIF
 !> \param erro r
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE kg_gpw_prev_wf(kg_fm_mol_set,matrix_p_b,matrix_s_b,error)
+  SUBROUTINE kg_gpw_prev_wf(kg_fm_mol_set,matrix_p_b,matrix_s_b,distribution_2d,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p_b, matrix_s_b
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_gpw_prev_wf', &
@@ -472,14 +477,14 @@ ENDIF
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     NULLIFY(matrix_p)!sm->dbcsr
     CALL allocate_matrix_set( matrix_p, SIZE(matrix_p_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_p(ispin)%matrix, matrix_p_b(ispin)%matrix, &
-            matrix_p_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     failure = .FALSE.
@@ -515,12 +520,14 @@ ENDIF
 
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
-                                         nat_mol,mo_coeff,nmo,s_mo,error=error)
+                                         nat_mol,mo_coeff,nmo,s_mo,&
+                                         distribution_2d=distribution_2d,error=error)
             ! orthogonalize the molecular orbitals
             CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV",error=error)
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
-                                       nat_mol,matrix_p(ispin)%matrix,error=error)
+                                       nat_mol,matrix_p(ispin)%matrix,&
+                                       distribution_2d=distribution_2d,error=error)
           ENDDO  ! ispin
         END DO  ! imol
 
@@ -534,7 +541,7 @@ ENDIF
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
        CALL dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
        ALLOCATE(matrix_p_b(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error,distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
 

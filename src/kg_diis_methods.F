@@ -8,6 +8,7 @@
 !> \author MI
 ! *****************************************************************************
 MODULE kg_diis_methods
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kg_diis_types,                   ONLY: allocate_diis_block,&
                                              get_mol_diis_set,&
                                              init_mol_diis_set,&
@@ -374,7 +375,7 @@ CONTAINS
   SUBROUTINE kg_diis_step_B(diis_buffer,ibuffer,nb_active,&
                             kg_fm_set,scf_control,diis_ev,&
                             nspins,matrix_ks,matrix_p,&
-                            do_iter,diis_step,do_level_shift,use_jacobi,error)
+                            do_iter,diis_step,do_level_shift,use_jacobi,distribution_2d,error)
 
 !   Second part of the DIIS update : modify the mos
 
@@ -388,6 +389,7 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_p
     LOGICAL, INTENT(IN)                      :: do_iter, diis_step, &
                                                 do_level_shift, use_jacobi
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_B', &
@@ -495,7 +497,8 @@ CONTAINS
                                    smear=scf_control%smear%window_size, error=error)
 
           CALL calculate_mol_density_matrix(mo_set,mol_block,&
-                            nat_mol,matrix_p(ispin)%matrix,error=error)
+                            nat_mol,matrix_p(ispin)%matrix,&
+distribution_2d=distribution_2d,error=error)
         END DO  ! ispin
 
       END DO  ! imol

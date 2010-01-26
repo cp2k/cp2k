@@ -48,6 +48,7 @@ MODULE qs_wf_history_methods
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
                                              dbcsr_set
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
@@ -672,13 +673,15 @@ END FUNCTION wfi_get_method_label
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
-    NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho, rho_xc)
+    NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho, &
+         rho_xc, distribution_2d)
     failure=.FALSE.
     my_kg_gpw = .FALSE.
     IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
@@ -696,7 +699,9 @@ END FUNCTION wfi_get_method_label
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env, mos=mos,&
-            rho=rho,rho_xc=rho_xc,matrix_s=matrix_s,error=error)
+            rho=rho,rho_xc=rho_xc,matrix_s=matrix_s,&
+                    distribution_2d=distribution_2d,&
+            error=error)
        CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
             error=error)
   
@@ -706,6 +711,7 @@ END FUNCTION wfi_get_method_label
        ELSE
           actual_extrapolation_method_nr=wf_history%interpolation_method_nr
        END IF
+
        SELECT CASE(actual_extrapolation_method_nr)
        CASE(wfi_linear_wf_method_nr)
            IF (wf_history%snapshot_count<2) THEN
@@ -772,7 +778,7 @@ END FUNCTION wfi_get_method_label
   
           IF(my_kg_gpw) THEN
              CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
-             CALL kg_gpw_prev_wf(kg_fm_mol_set,rho%rho_ao,matrix_s,error=error)
+             CALL kg_gpw_prev_wf(kg_fm_mol_set,rho%rho_ao,matrix_s,distribution_2d=distribution_2d,error=error)
           ELSE
             DO ispin=1,SIZE(mos)
                CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
@@ -846,10 +852,12 @@ END FUNCTION wfi_get_method_label
              IF(my_kg_gpw) THEN
                CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
                CALL kg_gpw_fm_mol_linear(alpha=0.0_dp,set_a=kg_fm_mol_set,&
-                    beta=(t2-t0)/(t1-t0),set_b=t1_state%wf_mol%kg_fm_mol_set,error=error)
+                    beta=(t2-t0)/(t1-t0),set_b=t1_state%wf_mol%kg_fm_mol_set,&
+                    distribution_2d=distribution_2d,error=error)
                CALL kg_gpw_fm_mol_linear(alpha=1.0_dp,set_a=kg_fm_mol_set,&
                     beta=(t1-t2)/(t1-t0),set_b=t0_state%wf_mol%kg_fm_mol_set,&
-                    matrix_p_b=rho%rho_ao,matrix_s_b=matrix_s,error=error)
+                    matrix_p_b=rho%rho_ao,matrix_s_b=matrix_s,&
+                    distribution_2d=distribution_2d,error=error)
              ELSE
                DO ispin=1,SIZE(mos)
                   CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
@@ -1011,17 +1019,20 @@ END FUNCTION wfi_get_method_label
              IF(nvec==1) THEN
                CALL kg_gpw_fm_mol_linear(alpha=0.0_dp, set_a=kg_fm_mol_set,&
                     beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set,&
-                    matrix_p_b=rho%rho_ao, matrix_s_b=matrix_s, error=error)
+                    matrix_p_b=rho%rho_ao, matrix_s_b=matrix_s, &
+                    distribution_2d=distribution_2d,error=error)
              ELSE
                CALL kg_gpw_fm_mol_linear(alpha=0.0_dp, set_a=kg_fm_mol_set,&
-                    beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set, error=error)
+                    beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set,&
+                    distribution_2d=distribution_2d,error=error)
   
                DO i=2,nvec-1
                  t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
                  beta = -1.0_dp * beta * REAL(nvec - i + 1 , dp ) / REAL(i , dp )
                  CALL kg_gpw_fm_mol_ps(set_a=kg_fm_mol_set,&
                       beta=beta,set_b=t0_state%wf_mol%kg_fm_mol_set,ov_b_b=t0_state%overlap,&
-                      set_last=t1_state%wf_mol%kg_fm_mol_set,error=error)
+                      set_last=t1_state%wf_mol%kg_fm_mol_set,&
+                      distribution_2d=distribution_2d,error=error)
                END DO
                ! finally calculate the density
                t0_state => wfi_get_snapshot(wf_history, index=nvec, error=error)
@@ -1029,7 +1040,7 @@ END FUNCTION wfi_get_method_label
                CALL kg_gpw_fm_mol_ps(set_a=kg_fm_mol_set,&
                     beta=beta,set_b=t0_state%wf_mol%kg_fm_mol_set,ov_b_b=t0_state%overlap,&
                     set_last=t1_state%wf_mol%kg_fm_mol_set, matrix_p_b=rho%rho_ao,matrix_s_b=matrix_s,&
-                    error=error)
+                    distribution_2d=distribution_2d,error=error)
              END IF
           ELSE
              DO ispin=1,SIZE(mos)

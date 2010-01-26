@@ -72,7 +72,6 @@ MODULE dbcsr_util
        dbcsr_work_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_get,&
-                                             distribution_2d_release,&
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE f77_blas
@@ -805,8 +804,6 @@ CONTAINS
        CALL array_release (matrix%m%row_blk_offset)
        CALL array_release (matrix%m%col_blk_offset)
        CALL dbcsr_distribution_release (matrix%m%dist)
-       IF (ASSOCIATED (matrix%m%dist2d)) &
-            CALL distribution_2d_release (matrix%m%dist2d, error)
        IF (ASSOCIATED (matrix%m%wms)) THEN
           CALL dbcsr_work_destroy_all(matrix%m)
        ENDIF
@@ -877,8 +874,6 @@ CONTAINS
     ELSE
        matrix%m%replication_type = dbcsr_repl_none
     ENDIF
-    ! CP2K SM compatibility
-    NULLIFY(matrix%m%dist2d)
     !
     ! Setup the data
     IF (.NOT. hijack) THEN

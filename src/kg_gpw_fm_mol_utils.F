@@ -25,6 +25,7 @@ MODULE kg_gpw_fm_mol_utils
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
                                              dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
@@ -77,12 +78,12 @@ CONTAINS
 !> \param erro r
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE calculate_w_matrix_per_molecule(fm_mol_set,w_matrix_sm,ispin,error)
-
+  SUBROUTINE calculate_w_matrix_per_molecule(fm_mol_set,w_matrix_sm,ispin,distribution_2d,error)
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: fm_mol_set
     TYPE(real_matrix_type), POINTER          :: w_matrix_sm
     INTEGER, INTENT(IN)                      :: ispin
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -110,7 +111,7 @@ CONTAINS
 
     ALLOCATE(w_matrix)!sm->dbcsr
     !CALL dbcsr_init(w_matrix, error)!sm->dbcsr
-    CALL dbcsr_from_sm(w_matrix, w_matrix_sm, error)!sm->dbcsr
+    CALL dbcsr_from_sm(w_matrix, w_matrix_sm, error, distribution_2d)!sm->dbcsr
 
     nmolecule_kind = SIZE(fm_mol_set,1)
     NULLIFY(wmo_x_mot,mo,wmo)
@@ -212,7 +213,7 @@ CONTAINS
     DEALLOCATE(wmo,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL sm_from_dbcsr ( w_matrix_sm, w_matrix, w_matrix%m%dist2d, error=error )!sm->dbcsr
+    CALL sm_from_dbcsr ( w_matrix_sm, w_matrix, distribution_2d, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix ( w_matrix, error=error )!sm->dbcsr
 
   END SUBROUTINE calculate_w_matrix_per_molecule

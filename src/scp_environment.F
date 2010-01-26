@@ -15,8 +15,7 @@ MODULE scp_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
-                                             dbcsr_add_block_node
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
                                              dbcsr_get_info,&
@@ -249,7 +248,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., replication_type=dbcsr_repl_full, &
          error=error)
-    CALL cp_dbcsr_add_dist2d (pscp%m, distribution_2d, error)
 
     CALL dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)

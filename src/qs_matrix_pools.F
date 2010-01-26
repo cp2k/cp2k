@@ -38,6 +38,7 @@ MODULE qs_matrix_pools
                                              dbcsr_get_info,&
                                              dbcsr_row_block_sizes
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: use_orb_basis_set
   USE particle_types,                  ONLY: get_particle_set,&
@@ -720,7 +721,8 @@ END SUBROUTINE mpools_rebuild_fm_pools
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
-     para_env, basis_set_id, error)
+     para_env, basis_set_id,distribution_2d, error)
+
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: s
@@ -729,6 +731,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mpools_rebuild_s_sm_pools', &
@@ -776,7 +779,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
             block_begins_at_row=block_begins_at,&
             block_begins_at_col=block_begins_at,&
             para_env=para_env, symmetry="symmetric",&
-            distribution_2d=s(1)%matrix%m%dist2d,&
+            distribution_2d=distribution_2d,&!s(1)%matrix%m%dist2d,&
             sparsity_id=s(1)%matrix%m%sparsity_id, &
             error=error)
   

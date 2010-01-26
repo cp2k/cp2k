@@ -39,7 +39,6 @@ MODULE dbcsr_operations
   USE dbcsr_methods
   USE dbcsr_types
   USE dbcsr_util
-  USE distribution_2d_types,           ONLY: distribution_2d_retain
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_alltoall,&
@@ -3464,11 +3463,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        matrix_b%m%nblks = matrix_b%m%nblks
        matrix_b%m%valid = .TRUE.
 
-       ! Now do cp2k special stuff
-       IF (ASSOCIATED (matrix_a%m%dist2d)) THEN
-          matrix_b%m%dist2d => matrix_a%m%dist2d
-          CALL distribution_2d_retain (matrix_b%m%dist2d, error)
-       ENDIF
        matrix_b%m%sparsity_id = matrix_a%m%sparsity_id
     ENDIF
     CALL timestop(timing_handle)

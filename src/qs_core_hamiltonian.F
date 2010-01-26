@@ -86,8 +86,7 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
-                                             dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
@@ -418,7 +417,6 @@ CONTAINS
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
     CALL dbcsr_finalize(matrix_s(1)%matrix,error=error)
-    CALL cp_dbcsr_add_dist2d (matrix_s(1)%matrix%m, distribution_2d, error)
 
 !   *** Allocate the matrix of coefficients for one center expansions
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
@@ -524,7 +522,6 @@ CONTAINS
         nblks=0, nze=0, mutable_work=.TRUE., &
         error=error)
    CALL dbcsr_finalize(matrix_h(1)%matrix,error=error)
-   CALL cp_dbcsr_add_dist2d (matrix_h(1)%matrix%m, distribution_2d, error)
 
    ! *** Allocate work storage ***
    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&

@@ -43,7 +43,6 @@ MODULE qs_scf
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_add_dist2d,&
                                              dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
@@ -2241,7 +2240,6 @@ CPSourceFileRef)
                nblks=0, nze=0, mutable_work=.TRUE., &
                error=error)
           CALL dbcsr_finalize(matrix_ks(ispin)%matrix,error=error)
-          CALL cp_dbcsr_add_dist2d (matrix_ks(ispin)%matrix%m, distribution_2d, error)
           ! for hfx we need to allocate the blocks
           CALL dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
           CALL dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
@@ -2270,7 +2268,6 @@ CPSourceFileRef)
                  nblks=0, nze=0, mutable_work=.TRUE., &
                  error=error)
             CALL dbcsr_finalize(matrix_ks_aux_fit(ispin)%matrix,error=error)
-            CALL cp_dbcsr_add_dist2d (matrix_ks_aux_fit(ispin)%matrix%m, distribution_2d, error)
             ! for hfx we need to allocate the blocks
             CALL dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
                  error=error)

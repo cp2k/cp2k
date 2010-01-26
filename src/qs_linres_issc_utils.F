@@ -24,8 +24,7 @@ MODULE qs_linres_issc_utils
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
-                                             dbcsr_alloc_block_from_nbl,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -1006,7 +1005,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (issc_env%matrix_efg(1)%matrix%m, distribution_2d, error)
     CALL dbcsr_alloc_block_from_nbl(issc_env%matrix_efg(1)%matrix,sab_orb,error=error)
 
     ALLOCATE(issc_env%matrix_efg(2)%matrix,&
@@ -1045,7 +1043,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (issc_env%matrix_pso(1)%matrix%m, distribution_2d, error)
     CALL dbcsr_alloc_block_from_nbl(issc_env%matrix_pso(1)%matrix,sab_orb,error=error)
 
     ALLOCATE(issc_env%matrix_pso(2)%matrix,issc_env%matrix_pso(3)%matrix)

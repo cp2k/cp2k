@@ -60,7 +60,8 @@ MODULE ep_methods
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_scale,&
                                              dbcsr_set
-  USE distribution_2d_types,           ONLY: distribution_2d_get
+  USE distribution_2d_types,           ONLY: distribution_2d_get,&
+                                             distribution_2d_type
   USE ep_qs_methods,                   ONLY: ep_qs_create
   USE ep_qs_types,                     ONLY: ep_qs_release,&
                                              ep_qs_type
@@ -2254,6 +2255,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: aoao_work1, psi0
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_b
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_force_type), POINTER             :: ep_force
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(global_environment_type), POINTER   :: sub_globenv
@@ -2274,16 +2276,18 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(f_env, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool, &
-         maxao_maxmo_fm_pool, ao_mo_fm_pools, mos, sub_globenv, sub_qs_env)
+         maxao_maxmo_fm_pool, ao_mo_fm_pools, mos, sub_globenv, sub_qs_env, distribution_2d)
     ep_force => ep_env%force
 
-    CALL get_qs_env(ep_env%main_qs_env,mos=mos,matrix_s=matrix_s_b,error=new_error)
+    CALL get_qs_env(ep_env%main_qs_env,mos=mos,matrix_s=matrix_s_b,&
+         distribution_2d=distribution_2d,&
+         error=new_error)
 
     NULLIFY(matrix_s)!sm->dbcsr
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     NULLIFY(diag_P_H_pi,local_P_H_pi,local_P_H_pi)
@@ -2533,6 +2537,7 @@ CONTAINS
     TYPE(cp_error_type)                      :: new_error
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_b
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: sub_qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -2541,7 +2546,7 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(f_env,sub_qs_env,matrix_s)
+    NULLIFY(f_env,sub_qs_env,matrix_s,distribution_2d)
     CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -2554,13 +2559,15 @@ CONTAINS
             new_error=new_error,failure=failure)
        CALL force_env_get(f_env%force_env,qs_env=sub_qs_env,error=new_error)
 
-       CALL get_qs_env(sub_qs_env,matrix_s=matrix_s_b,error=new_error)
+       CALL get_qs_env(sub_qs_env,matrix_s=matrix_s_b,&
+            distribution_2d=distribution_2d,&
+            error=new_error)
 
     NULLIFY(matrix_s)!sm->dbcsr
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
 

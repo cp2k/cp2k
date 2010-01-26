@@ -67,7 +67,7 @@ MODULE cp_dbcsr_operations
        dbcsr_2d_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
        dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_scalar_type, dbcsr_type, dbcsr_type_antisymmetric, &
+       dbcsr_obj, dbcsr_scalar_type, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: &
@@ -80,8 +80,6 @@ MODULE cp_dbcsr_operations
        dbcsr_make_images, dbcsr_make_index_canonical, dbcsr_print, &
        dbcsr_set_debug, dbcsr_verify_matrix, dbcsr_work_create, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
-                                             distribution_2d_release,&
-                                             distribution_2d_retain,&
                                              distribution_2d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -113,7 +111,6 @@ MODULE cp_dbcsr_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
   PUBLIC :: dbcsr_multiply, dbcsr_check, dbcsr_multiply_local
-  PUBLIC :: cp_dbcsr_add_dist2d, cp_dbcsr_get_dist2d, cp_dbcsr_remove_dist2d
   PUBLIC :: dbcsr_multiply_vec, dbcsr_pack_vec,&
        packed_vec_scale, dbcsr_unpack_vec,&
        dbcsr_mult_pack_vec_local, packed_vec_bif_tech, &
@@ -1343,53 +1340,6 @@ CONTAINS
 
 
   END SUBROUTINE dbcsr_check
-
-! *****************************************************************************
-!> \brief   Adds distribution_2d_type to a DBCSR matrix
-!> \author  Urban
-!> \vw is that needed for something else than for convertion sm <-> dbcsr?
-!> \date    2009-05-27
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_add_dist2d (matrix, distribution_2d, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL distribution_2d_retain (distribution_2d, error)
-    matrix%dist2d => distribution_2d
-  END SUBROUTINE cp_dbcsr_add_dist2d
-
-! *****************************************************************************
-!> \brief   Gets the distibution_2d of a DBCSR matrix.
-!> \author  Urban
-!> \date    2008-05-27
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_get_dist2d (matrix, distribution_2d, error)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-!   ---------------------------------------------------------------------------
-
-    distribution_2d => matrix%dist2d
-  END SUBROUTINE cp_dbcsr_get_dist2d
-
-! *****************************************************************************
-!> \brief   Removes distibution_2d from a DBCSR matrix.
-!> \author  Urban
-!> \date    2008-05-27
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_remove_dist2d (matrix, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL distribution_2d_release (matrix%dist2d, error)
-    NULLIFY (matrix%dist2d)
-  END SUBROUTINE cp_dbcsr_remove_dist2d
 
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a column vector
@@ -3664,10 +3614,12 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[in] sm    cp2k sparse matrix
 !> \param[in,out] error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_from_sm(matrix, sm, error)
+  SUBROUTINE dbcsr_from_sm(matrix, sm, error, distribution_2d)
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
     TYPE(real_matrix_type), POINTER          :: sm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                :: distribution_2d
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_from_sm', &
       routineP = moduleN//':'//routineN
@@ -3691,11 +3643,17 @@ END FUNCTION cp_dbcsr_get_id_nr
     TYPE(distribution_2d_type), POINTER      :: dist2d
     TYPE(real_block_node_type), POINTER      :: sm_block_node
 
+!hack for c**py kg*.F
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
-    dist2d => sm%distribution_2d
+    IF(PRESENT(distribution_2d)) THEN
+       dist2d => distribution_2d
+    ELSE
+       dist2d => sm%distribution_2d
+    ENDIF
     CALL dbcsr_distribution_init (dist)
     CALL dbcsr_dist2d_to_dist (dist2d, dist, error)
     symmetric = (sm%symmetry .EQ. "symmetric")
@@ -3762,8 +3720,6 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_create(matrix, sm%name, dist, sm%symmetry,&
          rbs_array, cbs_array, nblks=0, nze=0, data_type=dbcsr_type_real_8,&
          error=error)
-    CALL distribution_2d_retain (dist2d, error)
-    matrix%m%dist2d => dist2d
     ! Count
     nze = 0
     blk = 0
@@ -3868,11 +3824,10 @@ END FUNCTION cp_dbcsr_get_id_nr
     IF (PRESENT (distribution_2d)) THEN
        dist2d => distribution_2d
     ELSE
-       CALL cp_assert (ASSOCIATED (matrix%m%dist2d), cp_fatal_level,&
+       CALL cp_assert (.FALSE., cp_fatal_level,&
             cp_caller_error, routineN,&
-            "distribution_2d must be specified or included in DBCSR matrix",&
+            "distribution_2d is not anymore in DBCSR matrix",&
             error=error)
-       dist2d => matrix%m%dist2d
     ENDIF
     ! Get info and verify.
     CALL distribution_2d_get(dist2d, error=error, blacs_env=blacs_env,&

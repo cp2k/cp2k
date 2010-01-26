@@ -26,6 +26,7 @@ MODULE kg_scf_post
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -102,6 +103,7 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: moments_b
     TYPE(distribution_1d_type), POINTER      :: local_molecule
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -127,7 +129,7 @@ CONTAINS
     NULLIFY(atom_list,atomic_kind_set,cell,fm_mol_blocks,kg_fm,&
             local_molecule,logger,molecule,molecule_kind, molecule_set,&
             moments,mos,para_env,particle_set,qs_env)
-    NULLIFY(mmol, pmat, ref_point, refp, work)
+    NULLIFY(mmol, pmat, ref_point, refp, work, distribution_2d)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -145,7 +147,9 @@ CONTAINS
                        sub_qs_env=qs_env,kg_fm_set=kg_fm,&
                        error=error)
 
-      CALL get_qs_env(qs_env,input=input,error=error)
+      CALL get_qs_env(qs_env,input=input,&
+           distribution_2d=distribution_2d,&
+           error=error)
 
 !!!!  Calculation of Moments
       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,"DFT%KG%PRINT%MOMENTS",&
@@ -206,7 +210,7 @@ CONTAINS
     CALL allocate_matrix_set( moments, SIZE(moments_b), error )!sm->dbcsr
     DO i=1,SIZE(moments)!sm->dbcsr
        CALL sm_from_dbcsr(moments(i)%matrix, moments_b(i)%matrix, &
-            moments_b(i)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL dbcsr_deallocate_matrix_set(moments_b,error)!sm->dbcsr
 

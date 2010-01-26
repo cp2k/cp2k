@@ -380,6 +380,7 @@ CONTAINS
                                              pw_env=pw_env_mol,&
                                              atom=i_atom, kind=i_kind, ratom=r_mbox,&
                                              forces_mol=forces_mol,&
+                                             distribution_2d=distribution_2d,&
                                              error=error)
                ELSE
                  CALL integrate_mol_potential(qs_env=qs_env,vxc_mol=vxc_rho(ispin),&
@@ -387,6 +388,7 @@ CONTAINS
                                              matrix_h_sm=ks_global(ispin),&
                                              pw_env=pw_env_mol,&
                                              atom=i_atom, kind=i_kind, ratom=r_mbox,&
+                                             distribution_2d=distribution_2d,&
                                              error=error)
                END IF
 
@@ -408,14 +410,18 @@ CONTAINS
                                                pw_env=pw_env_mol,&
                                                atom=i_atom, kind=i_kind, ratom=r_mbox,&
                                                forces_mol=forces_mol,&
-                                               compute_tau=.TRUE.,error=error)
+                                               compute_tau=.TRUE.,&
+                                               distribution_2d=distribution_2d,&
+                                               error=error)
                  ELSE
                    CALL integrate_mol_potential(qs_env=qs_env,vxc_mol=vxc_rho(ispin),&
                                                matrix_p_sm=p_global(ispin),&
                                                matrix_h_sm=ks_global(ispin),&
                                                pw_env=pw_env_mol,&
                                                atom=i_atom, kind=i_kind, ratom=r_mbox,&
-                                               compute_tau=.TRUE.,error=error)
+                                               compute_tau=.TRUE.,&
+                                               distribution_2d=distribution_2d,&
+                                               error=error)
                  END IF
                  CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_tau(ispin)%pw,error=error)
 

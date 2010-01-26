@@ -11,8 +11,7 @@
 ! *****************************************************************************
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
-                                             dbcsr_alloc_block_from_nbl,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
@@ -188,7 +187,6 @@ CONTAINS
                     nblks=0, nze=0,mutable_work=.TRUE., &
                     error=error)
                CALL dbcsr_finalize(rho%rho_ao(i)%matrix,error=error)
-               CALL cp_dbcsr_add_dist2d (rho%rho_ao(i)%matrix%m, distribution_2d, error)
                CALL dbcsr_alloc_block_from_nbl(rho%rho_ao(i)%matrix,sab_orb,error=error)
                CALL dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
             END DO

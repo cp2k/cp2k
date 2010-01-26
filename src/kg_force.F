@@ -25,6 +25,7 @@ MODULE kg_force
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
   USE f77_blas
@@ -733,6 +734,7 @@ END SUBROUTINE kg_calculate_forces
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_b, matrix_w_b
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -776,6 +778,7 @@ END SUBROUTINE kg_calculate_forces
                     force=force,&
                     particle_set=particle_set,&
  !!                 scf_control=scf_control,&
+                    distribution_2d=distribution_2d,&
                     error=error)
 
     natom = SIZE(particle_set)
@@ -813,7 +816,7 @@ END SUBROUTINE kg_calculate_forces
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
 
@@ -833,7 +836,7 @@ END SUBROUTINE kg_calculate_forces
          ELSE
          ! Here I should construct the W matrix starting from the molecukar mos
            CALL calculate_w_matrix_per_molecule(kg_fm%kg_fm_mol_set,&
-                                  matrix_w(ispin)%matrix,ispin,error=error)
+                matrix_w(ispin)%matrix,ispin,distribution_2d=distribution_2d,error=error)
          END IF
       END IF
       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -851,7 +854,8 @@ END SUBROUTINE kg_calculate_forces
     DO ispin=1,SIZE(matrix_w_b)!sm->dbcsr
        ALLOCATE(matrix_w_b(ispin)%matrix)!sm->dbcsr
        !CALL dbcsr_init(matrix_w_b(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_w_b(ispin)%matrix, matrix_w(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(matrix_w_b(ispin)%matrix, matrix_w(ispin)%matrix, &
+            error,distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
 
 

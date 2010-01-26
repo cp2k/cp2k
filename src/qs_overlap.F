@@ -23,8 +23,7 @@ MODULE qs_overlap
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
-                                             dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
@@ -250,7 +249,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (matrix_s(1)%matrix%m, distribution_2d, error)
 
     DEALLOCATE (first_sgf_a,last_sgf_a,first_sgf_b,last_sgf_b,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -28,6 +28,7 @@ MODULE kg_gpw_collocate_den
   USE cube_utils,                      ONLY: cube_info_type
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -612,7 +613,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE integrate_mol_potential(qs_env,vxc_mol,matrix_p_sm,&
                                     matrix_h_sm,pw_env,atom, kind, ratom,&
-                                    forces_mol,compute_tau,error)
+                                    forces_mol,compute_tau,distribution_2d,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), INTENT(IN)              :: vxc_mol
@@ -624,6 +625,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: forces_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_mol_potential', &
@@ -675,8 +677,8 @@ CONTAINS
     ALLOCATE(matrix_p,matrix_h)!sm->dbcsr
     !CALL dbcsr_init(matrix_p, error)!sm->dbcsr
     !CALL dbcsr_init(matrix_h, error)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error, distribution_2d)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error, distribution_2d)!sm->dbcsr
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
@@ -1088,7 +1090,7 @@ CONTAINS
       CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     END IF
 
-    CALL sm_from_dbcsr ( matrix_h_sm%matrix, matrix_h, matrix_h%m%dist2d, error=error )!sm->dbcsr
+    CALL sm_from_dbcsr ( matrix_h_sm%matrix, matrix_h, distribution_2d, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix ( matrix_h, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix ( matrix_p, error=error )!sm->dbcsr
 

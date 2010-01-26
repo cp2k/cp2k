@@ -15,7 +15,6 @@ MODULE qs_scf_diagonalization
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_add_dist2d,&
                                              dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -457,7 +456,6 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
                col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
                nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
                error=error)
-          CALL cp_dbcsr_add_dist2d (subspace_env%p_matrix_store(i)%matrix%m, distribution_2d, error)
           CALL dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix,&
                sab_orb, error=error)
           CALL dbcsr_set(subspace_env%p_matrix_store(i)%matrix,0.0_dp,error=error)

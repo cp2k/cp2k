@@ -32,6 +32,7 @@ MODULE kg_scf
                                              sm_pools_give_back_matrix_vect
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
@@ -313,6 +314,7 @@ CONTAINS
       POINTER                                :: matrix_h_b, matrix_ks_b, &
                                                 matrix_s_b, p_mix_new
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(qs_charges_type), POINTER           :: qs_charges
@@ -328,7 +330,7 @@ CONTAINS
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env,p_mix_new,rho_ao)
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
-    NULLIFY(dft_section,scf_section)
+    NULLIFY(dft_section,scf_section,distribution_2d)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -372,27 +374,28 @@ CONTAINS
                     matrix_ks=matrix_ks_b,&
                     matrix_s=matrix_s_b,&
                     qs_charges=qs_charges,&
+                    distribution_2d=distribution_2d,&
                     rho=rho,error=error)
 
     NULLIFY(matrix_s)!sm->dbcsr
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     NULLIFY(matrix_h)!sm->dbcsr
     CALL allocate_matrix_set( matrix_h, SIZE(matrix_h_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_h)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_h(ispin)%matrix, matrix_h_b(ispin)%matrix, &
-            matrix_h_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     NULLIFY(matrix_ks)!sm->dbcsr
     CALL allocate_matrix_set( matrix_ks, SIZE(matrix_ks_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_ks(ispin)%matrix, matrix_ks_b(ispin)%matrix, &
-            matrix_ks_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm,error=error)
@@ -407,7 +410,7 @@ CONTAINS
     CALL allocate_matrix_set( matrix_p, SIZE(qs_env%rho%rho_ao), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_p(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, &
-            qs_env%rho%rho_ao(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)
       id_equal=(matrix_p(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
@@ -457,7 +460,7 @@ CONTAINS
 
     DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_ks(ispin)%matrix, qs_env%matrix_ks(ispin)%matrix, &
-            matrix_ks_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
        DO ispin=1,dft_control%nspins
@@ -625,7 +628,7 @@ CONTAINS
                                diis_step = diis_step,&
                                do_level_shift=do_level_shift,&
                                use_jacobi=use_jacobi,&
-                               error=error)
+                               distribution_2d=distribution_2d,error=error)
 
            IF(scf_env%iter_count > 1) THEN
              DEALLOCATE(diis_ev_global, STAT = istat)
@@ -653,7 +656,8 @@ CONTAINS
           !CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(scf_env%p_mix_new), error )
           DO ispin = 1,SIZE(p_mix_new)
              ALLOCATE(p_mix_new(ispin)%matrix)!,rho_ao(ispin)%matrix)!super dirty
-             CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, error)
+             CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
+                  error, distribution_2d)
              !CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)
           ENDDO
 
@@ -670,7 +674,7 @@ CONTAINS
 
           DO ispin = 1,SIZE(p_mix_new)
              CALL sm_from_dbcsr( scf_env%p_mix_new(ispin)%matrix, p_mix_new(ispin)%matrix, &
-                  qs_env%rho%rho_ao(ispin)%matrix%m%dist2d, error=error )
+                  distribution_2d, error=error )
           ENDDO
 
           CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )
@@ -722,7 +726,7 @@ CONTAINS
               CALL dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error=error)
               ALLOCATE(qs_env%rho%rho_ao(ispin)%matrix)
               CALL dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix,&
-                   scf_env%p_mix_new(ispin)%matrix,error=error)
+                   scf_env%p_mix_new(ispin)%matrix,error=error,distribution_2d=distribution_2d)
            END DO
        ENDIF
 
@@ -788,7 +792,7 @@ CONTAINS
           CALL allocate_matrix_set( rho_ao, SIZE(qs_env%rho%rho_ao), error )
           DO ispin = 1,SIZE(rho_ao)!sm->dbcsr
              CALL sm_from_dbcsr(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix,&
-                  qs_env%rho%rho_ao(ispin)%matrix%m%dist2d,error)
+                  distribution_2d,error)
           ENDDO!sm->dbcsr
 
 
@@ -813,7 +817,7 @@ CONTAINS
           CALL dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error=error)
           ALLOCATE(qs_env%rho%rho_ao(ispin)%matrix)
           CALL dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix,&
-               scf_env%p_mix_new(ispin)%matrix,error=error)
+               scf_env%p_mix_new(ispin)%matrix,error=error,distribution_2d=distribution_2d)
        END DO
     ENDIF
 !
@@ -841,7 +845,8 @@ CONTAINS
     DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
        CALL dbcsr_deallocate_matrix(qs_env%matrix_ks(ispin)%matrix,error)
        ALLOCATE(qs_env%matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, &
+            error,distribution_2d=distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_ks, error )!sm->dbcsr
 
@@ -852,7 +857,8 @@ CONTAINS
     DO ispin=1,SIZE(matrix_h)!sm->dbcsr
        CALL dbcsr_deallocate_matrix(qs_env%matrix_h(ispin)%matrix,error)
        ALLOCATE(qs_env%matrix_h(ispin)%matrix)
-       CALL dbcsr_from_sm(qs_env%matrix_h(ispin)%matrix, matrix_h(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(qs_env%matrix_h(ispin)%matrix, matrix_h(ispin)%matrix, &
+            error,distribution_2d=distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_h, error )!sm->dbcsr
 
@@ -900,6 +906,7 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_b, matrix_s_b
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -911,6 +918,7 @@ CONTAINS
 
     NULLIFY(dft_control,kg_fm,scf_control,S_sm_pools)
     NULLIFY(qs_env,ks_env,matrix_ks,matrix_s,logger)
+    NULLIFY(distribution_2d)
 
     failure=.FALSE.
     do_ortho = .TRUE.
@@ -935,13 +943,14 @@ CONTAINS
            matrix_ks=matrix_ks_b,&
            matrix_s=matrix_s_b,&
            ks_env=ks_env,&
+           distribution_2d=distribution_2d,&
            error=error)
 
     NULLIFY(matrix_s)!sm->dbcsr
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     NULLIFY(matrix_ks)!sm->dbcsr
@@ -949,7 +958,7 @@ CONTAINS
        CALL allocate_matrix_set( matrix_ks, SIZE(matrix_ks_b), error )!sm->dbcsr
        DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
           CALL sm_from_dbcsr(matrix_ks(ispin)%matrix, matrix_ks_b(ispin)%matrix, &
-               matrix_ks_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+               distribution_2d,error)!sm->dbcsr
        ENDDO!sm->dbcsr
     ENDIF!sm->dbcsr
 
@@ -962,12 +971,11 @@ CONTAINS
               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
               "KOHN-SHAM_MATRIX",&
               error=error)
-
          CALL dbcsr_allocate_matrix_set( matrix_ks_b, SIZE(matrix_ks), error )!sm->dbcsr
          DO ispin=1,SIZE(matrix_ks_b)!sm->dbcsr
             ALLOCATE(matrix_ks_b(ispin)%matrix)
             !call dbcsr_init(matrix_ks_b(ispin)%matrix)
-           CALL dbcsr_from_sm(matrix_ks_b(ispin)%matrix, matrix_ks(ispin)%matrix,error)!sm->dbcsr
+           CALL dbcsr_from_sm(matrix_ks_b(ispin)%matrix, matrix_ks(ispin)%matrix,error,distribution_2d)!sm->dbcsr
          ENDDO!sm->dbcsr
 
          CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks_b,error=error)
@@ -1051,7 +1059,8 @@ CONTAINS
     DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
        CALL dbcsr_deallocate_matrix(qs_env%matrix_ks(ispin)%matrix,error)
        ALLOCATE(qs_env%matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, error)!sm->dbcsr
+       CALL dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, &
+            error,distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_ks, error )!sm->dbcsr
 
@@ -1253,6 +1262,7 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h_b, matrix_s_b
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -1273,7 +1283,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY( aux_matrix, atomic_kind_set, dft_control, &
             para_env, particle_set, kg_fm_mol_set, &
-            matrix_h, matrix_s,matrix_p, scf_control)
+            matrix_h, matrix_s,matrix_p, scf_control,distribution_2d)
 
     CALL timeset(routineN,handle)
 
@@ -1282,6 +1292,7 @@ CONTAINS
                     matrix_h=matrix_h_b,&
                     matrix_s=matrix_s_b,&
                     scf_control=scf_control, id_nr=qs_env_id,&
+                    distribution_2d=distribution_2d,&
                     dft_control=dft_control,error=error)
 
 
@@ -1289,21 +1300,21 @@ CONTAINS
     CALL allocate_matrix_set( matrix_s, SIZE(matrix_s_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_s(ispin)%matrix, matrix_s_b(ispin)%matrix, &
-            matrix_s_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     NULLIFY(matrix_h)!sm->dbcsr
     CALL allocate_matrix_set( matrix_h, SIZE(matrix_h_b), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_h)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_h(ispin)%matrix, matrix_h_b(ispin)%matrix, &
-            matrix_h_b(1)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     NULLIFY(matrix_p)!sm->dbcsr
     CALL allocate_matrix_set( matrix_p, SIZE(qs_env%rho%rho_ao), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
        CALL sm_from_dbcsr(matrix_p(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, &
-            qs_env%rho%rho_ao(ispin)%matrix%m%dist2d,error)!sm->dbcsr
+            distribution_2d,error)!sm->dbcsr
     ENDDO!sm->dbcsr
 
     nspin=dft_control%nspins
@@ -1343,12 +1354,14 @@ CONTAINS
                                 nmo=nmo)
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
-                                         nat_mol,mo_coeff,nmo,s_mo,error=error)
+                                         nat_mol,mo_coeff,nmo,s_mo,&
+                                          distribution_2d=distribution_2d,error=error)
             ! orthogonalize the molecular orbitals
             CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV",error=error)
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
-                                       nat_mol,matrix_p(ispin)%matrix,error=error)
+                                       nat_mol,matrix_p(ispin)%matrix,&
+                                        distribution_2d=distribution_2d,error=error)
           ENDDO  ! ispin
         END DO  ! imol
 
@@ -1386,12 +1399,12 @@ CONTAINS
             CALL  mol_mo_random(mo_coeff,para_env%mepos,para_env%num_pe,error=error)
             ! Multiply Overlap matric and Coefficient matrix
             CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
-                  nat_mol,mo_coeff,nmo,s_mo,error=error)
+                 nat_mol,mo_coeff,nmo,s_mo, distribution_2d=distribution_2d,error=error)
             ! orthogonalize the molecular orbitals
             CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV",error=error)
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
-                 nat_mol,matrix_p(ispin)%matrix,error=error)
+                 nat_mol,matrix_p(ispin)%matrix, distribution_2d=distribution_2d,error=error)
           ENDDO  ! ispin
         END DO  ! imol
 
@@ -1445,7 +1458,7 @@ CONTAINS
             END IF
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
-                             nat_mol,matrix_p(ispin)%matrix,error=error)
+                 nat_mol,matrix_p(ispin)%matrix, distribution_2d=distribution_2d,error=error)
           ENDDO  ! ispin
         END DO  ! imol
 

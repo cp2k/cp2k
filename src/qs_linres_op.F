@@ -25,8 +25,7 @@ MODULE qs_linres_op
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
-                                             dbcsr_alloc_block_from_nbl,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -250,7 +249,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (op_ao(1)%matrix%m, distribution_2d, error)
     CALL dbcsr_alloc_block_from_nbl(op_ao(1)%matrix,sab_all,error=error)
     CALL dbcsr_set(op_ao(1)%matrix,0.0_dp,error=error)
 
@@ -320,7 +318,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (op_ao(1)%matrix%m, distribution_2d, error)
     CALL dbcsr_alloc_block_from_nbl(op_ao(1)%matrix,sab_orb,error=error)
     CALL dbcsr_set(op_ao(1)%matrix,0.0_dp,error=error)
 

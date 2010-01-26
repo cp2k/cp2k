@@ -244,23 +244,26 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(task_list_type), POINTER            :: task_list
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(para_env, dft_control,particle_set)
+    NULLIFY(para_env, dft_control,particle_set,distribution_2d)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
-         particle_set=particle_set, matrix_ks=matrix_ks, matrix_ks_aux_fit=matrix_ks_aux_fit, error=error)
+         particle_set=particle_set, matrix_ks=matrix_ks, matrix_ks_aux_fit=matrix_ks_aux_fit, &
+         distribution_2d=distribution_2d,&
+         error=error)
 
     ! *** rebuilds the S_sm_pools ***
     CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
          nspins=dft_control%nspins,particle_set=particle_set,&
-         para_env=para_env, error=error)
+         para_env=para_env, distribution_2d=distribution_2d,error=error)
 
     ! *** deallocate matrices that will have the wrong structure ***
     CALL dbcsr_deallocate_matrix_set(matrix_ks,error=error)
@@ -271,7 +274,9 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       ! *** rebuilds the S_sm_pools ***
       CALL mpools_rebuild_s_sm_pools(qs_env%mpools_aux_fit,s=qs_env%matrix_s_aux_fit,&
            nspins=dft_control%nspins,particle_set=particle_set,&
-           para_env=para_env, basis_set_id=use_aux_fit_basis_set, error=error)
+           para_env=para_env, basis_set_id=use_aux_fit_basis_set, &
+           distribution_2d=distribution_2d,&
+           error=error)
 
       ! *** deallocate matrices that will have the wrong structure ***
       CALL dbcsr_deallocate_matrix_set(matrix_ks_aux_fit,error=error)

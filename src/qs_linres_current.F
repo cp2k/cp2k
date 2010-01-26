@@ -28,11 +28,14 @@ MODULE qs_linres_current
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add_dist2d, dbcsr_add_block_node, dbcsr_alloc_block_from_nbl, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
-       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, &
-       dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+                                             dbcsr_alloc_block_from_nbl,&
+                                             dbcsr_allocate_matrix_set,&
+                                             dbcsr_deallocate_matrix,&
+                                             dbcsr_deallocate_matrix_set,&
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_plus_fm_fm_t,&
+                                             dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -331,7 +334,6 @@ CONTAINS
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
             nblks=0, nze=0, mutable_work=.TRUE., &
             error=error)
-       CALL cp_dbcsr_add_dist2d (density_matrix0(ispin)%matrix%m, distribution_2d, error)
        CALL dbcsr_alloc_block_from_nbl(density_matrix0(ispin)%matrix,sab_all,error=error)
        !
        !density_matrix_a
@@ -2343,7 +2345,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (op_mom_ao(1)%matrix%m, distribution_2d, error)
     CALL dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all,error=error)
 
     DO idir2=1,3
@@ -2375,7 +2376,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (op_p_ao(1)%matrix%m, distribution_2d, error)
     CALL dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb, error=error)
 
     DO idir=2,3
@@ -2795,7 +2795,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (op_mom_ao(1)%matrix%m, distribution_2d, error)
     CALL dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all,error=error)
 
     DO idir2=1,3
@@ -2827,7 +2826,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (op_p_ao(1)%matrix%m, distribution_2d, error)
     CALL dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb, error=error)
 
     DO idir=2,3

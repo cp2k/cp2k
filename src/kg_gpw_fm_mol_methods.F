@@ -28,6 +28,7 @@ MODULE kg_gpw_fm_mol_methods
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kg_gpw_fm_mol_types,             ONLY: &
        allocate_fm_mol_blocks, allocate_mol_mo_set, fm_mol_blocks_type, &
        get_fm_mol_block, get_kg_fm_mol_set, get_mol_mo_set, init_mol_mo_set, &
@@ -252,12 +253,13 @@ CONTAINS
   END SUBROUTINE build_local_fm_mol
 
 ! *****************************************************************************
-  SUBROUTINE calculate_mol_density_matrix(mo_set,mol_block,natom,p_ispin_sm,error)
+  SUBROUTINE calculate_mol_density_matrix(mo_set,mol_block,natom,p_ispin_sm,distribution_2d,error)
 
     TYPE(mol_mo_set_type), POINTER           :: mo_set
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     INTEGER                                  :: natom
     TYPE(real_matrix_type), POINTER          :: p_ispin_sm
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mol_density_matrix', &
@@ -283,7 +285,7 @@ CONTAINS
 
     ALLOCATE(p_ispin)!sm->dbcsr
     !CALL dbcsr_init(p_ispin, error)
-    CALL dbcsr_from_sm(p_ispin, p_ispin_sm, error)!sm->dbcsr
+    CALL dbcsr_from_sm(p_ispin, p_ispin_sm, error,distribution_2d)!sm->dbcsr
 
     CALL get_fm_mol_block(fm_mol_block = mol_block,&
                           index_atom = i_atom,&
@@ -369,7 +371,7 @@ CONTAINS
       END DO  ! jat
     END DO  ! iat
 
-    CALL sm_from_dbcsr ( p_ispin_sm, p_ispin, p_ispin%m%dist2d, error=error )!sm->dbcsr
+    CALL sm_from_dbcsr ( p_ispin_sm, p_ispin, distribution_2d, error=error )!sm->dbcsr
     CALL dbcsr_deallocate_matrix ( p_ispin, error=error )!sm->dbcsr
 
     CALL timestop(handle)
@@ -799,7 +801,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE multiply_sparse_mol_mo(matrix_sm,mol_block,natom,vectors,&
-                                    nmo,mat_x_vec,error)
+                                    nmo,mat_x_vec,distribution_2d,error)
 
     TYPE(real_matrix_type), POINTER          :: matrix_sm
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -807,6 +809,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: vectors
     INTEGER, INTENT(IN)                      :: nmo
     REAL(dp), DIMENSION(:, :), POINTER       :: mat_x_vec
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'multiply_sparse_mol_mo', &
@@ -824,7 +827,7 @@ CONTAINS
     NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_s)
 
     ALLOCATE(matrix)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix, matrix_sm, error)!sm->dbcsr
+    CALL dbcsr_from_sm(matrix, matrix_sm, error,distribution_2d)!sm->dbcsr
 
 
     CALL get_fm_mol_block(fm_mol_block = mol_block,&

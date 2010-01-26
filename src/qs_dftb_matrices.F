@@ -20,8 +20,7 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_dist2d,&
-                                             dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
@@ -876,7 +875,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (matrix_s(1)%matrix%m, distribution_2d, error)
 
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -891,7 +889,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL cp_dbcsr_add_dist2d (matrix_h(1)%matrix%m, distribution_2d, error)
 
     IF ( nmat > 1 ) THEN
       DO i=2,nmat
@@ -903,7 +900,6 @@ CONTAINS
               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
               nblks=0, nze=0, mutable_work=.TRUE., &
               error=error)
-         CALL cp_dbcsr_add_dist2d (matrix_s(i)%matrix%m, distribution_2d, error)
       END DO
     END IF
 

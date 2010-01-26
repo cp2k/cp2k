@@ -40,7 +40,6 @@ MODULE dbcsr_methods
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_symmetric
-  USE distribution_2d_types,           ONLY: distribution_2d_release
   USE f77_blas
   USE f77_blas_generic
   USE message_passing,                 ONLY: mp_allocate,&
@@ -256,7 +255,6 @@ CONTAINS
     CALL array_nullify (matrix%row_blk_offset)
     CALL array_nullify (matrix%col_blk_offset)
     NULLIFY (matrix%wms)
-    NULLIFY (matrix%dist2d)
     NULLIFY (matrix%predistributed)
   END SUBROUTINE dbcsr_init_type
 
@@ -484,8 +482,6 @@ CONTAINS
              DEALLOCATE(matrix%m%index)
           ENDIF
           CALL cp_error_init(my_error)
-          IF (ASSOCIATED (matrix%m%dist2d)) &
-               CALL distribution_2d_release(matrix%m%dist2d,my_error)
           IF (ASSOCIATED (matrix%m%predistributed)) THEN
              CALL cp_assert (ASSOCIATED (matrix%m%predistributed%mats),&
                   cp_fatal_level, cp_internal_error, routineN,&

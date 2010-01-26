@@ -9,7 +9,6 @@ MODULE qs_gspace_mixing
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             cp_dbcsr_add_dist2d,&
                                              dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -1595,7 +1594,6 @@ CONTAINS
                col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
                nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
                error=error)
-          CALL cp_dbcsr_add_dist2d (scf_env%p_mix_new(i)%matrix%m, distribution_2d, error)
           CALL dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i)%matrix,sab_orb,error=error)
           CALL dbcsr_set(scf_env%p_mix_new(i)%matrix,0.0_dp,error=error)
        ENDDO
@@ -1615,7 +1613,6 @@ CONTAINS
                   col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
                   nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
                   error=error)
-             CALL cp_dbcsr_add_dist2d (scf_env%p_delta(i)%matrix%m, distribution_2d, error)
              CALL dbcsr_alloc_block_from_nbl(scf_env%p_delta(i)%matrix,sab_orb,error=error)
              CALL dbcsr_set(scf_env%p_delta(i)%matrix,0.0_dp,error=error)
           ENDDO
