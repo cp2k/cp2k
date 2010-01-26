@@ -1779,7 +1779,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_av', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, msglen
+    INTEGER                                  :: handle, i, ierr, msglen, &
+                                                numtask, taskid
     INTEGER, ALLOCATABLE                     :: imsg( : )
 
     ierr = 0
@@ -1788,7 +1789,10 @@ CONTAINS
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
-    msglen = LEN_TRIM(msg)
+
+    CALL mp_environ (numtask, taskid, gid )
+    IF (taskid==source) msglen = LEN_TRIM(msg)
+
     CALL mp_bcast(msglen, source, gid)
     ! this is a workaround to avoid problems on the T3E
     ! at the moment we have a data alignment error when trying to
@@ -1822,7 +1826,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ierr, j, k, &
-                                                msglen, msgsiz
+                                                msglen, msgsiz, numtask, &
+                                                taskid
     INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
 
     ierr = 0
@@ -1831,11 +1836,12 @@ CONTAINS
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
+    CALL mp_environ (numtask, taskid, gid )
     msgsiz = SIZE(msg)
     ! Determine size of the minimum array of integers to bradcast the string
     ALLOCATE (imsglen(1:msgsiz))
     DO j = 1, msgsiz
-       imsglen(j) = LEN_TRIM(msg(j))
+       IF (taskid==source) imsglen(j) = LEN_TRIM(msg(j))
     END DO
     CALL mp_bcast(imsglen, source, gid)
     msglen = SUM(imsglen)
@@ -1887,7 +1893,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_z1_t3e', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ierr, msglen
+    INTEGER                                  :: handle, i, ierr, msglen, &
+                                                numtask, taskid
     INTEGER, ALLOCATABLE                     :: imsg( : )
 
     ierr = 0
@@ -1896,7 +1903,8 @@ CONTAINS
 #endif
 #if defined(__parallel)
     t_start = m_walltime ( )
-    msglen = LEN_TRIM(msg)
+    CALL mp_environ (numtask, taskid, gid )
+    IF (taskid==source) msglen = LEN_TRIM(msg)
     CALL mp_bcast(msglen, source, gid)
     ! this is a workaround to avoid problems on the T3E
     ! at the moment we have a data alignment error when trying to
@@ -1930,7 +1938,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ierr, j, k, &
-                                                msglen, msgsiz
+                                                msglen, msgsiz, numtask, &
+                                                taskid
     INTEGER, ALLOCATABLE                     :: imsg(:), imsglen(:)
 
     ierr = 0
@@ -1940,10 +1949,11 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
     msgsiz = SIZE(msg)
+    CALL mp_environ (numtask, taskid, gid )
     ! Determine size of the minimum array of integers to bradcast the string
     ALLOCATE (imsglen(1:msgsiz))
     DO j = 1, msgsiz
-       imsglen(j) = LEN_TRIM(msg(j))
+       IF (taskid==source) imsglen(j) = LEN_TRIM(msg(j))
     END DO
     CALL mp_bcast(imsglen, source, gid)
     msglen = SUM(imsglen)
