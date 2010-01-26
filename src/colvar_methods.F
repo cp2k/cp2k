@@ -2765,6 +2765,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE reaction_path_colvar
 
+! *****************************************************************************
+!> \brief  MISSING DESCRIPTION
+!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+! *****************************************************************************
   SUBROUTINE rpath_colvar(colvar,cell,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -2859,6 +2863,10 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE rpath_colvar
 
+! *****************************************************************************
+!> \brief  MISSING DESCRIPTION
+!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+! *****************************************************************************
   SUBROUTINE rpath_dist_rmsd(colvar,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_type), DIMENSION(:), &
@@ -2991,14 +2999,12 @@ CPSourceFileRef,&
     DEALLOCATE(ds1,STAT=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
-
   END SUBROUTINE rpath_dist_rmsd
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) distance from reaction path collective variable
 !> \author MI
 ! *****************************************************************************
-
   SUBROUTINE  distance_from_path_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -3034,6 +3040,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE  distance_from_path_colvar
 
+! *****************************************************************************
+!> \brief  MISSING DESCRIPTION
+!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+! *****************************************************************************
   SUBROUTINE  dpath_colvar(colvar,cell,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
@@ -3118,6 +3128,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE dpath_colvar
 
+! *****************************************************************************
+!> \brief  MISSING DESCRIPTION
+!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+! *****************************************************************************
   SUBROUTINE dpath_dist_rmsd(colvar,particles,error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -3170,9 +3184,6 @@ CPSourceFileRef,&
       r0(ii+1) = particles(i)%r(1)
       r0(ii+2) = particles(i)%r(2)
       r0(ii+3) = particles(i)%r(3)
-!dbg
-!    write(*,*) 'present pos' , i , r0(ii+1),r0(ii+2),r0(ii+3)
-!dbg
     END DO
 
     DO iat = 1,rmsd_atom
@@ -3181,27 +3192,14 @@ CPSourceFileRef,&
     END DO
 
     DO ik = 1, nconf
-!dbg
-!       write(*,*) 'conf ' , ik
-!dbg
        DO i = 1,natom
         ii = (i-1)*3
         r(ii+1) = path_conf(ii+1,ik)
         r(ii+2) = path_conf(ii+2,ik)
         r(ii+3) = path_conf(ii+3,ik)
-!!dbg
-!       write(*,*) 'i ' , i , r(ii+1), r(ii+2), r(ii+3)
-!dbg
        END DO
 
        CALL rmsd3(particles,r,r0,output_unit=-1,rotate=.TRUE.,error=error)
-!dbg
-!      DO i = 1,natom
-!        ii = (i-1)*3
-!       write(*,*) 'i ' , i , r(ii+1), r(ii+2), r(ii+3)
-!     END DO
-!dbg
-
        sum_exp = 0.0_dp
        DO iat  = 1,rmsd_atom
          i = iatom(iat)
@@ -3213,9 +3211,6 @@ CPSourceFileRef,&
          dvec_dif(3,iat) = r(ii+3)
        END DO 
        s1v(ik)=EXP(-lambda*sum_exp)
-!dbg 
-!    write(*,*) ik, sum_exp, s1v(ik) 
-!dbg
        DO iat = 1,rmsd_atom
          ds1v(1,iat,ik) = dvec_dif(1,iat) * s1v(ik)
          ds1v(2,iat,ik) = dvec_dif(2,iat) * s1v(ik)
@@ -3230,21 +3225,14 @@ CPSourceFileRef,&
       ds1(3,iat) = accurate_sum( ds1v(3,iat,:))
     END DO
     colvar%ss=-1.0_dp/lambda*LOG(s1)
-!dbg
-!  write(*,*) lambda, s1, colvar%ss
-! stop 's1'
 
     ALLOCATE(fi(3,rmsd_atom),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
     DO iat = 1,rmsd_atom
       fi(:,iat) = 2.0_dp*(riat(:,iat)-ds1(:,iat)/s1) 
-!dbg
-!    write(*,*) 'force ', iat, fi(:,iat)
       CALL put_derivative(colvar,iat,fi(:,iat))
     END DO
-!dbg
-!    stop
 
     DEALLOCATE(fi,STAT=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
@@ -3264,8 +3252,6 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
     DEALLOCATE(ds1,STAT=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
-
-
   END SUBROUTINE  dpath_dist_rmsd
 
 ! *****************************************************************************
@@ -3492,6 +3478,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE rmsd_colvar
 
+! *****************************************************************************
+!> \brief  MISSING DESCRIPTION
+!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+! *****************************************************************************
   SUBROUTINE rmsd_ab_colvar(colvar,subsys,particles,error)
 
     TYPE(colvar_type), POINTER               :: colvar
@@ -3631,6 +3621,10 @@ CPSourceFileRef,&
     END IF
   END FUNCTION rec_eval_grid
 
+! *****************************************************************************
+!> \brief  MISSING DESCRIPTION
+!> \author MISSING AUTHOR: ORFANO DI PADRE E MADRE
+! *****************************************************************************
   SUBROUTINE read_frames(frame_section,para_env,nr_frames,r_ref,n_atoms,error)
 
     TYPE(section_vals_type), POINTER         :: frame_section
