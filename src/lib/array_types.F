@@ -13,10 +13,11 @@
 !> - Created 
 ! *****************************************************************************
 MODULE array_types
-  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
   PRIVATE
+
+  INTEGER, PARAMETER :: dp = KIND(0.0d0)
 
   PUBLIC :: array_i1d_obj,&
             array_i2d_obj,&
@@ -468,6 +469,5 @@ CONTAINS
        are_equal = ALL(array1%low%data .EQ. array2%low%data)
     ENDIF
   END FUNCTION array_equality_d2d
-
 
 END MODULE array_types

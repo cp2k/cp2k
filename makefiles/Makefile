@@ -15,6 +15,7 @@ CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 LIB1      = cp2k_base_lib
 LIB2      = cp2k_fft_lib
+LIB3      = dbcsr
 LIBCP2K   = cp2k_lib
 export VERSION=sopt
 export WHAT   =_progr
@@ -44,6 +45,7 @@ LIBOBJECTDEFS= $(SRCDIR)/lib/OBJECTDEFS
 LIBNVOBJECTDEFS= $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
+LIB3_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB3).a
 LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
@@ -130,7 +132,7 @@ ifneq ($(NVCC),)
 endif
 
 # Define the whole bunch of libraries needed
-ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBNV_ARCHIVE)
+ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBNV_ARCHIVE)
 
 #
 # some practical variables for the build.
@@ -191,7 +193,7 @@ else
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
 endif
 
-lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)
+lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)  $(LIB3_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/lib.dep || ( rm -f $(OBJDIR)/$(VERSION)/lib.dep ; exit 1 )
 
 # this is kind of a hack, fes depends on files in other directories, hence the -I and the -b.
@@ -220,11 +222,17 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB2_ARCHIVE)
 endif
 
+$(LIB3_ARCHIVE): $(LIB3_OBJECTS)
+	$(AR) $(LIB3_ARCHIVE) $?
+ifneq ($(RANLIB),)
+	$(RANLIB) $(LIB3_ARCHIVE)
+endif
+
 #
 # a hack to first compile the src/lib/ stuff before files from src/
 # otherwise we have missing dependencies
 #
-$(OBJECTS): $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
+$(OBJECTS): $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
 
 $(LIB_CP2K_ARCHIVE): $(OBJECTS)
 	$(AR) $(LIB_CP2K_ARCHIVE) $?
@@ -310,6 +318,7 @@ realclean: clean
 	-rm -f $(PROG)
 	-rm -f $(LIB1_ARCHIVE)
 	-rm -f $(LIB2_ARCHIVE)
+	-rm -f $(LIB3_ARCHIVE)
 	-rm -f $(LIB_CP2K_ARCHIVE)
 #
 # really remove all build files not in CVS
@@ -337,7 +346,7 @@ doxygen/clean:
 doxygen: doxygen/clean
 	@mkdir -p $(DOXYGENDIR)
 	{ cd $(SRCDIR) ; cp *.f90 *.h $(DOXYGENDIR) ; for f in $(OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
-	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) $(LIB2_OBJECTS:.o=) $(LIB3_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 
 # an additional dependency of the CVS entries in the source directory

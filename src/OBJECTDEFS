@@ -17,7 +17,6 @@ OBJECTS_GENERIC =\
  ai_overlap_ppl.o\
  ai_spin_orbit.o\
  ai_verfc.o\
- array_types.o\
  atom.o\
  atomic_charges.o\
  atomic_kind_list_types.o\
@@ -45,10 +44,6 @@ OBJECTS_GENERIC =\
  bibliography.o\
  block_p_types.o\
  bsse.o\
- btree_i8_k_sp2d_v.o\
- btree_i8_k_dp2d_v.o\
- btree_i8_k_cp2d_v.o\
- btree_i8_k_zp2d_v.o\
  cell_opt.o\
  cell_opt_types.o\
  cell_opt_utils.o\
@@ -149,7 +144,6 @@ OBJECTS_GENERIC =\
  cuda_cublas.o\
  cuda_memory.o\
  d3_poly.o\
- dbcsr_kinds.o\
  dbcsr_methods.o\
  dbcsr_operations.o\
  dbcsr_types.o\
