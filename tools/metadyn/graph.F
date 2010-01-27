@@ -365,7 +365,7 @@ PROGRAM graph
      DO i = 1, nt
         READ(10,*)(ss0(i_map(id),i),id=1,ndim)
      END DO
-     CALL get_val_res(unit=10,section="&METADYN",subsection="&SPAWNED_HILLS_AMPL")
+     CALL get_val_res(unit=10,section="&METADYN",subsection="&SPAWNED_HILLS_SCALE")
      DO i = 1, nt
         READ(10,*)(delta_s(i_map(id),i),id=1,ndim)
      END DO
