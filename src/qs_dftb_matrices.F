@@ -22,6 +22,7 @@ MODULE qs_dftb_matrices
                                              dftb_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
+                                             dbcsr_dist2d_to_dist,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
@@ -43,7 +44,6 @@ MODULE qs_dftb_matrices
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
                                              dbcsr_create,&
-                                             dbcsr_dist2d_to_dist,&
                                              dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas

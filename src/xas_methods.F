@@ -28,6 +28,7 @@ MODULE xas_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
+                                             dbcsr_dist2d_to_dist,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -55,8 +56,7 @@ MODULE xas_methods
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create,&
-                                             dbcsr_dist2d_to_dist
+                                             dbcsr_create
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_all, state_loc_list, state_loc_range, &

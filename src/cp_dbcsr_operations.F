@@ -51,11 +51,12 @@ MODULE cp_dbcsr_operations
        dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_get_coordinates, &
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
-       dbcsr_scalar_zero, dbcsr_valid_index
+       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_scalar, &
+       dbcsr_scalar_are_equal, dbcsr_scalar_one, dbcsr_scalar_zero, &
+       dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_conjg, &
        dbcsr_copy, dbcsr_distribute, dbcsr_filter, dbcsr_get_block, &
@@ -75,10 +76,10 @@ MODULE cp_dbcsr_operations
        dbcsr_add_wm_from_matrix, dbcsr_checksum, dbcsr_create, &
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_elemental, &
        dbcsr_create_dist_fullest, dbcsr_create_dist_r_rot, &
-       dbcsr_create_dist_r_unrot, dbcsr_create_image_dist, &
-       dbcsr_dist2d_to_dist, dbcsr_finalize, dbcsr_get_stored_coordinates, &
-       dbcsr_make_images, dbcsr_make_index_canonical, dbcsr_print, &
-       dbcsr_set_debug, dbcsr_verify_matrix, dbcsr_work_create, swap
+       dbcsr_create_dist_r_unrot, dbcsr_create_image_dist, dbcsr_finalize, &
+       dbcsr_get_stored_coordinates, dbcsr_make_images, &
+       dbcsr_make_index_canonical, dbcsr_print, dbcsr_set_debug, &
+       dbcsr_verify_matrix, dbcsr_work_create, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
   USE kinds,                           ONLY: default_string_length,&
@@ -127,6 +128,9 @@ MODULE cp_dbcsr_operations
             dbcsr_sm_fm_multiply, dbcsr_plus_fm_fm_t,&
             cp_dbcsr_get_id_nr,&
             dbcsr_alloc_block_from_nbl
+
+  ! distribution_2d_type compatibility
+  PUBLIC :: dbcsr_dist2d_to_dist
 
   PUBLIC :: dbcsr_copy_columns_hack
 
@@ -216,6 +220,56 @@ CONTAINS
     CALL cp_fm_release(fm_matrix_b, error=error)
 
   END SUBROUTINE dbcsr_copy_columns_hack
+
+
+! *****************************************************************************
+!> \brief Creates a DBCSR distribution from a distribution_2d
+!> \param[in] dist2d          distribution_2d
+!> \param[out] dist           DBCSR distribution
+!> \param[in,out] error       cp2k error
+!> \par History
+!>    move form dbcsr_operation 01.2010
+! *****************************************************************************
+  SUBROUTINE dbcsr_dist2d_to_dist(dist2d, dist, error)
+    TYPE(distribution_2d_type), INTENT(IN), &
+      TARGET                                 :: dist2d
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(OUT)                            :: dist
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: mypcol, myproc, myprow, &
+                                                numproc
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_data, row_dist_data
+    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
+    TYPE(array_i1d_obj)                      :: cd, rd
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_mp_obj)                       :: mp_env
+    TYPE(distribution_2d_type), POINTER      :: dist2d_p
+
+!
+!   ---------------------------------------------------------------------------
+
+    dist2d_p => dist2d
+    CALL distribution_2d_get(dist2d_p, error=error,&
+         row_distribution=row_dist_data, col_distribution=col_dist_data,&
+         blacs_env=blacs_env)
+    CALL get_blacs_info(blacs_env, para_env=para_env,&
+         my_process_row=myprow, my_process_column=mypcol,&
+         blacs2mpi=pgrid)
+    myproc = para_env%mepos
+    numproc = para_env%num_pe
+    CALL dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc,&
+         myprow, mypcol)
+    CALL array_nullify (rd)
+    CALL array_nullify (cd)
+    CALL array_new(rd, row_dist_data)
+    CALL array_new(cd, col_dist_data)
+    CALL dbcsr_distribution_new(dist, mp_env, rd, cd)
+    CALL dbcsr_mp_release (mp_env)
+    CALL array_release (rd)
+    CALL array_release (cd)
+  END SUBROUTINE dbcsr_dist2d_to_dist
 
 ! *****************************************************************************
 !> \brief allocate the blocks of a dbcsr based on the neighbor list

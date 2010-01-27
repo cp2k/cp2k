@@ -28,6 +28,7 @@ MODULE  rt_propagation_utils
                                              dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
+                                             dbcsr_dist2d_to_dist,&
                                              dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -51,7 +52,6 @@ MODULE  rt_propagation_utils
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
                                              dbcsr_create,&
-                                             dbcsr_dist2d_to_dist,&
                                              dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_restart_wfn,&

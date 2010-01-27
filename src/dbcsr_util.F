@@ -21,14 +21,6 @@ MODULE dbcsr_util
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release,&
-                                             cp_blacs_env_type,&
-                                             cp_blacs_env_write,&
-                                             get_blacs_info
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
   USE dbcsr_kinds,                     ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -51,12 +43,11 @@ MODULE dbcsr_util
        dbcsr_get_num_blocks, dbcsr_init, dbcsr_is_initialized, &
        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_modify_lock, &
-       dbcsr_modify_unlock, dbcsr_mp_group, dbcsr_mp_new, &
-       dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
-       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
-       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_type_2d_to_1d, &
-       dbcsr_type_is_2d, dbcsr_valid_index
+       dbcsr_modify_unlock, dbcsr_mp_group, dbcsr_mp_new_transposed, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mp_release, dbcsr_mutable_destroy, dbcsr_mutable_init, &
+       dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_mutable_release, &
+       dbcsr_type_2d_to_1d, dbcsr_type_is_2d, dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_magic_number, &
@@ -70,15 +61,9 @@ MODULE dbcsr_util
        dbcsr_type_real_4_2d, dbcsr_type_real_8, dbcsr_type_real_8_2d, &
        dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_type_transposed, &
        dbcsr_work_type
-  USE distribution_2d_types,           ONLY: distribution_2d_create,&
-                                             distribution_2d_get,&
-                                             distribution_2d_type,&
-                                             distribution_2d_write
   USE f77_blas
   USE f77_blas_generic
   USE machine,                         ONLY: m_walltime
-  USE mathlib,                         ONLY: gcd,&
-                                             lcm
   USE message_passing,                 ONLY: mp_allocate,&
                                              mp_alltoall,&
                                              mp_deallocate,&
@@ -230,9 +215,6 @@ MODULE dbcsr_util
        dbcsr_create_col_image_dist,&
        dbcsr_create_image_dist,&
        dbcsr_make_images
-  ! distribution_2d_type compatibility
-  PUBLIC :: dbcsr_create_dist2d_r, dbcsr_create_dist2d_r_unrot,&
-            dbcsr_create_dist2d_transposed, dbcsr_dist2d_to_dist
   ! Low-level printing
   PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
   ! Encapsulated data routines
@@ -259,8 +241,8 @@ MODULE dbcsr_util
   PUBLIC :: dbcsr_set_diagonal
   ! BLAS routines
   PUBLIC :: dbcsr_blas_copy, dbcsr_blas_gemm, dbcsr_blas_scal
-
-
+  ! math routines
+  PRIVATE :: gcd, lcm
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
@@ -2100,538 +2082,6 @@ CONTAINS
   END SUBROUTINE create_bl_distribution_new
 
 ! *****************************************************************************
-!> \brief Create the distribution_2d for the right matrix in a matrix-matrix
-!>        multiplication, given the distribution_2d of the left matrix.
-!> \par The new row distribution for the right matrix mirrors the column
-!>      distribution of the left matrix, while the column distribution is
-!>      created so that it is appropriate to the parallel environment. The
-!>      columns are blocked together and each block is assigned to its own
-!>      atom type.
-!> \param[out] dist2d         new distribution_2d for the right matrix
-!> \param[in] dist2d_left     the distribution_2d of the left matrix
-!> \param[in] ncolumns        number of columns in right matrix
-!> \param row_blk_sizes, col_blk_sizes  (optional) sizes of blocks for the
-!>                                      row or column. Calculated if
-!>                                      specified but not associated.
-!> \param error     cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_create_dist2d_r(dist2d, dist2d_left, ncolumns,&
-       col_blk_size, error)
-    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_left
-    INTEGER, INTENT(IN)                      :: ncolumns
-    TYPE(array_i1d_obj), INTENT(OUT), &
-      OPTIONAL                               :: col_blk_size
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist2d_r', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: blksize_default = 3
-
-    INTEGER :: at, at_high, at_low, column_stack, i, k, mynod, mypcol, &
-      mypcol_left, myprow, myprow_left, nblkcols, nblkcols_left, nblkrows, &
-      nblks, ncols, npcols, npcols_left, nprows, nprows_left, pcol, pcsize, &
-      stat
-    INTEGER, DIMENSION(:), POINTER :: cbs, col_dist, col_dist_left, &
-      n_at_local_cols, n_at_local_cols_left, n_at_local_rows, row_dist, &
-      row_dist_left
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, mpi2blacs
-    LOGICAL                                  :: dbg
-    TYPE(cp_1d_i_p_type), DIMENSION(:), &
-      POINTER                                :: at_local_cols, &
-                                                at_local_cols_left, &
-                                                at_local_rows
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env, blacs_env_right
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-!   ---------------------------------------------------------------------------
-
-    dbg = .FALSE.
-    CALL dbcsr_set_debug(dbg)
-    IF (dbg) CALL distribution_2d_write(dist2d_left, 6,&
-         long_description=.TRUE., error=error, local=.TRUE.)
-    IF (dbg) &
-         CALL distribution_2d_write(dist2d_left, 6, long_description=.TRUE.,&
-         error=error, local=.TRUE.)
-    CALL distribution_2d_get(dist2d_left, error=error,&
-         row_distribution=row_dist_left, col_distribution=col_dist_left,&
-         local_cols=at_local_cols_left, n_local_cols=n_at_local_cols_left,&
-         n_col_distribution=nblkcols_left, blacs_env=blacs_env)
-    CALL get_blacs_info(blacs_env, my_process_row=myprow_left,&
-         my_process_column=mypcol_left, number_of_process_rows=nprows_left,&
-         number_of_process_columns=npcols_left, para_env=para_env,&
-         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-    !  myprow = mypcol_left
-    !  mypcol = myprow_left
-    !  nprows = npcols_left
-    !  npcols = nprows_left
-
-    !  myprow = myprow_left
-    !  mypcol = mypcol_left
-    !  nprows = nprows_left
-    !  npcols = npcols_left
-
-    !
-    !> Create the transposed blacs_env
-    IF (dbg) WRITE(*,*)routineP//' LEFT prows, pcols:', nprows_left, npcols_left
-    CALL cp_transpose_blacs_env(blacs_env, blacs_env_right, error)
-    CALL get_blacs_info(blacs_env_right, my_process_row=myprow,&
-         my_process_column=mypcol, number_of_process_rows=nprows,&
-         number_of_process_columns=npcols,&
-         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-    IF (dbg) WRITE(*,*)routineP//' RIGHT prows, pcols:', nprows, npcols
-    IF (dbg) WRITE(*,*)routineP//' myprow, mypcol',myprow,'/',nprows,';',&
-         mypcol,'/',npcols
-    IF (dbg) CALL cp_blacs_env_write(blacs_env_right, 6, error)
-    !
-    mynod = para_env%mepos
-    !> Handle row distribution. This is based on the column distribution of the
-    !> left matrix.
-    ALLOCATE(at_local_rows(LBOUND(at_local_cols_left,1):&
-         UBOUND(at_local_cols_left,1)), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'at_local_rows',&
-         SIZE(at_local_cols_left,1))
-    at_low = LBOUND(n_at_local_cols_left,1) 
-    at_high = UBOUND(n_at_local_cols_left,1)
-    ALLOCATE(n_at_local_rows(at_low:at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'n_at_local_rows',&
-         SIZE(n_at_local_cols_left,1))
-    nblkrows = nblkcols_left
-    ALLOCATE(row_dist(nblkrows), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'row_dist', nblkrows)
-    n_at_local_rows(:) = n_at_local_cols_left(:)
-    !> The rows and columns of the right matrix are the transposes of the left,
-    !> so we can safely use the right-matrix's column data for our row data.
-    !  IF(nprows.EQ.npcols) THEN
-    !at_local_rows%array(:) = at_local_cols_left%array(:)
-    DO i = LBOUND(at_local_cols_left,1), UBOUND(at_local_cols_left,1)
-       ALLOCATE(at_local_rows(i)%array(&
-            LBOUND(at_local_cols_left(i)%array,1):&
-            UBOUND(at_local_cols_left(i)%array,1)), stat=stat)
-       IF(stat /= 0) CALL stop_memory(routineP, 'at_local_rows(?)%array',&
-            SIZE(at_local_cols_left(i)%array))
-       at_local_rows(i)%array(:) = at_local_cols_left(i)%array(:)
-    ENDDO
-    n_at_local_rows(:) = n_at_local_cols_left(:)
-    row_dist(:) = col_dist_left(:)
-    ! Handle column distribution.
-    ! Estimate the number of full columns per processor column, but it
-    ! must be at least 1.
-    pcsize = CEILING((1.0*ncolumns)/(1.0*npcols)) ! Full columns per processor column.
-    column_stack = ncolumns
-    nblkcols = 0
-    DO pcol = 0, npcols-1
-       at_low = nblkcols+1
-       at_high = nblkcols
-       IF (column_stack .GT. 0) THEN
-          ncols = MIN(column_stack, pcsize)
-          column_stack = column_stack - ncols
-          nblks = CEILING ((1.0*ncols)/(1.0*blksize_default))
-          nblkcols = nblkcols + nblks
-          at_high = nblkcols
-       ENDIF
-       IF (dbg) WRITE(*,*)routineP//' pcol',pcol,'has blkcols',at_low,':',&
-            at_high,'col stack is',column_stack
-    ENDDO
-
-    IF (dbg) WRITE(*,*)routineP//' There are',nblkcols,'blocked columns in',&
-         npcols,'pcols for',ncolumns,'full columns.'
-
-    at_low = 1
-    at_high = nblkcols
-    ALLOCATE(col_dist(nblkcols), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'col_dist', nblkcols)
-    col_dist(:) = -999
-    ALLOCATE(n_at_local_cols(at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'n_at_local_cols', at_high)
-    ALLOCATE(at_local_cols(at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols', at_high)
-    n_at_local_cols(:) = 0
-
-    IF (PRESENT(col_blk_size)) THEN
-       ALLOCATE(cbs(nblkcols), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP,&
-            'cbs', nblkcols)
-    ENDIF
-    column_stack = ncolumns
-    nblkcols = 0
-    i = 1
-    DO pcol = 0, npcols-1
-       at_low = nblkcols+1
-       at_high = nblkcols
-       nblks = 0
-       IF (column_stack .GT. 0) THEN
-          ncols = MIN(column_stack, pcsize)
-          column_stack = column_stack - ncols
-          nblks = CEILING ((1.0*ncols)/(1.0*blksize_default))
-          nblkcols = nblkcols + nblks
-          at_high = nblkcols
-       ENDIF
-       IF (dbg) WRITE(*,*)routineP//' pcol',pcol,'has blkcols',at_low,':',&
-            at_high,'col stack is',column_stack
-       col_dist(at_low:at_high) = pcol
-       DO at = at_low, at_high
-          IF (pcol.EQ.mypcol) THEN
-             ALLOCATE(at_local_cols(at)%array(1), stat=stat)
-             IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols(?)', 1)
-             at_local_cols(at)%array(1) = at
-             n_at_local_cols(at) = 1
-          ELSE
-             ALLOCATE(at_local_cols(at)%array(0), stat=stat)
-             IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols(?)', 1)
-          ENDIF
-          IF (PRESENT(col_blk_size)) THEN
-             k = MIN(ncols,blksize_default)
-             cbs(at) = k
-             i = i + k
-             ncols = ncols - k
-             IF (dbg) WRITE(*,*)routineP//' col',at,'has',k-1,&
-                  'full colums; ncols, i',ncols, i,&
-                  'nblks',nblks
-          ENDIF
-       ENDDO
-    ENDDO
-
-    IF(dbg) WRITE(*,*)routineP//' Col. distribution',col_dist
-    IF (PRESENT (col_blk_size)) THEN
-       IF(dbg) WRITE(*,*)routineP//' Col. block sizes',cbs
-       CALL array_new (col_blk_size, cbs, gift=.TRUE.)
-    ENDIF
-    IF(dbg) WRITE(*,*)routineP//' Col. at_local_cols=',n_at_local_cols
-    IF(dbg) WRITE(*,*)routineP//' Col. n_at_local_cols=',n_at_local_cols
-
-    NULLIFY(dist2d)
-    CALL distribution_2d_create(dist2d, blacs_env_right, error=error,&
-         local_rows_ptr=at_local_rows, n_local_rows=n_at_local_rows,&
-         local_cols_ptr=at_local_cols, n_local_cols=n_at_local_cols,&
-         row_distribution_ptr=row_dist, col_distribution_ptr=col_dist)
-    DEALLOCATE(n_at_local_rows)
-    DEALLOCATE(n_at_local_cols)
-    CALL cp_blacs_env_release(blacs_env_right, error)
-    IF (dbg) CALL distribution_2d_write(dist2d, 6, long_description=.TRUE.,&
-        error=error, local=.TRUE.)
-    IF (dbg) &
-         CALL distribution_2d_write(dist2d, 6, long_description=.TRUE.,&
-         error=error, local=.TRUE.)
-  END SUBROUTINE dbcsr_create_dist2d_r
-
-! *****************************************************************************
-!> \brief Create a transposed distribution_2d
-!> \param[out] dist2d         transposed distribution_2d
-!> \param[in] dist2d_normal   the base distribution_2d
-!> \param error     cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_create_dist2d_transposed(dist2d, dist2d_normal,  error)
-    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_normal
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_create_dist2d_transposed', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: at_high, at_low, i, mynod, mypcol_normal, mypcol_tr, &
-      myprow_normal, myprow_tr, nblkcols_normal, nblkcols_tr, &
-      nblkrows_normal, nblkrows_tr, npcols_normal, npcols_tr, nprows_normal, &
-      nprows_tr, stat
-    INTEGER, DIMENSION(:), POINTER :: col_dist_normal, col_dist_tr, &
-      n_at_local_cols_normal, n_at_local_cols_tr, n_at_local_rows_normal, &
-      n_at_local_rows_tr, row_dist_normal, row_dist_tr
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, mpi2blacs
-    TYPE(cp_1d_i_p_type), DIMENSION(:), &
-      POINTER                                :: at_local_cols_normal, &
-                                                at_local_cols_tr, &
-                                                at_local_rows_normal, &
-                                                at_local_rows_tr
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_normal, blacs_env_tr
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    IF (dbg) CALL distribution_2d_write(dist2d_normal, 6,&
-         long_description=.TRUE.,&
-         error=error, local=.TRUE.)
-    CALL dbcsr_set_debug(dbg)
-    CALL distribution_2d_get(dist2d_normal, error=error,&
-         row_distribution=row_dist_normal, col_distribution=col_dist_normal,&
-         local_rows=at_local_rows_normal, n_local_rows=n_at_local_rows_normal,&
-         local_cols=at_local_cols_normal, n_local_cols=n_at_local_cols_normal,&
-         n_row_distribution=nblkrows_normal,&
-         n_col_distribution=nblkcols_normal,&
-         blacs_env=blacs_env_normal)
-    CALL get_blacs_info(blacs_env_normal, my_process_row=myprow_normal,&
-         my_process_column=mypcol_normal, number_of_process_rows=nprows_normal,&
-         number_of_process_columns=npcols_normal, para_env=para_env,&
-         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-    ! Create the transposed blacs_env
-    CALL cp_transpose_blacs_env(blacs_env_normal, blacs_env_tr, error)
-    CALL get_blacs_info(blacs_env_tr, my_process_row=myprow_tr,&
-         my_process_column=mypcol_tr, number_of_process_rows=nprows_tr,&
-         number_of_process_columns=npcols_tr,&
-         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-    mynod = para_env%mepos
-    !> Handle row distribution. This is based on the column distribution of the
-    !> given matrix.
-    at_low = LBOUND(n_at_local_cols_normal,1) 
-    at_high = UBOUND(n_at_local_cols_normal,1)
-    ALLOCATE(at_local_rows_tr(at_low:at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'at_local_rows_tr',&
-         at_high-at_low+1)
-    ALLOCATE(n_at_local_rows_tr(at_low:at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'n_at_local_rows_tr',&
-         at_high-at_low+1)
-    nblkrows_tr = nblkcols_normal
-    ALLOCATE(row_dist_tr(nblkrows_tr), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'row_dist_tr', nblkrows_tr)
-    n_at_local_rows_tr(:) = n_at_local_cols_normal(:)
-    DO i = at_low, at_high
-       ALLOCATE(at_local_rows_tr(i)%array(&
-            LBOUND(at_local_cols_normal(i)%array,1):&
-            UBOUND(at_local_cols_normal(i)%array,1)), stat=stat)
-       IF(stat /= 0) CALL stop_memory(routineP, 'at_local_rows_tr(?)%array',&
-            SIZE(at_local_cols_normal(i)%array))
-       at_local_rows_tr(i)%array(:) = at_local_cols_normal(i)%array(:)
-    END DO
-    n_at_local_rows_tr(:) = n_at_local_cols_normal(:)
-    row_dist_tr(:) = col_dist_normal(:)
-    !
-    ! Handle column distribution.
-    at_low = LBOUND(n_at_local_rows_normal,1) 
-    at_high = UBOUND(n_at_local_rows_normal,1)
-    ALLOCATE(at_local_cols_tr(at_low:at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols_tr',&
-         at_high-at_low+1)
-    ALLOCATE(n_at_local_cols_tr(at_low:at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'n_at_local_cols_tr',&
-         at_high-at_low+1)
-    nblkcols_tr = nblkrows_normal
-    ALLOCATE(col_dist_tr(nblkcols_tr), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'col_dist_tr', nblkcols_tr)
-    n_at_local_cols_tr(:) = n_at_local_rows_normal(:)
-    DO i = at_low, at_high
-       ALLOCATE(at_local_cols_tr(i)%array(&
-            LBOUND(at_local_rows_normal(i)%array,1):&
-            UBOUND(at_local_rows_normal(i)%array,1)), stat=stat)
-       IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols_tr(?)%array',&
-            SIZE(at_local_rows_normal(i)%array))
-       at_local_cols_tr(i)%array(:) = at_local_rows_normal(i)%array(:)
-    END DO
-    n_at_local_cols_tr(:) = n_at_local_rows_normal(:)
-    col_dist_tr(:) = row_dist_normal(:)
-    !
-    NULLIFY(dist2d)
-    CALL distribution_2d_create(dist2d, blacs_env_tr, error=error,&
-         local_rows_ptr=at_local_rows_tr, n_local_rows=n_at_local_rows_tr,&
-         local_cols_ptr=at_local_cols_tr, n_local_cols=n_at_local_cols_tr,&
-         row_distribution_ptr=row_dist_tr, col_distribution_ptr=col_dist_tr)
-    DEALLOCATE(n_at_local_rows_tr)
-    DEALLOCATE(n_at_local_cols_tr)
-    IF (dbg) CALL distribution_2d_write(dist2d, 6, long_description=.TRUE.,&
-        error=error, local=.TRUE.)
-  END SUBROUTINE dbcsr_create_dist2d_transposed
-
-
-
-! *****************************************************************************
-!> \brief Create the distribution_2d for the right matrix in a matrix-matrix
-!>        multiplication, given the distribution_2d of the left matrix.
-!> \par The new row distribution for the right matrix is the same as the row
-!>      distribution of the left matrix, while the column distribution is
-!>      created so that it is appropriate to the parallel environment. The
-!>      columns are blocked together and each block is assigned to its own
-!>      atom type.
-!> \param[out] dist2d         new distribution_2d for the right matrix
-!> \param[in] dist2d_left     the distribution_2d of the left matrix
-!> \param[in] ncolumns        number of columns in right matrix
-!> \param row_blk_sizes, col_blk_sizes  (optional) sizes of blocks for the
-!>                                      row or column. Calculated if
-!>                                      specified but not associated.
-!> \param error     cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_create_dist2d_r_unrot(dist2d, dist2d_left, ncolumns,&
-       col_blk_size, error)
-    TYPE(distribution_2d_type), POINTER      :: dist2d, dist2d_left
-    INTEGER, INTENT(IN)                      :: ncolumns
-    TYPE(array_i1d_obj), INTENT(OUT), &
-      OPTIONAL                               :: col_blk_size
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist2d_r_unrot', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: blksize_default = 3
-
-    INTEGER :: at, at_high, at_low, column_stack, i, k, mynod, mypcol, &
-      mypcol_left, myprow, myprow_left, nblkcols, nblkrows, nblkrows_left, &
-      nblks, ncols, npcols, npcols_left, nprows, nprows_left, pcol, pcsize, &
-      stat
-    INTEGER, DIMENSION(:), POINTER :: cbs, col_dist, col_dist_left, &
-      n_at_local_cols, n_at_local_rows, n_at_local_rows_left, row_dist, &
-      row_dist_left
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, mpi2blacs
-    TYPE(cp_1d_i_p_type), DIMENSION(:), &
-      POINTER                                :: at_local_cols, at_local_rows, &
-                                                at_local_rows_left
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env, blacs_env_right
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    IF (dbg) CALL distribution_2d_write(dist2d_left, 6,&
-         long_description=.TRUE., error=error, local=.TRUE.)
-    IF (dbg) &
-         CALL distribution_2d_write(dist2d_left, 6, long_description=.TRUE.,&
-         error=error, local=.TRUE.)
-    CALL distribution_2d_get(dist2d_left, error=error,&
-         row_distribution=row_dist_left, col_distribution=col_dist_left,&
-         local_rows=at_local_rows_left, n_local_rows=n_at_local_rows_left,&
-         n_row_distribution=nblkrows_left, blacs_env=blacs_env)
-    CALL get_blacs_info(blacs_env, my_process_row=myprow_left,&
-         my_process_column=mypcol_left, number_of_process_rows=nprows_left,&
-         number_of_process_columns=npcols_left, para_env=para_env,&
-         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-    !
-    IF (dbg) WRITE(*,*)routineP//' LEFT prows, pcols:', nprows_left, npcols_left
-    blacs_env_right => blacs_env
-    !CALL cp_blacs_env_retain(blacs_env, error)
-    CALL get_blacs_info(blacs_env_right, my_process_row=myprow,&
-         my_process_column=mypcol, number_of_process_rows=nprows,&
-         number_of_process_columns=npcols,&
-         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-    IF (dbg) WRITE(*,*)routineP//' RIGHT prows, pcols:', nprows, npcols
-    IF (dbg) WRITE(*,*)routineP//' myprow, mypcol',myprow,'/',nprows,';',&
-         mypcol,'/',npcols
-    IF (dbg) CALL cp_blacs_env_write(blacs_env_right, 6, error)
-    !
-    mynod = para_env%mepos
-    !> Handle row distribution. This is based on the column distribution of the
-    !> left matrix.
-    ALLOCATE(at_local_rows(LBOUND(at_local_rows_left,1):&
-         UBOUND(at_local_rows_left,1)), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'at_local_rows',&
-         SIZE(at_local_rows_left,1))
-    at_low = LBOUND(n_at_local_rows_left,1) 
-    at_high = UBOUND(n_at_local_rows_left,1)
-    ALLOCATE(n_at_local_rows(at_low:at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'n_at_local_rows',&
-         SIZE(n_at_local_rows_left,1))
-    nblkrows = nblkrows_left
-    ALLOCATE(row_dist(nblkrows), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'row_dist', nblkrows)
-    n_at_local_rows(:) = n_at_local_rows_left(:)
-    DO i = LBOUND(at_local_rows_left,1), UBOUND(at_local_rows_left,1)
-       ALLOCATE(at_local_rows(i)%array(&
-            LBOUND(at_local_rows_left(i)%array,1):&
-            UBOUND(at_local_rows_left(i)%array,1)), stat=stat)
-       IF(stat /= 0) CALL stop_memory(routineP, 'at_local_rows(?)%array',&
-            SIZE(at_local_rows_left(i)%array))
-       at_local_rows(i)%array(:) = at_local_rows_left(i)%array(:)
-    ENDDO
-    n_at_local_rows(:) = n_at_local_rows_left(:)
-    row_dist(:) = row_dist_left(:)
-    ! Handle column distribution.
-    ! Estimate the number of full columns per processor column, but it
-    ! must be at least 1.
-    pcsize = CEILING((1.0*ncolumns)/(1.0*npcols)) ! Full columns per processor column.
-    column_stack = ncolumns
-    nblkcols = 0
-    DO pcol = 0, npcols-1
-       at_low = nblkcols+1
-       at_high = nblkcols
-       IF (column_stack .GT. 0) THEN
-          ncols = MIN(column_stack, pcsize)
-          column_stack = column_stack - ncols
-          nblks = CEILING ((1.0*ncols)/(1.0*blksize_default))
-          nblkcols = nblkcols + nblks
-          at_high = nblkcols
-       ENDIF
-       IF (dbg) WRITE(*,*)routineP//' pcol',pcol,'has blkcols',at_low,':',&
-            at_high,'col stack is',column_stack
-    ENDDO
-
-    IF (dbg) WRITE(*,*)routineP//' There are',nblkcols,'blocked columns in',&
-         npcols,'pcols for',ncolumns,'full columns.'
-
-    at_low = 1
-    at_high = nblkcols
-    ALLOCATE(col_dist(nblkcols), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'col_dist', nblkcols)
-    col_dist(:) = -999
-    ALLOCATE(n_at_local_cols(at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'n_at_local_cols', at_high)
-    ALLOCATE(at_local_cols(at_high), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols', at_high)
-    n_at_local_cols(:) = 0
-
-    IF (PRESENT(col_blk_size)) THEN
-       ALLOCATE(cbs(nblkcols), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP,&
-            'cbs', nblkcols)
-    ENDIF
-    column_stack = ncolumns
-    nblkcols = 0
-    i = 1
-    DO pcol = 0, npcols-1
-       at_low = nblkcols+1
-       at_high = nblkcols
-       nblks = 0
-       IF (column_stack .GT. 0) THEN
-          ncols = MIN(column_stack, pcsize)
-          column_stack = column_stack - ncols
-          nblks = CEILING ((1.0*ncols)/(1.0*blksize_default))
-          nblkcols = nblkcols + nblks
-          at_high = nblkcols
-       ENDIF
-       IF (dbg) WRITE(*,*)routineP//' pcol',pcol,'has blkcols',at_low,':',&
-            at_high,'col stack is',column_stack
-       col_dist(at_low:at_high) = pcol
-       DO at = at_low, at_high
-          IF (pcol.EQ.mypcol) THEN
-             ALLOCATE(at_local_cols(at)%array(1), stat=stat)
-             IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols(?)', 1)
-             at_local_cols(at)%array(1) = at
-             n_at_local_cols(at) = 1
-          ELSE
-             ALLOCATE(at_local_cols(at)%array(0), stat=stat)
-             IF(stat /= 0) CALL stop_memory(routineP, 'at_local_cols(?)', 1)
-          ENDIF
-          IF (PRESENT(col_blk_size)) THEN
-             k = MIN(ncols,blksize_default)
-             cbs(at) = k
-             i = i + k
-             ncols = ncols - k
-             IF (dbg) WRITE(*,*)routineP//' col',at,'has',k-1,&
-                  'full colums; ncols, i',ncols, i,&
-                  'nblks',nblks
-          ENDIF
-       ENDDO
-    ENDDO
-
-    IF(dbg) WRITE(*,*)routineP//' Col. distribution',col_dist
-    IF (PRESENT (col_blk_size)) THEN
-       IF(dbg) WRITE(*,*)routineP//' Col. block sizes',cbs
-       CALL array_new (col_blk_size, cbs, gift=.TRUE.)
-    ENDIF
-    IF(dbg) WRITE(*,*)routineP//' Col. at_local_cols=',n_at_local_cols
-    IF(dbg) WRITE(*,*)routineP//' Col. n_at_local_cols=',n_at_local_cols
-
-    NULLIFY(dist2d)
-    CALL distribution_2d_create(dist2d, blacs_env_right, error=error,&
-         local_rows_ptr=at_local_rows, n_local_rows=n_at_local_rows,&
-         local_cols_ptr=at_local_cols, n_local_cols=n_at_local_cols,&
-         row_distribution_ptr=row_dist, col_distribution_ptr=col_dist)
-    DEALLOCATE(n_at_local_rows)
-    DEALLOCATE(n_at_local_cols)
-    !CALL cp_blacs_env_release(blacs_env_right, error)
-    IF (dbg) CALL distribution_2d_write(dist2d, 6, long_description=.TRUE.,&
-        error=error, local=.TRUE.)
-    IF (dbg) &
-         CALL distribution_2d_write(dist2d, 6, long_description=.TRUE.,&
-         error=error, local=.TRUE.)
-  END SUBROUTINE dbcsr_create_dist2d_r_unrot
-
-
-
-! *****************************************************************************
 !> \brief Creates a new distribution for the right matrix in a matrix
 !>        multiplication with unrotated grid.
 !> \par The new row distribution for the right matrix is the same as the row
@@ -3000,60 +2450,6 @@ CONTAINS
     CALL array_release (row_dist)
     CALL array_release (col_dist)
   END SUBROUTINE dbcsr_create_dist_block_cyclic
-
-
-
-! *****************************************************************************
-!> \brief Creates a transposed BLACS environment.
-!> \par This routine assumes that all BLACS environments are created equal.
-!>      It just fiddles with the generated data.
-!> \param[in] blacs_env       original BLACS environment.
-!> \param[out] blacs_env_t    transposed BLACS environment.
-!> \param error     cp2k error
-! *****************************************************************************
-  SUBROUTINE cp_transpose_blacs_env(blacs_env, blacs_env_t, error)
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env, blacs_env_t
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_transpose_blacs_env', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, mpi2blacs
-    LOGICAL                                  :: dbg
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-!   ---------------------------------------------------------------------------
-
-    dbg = .FALSE.
-    CALL dbcsr_set_debug(dbg)
-    CALL get_blacs_info(blacs_env, para_env=para_env,&
-         blacs2mpi=blacs2mpi, mpi2blacs=mpi2blacs)
-    !
-    !> Create a default
-    NULLIFY(blacs_env_t)
-    CALL cp_blacs_env_create(blacs_env_t, para_env, blacs_repeatable=blacs_env%repeatable, error=error)
-    DEALLOCATE(blacs_env_t%blacs2mpi, blacs_env_t%mpi2blacs)
-    blacs_env_t%num_pe(1:2) = blacs_env_t%num_pe(2:1:-1)
-    blacs_env_t%mepos(1:2) = blacs_env_t%mepos(2:1:-1)
-    !
-    ALLOCATE(blacs_env_t%blacs2mpi(LBOUND(blacs2mpi,2):UBOUND(blacs2mpi,2),&
-         &                         LBOUND(blacs2mpi,1):UBOUND(blacs2mpi,1)),&
-         stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, 'blacs2mpi_t', SIZE(blacs2mpi))
-    blacs_env_t%blacs2mpi = TRANSPOSE(blacs2mpi)
-    !
-    IF (dbg) WRITE(*,*)'blacs2mpi new',SIZE(blacs_env_t%blacs2mpi,1),&
-         SIZE(blacs_env_t%blacs2mpi,2),&
-         ';',blacs_env_t%blacs2mpi
-    !
-    ALLOCATE(blacs_env_t%mpi2blacs(LBOUND(mpi2blacs,2):UBOUND(mpi2blacs,2),&
-         &                         LBOUND(mpi2blacs,1):UBOUND(mpi2blacs,1)),&
-         stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, 'mpi2blacs_t', SIZE(mpi2blacs))
-    blacs_env_t%mpi2blacs = TRANSPOSE(mpi2blacs)
-  END SUBROUTINE cp_transpose_blacs_env
-
 
 ! *****************************************************************************
 !> \brief Adds data to the index. Incleases the index size when neccessary.
@@ -6466,54 +5862,6 @@ CONTAINS
   END FUNCTION pointer_view_a
 
 ! *****************************************************************************
-!> \brief Creates a DBCSR distribution from a distribution_2d
-!> \param[in] dist2d          distribution_2d
-!> \param[out] dist           DBCSR distribution
-!> \param[in,out] error       cp2k error
-! *****************************************************************************
-  SUBROUTINE dbcsr_dist2d_to_dist(dist2d, dist, error)
-    TYPE(distribution_2d_type), INTENT(IN), &
-      TARGET                                 :: dist2d
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT)                            :: dist
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    INTEGER                                  :: mypcol, myproc, myprow, &
-                                                numproc
-    INTEGER, DIMENSION(:), POINTER           :: col_dist_data, row_dist_data
-    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-    TYPE(array_i1d_obj)                      :: cd, rd
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_mp_obj)                       :: mp_env
-    TYPE(distribution_2d_type), POINTER      :: dist2d_p
-
-!
-!   ---------------------------------------------------------------------------
-
-    dist2d_p => dist2d
-    CALL distribution_2d_get(dist2d_p, error=error,&
-         row_distribution=row_dist_data, col_distribution=col_dist_data,&
-         blacs_env=blacs_env)
-    CALL get_blacs_info(blacs_env, para_env=para_env,&
-         my_process_row=myprow, my_process_column=mypcol,&
-         blacs2mpi=pgrid)
-    myproc = para_env%mepos
-    numproc = para_env%num_pe
-    CALL dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc,&
-         myprow, mypcol)
-    CALL array_nullify (rd)
-    CALL array_nullify (cd)
-    CALL array_new(rd, row_dist_data)
-    CALL array_new(cd, col_dist_data)
-    CALL dbcsr_distribution_new(dist, mp_env, rd, cd)
-    CALL dbcsr_mp_release (mp_env)
-    CALL array_release (rd)
-    CALL array_release (cd)
-  END SUBROUTINE dbcsr_dist2d_to_dist
-
-
-! *****************************************************************************
 !> \brief Prints a distribution
 !> \param[in] dist  distribution to print
 ! *****************************************************************************
@@ -7404,5 +6752,46 @@ CONTAINS
 #include "dbcsr_util_c_.F"
 !#endif
 
+
+  FUNCTION gcd(a,b)
+    INTEGER                                  :: a, b, gcd
+
+    INTEGER                                  :: aa, ab, l, rem, s
+
+    aa=ABS(a)
+    ab=ABS(b)
+    IF (aa<ab) THEN
+       s=aa
+       l=ab
+    ELSE
+       s=ab
+       l=aa
+    ENDIF
+    IF (s.NE.0) THEN
+       DO
+          rem=MOD(l,s)
+          IF (rem==0) EXIT
+          l=s
+          s=rem
+       ENDDO
+       GCD=s
+    ELSE
+       GCD=l
+    ENDIF
+  END FUNCTION gcd
+
+  FUNCTION lcm(a,b)
+    INTEGER                                  :: a, b, lcm
+
+    INTEGER                                  :: tmp
+
+    tmp = gcd(a,b)
+    IF (tmp==0) THEN
+       lcm = 0
+    ELSE
+       ! could still overflow if the true lcm is larger than maxint
+       lcm = ABS((a/tmp)*b)
+    END IF
+  END FUNCTION lcm
 
 END MODULE dbcsr_util

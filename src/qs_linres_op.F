@@ -28,6 +28,7 @@ MODULE qs_linres_op
   USE cp_dbcsr_operations,             ONLY: dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
+                                             dbcsr_dist2d_to_dist,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -50,8 +51,7 @@ MODULE qs_linres_op
                                              dbcsr_type_normal
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
                                              dbcsr_checksum,&
-                                             dbcsr_create,&
-                                             dbcsr_dist2d_to_dist
+                                             dbcsr_create
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
