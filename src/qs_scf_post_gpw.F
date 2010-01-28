@@ -1145,9 +1145,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_loc_dip', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: description, &
-                                                descriptionThisDip
-    CHARACTER(LEN=default_string_length)     :: iter
+    CHARACTER(LEN=default_string_length)     :: description, &
+                                                descriptionThisDip, iter
     COMPLEX(KIND=dp)                         :: zeta
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zphase
     INTEGER                                  :: handle, i, ispins, j, n_rep, &
