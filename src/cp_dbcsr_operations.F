@@ -15,6 +15,7 @@
 MODULE cp_dbcsr_operations
   USE array_types,                     ONLY: array_data,&
                                              array_equality,&
+                                             array_hold,&
                                              array_i1d_obj,&
                                              array_new,&
                                              array_nullify,&
@@ -40,15 +41,16 @@ MODULE cp_dbcsr_operations
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
        dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_no_threads, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-       dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_distribution_hold, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_get_data, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_get_coordinates, &
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
        dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
@@ -77,8 +79,9 @@ MODULE cp_dbcsr_operations
        dbcsr_create_dist_block_cyclic, dbcsr_create_dist_elemental, &
        dbcsr_create_dist_fullest, dbcsr_create_dist_r_rot, &
        dbcsr_create_dist_r_unrot, dbcsr_create_image_dist, dbcsr_finalize, &
-       dbcsr_get_stored_coordinates, dbcsr_make_images, &
-       dbcsr_make_index_canonical, dbcsr_print, dbcsr_set_debug, &
+       dbcsr_get_stored_coordinates, dbcsr_make_dense, dbcsr_make_images, &
+       dbcsr_make_images_dense, dbcsr_make_index_canonical, &
+       dbcsr_make_undense, dbcsr_may_be_dense, dbcsr_print, dbcsr_set_debug, &
        dbcsr_verify_matrix, dbcsr_work_create, swap
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
@@ -462,9 +465,13 @@ CONTAINS
                                                 l_k, l_row, timing_handle
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: keep_product_data, keep_sparsity, left_set_given, new_left, &
-      new_right, product_reindex, right_set_given
+      new_right, product_reindex, right_set_given, use_dense_mult
     REAL(KIND=dp)                            :: cs
+    TYPE(array_i1d_obj) :: old_product_col_blk_offsets, &
+      old_product_col_blk_sizes, old_product_row_blk_offsets, &
+      old_product_row_blk_sizes
     TYPE(dbcsr_2d_array_type), POINTER       :: m2s_left, m2s_right
+    TYPE(dbcsr_distribution_obj)             :: old_product_distribution
     TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
     TYPE(dbcsr_obj)                          :: matrix_left, matrix_right, &
                                                 product_matrix
@@ -534,6 +541,9 @@ CONTAINS
        CALL cp_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
             routineN, "wrong transb = "//transb)
     END SELECT
+    !
+    use_dense_mult = dbcsr_may_be_dense (matrix_left%m)&
+               .AND. dbcsr_may_be_dense (matrix_right%m)
     !
     ! Submatrix selection
     f_row = 1
@@ -646,7 +656,24 @@ CONTAINS
     ELSE
        product_reindex = .FALSE.
     ENDIF
+    ! These two interfere.
+    IF (product_reindex) THEN
+       use_dense_mult = .FALSE.
+    ENDIF
     product_matrix = matrix_c
+    IF (use_dense_mult) THEN
+       old_product_row_blk_offsets = product_matrix%m%row_blk_offset
+       old_product_col_blk_offsets = product_matrix%m%col_blk_offset
+       old_product_row_blk_sizes = product_matrix%m%row_blk_size
+       old_product_col_blk_sizes = product_matrix%m%col_blk_size
+       CALL array_hold (old_product_row_blk_offsets)
+       CALL array_hold (old_product_col_blk_offsets)
+       CALL array_hold (old_product_row_blk_sizes)
+       CALL array_hold (old_product_col_blk_sizes)
+       old_product_distribution = dbcsr_distribution (product_matrix)
+       CALL dbcsr_distribution_hold (old_product_distribution)
+       CALL dbcsr_make_dense (product_matrix)
+    ENDIF
     IF (keep_product_data) THEN
        IF (product_reindex) THEN
           IF (dbg) WRITE(*,*)routineN//" Making canonical index"
@@ -662,10 +689,13 @@ CONTAINS
     product_matrix%m%valid = .FALSE.
     !
     ! Create imaged distributions for the multiply.
+    !
+    ! matrix_c is used instead of product_matrix so that the original
+    ! blocked (non-dense) form is used.
     CALL dbcsr_create_image_dist (rdist_right, matrix_right%m%dist,&
          match_row_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_left%m%dist)),&
-         match_col_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (product_matrix%m%dist)),&
-         match_col_pdist = array_data (dbcsr_distribution_col_dist (product_matrix%m%dist)))
+         match_col_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_c%m%dist)),&
+         match_col_pdist = array_data (dbcsr_distribution_col_dist (matrix_c%m%dist)))
     CALL dbcsr_create_image_dist (rdist_left, matrix_left%m%dist,&
          match_row_pdist = array_data (dbcsr_distribution_row_dist (matrix_c%m%dist)),&
          match_row_nbins = dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_c%m%dist)),&
@@ -691,7 +721,12 @@ CONTAINS
     IF (.NOT. right_set_given) THEN
        ALLOCATE (m2s_right)
        CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
-            predistribute="R", error=error)
+            predistribute="R", error=error, special_memory=.FALSE.,&
+            no_copy_data=use_dense_mult)
+       IF (use_dense_mult) THEN
+          CALL dbcsr_make_images_dense (m2s_right, "R")
+          rdist_right = m2s_right%image_dist
+       ENDIF
        IF (PRESENT (right_set)) THEN
           right_set => m2s_right
           right_set%image_dist = rdist_right
@@ -702,7 +737,12 @@ CONTAINS
     IF (.NOT. left_set_given) THEN
        ALLOCATE (m2s_left)
        CALL dbcsr_make_images (matrix_left, m2s_left, rdist_left,&
-            predistribute="L", error=error)
+            predistribute="L", error=error, special_memory=.FALSE.,&
+            no_copy_data=use_dense_mult)
+       IF (use_dense_mult) THEN
+          CALL dbcsr_make_images_dense (m2s_left, "L")
+          rdist_left = m2s_left%image_dist
+       ENDIF
        IF (PRESENT (left_set)) THEN
           left_set =>  m2s_left
           left_set%image_dist = rdist_left
@@ -737,6 +777,15 @@ CONTAINS
     IF (product_reindex) THEN
        IF (dbg) WRITE(*,*)routineN//" Making CP2K index"
        CALL dbcsr_make_index_canonical(product_matrix, cp2k=.TRUE.)
+    ELSEIF (use_dense_mult) THEN
+       CALL dbcsr_make_undense(product_matrix, old_product_distribution,&
+            old_product_row_blk_offsets, old_product_col_blk_offsets,&
+            old_product_row_blk_sizes, old_product_col_blk_sizes)
+       CALL array_release (old_product_row_blk_offsets)
+       CALL array_release (old_product_col_blk_offsets)
+       CALL array_release (old_product_row_blk_sizes)
+       CALL array_release (old_product_col_blk_sizes)
+       CALL dbcsr_distribution_release (old_product_distribution)
     ENDIF
     matrix_c = product_matrix
     IF (dbg) THEN
@@ -748,7 +797,7 @@ CONTAINS
        DEALLOCATE (m2s_left)
     ELSE
        IF (.NOT. left_set_given) THEN
-          left_set%image_dist = rdist_left
+          left_set%image_dist = m2s_left%image_dist
        ELSE
           CALL dbcsr_destroy_image_dist (rdist_left)
        ENDIF
@@ -759,7 +808,7 @@ CONTAINS
        DEALLOCATE (m2s_right)
     ELSE
        IF (.not.right_set_given) THEN
-          right_set%image_dist = rdist_right
+          right_set%image_dist = m2s_right%image_dist
        ELSE
           CALL dbcsr_destroy_image_dist (rdist_right)
        ENDIF

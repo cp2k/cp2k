@@ -56,6 +56,16 @@ MODULE dbcsr_types
             dbcsr_slot_blk_p,&
             dbcsr_slot_nblks,&
             dbcsr_slot_nze,&
+            dbcsr_slot_dense,&
+            dbcsr_slot_nblkrows_total,&
+            dbcsr_slot_nblkcols_total,&
+            dbcsr_slot_nfullrows_total,&
+            dbcsr_slot_nfullcols_total,&
+            dbcsr_slot_nblkrows_local,&
+            dbcsr_slot_nblkcols_local,&
+            dbcsr_slot_nfullrows_local,&
+            dbcsr_slot_nfullcols_local,&
+            dbcsr_slot_type,&
             dbcsr_num_slots
   PUBLIC :: dbcsr_type_real_4, dbcsr_type_real_8,&
             dbcsr_type_complex_4, dbcsr_type_complex_8,&
@@ -381,8 +391,8 @@ MODULE dbcsr_types
      TYPE(dbcsr_distribution_obj)       :: dist
      INTEGER                 :: refcount
      LOGICAL                 :: work_mutable
-!$   INTEGER(KIND=omp_lock_kind) :: modification_lock
      TYPE(dbcsr_2d_array_type), POINTER :: predistributed
+!$   INTEGER(KIND=omp_lock_kind) :: modification_lock
   END TYPE dbcsr_type
 
   INTEGER, PARAMETER :: dbcsr_magic_number = 879546213
@@ -404,13 +414,22 @@ MODULE dbcsr_types
   INTEGER, PARAMETER          :: dbcsr_slot_size  = 1 ! Size of the assigned
                                                       ! values in the index
                                                       ! array.
+  INTEGER, PARAMETER          :: dbcsr_slot_nblks = 2
+  INTEGER, PARAMETER          :: dbcsr_slot_nze   = 3
+  INTEGER, PARAMETER          :: dbcsr_slot_dense = 4
+  INTEGER, PARAMETER          :: dbcsr_slot_nblkrows_total   = 5
+  INTEGER, PARAMETER          :: dbcsr_slot_nblkcols_total   = 6
+  INTEGER, PARAMETER          :: dbcsr_slot_nfullrows_total  = 7
+  INTEGER, PARAMETER          :: dbcsr_slot_nfullcols_total  = 8
+  INTEGER, PARAMETER          :: dbcsr_slot_nblkrows_local   = 9
+  INTEGER, PARAMETER          :: dbcsr_slot_nblkcols_local   = 10
+  INTEGER, PARAMETER          :: dbcsr_slot_nfullrows_local  = 11
+  INTEGER, PARAMETER          :: dbcsr_slot_nfullcols_local  = 12
+  INTEGER, PARAMETER          :: dbcsr_slot_type = 13
   INTEGER, PARAMETER          :: dbcsr_slot_row_p = dbcsr_meta_size+2
   INTEGER, PARAMETER          :: dbcsr_slot_col_i = dbcsr_meta_size+4
   INTEGER, PARAMETER          :: dbcsr_slot_blk_p = dbcsr_meta_size+6
-  INTEGER, PARAMETER          :: dbcsr_slot_nblks = 2
-  INTEGER, PARAMETER          :: dbcsr_slot_nze   = 3
   INTEGER, PARAMETER          :: dbcsr_num_slots  = dbcsr_meta_size+7
-
 
 ! *****************************************************************************
 !> \brief The BCSR sparse matrix object.

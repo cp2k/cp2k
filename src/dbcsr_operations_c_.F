@@ -832,7 +832,8 @@
           IF (tr) blk_p = -blk_p
           CALL add_work_coordinate (matrix%m%wms(iw), row, col, blk_p)
           CALL dbcsr_data_ensure_size (matrix%m%wms(iw)%data_area,&
-               matrix%m%wms(iw)%datasize+SIZE(block))
+               matrix%m%wms(iw)%datasize+SIZE(block),&
+               factor=default_resize_factor)
           IF (PRESENT (scale)) THEN
              CALL addto_array (matrix%m%wms(iw)%data_area, scale*block, ABS(blk_p))
           ELSE

@@ -131,6 +131,10 @@ MODULE dbcsr_methods
      MODULE PROCEDURE dbcsr_is_initialized_type, dbcsr_is_initialized_obj
   END INTERFACE
 
+  INTERFACE dbcsr_uses_special_memory
+     MODULE PROCEDURE uses_special_memory_matrix, uses_special_memory_area
+  END INTERFACE
+
   INTERFACE dbcsr_get_data
      MODULE PROCEDURE get_data_s, get_data_d, get_data_c, get_data_z
      MODULE PROCEDURE get_data_m_s, get_data_m_d, get_data_m_c, get_data_m_z
@@ -1603,12 +1607,30 @@ CONTAINS
 !> \param[out] uses_special   whether the matrix uses specially allocated
 !>                            memory
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_uses_special_memory (matrix) RESULT (uses_special)
+  PURE FUNCTION uses_special_memory_matrix (matrix) RESULT (uses_special)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL                                  :: uses_special
 
     uses_special = matrix%m%special_memory
-  END FUNCTION dbcsr_uses_special_memory
+  END FUNCTION uses_special_memory_matrix
+
+
+! *****************************************************************************
+!> \brief Returns whether the data area uses speciall-allocated memory
+!> \param[in] data_area       query this data area
+!> \param[out] uses_special   whether the data area uses specially allocated
+!>                            memory
+! *****************************************************************************
+  PURE FUNCTION uses_special_memory_area (area) RESULT (uses_special)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    LOGICAL                                  :: uses_special
+
+    IF (ASSOCIATED (area%d)) THEN
+       uses_special = area%d%special
+    ELSE
+       uses_special = .FALSE.
+    ENDIF
+  END FUNCTION uses_special_memory_area
 
 
 ! *****************************************************************************

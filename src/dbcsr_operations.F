@@ -59,6 +59,9 @@ MODULE dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_operations'
 
+  REAL, PARAMETER                      :: default_resize_factor = 1.618034
+
+
   PUBLIC :: dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
             dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, &
             dbcsr_set_diag, dbcsr_get_block, dbcsr_get_block_p,&
@@ -370,7 +373,6 @@ CONTAINS
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
        CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-
     ENDDO
     !
     ! Exchange size data
@@ -1540,6 +1542,7 @@ CONTAINS
     !WRITE(*,*)'Goodbye! I am thread',ithread
   END SUBROUTINE dbcsr_nn_mult_lin
 
+
 ! *****************************************************************************
 !> \brief Joins compatible DGEMM parameters into a single DGEMM parameter
 !>
@@ -1691,7 +1694,7 @@ CONTAINS
        ENDIF
     ENDDO
     IF (do_resize) THEN
-       !IF (dbg) &
+       IF (dbg) &
             WRITE(*,*)routineN//" Data area too small, increasing!", &
             maxs, dbcsr_get_data_size(product_data_area)
        CALL dbcsr_data_ensure_size (product_data_area,&
@@ -1896,18 +1899,60 @@ CONTAINS
   SUBROUTINE print_dgemm_parameters(params)
     TYPE(dgemm_parameters), INTENT(in)       :: params
 
-    WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
-         "DGEMM PARAMETERS",&
-         params%type_c,&
-         params%type_a, params%type_b,&
-         params%lrows_a, params%lcols_a,&
-         params%lrows_b, params%lcols_b,&
-         params%lrows_c, params%lcols_c,&
-         params%last_k, params%last_n,&
-         params%alpha, params%beta,&
-         params%offset_a, params%nze_a,&
-         params%offset_b, params%nze_b,&
-         params%offset_c, params%nze_c
+    SELECT CASE (params%alpha%data_type)
+    CASE (dbcsr_type_real_4)
+       WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+            "DGEMM PARAMETERS",&
+            params%type_c,&
+            params%type_a, params%type_b,&
+            params%lrows_a, params%lcols_a,&
+            params%lrows_b, params%lcols_b,&
+            params%lrows_c, params%lcols_c,&
+            params%last_k, params%last_n,&
+            params%alpha%r_sp, params%beta%r_sp,&
+            params%offset_a, params%nze_a,&
+            params%offset_b, params%nze_b,&
+            params%offset_c, params%nze_c
+    CASE (dbcsr_type_real_8)
+       WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+            "DGEMM PARAMETERS",&
+            params%type_c,&
+            params%type_a, params%type_b,&
+            params%lrows_a, params%lcols_a,&
+            params%lrows_b, params%lcols_b,&
+            params%lrows_c, params%lcols_c,&
+            params%last_k, params%last_n,&
+            params%alpha%r_dp, params%beta%r_dp,&
+            params%offset_a, params%nze_a,&
+            params%offset_b, params%nze_b,&
+            params%offset_c, params%nze_c
+    CASE (dbcsr_type_complex_4)
+       WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+            "DGEMM PARAMETERS",&
+            params%type_c,&
+            params%type_a, params%type_b,&
+            params%lrows_a, params%lcols_a,&
+            params%lrows_b, params%lcols_b,&
+            params%lrows_c, params%lcols_c,&
+            params%last_k, params%last_n,&
+            REAL(params%alpha%c_sp), REAL(params%beta%c_sp),&
+            params%offset_a, params%nze_a,&
+            params%offset_b, params%nze_b,&
+            params%offset_c, params%nze_c
+    CASE (dbcsr_type_complex_8)
+       WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+            "DGEMM PARAMETERS",&
+            params%type_c,&
+            params%type_a, params%type_b,&
+            params%lrows_a, params%lcols_a,&
+            params%lrows_b, params%lcols_b,&
+            params%lrows_c, params%lcols_c,&
+            params%last_k, params%last_n,&
+            REAL(params%alpha%c_dp), REAL(params%beta%c_dp),&
+            params%offset_a, params%nze_a,&
+            params%offset_b, params%nze_b,&
+            params%offset_c, params%nze_c
+    END SELECT
    END SUBROUTINE print_dgemm_parameters
 
 
@@ -2823,7 +2868,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: data_type_a, data_type_b
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, col, row, size_a, &
+                                                size_b, timing_handle
     LOGICAL                                  :: do_scale, tr
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
@@ -2851,6 +2897,15 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL dbcsr_scale(matrix_a,scale_type='S',&
          alpha_scalar=my_alpha_scalar,error=error)
+
+    ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
+    size_a = dbcsr_get_data_size (matrix_a)
+    size_b = dbcsr_get_data_size (matrix_b)
+    IF (size_b .GT. size_a) THEN
+       CALL dbcsr_work_create (matrix_a,&
+            nblks_guess=matrix_b%m%nblks-matrix_a%m%nblks,&
+            sizedata_guess=size_b-size_a)
+    ENDIF
 
     IF(.NOT.dbcsr_scalar_are_equal(my_beta_scalar,&
          dbcsr_scalar_zero(data_type_b))) THEN
@@ -4972,8 +5027,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     !
     ! Now fill in the data.
     CALL dbcsr_work_create(redist,&
-            SUM(recv_count(1,:)),&
-            SUM(recv_count(2,:)), work_mutable=.TRUE.)
+         nblks_guess=SUM(recv_count(1,:)),&
+         sizedata_guess=SUM(recv_count(2,:)), work_mutable=.TRUE.)
     DBG 'send disps data',sd_disp
     DBG 'send disps meta',sm_disp
     DBG 'recv disps data',rd_disp
