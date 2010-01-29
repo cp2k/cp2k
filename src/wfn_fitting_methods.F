@@ -1148,7 +1148,7 @@ MODULE wfn_fitting_methods
           CALL section_vals_val_get(xc_fun,"SCALE_X0",&
                                     r_val=hfx_fraction,error=error)
 
-           WRITE(*,*) xc_fun%section%name, scale_x, hfx_fraction
+           WRITE(*,*) xc_fun%section%name, scale_x, hfx_fraction 
         ELSE
           WRITE(*,*) xc_fun%section%name, scale_x
         END IF
