@@ -31,6 +31,9 @@ MODULE dbcsr_methods
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              real_4,&
                                              real_8
+  USE dbcsr_message_passing,           ONLY: mp_allocate,&
+                                             mp_deallocate,&
+                                             mp_sum
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
@@ -42,11 +45,6 @@ MODULE dbcsr_methods
        dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_symmetric
   USE f77_blas
   USE f77_blas_generic
-  USE message_passing,                 ONLY: mp_allocate,&
-                                             mp_deallocate,&
-                                             mp_sum
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
@@ -2126,7 +2124,6 @@ CONTAINS
     LOGICAL                                  :: share
 
 !   ---------------------------------------------------------------------------
-!CALL timeset(routineN, timing_handle)
 
     share = .TRUE.
     IF (PRESENT (shared)) share = shared
@@ -2204,12 +2201,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_stop', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
-
 !   ---------------------------------------------------------------------------
 !CALL dbcsr_release (iterator%matrix)
 
-    CALL timeset(routineN, timing_handle)
     iterator%row = 0
     iterator%pos = 0
 
@@ -2217,7 +2211,6 @@ CONTAINS
     NULLIFY (iterator%tdist)
     !CALL dbcsr_release (iterator%matrix)
     CALL dbcsr_data_release (iterator%data_area)
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_iterator_stop
 
 

@@ -36,18 +36,22 @@ MODULE dbcsr_operations
                                              real_4,&
                                              real_8,&
                                              sp
-  USE dbcsr_methods
-  USE dbcsr_types
-  USE dbcsr_util
-  USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_allgather,&
+  USE dbcsr_machine,                   ONLY: m_walltime
+  USE dbcsr_message_passing,           ONLY: dmp_max,&
+                                             mp_allgather,&
                                              mp_alltoall,&
                                              mp_bcast,&
                                              mp_irecv,&
                                              mp_isend,&
-                                             mp_max,&
                                              mp_sum,&
                                              mp_waitall
+!dmp_max, this fixes a bug in g95
+! -> ambigous interface for mp_max
+!    in module dbcsr_message_passing and wrongly
+!    exported from module timings
+  USE dbcsr_methods
+  USE dbcsr_types
+  USE dbcsr_util
 
   !$ USE OMP_LIB
   USE termination,                     ONLY: stop_memory
@@ -4285,7 +4289,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
-    CALL mp_max( dbcsr_maxabs_norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+
+    !dmp_max, this fixes a bug in g95
+    ! -> ambigous interface for mp_max
+    !    in module dbcsr_message_passing and wrongly
+    !    exported from the module timings
+    CALL dmp_max( dbcsr_maxabs_norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
 
     CALL timestop(timing_handle)
 

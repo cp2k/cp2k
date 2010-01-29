@@ -5,9 +5,13 @@ LIB2_OBJECTS = fft_plan.o fft_lib.o fftsg_lib.o fftw2_lib.o fftw3_lib.o fftacml_
                ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg_tools.o mltfftsg.o
 
 LIB3_OBJECTS = array_types.o\
-               dbcsr_kinds.o\
                btree_i8_k_sp2d_v.o\
                btree_i8_k_dp2d_v.o\
                btree_i8_k_cp2d_v.o\
                btree_i8_k_zp2d_v.o\
+               dbcsr_c_mpi_calls.o\
+               dbcsr_kinds.o\
+               dbcsr_machine.o\
+               dbcsr_message_passing.o\
+               dbcsr_types.o
 

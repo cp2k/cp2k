@@ -27,6 +27,11 @@ MODULE dbcsr_util
                                              real_4,&
                                              real_8,&
                                              sp
+  USE dbcsr_machine,                   ONLY: m_walltime
+  USE dbcsr_message_passing,           ONLY: mp_allocate,&
+                                             mp_alltoall,&
+                                             mp_deallocate,&
+                                             mp_sum
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_clear_2d_pointer, dbcsr_data_clear_pointer, &
        dbcsr_data_copyall, dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, &
@@ -70,11 +75,6 @@ MODULE dbcsr_util
        dbcsr_work_type
   USE f77_blas
   USE f77_blas_generic
-  USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_allocate,&
-                                             mp_alltoall,&
-                                             mp_deallocate,&
-                                             mp_sum
 
   !$ USE OMP_LIB
   USE termination,                     ONLY: stop_memory
