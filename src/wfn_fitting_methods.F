@@ -55,7 +55,8 @@ MODULE wfn_fitting_methods
                                              do_hfx_potential_short,&
                                              do_hfx_potential_truncated,&
                                              use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+                                             use_orb_basis_set,&
+                                             xc_funct_no_shortcut
   USE input_section_types,             ONLY: section_vals_duplicate,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -932,7 +933,7 @@ MODULE wfn_fitting_methods
     TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: hfx_potential_type, ifun
+    INTEGER                                  :: hfx_potential_type, ifun, nfun
     LOGICAL                                  :: funct_found
     REAL(dp)                                 :: cutoff_radius, hfx_fraction, &
                                                 omega, scale_x
@@ -945,15 +946,27 @@ MODULE wfn_fitting_methods
     CALL section_vals_duplicate(xc_section,wfn_fitting_env%xc_section_aux,error=error)
     CALL section_vals_duplicate(xc_section,wfn_fitting_env%xc_section_primary,error=error)
 
-    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
-
     !** Now modify the auxiliary basis
     !** First remove all functionals
     xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
+
+    !* Overwrite possible shortcut
+    CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
+                              i_val=xc_funct_no_shortcut,error=error)
+
+    !** Get number of Functionals in the list
     ifun = 0
+    nfun = 0
     DO
       ifun = ifun+1
       xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
+      IF (.NOT.ASSOCIATED(xc_fun)) EXIT
+      nfun = nfun + 1
+    END DO
+
+    ifun = 0
+    DO ifun = 1,nfun
+      xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=1,error=error)
       IF (.NOT.ASSOCIATED(xc_fun)) EXIT
       CALL section_vals_remove_values(xc_fun, error=error)
     END DO
@@ -998,8 +1011,11 @@ MODULE wfn_fitting_methods
 
 
     !** Now modify the functionals for the primary basis
-    !** First remove all functionals
     xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
+    !* Overwrite possible shortcut
+    CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
+                              i_val=xc_funct_no_shortcut,error=error)
+
 
     SELECT CASE (hfx_potential_type)
     CASE (do_hfx_potential_coulomb)
@@ -1122,18 +1138,22 @@ MODULE wfn_fitting_methods
         ifun = ifun+1
         xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
         IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-        CALL section_vals_val_get(xc_fun,"SCALE_X",&
-                                    r_val=scale_x,error=error)
+
+        scale_x=-1000.0_dp
+        IF(xc_fun%section%name /= "LYP" .AND. xc_fun%section%name /= "VWN") THEN
+          CALL section_vals_val_get(xc_fun,"SCALE_X",&
+                                      r_val=scale_x,error=error)
+        END IF
         IF( xc_fun%section%name == "XWPBE" ) THEN
           CALL section_vals_val_get(xc_fun,"SCALE_X0",&
                                     r_val=hfx_fraction,error=error)
-  
+
            WRITE(*,*) xc_fun%section%name, scale_x, hfx_fraction
         ELSE
           WRITE(*,*) xc_fun%section%name, scale_x
         END IF
       END DO
-  
+
       WRITE(*,*) "auxiliary"
       xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
       ifun = 0
@@ -1142,12 +1162,15 @@ MODULE wfn_fitting_methods
         ifun = ifun+1
         xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,error=error)
         IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-        CALL section_vals_val_get(xc_fun,"SCALE_X",&
-                                    r_val=scale_x,error=error)
+        scale_x=-1000.0_dp
+        IF(xc_fun%section%name /= "LYP" .AND. xc_fun%section%name /= "VWN") THEN
+          CALL section_vals_val_get(xc_fun,"SCALE_X",&
+                                      r_val=scale_x,error=error)
+        END IF
         IF( xc_fun%section%name == "XWPBE" ) THEN
           CALL section_vals_val_get(xc_fun,"SCALE_X0",&
                                     r_val=hfx_fraction,error=error)
-  
+
            WRITE(*,*) xc_fun%section%name, scale_x, hfx_fraction
         ELSE
           WRITE(*,*) xc_fun%section%name, scale_x

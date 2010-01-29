@@ -1329,10 +1329,17 @@ CONTAINS
                "XC and Kin. energy of the total density:       ",energy%exc,&
                "Kin. energy of the molecular densities:        ",energy%kg_gpw_ekin_mol
           ELSE
-            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
-               "Core Hamiltonian energy:                       ",energy%core,&
-               "Hartree energy:                                ",energy%hartree,&
-               "Exchange-correlation energy:                   ",energy%exc
+            IF( dft_control%do_wfn_fitting ) THEN
+              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+                 "Core Hamiltonian energy:                       ",energy%core,&
+                 "Hartree energy:                                ",energy%hartree,&
+                 "Exchange-correlation energy:                   ",energy%exc + energy%exc_aux_fit
+            ELSE
+               WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+                 "Core Hamiltonian energy:                       ",energy%core,&
+                 "Hartree energy:                                ",energy%hartree,&
+                 "Exchange-correlation energy:                   ",energy%exc
+            END IF 
           END IF
           IF (energy%e_hartree /= 0.0_dp)&
                WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&

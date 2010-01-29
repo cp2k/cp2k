@@ -1116,12 +1116,21 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
             "Electronic energy:                             ",energy%hartree,&
             "Dispersion energy:                             ",energy%dispersion
        ELSE
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
-            "Overlap energy of the core charge distribution:",energy%core_overlap,&
-            "Self energy of the core charge distribution:   ",energy%core_self,&
-            "Core Hamiltonian energy:                       ",energy%core,&
-            "Hartree energy:                                ",energy%hartree,&
-            "Exchange-correlation energy:                   ",energy%exc
+         IF( dft_control%do_wfn_fitting ) THEN
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
+              "Overlap energy of the core charge distribution:",energy%core_overlap,&
+              "Self energy of the core charge distribution:   ",energy%core_self,&
+              "Core Hamiltonian energy:                       ",energy%core,&
+              "Hartree energy:                                ",energy%hartree,&
+              "Exchange-correlation energy:                   ",energy%exc+energy%exc_aux_fit
+         ELSE
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
+              "Overlap energy of the core charge distribution:",energy%core_overlap,&
+              "Self energy of the core charge distribution:   ",energy%core_self,&
+              "Core Hamiltonian energy:                       ",energy%core,&
+              "Hartree energy:                                ",energy%hartree,&
+              "Exchange-correlation energy:                   ",energy%exc
+         END IF
          IF (energy%e_hartree /= 0.0_dp) &
               WRITE (UNIT=output_unit,FMT="(T3,A,/,T3,A,T56,F25.14)")&
               "Coulomb Electron-Electron Interaction Energy ",&

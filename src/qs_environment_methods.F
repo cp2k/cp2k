@@ -180,7 +180,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
          CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit,mos=qs_env%mos_aux_fit,&
               blacs_env=qs_env%blacs_env, para_env=para_env,&
               nrow_block=scf_control%nrow_block,&
-              ncol_block=n_ao_aux_fit,&
+!              ncol_block=n_ao_aux_fit,&
+              ncol_block=scf_control%ncol_block,&
               error=error)
         END IF
 
