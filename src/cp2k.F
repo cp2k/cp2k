@@ -292,7 +292,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
      END DO
 #endif
   ELSE
-     WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error"
+     WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error" 
   END IF
 
   ! and the final cleanup
