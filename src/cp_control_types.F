@@ -59,6 +59,7 @@ MODULE cp_control_types
      LOGICAL                              :: hfx_redistribute
      INTEGER                              :: aspc_order
      INTEGER                              :: extrapolation
+     INTEGER                              :: sc_check_start
   END TYPE rtp_control_type
 ! *****************************************************************************
 ! \brief Control parameters for DFTB calculations
@@ -737,8 +738,6 @@ CONTAINS
        NULLIFY(dft_control%efield_fields)
        NULLIFY(dft_control%wfn_fitting_control)
        NULLIFY(dft_control%rtp_control)
-       ALLOCATE(dft_control%rtp_control,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL qs_control_create(dft_control%qs_control, error=error)       
     END IF
   END SUBROUTINE dft_control_create

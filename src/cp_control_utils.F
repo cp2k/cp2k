@@ -233,24 +233,7 @@ CPSourceFileRef,&
     tmp_section => section_vals_get_subs_vals(dft_section,"REAL_TIME_PROPAGATION",error=error)
     CALL section_vals_get(tmp_section,explicit=is_present,error=error)
     IF (is_present) THEN
-       CALL section_vals_val_get(tmp_section,"MAX_ITER",&
-         i_val=dft_control%rtp_control%max_iter,error=error)
-       CALL section_vals_val_get(tmp_section,"MAT_EXP",&
-         i_val=dft_control%rtp_control%mat_exp,error=error)
-       CALL section_vals_val_get(tmp_section,"ASPC_ORDER",&
-         i_val=dft_control%rtp_control%aspc_order,error=error)
-       CALL section_vals_val_get(tmp_section,"EXTRAPOLATION",&
-         i_val=dft_control%rtp_control%extrapolation,error=error)
-       CALL section_vals_val_get(tmp_section,"EXP_ACCURACY",&
-         r_val=dft_control%rtp_control%eps_exp,error=error)
-       CALL section_vals_val_get(tmp_section,"PROPAGATOR",&
-         i_val=dft_control%rtp_control%propagator,error=error)
-       CALL section_vals_val_get(tmp_section,"EPS_ITER",&
-         r_val=dft_control%rtp_control%eps_ener,error=error)
-       CALL section_vals_val_get(tmp_section,"INITIAL_WFN",&
-         i_val=dft_control%rtp_control%initial_wfn,error=error)
-       CALL section_vals_val_get(tmp_section,"HFX_BALANCE_IN_CORE",&
-         l_val=dft_control%rtp_control%hfx_redistribute,error=error)
+       CALL read_rtp_section(dft_control,tmp_section,error)
     END IF
 
     !   *** Read the input section ***
@@ -1556,5 +1539,48 @@ CPSourceFileRef,&
        END IF
     END DO
   END SUBROUTINE read_efield_sections
+
+! *****************************************************************************
+!> \brief reads the input parameters needed real time propagation
+!> \author fschiff
+! *****************************************************************************
+  SUBROUTINE read_rtp_section(dft_control,rtp_section,error)
+
+    TYPE(dft_control_type), INTENT(INOUT)    :: dft_control
+    TYPE(section_vals_type), POINTER         :: rtp_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_rtp_section', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+
+    failure=.FALSE.
+    ALLOCATE(dft_control%rtp_control,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL section_vals_val_get(rtp_section,"MAX_ITER",&
+      i_val=dft_control%rtp_control%max_iter,error=error)
+    CALL section_vals_val_get(rtp_section,"MAT_EXP",&
+      i_val=dft_control%rtp_control%mat_exp,error=error)
+    CALL section_vals_val_get(rtp_section,"ASPC_ORDER",&
+      i_val=dft_control%rtp_control%aspc_order,error=error)
+    CALL section_vals_val_get(rtp_section,"EXTRAPOLATION",&
+      i_val=dft_control%rtp_control%extrapolation,error=error)
+    CALL section_vals_val_get(rtp_section,"EXP_ACCURACY",&
+      r_val=dft_control%rtp_control%eps_exp,error=error)
+    CALL section_vals_val_get(rtp_section,"PROPAGATOR",&
+      i_val=dft_control%rtp_control%propagator,error=error)
+    CALL section_vals_val_get(rtp_section,"EPS_ITER",&
+      r_val=dft_control%rtp_control%eps_ener,error=error)
+    CALL section_vals_val_get(rtp_section,"INITIAL_WFN",&
+      i_val=dft_control%rtp_control%initial_wfn,error=error)
+    CALL section_vals_val_get(rtp_section,"HFX_BALANCE_IN_CORE",&
+      l_val=dft_control%rtp_control%hfx_redistribute,error=error)
+    CALL section_vals_val_get(rtp_section,"SC_CHECK_START",&
+      i_val=dft_control%rtp_control%sc_check_start,error=error)
+
+  END SUBROUTINE read_rtp_section
 
 END MODULE cp_control_utils

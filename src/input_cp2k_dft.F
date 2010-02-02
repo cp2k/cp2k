@@ -6932,7 +6932,7 @@ CONTAINS
        CALL keyword_create(keyword, name="EPS_ITER",&
             description="Convergence criterium for the self consistent propagator loop.",&
             usage="EPS_ITER 1.0E-5",&
-            default_r_val=1.0E-6_dp,&
+            default_r_val=1.0E-7_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -6940,8 +6940,8 @@ CONTAINS
        CALL keyword_create(keyword, name="ASPC_ORDER",&
             description="Speciefies how many steps will be used for extrapolation. "//&
             "One will be always used which is means X(t+dt)=X(t)",&
-            usage="ASPC_ORDER 4",&
-            default_i_val=4,&
+            usage="ASPC_ORDER 3",&
+            default_i_val=3,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -6961,7 +6961,7 @@ CONTAINS
             description="Which method should be used to calculate the exponential"//&
             " in the propagator. For Ehrenfest MD only the Taylor method works, "//&
             "for real time propagation diagonalization works as well.",&
-            usage="MAT_EXP TAYLOR",default_i_val=do_taylor, &
+            usage="MAT_EXP TAYLOR",default_i_val=do_arnoldi, &
             enum_c_vals=s2a("TAYLOR","DIAG","PADE","ARNOLDI"),&
             enum_i_vals=(/do_taylor,do_diag,do_pade,do_arnoldi/),&
             enum_desc=s2a("exponential is evaluated using scaling and squaring in combination"//&
@@ -6970,6 +6970,15 @@ CONTAINS
             "uses scaling and squaring together with the pade approximation",&
             "uses arnoldi subspace algorithm to compute exp(H)*MO directly, can't be used in "//&
             "combination with Crank Nicholson"),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SC_CHECK_START",&
+            description="Speciefies how many iteration steps will be done without "//&
+            "a check for self consistency. Can save some time in big calculations.",&
+            usage="SC_CHECK_START 3",&
+            default_i_val=0,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
