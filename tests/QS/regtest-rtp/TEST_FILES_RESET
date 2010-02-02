@@ -93,3 +93,29 @@ H2plus-emd.inp
 wfn_mix_1.inp
 # turned on dbcsr_multiply_fm_fm_t
 wfn_mix_1.inp
+#change in defaults
+H2-emd_CN.inp
+H2-emd-efield.inp
+H2-emd_EM.inp
+H2-emd_ETRS_PADE.inp
+H2-emd.inp
+H2-emd_restart-1.inp
+H2-emd_restart.inp
+H2plus-emd-1.inp
+H2plus-emd.inp
+H2plus-rtp-1.inp
+H2plus-rtp.inp
+H2-rtp_CN.inp
+H2-rtp-efield.inp
+H2-rtp_EM_DIAG.inp
+H2-rtp_ETRS_ARNOLDI.inp
+H2-rtp_ETRS_PADE.inp
+H2-rtp.inp
+H2-rtp_restart-1.inp
+H2-rtp_restart.inp
+wfn_mix_0.inp
+wfn_mix_1.inp
+wfn_mix_2.inp
+wfn_mix_loc-0.inp
+wfn_mix_loc-1.inp
+
