@@ -359,7 +359,7 @@ CONTAINS
                 ind = 0
                 DO i = 1,nline
                   IF(ind+10<localized_wfn_control%nloc_states(1)) THEN
-                    WRITE (UNIT=output_unit,FMT="(T8,10I7)") localized_wfn_control%loc_states(ind+1:ind+20)
+                    WRITE (UNIT=output_unit,FMT="(T8,10I7)") localized_wfn_control%loc_states(ind+1:ind+10)
                     ind=ind+10
                   ELSE
                     WRITE (UNIT=output_unit,FMT="(T8,10I7)") &
