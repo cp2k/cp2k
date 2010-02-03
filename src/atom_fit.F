@@ -966,17 +966,18 @@ CONTAINS
     WRITE(iw,'(4I5)') gthpot%econf
     WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rc,gthpot%ncl,(gthpot%cl(i),i=1,gthpot%ncl)
     n = 0
-    DO i=0,3
-      IF ( gthpot%nl(i) > 0 ) n = n+1
+    DO i=3,0,-1
+      IF ( gthpot%nl(i) > 0 ) THEN
+         n = i+1
+         EXIT
+      END IF
     END DO
     WRITE(iw,'(I8)') n
-    DO i=0,3
-      IF ( gthpot%nl(i) > 0 ) THEN
-        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rcnl(i),gthpot%nl(i),(gthpot%hnl(1,k,i),k=1,gthpot%nl(i))
-        DO j=2,gthpot%nl(i)
-          WRITE(iw,'(T20,5F18.12)') (gthpot%hnl(j,k,i),k=j,gthpot%nl(i))
-        END DO
-      END IF
+    DO i=0,n-1
+      WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rcnl(i),gthpot%nl(i),(gthpot%hnl(1,k,i),k=1,gthpot%nl(i))
+      DO j=2,gthpot%nl(i)
+        WRITE(iw,'(T20,5F18.12)') (gthpot%hnl(j,k,i),k=j,gthpot%nl(i))
+      END DO
     END DO
     CALL close_file(unit_number=iw)
 

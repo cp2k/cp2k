@@ -488,8 +488,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (integrals%tzora,integrals%hdkh)
-
     cspeed = 1._dp/a_fine
 
     SELECT CASE (reltyp)
@@ -516,7 +514,10 @@ CONTAINS
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
       CASE (do_nonrel_atom)
         ! nothing to do
+        NULLIFY (integrals%tzora,integrals%hdkh)
       CASE (do_zoramp_atom)
+
+        NULLIFY (integrals%hdkh)
 
         IF ( integrals%zorastat == 0 ) THEN
           n = MAXVAL(basis%nbas)
@@ -545,6 +546,8 @@ CONTAINS
         END IF
 
       CASE (do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom)
+
+        NULLIFY (integrals%tzora)
 
         CPPostcondition(PRESENT(zcore), cp_failure_level, routineP, error, failure)
         IF ( integrals%dkhstat == 0 ) THEN
@@ -591,6 +594,8 @@ CONTAINS
           DEALLOCATE (tp,sp,vp,pvp,STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
+        ELSE
+          CPPostcondition(ASSOCIATED(integrals%hdkh), cp_failure_level, routineP, error, failure)
         END IF
 
     END SELECT
