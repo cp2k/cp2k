@@ -73,6 +73,7 @@ CONTAINS
                                                 maxlgem(2), nat, ngem, nkind, &
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
+    REAL(KIND=dp)                            :: xfraction
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -122,6 +123,9 @@ CONTAINS
     CALL set_ri_env(ri_env, ggg_integral_storage=ri_store_int2, error=error)
     CALL semi_empirical_si_create(ri_store_int3, hfx_section, compression=.FALSE., error=error)
     CALL set_ri_env(ri_env, gemdiag_integral_storage=ri_store_int3, error=error)
+
+    !fraction of exchange
+    CALL section_vals_val_get(hfx_section, "FRACTION", r_val=ri_env%xfraction, error=error)
 
     !input
     hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF%HFX_RI",error=error)
@@ -218,7 +222,7 @@ CONTAINS
   END SUBROUTINE hfx_ri_energy_potential
 
 ! *****************************************************************************
-!> \brief calculates the HFX energy in RIO approximation
+!> \brief calculates the HFX energy in RI approximation
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE hfx_ri_energy (qs_env,error)

@@ -93,7 +93,8 @@ MODULE qs_geminals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: ehfx1, eps_screening, fij
+    REAL(KIND=dp)                            :: ehfx1, eps_screening, fij, &
+                                                xfraction
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ivec, jvec
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: intab
@@ -129,6 +130,7 @@ MODULE qs_geminals
 
     NULLIFY(store_int)
     CALL get_ri_env(ri_env=ri_env,gem_integral_storage=store_int,screening=eps_screening,error=error)
+    CALL get_ri_env(ri_env=ri_env,xfraction=xfraction,error=error)
 
     CALL ri_vector_set(rirvec, 0._dp, error)
 
@@ -212,7 +214,7 @@ MODULE qs_geminals
                 rirvec%vector(jkind)%vmat(1:ngb,atom_b) = rirvec%vector(jkind)%vmat(1:ngb,atom_b) + jvec(1:ngb)
 
                 IF ( calculate_energy ) THEN
-                  ehfx1 = ehfx1 + DOT_PRODUCT(ivec(1:nga),ivmat(1:nga,atom_a))
+                  ehfx1 = ehfx1 + DOT_PRODUCT(ivec(1:nga),ivmat(1:nga,atom_a)) * xfraction
                 END IF
                 IF ( calculate_force .OR. calculate_virial ) THEN
                    ivec(1:nga) = fij*MATMUL(intab(1:nga,1:ngb,2),jvmat(1:ngb,atom_b))
@@ -221,6 +223,7 @@ MODULE qs_geminals
                    force_a(2) = DOT_PRODUCT(ivec(1:nga),ivmat(1:nga,atom_a))
                    ivec(1:nga) = fij*MATMUL(intab(1:nga,1:ngb,4),jvmat(1:ngb,atom_b))
                    force_a(3) = DOT_PRODUCT(ivec(1:nga),ivmat(1:nga,atom_a))
+                   force_a(1:3) = force_a(1:3) * xfraction
                    force_b(1:3) = -force_a(1:3)
                    IF ( calculate_force ) THEN
                       force(ikind)%hfx_ri(:,atom_a)=force(ikind)%hfx_ri(:,atom_a) - force_a(:)
@@ -283,7 +286,8 @@ MODULE qs_geminals
     INTEGER, DIMENSION(:), POINTER           :: atom_list, atom_of_kind, &
                                                 kind_of
     LOGICAL                                  :: failure = .FALSE., found, tr
-    REAL(KIND=dp)                            :: ehfx2, eps_screening, f0, fij
+    REAL(KIND=dp)                            :: ehfx2, eps_screening, f0, &
+                                                fij, xfraction
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: kdvec
     REAL(KIND=dp), ALLOCATABLE, &
@@ -334,6 +338,7 @@ MODULE qs_geminals
 
     NULLIFY(store_int)
     CALL get_ri_env(ri_env=ri_env,ggg_integral_storage=store_int,screening=eps_screening,error=error)
+    CALL get_ri_env(ri_env=ri_env,xfraction=xfraction,error=error)
 
     CALL get_ri_env(ri_env=ri_env,coeff=ri_coeff,rhs=ri_rhs,error=error)
     CALL ri_vector_set(ri_rhs, 0._dp, error)
@@ -429,12 +434,12 @@ MODULE qs_geminals
 
              kcoeff => ri_coeff%vector(kkind)%vmat(:,atom_c)
              IF ( calculate_energy ) THEN
-                ehfx2 = ehfx2 + fij*DOT_PRODUCT(kdvec(1:ngem,1),kcoeff(1:ngem))
+                ehfx2 = ehfx2 + fij*DOT_PRODUCT(kdvec(1:ngem,1),kcoeff(1:ngem)) * xfraction
              END IF
              IF ( calculate_force .OR. calculate_virial ) THEN
                 DO k=2,7
                    DO i=1,ngem
-                      kdvec(i,k) = fij*SUM(intabc(1:na,1:nb,i,k)*p_block1(1:na,1:nb))
+                      kdvec(i,k) = xfraction*fij*SUM(intabc(1:na,1:nb,i,k)*p_block1(1:na,1:nb))
                    END DO
                 END DO
                 force_c(1) = -DOT_PRODUCT(kdvec(1:ngem,2),kcoeff(1:ngem))
@@ -460,7 +465,7 @@ MODULE qs_geminals
              END IF
              IF ( calculate_fock ) THEN
                 DO i=1,ngem
-                   ks_block1(1:na,1:nb) = ks_block1(1:na,1:nb)-0.5_dp*intabc(1:na,1:nb,i,1)*kcoeff(i)
+                   ks_block1(1:na,1:nb) = ks_block1(1:na,1:nb)-0.5_dp*intabc(1:na,1:nb,i,1)*kcoeff(i)*xfraction
                 END DO
              END IF
 
@@ -834,6 +839,7 @@ MODULE qs_geminals
              store_int%max_val_buffer(store_int%nbuffer) = MAXVAL(ABS(intab(:,:,1)))
              nbits        = EXPONENT(store_int%max_val_buffer(store_int%nbuffer)/eps_storage) + 1
              nbits        = MIN(nbits,64)
+             nbits        = MAX(nbits,1)
              buffer_left  = nints
              buffer_start = 1
              DO WHILE (buffer_left > 0)
@@ -863,6 +869,7 @@ MODULE qs_geminals
              ! Get Integrals from containers
              nbits        = EXPONENT(store_int%max_val_buffer(store_int%nbuffer)/eps_storage) + 1
              nbits        = MIN(nbits,64)
+             nbits        = MAX(nbits,1)
              buffer_left  = nints
              buffer_start = 1
              DO WHILE (buffer_left > 0)
@@ -1103,6 +1110,7 @@ MODULE qs_geminals
              store_int%max_val_buffer(store_int%nbuffer) = MAXVAL(ABS(intabc(:,:,:,1)))
              nbits        = EXPONENT(store_int%max_val_buffer(store_int%nbuffer)/eps_storage) + 1
              nbits        = MIN(nbits,64)
+             nbits        = MAX(nbits,1)
              buffer_left  = nints
              buffer_start = 1
              DO WHILE (buffer_left > 0)
@@ -1134,6 +1142,7 @@ MODULE qs_geminals
              ! Get Integrals from containers
              nbits        = EXPONENT(store_int%max_val_buffer(store_int%nbuffer)/eps_storage) + 1
              nbits        = MIN(nbits,64)
+             nbits        = MAX(nbits,1)
              buffer_left  = nints
              buffer_start = 1
              DO WHILE (buffer_left > 0)

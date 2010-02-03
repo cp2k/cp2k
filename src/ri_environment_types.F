@@ -37,6 +37,7 @@ MODULE ri_environment_types
      TYPE(ri_vector_type), POINTER                    :: coeff
      TYPE(ri_vector_type), POINTER                    :: rhs
      REAL(KIND=dp)                                    :: ehfx1, ehfx2
+     REAL(KIND=dp)                                    :: xfraction
      TYPE(semi_empirical_si_type), POINTER            :: gem_integral_storage
      TYPE(semi_empirical_si_type), POINTER            :: gemdiag_integral_storage
      TYPE(semi_empirical_si_type), POINTER            :: ggg_integral_storage
@@ -93,6 +94,7 @@ CONTAINS
 
     ri_env%ehfx1=0._dp
     ri_env%ehfx2=0._dp
+    ri_env%xfraction=1._dp
 
     ri_env%screening=0._dp
     ri_env%eps_opt=0._dp
@@ -110,7 +112,7 @@ CONTAINS
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE set_ri_env ( ri_env, coeff, rhs, gem_integral_storage, ggg_integral_storage, &
-                          gemdiag_integral_storage, screening, error )
+                          gemdiag_integral_storage, xfraction, screening, error )
 
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), OPTIONAL, POINTER  :: coeff, rhs
@@ -118,7 +120,7 @@ CONTAINS
       POINTER                                :: gem_integral_storage, &
                                                 ggg_integral_storage, &
                                                 gemdiag_integral_storage
-    REAL(KIND=dp), INTENT(in), OPTIONAL      :: screening
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: xfraction, screening
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     IF ( PRESENT(coeff) ) ri_env%coeff => coeff
@@ -136,6 +138,7 @@ CONTAINS
        ri_env%gemdiag_integral_storage => gemdiag_integral_storage
     END IF
     IF ( PRESENT(screening) ) ri_env%screening = screening
+    IF ( PRESENT(xfraction) ) ri_env%xfraction = xfraction
 
   END SUBROUTINE set_ri_env
 
@@ -146,7 +149,7 @@ CONTAINS
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE get_ri_env ( ri_env, coeff, rhs, gem_integral_storage, ggg_integral_storage, &
-                          gemdiag_integral_storage, screening, eps_opt, max_iter, error )
+                          gemdiag_integral_storage, screening, xfraction, eps_opt, max_iter, error )
 
     TYPE(ri_environment_type), POINTER       :: ri_env
     TYPE(ri_vector_type), OPTIONAL, POINTER  :: coeff, rhs
@@ -154,7 +157,7 @@ CONTAINS
       POINTER                                :: gem_integral_storage, &
                                                 ggg_integral_storage, &
                                                 gemdiag_integral_storage
-    REAL(KIND=dp), INTENT(inout), OPTIONAL   :: screening, eps_opt
+    REAL(KIND=dp), INTENT(inout), OPTIONAL   :: screening, xfraction, eps_opt
     INTEGER, INTENT(inout), OPTIONAL         :: max_iter
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -164,6 +167,7 @@ CONTAINS
     IF ( PRESENT(ggg_integral_storage) ) ggg_integral_storage => ri_env%ggg_integral_storage
     IF ( PRESENT(gemdiag_integral_storage) ) gemdiag_integral_storage => ri_env%gemdiag_integral_storage
     IF ( PRESENT(screening) ) screening = ri_env%screening
+    IF ( PRESENT(xfraction) ) xfraction = ri_env%xfraction
     IF ( PRESENT(eps_opt) ) eps_opt = ri_env%eps_opt
     IF ( PRESENT(max_iter) ) max_iter = ri_env%max_iter
 
