@@ -73,7 +73,6 @@ CONTAINS
                                                 maxlgem(2), nat, ngem, nkind, &
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natoms, nbasis
-    REAL(KIND=dp)                            :: xfraction
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

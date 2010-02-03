@@ -384,7 +384,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, i, ispin, lb, ndim, ub
+    INTEGER                                  :: handle, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
     TYPE(cp_fm_p_type), DIMENSION(:), &
