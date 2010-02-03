@@ -91,7 +91,6 @@ MODULE qs_loc_methods
   USE qs_localization_methods,         ONLY: approx_l1_norm_sd,&
                                              crazy_rotations,&
                                              direct_mini,&
-                                             jacobi_rot_para,&
                                              jacobi_rotations
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -205,15 +204,9 @@ CONTAINS
          ispin, loc_section, print_loc_section, only_initial_out=.TRUE., error=error )
     SELECT CASE ( method )
     CASE ( do_loc_jacobi )
-      IF(para_env%num_pe > 1 .AND. nmoloc > 2*para_env%num_pe) THEN
-        CALL jacobi_rot_para ( weights, zij_fm_set, vectors, para_env, max_iter=max_iter,&
+        CALL jacobi_rotations ( weights, zij_fm_set, vectors, para_env, max_iter=max_iter,&
             eps_localization=eps_localization, sweeps=sweeps, &
             out_each=out_each, target_time=target_time, start_time=start_time, error=error )
-      ELSE
-        CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=max_iter,&
-            eps_localization=eps_localization, sweeps=sweeps, &
-            out_each=out_each, error=error )
-      END IF
     CASE ( do_loc_crazy )
        CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=max_iter, max_crazy_angle = max_crazy_angle, &
             crazy_scale=crazy_scale, crazy_use_diag=crazy_use_diag, &
@@ -225,9 +218,9 @@ CONTAINS
              IF (output_unit>0) WRITE (output_unit,"(A,I6,A)")&
                   " Crazy Wannier localization not converged after ",sweeps,&
                   " iterations, switching to jacobi rotations"
-             CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=max_iter,&
-                  eps_localization=eps_localization, sweeps=sweeps,&
-                  out_each=out_each, error=error  )            
+             CALL jacobi_rotations ( weights, zij_fm_set, vectors, para_env, max_iter=max_iter,&
+                 eps_localization=eps_localization, sweeps=sweeps, &
+                 out_each=out_each, target_time=target_time, start_time=start_time, error=error )
           ELSE
              IF (output_unit>0) WRITE (output_unit,"(A,I6,A)")&
                   " Crazy Wannier localization not converged after ",sweeps,&

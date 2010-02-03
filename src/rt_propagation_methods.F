@@ -384,7 +384,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
-    INTEGER                                  :: handle, ispin, lb, ndim, ub,i
+    CHARACTER(20)                            :: form
+    INTEGER                                  :: handle, i, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -394,7 +395,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(rt_prop_type), POINTER              :: rtp
-    CHARACTER(20)::form
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -429,10 +429,10 @@ CONTAINS
     IF(.NOT.qs_env%dft_control%rtp_control%fixed_ions)THEN
        CALL get_rtp(rtp=rtp,B_mat=B_mat,SinvB=SinvB,error=error)
        CALL cp_fm_gemm("N","N",ndim,ndim,ndim,one,rtp%S_inv,B_mat,zero,exp_H(1)%matrix,error)
-       write(form,"(A,I0,A)")"(",SIZE(B_mat%local_data,2),"(F7.5,1X))"
-       write(*,*)form
+       WRITE(form,"(A,I0,A)")"(",SIZE(B_mat%local_data,2),"(F7.5,1X))"
+       WRITE(*,*)form
        DO i=1,SIZE(B_mat%local_data,1)
-          write(*,form)exp_H(1)%matrix%local_data(i,:)
+          WRITE(*,form)exp_H(1)%matrix%local_data(i,:)
        END DO
        CALL cp_fm_to_fm(exp_H(1)%matrix,SinvB,error)
        IF(SIZE(matrix_ks)==2)CALL cp_fm_to_fm(exp_H(1)%matrix,exp_H(3)%matrix,error)

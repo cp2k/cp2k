@@ -1556,7 +1556,6 @@ CPSourceFileRef,&
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-
     failure=.FALSE.
     ALLOCATE(dft_control%rtp_control,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

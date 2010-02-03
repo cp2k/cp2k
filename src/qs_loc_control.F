@@ -355,14 +355,14 @@ CONTAINS
              CASE (state_loc_list)
                 WRITE (UNIT=output_unit,FMT="(T2,A)")&
                      "LOCALIZE| Orbitals to be localized: Those with index in the following list"
-                nline = localized_wfn_control%nloc_states(1)/20+1
+                nline = localized_wfn_control%nloc_states(1)/10+1
                 ind = 0
                 DO i = 1,nline
-                  IF(ind+20<localized_wfn_control%nloc_states(1)) THEN
-                    WRITE (UNIT=output_unit,FMT="(T8,20I7)") localized_wfn_control%loc_states(ind+1:ind+20)
-                    ind=ind+20
+                  IF(ind+10<localized_wfn_control%nloc_states(1)) THEN
+                    WRITE (UNIT=output_unit,FMT="(T8,10I7)") localized_wfn_control%loc_states(ind+1:ind+20)
+                    ind=ind+10
                   ELSE
-                    WRITE (UNIT=output_unit,FMT="(T8,20I7)") &
+                    WRITE (UNIT=output_unit,FMT="(T8,10I7)") &
                         localized_wfn_control%loc_states(ind+1:localized_wfn_control%nloc_states(1))
                     ind = localized_wfn_control%nloc_states(1)
                   END IF
