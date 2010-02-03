@@ -24,6 +24,7 @@ MODULE qs_mo_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_dbcsr_operations,             ONLY: dbcsr_copy_columns_hack
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
@@ -38,6 +39,10 @@ MODULE qs_mo_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_init_p,&
+                                             dbcsr_release_p
+  USE dbcsr_operations,                ONLY: dbcsr_copy
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE fermi_utils,                     ONLY: FermiFixed,&
                                              FermiFixedDeriv
   USE input_constants,                 ONLY: smear_energy_window,&
@@ -79,6 +84,7 @@ MODULE qs_mo_types
   TYPE mo_set_type
     ! the actual MO coefficients as a matrix
     TYPE(cp_fm_type), POINTER                 :: mo_coeff
+    TYPE(dbcsr_obj), POINTER                  :: mo_coeff_b
     ! number of molecular orbitals (# cols in mo_coeff)
     INTEGER                                   :: nmo
     ! number of atomic orbitals (# rows in mo_coeff)
@@ -172,6 +178,12 @@ CONTAINS
     CALL cp_fm_create(mo_set_new%mo_coeff,mo_set_old%mo_coeff%matrix_struct,error=error)
     CALL cp_fm_to_fm(mo_set_old%mo_coeff,mo_set_new%mo_coeff,error=error)
 
+    NULLIFY(mo_set_new%mo_coeff_b)
+    IF(ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
+       CALL dbcsr_init_p(mo_set_new%mo_coeff_b)
+       CALL dbcsr_copy(mo_set_new%mo_coeff_b,mo_set_old%mo_coeff_b,error=error)
+    ENDIF
+
     ALLOCATE (mo_set_new%eigenvalues(nmo),STAT=istat)
     CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
     mo_set_new%eigenvalues = mo_set_old%eigenvalues
@@ -231,6 +243,7 @@ CONTAINS
     NULLIFY (mo_set%eigenvalues)
     NULLIFY (mo_set%occupation_numbers)
     NULLIFY (mo_set%mo_coeff)
+    NULLIFY (mo_set%mo_coeff_b)
 
   END SUBROUTINE allocate_mo_set
 
@@ -289,20 +302,24 @@ CONTAINS
 !> \par History
 !>      10.2004 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE mo_set_restrict(mo_array,error)
+  SUBROUTINE mo_set_restrict(mo_array,convert_dbcsr,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
+    LOGICAL, INTENT(in), OPTIONAL            :: convert_dbcsr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mo_set_restrict', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_convert_dbcsr
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
+
+    my_convert_dbcsr = .FALSE.
+    IF(PRESENT(convert_dbcsr)) my_convert_dbcsr = convert_dbcsr
 
     CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routineP,error,failure)
@@ -310,7 +327,14 @@ CONTAINS
 
     ! first nmo_beta orbitals are copied from alpha to beta
     IF (.NOT.failure) THEN
-      CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
+       IF(my_convert_dbcsr) THEN!fm->dbcsr
+          CALL dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b,mo_array(1)%mo_set%mo_coeff_b,&!fm->dbcsr
+               mo_array(2)%mo_set%nmo,1,1,&!fm->dbcsr
+               para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env,&!fm->dbcsr
+               blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context,error=error)!fm->dbcsr
+       ELSE!fm->dbcsr
+          CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
+       ENDIF
     END IF
 
     CALL timestop(handle)
@@ -370,6 +394,7 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
       END IF
       CALL cp_fm_release(mo_set%mo_coeff,error=error)
+      IF(ASSOCIATED(mo_set%mo_coeff_b)) CALL dbcsr_release_p(mo_set%mo_coeff_b)
       DEALLOCATE (mo_set,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -383,7 +408,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
-                        eigenvalues,occupation_numbers,mo_coeff,&
+                        eigenvalues,occupation_numbers,mo_coeff,mo_coeff_b,&
                         uniform_occupation,kTS,mu)
 
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -394,6 +419,7 @@ CONTAINS
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: mo_coeff_b
     LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kTS, mu
 
@@ -408,6 +434,7 @@ CONTAINS
       occupation_numbers => mo_set%occupation_numbers
     END IF
     IF (PRESENT(mo_coeff)) mo_coeff => mo_set%mo_coeff
+    IF (PRESENT(mo_coeff_b)) mo_coeff_b => mo_set%mo_coeff_b
     IF (PRESENT(uniform_occupation)) uniform_occupation = mo_set%uniform_occupation
     IF (PRESENT(kTS)) kTS = mo_set%kTS
     IF (PRESENT(mu)) mu = mo_set%mu

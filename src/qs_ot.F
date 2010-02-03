@@ -11,39 +11,23 @@
 !> \author Joost VandeVondele (06.2002)
 ! *****************************************************************************
 MODULE qs_ot
-  USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                             cp_cfm_gemm
-  USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
-  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                             cp_cfm_get_info,&
-                                             cp_cfm_release,&
-                                             cp_cfm_to_cfm,&
-                                             cp_cfm_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_frobenius_norm,&
-                                             cp_fm_gemm,&
-                                             cp_fm_scale,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_schur_product,&
-                                             cp_fm_symm,&
-                                             cp_fm_transpose
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert,&
-                                             cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_maxabsrownorm,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE cp_dbcsr_cholesky,               ONLY: dbcsr_cholesky_decompose,&
+                                             dbcsr_cholesky_invert,&
+                                             dbcsr_cholesky_restore
+  USE cp_dbcsr_diag,                   ONLY: dbcsr_heevd,&
+                                             dbcsr_syevd
+  USE cp_dbcsr_operations,             ONLY: dbcsr_multiply
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_distribution, dbcsr_get_info, dbcsr_init, dbcsr_init_p, &
+       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_release, &
+       dbcsr_release_p
+  USE dbcsr_operations,                ONLY: &
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_frobenius_norm, &
+       dbcsr_gershgorin_norm, dbcsr_get_block_p, dbcsr_hadamard_product, &
+       dbcsr_new_transposed, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set
+  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
+                                             dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner
@@ -80,6 +64,7 @@ MODULE qs_ot
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
 
+
 CONTAINS
 
   ! gets ready to use the preconditioner/ or renew the preconditioner
@@ -104,17 +89,19 @@ CONTAINS
     qs_ot_env%preconditioner => preconditioner
     qs_ot_env%os_valid = .FALSE.
     IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
-       CALL cp_fm_create(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0%matrix_struct,"matrix_psc0",error=error)
+       CALL dbcsr_init_p(qs_ot_env%matrix_psc0)
+       CALL dbcsr_copy(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0,'matrix_psc0',error=error)
     ENDIF
 
     mixed_precision = qs_ot_env%settings%mixed_precision
 
     IF (.NOT. qs_ot_env%use_dx) THEN
        qs_ot_env%use_dx=.TRUE.
-       CALL cp_fm_create(qs_ot_env%matrix_dx,qs_ot_env%matrix_gx%matrix_struct,"matrix_dx",&
-                         use_sp=mixed_precision,error=error)
+       CALL dbcsr_init_p(qs_ot_env%matrix_dx)
+       CALL dbcsr_copy(qs_ot_env%matrix_dx,qs_ot_env%matrix_gx,'matrix_dx',error=error)
        IF (qs_ot_env%settings%do_rotation) THEN
-          CALL cp_fm_create(qs_ot_env%rot_mat_dx,qs_ot_env%rot_mat_gx%matrix_struct,"rot_mat_dx",error=error)
+          CALL dbcsr_init_p(qs_ot_env%rot_mat_dx)
+          CALL dbcsr_copy(qs_ot_env%rot_mat_dx,qs_ot_env%rot_mat_gx,'rot_mat_dx',error=error)
        ENDIF
        IF (qs_ot_env%settings%do_ener) THEN
           ncoef = SIZE ( qs_ot_env % ener_gx)
@@ -144,7 +131,7 @@ CONTAINS
   SUBROUTINE qs_ot_on_the_fly_localize(qs_ot_env, C_NEW, SC, G_OLD, D, error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_fm_type), POINTER                :: C_NEW, SC, G_OLD, D
+    TYPE(dbcsr_obj)                          :: C_NEW, SC, G_OLD, D
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_on_the_fly_localize', &
@@ -154,41 +141,53 @@ CONTAINS
                                                 f2_eps = 0.01_dp, &
                                                 rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, k, n, p
+    INTEGER                                  :: blk, col, col_size, handle, &
+                                                i, k, n, p, row, row_size
+    LOGICAL                                  :: tr
+    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: expfactor, norm_fro, norm_gct
-    TYPE(cp_fm_type), POINTER                :: C, Gp1, Gp2, GU, U
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj), POINTER                 :: C, Gp1, Gp2, GU, U
 
     CALL timeset(routineN,handle)
     !
-    NULLIFY(U,GU,Gp1,Gp2,C)
+    !
+    CALL dbcsr_get_info(C_NEW,nfullrows_total=n,nfullcols_total=k)
     !
     ! C = C*expm(-G)
-    GU => qs_ot_env%matrix_cosp ! a buffer
-    U  => qs_ot_env%matrix_sinp ! a buffer
-    Gp1=> qs_ot_env%matrix_r    ! a buffer
-    Gp2=> qs_ot_env%matrix_buf1 ! a buffer
-    C  => qs_ot_env%matrix_c0   ! a buffer
-    !
-    CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
+    GU => qs_ot_env%buf1_k_k_nosym ! a buffer
+    U  => qs_ot_env%buf2_k_k_nosym ! a buffer
+    Gp1=> qs_ot_env%buf3_k_k_nosym ! a buffer
+    Gp2=> qs_ot_env%buf4_k_k_nosym ! a buffer
+    C  => qs_ot_env%buf1_n_k       ! a buffer
     !
     ! compute the derivative of the norm
     !-------------------------------------------------------------------
     ! (x^2+eps)^1/2
-    DO p=1,SIZE(C_NEW%local_data,2)   ! p
-       DO i=1,SIZE(C_NEW%local_data,1)! i
-          C%local_data(i,p) = C_NEW%local_data(i,p) / &
-               &              SQRT( C_NEW%local_data(i,p)**2 + f2_eps )
+    CALL dbcsr_copy(C,C_NEW,error=error)
+    CALL dbcsr_iterator_start(iter, C)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr, blk,&
+            row_size=row_size, col_size=col_size)
+       DO p=1,col_size! p
+       DO i=1,row_size! i
+          DATA(i,p) = DATA(i,p) / SQRT( DATA(i,p)**2 + f2_eps )
+       ENDDO
        ENDDO
     ENDDO
-    CALL cp_fm_gemm('T','N',k,k,n,rone,C,C_NEW,rzero,GU,error=error)
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_multiply('T','N',1.0_dp,C,C_NEW,0.0_dp,GU,error=error)
     !
     ! antisymetrize
-    CALL cp_fm_transpose(GU,U,error=error)
-    CALL cp_fm_scale_and_add(-0.5_dp,GU,0.5_dp,U,error=error)
+    CALL dbcsr_new_transposed (U, GU, shallow_data_copy=.FALSE., &
+         use_distribution=dbcsr_distribution(GU), &
+         transpose_distribution=.FALSE., &
+         error=error)
+    CALL dbcsr_add(GU,U,alpha_scalar=-0.5_dp,beta_scalar=0.5_dp,error=error)
     !-------------------------------------------------------------------
     !
-    CALL cp_fm_frobenius_norm(GU,norm_fro,error=error)
-    CALL cp_fm_maxabsrownorm(GU,norm_gct,error=error)
+    norm_fro = dbcsr_frobenius_norm(GU)
+    norm_gct = dbcsr_gershgorin_norm(GU)
     !write(*,*) 'qs_ot_localize: ||P-I||_f=',norm_fro,' ||P-I||_GCT=',norm_gct
     !
     !kscale = CEILING(LOG(MIN(norm_fro,norm_gct))/LOG(2.0_dp))
@@ -196,43 +195,43 @@ CONTAINS
     !write(*,*) 'qs_ot_localize: scale=',scale,' kscale=',kscale
     !
     ! rescale for steepest descent
-    CALL cp_fm_scale(-alpha, GU, error=error)
+    CALL dbcsr_scale(GU, -alpha, error=error)
     !
     ! compute unitary transform
-    ! zeroth order
-    CALL cp_fm_set_all(U,rzero,rone,error=error)
-    ! first order
+    ! zeroth and first order
     expfactor = 1.0_dp
-    CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,GU,error=error)
+    CALL dbcsr_copy(U,GU,error=error)
+    CALL dbcsr_scale(U,expfactor,error=error)
+    CALL dbcsr_add_on_diag(U,1.0_dp,error=error)
     ! other orders
-    CALL cp_fm_to_fm(GU,Gp1,error=error)
+    CALL dbcsr_copy(Gp1,GU,error=error)
     DO i = 2,taylor_order
        ! new power of G
-       CALL cp_fm_gemm('N','N',k,k,k,rone,GU,Gp1,rzero,Gp2,error=error)
-       CALL cp_fm_to_fm(Gp2,Gp1,error=error)
+       CALL dbcsr_multiply('N','N',1.0_dp,GU,Gp1,0.0_dp,Gp2,error=error)
+       CALL dbcsr_copy(Gp1,Gp2,error=error)
        ! add to the taylor expansion so far
        expfactor = expfactor / REAL(i,KIND=dp)
-       CALL cp_fm_scale_and_add(1.0_dp,U,expfactor,Gp1,error=error)
-       CALL cp_fm_frobenius_norm(Gp1,norm_fro,error=error)
+       CALL dbcsr_add(U,Gp1,alpha_scalar=1.0_dp,beta_scalar=expfactor,error=error)
+       norm_fro = dbcsr_frobenius_norm(Gp1)
        !write(*,*) 'Taylor expansion i=',i,' norm(X^i)/i!=',norm_fro*expfactor
        IF(norm_fro*expfactor.LT.1.0E-10_dp) EXIT
     ENDDO
     !
     ! rotate MOs
-    CALL cp_fm_gemm('N','N',n,k,k,rone,C_NEW,U,rzero,C,error=error)
-    CALL cp_fm_to_fm(C,C_NEW,error=error)
+    CALL dbcsr_multiply('N','N',1.0_dp,C_NEW,U,0.0_dp,C,error=error)
+    CALL dbcsr_copy(C_NEW,C,error=error)
     !
     ! rotate SC
-    CALL cp_fm_gemm('N','N',n,k,k,rone,SC,U,rzero,C,error=error)
-    CALL cp_fm_to_fm(C,SC,error=error)
+    CALL dbcsr_multiply('N','N',1.0_dp,SC,U,0.0_dp,C,error=error)
+    CALL dbcsr_copy(SC,C,error=error)
     !
     ! rotate D_i
-    CALL cp_fm_gemm('N','N',n,k,k,rone,D,U,rzero,C,error=error)
-    CALL cp_fm_to_fm(C,D,error=error)
+    CALL dbcsr_multiply('N','N',1.0_dp,D,U,0.0_dp,C,error=error)
+    CALL dbcsr_copy(D,C,error=error)
     !
     ! rotate G_i-1
-    CALL cp_fm_gemm('N','N',n,k,k,rone,G_OLD,U,rzero,C,error=error)
-    CALL cp_fm_to_fm(C,G_OLD,error=error)
+    CALL dbcsr_multiply('N','N',1.0_dp,G_OLD,U,0.0_dp,C,error=error)
+    CALL dbcsr_copy(G_OLD,C,error=error)
     !
     CALL timestop(handle)
   END SUBROUTINE qs_ot_on_the_fly_localize
@@ -241,7 +240,7 @@ CONTAINS
   SUBROUTINE qs_ot_ref_chol(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_fm_type), POINTER                :: C_OLD, C_TMP, C_NEW, P, SC
+    TYPE(dbcsr_obj)                          :: C_OLD, C_TMP, C_NEW, P, SC
     LOGICAL, INTENT(IN)                      :: update
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -252,20 +251,21 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !
-    CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
+    CALL dbcsr_get_info(C_NEW,nfullrows_total=n,nfullcols_total=k)
     !
     ! P = U'*U
-    CALL cp_fm_cholesky_decompose(P,k,error=error)
+    CALL dbcsr_cholesky_decompose(P,k,qs_ot_env%para_env,qs_ot_env%blacs_env,error=error)
     !
     ! C_NEW = C_OLD*inv(U)
-    CALL cp_fm_cholesky_restore(C_OLD,k,P,C_NEW,op="SOLVE",pos="RIGHT",&
-         &                      transa="N",error=error)
+    CALL dbcsr_cholesky_restore(C_OLD,k,P,C_NEW,op="SOLVE",pos="RIGHT",&
+         transa="N",para_env=qs_ot_env%para_env,blacs_env=qs_ot_env%blacs_env,&
+         error=error)
     !
     ! Update SC if needed
     IF(update) THEN
-       CALL cp_fm_cholesky_restore(SC,k,P,C_TMP,op="SOLVE",pos="RIGHT",&
-            &                      transa="N",error=error)
-       CALL cp_fm_to_fm(C_TMP,SC,error=error)
+       CALL dbcsr_cholesky_restore(SC,k,P,C_TMP,op="SOLVE",pos="RIGHT",&
+            transa="N",para_env=qs_ot_env%para_env,blacs_env=qs_ot_env%blacs_env,error=error)
+       CALL dbcsr_copy(SC,C_TMP,error=error)
     ENDIF
     !
     CALL timestop(handle)
@@ -275,52 +275,56 @@ CONTAINS
   SUBROUTINE qs_ot_ref_lwdn(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_fm_type), POINTER                :: C_OLD, C_TMP, C_NEW, P, SC
+    TYPE(dbcsr_obj)                          :: C_OLD, C_TMP, C_NEW, P, SC
     LOGICAL, INTENT(IN)                      :: update
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_lwdn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, k, n
-    REAL(dp), DIMENSION(:), POINTER          :: eig, fun
-    TYPE(cp_fm_type), POINTER                :: V, W
+    INTEGER                                  :: handle, i, istat, k, n
+    LOGICAL                                  :: failure
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig, fun
+    TYPE(dbcsr_obj), POINTER                 :: V, W
+
+    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     !
-    NULLIFY(V,W,eig)
+    CALL dbcsr_get_info(C_NEW,nfullrows_total=n,nfullcols_total=k)
     !
-    CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
+    V   => qs_ot_env%buf1_k_k_nosym ! a buffer
+    W   => qs_ot_env%buf2_k_k_nosym ! a buffer
+    ALLOCATE(eig(k), fun(k), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     !
-    V   => qs_ot_env%matrix_cosp ! a buffer
-    W   => qs_ot_env%matrix_sinp ! a buffer
-    eig => qs_ot_env%evals       ! a buffer
-    fun => qs_ot_env%dum         ! a buffer
-    !
-    CALL cp_fm_syevd(P,V,eig,error=error)
+    CALL dbcsr_syevd(P,V,eig,qs_ot_env%para_env,qs_ot_env%blacs_env,error=error)
     !
     ! compute the P^(-1/2)
     DO i = 1,k
        IF(eig(i).LE.0.0_dp) &
-            & CALL stop_program("qs_ot_ref_lwdn","P not positive definite")
+            & CALL stop_program(routineN,"P not positive definite")
        IF(eig(i).LT.1.0E-8_dp) THEN
           fun(i)=0.0_dp
        ELSE
           fun(i)=1.0_dp/SQRT(eig(i))
        ENDIF
     ENDDO
-    CALL cp_fm_to_fm(V,W,error=error)
-    CALL cp_fm_column_scale(V,fun)
-    CALL cp_fm_gemm('N','T',k,k,k,1.0_dp,W,V,0.0_dp,P,error=error)
+    CALL dbcsr_copy(W,V,error=error)
+    CALL dbcsr_scale_by_vector(V,alpha=fun,side='right',error=error)
+    CALL dbcsr_multiply('N','T',1.0_dp,W,V,0.0_dp,P,error=error)
     !
     ! Update C
-    CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,C_OLD,P,0.0_dp,C_NEW,error=error)
+    CALL dbcsr_multiply('N','N',1.0_dp,C_OLD,P,0.0_dp,C_NEW,error=error)
     !
     ! Update SC if needed
     IF(update) THEN
-       CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,SC,P,0.0_dp,C_TMP,error=error)
-       CALL cp_fm_to_fm(C_TMP,SC,error=error)
+       CALL dbcsr_multiply('N','N',1.0_dp,SC,P,0.0_dp,C_TMP,error=error)
+       CALL dbcsr_copy(SC,C_TMP,error=error)
     ENDIF
+    !
+    DEALLOCATE(eig, fun, STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     CALL timestop(handle)
   END SUBROUTINE qs_ot_ref_lwdn
@@ -329,34 +333,37 @@ CONTAINS
   SUBROUTINE qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_fm_type), POINTER                :: C_OLD, C_TMP, C_NEW, P, SC
+    TYPE(dbcsr_obj)                          :: C_OLD, C_TMP, C_NEW
+    TYPE(dbcsr_obj), POINTER                 :: P
+    TYPE(dbcsr_obj)                          :: SC
     REAL(dp), INTENT(IN)                     :: norm_in
     LOGICAL, INTENT(IN)                      :: update
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_poly', &
       routineP = moduleN//':'//routineN
-    REAL(dp), PARAMETER                      :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, irefine, k, n, &
                                                 output_unit
     LOGICAL                                  :: quick_exit
     REAL(dp)                                 :: norm, norm_fro, norm_gct, &
                                                 rescale
-    TYPE(cp_fm_type), POINTER                :: FT, FY, Y
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj), POINTER                 :: BUF1, BUF2, BUF_NOSYM, FT, FY
 
     CALL timeset(routineN,handle)
     !
-    NULLIFY(logger,FY,Y)
+    NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
     !
-    CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
+    CALL dbcsr_get_info(C_NEW,nfullrows_total=n,nfullcols_total=k)
     !
-    Y  => qs_ot_env%matrix_cosp ! a buffer
-    FY => qs_ot_env%matrix_sinp ! a buffer
-    FT => qs_ot_env%matrix_r    ! a buffer
+    BUF_NOSYM => qs_ot_env%buf1_k_k_nosym! a buffer
+    BUF1      => qs_ot_env%buf1_k_k_sym  ! a buffer
+    BUF2      => qs_ot_env%buf2_k_k_sym  ! a buffer
+    FY        => qs_ot_env%buf3_k_k_sym  ! a buffer
+    FT        => qs_ot_env%buf4_k_k_sym  ! a buffer
     !
     ! initialize the norm (already computed in qs_ot_get_orbitals_ref)
     norm = norm_in
@@ -372,47 +379,55 @@ CONTAINS
        ! rescaling
        IF(norm.GT.1.0_dp) THEN
           IF(output_unit>0) WRITE(output_unit,'(A,I3,A)') &
-               &'qs_ot_ref_poly: ',irefine,': we rescale (C+a*D)'
-          CALL cp_fm_scale(1.0_dp/norm,P,error=error)
+               & routineN,irefine,': we rescale (C+a*D)'
+          CALL dbcsr_scale(P,1.0_dp/norm,error=error)
           rescale = rescale/SQRT(norm)
        ENDIF
        !
        ! get the refinement polynomial
-       CALL qs_ot_refine(qs_ot_env,P,FY,error)
+       CALL qs_ot_refine(P, FY, BUF1, BUF2, qs_ot_env%settings%irac_degree, error)
        !
        ! collect the transformation
        IF(irefine.EQ.1) THEN
-          CALL cp_fm_to_fm(FY,FT,error=error)
+          CALL dbcsr_copy(FT, FY, name='FT', error=error)
        ELSE
-          CALL cp_fm_gemm('N','N',k,k,k,rone,FT,FY,rzero,Y,error=error)
-          CALL cp_fm_to_fm(Y,FT,error=error)
+          CALL dbcsr_multiply('N', 'N', 1.0_dp, FT, FY, 0.0_dp, BUF1, error=error)
+          CALL dbcsr_copy(FT, BUF1, name='FT', error=error)
        ENDIF
+       !occ_in = dbcsr_get_occupation(ft)
+       !call dbcsr_filter(ft,1e-5_dp,error=error)
+       !occ_out = dbcsr_get_occupation(ft)
+       !IF(output_unit>0) WRITE(output_unit,*) 'FT: occ_in',occ_in,' occ_out',occ_out
        !
        ! quick exit if possible
        IF(quick_exit) THEN
           IF(output_unit>0) WRITE(output_unit,'(A,I3,A)') &
-               & 'qs_ot_ref_poly: ',irefine,': quick exit!'
+               & routineN,irefine,': quick exit!'
           EXIT
        ENDIF
        !
        ! P = FY^T * P * FY
-       CALL cp_fm_gemm('N','N',k,k,k,rone,P,FY,rzero,Y,error=error)     
-       CALL cp_fm_gemm('T','N',k,k,k,rone,FY,Y,rzero,P,error=error)     
+       CALL dbcsr_multiply('N', 'N', 1.0_dp, P, FY, 0.0_dp, BUF_NOSYM, error=error)
+       CALL dbcsr_multiply('N', 'N', 1.0_dp, FY, BUF_NOSYM, 0.0_dp, P, error=error)
+       !occ_in = dbcsr_get_occupation(p)
+       !call dbcsr_filter(p,1e-5_dp,error=error)
+       !occ_out = dbcsr_get_occupation(p)
+       !IF(output_unit>0) WRITE(output_unit,*) 'P: occ_in',occ_in,' occ_out',occ_out
        !
        ! check ||P-1||_gct
-       CALL cp_fm_set_all(Y,rzero,rone,error=error)
-       CALL cp_fm_scale_and_add(rone,Y,-rone,P,error=error)
-       CALL cp_fm_frobenius_norm(Y,norm_fro,error=error)
-       CALL cp_fm_maxabsrownorm(Y,norm_gct,error=error)
+       CALL dbcsr_add_on_diag(P, -1.0_dp, error=error)
+       norm_fro = dbcsr_frobenius_norm(P)
+       norm_gct = dbcsr_gershgorin_norm(P)
+       CALL dbcsr_add_on_diag(P, 1.0_dp, error=error)
        norm = MIN(norm_gct,norm_fro)
        !
        ! printing
        IF(output_unit>0) WRITE(output_unit,'(A,I3,A,E12.5)') &
-            & 'qs_ot_ref_poly: ',irefine,': ||P-I||=',norm
+            & routineN,irefine,': ||P-I||=',norm
        !
        ! blows up
        IF(norm.GT.1.0E10_dp) THEN
-          CALL stop_program("qs_ot_ref_poly","... refinement blows up! "//&
+          CALL stop_program(routineN,"... refinement blows up! "//&
                & "... we need you to improve the code, please post your input on "//&
                & "the forum http://cp2k.berlios.de/")
        ENDIF
@@ -426,12 +441,12 @@ CONTAINS
     ENDDO
     !
     ! C_NEW = C_NEW * FT * rescale
-    CALL cp_fm_gemm('N','N',n,k,k,rescale,C_OLD,FT,rzero,C_NEW,error=error)     
+    CALL dbcsr_multiply('N', 'N', rescale, C_OLD, FT, 0.0_dp, C_NEW, error=error)
     !
     ! update SC = SC * FY * rescale
     IF(update) THEN
-       CALL cp_fm_gemm('N','N',n,k,k,rescale,SC,FT,rzero,C_TMP,error=error)
-       CALL cp_fm_to_fm(C_TMP,SC,error=error)
+       CALL dbcsr_multiply('N', 'N', rescale, SC, FT, 0.0_dp, C_TMP, error=error)
+       CALL dbcsr_copy(SC, C_TMP, error=error)
     ENDIF
     !
     CALL timestop(handle)
@@ -475,10 +490,9 @@ CONTAINS
        &                            matrix_gx_old, matrix_dx, qs_ot_env, &
        &                            qs_ot_env1, error)
     !
-    TYPE(cp_fm_type), POINTER                :: matrix_c
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s
-    TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_sx, &
-                                                matrix_gx_old, matrix_dx
+    TYPE(dbcsr_obj), POINTER                 :: matrix_c, matrix_s, matrix_x, &
+                                                matrix_sx, matrix_gx_old, &
+                                                matrix_dx
     TYPE(qs_ot_type)                         :: qs_ot_env, qs_ot_env1
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -490,26 +504,25 @@ CONTAINS
     INTEGER                                  :: handle, k, n, output_unit
     LOGICAL                                  :: on_the_fly_loc, update
     REAL(dp)                                 :: norm, norm_fro, norm_gct
-    TYPE(cp_fm_type), POINTER                :: C_NEW, C_OLD, C_TMP, D, &
-                                                G_OLD, P, SC, Y
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj), POINTER                 :: S
+    TYPE(dbcsr_obj), POINTER                 :: C_NEW, C_OLD, C_TMP, D, &
+                                                G_OLD, P, S, SC
 
     CALL timeset(routineN,handle)
-    NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D,logger)
+
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
-    CALL cp_fm_get_info(matrix_c,nrow_global=n,ncol_global=k,error=error)
+    CALL dbcsr_get_info(matrix_c,nfullrows_total=n,nfullcols_total=k)
     !
     C_NEW => matrix_c
-    C_OLD => matrix_x  ! need to be carefully updated for the gradient !
-    SC    => matrix_sx ! need to be carefully updated for the gradient !
-    S     => matrix_s
-    C_TMP => qs_ot_env%matrix_c0   ! a buffer
-    P     => qs_ot_env%matrix_p    ! a buffer
-    Y     => qs_ot_env%matrix_cosp ! a buffer
+    C_OLD => matrix_x ! need to be carefully updated for the gradient !
+    SC    => matrix_sx! need to be carefully updated for the gradient !
     G_OLD => matrix_gx_old ! need to be carefully updated for localization !
     D     => matrix_dx     ! need to be carefully updated for localization !
+    S     => matrix_s
+
+    P     => qs_ot_env%p_k_k_sym ! a buffer
+    C_TMP => qs_ot_env%buf1_n_k  ! a buffer
     !
     ! do we need to update C_OLD and SC?
     update = qs_ot_ref_update(qs_ot_env1)
@@ -522,23 +535,23 @@ CONTAINS
     !
     ! compute SC = S*C
     IF(ASSOCIATED(S)) THEN
-       CALL dbcsr_sm_fm_multiply(S,C_OLD,SC,k,error=error)
+       CALL dbcsr_multiply('N','N',1.0_dp,S,C_OLD,0.0_dp,SC,last_column=k,error=error)
     ELSE
-       CALL cp_fm_to_fm(C_OLD,SC,error=error)
+       CALL dbcsr_copy(SC,C_OLD,error=error)
     ENDIF
     !
     ! compute P = C'*SC
-    CALL cp_fm_gemm('T','N',k,k,n,rone,C_OLD,SC,rzero,P,error=error)
+    CALL dbcsr_multiply('T','N',1.0_dp,C_OLD,SC,0.0_dp,P,error=error)
     !
     ! check ||P-1||_f and ||P-1||_gct
-    CALL cp_fm_set_all(Y,rzero,rone,error=error)
-    CALL cp_fm_scale_and_add(rone,Y,-rone,P,error=error)
-    CALL cp_fm_frobenius_norm(Y,norm_fro,error=error)
-    CALL cp_fm_maxabsrownorm(Y,norm_gct,error=error)
+    CALL dbcsr_add_on_diag(P, -1.0_dp, error=error)
+    norm_fro = dbcsr_frobenius_norm(P)
+    norm_gct = dbcsr_gershgorin_norm(P)
+    CALL dbcsr_add_on_diag(P, 1.0_dp, error=error)
     norm = MIN(norm_gct,norm_fro)
     CALL qs_ot_ref_decide(qs_ot_env1,norm,ortho_irac)
     IF(output_unit>0) WRITE(output_unit,'(A,I3,A,E12.5,A)') &
-         & 'qs_ot_get_orbitals_ref: ',0,': ||P-I||=',norm,&
+         & routineN,0,': ||P-I||=',norm,&
          & ', ortho_irac = '//ortho_irac
     !
     ! select the orthogonality method
@@ -550,93 +563,89 @@ CONTAINS
     CASE("POLY")
        CALL qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm,update,error)
     CASE DEFAULT
-       CALL stop_program("qs_ot_get_orbitals_ref","Wrong argument")
+       CALL stop_program(routineN,"Wrong argument")
     END SELECT
     !
     ! We update the C_i+1 and localization
     IF(update) THEN
        IF(on_the_fly_loc) THEN
           IF(output_unit>0) WRITE(output_unit,'(A)') &
-               & 'qs_ot_get_orbitals_ref: we localize C'
+               & routineN//' we localize C'
           CALL qs_ot_on_the_fly_localize(qs_ot_env,C_NEW,SC,G_OLD,D,error)
        ENDIF
-       CALL cp_fm_to_fm(C_NEW,C_OLD,error=error)
+       CALL dbcsr_copy(C_OLD,C_NEW,error=error)
     ENDIF
     !
     CALL timestop(handle)
   END SUBROUTINE qs_ot_get_orbitals_ref
 
-! *****************************************************************************
-  SUBROUTINE qs_ot_refine(qs_ot_env,P,FY,error)
+  SUBROUTINE qs_ot_refine(P,FY,P2,T,irac_degree,error)
     !----------------------------------------------------------------------
     ! refinement polynomial of degree 2,3 and 4 (PRB 70, 193102 (2004))
     !----------------------------------------------------------------------
-    TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(cp_fm_type), POINTER                :: P, FY
+
+    TYPE(dbcsr_obj)                          :: P, FY, P2, T
+    INTEGER, INTENT(in)                      :: irac_degree
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_refine', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: k
+    INTEGER                                  :: handle, k
     REAL(dp)                                 :: r
-    TYPE(cp_fm_type), POINTER                :: P2, T
 
-!
-!
-
-    NULLIFY(P2,T)
-    CALL cp_fm_get_info(P,ncol_global=k,error=error)
-    P2 => qs_ot_env%matrix_buf2 ! a buffer
-    T  => qs_ot_env%matrix_buf1 ! a buffer
-    SELECT CASE(qs_ot_env%settings%irac_degree)
+    CALL timeset(routineN,handle)
+    CALL dbcsr_get_info(P,nfullcols_total=k)
+    SELECT CASE(irac_degree)
     CASE(2)
        ! C_out = C_in * ( 15/8 * I - 10/8 * P + 3/8 * P^2)
-       r = 15.0_dp/8.0_dp
-       CALL cp_fm_set_all(FY,rzero,r,error=error)
-       r = 3.0_dp/8.0_dp
-       CALL cp_fm_gemm('N','N',k,k,k,r,P,P,rone,FY,error=error)
+       r =   3.0_dp/8.0_dp
+       CALL dbcsr_multiply('N', 'N', r, P, P, 0.0_dp, FY, error=error)
        r = -10.0_dp/8.0_dp
-       CALL cp_fm_scale_and_add(rone,FY,r,P,error=error)
-       !CALL cp_fm_gemm('N','N',n,k,k,rone,C_IN,Y,rzero,C_OUT,error=error)
+       CALL dbcsr_add(FY, P, alpha_scalar=1.0_dp, beta_scalar=r, error=error)
+       r =  15.0_dp/8.0_dp
+       CALL dbcsr_add_on_diag(FY, alpha_scalar=r, error=error)
     CASE(3)
        ! C_out = C_in * ( 35/16 * I - 35/16 * P + 21/16 * P^2 - 5/16 P^3)
-       CALL cp_fm_gemm('N','N',k,k,k,rone,P,P,rzero,P2,error=error)
-       r =  35.0_dp/16.0_dp
-       CALL cp_fm_set_all(FY,rzero,r,error=error)
-       r = -35.0_dp/16.0_dp
-       CALL cp_fm_scale_and_add(rone,FY,r,P,error=error)
+       CALL dbcsr_multiply('N', 'N', 1.0_dp, P, P, 0.0_dp, P2, error=error)
+       r =  -5.0_dp/16.0_dp
+       CALL dbcsr_multiply('N', 'N', r, P2, P, 0.0_dp, FY, error=error)
        r =  21.0_dp/16.0_dp
-       CALL cp_fm_scale_and_add(rone,FY,r,P2,error=error)
-       r = -5.0_dp/16.0_dp
-       CALL cp_fm_gemm('N','N',k,k,k,r,P2,P,rone,FY,error=error)
-       !CALL cp_fm_gemm('N','N',n,k,k,rone,C_IN,Y,rzero,C_OUT,error=error)
+       CALL dbcsr_add(FY, P2, alpha_scalar=1.0_dp, beta_scalar=r, error=error)
+       r = -35.0_dp/16.0_dp
+       CALL dbcsr_add(FY, P, alpha_scalar=1.0_dp, beta_scalar=r, error=error)
+       r =  35.0_dp/16.0_dp
+       CALL dbcsr_add_on_diag(FY, alpha_scalar=r, error=error)
     CASE(4)
        ! C_out = C_in * ( 315/128 * I - 420/128 * P + 378/128 * P^2 - 180/128 P^3 + 35/128 P^4 )
        !       = C_in * ( 315/128 * I - 420/128 * P + 378/128 * P^2 + ( - 180/128 * P + 35/128 * P^2 ) * P^2 )
-       CALL cp_fm_gemm('N','N',k,k,k,rone,P,P,rzero,P2,error=error) ! P^2
-       r =  315.0_dp/128.0_dp
-       CALL cp_fm_set_all(FY,rzero,r,error=error)                   ! Y=315/128*I
-       r = -420.0_dp/128.0_dp
-       CALL cp_fm_scale_and_add(rone,FY,r,P,error=error)            ! Y=Y-420/128*P
-       r =  378.0_dp/128.0_dp
-       CALL cp_fm_scale_and_add(rone,FY,r,P2,error=error)           ! Y=Y+378/128*P^2
+       CALL dbcsr_multiply('N', 'N', 1.0_dp, P, P, 0.0_dp, P2, error=error)   ! P^2
        r = -180.0_dp/128.0_dp
-       CALL cp_fm_scale_and_add(rzero,T,r,P,error=error)           ! T=-180/128*P
-       r =  35.0_dp/128.0_dp
-       CALL cp_fm_scale_and_add(rone,T,r,P2,error=error)           ! T=T+35/128*P^2
-       CALL cp_fm_gemm('N','N',k,k,k,rone,T,P2,rone,FY,error=error) ! Y=Y+T*P^2
-       !CALL cp_fm_gemm('N','N',n,k,k,rone,C_IN,Y,rzero,C_OUT,error=error)
+       CALL dbcsr_add(T, P, alpha_scalar=0.0_dp, beta_scalar=r, error=error)  ! T=-180/128*P
+       r =   35.0_dp/128.0_dp
+       CALL dbcsr_add(T, P2, alpha_scalar=1.0_dp, beta_scalar=r, error=error) ! T=T+35/128*P^2
+       CALL dbcsr_multiply('N', 'N', 1.0_dp, T, P2, 0.0_dp, FY, error=error)  ! Y=T*P^2
+       r =  378.0_dp/128.0_dp
+       CALL dbcsr_add(FY, P2, alpha_scalar=1.0_dp, beta_scalar=r, error=error)! Y=Y+378/128*P^2
+       r = -420.0_dp/128.0_dp
+       CALL dbcsr_add(FY, P, alpha_scalar=1.0_dp, beta_scalar=r, error=error) ! Y=Y-420/128*P
+       r =  315.0_dp/128.0_dp
+       CALL dbcsr_add_on_diag(FY, alpha_scalar=r, error=error)                ! Y=Y+315/128*I
     CASE DEFAULT
-       CALL stop_program("qs_ot_refine","this irac_order NYI")
+       CALL stop_program(routineN,"this irac_order NYI")
     END SELECT
+    CALL timestop(handle)
   END SUBROUTINE qs_ot_refine
+
 
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_derivative_ref(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
-       &                              qs_ot_env,error)
-    TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
+       &                              qs_ot_env,S,error)
+    TYPE(dbcsr_obj), POINTER                 :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(dbcsr_obj), POINTER                 :: s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref', &
@@ -645,44 +654,45 @@ CONTAINS
 
     INTEGER                                  :: handle, k, n
     LOGICAL                                  :: mixed_precision
-    TYPE(cp_fm_type), POINTER                :: C, CHC, G, G_dp, HC, SC
+    TYPE(dbcsr_obj), POINTER                 :: C, CHC, G, G_dp, HC, SC
 
     CALL timeset(routineN,handle)
-    NULLIFY(C,SC,HC,CHC,G,G_dp)
 
     mixed_precision = qs_ot_env%settings%mixed_precision
-    CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
+    CALL dbcsr_get_info(matrix_x,nfullrows_total=n,nfullcols_total=k)
     !
     C   => matrix_x              ! NBsf*NOcc
     SC  => matrix_sx             ! NBsf*NOcc need to be up2date
     HC  => matrix_hc             ! NBsf*NOcc
     G   => matrix_gx             ! NBsf*NOcc
-    G_dp=> qs_ot_env%matrix_gx_dp! NBsf*NOcc
-    CHC => qs_ot_env%matrix_p    ! buffer
+    CHC  => qs_ot_env%buf1_k_k_sym ! buffer
+    G_dp => qs_ot_env%buf1_n_k_dp  ! buffer dp
+
     IF(mixed_precision) THEN
        ! C'*(H*C)
-       CALL cp_fm_gemm('T','N',k,k,n,rone,C,HC,rzero,CHC,error=error)
+       CALL dbcsr_multiply('T','N',1.0_dp,C,HC,rzero,CHC,error=error)
        ! (S*C)*(C'*H*C)
-       CALL cp_fm_gemm('N','N',n,k,k,rone,SC,CHC,rzero,G_dp,error=error)
+       CALL dbcsr_multiply('N','N',1.0_dp,SC,CHC,0.0_dp,G_dp,error=error)
        ! G = 2*(1-S*C*C')*H*C
-       CALL cp_fm_scale_and_add(-rone,G_dp,rone,HC,error=error)
-       CALL cp_fm_to_fm(G_dp,G,error=error)
+       CALL dbcsr_add(G_dp,HC,alpha_scalar=-1.0_dp,beta_scalar=1.0_dp,error=error)
+       CALL dbcsr_copy(G,G_dp,error=error)
     ELSE
        ! C'*(H*C)
-       CALL cp_fm_gemm('T','N',k,k,n,rone,C,HC,rzero,CHC,error=error)
+       CALL dbcsr_multiply('T','N',1.0_dp,C,HC,0.0_dp,CHC,error=error)
        ! (S*C)*(C'*H*C)
-       CALL cp_fm_gemm('N','N',n,k,k,rone,SC,CHC,rzero,G,error=error)
+       CALL dbcsr_multiply('N','N',1.0_dp,SC,CHC,0.0_dp,G,error=error)
        ! G = 2*(1-S*C*C')*H*C
-       CALL cp_fm_scale_and_add(-rone,G,rone,HC,error=error)
+       CALL dbcsr_add(G,HC,alpha_scalar=-1.0_dp,beta_scalar=1.0_dp,error=error)
     ENDIF
     !
     CALL timestop(handle)
   END SUBROUTINE qs_ot_get_derivative_ref
+
   ! computes p=x*S*x and the matrix functionals related matrices
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env,error)
 
-    TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_sx
+    TYPE(dbcsr_obj), POINTER                 :: matrix_x, matrix_sx
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -694,17 +704,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
+    CALL dbcsr_get_info(matrix_x,nfullrows_total=n,nfullcols_total=k)
 
     ! get the overlap
-    CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_x,matrix_sx,rzero,&
+    CALL dbcsr_multiply('T','N',rone,matrix_x,matrix_sx,rzero,&
          qs_ot_env%matrix_p,error=error)
-
     ! get an upper bound for the largest eigenvalue
-    CALL cp_fm_maxabsrownorm(qs_ot_env%matrix_p, qs_ot_env % largest_eval_upper_bound,error=error)
-
+    qs_ot_env % largest_eval_upper_bound = dbcsr_gershgorin_norm(qs_ot_env%matrix_p)
     CALL decide_strategy(qs_ot_env)
-
     IF (qs_ot_env % do_taylor) THEN
        CALL qs_ot_p2m_taylor(qs_ot_env,error=error)
     ELSE
@@ -738,38 +745,59 @@ CONTAINS
 
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: evals_exp
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      POINTER                                :: local_data_c
-    INTEGER                                  :: handle, k
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_r
-    TYPE(cp_cfm_type), POINTER               :: cmat_u, cmat_x
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: data_z
+    INTEGER                                  :: blk, col, handle, k, row
+    LOGICAL                                  :: found, tr_d, tr_z
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj)                          :: cmat_u, cmat_x
 
     CALL timeset(routineN,handle)
-    CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,nrow_global=k,error=error)
+
+    CALL dbcsr_get_info(qs_ot_env%rot_mat_x,nfullrows_total=k)
+
     IF (k/=0) THEN
-       CALL cp_cfm_create(cmat_x,fm_struct,"cmat_x",error=error)
-       CALL cp_cfm_create(cmat_u,fm_struct,"cmat_u",error=error)
+       CALL dbcsr_init(cmat_x)
+       CALL dbcsr_init(cmat_u)
+       CALL dbcsr_copy(cmat_x,qs_ot_env%rot_mat_evec,name='cmat_x',error=error)
+       CALL dbcsr_copy(cmat_u,qs_ot_env%rot_mat_evec,name='cmat_u',error=error)
        ALLOCATE(evals_exp(k))
-       
+
        ! rot_mat_u = exp(rot_mat_x)
        ! i rot_mat_x is hermitian, so go over the complex variables for diag
-       CALL cp_cfm_get_info(cmat_x,local_data=local_data_c,error=error)
-       CALL cp_fm_get_info(qs_ot_env%rot_mat_x,local_data=local_data_r,error=error)
-       local_data_c=CMPLX(0.0_dp,local_data_r,KIND=dp)
-       CALL cp_cfm_heevd(cmat_x,qs_ot_env%rot_mat_evec,qs_ot_env%rot_mat_evals,error=error)
+       !vwCALL cp_cfm_get_info(cmat_x,local_data=local_data_c,error=error)
+       !vwCALL cp_fm_get_info(qs_ot_env%rot_mat_x,local_data=local_data_r,error=error)
+       !vwlocal_data_c=CMPLX(0.0_dp,local_data_r,KIND=dp)
+       CALL dbcsr_iterator_start(iter, cmat_x)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr_z, blk)
+          CALL dbcsr_get_block_p(qs_ot_env%rot_mat_x, row, col, data_d, tr_d, found)
+          IF(tr_z.NEQV.tr_d) THEN
+             WRITE(*,*) routineN//' tr_z.NEQV.tr_d'
+             STOP
+          ENDIF
+          IF(.NOT.found) THEN
+             WRITE(*,*) routineN//' .NOT.found'
+             !stop
+          ELSE
+             data_z=CMPLX(0.0_dp,data_d,KIND=dp)
+          ENDIF
+       ENDDO
+       CALL dbcsr_iterator_stop(iter)
+
+
+       CALL dbcsr_heevd(cmat_x,qs_ot_env%rot_mat_evec,qs_ot_env%rot_mat_evals,&
+            qs_ot_env%para_env, qs_ot_env%blacs_env, error=error)
        evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * qs_ot_env%rot_mat_evals(:) )
-       CALL cp_cfm_to_cfm(qs_ot_env%rot_mat_evec,cmat_x,error=error)
-       CALL cp_cfm_column_scale(cmat_x,evals_exp)
-       CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_x,qs_ot_env%rot_mat_evec,czero,cmat_u,error=error)
-       CALL cp_cfm_get_info(cmat_u,local_data=local_data_c,error=error)
-       CALL cp_fm_get_info(qs_ot_env%rot_mat_u,local_data=local_data_r,error=error)
-       local_data_r=REAL(local_data_c,KIND=dp)
-       
-       CALL cp_cfm_release(cmat_x,error=error)
-       CALL cp_cfm_release(cmat_u,error=error)
+       CALL dbcsr_copy(cmat_x,qs_ot_env%rot_mat_evec,error=error)
+       CALL dbcsr_scale_by_vector(cmat_x,alpha=evals_exp,side='right',error=error)
+       CALL dbcsr_multiply('N','C',cone,cmat_x,qs_ot_env%rot_mat_evec,czero,cmat_u,error=error)
+       CALL dbcsr_copy(qs_ot_env%rot_mat_u, cmat_u, keep_imaginary=.FALSE., error=error)
+       CALL dbcsr_release(cmat_x)
+       CALL dbcsr_release(cmat_u)
        DEALLOCATE(evals_exp)
     END IF
+
     CALL timestop(handle)
 
   END SUBROUTINE qs_ot_generate_rotation
@@ -792,53 +820,84 @@ CONTAINS
                                                 cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
 
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      POINTER                                :: local_data_c
-    INTEGER                                  :: handle, i, j, k, ncol_local, &
-                                                nrow_local
-    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    INTEGER                                  :: handle, i, j, k
     REAL(KIND=dp)                            :: e1, e2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data_r
-    TYPE(cp_cfm_type), POINTER               :: cmat_buf1, cmat_buf2
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
+    TYPE(dbcsr_obj)                          :: cmat_buf1, cmat_buf2
+    TYPE(dbcsr_iterator)                     :: iter
+    COMPLEX(dp), DIMENSION(:,:), POINTER :: data_z
+    INTEGER::row, col, blk,row_offset, col_offset,row_size, col_size
+    LOGICAL::tr_z,tr_d,found
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(qs_ot_env%rot_mat_u,nrow_global=k,error=error)
+    CALL dbcsr_get_info(qs_ot_env%rot_mat_u,nfullrows_total=k)
     IF (k/=0) THEN
-       CALL cp_fm_to_fm(qs_ot_env%rot_mat_dedu,qs_ot_env%matrix_buf1,error=error)
-       
+       CALL dbcsr_copy(qs_ot_env%matrix_buf1,qs_ot_env%rot_mat_dedu,error=error)
        ! now we get to the derivative wrt the antisymmetric matrix rot_mat_x
-       CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,error=error)
-       CALL cp_cfm_create(cmat_buf1,fm_struct,"cmat_buf1",error=error)
-       CALL cp_cfm_create(cmat_buf2,fm_struct,"cmat_buf2",error=error)
+       CALL dbcsr_init(cmat_buf1)
+       CALL dbcsr_init(cmat_buf2)
+       CALL dbcsr_copy(cmat_buf1,qs_ot_env%rot_mat_evec,"cmat_buf1",error=error)
+       CALL dbcsr_copy(cmat_buf2,qs_ot_env%rot_mat_evec,"cmat_buf2",error=error)
        
        ! init cmat_buf1
-       CALL cp_fm_get_info(qs_ot_env%matrix_buf1,matrix_struct=fm_struct, local_data=local_data_r,error=error)
-       CALL cp_cfm_get_info(cmat_buf1, nrow_local=nrow_local,   ncol_local=ncol_local, &
-            row_indices=row_indices, col_indices=col_indices, &
-            local_data=local_data_c,error=error)
-       local_data_c=local_data_r
-       
-       CALL cp_cfm_gemm('T','N',k,k,k,cone,cmat_buf1,qs_ot_env%rot_mat_evec,czero,cmat_buf2,error=error)
-       CALL cp_cfm_gemm('C','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf2,czero,cmat_buf1,error=error)
-       DO j=1,ncol_local
-          DO i=1,nrow_local
-             e1=qs_ot_env%rot_mat_evals(row_indices(i))
-             e2=qs_ot_env%rot_mat_evals(col_indices(j))
-             local_data_c(i,j)=local_data_c(i,j)*cint(e1,e2)
+       !CALL cp_fm_get_info(qs_ot_env%matrix_buf1,matrix_struct=fm_struct, local_data=local_data_r,error=error)
+       !CALL cp_cfm_get_info(cmat_buf1, nrow_local=nrow_local,   ncol_local=ncol_local, &
+       !     row_indices=row_indices, col_indices=col_indices, &
+       !     local_data=local_data_c,error=error)
+       !local_data_c=local_data_r
+
+       CALL dbcsr_iterator_start(iter, cmat_buf1)
+       DO WHILE (dbcsr_iterator_blocks_left(iter))
+          CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr_z, blk)
+          CALL dbcsr_get_block_p(qs_ot_env%matrix_buf1, row, col, data_d, tr_d, found)
+          IF(.NOT.found) THEN
+             WRITE(*,*) routineN//' we stop 1'
+             STOP
+          ENDIF
+          IF(tr_z.NEQV.tr_d) THEN
+             WRITE(*,*) routineN//' we stop 2'
+             STOP
+          ENDIF
+          data_z=data_d
+       ENDDO
+       CALL dbcsr_iterator_stop(iter)
+
+       CALL dbcsr_multiply('T','N',cone,cmat_buf1,qs_ot_env%rot_mat_evec,&
+            czero,cmat_buf2,last_row=k,last_column=k,last_k=k,error=error)
+       CALL dbcsr_multiply('C','N',cone,qs_ot_env%rot_mat_evec,cmat_buf2,&
+            czero,cmat_buf1,last_row=k,last_column=k,last_k=k,error=error)
+
+       CALL dbcsr_iterator_start(iter, cmat_buf1)
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr_z, blk,&
+               row_size=row_size, col_size=col_size, &
+               row_offset=row_offset, col_offset=col_offset)
+          DO j=1,col_size
+          DO i=1,row_size
+             e1=qs_ot_env%rot_mat_evals(row_offset+i-1)
+             e2=qs_ot_env%rot_mat_evals(col_offset+j-1)
+             data_z(i,j)=data_z(i,j)*cint(e1,e2)
+          ENDDO
           ENDDO
        ENDDO
-       CALL cp_cfm_gemm('N','N',k,k,k,cone,qs_ot_env%rot_mat_evec,cmat_buf1,czero,cmat_buf2,error=error)
-       CALL cp_cfm_gemm('N','C',k,k,k,cone,cmat_buf2,qs_ot_env%rot_mat_evec,czero,cmat_buf1,error=error)
-       
-       local_data_r=REAL(local_data_c,KIND=dp)
-       CALL cp_fm_transpose(qs_ot_env%matrix_buf1,qs_ot_env%matrix_buf2,error=error)
-       CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env%matrix_buf1,+1.0_dp,qs_ot_env%matrix_buf2,error=error)
-       CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%rot_mat_gx,error=error)
-       
-       CALL cp_cfm_release(cmat_buf1,error=error)
-       CALL cp_cfm_release(cmat_buf2,error=error)
+       CALL dbcsr_iterator_stop(iter)
+
+       CALL dbcsr_multiply('N','N',cone,qs_ot_env%rot_mat_evec,cmat_buf1,&
+            czero,cmat_buf2,last_row=k,last_column=k,last_k=k,error=error)
+       CALL dbcsr_multiply('N','C',cone,cmat_buf2,qs_ot_env%rot_mat_evec,&
+            czero,cmat_buf1,last_row=k,last_column=k,last_k=k,error=error)
+
+       CALL dbcsr_copy(qs_ot_env%matrix_buf1,cmat_buf1,error=error)
+
+       CALL dbcsr_new_transposed(qs_ot_env%matrix_buf2,qs_ot_env%matrix_buf1,&
+            shallow_data_copy=.FALSE., use_distribution=dbcsr_distribution(qs_ot_env%matrix_buf3), &
+            transpose_distribution=.FALSE.,error=error)
+       CALL dbcsr_add(qs_ot_env%matrix_buf1,qs_ot_env%matrix_buf2,&
+            alpha_scalar=-1.0_dp,beta_scalar=+1.0_dp,error=error)
+       CALL dbcsr_copy(qs_ot_env%rot_mat_gx,qs_ot_env%matrix_buf1,error=error)
+       CALL dbcsr_release(cmat_buf1)
+       CALL dbcsr_release(cmat_buf2)
     END IF
     CALL timestop(handle)
   CONTAINS
@@ -901,7 +960,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env, error)
 
-    TYPE(cp_fm_type), POINTER                :: matrix_c, matrix_x
+    TYPE(dbcsr_obj), POINTER                 :: matrix_c, matrix_x
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -910,33 +969,33 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n
-    TYPE(cp_fm_type), POINTER                :: matrix_kk
+    TYPE(dbcsr_obj), POINTER                 :: matrix_kk
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
+    CALL dbcsr_get_info(matrix_x,nfullrows_total=n,nfullcols_total=k)
 
     ! rotate the multiplying matrices cosp and sinp instead of the result,
     ! this should be cheaper for large basis sets
     IF (qs_ot_env%settings%do_rotation) THEN
        matrix_kk => qs_ot_env%matrix_buf1
-       CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_cosp, &
+       CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_cosp, &
             qs_ot_env%rot_mat_u,rzero,matrix_kk,error=error)
     ELSE
        matrix_kk => qs_ot_env%matrix_cosp
     ENDIF
 
-    CALL cp_fm_gemm('N','N',n,k,k,rone,qs_ot_env%matrix_c0,matrix_kk, &
+    CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_c0,matrix_kk, &
          rzero,matrix_c,error=error)
 
     IF (qs_ot_env%settings%do_rotation) THEN
        matrix_kk => qs_ot_env%matrix_buf1
-       CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_sinp, &
+       CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_sinp, &
             qs_ot_env%rot_mat_u,rzero,matrix_kk,error=error)
     ELSE
        matrix_kk => qs_ot_env%matrix_sinp
     ENDIF
-    CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_x,matrix_kk, &
+    CALL dbcsr_multiply('N','N',rone,matrix_x,matrix_kk, &
          rone ,matrix_c,error=error)
 
     CALL timestop(handle)
@@ -1033,7 +1092,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
        qs_ot_env,error)
-    TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
+    TYPE(dbcsr_obj), POINTER                 :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1043,20 +1102,23 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n, ortho_k
-    TYPE(cp_fm_type), POINTER                :: matrix_hc_local, matrix_target
+    TYPE(dbcsr_obj), POINTER                 :: matrix_hc_local, matrix_target
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
+    NULLIFY(matrix_hc_local)
+
+    CALL dbcsr_get_info(matrix_x,nfullrows_total=n,nfullcols_total=k)
 
     ! could in principle be taken inside qs_ot_get_derivative_* for increased efficiency
     ! create a local rotated version of matrix_hc leaving matrix_hc untouched (needed
     ! for lagrangian multipliers)
     IF (qs_ot_env % settings % do_rotation) THEN
-       CALL cp_fm_to_fm(matrix_hc,matrix_gx,error=error) ! use gx as temporary
-       CALL cp_fm_create(matrix_hc_local,matrix_hc%matrix_struct,error=error)
-       CALL cp_fm_set_all(matrix_hc_local,0.0_dp,error=error)
-       CALL cp_fm_gemm('N','T',n,k,k,rone,matrix_gx,qs_ot_env%rot_mat_u,rzero,matrix_hc_local,error=error)
+       CALL dbcsr_copy(matrix_gx,matrix_hc,error=error) ! use gx as temporary
+       CALL dbcsr_init_p(matrix_hc_local)
+       CALL dbcsr_copy(matrix_hc_local,matrix_hc,name='matrix_hc_local',error=error)
+       CALL dbcsr_set(matrix_hc_local,0.0_dp,error=error)
+       CALL dbcsr_multiply('N','T',rone,matrix_gx,qs_ot_env%rot_mat_u,rzero,matrix_hc_local,error=error)
     ELSE
        matrix_hc_local=>matrix_hc
     ENDIF
@@ -1068,7 +1130,7 @@ CONTAINS
     ENDIF
 
     ! and make it orthogonal
-    CALL cp_fm_get_info(qs_ot_env%matrix_sc0,ncol_global=ortho_k,error=error)
+    CALL dbcsr_get_info(qs_ot_env%matrix_sc0,nfullcols_total=ortho_k)
 
     IF (ASSOCIATED(qs_ot_env%preconditioner)) THEN
        matrix_target => qs_ot_env%matrix_psc0
@@ -1084,32 +1146,33 @@ CONTAINS
           CALL apply_preconditioner(qs_ot_env%preconditioner, qs_ot_env%matrix_sc0, &
                qs_ot_env%matrix_psc0 ,error=error)
        ENDIF
-       CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
+       CALL dbcsr_multiply('T','N',rone,&
             qs_ot_env%matrix_sc0,matrix_target, &
-            rzero,qs_ot_env%matrix_os,error=error)
-       CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os,error=error)
-       CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os,error=error)
+            rzero,qs_ot_env%matrix_os,&
+            last_row=ortho_k,last_column=ortho_k,last_k=n,error=error)
+       CALL dbcsr_cholesky_decompose(qs_ot_env%matrix_os,&
+            para_env=qs_ot_env%para_env,blacs_env=qs_ot_env%blacs_env,error=error)
+       CALL dbcsr_cholesky_invert(qs_ot_env%matrix_os,&
+            para_env=qs_ot_env%para_env,blacs_env=qs_ot_env%blacs_env,&
+            upper_to_full=.TRUE.,error=error)
        qs_ot_env%os_valid=.TRUE.
     ENDIF
-
-    CALL cp_fm_gemm('T','N',ortho_k,k,n,rone,matrix_target,matrix_gx, &
-         rzero,qs_ot_env%matrix_buf1_ortho,error=error)
-
-    CALL cp_fm_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
+    CALL dbcsr_multiply('T','N',rone,matrix_target,matrix_gx, &
+         rzero,qs_ot_env%matrix_buf1_ortho,&
+         last_row=ortho_k,last_column=k,last_k=n,error=error)
+    CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_os,&
          qs_ot_env%matrix_buf1_ortho, &
-         rzero,qs_ot_env%matrix_buf2_ortho,error=error)
-
-    CALL cp_fm_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
+         rzero,qs_ot_env%matrix_buf2_ortho,last_row=ortho_k,last_column=k,error=error)
+    CALL dbcsr_multiply('N','N',-rone,qs_ot_env%matrix_sc0, &
          qs_ot_env%matrix_buf2_ortho, &
-         rone,matrix_gx,error=error)
-
+         rone,matrix_gx,last_row=n,last_column=k,last_k=ortho_k,error=error)
     ! also treat the rot_mat gradient here
     IF (qs_ot_env%settings%do_rotation) THEN
        CALL qs_ot_rot_mat_derivative(qs_ot_env,error=error)
     ENDIF
 
     IF (qs_ot_env % settings % do_rotation) THEN
-       CALL cp_fm_release(matrix_hc_local,error=error)
+       CALL dbcsr_release_p(matrix_hc_local)
     ENDIF
 
     CALL timestop(handle)
@@ -1120,7 +1183,7 @@ CONTAINS
   SUBROUTINE qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
        qs_ot_env,error)
 
-    TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
+    TYPE(dbcsr_obj), POINTER                 :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1133,53 +1196,55 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
+    CALL dbcsr_get_info(matrix_x,nfullrows_total=n,nfullcols_total=k)
 
     ! go for the derivative now
     ! this de/dc*(dX/dx)*sinp
-    CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx,error=error)
+    CALL dbcsr_multiply('N','N',rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx,&
+         last_row=n,last_column=k,last_k=k,error=error)
     ! overlap hc*x
-    CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,qs_ot_env%matrix_buf2,error=error)
+    CALL dbcsr_multiply('T','N',rone,matrix_hc,matrix_x,rzero,qs_ot_env%matrix_buf2,&
+         last_row=k,last_column=k,last_k=n,error=error)
     ! get it in the basis of the eigenvectors
-    CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r,&
-         rzero,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_gemm('T','N',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-         rzero,qs_ot_env%matrix_buf2,error=error)
+    CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r,&
+         rzero,qs_ot_env%matrix_buf1,last_row=k,last_column=k,last_k=k,error=error)
+    CALL dbcsr_multiply('T','N',rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
+         rzero,qs_ot_env%matrix_buf2,last_row=k,last_column=k,last_k=k,error=error)
 
     ! get the schur product of O_uv*B_uv
-    CALL cp_fm_schur_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_sinp_b, &
+    CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_sinp_b, &
          qs_ot_env%matrix_buf3,error=error)
 
     ! overlap hc*c0
-    CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,qs_ot_env%matrix_c0,rzero, &
-         qs_ot_env%matrix_buf2,error=error)
+    CALL dbcsr_multiply('T','N',rone,matrix_hc,qs_ot_env%matrix_c0,rzero, &
+         qs_ot_env%matrix_buf2,last_row=k,last_column=k,last_k=n,error=error)
     ! get it in the basis of the eigenvectors
-    CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r, &
-         rzero,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_gemm('T','N',k,k,k,rone,qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, &
-         rzero,qs_ot_env%matrix_buf2,error=error)
-    ! get the schur product of O_uv*B_uv
-    CALL cp_fm_schur_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_cosp_b, &
-         qs_ot_env%matrix_buf2,error=error)
+    CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r, &
+         rzero,qs_ot_env%matrix_buf1,last_row=k,last_column=k,last_k=k,error=error)
+    CALL dbcsr_multiply('T','N',rone,qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, &
+         rzero,qs_ot_env%matrix_buf2,last_row=k,last_column=k,last_k=k,error=error)
+
+    CALL dbcsr_hadamard_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_cosp_b, &
+         qs_ot_env%matrix_buf4,error=error)
 
     ! add the two bs and compute b+b^T
-
-    CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf2,error=error)
+    CALL dbcsr_add(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf4,&
+         alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
 
     ! get the b in the eigenvector basis
-    CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_buf3,qs_ot_env%matrix_r, &
-         rzero,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-         rzero,qs_ot_env%matrix_buf3,error=error)
-
-    CALL cp_fm_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf1,error=error)
+    CALL dbcsr_multiply('N','T',rone,qs_ot_env%matrix_buf3,qs_ot_env%matrix_r, &
+         rzero,qs_ot_env%matrix_buf1,last_row=k,last_column=k,last_k=k,error=error)
+    CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
+         rzero,qs_ot_env%matrix_buf3,last_row=k,last_column=k,last_k=k,error=error)
+    CALL dbcsr_new_transposed(qs_ot_env%matrix_buf1,qs_ot_env%matrix_buf3,&
+         shallow_data_copy=.FALSE., use_distribution=dbcsr_distribution(qs_ot_env%matrix_buf3), &
+         transpose_distribution=.FALSE.,error=error)
+    CALL dbcsr_add(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1,&
+         alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
 
     ! and add to the derivative
-
-    CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_buf3, &
-         rone,matrix_gx,error=error)
-
+    CALL dbcsr_multiply('N','N',rone,matrix_sx,qs_ot_env%matrix_buf3, &
+         rone,matrix_gx,last_row=n,last_column=k,last_k=k,error=error)
     CALL timestop(handle)
 
   END SUBROUTINE qs_ot_get_derivative_diag
@@ -1189,7 +1254,7 @@ CONTAINS
   SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
        qs_ot_env, error)
 
-    TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
+    TYPE(dbcsr_obj), POINTER                 :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1200,15 +1265,16 @@ CONTAINS
 
     INTEGER                                  :: handle, i, k, n
     REAL(KIND=dp)                            :: cosfactor, sinfactor
-    TYPE(cp_fm_type), POINTER                :: matrix_left, matrix_right
+    TYPE(dbcsr_obj), POINTER                 :: matrix_left, matrix_right
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
+    CALL dbcsr_get_info(matrix_x,nfullrows_total=n,nfullcols_total=k)
 
     ! go for the derivative now
     ! this de/dc*(dX/dx)*sinp i.e. zeroth order
-    CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx,error=error)
+    CALL dbcsr_multiply('N','N',rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx,&
+         last_row=n,last_column=k,last_k=k,error=error)
 
     IF (qs_ot_env % taylor_order .LE. 0) THEN
        CALL timestop(handle)
@@ -1216,21 +1282,26 @@ CONTAINS
     ENDIF
 
     ! we store the matrix that will multiply sx in matrix_r
-    CALL cp_fm_set_all(qs_ot_env%matrix_r,rzero,error=error)
+    CALL dbcsr_set(qs_ot_env%matrix_r,rzero,error=error)
 
     ! just better names for matrix_cosp_b and matrix_sinp_b (they are buffer space here)
     matrix_left  => qs_ot_env%matrix_cosp_b
     matrix_right => qs_ot_env%matrix_sinp_b
 
     ! overlap hc*x and add its transpose to matrix_left
-    CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,matrix_left,error=error)
-    CALL cp_fm_transpose(matrix_left,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_to_fm(matrix_left,matrix_right,error=error)
+    CALL dbcsr_multiply('T','N',rone,matrix_hc,matrix_x,rzero,matrix_left,&
+         last_row=k,last_column=k,last_k=n,error=error)
+    CALL dbcsr_new_transposed(qs_ot_env%matrix_buf1,matrix_left,&
+         shallow_data_copy=.FALSE., use_distribution=dbcsr_distribution(matrix_left), &
+         transpose_distribution=.FALSE., error=error)
+    CALL dbcsr_add(matrix_left,qs_ot_env%matrix_buf1,&
+         alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+    CALL dbcsr_copy(matrix_right,matrix_left,error=error)
 
     ! first order
     sinfactor=-1.0_dp/(2.0_dp*3.0_dp)
-    CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,sinfactor,matrix_left,error=error)
+    CALL dbcsr_add(qs_ot_env%matrix_r,matrix_left,&
+    alpha_scalar=1.0_dp,beta_scalar=sinfactor,error=error)
 
     !      M
     !    OM+MO
@@ -1238,22 +1309,26 @@ CONTAINS
     !   ...
     DO i=2, qs_ot_env % taylor_order
        sinfactor=sinfactor * (-1.0_dp)/REAL(2*i * (2*i+1),KIND=dp)
-       CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1,error=error)
-       CALL cp_fm_gemm('N','N',k,k,k,rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left,error=error)
-       CALL cp_fm_to_fm(matrix_left,matrix_right,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,sinfactor,matrix_left,error=error)
+       CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1,error=error)
+       CALL dbcsr_multiply('N','N',rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left,error=error)
+       CALL dbcsr_copy(matrix_right,matrix_left,error=error)
+       CALL dbcsr_add(matrix_left,qs_ot_env%matrix_buf1,error=error)
+       CALL dbcsr_add(qs_ot_env%matrix_r,matrix_left,&
+            alpha_scalar=1.0_dp,beta_scalar=sinfactor,error=error)
     ENDDO
 
     ! overlap hc*c0 and add its transpose to matrix_left
-    CALL cp_fm_gemm('T','N',k,k,n,rone,matrix_hc,qs_ot_env%matrix_c0,rzero,matrix_left,error=error)
-    CALL cp_fm_transpose(matrix_left,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_to_fm(matrix_left,matrix_right,error=error)
+    CALL dbcsr_multiply('T','N',rone,matrix_hc,qs_ot_env%matrix_c0,rzero,matrix_left,error=error)
+    CALL dbcsr_new_transposed(qs_ot_env%matrix_buf1,matrix_left,&
+         shallow_data_copy=.FALSE., use_distribution=dbcsr_distribution(matrix_left),&
+         transpose_distribution=.FALSE., error=error)
+    CALL dbcsr_add(matrix_left,qs_ot_env%matrix_buf1,error=error)
+    CALL dbcsr_copy(matrix_right,matrix_left,error=error)
 
     ! first order
     cosfactor=-1.0_dp/(1.0_dp*2.0_dp)
-    CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,cosfactor,matrix_left,error=error)
+    CALL dbcsr_add(qs_ot_env%matrix_r,matrix_left,&
+         alpha_scalar=1.0_dp,beta_scalar=cosfactor,error=error)
 
     !      M
     !    OM+MO
@@ -1261,15 +1336,16 @@ CONTAINS
     !   ...
     DO i=2, qs_ot_env % taylor_order
        cosfactor=cosfactor * (-1.0_dp)/REAL(2*i * (2*i-1),KIND=dp)
-       CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1,error=error)
-       CALL cp_fm_gemm('N','N',k,k,k,rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left,error=error)
-       CALL cp_fm_to_fm(matrix_left,matrix_right,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,matrix_left,1.0_dp,qs_ot_env%matrix_buf1,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_r,cosfactor,matrix_left,error=error)
+       CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_p,matrix_left,rzero,qs_ot_env%matrix_buf1,error=error)
+       CALL dbcsr_multiply('N','N',rone,matrix_right,qs_ot_env%matrix_p,rzero,matrix_left,error=error)
+       CALL dbcsr_copy(matrix_right,matrix_left,error=error)
+       CALL dbcsr_add(matrix_left,qs_ot_env%matrix_buf1,error=error)
+       CALL dbcsr_add(qs_ot_env%matrix_r,matrix_left,&
+            alpha_scalar=1.0_dp,beta_scalar=cosfactor,error=error)
     ENDDO
 
     ! and add to the derivative
-    CALL cp_fm_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_r,rone,matrix_gx,error=error)
+    CALL dbcsr_multiply('N','N',rone,matrix_sx,qs_ot_env%matrix_r,rone,matrix_gx,error=error)
 
     CALL timestop(handle)
 
@@ -1291,8 +1367,11 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! zeroth order
-    CALL cp_fm_set_all(qs_ot_env%matrix_cosp,rzero,rone,error=error)
-    CALL cp_fm_set_all(qs_ot_env%matrix_sinp,rzero,rone,error=error)
+    CALL dbcsr_set(qs_ot_env%matrix_cosp,rzero,error=error)
+    CALL dbcsr_set(qs_ot_env%matrix_sinp,rzero,error=error)
+    CALL dbcsr_add_on_diag(qs_ot_env%matrix_cosp,rone,error=error)
+    CALL dbcsr_add_on_diag(qs_ot_env%matrix_sinp,rone,error=error)
+
     IF (qs_ot_env% taylor_order .LE. 0) THEN
        CALL timestop(handle)
        RETURN
@@ -1301,26 +1380,29 @@ CONTAINS
     ! first order
     cosfactor=-1.0_dp/(1.0_dp*2.0_dp)
     sinfactor=-1.0_dp/(2.0_dp*3.0_dp)
-    CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_p,error=error)
-    CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_p,error=error)
+    CALL dbcsr_add(qs_ot_env%matrix_cosp,qs_ot_env%matrix_p,alpha_scalar=1.0_dp,beta_scalar=cosfactor,error=error)
+    CALL dbcsr_add(qs_ot_env%matrix_sinp,qs_ot_env%matrix_p,alpha_scalar=1.0_dp,beta_scalar=sinfactor,error=error)
     IF (qs_ot_env% taylor_order .LE. 1) THEN
        CALL timestop(handle)
        RETURN
     ENDIF
 
     ! other orders
-    CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k,error=error)
-    CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_r,error=error)
+    CALL dbcsr_get_info(qs_ot_env%matrix_p,nfullrows_total=k)
+    CALL dbcsr_copy(qs_ot_env%matrix_r,qs_ot_env%matrix_p,error=error)
 
     DO i=2, qs_ot_env%taylor_order
        ! new power of p
-       CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_p,qs_ot_env%matrix_r,rzero,qs_ot_env%matrix_buf1,error=error)
-       CALL cp_fm_to_fm(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,error=error)
+       CALL dbcsr_multiply('N','N',rone,qs_ot_env%matrix_p,qs_ot_env%matrix_r,&
+            rzero,qs_ot_env%matrix_buf1,last_row=k,last_column=k,last_k=k,error=error)
+       CALL dbcsr_copy(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1,error=error)
        ! add to the taylor expansion so far
        cosfactor=cosfactor * (-1.0_dp)/REAL(2*i * (2*i-1),KIND=dp)
        sinfactor=sinfactor * (-1.0_dp)/REAL(2*i * (2*i+1),KIND=dp)
-       CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_cosp,cosfactor,qs_ot_env%matrix_r,error=error)
-       CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_sinp,sinfactor,qs_ot_env%matrix_r,error=error)
+       CALL dbcsr_add(qs_ot_env%matrix_cosp,qs_ot_env%matrix_r,&
+            alpha_scalar=1.0_dp,beta_scalar=cosfactor,error=error)
+       CALL dbcsr_add(qs_ot_env%matrix_sinp,qs_ot_env%matrix_r,&
+            alpha_scalar=1.0_dp,beta_scalar=sinfactor,error=error)
     ENDDO
 
     CALL timestop(handle)
@@ -1342,14 +1424,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, j, k
+    INTEGER                                  :: blk, col, col_offset, &
+                                                col_size, handle, i, j, k, &
+                                                row, row_offset, row_size
+    LOGICAL                                  :: tr
+    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: a, b
+    TYPE(dbcsr_iterator)                     :: iter
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k,error=error)
-    CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,error=error)
+    CALL dbcsr_get_info(qs_ot_env%matrix_p,nfullrows_total=k)
+    CALL dbcsr_copy(qs_ot_env%matrix_buf1,qs_ot_env%matrix_p,error=error)
+    CALL dbcsr_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,&
+         qs_ot_env%para_env,qs_ot_env%blacs_env,error=error)
     DO i=1,k
        qs_ot_env%evals(i)=MAX(0.0_dp,qs_ot_env%evals(i))
     ENDDO
@@ -1358,39 +1446,73 @@ CONTAINS
     DO i=1,k
        qs_ot_env%dum(i)=COS(SQRT(qs_ot_env%evals(i)))
     ENDDO
-    CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_column_scale(qs_ot_env%matrix_buf1,qs_ot_env%dum)
-    CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-         rzero,qs_ot_env%matrix_cosp,error=error)
+    CALL dbcsr_copy(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,error=error)
+    CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1,alpha=qs_ot_env%dum,side='right',error=error)
+    CALL dbcsr_multiply('N','T',rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
+         rzero,qs_ot_env%matrix_cosp,last_row=k,last_column=k,last_k=k,error=error)
 
     !$OMP PARALLEL DO
     DO i=1,k
        qs_ot_env%dum(i)=qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
     ENDDO
-    CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_column_scale(qs_ot_env%matrix_buf1,qs_ot_env%dum)
-    CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-         rzero,qs_ot_env%matrix_sinp,error=error)
+    CALL dbcsr_copy(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,error=error)
+    CALL dbcsr_scale_by_vector(qs_ot_env%matrix_buf1,alpha=qs_ot_env%dum,side='right',error=error)
+    CALL dbcsr_multiply('N','T',rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
+         rzero,qs_ot_env%matrix_sinp,last_row=k,last_column=k,last_k=k,error=error)
 
-    !$OMP PARALLEL DO PRIVATE(i,j,a,b)
-    DO j=1,qs_ot_env%ncol_local
-       DO i=1,qs_ot_env%nrow_local
-          a=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) &
-               -SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_dp
-          b=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) &
-               +SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_dp
-          qs_ot_env%matrix_cosp_b%local_data(i,j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
+!!$OMP PARALLEL DO PRIVATE(i,j,a,b)
+!DO j=1,ncol_local
+!   DO i=1,nrow_local
+!      a=(SQRT(qs_ot_env%evals(row_indices(i))) &
+!           -SQRT(qs_ot_env%evals(col_indices(j))))/2.0_dp
+!      b=(SQRT(qs_ot_env%evals(row_indices(i))) &
+!           +SQRT(qs_ot_env%evals(col_indices(j))))/2.0_dp
+!      qs_ot_env%matrix_cosp_b%local_data(i,j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
+!   ENDDO
+!ENDDO
+
+    CALL dbcsr_copy(qs_ot_env%matrix_cosp_b,qs_ot_env%matrix_cosp,error=error)
+    CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_cosp_b)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr,&
+            block_number=blk, row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+       DO j=1,col_size
+       DO i=1,row_size
+          a=(SQRT(qs_ot_env%evals( row_offset + i - 1 )) &
+            -SQRT(qs_ot_env%evals( col_offset + j - 1 )))/2.0_dp
+          b=(SQRT(qs_ot_env%evals( row_offset + i - 1 )) &
+            +SQRT(qs_ot_env%evals( col_offset + j - 1 )))/2.0_dp
+          DATA(i,j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
+       ENDDO
        ENDDO
     ENDDO
+    CALL dbcsr_iterator_stop(iter)
 
-    !$OMP PARALLEL DO PRIVATE(i,j,a,b)
-    DO j=1,qs_ot_env%ncol_local
-       DO i=1,qs_ot_env%nrow_local
-          a=SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i)))
-          b=SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j)))
-          qs_ot_env%matrix_sinp_b%local_data(i,j)=qs_ot_sincf(a,b)
+!!$OMP PARALLEL DO PRIVATE(i,j,a,b)
+!DO j=1,ncol_local
+!   DO i=1,nrow_local
+!      a=SQRT(qs_ot_env%evals(row_indices(i)))
+!      b=SQRT(qs_ot_env%evals(col_indices(j)))
+!      qs_ot_env%matrix_sinp_b%local_data(i,j)=qs_ot_sincf(a,b)
+!   ENDDO
+!ENDDO
+
+    CALL dbcsr_copy(qs_ot_env%matrix_sinp_b,qs_ot_env%matrix_sinp,error=error)
+    CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_sinp_b)
+    DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr,&
+            block_number=blk, row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+       DO j=1,col_size
+       DO i=1,row_size
+          a=SQRT(qs_ot_env%evals( row_offset + i - 1 ))
+          b=SQRT(qs_ot_env%evals( col_offset + j - 1 ))
+          DATA(i,j)=qs_ot_sincf(a,b)
+       ENDDO
        ENDDO
     ENDDO
+    CALL dbcsr_iterator_stop(iter)
 
     CALL timestop(handle)
 

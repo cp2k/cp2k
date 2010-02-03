@@ -1222,13 +1222,24 @@ CONTAINS
        ! from this routine, notice that this part of the calculation in not linear scaling
        ! right now this operation is only non-trivial because of occupation numbers and the restricted keyword
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy.AND..NOT.qs_env%run_rtp) THEN
+
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
+
+          !vwCALL get_qs_env(qs_env,mo_derivs_dbcsr=mo_derivs_dbcsr,mos=mo_array,error=error)
+
           DO ispin=1,SIZE(mo_derivs)
+
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
                              occupation_numbers=occupation_numbers )
              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
              CALL dbcsr_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                           mo_derivs(ispin)%matrix, k,error=error)
+
+             !vwCALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff_b=mo_coeff_b, &
+             !vw      occupation_numbers=occupation_numbers )
+             !vwCALL dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
+             !vwCALL dbcsr_multiply(ks_matrix(ispin)%matrix,mo_coeff_b,&
+             !vw      mo_derivs_dbcsr(ispin)%matrix, last_column=k, error=error)
 
              IF( dft_control%do_wfn_fitting) THEN
                CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mos,error=error)

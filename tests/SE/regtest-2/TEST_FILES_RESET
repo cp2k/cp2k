@@ -301,3 +301,13 @@ H2O-32.inp
 ZrF2-PM6.inp
 # adding hills energy to the total energy
 h2o_meta.inp
+# fm to dbcsr
+ch4-ot.inp
+# fm to dbcsr
+hcl_ot.inp
+# fm to dbcsr
+ZrF2-PM6.inp
+# fm to dbcsr
+zn_1w_debug.inp
+# fm to dbcsr
+H2O-32.inp

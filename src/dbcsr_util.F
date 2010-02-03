@@ -7684,7 +7684,6 @@ CONTAINS
 #include "dbcsr_util_c_.F"
 !#endif
 
-
   FUNCTION gcd(a,b)
     INTEGER                                  :: a, b, gcd
 

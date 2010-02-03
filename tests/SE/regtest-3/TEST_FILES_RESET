@@ -90,3 +90,13 @@ SiO2_lr_quad.inp
 SiO2.inp
 # Numerics change 
 SiO2_lr_quad.inp
+# fm to dbcsr
+Periclase.inp
+# fm to dbcsr
+SiO2.inp
+# fm to dbcsr
+LiH.inp
+# fm to dbcsr
+SiO2_lr_quad.inp
+# fm to dbcsr
+Co_complex.inp

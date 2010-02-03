@@ -725,3 +725,15 @@ h2o-otdiag.inp
 h2o-otdiag-lsd.inp
 # more to reset from last commit
 spin_restraint.inp
+# fm to dbcsr
+spin_restraint.inp
+# fm to dbcsr
+H2O-meta_hydro.inp
+# fm to dbcsr
+NO2-EFG-1.inp
+# fm to dbcsr
+He3_multi_ddapc.inp
+# fm to dbcsr
+h2o-otdiag.inp
+# fm to dbcsr
+h2o-otdiag-lsd.inp

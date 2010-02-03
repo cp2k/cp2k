@@ -617,3 +617,7 @@ hcn_ts.inp
 H2O-meta_coord_1.inp
 H2O-meta_coord_2.inp
 H2O-meta_coord.inp
+# fm to dbcsr
+hcn_ts_r.inp
+# fm to dbcsr
+Au12_rmsd_mtd.inp

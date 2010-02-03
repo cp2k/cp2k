@@ -647,7 +647,7 @@ END SUBROUTINE diag_subspace_allocate
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo,homo=homo)
        CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix,&
                            matrix_s=matrix_s(1)%matrix,&
-                           matrix_c=mo_coeff,&
+                           matrix_c_fm=mo_coeff,&
                            preconditioner=scf_env%ot_preconditioner(1)%preconditioner,&
                            eps_gradient=eps_iter,&
                            iter_max=scf_control%diagonalization%max_iter,&

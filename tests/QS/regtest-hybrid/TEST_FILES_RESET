@@ -382,3 +382,13 @@ Li-hybrid-rcam-b3lyp.inp
 Ne-hybrid-rcam-b3lyp.inp
 # bug fix dof for linear mol/single atoms
 Ne-hybrid-rcam-b3lyp.inp
+# fm to dbcsr
+Li-hybrid-rcam-b3lyp.inp
+# fm to dbcsr
+Ne-hybrid-rcam-b3lyp.inp
+# fm to dbcsr
+Ne-hybrid-MCY3.inp
+# fm to dbcsr
+CH3-PBE0_TC.inp
+# fm to dbcsr
+CH3-PBE0_TC_LRC.inp

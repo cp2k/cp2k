@@ -10,7 +10,10 @@
 !> \author Joost VandeVondele (2003-08)
 ! *****************************************************************************
 MODULE qs_mo_methods
-  USE cp_dbcsr_operations,             ONLY: dbcsr_plus_fm_fm_t,&
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             dbcsr_multiply,&
+                                             dbcsr_plus_fm_fm_t,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -28,7 +31,14 @@ MODULE qs_mo_methods
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_operations,                ONLY: dbcsr_set
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
+                                             dbcsr_init,&
+                                             dbcsr_release
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_scale_by_vector,&
+                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -55,6 +65,11 @@ MODULE qs_mo_methods
 
   INTERFACE calculate_subspace_eigenvalues
     MODULE PROCEDURE subspace_eigenvalues_ks
+  END INTERFACE
+
+  INTERFACE make_basis_sv
+     MODULE PROCEDURE make_basis_sv_fm
+     MODULE PROCEDURE make_basis_sv_dbcsr
   END INTERFACE
 
 CONTAINS
@@ -113,14 +128,14 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE make_basis_sv(vmatrix,ncol,svmatrix,error)
+  SUBROUTINE make_basis_sv_fm(vmatrix,ncol,svmatrix,error)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
     TYPE(cp_fm_type), POINTER                :: svmatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv_fm', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
@@ -151,7 +166,64 @@ CONTAINS
 
     CALL timestop(handle)
 
-    END SUBROUTINE make_basis_sv
+    END SUBROUTINE make_basis_sv_fm
+
+  SUBROUTINE make_basis_sv_dbcsr(vmatrix,ncol,svmatrix,para_env,blacs_env,error)
+
+    TYPE(dbcsr_obj)                          :: vmatrix
+    INTEGER, INTENT(IN)                      :: ncol
+    TYPE(dbcsr_obj)                          :: svmatrix
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv_dbcsr', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, n, ncol_global
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_svmatrix, fm_vmatrix, &
+                                                overlap_vv
+
+    IF (ncol.EQ.0) RETURN
+
+    CALL timeset(routineN,handle)
+
+    !CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
+    CALL dbcsr_get_info(vmatrix,nfullrows_total=n,nfullcols_total=ncol_global)
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+
+
+    CALL cp_fm_struct_create(fm_struct_tmp,context=blacs_env,nrow_global=ncol,&
+         ncol_global=ncol,para_env=para_env,error=error)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,name="fm_overlap_vv",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+    CALL cp_fm_struct_create(fm_struct_tmp,context=blacs_env,nrow_global=n,&
+         ncol_global=ncol_global,para_env=para_env,error=error)
+    CALL cp_fm_create(fm_vmatrix,fm_struct_tmp,name="fm_vmatrix",error=error)
+    CALL cp_fm_create(fm_svmatrix,fm_struct_tmp,name="fm_svmatrix",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+    CALL copy_dbcsr_to_fm(vmatrix,fm_vmatrix)
+    CALL copy_dbcsr_to_fm(svmatrix,fm_svmatrix)
+
+    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,fm_vmatrix,fm_svmatrix,rzero, overlap_vv,error=error)
+    CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
+    CALL cp_fm_triangular_multiply(overlap_vv,fm_vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
+    CALL cp_fm_triangular_multiply(overlap_vv,fm_svmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
+
+    CALL copy_fm_to_dbcsr(fm_vmatrix,vmatrix)
+    CALL copy_fm_to_dbcsr(fm_svmatrix,svmatrix)
+
+    CALL cp_fm_release(overlap_vv,error=error)
+    CALL cp_fm_release(fm_vmatrix,error=error)
+    CALL cp_fm_release(fm_svmatrix,error=error)
+
+    CALL timestop(handle)
+
+    END SUBROUTINE make_basis_sv_dbcsr
 
 ! *****************************************************************************
 !> \brief return a set of S orthonormal vectors (C^T S C == 1) where
@@ -351,42 +423,69 @@ CONTAINS
 !>       - Fractional occupied orbitals (MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE calculate_dm_sparse(mo_set,density_matrix,error)
+  SUBROUTINE calculate_dm_sparse(mo_set,density_matrix,use_dbcsr,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(dbcsr_obj), POINTER                 :: density_matrix
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_dbcsr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: my_use_dbcsr
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_fm_type), POINTER                :: fm_tmp
+    TYPE(dbcsr_obj)                          :: dbcsr_tmp
 
     CALL timeset(routineN,handle)
+
+    my_use_dbcsr = .FALSE.
+    IF(PRESENT(use_dbcsr)) my_use_dbcsr = use_dbcsr
+    IF(my_use_dbcsr) THEN
+       IF(.NOT.ASSOCIATED(mo_set%mo_coeff_b)) CALL stop_program(routineN,"mo_coeff_b NOT ASSOCIATED")
+    ENDIF
+
 
     CALL dbcsr_set(density_matrix,0.0_dp,error=error)
 
     IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
-       NULLIFY(fm_tmp)
-       CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct,error=error)
-       CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp,error=error)
-       CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
-       alpha=1.0_dp
 
-       CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                               matrix_v=mo_set%mo_coeff,&
-                               matrix_g=fm_tmp,&
-                               ncol=mo_set%homo,&
-                               alpha=alpha,error=error)
-       CALL cp_fm_release(fm_tmp,error=error)
+       IF(my_use_dbcsr) THEN
+          CALL dbcsr_init(dbcsr_tmp)
+          CALL dbcsr_copy(dbcsr_tmp,mo_set%mo_coeff_b,error=error)
+          CALL dbcsr_scale_by_vector(dbcsr_tmp,mo_set%occupation_numbers(1:mo_set%homo),&
+               side='right',error=error)
+          CALL dbcsr_multiply("N", "T", 1.0_dp, mo_set%mo_coeff_b, dbcsr_tmp,&
+               1.0_dp, density_matrix, retain_sparsity=.TRUE.,&
+               last_k = mo_set%homo, error=error)
+          CALL dbcsr_release(dbcsr_tmp)
+       ELSE
+          NULLIFY(fm_tmp)
+          CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct,error=error)
+          CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp,error=error)
+          CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
+          alpha=1.0_dp
+          CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
+                                  matrix_v=mo_set%mo_coeff,&
+                                  matrix_g=fm_tmp,&
+                                  ncol=mo_set%homo,&
+                                  alpha=alpha,error=error)
+          CALL cp_fm_release(fm_tmp,error=error)
+       ENDIF
     ELSE
-       alpha=mo_set%maxocc
-       CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                               matrix_v=mo_set%mo_coeff,&
-                               ncol=mo_set%homo,&
-                               alpha=alpha,error=error)
+       IF(my_use_dbcsr) THEN
+          CALL dbcsr_multiply("N", "T", mo_set%maxocc, mo_set%mo_coeff_b, mo_set%mo_coeff_b,&
+               1.0_dp, density_matrix, retain_sparsity=.TRUE.,&
+               last_k = mo_set%homo, error=error)
+       ELSE
+          alpha=mo_set%maxocc
+          CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
+                                  matrix_v=mo_set%mo_coeff,&
+                                  ncol=mo_set%homo,&
+                                  alpha=alpha,error=error)
+       ENDIF
     ENDIF
 
     CALL timestop(handle)

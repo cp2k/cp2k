@@ -421,8 +421,8 @@ CPSourceFileRef,&
 
              CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,&
                   matrix_s=matrix_s(1)%matrix, &
-                  matrix_c=unoccupied_orbs(ispin)%matrix, &
-                  matrix_orthogonal_space=mo_coeff, &
+                  matrix_c_fm=unoccupied_orbs(ispin)%matrix, &
+                  matrix_orthogonal_space_fm=mo_coeff, &
                   eps_gradient=scf_control%eps_lumos, &
                   preconditioner=local_preconditioner, &
                   iter_max=scf_control%max_iter_lumos,&

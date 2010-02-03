@@ -437,3 +437,25 @@ h2po4.inp
 st.inp
 # Numerics change 
 h2po4.inp
+# fm to dbcsr
+ch2o.inp
+# fm to dbcsr
+st.inp
+# fm to dbcsr
+ch4-ot.inp
+# fm to dbcsr
+h2op_2.inp
+# fm to dbcsr
+h2po4.inp
+# fm to dbcsr
+b2h6_pm6.inp
+# fm to dbcsr
+ch2o_pm6.inp
+# fm to dbcsr
+dimer.inp
+# fm to dbcsr
+dimer3.inp
+# fm to dbcsr
+dimer4.inp
+# fm to dbcsr
+h2o_gks_p.inp

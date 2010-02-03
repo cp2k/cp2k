@@ -785,3 +785,21 @@ H2O-solv.inp
 H2O-bloechl.inp
 H2O-bloechl-restraint.inp
 
+# fm to dbcsr
+H+-bloechl.inp
+# fm to dbcsr
+He2H-bloechl-md.inp
+# fm to dbcsr
+He2H-bloechl.inp
+# fm to dbcsr
+H2O-bloechl.inp
+# fm to dbcsr
+H2O-bloechl-Spl.inp
+# fm to dbcsr
+H2O-bloechl-restraint.inp
+# fm to dbcsr
+H2O-ata.inp
+# fm to dbcsr
+H+solv1.inp
+# fm to dbcsr
+dynamics.inp

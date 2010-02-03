@@ -271,3 +271,13 @@ H2S-gapw-gop.inp
 H2S-gapw-gop-ot.inp
 # more to reset from last commit
 He2-all-md.inp
+# fm to dbcsr
+HF_gapw_all_LB.inp
+# fm to dbcsr
+He2-all.inp
+# fm to dbcsr
+He2-all-md.inp
+# fm to dbcsr
+Be_GAPW.inp
+# fm to dbcsr
+Na_atom.inp

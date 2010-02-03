@@ -559,9 +559,9 @@ CONTAINS
        re_part=2*(i-1)+1       
        im_part=2*(i-1)+2   
        CALL cp_fm_to_fm(mos_new(im_part)%matrix,mos(i)%mo_set%mo_coeff,error)
-       CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_im,error)    
+       CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_im,error=error)    
        CALL cp_fm_to_fm(mos_new(re_part)%matrix,mos(i)%mo_set%mo_coeff,error)
-       CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_re,error)
+       CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_re,error=error)
 
        CALL dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_re,&
             alpha_scalar=zero,beta_scalar=one,error=error)

@@ -200,3 +200,11 @@ acn-conn-1.inp
 Si_tersoff_qmmm.inp
 #
 acn-conn-1.inp
+# fm to dbcsr
+crys_per_qmmm_anal.inp
+# fm to dbcsr
+crys_per_qmmm_spln.inp
+# fm to dbcsr
+acn-qmmm-re.inp
+# fm to dbcsr
+acn-conn-1.inp

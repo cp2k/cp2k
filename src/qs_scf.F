@@ -39,10 +39,13 @@
 ! *****************************************************************************
 MODULE qs_scf
 
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
                                              dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
@@ -60,6 +63,7 @@ MODULE qs_scf
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
@@ -72,12 +76,20 @@ MODULE qs_scf
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
+       dbcsr_distribution_new, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_init, dbcsr_init_p, &
+       dbcsr_mp_npcols, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_set
-  USE dbcsr_types,                     ONLY: dbcsr_obj,&
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_real_default,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: dbcsr_create,&
+  USE dbcsr_util,                      ONLY: create_bl_distribution,&
+                                             dbcsr_create,&
                                              dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -186,7 +198,8 @@ MODULE qs_scf
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type,&
                                              set_scp_env
-  USE termination,                     ONLY: external_control
+  USE termination,                     ONLY: external_control,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_restart,                     ONLY: xas_initialize_rho
@@ -680,17 +693,17 @@ CONTAINS
           CASE(ot_method_nr)
              ! ***SCP
              IF ( scp_dft ) THEN
-                CALL qs_scf_loop_do_ot(scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
+                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
                      matrix_s, aux_coeff_set=aux_coeff_set, energy_only=energy_only, &
                      has_unit_metric=has_unit_metric,error=error)
              ELSEIF ( scp_nddo ) THEN
-                CALL get_scp_env ( scp_env = scp_env,  ks_scp=ks_scp, error = error )!sm->dbcsr
-                CALL qs_scf_loop_do_ot(scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
+                CALL get_scp_env ( scp_env = scp_env,  ks_scp=ks_scp, error = error )
+                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
                      matrix_s, pscp=pscp, fscp=ks_scp, energy_only=energy_only, &
                      has_unit_metric=has_unit_metric,error=error)
                 CALL set_scp_env ( scp_env = scp_env, pscp = pscp, error = error )
              ELSE
-                CALL qs_scf_loop_do_ot(scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
+                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
                      matrix_s, energy_only=energy_only,has_unit_metric=has_unit_metric,error=error)
              ENDIF
              ! ***SCP
@@ -949,10 +962,11 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE qs_scf_loop_do_ot(scf_env,smear,mos,rho,mo_derivs,total_energy,&
+  SUBROUTINE qs_scf_loop_do_ot(qs_env,scf_env,smear,mos,rho,mo_derivs,total_energy,&
                                matrix_s,aux_coeff_set,pscp,fscp,energy_only, &
                                has_unit_metric,error)
 
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(smear_type)                         :: smear
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -974,9 +988,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
+    LOGICAL                                  :: failure
     TYPE(dbcsr_obj), POINTER                 :: orthogonality_metric
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs_dbcsr
 
     CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    NULLIFY(mo_derivs_dbcsr)
 
     IF (has_unit_metric) THEN
       NULLIFY(orthogonality_metric)
@@ -984,22 +1005,47 @@ CONTAINS
        orthogonality_metric=>matrix_s(1)%matrix
     END IF
 
+    !
+    ! for the moment we copy the mos and its gradients to dbcsr and after the ot step the mos
+    ! back to the fm format.
+    DO ispin=1,SIZE(mos)!fm -> dbcsr
+       IF(.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &
+            CALL stop_program(routineN, "mo_coeff_b is not allocated")
+       CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b)!fm -> dbcsr
+    ENDDO!fm -> dbcsr
+
+    CALL get_qs_env(qs_env=qs_env,mo_derivs_dbcsr=mo_derivs_dbcsr,error=error)!fm -> dbcsr
+    IF(.NOT.energy_only) THEN!fm -> dbcsr
+       DO ispin=1,SIZE(mo_derivs)!fm -> dbcsr
+          IF(.NOT.ASSOCIATED(mo_derivs_dbcsr(ispin)%matrix)) &
+               CALL stop_program(routineN, "mo_derivs_dbcsr is not allocated")
+          CALL copy_fm_to_dbcsr(mo_derivs(ispin)%matrix,mo_derivs_dbcsr(ispin)%matrix)!fm -> dbcsr
+       ENDDO!fm -> dbcsr
+    ENDIF
+
     ! in case of LSD the first spin qs_ot_env will drive the minimization
     ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
 
-    CALL ot_scf_mini(mos,mo_derivs,smear,orthogonality_metric, &
+    CALL ot_scf_mini(mos,mo_derivs_dbcsr,smear,orthogonality_metric, &
                     total_energy, aux_coeff_set,    &
                     pscp,fscp,energy_only,scf_env%iter_delta, & 
                     scf_env%qs_ot_env,error=error)
+
+
     DO ispin=1,SIZE(mos)
        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
                               smear=smear,&
                               error=error)
     ENDDO
 
+    DO ispin=1,SIZE(mos)!fm -> dbcsr
+       CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff)!fm -> dbcsr
+    ENDDO!fm -> dbcsr
+
     DO ispin=1,SIZE(mos)
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
                                     rho%rho_ao(ispin)%matrix,&
+                                    use_dbcsr=.TRUE.,&
                                     error=error)
     END DO
 
@@ -1446,6 +1492,7 @@ END SUBROUTINE qs_scf_print_summary
                         matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
                         qs_env%kinetic(1)%matrix, &
                         mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,&
+                        convert_precond_to_dbcsr=.TRUE.,&
                         error=error)
            ENDDO
          CASE DEFAULT
@@ -1458,6 +1505,7 @@ END SUBROUTINE qs_scf_print_summary
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                      qs_env%kinetic(1)%matrix, &
                      mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,&
+                     convert_precond_to_dbcsr=.TRUE.,&
                      error=error)
        END SELECT
 
@@ -1588,7 +1636,8 @@ CPSourceFileRef)
              SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
              CASE(ot_precond_none)
                 CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
-                     qs_ot_env = scf_env%qs_ot_env,error=error)
+                     qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                     error=error)
              CASE(ot_precond_full_all,ot_precond_full_single_inverse)
                 ! this will rotate the MOs to be eigen states, which is not compatible with rotation
                 ! e.g. mo_derivs here do not yet include potentially different occupations numbers
@@ -1605,6 +1654,7 @@ CPSourceFileRef)
                           matrix_h=matrix_ks(ispin)%matrix, &
                           mo_coeff=mo_coeff, &
                           energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
+                          convert_precond_to_dbcsr=.TRUE.,&
                           error=error)
                    ELSE
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
@@ -1615,6 +1665,7 @@ CPSourceFileRef)
                           matrix_t=matrix_s(1)%matrix, &
                           mo_coeff=mo_coeff,&
                           energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
+                          convert_precond_to_dbcsr=.TRUE.,&
                           error=error)
                    END IF
                 ENDDO
@@ -1622,10 +1673,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
-                        qs_ot_env=scf_env%qs_ot_env, error=error)
+                        qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
+                        error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
-                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                        qs_ot_env = scf_env%qs_ot_env,matrix_ks=matrix_ks(1)%matrix,&
+                        error=error)
                 END IF
                 DO ispin=1,SIZE(scf_env%qs_ot_env)
                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
@@ -1639,10 +1692,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
-                        qs_ot_env=scf_env%qs_ot_env, error=error)
+                        qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
+                        error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
-                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                        qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                        error=error)
                 END IF
              CASE(ot_precond_s_inverse,ot_precond_sparse_diag,ot_precond_full_single)
                 CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
@@ -1651,22 +1706,28 @@ CPSourceFileRef)
                      scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                      scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                      matrix_ks(1)%matrix,mo_coeff=mo_coeff,&
-                     energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                     energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,&
+                     convert_precond_to_dbcsr=.TRUE.,&
+                     error=error)
                 ELSE
                   CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
                      scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                      scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
-                     mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                     mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,&
+                     convert_precond_to_dbcsr=.TRUE.,&
+                     error=error)
                 END IF
                 IF ( scp_nddo ) THEN
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
-                        qs_ot_env=scf_env%qs_ot_env, error=error)
+                        qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                        error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
-                     qs_ot_env = scf_env%qs_ot_env,error=error)
+                     qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
+                     error=error)
                 END IF
                 DO ispin=1,SIZE(scf_env%qs_ot_env)
                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
@@ -1677,10 +1738,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
-                        qs_ot_env=scf_env%qs_ot_env, error=error)
+                        qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                        error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
-                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                        qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                        error=error)
                 END IF
              END SELECT
 
@@ -1692,10 +1755,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set=aux_coeff_set, &
-                        qs_ot_env=scf_env%qs_ot_env, error=error)
+                        qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
+                        error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
-                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                        qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
+                        error=error)
                 ENDIF
                 ! **** SCP
              CASE(ot_precond_full_all,ot_precond_full_single_inverse)
@@ -1715,6 +1780,7 @@ CPSourceFileRef)
                         qs_env%kinetic(1)%matrix, &
                         mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap, &
                         scf_env%qs_ot_env(1)%settings%mixed_precision, &
+                        convert_precond_to_dbcsr=.TRUE.,&
                         error=error)
                 ENDDO
                 ! **** SCP
@@ -1722,10 +1788,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set=aux_coeff_set, &
-                                    qs_ot_env=scf_env%qs_ot_env, error=error)
+                                    qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                                    error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
-                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                        qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                        error=error)
                 ENDIF
                 ! **** SCP
                 DO ispin=1,SIZE(scf_env%qs_ot_env)
@@ -1744,16 +1812,19 @@ CPSourceFileRef)
                      qs_env%kinetic(1)%matrix, &
                      mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap, &
                      scf_env%qs_ot_env(1)%settings%mixed_precision, &
+                     convert_precond_to_dbcsr=.TRUE.,&
                      error=error)
                 ! **** SCP
                 IF ( scp_dft ) THEN
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set=aux_coeff_set, &
-                                   qs_ot_env=scf_env%qs_ot_env, error=error)
+                                   qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                                   error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
-                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                        qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
+                        error=error)
                 ENDIF
                 ! **** SCP
                 DO ispin=1,SIZE(scf_env%qs_ot_env)
@@ -1780,7 +1851,6 @@ CPSourceFileRef)
        do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
        CPPrecondition(do_rotation,cp_failure_level,routineP,error,failure)
     ENDIF
-  
 
     CALL timestop(handle)
 
@@ -1993,13 +2063,14 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, ispin, nao, &
-                                                nhistory, nrow_block, &
+                                                nhistory, nmo, nrow_block, &
                                                 nvariables, stat
     LOGICAL                                  :: failure, &
                                                 gth_potential_present, &
                                                 my_transition_potential, &
                                                 uniform_occupation
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
+    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -2012,9 +2083,11 @@ CPSourceFileRef)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools, S_sm_pools_aux_fit
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s
+                                                matrix_s, mo_derivs_dbcsr
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -2066,7 +2139,7 @@ CPSourceFileRef)
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        DO ispin=1,SIZE(mos)
-          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo)
+          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b,homo=homo)
           IF (.NOT.ASSOCIATED(mo_coeff)) THEN
              CALL init_mo_set(mos(ispin)%mo_set,&
                   ao_mo_fm_pools(ispin)%pool,&
@@ -2074,6 +2147,21 @@ CPSourceFileRef)
                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                   error=error)
           END IF
+          IF(.not.ASSOCIATED(mo_coeff_b)) THEN
+             CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=nmo,error=error)
+             CALL create_bl_distribution (col_dist, col_blk_size, nmo, &! fm->dbcsr
+                  dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_s(1)%matrix))))! fm->dbcsr
+             CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_s(1)%matrix)),&! fm->dbcsr
+                  dbcsr_distribution_row_dist(dbcsr_distribution(matrix_s(1)%matrix)), col_dist)! fm->dbcsr
+             CALL dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b)
+             CALL dbcsr_create(mos(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_normal,&! fm->dbcsr
+                  dbcsr_row_block_sizes(matrix_s(1)%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&!fm->dbcsr
+                  special=.TRUE.)! fm->dbcsr
+             CALL dbcsr_finalize(mos(ispin)%mo_set%mo_coeff_b)! fm->dbcsr
+             CALL dbcsr_distribution_release (dist)! fm->dbcsr
+             CALL array_release (col_blk_size)! fm->dbcsr
+             CALL array_release (col_dist)! fm->dbcsr
+          ENDIF
           IF(my_transition_potential .AND. ispin==1) THEN
             CALL get_mo_set(mos(ispin)%mo_set,&
                  occupation_numbers=occupation_numbers)
@@ -2118,7 +2206,7 @@ CPSourceFileRef)
 
 !   *** get the mo_derivs OK if needed ***
     IF (qs_env%requires_mo_derivs) THEN
-     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
+     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mo_derivs_dbcsr=mo_derivs_dbcsr,error=error)
      IF (.NOT.ASSOCIATED(mo_derivs)) THEN
        IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
           ALLOCATE(mo_derivs(1))
@@ -2133,6 +2221,34 @@ CPSourceFileRef)
        ENDIF
        CALL set_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
      ENDIF
+
+     IF (.NOT.ASSOCIATED(mo_derivs_dbcsr)) THEN! fm->dbcsr
+        IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
+           ALLOCATE(mo_derivs_dbcsr(1))
+           CALL get_mo_set(mos(1)%mo_set,mo_coeff_b=mo_coeff_b)
+           NULLIFY(mo_derivs_dbcsr(1)%matrix)
+           CALL dbcsr_init_p(mo_derivs_dbcsr(1)%matrix)
+           CALL dbcsr_create(mo_derivs_dbcsr(1)%matrix, "mo_derivs_dbcsr",&
+                dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
+                dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
+                0, 0, dbcsr_type_real_default, special=.TRUE.)
+           CALL dbcsr_finalize(mo_derivs_dbcsr(1)%matrix)
+        ELSE
+           ALLOCATE(mo_derivs_dbcsr(dft_control%nspins))
+           DO ispin=1,dft_control%nspins
+              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b)
+              NULLIFY(mo_derivs_dbcsr(ispin)%matrix)
+              CALL dbcsr_init_p(mo_derivs_dbcsr(ispin)%matrix)
+              CALL dbcsr_create(mo_derivs_dbcsr(ispin)%matrix, "mo_derivs_dbcsr",&
+                   dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
+                   dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
+                   0, 0, dbcsr_type_real_default, special=.TRUE.)
+              CALL dbcsr_finalize(mo_derivs_dbcsr(ispin)%matrix)
+           ENDDO
+        ENDIF
+        CALL set_qs_env(qs_env,mo_derivs_dbcsr=mo_derivs_dbcsr,error=error)
+     ENDIF! fm->dbcsr
+
     ELSE
        ! nothing should be done
     ENDIF

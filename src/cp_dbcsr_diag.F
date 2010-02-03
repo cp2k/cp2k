@@ -768,7 +768,6 @@ CONTAINS
     IF (info.NE.0) CALL stop_program(routineN,"unable to diagonalize matrix")
     DEALLOCATE(work,iwork,rwork)
 
-
     CALL copy_cfm_to_dbcsr(fm_eigenvectors, eigenvectors)
 
     CALL cp_cfm_release(fm_matrix, error)

@@ -571,7 +571,7 @@ CONTAINS
     NULLIFY (local_preconditioner)
 
     CALL ot_eigensolver(matrix_h=ks_matrix(ispin)%matrix,matrix_s=s_matrix(1)%matrix, &
-         matrix_c=mo_virt, matrix_orthogonal_space=mo_coeff, &
+         matrix_c_fm=mo_virt, matrix_orthogonal_space_fm=mo_coeff, &
          eps_gradient=scf_control%eps_lumos, &
          preconditioner=local_preconditioner, &
          iter_max=scf_control%max_iter_lumos,&

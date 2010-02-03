@@ -645,3 +645,17 @@ He2_ddapc_constraint.inp
 He2_none_full_all.inp
 He2_none_full_inverse.inp
 He2_none_full_single.inp
+# fm to dbcsr
+He2_ddapc_constraint.inp
+# fm to dbcsr
+He2_ddapc_constraint-2.inp
+# fm to dbcsr
+He2_ddapc_constraint-3.inp
+# fm to dbcsr
+He2_none_full_all.inp
+# fm to dbcsr
+He2_none_full_inverse.inp
+# fm to dbcsr
+sic_ddapc_rt.inp
+# fm to dbcsr
+He2_ddapc_constraint-4.inp

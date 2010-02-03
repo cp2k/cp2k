@@ -257,3 +257,17 @@ H2O-rks-otcg-lowdin.inp
 H2O-uks-diag-lowdin.inp
 # turned on dbcsr_multiply_fm_fm_t
 H2O-uks-otcg-lowdin.inp
+# fm to dbcsr
+H2O-rks-diag.inp
+# fm to dbcsr
+H2O-rks-otcg.inp
+# fm to dbcsr
+H2O-uks-otcg.inp
+# fm to dbcsr
+H2O-rks-otcg-mulliken.inp
+# fm to dbcsr
+H2O-uks-otcg-mulliken.inp
+# fm to dbcsr
+H2O-rks-otcg-lowdin.inp
+# fm to dbcsr
+H2O-uks-otcg-lowdin.inp

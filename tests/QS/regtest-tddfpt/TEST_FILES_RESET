@@ -51,3 +51,7 @@ H2O_tddfpt-t-1.inp
 H2O_tddfpt-t-1.inp
 # more to reset
 H2O_tddfpt-t-1.inp
+# fm to dbcsr
+NO_tddfpt-t-1.inp
+# fm to dbcsr
+NO_tddfpt-s-3.inp

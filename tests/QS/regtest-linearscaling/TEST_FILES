@@ -4,5 +4,4 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 test-shrt.inp 0
-h2o_sparse_guess.inp 1
 w3-filter.inp 1

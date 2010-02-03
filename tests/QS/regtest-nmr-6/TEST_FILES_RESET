@@ -730,3 +730,7 @@ ch3m-gapw-1.inp
 ch3p-gapw-1.inp
 # turned on dbcsr_multiply_fm_fm_t
 no-gapw-gpw-1.inp
+# fm to dbcsr
+no-gapw-1-distributed.inp
+# fm to dbcsr
+no-gapw-gpw-1.inp

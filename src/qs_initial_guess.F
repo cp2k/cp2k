@@ -50,7 +50,6 @@ MODULE qs_initial_guess
                                              dbcsr_create,&
                                              dbcsr_create_dist_r_unrot,&
                                              dbcsr_verify_matrix
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
   USE f77_blas
@@ -172,19 +171,18 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: s_sparse, h_core_sparse, p_rmpv
     TYPE(section_vals_type), POINTER         :: dft_section, input, subsys_section
     TYPE(dbcsr_obj)                          :: mo_dbcsr, mo_tmp_dbcsr
-    TYPE(array_i1d_obj)                      :: col_blk_size
+    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(dbcsr_distribution_obj)             :: dist, product_dist
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
 
     logger => cp_error_get_logger(error)
     failure = .FALSE.
     NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
          ortho,work2,work1,mo_array,s_sparse,scf_control, &
-         dft_control, distribution_2d, p_rmpv,&
+         dft_control, p_rmpv,&
          ortho,work2,work1,mo_array,s_sparse,scf_control, &
-         dft_control,h_core_sparse, distribution_2d)
+         dft_control,h_core_sparse)
     NULLIFY(dft_section, input, subsys_section)
     NULLIFY(moa,mob)
     NULLIFY (atom_list,elec_conf,first_sgfa,l,last_sgfa,nshell,scp_env)
@@ -196,7 +194,6 @@ CONTAINS
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
-         distribution_2d=distribution_2d,&
          error=error)
 
     nspin=dft_control%nspins

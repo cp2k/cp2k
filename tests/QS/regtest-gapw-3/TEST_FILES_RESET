@@ -208,3 +208,9 @@ CO_xastpxhh.inp
 CO_xastpval.inp
 # turned on dbcsr_multiply_fm_fm_t
 CO_xastpxhh_loclist.inp
+# fm to dbcsr
+CO_xastpxhh.inp
+# fm to dbcsr
+CO_xastpval.inp
+# fm to dbcsr
+CO_xastpxhh_loclist.inp

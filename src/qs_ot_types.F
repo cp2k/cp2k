@@ -11,35 +11,39 @@
 !> \author Joost VandeVondele (06.2002)
 ! *****************************************************************************
 MODULE qs_ot_types
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_release
   USE bibliography,                    ONLY: VandeVondele2003,&
                                              Weber2008,&
                                              cite_reference
-  USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                             cp_cfm_release,&
-                                             cp_cfm_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
+                                             cp_blacs_env_retain
   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_get,&
-                                             cp_fm_struct_release,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_get_data_size, dbcsr_init_p, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_release_p, dbcsr_row_block_sizes
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_set
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
+                                             dbcsr_type_complex_default,&
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_real_4,&
+                                             dbcsr_type_real_default
+  USE dbcsr_util,                      ONLY: create_bl_distribution,&
+                                             dbcsr_create,&
+                                             dbcsr_finalize
   USE f77_blas
   USE input_constants,                 ONLY: &
        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &
@@ -119,18 +123,21 @@ MODULE qs_ot_types
      TYPE(preconditioner_type), POINTER :: preconditioner
 
      ! these will/might change during iterations
-     TYPE(cp_fm_type), POINTER :: matrix_p
-     TYPE(cp_fm_type), POINTER :: matrix_r
-     TYPE(cp_fm_type), POINTER :: matrix_sinp
-     TYPE(cp_fm_type), POINTER :: matrix_cosp
-     TYPE(cp_fm_type), POINTER :: matrix_sinp_b
-     TYPE(cp_fm_type), POINTER :: matrix_cosp_b
-     TYPE(cp_fm_type), POINTER :: matrix_buf1
-     TYPE(cp_fm_type), POINTER :: matrix_buf2
-     TYPE(cp_fm_type), POINTER :: matrix_buf3
-     TYPE(cp_fm_type), POINTER :: matrix_os
-     TYPE(cp_fm_type), POINTER :: matrix_buf1_ortho
-     TYPE(cp_fm_type), POINTER :: matrix_buf2_ortho
+
+     ! OT / TOD
+     TYPE(dbcsr_obj), POINTER :: matrix_p
+     TYPE(dbcsr_obj), POINTER :: matrix_r
+     TYPE(dbcsr_obj), POINTER :: matrix_sinp
+     TYPE(dbcsr_obj), POINTER :: matrix_cosp
+     TYPE(dbcsr_obj), POINTER :: matrix_sinp_b
+     TYPE(dbcsr_obj), POINTER :: matrix_cosp_b
+     TYPE(dbcsr_obj), POINTER :: matrix_buf1
+     TYPE(dbcsr_obj), POINTER :: matrix_buf2
+     TYPE(dbcsr_obj), POINTER :: matrix_buf3
+     TYPE(dbcsr_obj), POINTER :: matrix_buf4
+     TYPE(dbcsr_obj), POINTER :: matrix_os
+     TYPE(dbcsr_obj), POINTER :: matrix_buf1_ortho
+     TYPE(dbcsr_obj), POINTER :: matrix_buf2_ortho
 
      REAL(KIND = dp),  DIMENSION(:), POINTER :: evals
      REAL(KIND = dp),  DIMENSION(:), POINTER :: dum
@@ -139,22 +146,26 @@ MODULE qs_ot_types
      LOGICAL os_valid
 
      ! for efficient/parallel writing to the blacs_matrix
-     INTEGER, DIMENSION(:), POINTER :: row_indices
-     INTEGER, DIMENSION(:), POINTER :: col_indices
-     INTEGER :: nrow_local,ncol_local
+     TYPE(cp_para_env_type), POINTER :: para_env
+     TYPE(cp_blacs_env_type), POINTER :: blacs_env
 
      ! mo-like vectors
-     TYPE(cp_fm_type), POINTER :: matrix_c0,matrix_sc0,matrix_psc0
+     TYPE(dbcsr_obj), POINTER :: matrix_c0,matrix_sc0,matrix_psc0
+
+     ! OT / IR
+     TYPE(dbcsr_obj), POINTER :: buf1_k_k_nosym, buf2_k_k_nosym, &
+          buf3_k_k_nosym, buf4_k_k_nosym, &
+          buf1_k_k_sym, buf2_k_k_sym, buf3_k_k_sym, buf4_k_k_sym, &
+          p_k_k_sym, buf1_n_k, buf1_n_k_dp
 
      ! only here for the ease of programming. These will have to be supplied
      ! explicitly at all times
-     TYPE(cp_fm_type), POINTER :: matrix_x,matrix_sx, matrix_gx, matrix_gx_dp
-     TYPE(cp_fm_type), POINTER :: matrix_dx, matrix_gx_old
+     TYPE(dbcsr_obj), POINTER :: matrix_x,matrix_sx, matrix_gx
+     TYPE(dbcsr_obj), POINTER :: matrix_dx, matrix_gx_old
 
      LOGICAL :: use_gx_old, use_dx
 
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrix_h_e
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: matrix_h_x
+     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: matrix_h_e, matrix_h_x
 
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: ls_diis
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lss_diis
@@ -177,19 +188,19 @@ MODULE qs_ot_types
      REAL(KIND = dp)  :: largest_eval_upper_bound
 
      ! second part of the variables, if an explicit rotation is required as well
-     TYPE(cp_fm_type), POINTER :: rot_mat_u ! rotation matrix
-     TYPE(cp_fm_type), POINTER :: rot_mat_x ! antisymmetric matrix that parametrises rot_matrix_u
-     TYPE(cp_fm_type), POINTER :: rot_mat_dedu ! derivative of the total energy wrt to u
-     TYPE(cp_fm_type), POINTER :: rot_mat_chc  ! for convencience, the matrix c^T H c
+     TYPE(dbcsr_obj), POINTER :: rot_mat_u ! rotation matrix
+     TYPE(dbcsr_obj), POINTER :: rot_mat_x ! antisymmetric matrix that parametrises rot_matrix_u
+     TYPE(dbcsr_obj), POINTER :: rot_mat_dedu ! derivative of the total energy wrt to u
+     TYPE(dbcsr_obj), POINTER :: rot_mat_chc  ! for convencience, the matrix c^T H c
 
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
-     TYPE(cp_fm_type), POINTER :: rot_mat_gx
-     TYPE(cp_fm_type), POINTER :: rot_mat_gx_old
-     TYPE(cp_fm_type), POINTER :: rot_mat_dx
+     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
+     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
+     TYPE(dbcsr_obj), POINTER :: rot_mat_gx
+     TYPE(dbcsr_obj), POINTER :: rot_mat_gx_old
+     TYPE(dbcsr_obj), POINTER :: rot_mat_dx
 
      REAL(KIND = dp),   DIMENSION(:), POINTER :: rot_mat_evals
-     TYPE(cp_cfm_type), POINTER :: rot_mat_evec
+     TYPE(dbcsr_obj), POINTER :: rot_mat_evec
      ! *** SCP
      ! third part of the variables, if we are simultaneously
      ! minimizing SCP variables 
@@ -281,21 +292,20 @@ CONTAINS
     qs_ot_env%ds_min=qs_ot_env%settings%ds_min
     qs_ot_env%os_valid=.FALSE.
 
-    CALL cp_fm_set_all(qs_ot_env%matrix_gx,0.0_dp,error=error)
-    IF(qs_ot_env%settings%mixed_precision)&
-         CALL cp_fm_set_all(qs_ot_env%matrix_gx_dp,0.0_dp,error=error)
+    CALL dbcsr_set(qs_ot_env%matrix_gx,0.0_dp,error=error)
 
     IF (qs_ot_env%use_dx) &
-         CALL cp_fm_set_all(qs_ot_env%matrix_dx,0.0_dp,error=error)
+         CALL dbcsr_set(qs_ot_env%matrix_dx,0.0_dp,error=error)
+
     IF (qs_ot_env%use_gx_old) &
-         CALL cp_fm_set_all(qs_ot_env%matrix_gx_old,0.0_dp,error=error)
+         CALL dbcsr_set(qs_ot_env%matrix_gx_old,0.0_dp,error=error)
 
     IF (qs_ot_env%settings%do_rotation) THEN
-       CALL cp_fm_set_all(qs_ot_env%rot_mat_gx,0.0_dp,error=error)
+       CALL dbcsr_set(qs_ot_env%rot_mat_gx,0.0_dp,error=error)
        IF (qs_ot_env%use_dx) &
-            CALL cp_fm_set_all(qs_ot_env%rot_mat_dx,0.0_dp,error=error)
+            CALL dbcsr_set(qs_ot_env%rot_mat_dx,0.0_dp,error=error)
        IF (qs_ot_env%use_gx_old) &
-            CALL cp_fm_set_all(qs_ot_env%rot_mat_gx_old,0.0_dp,error=error)
+            CALL dbcsr_set(qs_ot_env%rot_mat_gx_old,0.0_dp,error=error)
     ENDIF
     ! **** SCP
     IF (qs_ot_env%settings%scp_dft) THEN
@@ -327,8 +337,9 @@ CONTAINS
   ! ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
   ! be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
 ! *****************************************************************************
-  SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref, aux_coeff_set, scp_sm, ortho_k,error)
+  SUBROUTINE qs_ot_allocate(qs_ot_env, matrix_s, fm_struct_ref, aux_coeff_set, scp_sm, ortho_k,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(dbcsr_obj), POINTER                 :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
@@ -343,25 +354,31 @@ CONTAINS
                                                 m_diis, my_ortho_k, n, ncoef, &
                                                 ncoef_of_kind, nkind
     LOGICAL                                  :: failure, mixed_precision
+    TYPE(array_i1d_obj) :: col_blk_size_k, col_blk_size_o, col_dist, &
+      col_dist_o, row_blk_size_k, row_blk_size_o, row_dist, row_dist_o
     TYPE(aux_coeff_type), POINTER            :: local_coeff
     TYPE(cp_blacs_env_type), POINTER         :: context
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_o, &
-                                                fm_struct_o_k, fm_struct_o_o
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_distribution_obj)             :: dist_k_k, dist_n_k, dist_n_o, &
+                                                dist_o_k, dist_o_o
 
     failure = .FALSE.
 
     CALL cite_reference(VandeVondele2003)
 
-    NULLIFY(fm_struct_o_o, fm_struct_o_k, fm_struct_k_k, fm_struct_n_o)
     NULLIFY(qs_ot_env%preconditioner)
     NULLIFY(qs_ot_env%matrix_psc0)
-    NULLIFY(qs_ot_env%row_indices)
-    NULLIFY(qs_ot_env%col_indices)
     NULLIFY(qs_ot_env%scp_para_env)
+    NULLIFY(qs_ot_env%para_env)
+    NULLIFY(qs_ot_env%blacs_env)
 
     CALL cp_fm_struct_get(fm_struct_ref, nrow_global=n, ncol_global=k, &
          para_env=para_env, context=context,error=error)
+
+    qs_ot_env%para_env  => para_env
+    qs_ot_env%blacs_env => context
+    CALL cp_para_env_retain(para_env, error)
+    CALL cp_blacs_env_retain(context, error)
 
     IF (PRESENT(ortho_k)) THEN
        my_ortho_k = ortho_k
@@ -393,96 +410,349 @@ CONTAINS
        ALLOCATE(qs_ot_env%lss_diis(m_diis+1,m_diis+1))
        ALLOCATE(qs_ot_env%c_diis(m_diis+1))
        ALLOCATE(qs_ot_env%ipivot(m_diis+1))
-       ALLOCATE(qs_ot_env%matrix_h_e(m_diis))
-       ALLOCATE(qs_ot_env%matrix_h_x(m_diis))
     ENDIF
 
     ALLOCATE(qs_ot_env%evals(k))
     ALLOCATE(qs_ot_env%dum(k))
 
-    CALL cp_fm_struct_create(fm_struct_o_o,para_env=para_env,context=context, &
-         nrow_global=my_ortho_k,ncol_global=my_ortho_k,error=error)
-    CALL cp_fm_struct_create(fm_struct_o_k,para_env=para_env,context=context, &
-         nrow_global=my_ortho_k,ncol_global=k,error=error)
-    CALL cp_fm_struct_create(fm_struct_k_k,para_env=para_env,context=context, &
-         nrow_global=k,ncol_global=k,error=error)
-    CALL cp_fm_struct_create(fm_struct_n_o,para_env=para_env,context=context, &
-         nrow_global=n,ncol_global=my_ortho_k,error=error)
+    NULLIFY(qs_ot_env%matrix_os)
+    NULLIFY(qs_ot_env%matrix_buf1_ortho)
+    NULLIFY(qs_ot_env%matrix_buf2_ortho)
+    NULLIFY(qs_ot_env%matrix_p)
+    NULLIFY(qs_ot_env%matrix_r)
+    NULLIFY(qs_ot_env%matrix_sinp)
+    NULLIFY(qs_ot_env%matrix_cosp)
+    NULLIFY(qs_ot_env%matrix_sinp_b)
+    NULLIFY(qs_ot_env%matrix_cosp_b)
+    NULLIFY(qs_ot_env%matrix_buf1)
+    NULLIFY(qs_ot_env%matrix_buf2)
+    NULLIFY(qs_ot_env%matrix_buf3)
+    NULLIFY(qs_ot_env%matrix_buf4)
+    NULLIFY(qs_ot_env%matrix_c0)
+    NULLIFY(qs_ot_env%matrix_sc0)
+    NULLIFY(qs_ot_env%matrix_x)
+    NULLIFY(qs_ot_env%matrix_sx)
+    NULLIFY(qs_ot_env%matrix_gx)
+    NULLIFY(qs_ot_env%matrix_gx_old)
+    NULLIFY(qs_ot_env%matrix_dx)
+    NULLIFY(qs_ot_env%buf1_k_k_nosym)
+    NULLIFY(qs_ot_env%buf2_k_k_nosym)
+    NULLIFY(qs_ot_env%buf3_k_k_nosym)
+    NULLIFY(qs_ot_env%buf4_k_k_nosym)
+    NULLIFY(qs_ot_env%buf1_k_k_sym)
+    NULLIFY(qs_ot_env%buf2_k_k_sym)
+    NULLIFY(qs_ot_env%buf3_k_k_sym)
+    NULLIFY(qs_ot_env%buf4_k_k_sym)
+    NULLIFY(qs_ot_env%buf1_n_k)
+    NULLIFY(qs_ot_env%buf1_n_k_dp)
+    NULLIFY(qs_ot_env%p_k_k_sym)
 
-    CALL cp_fm_create(qs_ot_env%matrix_os,fm_struct_o_o,name="matrix_os",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_buf1_ortho,fm_struct_o_k,name="matrix_buf1_ortho",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_buf2_ortho,fm_struct_o_k,name="matrix_buf2_ortho",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_p,fm_struct_k_k,name="matrix_p",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_r,fm_struct_k_k,name="matrix_r",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_sinp,fm_struct_k_k,name="matrix_sinp",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_cosp,fm_struct_k_k,name="matrix_cosp",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_sinp_b,fm_struct_k_k,name="matrix_sinp_b",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_cosp_b,fm_struct_k_k,name="matrix_cosp_b",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_buf1,fm_struct_k_k,name="matrix_buf1",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_buf2,fm_struct_k_k,name="matrix_buf2",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_buf3,fm_struct_k_k,name="matrix_buf3",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_c0,fm_struct_ref,name="matrix_c0",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_sc0,fm_struct_n_o,name="matrix_sc0",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_x,fm_struct_ref,name="matrix_x",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_sx,fm_struct_ref,name="matrix_sx",error=error)
-    CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_ref,name="matrix_gx",&
-                      use_sp=mixed_precision,error=error)
-    IF(mixed_precision) &
-         CALL cp_fm_create(qs_ot_env%matrix_gx_dp,fm_struct_ref,name="matrix_gx_dp",error=error)
+    CALL create_bl_distribution (col_dist, col_blk_size_k, k, &
+         dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_s))))
+    CALL create_bl_distribution (col_dist_o, col_blk_size_o, my_ortho_k, &
+         dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_s))))
+    CALL create_bl_distribution (row_dist, row_blk_size_k, k, &
+         dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(matrix_s))))
+    CALL create_bl_distribution (row_dist_o, row_blk_size_o, my_ortho_k, &
+         dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(matrix_s))))
+    CALL dbcsr_distribution_new (dist_k_k, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
+         row_dist, col_dist)
+    CALL dbcsr_distribution_new (dist_o_o, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
+         row_dist_o, col_dist_o)
+    CALL dbcsr_distribution_new (dist_o_k, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
+         row_dist_o, col_dist)
+    CALL dbcsr_distribution_new (dist_n_k, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
+         dbcsr_distribution_row_dist(dbcsr_distribution(matrix_s)), col_dist)
+    CALL dbcsr_distribution_new (dist_n_o, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
+         dbcsr_distribution_row_dist(dbcsr_distribution(matrix_s)), col_dist_o)
+    CALL array_release (row_dist); CALL array_release (col_dist)
+    CALL array_release (row_dist_o); CALL array_release (col_dist_o)
+    !
+    ! COMMON MATRICES
+    CALL dbcsr_init_p(qs_ot_env%matrix_c0)
+    CALL dbcsr_create(qs_ot_env%matrix_c0, "matrix_c0", dist_n_k, dbcsr_type_normal,&
+         dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+    CALL dbcsr_finalize(qs_ot_env%matrix_c0)
 
-    IF (qs_ot_env%use_gx_old) &
-         CALL cp_fm_create(qs_ot_env%matrix_gx_old,fm_struct_ref,name="matrix_gx_old",&
-                           use_sp=mixed_precision,error=error)
+    CALL dbcsr_init_p(qs_ot_env%matrix_sc0)
+    CALL dbcsr_create(qs_ot_env%matrix_sc0, "matrix_sc0", dist_n_o, dbcsr_type_normal,&
+         dbcsr_row_block_sizes(matrix_s), col_blk_size_o, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+    CALL dbcsr_finalize(qs_ot_env%matrix_sc0)
 
-    IF (qs_ot_env%use_dx) &
-         CALL cp_fm_create(qs_ot_env%matrix_dx,fm_struct_ref,name="matrix_dx",&
-                           use_sp=mixed_precision,error=error)
+    CALL dbcsr_init_p(qs_ot_env%matrix_x)
+    CALL dbcsr_create(qs_ot_env%matrix_x, "matrix_x", dist_n_k, dbcsr_type_normal,&
+         dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+    CALL dbcsr_finalize(qs_ot_env%matrix_x)
 
-    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
-       DO i=1,m_diis
-          CALL cp_fm_create(qs_ot_env%matrix_h_x(i)%matrix,fm_struct_ref,name="matrix_h_x",&
-                            use_sp=mixed_precision,error=error)
-          CALL cp_fm_create(qs_ot_env%matrix_h_e(i)%matrix,fm_struct_ref,name="matrix_h_e",&
-                            use_sp=mixed_precision,error=error)
-       ENDDO
+    CALL dbcsr_init_p(qs_ot_env%matrix_sx)
+    CALL dbcsr_create(qs_ot_env%matrix_sx, "matrix_sx", dist_n_k, dbcsr_type_normal,&
+         dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+    CALL dbcsr_finalize(qs_ot_env%matrix_sx)
+
+    CALL dbcsr_init_p(qs_ot_env%matrix_gx)
+    IF(mixed_precision) THEN
+       CALL dbcsr_create(qs_ot_env%matrix_gx, "matrix_gx", dist_n_k, dbcsr_type_normal,&
+            dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.)
+    ELSE
+       CALL dbcsr_create(qs_ot_env%matrix_gx, "matrix_gx", dist_n_k, dbcsr_type_normal,&
+            dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+    ENDIF
+    CALL dbcsr_finalize(qs_ot_env%matrix_gx)
+
+    IF (qs_ot_env%use_dx) THEN
+       CALL dbcsr_init_p(qs_ot_env%matrix_dx)
+       IF(mixed_precision) THEN
+          CALL dbcsr_create(qs_ot_env%matrix_dx, "matrix_dx", dist_n_k, dbcsr_type_normal,&
+               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.)
+       ELSE
+          CALL dbcsr_create(qs_ot_env%matrix_dx, "matrix_dx", dist_n_k, dbcsr_type_normal,&
+               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       ENDIF
+       CALL dbcsr_finalize(qs_ot_env%matrix_dx)
     ENDIF
 
-    CALL cp_fm_get_info(qs_ot_env%matrix_cosp_b, &
-         nrow_local=qs_ot_env%nrow_local, &
-         ncol_local=qs_ot_env%ncol_local, &
-         row_indices=qs_ot_env%row_indices, &
-         col_indices=qs_ot_env%col_indices,error=error)
+    IF (qs_ot_env%use_gx_old) THEN
+       CALL dbcsr_init_p(qs_ot_env%matrix_gx_old)
+       IF(mixed_precision) THEN
+          CALL dbcsr_create(qs_ot_env%matrix_gx_old, "matrix_gx_old", dist_n_k, dbcsr_type_normal,&
+               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.)
+       ELSE
+          CALL dbcsr_create(qs_ot_env%matrix_gx_old, "matrix_gx_old", dist_n_k, dbcsr_type_normal,&
+               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       ENDIF
+       CALL dbcsr_finalize(qs_ot_env%matrix_gx_old)
+    ENDIF
+
+    SELECT CASE(qs_ot_env%settings%ot_algorithm)
+    CASE("TOD")
+       CALL dbcsr_init_p(qs_ot_env%matrix_p)
+       CALL dbcsr_create(qs_ot_env%matrix_p, "qs_ot_env%matrix_p", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_p)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_r)
+       CALL dbcsr_create(qs_ot_env%matrix_r, "qs_ot_env%matrix_r", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_r)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_sinp)
+       CALL dbcsr_create(qs_ot_env%matrix_sinp, "qs_ot_env%matrix_sinp", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_sinp)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_cosp)
+       CALL dbcsr_create(qs_ot_env%matrix_cosp, "qs_ot_env%matrix_cosp", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_cosp)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_sinp_b)
+       CALL dbcsr_create(qs_ot_env%matrix_sinp_b, "qs_ot_env%matrix_sinp_b", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_sinp_b)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_cosp_b)
+       CALL dbcsr_create(qs_ot_env%matrix_cosp_b, "qs_ot_env%matrix_cosp_b", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_cosp_b)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_buf1)
+       CALL dbcsr_create(qs_ot_env%matrix_buf1, "qs_ot_env%matrix_buf1", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_buf1)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_buf2)
+       CALL dbcsr_create(qs_ot_env%matrix_buf2, "qs_ot_env%matrix_buf2", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_buf2)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_buf3)
+       CALL dbcsr_create(qs_ot_env%matrix_buf3, "qs_ot_env%matrix_buf3", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_buf3)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_buf4)
+       CALL dbcsr_create(qs_ot_env%matrix_buf4, "qs_ot_env%matrix_buf4", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_buf4)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_os)
+       CALL dbcsr_create(qs_ot_env%matrix_os, "qs_ot_env%matrix_os", dist_o_o, dbcsr_type_normal,&
+            row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_os)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_buf1_ortho)
+       CALL dbcsr_create(qs_ot_env%matrix_buf1_ortho, "qs_ot_env%matrix_buf1_ortho", dist_o_k, dbcsr_type_normal,&
+            row_blk_size_o, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_buf1_ortho)
+
+       CALL dbcsr_init_p(qs_ot_env%matrix_buf2_ortho)
+       CALL dbcsr_create(qs_ot_env%matrix_buf2_ortho, "qs_ot_env%matrix_buf2_ortho", dist_o_k, dbcsr_type_normal,&
+            row_blk_size_o, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%matrix_buf2_ortho)
+
+    CASE("REF")
+       CALL dbcsr_init_p(qs_ot_env%buf1_k_k_nosym)
+       CALL dbcsr_create(qs_ot_env%buf1_k_k_nosym, "buf1_k_k_nosym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf1_k_k_nosym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%buf2_k_k_nosym)
+       CALL dbcsr_create(qs_ot_env%buf2_k_k_nosym, "buf2_k_k_nosym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf2_k_k_nosym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%buf3_k_k_nosym)
+       CALL dbcsr_create(qs_ot_env%buf3_k_k_nosym, "buf3_k_k_nosym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf3_k_k_nosym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%buf4_k_k_nosym)
+       CALL dbcsr_create(qs_ot_env%buf4_k_k_nosym, "buf4_k_k_nosym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf4_k_k_nosym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%buf1_k_k_sym)
+       !CALL dbcsr_create(qs_ot_env%buf1_k_k_sym, "buf1_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
+       CALL dbcsr_create(qs_ot_env%buf1_k_k_sym, "buf1_k_k_sym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf1_k_k_sym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%buf2_k_k_sym)
+       !CALL dbcsr_create(qs_ot_env%buf2_k_k_sym, "buf2_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
+       CALL dbcsr_create(qs_ot_env%buf2_k_k_sym, "buf2_k_k_sym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf2_k_k_sym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%buf3_k_k_sym)
+       !CALL dbcsr_create(qs_ot_env%buf3_k_k_sym, "buf3_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
+       CALL dbcsr_create(qs_ot_env%buf3_k_k_sym, "buf3_k_k_sym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf3_k_k_sym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%buf4_k_k_sym)
+       !CALL dbcsr_create(qs_ot_env%buf4_k_k_sym, "buf4_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
+       CALL dbcsr_create(qs_ot_env%buf4_k_k_sym, "buf4_k_k_sym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf4_k_k_sym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%p_k_k_sym)
+       !CALL dbcsr_create(qs_ot_env%p_k_k_sym, "p_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
+       CALL dbcsr_create(qs_ot_env%p_k_k_sym, "p_k_k_sym", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%p_k_k_sym)
+       !
+       CALL dbcsr_init_p(qs_ot_env%buf1_n_k)
+       CALL dbcsr_create(qs_ot_env%buf1_n_k, "buf1_n_k", dist_n_k, dbcsr_type_normal,&
+            dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%buf1_n_k)
+       !
+       IF(mixed_precision) THEN
+          CALL dbcsr_init_p(qs_ot_env%buf1_n_k_dp)
+          CALL dbcsr_create(qs_ot_env%buf1_n_k_dp, "buf1_n_k_dp", dist_n_k, dbcsr_type_normal,&
+               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+          CALL dbcsr_finalize(qs_ot_env%buf1_n_k_dp)
+       ENDIF
+       !
+
+    END SELECT
+
+    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
+       NULLIFY(qs_ot_env%matrix_h_e)
+       NULLIFY(qs_ot_env%matrix_h_x)
+       CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e,m_diis,error=error)
+       CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_x,m_diis,error=error)
+       DO i=1,m_diis
+          CALL dbcsr_init_p(qs_ot_env%matrix_h_x(i)%matrix)
+          IF(mixed_precision) THEN
+             CALL dbcsr_create(qs_ot_env%matrix_h_x(i)%matrix, "matrix_h_x(i)%matrix", dist_n_k, dbcsr_type_normal,&
+                  dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.)
+          ELSE
+             CALL dbcsr_create(qs_ot_env%matrix_h_x(i)%matrix, "matrix_h_x(i)%matrix", dist_n_k, dbcsr_type_normal,&
+                  dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+          ENDIF
+          CALL dbcsr_finalize(qs_ot_env%matrix_h_x(i)%matrix)
+
+          CALL dbcsr_init_p(qs_ot_env%matrix_h_e(i)%matrix)
+          IF(mixed_precision) THEN
+             CALL dbcsr_create(qs_ot_env%matrix_h_e(i)%matrix, "matrix_h_e(i)%matrix", dist_n_k, dbcsr_type_normal,&
+                  dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.)
+          ELSE
+             CALL dbcsr_create(qs_ot_env%matrix_h_e(i)%matrix, "matrix_h_e(i)%matrix", dist_n_k, dbcsr_type_normal,&
+                  dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+          ENDIF
+          CALL dbcsr_finalize(qs_ot_env%matrix_h_e(i)%matrix)
+       ENDDO
+    ENDIF
 
     NULLIFY(qs_ot_env%rot_mat_u,  qs_ot_env%rot_mat_x,      qs_ot_env%rot_mat_h_e, qs_ot_env%rot_mat_h_x, &
          qs_ot_env%rot_mat_gx, qs_ot_env%rot_mat_gx_old, qs_ot_env%rot_mat_dx,  &
          qs_ot_env%rot_mat_evals,  qs_ot_env%rot_mat_evec, qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_chc)
 
     IF (qs_ot_env%settings%do_rotation) THEN
-       CALL cp_fm_create(qs_ot_env%rot_mat_u,fm_struct_k_k,name="rot_mat_u",error=error)
-       CALL cp_fm_create(qs_ot_env%rot_mat_x,fm_struct_k_k,name="rot_mat_x",error=error)
-       CALL cp_fm_create(qs_ot_env%rot_mat_dedu,fm_struct_k_k,name="rot_mat_dedu",error=error)
-       CALL cp_fm_create(qs_ot_env%rot_mat_chc,fm_struct_k_k,name="rot_mat_chc",error=error)
+       CALL dbcsr_init_p(qs_ot_env%rot_mat_u)
+       CALL dbcsr_create(qs_ot_env%rot_mat_u, "rot_mat_u", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%rot_mat_u)
+
+       CALL dbcsr_init_p(qs_ot_env%rot_mat_x)
+       CALL dbcsr_create(qs_ot_env%rot_mat_x, "rot_mat_x", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%rot_mat_x)
+
+       CALL dbcsr_init_p(qs_ot_env%rot_mat_dedu)
+       CALL dbcsr_create(qs_ot_env%rot_mat_dedu, "rot_mat_dedu", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%rot_mat_dedu)
+
+       CALL dbcsr_init_p(qs_ot_env%rot_mat_chc)
+       CALL dbcsr_create(qs_ot_env%rot_mat_chc, "rot_mat_chc", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%rot_mat_chc)
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-          ALLOCATE(qs_ot_env%rot_mat_h_e(m_diis))
-          ALLOCATE(qs_ot_env%rot_mat_h_x(m_diis))
+          CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e,m_diis,error=error)
+          CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x,m_diis,error=error)
           DO i=1,m_diis
-             CALL cp_fm_create(qs_ot_env%rot_mat_h_x(i)%matrix,fm_struct_k_k,name="matrix_h_x",error=error)
-             CALL cp_fm_create(qs_ot_env%rot_mat_h_e(i)%matrix,fm_struct_k_k,name="matrix_h_e",error=error)
+             CALL dbcsr_init_p(qs_ot_env%rot_mat_h_e(i)%matrix)
+             CALL dbcsr_create(qs_ot_env%rot_mat_h_e(i)%matrix, "rot_mat_h_e(i)%matrix", dist_k_k, dbcsr_type_normal,&
+                  row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+             CALL dbcsr_finalize(qs_ot_env%rot_mat_h_e(i)%matrix)
+
+             CALL dbcsr_init_p(qs_ot_env%rot_mat_h_x(i)%matrix)
+             CALL dbcsr_create(qs_ot_env%rot_mat_h_x(i)%matrix, "rot_mat_h_x(i)%matrix", dist_k_k, dbcsr_type_normal,&
+                  row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+             CALL dbcsr_finalize(qs_ot_env%rot_mat_h_x(i)%matrix)
           ENDDO
        ENDIF
 
        ALLOCATE(qs_ot_env%rot_mat_evals(k))
-       CALL cp_cfm_create(qs_ot_env%rot_mat_evec,fm_struct_k_k,name="rot_mat_evec",error=error)
-       CALL cp_fm_create(qs_ot_env%rot_mat_gx,fm_struct_k_k,name="rot_mat_gx",error=error)
 
-       IF (qs_ot_env%use_gx_old) &
-            CALL cp_fm_create(qs_ot_env%rot_mat_gx_old,fm_struct_k_k,name="rot_mat_gx_old",error=error)
+       CALL dbcsr_init_p(qs_ot_env%rot_mat_evec)
+       CALL dbcsr_create(qs_ot_env%rot_mat_evec, "rot_mat_evec", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_complex_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%rot_mat_evec)
 
-       IF (qs_ot_env%use_dx) &
-            CALL cp_fm_create(qs_ot_env%rot_mat_dx,fm_struct_k_k,name="rot_mat_dx",error=error)
+       CALL dbcsr_init_p(qs_ot_env%rot_mat_gx)
+       CALL dbcsr_create(qs_ot_env%rot_mat_gx, "rot_mat_gx", dist_k_k, dbcsr_type_normal,&
+            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+       CALL dbcsr_finalize(qs_ot_env%rot_mat_gx)
+
+       IF (qs_ot_env%use_gx_old) THEN
+          CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_old)
+          CALL dbcsr_create(qs_ot_env%rot_mat_gx_old, "rot_mat_gx_old", dist_k_k, dbcsr_type_normal,&
+               row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+          CALL dbcsr_finalize(qs_ot_env%rot_mat_gx_old)
+       ENDIF
+
+       IF (qs_ot_env%use_dx) THEN
+          CALL dbcsr_init_p(qs_ot_env%rot_mat_dx)
+          CALL dbcsr_create(qs_ot_env%rot_mat_dx, "rot_mat_dx", dist_k_k, dbcsr_type_normal,&
+               row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+          CALL dbcsr_finalize(qs_ot_env%rot_mat_dx)
+       ENDIF
 
     ENDIF
+
     IF ( qs_ot_env % settings % do_ener ) THEN
        ncoef = k
        ALLOCATE ( qs_ot_env % ener_x ( ncoef  ), STAT = istat )
@@ -522,8 +792,7 @@ CONTAINS
       NULLIFY ( qs_ot_env % dxmat )
       NULLIFY ( qs_ot_env % gx_oldmat )
 
-      ALLOCATE(qs_ot_env % xmat)
-      CALL dbcsr_init(qs_ot_env % xmat, error=error)
+      CALL dbcsr_init_p(qs_ot_env % xmat, error=error)
       CALL dbcsr_copy(qs_ot_env % xmat,scp_sm,"SCP_XMAT",error=error)
       CALL dbcsr_set ( qs_ot_env % xmat, 0.0_dp, error=error )
       
@@ -532,33 +801,28 @@ CONTAINS
         CALL dbcsr_allocate_matrix_set ( qs_ot_env % hx_mat, m_diis, error ) 
 
         DO ii = 1, m_diis
-           ALLOCATE(qs_ot_env % he_mat ( ii )%matrix)
-           CALL dbcsr_init(qs_ot_env % he_mat ( ii )%matrix, error=error)
+           CALL dbcsr_init_p(qs_ot_env % he_mat ( ii )%matrix, error=error)
            CALL dbcsr_copy(qs_ot_env % he_mat ( ii )%matrix, scp_sm, "SCP_HE_MAT", error=error)
            CALL dbcsr_set (qs_ot_env % he_mat ( ii )%matrix, 0.0_dp, error=error )
 
-           ALLOCATE(qs_ot_env % hx_mat ( ii )%matrix)
-           CALL dbcsr_init(qs_ot_env % hx_mat ( ii )%matrix, error=error)
+           CALL dbcsr_init_p(qs_ot_env % hx_mat ( ii )%matrix, error=error)
            CALL dbcsr_copy(qs_ot_env % hx_mat ( ii )%matrix, scp_sm, "SCP_HX_MAT", error=error)
            CALL dbcsr_set (qs_ot_env % hx_mat ( ii )%matrix, 0.0_dp, error=error )
         END DO
       ENDIF
 
-      ALLOCATE(qs_ot_env % gxmat)
-      CALL dbcsr_init(qs_ot_env % gxmat, error=error)
+      CALL dbcsr_init_p(qs_ot_env % gxmat, error=error)
       CALL dbcsr_copy(qs_ot_env % gxmat, scp_sm,"SCP_GXMAT",error=error)
       CALL dbcsr_set ( qs_ot_env % gxmat, 0.0_dp, error=error )
 
       IF (qs_ot_env%use_gx_old) THEN
-         ALLOCATE(qs_ot_env % gx_oldmat)
-         CALL dbcsr_init(qs_ot_env % gx_oldmat, error=error)
+         CALL dbcsr_init_p(qs_ot_env % gx_oldmat, error=error)
          CALL dbcsr_copy(qs_ot_env % gx_oldmat, scp_sm,"SCP_GX_OLDMAT",error=error)
          CALL dbcsr_set (qs_ot_env % gx_oldmat, 0.0_dp, error=error )
       ENDIF
 
       IF (qs_ot_env%use_dx) THEN
-         ALLOCATE(qs_ot_env % dxmat)
-         CALL dbcsr_init(qs_ot_env % dxmat, error=error)
+         CALL dbcsr_init_p(qs_ot_env % dxmat, error=error)
          CALL dbcsr_copy(qs_ot_env % dxmat, scp_sm,"SCP_DXMAT",error=error)
          CALL dbcsr_set (qs_ot_env % dxmat, 0.0_dp, error=error )
       END IF
@@ -567,7 +831,6 @@ CONTAINS
 ! to the number of variational degrees of freedom (e.g. coefficients).
      
       ncoef = dbcsr_get_data_size(scp_sm)
-      !CALL dbcsr_get_info ( scp_sm, nze = ncoef )
      
       qs_ot_env % n_el_scp = ncoef
    
@@ -611,10 +874,16 @@ CONTAINS
     ENDIF
     ! **** SCP
 
-    CALL cp_fm_struct_release(fm_struct_o_o,error=error)
-    CALL cp_fm_struct_release(fm_struct_o_k,error=error)
-    CALL cp_fm_struct_release(fm_struct_k_k,error=error)
-    CALL cp_fm_struct_release(fm_struct_n_o,error=error)
+    CALL dbcsr_distribution_release (dist_n_k)
+    CALL dbcsr_distribution_release (dist_n_o)
+    CALL dbcsr_distribution_release (dist_o_k)
+    CALL dbcsr_distribution_release (dist_o_o)
+    CALL dbcsr_distribution_release (dist_k_k)
+
+    CALL array_release (row_blk_size_k)
+    CALL array_release (col_blk_size_k)
+    CALL array_release (row_blk_size_o)
+    CALL array_release (col_blk_size_o)
 
   END SUBROUTINE qs_ot_allocate
 
@@ -627,52 +896,53 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
 
+    CALL cp_para_env_release( qs_ot_env%para_env, error)
+    CALL cp_blacs_env_release( qs_ot_env%blacs_env, error)
+
     DEALLOCATE(qs_ot_env%evals)
     DEALLOCATE(qs_ot_env%dum)
 
-    IF(ASSOCIATED(qs_ot_env%matrix_os)) CALL cp_fm_release(qs_ot_env%matrix_os,error)
-    CALL cp_fm_release(qs_ot_env%matrix_p,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_cosp,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_sinp,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_r,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_cosp_b,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_sinp_b,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_buf1,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_buf2,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_buf3,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_buf1_ortho,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_buf2_ortho,error=error)
-
-    CALL cp_fm_release(qs_ot_env%matrix_c0,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_sc0,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_x,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_gx,error=error)
-    CALL cp_fm_release(qs_ot_env%matrix_sx,error=error)
-    
-    IF (qs_ot_env%settings%mixed_precision)&
-         CALL cp_fm_release(qs_ot_env%matrix_gx_dp,error=error)
-
-    IF (ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
-       CALL cp_fm_release(qs_ot_env%matrix_psc0,error=error)
-    ENDIF
-
-    IF (qs_ot_env%use_dx) &
-         CALL cp_fm_release(qs_ot_env%matrix_dx,error=error)
-    IF (qs_ot_env%use_gx_old) &
-         CALL cp_fm_release(qs_ot_env%matrix_gx_old,error=error)
+    IF(ASSOCIATED(qs_ot_env%matrix_os)) CALL dbcsr_release_p(qs_ot_env%matrix_os)
+    IF(ASSOCIATED(qs_ot_env%matrix_p)) CALL dbcsr_release_p(qs_ot_env%matrix_p)
+    IF(ASSOCIATED(qs_ot_env%matrix_cosp)) CALL dbcsr_release_p(qs_ot_env%matrix_cosp)
+    IF(ASSOCIATED(qs_ot_env%matrix_sinp)) CALL dbcsr_release_p(qs_ot_env%matrix_sinp)
+    IF(ASSOCIATED(qs_ot_env%matrix_r)) CALL dbcsr_release_p(qs_ot_env%matrix_r)
+    IF(ASSOCIATED(qs_ot_env%matrix_cosp_b)) CALL dbcsr_release_p(qs_ot_env%matrix_cosp_b)
+    IF(ASSOCIATED(qs_ot_env%matrix_sinp_b)) CALL dbcsr_release_p(qs_ot_env%matrix_sinp_b)
+    IF(ASSOCIATED(qs_ot_env%matrix_buf1)) CALL dbcsr_release_p(qs_ot_env%matrix_buf1)
+    IF(ASSOCIATED(qs_ot_env%matrix_buf2)) CALL dbcsr_release_p(qs_ot_env%matrix_buf2)
+    IF(ASSOCIATED(qs_ot_env%matrix_buf3)) CALL dbcsr_release_p(qs_ot_env%matrix_buf3)
+    IF(ASSOCIATED(qs_ot_env%matrix_buf4)) CALL dbcsr_release_p(qs_ot_env%matrix_buf4)
+    IF(ASSOCIATED(qs_ot_env%matrix_buf1_ortho)) CALL dbcsr_release_p(qs_ot_env%matrix_buf1_ortho)
+    IF(ASSOCIATED(qs_ot_env%matrix_buf2_ortho)) CALL dbcsr_release_p(qs_ot_env%matrix_buf2_ortho)
+    IF(ASSOCIATED(qs_ot_env%matrix_c0)) CALL dbcsr_release_p(qs_ot_env%matrix_c0)
+    IF(ASSOCIATED(qs_ot_env%matrix_sc0)) CALL dbcsr_release_p(qs_ot_env%matrix_sc0)
+    IF (ASSOCIATED(qs_ot_env%matrix_psc0)) CALL dbcsr_release_p(qs_ot_env%matrix_psc0)
+    IF(ASSOCIATED(qs_ot_env%matrix_x)) CALL dbcsr_release_p(qs_ot_env%matrix_x)
+    IF(ASSOCIATED(qs_ot_env%matrix_sx)) CALL dbcsr_release_p(qs_ot_env%matrix_sx)
+    IF(ASSOCIATED(qs_ot_env%matrix_gx)) CALL dbcsr_release_p(qs_ot_env%matrix_gx)
+    IF(ASSOCIATED(qs_ot_env%matrix_dx)) CALL dbcsr_release_p(qs_ot_env%matrix_dx)
+    IF(ASSOCIATED(qs_ot_env%matrix_gx_old)) CALL dbcsr_release_p(qs_ot_env%matrix_gx_old)
+    IF(ASSOCIATED(qs_ot_env%buf1_k_k_nosym)) CALL dbcsr_release_p(qs_ot_env%buf1_k_k_nosym)
+    IF(ASSOCIATED(qs_ot_env%buf2_k_k_nosym)) CALL dbcsr_release_p(qs_ot_env%buf2_k_k_nosym)
+    IF(ASSOCIATED(qs_ot_env%buf3_k_k_nosym)) CALL dbcsr_release_p(qs_ot_env%buf3_k_k_nosym)
+    IF(ASSOCIATED(qs_ot_env%buf4_k_k_nosym)) CALL dbcsr_release_p(qs_ot_env%buf4_k_k_nosym)
+    IF(ASSOCIATED(qs_ot_env%p_k_k_sym)) CALL dbcsr_release_p(qs_ot_env%p_k_k_sym)
+    IF(ASSOCIATED(qs_ot_env%buf1_k_k_sym)) CALL dbcsr_release_p(qs_ot_env%buf1_k_k_sym)
+    IF(ASSOCIATED(qs_ot_env%buf2_k_k_sym)) CALL dbcsr_release_p(qs_ot_env%buf2_k_k_sym)
+    IF(ASSOCIATED(qs_ot_env%buf3_k_k_sym)) CALL dbcsr_release_p(qs_ot_env%buf3_k_k_sym)
+    IF(ASSOCIATED(qs_ot_env%buf4_k_k_sym)) CALL dbcsr_release_p(qs_ot_env%buf4_k_k_sym)
+    IF(ASSOCIATED(qs_ot_env%buf1_n_k)) CALL dbcsr_release_p(qs_ot_env%buf1_n_k)
+    IF(ASSOCIATED(qs_ot_env%buf1_n_k_dp)) CALL dbcsr_release_p(qs_ot_env%buf1_n_k_dp)
 
     IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
-       DO i=1,qs_ot_env%settings%diis_m
-          CALL cp_fm_release(qs_ot_env%matrix_h_x(i)%matrix,error=error)
-          CALL cp_fm_release(qs_ot_env%matrix_h_e(i)%matrix,error=error)
-       ENDDO
-       DEALLOCATE(qs_ot_env%matrix_h_x)
-       DEALLOCATE(qs_ot_env%matrix_h_e)
+       CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_x,error=error)
+       CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_e,error=error)
        DEALLOCATE(qs_ot_env%ls_diis)
        DEALLOCATE(qs_ot_env%lss_diis)
        DEALLOCATE(qs_ot_env%c_diis)
@@ -680,29 +950,23 @@ CONTAINS
     ENDIF
 
     IF (qs_ot_env%settings%do_rotation) THEN
-       CALL cp_fm_release(qs_ot_env%rot_mat_u,error=error)
-       CALL cp_fm_release(qs_ot_env%rot_mat_x,error=error)
-       CALL cp_fm_release(qs_ot_env%rot_mat_dedu,error=error)
-       CALL cp_fm_release(qs_ot_env%rot_mat_chc,error=error)
+
+       IF(ASSOCIATED(qs_ot_env%rot_mat_u)) CALL dbcsr_release_p(qs_ot_env%rot_mat_u)
+       IF(ASSOCIATED(qs_ot_env%rot_mat_x)) CALL dbcsr_release_p(qs_ot_env%rot_mat_x)
+       IF(ASSOCIATED(qs_ot_env%rot_mat_dedu)) CALL dbcsr_release_p(qs_ot_env%rot_mat_dedu)
+       IF(ASSOCIATED(qs_ot_env%rot_mat_chc)) CALL dbcsr_release_p(qs_ot_env%rot_mat_chc)
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-          DO i=1,qs_ot_env%settings%diis_m
-             CALL cp_fm_release(qs_ot_env%rot_mat_h_x(i)%matrix,error=error)
-             CALL cp_fm_release(qs_ot_env%rot_mat_h_e(i)%matrix,error=error)
-          ENDDO
-          DEALLOCATE(qs_ot_env%rot_mat_h_e)
-          DEALLOCATE(qs_ot_env%rot_mat_h_x)
+          CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_x,error=error)
+          CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_e,error=error)
        ENDIF
 
        DEALLOCATE(qs_ot_env%rot_mat_evals)
-       CALL cp_cfm_release(qs_ot_env%rot_mat_evec,error=error)
-       CALL cp_fm_release(qs_ot_env%rot_mat_gx,error=error)
 
-       IF (qs_ot_env%use_gx_old) &
-            CALL cp_fm_release(qs_ot_env%rot_mat_gx_old,error=error)
-
-       IF (qs_ot_env%use_dx) &
-            CALL cp_fm_release(qs_ot_env%rot_mat_dx,error=error)
+       IF(ASSOCIATED(qs_ot_env%rot_mat_evec)) CALL dbcsr_release_p(qs_ot_env%rot_mat_evec)
+       IF(ASSOCIATED(qs_ot_env%rot_mat_gx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx)
+       IF(ASSOCIATED(qs_ot_env%rot_mat_gx_old)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_old)
+       IF(ASSOCIATED(qs_ot_env%rot_mat_dx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_dx)
     ENDIF
     ! **** SCP
     IF (qs_ot_env%settings%scp_dft) THEN

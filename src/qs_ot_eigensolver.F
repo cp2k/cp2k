@@ -9,24 +9,33 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! *****************************************************************************
 MODULE qs_ot_eigensolver
-  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_symm,&
-                                             cp_fm_trace
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_release
+  USE cp_dbcsr_cholesky,               ONLY: dbcsr_cholesky_decompose,&
+                                             dbcsr_cholesky_invert
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             dbcsr_copy_columns_hack,&
+                                             dbcsr_multiply,&
+                                             dbcsr_obj_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_get_info, dbcsr_init_p, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_release_p, dbcsr_row_block_sizes
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_scale,&
+                                             dbcsr_set,&
+                                             dbcsr_trace
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_real_default
+  USE dbcsr_util,                      ONLY: create_bl_distribution,&
+                                             dbcsr_create,&
+                                             dbcsr_finalize
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_in_use,&
@@ -61,13 +70,13 @@ CONTAINS
 ! on input c contains the initial guess (should not be zero !)
 ! on output c spans the subspace
 ! *****************************************************************************
-  SUBROUTINE ot_eigensolver(matrix_h,matrix_s,matrix_orthogonal_space, &
-                            matrix_c,preconditioner,eps_gradient, &
+  SUBROUTINE ot_eigensolver(matrix_h,matrix_s,matrix_orthogonal_space_fm, &
+                            matrix_c_fm,preconditioner,eps_gradient, &
                             iter_max,size_ortho_space,silent,ot_settings,error)
 
     TYPE(dbcsr_obj), POINTER                 :: matrix_h, matrix_s
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_orthogonal_space
-    TYPE(cp_fm_type), POINTER                :: matrix_c
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_orthogonal_space_fm
+    TYPE(cp_fm_type), POINTER                :: matrix_c_fm
     TYPE(preconditioner_type), OPTIONAL, &
       POINTER                                :: preconditioner
     REAL(KIND=dp)                            :: eps_gradient
@@ -88,14 +97,14 @@ CONTAINS
                                                 ortho_space_k, output_unit
     LOGICAL                                  :: energy_only, my_silent, ortho
     REAL(KIND=dp)                            :: delta, energy
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_hc
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: matrix_buf1_ortho, &
-                                                matrix_buf2_ortho, &
-                                                matrix_os_ortho, &
-                                                matrix_s_ortho
+    TYPE(array_i1d_obj) :: col_blk_size, col_blk_size_o, col_dist, &
+      col_dist_o, row_blk_size, row_blk_size_o, row_dist, row_dist_o
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_distribution_obj)             :: dist, dist_o_o
+    TYPE(dbcsr_obj), POINTER :: matrix_buf1_ortho, matrix_buf2_ortho, &
+      matrix_c, matrix_orthogonal_space, matrix_os_ortho, matrix_s_ortho
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_hc
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     CALL timeset(routineN,handle)
@@ -109,21 +118,45 @@ CONTAINS
       my_silent = .FALSE.
     END IF
 
+
+    NULLIFY(matrix_c)! fm->dbcsr
+    CALL cp_fm_get_info(matrix_c_fm, nrow_global=n, ncol_global=k,error=error)! fm->dbcsr
+    CALL create_bl_distribution (col_dist, col_blk_size, k, &! fm->dbcsr
+         dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))! fm->dbcsr
+    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_h)),&! fm->dbcsr
+         dbcsr_distribution_row_dist(dbcsr_distribution(matrix_h)), col_dist)! fm->dbcsr
+    CALL array_release (col_dist)! fm->dbcsr
+
+    CALL dbcsr_init_p(matrix_c)! fm->dbcsr
+    CALL dbcsr_create(matrix_c, "matrix_c", dist, dbcsr_type_normal,&! fm->dbcsr
+         dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.)! fm->dbcsr
+    CALL dbcsr_finalize(matrix_c)! fm->dbcsr
+
+    CALL copy_fm_to_dbcsr(matrix_c_fm,matrix_c)! fm->dbcsr
+
+    CALL dbcsr_distribution_release (dist)! fm->dbcsr! fm->dbcsr
+    CALL array_release (col_blk_size)
+
     iter_total=0
 
     outer_scf: DO 
 
-      NULLIFY(qs_ot_env,fm_struct_tmp,matrix_s_ortho,matrix_os_ortho, &
-                        matrix_buf1_ortho,matrix_buf2_ortho)
+      NULLIFY(qs_ot_env)
+   
+      NULLIFY(matrix_s_ortho)
+      NULLIFY(matrix_os_ortho)
+      NULLIFY(matrix_buf1_ortho)
+      NULLIFY(matrix_buf2_ortho)
+      NULLIFY(matrix_orthogonal_space)
+
       ALLOCATE(qs_ot_env(1))
-
       ALLOCATE(matrix_hc(1))
-      CALL cp_fm_create(matrix_hc(1)%matrix,matrix_c%matrix_struct,error=error)
-
-      CALL cp_fm_get_info(matrix_c, nrow_global=n, ncol_global=k,error=error)
+      NULLIFY(matrix_hc(1)%matrix)
+      CALL dbcsr_init_p(matrix_hc(1)%matrix)
+      CALL dbcsr_copy(matrix_hc(1)%matrix,matrix_c,'matrix_hc',error=error)
 
       ortho=.FALSE.
-      IF (PRESENT(matrix_orthogonal_space)) ortho=.TRUE.
+      IF (PRESENT(matrix_orthogonal_space_fm)) ortho=.TRUE.
 
       ! decide settings
       IF ( PRESENT(ot_settings) ) THEN
@@ -135,7 +168,25 @@ CONTAINS
       END IF
 
       IF (ortho) THEN
-         CALL cp_fm_get_info(matrix_orthogonal_space,ncol_global=ortho_space_k,error=error)
+         CALL cp_fm_get_info(matrix_orthogonal_space_fm,ncol_global=ortho_space_k,error=error)
+
+         CALL create_bl_distribution (col_dist, col_blk_size, ortho_space_k, &
+              dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
+         CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_h)),&
+              dbcsr_distribution_row_dist(dbcsr_distribution(matrix_h)), col_dist)
+         CALL array_release (col_dist)
+
+         CALL dbcsr_init_p(matrix_orthogonal_space)
+         CALL dbcsr_create(matrix_orthogonal_space, "matrix_orthogonal_space", dist, dbcsr_type_normal,&
+              dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+         CALL dbcsr_finalize(matrix_orthogonal_space)
+
+         CALL copy_fm_to_dbcsr(matrix_orthogonal_space_fm,matrix_orthogonal_space)
+
+         CALL dbcsr_distribution_release (dist)
+         CALL array_release (col_blk_size)
+
+
          IF (PRESENT(size_ortho_space)) ortho_space_k=size_ortho_space
          ortho_k=ortho_space_k+k
       ELSE
@@ -143,66 +194,104 @@ CONTAINS
       ENDIF
 
       ! allocate
-      CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct,ortho_k=ortho_k,error=error)
+      CALL qs_ot_allocate(qs_ot_env(1),matrix_s,matrix_c_fm%matrix_struct,ortho_k=ortho_k,error=error)
 
       IF (ortho) THEN
           ! construct an initial guess that is orthogonal to matrix_orthogonal_space
-          CALL cp_fm_create(matrix_s_ortho,matrix_orthogonal_space%matrix_struct,"matrix_s_ortho",error=error)
 
-          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ortho_space_k, ncol_global=ortho_space_k, &
-                                   para_env=matrix_orthogonal_space%matrix_struct%para_env, &
-                                   context=matrix_orthogonal_space%matrix_struct%context,error=error)
-          CALL cp_fm_create(matrix_os_ortho, fm_struct_tmp,"matrix_os_ortho",error=error)
-          CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+         CALL dbcsr_init_p(matrix_s_ortho)
+         CALL dbcsr_copy(matrix_s_ortho,matrix_orthogonal_space,name="matrix_s_ortho",error=error)
 
-          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ortho_space_k, ncol_global=k, &
-                                   para_env=matrix_orthogonal_space%matrix_struct%para_env, &
-                                   context=matrix_orthogonal_space%matrix_struct%context,error=error)
-          CALL cp_fm_create(matrix_buf1_ortho, fm_struct_tmp,"matrix_buf1_ortho",error=error)
-          CALL cp_fm_create(matrix_buf2_ortho, fm_struct_tmp,"matrix_buf2_ortho",error=error)
-          CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+         CALL create_bl_distribution (col_dist_o, col_blk_size_o, ortho_space_k, &
+              dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
+         CALL create_bl_distribution (row_dist_o, row_blk_size_o, ortho_space_k, &
+              dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
+         CALL create_bl_distribution (row_dist, row_blk_size, k, &
+              dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
+         CALL create_bl_distribution (col_dist, col_blk_size, k, &
+              dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
+         CALL dbcsr_distribution_new (dist_o_o, dbcsr_distribution_mp (dbcsr_distribution(matrix_h)),&
+              row_dist_o, col_dist_o)
+         CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_h)),&
+              row_dist_o, col_dist)
+         CALL array_release(row_dist_o); CALL array_release(col_dist_o)
+         CALL array_release(row_dist); CALL array_release(col_dist)
+         
+         CALL dbcsr_init_p(matrix_os_ortho)
+         CALL dbcsr_create(matrix_os_ortho, "matrix_os_ortho", dist_o_o, dbcsr_type_normal,&
+              row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+         CALL dbcsr_finalize(matrix_os_ortho)
 
-          CALL dbcsr_sm_fm_multiply(matrix_s,matrix_orthogonal_space, &
-                                  matrix_s_ortho,ortho_space_k,error=error)
+         CALL dbcsr_init_p(matrix_buf1_ortho)
+         CALL dbcsr_create(matrix_buf1_ortho, "matrix_buf1_ortho", dist, dbcsr_type_normal,&
+              row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+         CALL dbcsr_finalize(matrix_buf1_ortho)
 
-          CALL cp_fm_gemm('T','N',ortho_space_k,ortho_space_k,n,rone,matrix_s_ortho, &
-                          matrix_s_ortho, rzero,matrix_os_ortho,error=error)
-          CALL cp_fm_cholesky_decompose(matrix_os_ortho,error=error)
-          CALL cp_fm_cholesky_invert(matrix_os_ortho,error=error)
+         CALL dbcsr_init_p(matrix_buf2_ortho)
+         CALL dbcsr_create(matrix_buf2_ortho, "matrix_buf2_ortho", dist, dbcsr_type_normal,&
+              row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.)
+         CALL dbcsr_finalize(matrix_buf2_ortho)
 
-          CALL cp_fm_gemm('T','N',ortho_space_k,k,n,rone,matrix_s_ortho,matrix_c, &
-                          rzero,matrix_buf1_ortho,error=error)
-          CALL cp_fm_symm('L','U',ortho_space_k,k,rone,matrix_os_ortho, &
-                          matrix_buf1_ortho, &
-                          rzero,matrix_buf2_ortho,error=error)
-          CALL cp_fm_gemm('N','N',n,k,ortho_space_k,-rone,matrix_s_ortho, &
-                          matrix_buf2_ortho, &
-                          rone,matrix_c,error=error)
+         CALL dbcsr_distribution_release (dist_o_o)
+         CALL dbcsr_distribution_release (dist)
+         CALL array_release(col_blk_size_o); CALL array_release(row_blk_size_o)
+         CALL array_release(row_blk_size); CALL array_release(col_blk_size)
+
+          CALL dbcsr_multiply('N','N',1.0_dp,matrix_s,matrix_orthogonal_space, &
+                             0.0_dp,matrix_s_ortho,last_column=ortho_space_k,error=error)
+          CALL dbcsr_multiply('T','N',rone,matrix_s_ortho, matrix_s_ortho, &
+              rzero,matrix_os_ortho,last_row=ortho_space_k,last_column=ortho_space_k,&
+              last_k=n,error=error)
+
+          CALL dbcsr_cholesky_decompose(matrix_os_ortho,&
+               para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,error=error)
+          CALL dbcsr_cholesky_invert(matrix_os_ortho,&
+               para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,&
+               upper_to_full=.TRUE.,error=error)
+
+          CALL dbcsr_multiply('T','N',rone,matrix_s_ortho,matrix_c, &
+               rzero,matrix_buf1_ortho,last_row=ortho_space_k,last_column=k,last_k=n,&
+               error=error)
+          CALL dbcsr_multiply('N','N',rone,matrix_os_ortho,matrix_buf1_ortho, &
+               rzero,matrix_buf2_ortho,last_row=ortho_space_k,last_column=k,last_k=ortho_space_k,&
+               error=error)
+          CALL dbcsr_multiply('N','N',-rone,matrix_s_ortho, matrix_buf2_ortho, &
+               rone,matrix_c,last_row=n,last_column=k,last_k=ortho_space_k,&
+               error=error)
 
           ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
-          CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0,error=error)
-          CALL dbcsr_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
-                                  matrix_c,k,error=error)
-          CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, matrix_c,error=error)
+          CALL dbcsr_copy(qs_ot_env(1)%matrix_c0,matrix_c,error=error)
+          CALL dbcsr_multiply('N','N',1.0_dp,matrix_s,qs_ot_env(1)%matrix_c0, &
+               0.0_dp,matrix_c,last_column=k,error=error)
+
+          CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, matrix_c, &
+               qs_ot_env(1)%para_env, qs_ot_env(1)%blacs_env, &
+               error=error)
 
           ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
-          CALL cp_fm_to_fm(matrix_s_ortho,qs_ot_env(1)%matrix_sc0,ortho_space_k,1,1)
-          CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_sc0,k,1,ortho_space_k+1)
+          !CALL dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_s_ortho,ortho_space_k,1,1,error=error)
+          CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0,matrix_s_ortho,ortho_space_k,1,1,&
+               para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,error=error)
+          !CALL dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1,error=error)
+          CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1,&
+               para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,error=error)
 
-          CALL cp_fm_release(matrix_buf1_ortho,error=error)
-          CALL cp_fm_release(matrix_buf2_ortho,error=error)
-          CALL cp_fm_release(matrix_os_ortho,error=error)
-          CALL cp_fm_release(matrix_s_ortho,error=error)
-
+          CALL dbcsr_release_p(matrix_buf1_ortho)
+          CALL dbcsr_release_p(matrix_buf2_ortho)
+          CALL dbcsr_release_p(matrix_os_ortho)
+          CALL dbcsr_release_p(matrix_s_ortho)
+          
       ELSE
 
-      ! set c0,sc0
-         CALL cp_fm_get_info(matrix_c,ncol_global=k,error=error)
-         CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0,error=error)
-         CALL dbcsr_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
-                                 qs_ot_env(1)%matrix_sc0,k,error=error)
-         CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, qs_ot_env(1)%matrix_sc0,error=error)
+         ! set c0,sc0
+         CALL dbcsr_get_info(matrix_c,nfullcols_total=k)
+         CALL dbcsr_copy(qs_ot_env(1)%matrix_c0,matrix_c,error=error)
+         CALL dbcsr_multiply('N','N',1.0_dp,matrix_s,qs_ot_env(1)%matrix_c0, &
+           0.0_dp,qs_ot_env(1)%matrix_sc0,last_column=k,error=error)
 
+         CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, qs_ot_env(1)%matrix_sc0, &
+               qs_ot_env(1)%para_env, qs_ot_env(1)%blacs_env, &
+               error=error)
       ENDIF
 
       ! init
@@ -210,8 +299,8 @@ CONTAINS
       energy_only=qs_ot_env(1)%energy_only
 
       ! set x
-      CALL cp_fm_set_all(qs_ot_env(1)%matrix_x,0.0_dp,error=error)
-      CALL cp_fm_set_all(qs_ot_env(1)%matrix_sx,0.0_dp,error=error)
+      CALL dbcsr_set(qs_ot_env(1)%matrix_x,0.0_dp,error=error)
+      CALL dbcsr_set(qs_ot_env(1)%matrix_sx,0.0_dp,error=error)
 
       ! get c
       CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),error=error)
@@ -230,7 +319,7 @@ CONTAINS
       ENDIF
 
 !     *** Eigensolver loop ***
-      CALL cp_fm_get_info(matrix_c,ncol_global=k,error=error)
+      CALL dbcsr_get_info(matrix_c,nfullcols_total=k)
       ieigensolver = 0
       eigensolver_loop: DO
 
@@ -238,20 +327,20 @@ CONTAINS
         iter_total=iter_total+1
 
         ! the energy is cHc, the gradient is 2*H*c
-        CALL dbcsr_sm_fm_multiply(matrix_h,matrix_c, &
-                                       matrix_hc(1)%matrix,k,error=error)
-        CALL cp_fm_trace(matrix_c,matrix_hc(1)%matrix,energy,error=error)
+        CALL dbcsr_multiply('N','N',1.0_dp,matrix_h,matrix_c, &
+            0.0_dp,matrix_hc(1)%matrix,last_column=k,error=error)
+        CALL dbcsr_trace(matrix_c,matrix_hc(1)%matrix,energy,error=error)
         IF (.NOT. energy_only) THEN
-         CALL cp_fm_scale_and_add(2.0_dp,matrix_hc(1)%matrix,error=error)
+           CALL dbcsr_scale(matrix_hc(1)%matrix,2.0_dp,error=error)
         ENDIF
 
         qs_ot_env(1)%etotal=energy
-        CALL ot_mini(qs_ot_env,matrix_hc,error=error)
+        CALL ot_mini(qs_ot_env,matrix_hc,error=error,matrix_s=matrix_s)
         delta           =qs_ot_env(1)%delta
         energy_only     =qs_ot_env(1)%energy_only
 
-        CALL dbcsr_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_x, &
-                                           qs_ot_env(1)%matrix_sx, k,error=error)
+        CALL dbcsr_multiply('N','N',1.0_dp,matrix_s,qs_ot_env(1)%matrix_x, &
+             0.0_dp, qs_ot_env(1)%matrix_sx, last_column=k,error=error)
 
         CALL qs_ot_get_p(qs_ot_env(1)%matrix_x,qs_ot_env(1)%matrix_sx,qs_ot_env(1),error=error)
         CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1),error=error)
@@ -265,8 +354,9 @@ CONTAINS
 
       CALL qs_ot_destroy(qs_ot_env(1),error=error)
       DEALLOCATE(qs_ot_env)
-      CALL cp_fm_release(matrix_hc(1)%matrix,error=error)
+      CALL dbcsr_release_p(matrix_hc(1)%matrix)
       DEALLOCATE(matrix_hc)
+      CALL dbcsr_release_p(matrix_orthogonal_space)
 
       IF (delta < eps_gradient) THEN
           IF ((output_unit>0) .AND. .NOT.my_silent) THEN
@@ -288,6 +378,10 @@ CONTAINS
       ENDIF
 
     ENDDO outer_scf
+
+
+    CALL copy_dbcsr_to_fm(matrix_c,matrix_c_fm)! fm->dbcsr
+    CALL dbcsr_release_p(matrix_c)! fm->dbcsr
 
     CALL timestop(handle)
 

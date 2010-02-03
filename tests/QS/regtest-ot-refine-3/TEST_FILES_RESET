@@ -113,3 +113,11 @@ h2o_ot_refine_4.inp
 o2_ot_refine_3.inp
 # New initial guess ATOMIC 
 o2_ot_refine_4.inp
+# fm to dbcsr
+h2o_ot_precond_1_mp.inp
+# fm to dbcsr
+h2o_ot_precond_2_mp.inp
+# fm to dbcsr
+h2o_ot_precond_3_mp.inp
+# fm to dbcsr
+h2o_ot_precond_4_mp.inp

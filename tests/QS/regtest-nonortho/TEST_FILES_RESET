@@ -130,3 +130,9 @@ graphite.inp
 graphite2.inp
 # turned on dbcsr_multiply_fm_fm_t
 graphite3.inp
+# fm to dbcsr
+graphite.inp
+# fm to dbcsr
+graphite2.inp
+# fm to dbcsr
+graphite3.inp

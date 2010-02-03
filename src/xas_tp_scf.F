@@ -787,12 +787,14 @@ CONTAINS
        CALL init_preconditioner(local_preconditioner,para_env=qs_env%para_env,&
             blacs_env=qs_env%blacs_env,error=error)
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+
        CALL make_preconditioner(local_preconditioner, &
             precon_type=ot_precond_full_kinetic, &
             solver_type=ot_precond_solver_default, &
             matrix_h=matrix_ks(1)%matrix, &
             matrix_s=matrix_s(1)%matrix,&
             matrix_t=qs_env%kinetic(1)%matrix, &
+            convert_precond_to_dbcsr=.TRUE.,&
             mo_coeff=mo_coeff,energy_gap=0.2_dp,error=error)
 
        CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
@@ -800,7 +802,7 @@ CONTAINS
        CALL cp_fm_init_random(uno_orbs,nvirtual2,error=error)
 
        CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
-            matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
+            matrix_c_fm=uno_orbs,matrix_orthogonal_space_fm=mo_coeff,&
             preconditioner=local_preconditioner,eps_gradient=uno_eps,&
             iter_max=uno_iter,size_ortho_space=nmo,error=error)
 

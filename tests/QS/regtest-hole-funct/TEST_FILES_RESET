@@ -96,3 +96,9 @@ CH_GV09_1.0.inp
 # more to reset
 CH_BeckeRoussel_R_1.0.inp
 CH_PBE_HOLE_T_C_LR_1.0.inp
+# fm to dbcsr
+CH_BeckeRoussel_R_1.0.inp
+# fm to dbcsr
+CH_LDA_HOLE_T_C_LR_1.0.inp
+# fm to dbcsr
+CH_GV09_1.0.inp

@@ -42,12 +42,13 @@ MODULE preconditioner
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
        dbcsr_distribution_release, dbcsr_get_info, dbcsr_get_occupation, &
-       dbcsr_init, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_nblkcols_local, &
-       dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_uses_special_memory
+       dbcsr_init, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+       dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, &
+       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_nblkcols_local, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
+       dbcsr_release, dbcsr_release_p, dbcsr_row_block_sizes, &
+       dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: &
        block_add_on_diag_d, block_chol_inv_d, dbcsr_add, dbcsr_add_on_diag, &
        dbcsr_btriu, dbcsr_copy, dbcsr_filter, dbcsr_get_block, &
@@ -58,7 +59,9 @@ MODULE preconditioner
                                              dbcsr_mp_obj,&
                                              dbcsr_norm_frobenius,&
                                              dbcsr_obj,&
-                                             dbcsr_type_normal
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_real_4,&
+                                             dbcsr_type_real_default
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_create,&
                                              dbcsr_create_dist_r_unrot,&
@@ -74,7 +77,8 @@ MODULE preconditioner
        ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
        ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
        ot_precond_sparse_kinetic_sainv
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             sp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max
   USE preconditioner_types,            ONLY: preconditioner_type
@@ -96,6 +100,16 @@ MODULE preconditioner
 
   PRIVATE :: make_sparse_diag, make_full_single, make_local_block
 
+  INTERFACE apply_preconditioner
+     MODULE PROCEDURE apply_preconditioner_dbcsr
+     MODULE PROCEDURE apply_preconditioner_fm
+  END INTERFACE
+
+  INTERFACE apply_solve_lin_system
+     MODULE PROCEDURE apply_solve_lin_system_dbcsr
+     MODULE PROCEDURE apply_solve_lin_system_fm
+  END INTERFACE
+
 ! *****************************************************************************
 
 CONTAINS
@@ -110,7 +124,7 @@ CONTAINS
 
 ! *****************************************************************************
 SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
-                               matrix_t, mo_coeff, energy_gap, mixed_precision, error)
+                               matrix_t, mo_coeff, energy_gap, mixed_precision, convert_precond_to_dbcsr, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     INTEGER, INTENT(IN)                      :: precon_type, solver_type
@@ -118,7 +132,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: matrix_s, matrix_t
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     REAL(KIND=dp)                            :: energy_gap
-    LOGICAL, INTENT(IN), OPTIONAL            :: mixed_precision
+    LOGICAL, INTENT(IN), OPTIONAL            :: mixed_precision, &
+                                                convert_precond_to_dbcsr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner', &
@@ -126,9 +141,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     INTEGER                                  :: handle, istat, k, &
                                                 my_solver_type
-    LOGICAL                                  :: failure, my_mixed_precision, &
-                                                needs_full_spectrum, &
-                                                needs_homo
+    LOGICAL :: failure, my_convert_precond_to_dbcsr, my_mixed_precision, &
+      needs_full_spectrum, needs_homo
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
 
@@ -137,6 +151,9 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
+
+    my_convert_precond_to_dbcsr = .FALSE.
+    IF(PRESENT(convert_precond_to_dbcsr)) my_convert_precond_to_dbcsr = convert_precond_to_dbcsr
 
     my_mixed_precision = .FALSE.
     IF(PRESENT(mixed_precision)) my_mixed_precision = mixed_precision
@@ -293,6 +310,34 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      CALL stop_program("make preconditioner","doesnt know this type of solver")
   END SELECT
 
+
+  IF(my_convert_precond_to_dbcsr) THEN
+     IF(ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
+        CALL dbcsr_release_p(preconditioner_env%dbcsr_matrix)
+     ENDIF
+     CALL dbcsr_init_p(preconditioner_env%dbcsr_matrix)
+     IF(my_mixed_precision) THEN
+        CALL dbcsr_create(preconditioner_env%dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
+             dbcsr_distribution(matrix_h), dbcsr_type_normal,&
+             dbcsr_row_block_sizes(matrix_h), dbcsr_col_block_sizes(matrix_h), &
+             0, 0, dbcsr_type_real_4, special=.TRUE.)
+     ELSE
+        CALL dbcsr_create(preconditioner_env%dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
+             dbcsr_distribution(matrix_h), dbcsr_type_normal,&
+             dbcsr_row_block_sizes(matrix_h), dbcsr_col_block_sizes(matrix_h), &
+             0, 0, dbcsr_type_real_default, special=.TRUE.)
+     ENDIF
+     CALL dbcsr_finalize(preconditioner_env%dbcsr_matrix)
+     IF(ASSOCIATED(preconditioner_env%fm)) THEN
+        CALL copy_fm_to_dbcsr(preconditioner_env%fm,preconditioner_env%dbcsr_matrix)
+     ELSEIF(ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
+        CALL dbcsr_copy(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, error=error)
+     ELSE
+        CALL stop_program(routineN,"something wrong")
+     ENDIF
+  ENDIF
+
+
     IF (needs_full_spectrum) THEN
       DEALLOCATE(eigenvalues_ot,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -305,13 +350,13 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
 ! applies a previously created preconditioner to a full matrix
 ! *****************************************************************************
-SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error)
+SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_fm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
@@ -352,7 +397,54 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
 
   CALL timestop(handle)
 
-END SUBROUTINE apply_preconditioner
+END SUBROUTINE apply_preconditioner_fm
+
+SUBROUTINE apply_preconditioner_dbcsr(preconditioner_env, matrix_in, matrix_out, error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(dbcsr_obj)                          :: matrix_in, matrix_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_dbcsr', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+  CALL timeset(routineN,handle)
+
+  SELECT CASE (preconditioner_env%in_use)
+  CASE (0)
+     CALL stop_program(routineN,"No preconditioner in use")
+  CASE (ot_precond_sparse_diag,ot_precond_full_single)
+     CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
+  CASE (ot_precond_full_all)
+     CALL apply_all(preconditioner_env, matrix_in, matrix_out,error=error)
+  CASE(ot_precond_sparse_kinetic)
+     CALL apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error=error)
+  CASE (ot_precond_sparse_kinetic_sainv)
+     SELECT CASE (preconditioner_env%solver)
+     CASE (ot_precond_solver_sainv)
+        CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
+     CASE DEFAULT
+        CALL stop_program(routineN,"wrong solver")
+     END SELECT
+  CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse,ot_precond_s_inverse)
+     SELECT CASE (preconditioner_env%solver)
+     CASE(ot_precond_solver_inv_chol,ot_precond_solver_sainv)
+        CALL apply_single(preconditioner_env, matrix_in, matrix_out,error=error)
+     CASE(ot_precond_solver_direct)
+        CALL stop_program(routineN,"apply_full_direct not supported with ot")
+        !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out,error=error)
+     CASE DEFAULT
+        CALL stop_program(routineN,"wrong solver")
+     END SELECT
+  CASE DEFAULT
+     CALL stop_program(routineN,"wrong preconditioner")
+  END SELECT
+
+  CALL timestop(handle)
+
+END SUBROUTINE apply_preconditioner_dbcsr
 
 ! different types of preconditioner come here
 ! a sparse block diagonal approximation
@@ -585,6 +677,30 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 
 END SUBROUTINE apply_full_single
 
+SUBROUTINE apply_single(preconditioner_env, matrix_in, matrix_out,error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(dbcsr_obj)                          :: matrix_in, matrix_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_single', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, k, n
+
+  CALL timeset(routineN,handle)
+
+  IF(.NOT.ASSOCIATED(preconditioner_env%dbcsr_matrix)) &
+       CALL stop_program(routineN," NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
+  CALL dbcsr_get_info(matrix_in,nfullrows_total=n,nfullcols_total=k)
+  CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix,matrix_in,&
+       0.0_dp,matrix_out,last_row=n,last_column=k,last_k=n,&
+       left_set=preconditioner_env%dbcsr_matrix%m%predistributed,error=error)
+
+  CALL timestop(handle)
+
+END SUBROUTINE apply_single
+
 SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out,error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -611,6 +727,7 @@ SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out,error)
   CALL timestop(handle)
     
 END SUBROUTINE apply_full_direct
+
 
 ! *****************************************************************************
 !> \brief generates a preconditioner by cholesky inverting H-lambda S+(SC)shifts(SC)^T
@@ -939,6 +1056,58 @@ SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out, error)
   CALL timestop(handle)
 
 END SUBROUTINE apply_full_all
+
+SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(dbcsr_obj)                          :: matrix_in, matrix_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_all', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col, col_offset, col_size, &
+                                                handle, i, j, k, n, row, &
+                                                row_offset, row_size
+    LOGICAL                                  :: tr
+    REAL(KIND=dp)                            :: dum
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_obj)                          :: matrix_tmp
+
+  CALL timeset(routineN,handle)
+
+  CALL dbcsr_get_info(matrix_in,nfullrows_total=n,nfullcols_total=k)
+
+  CALL dbcsr_init(matrix_tmp)
+  CALL dbcsr_copy(matrix_tmp,matrix_in,name="apply_full_all",error=error)
+  CALL dbcsr_multiply('T','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
+                  matrix_in,0.0_dp,matrix_tmp,&
+                  last_row=n,last_column=k,last_k=n,error=error)
+  ! do the right scaling
+  CALL dbcsr_iterator_start(iter, matrix_tmp)
+  DO WHILE (dbcsr_iterator_blocks_left (iter))
+     CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr,&
+          row_size=row_size, col_size=col_size, &
+          row_offset=row_offset, col_offset=col_offset)
+     DO j=1,col_size
+     DO i=1,row_size
+        dum=1.0_dp/MAX(preconditioner_env%energy_gap, &
+             preconditioner_env%full_evals( row_offset+i-1 )&
+             -preconditioner_env%occ_evals( col_offset+j-1 ))
+        DATA(i,j)=DATA(i,j)*dum
+     ENDDO
+     ENDDO
+  ENDDO
+  CALL dbcsr_iterator_stop(iter)
+  ! mult back
+  CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
+                  matrix_tmp,0.0_dp,matrix_out,&
+                  last_row=n,last_column=k,last_k=n,error=error)
+  CALL dbcsr_release(matrix_tmp)
+  CALL timestop(handle)
+
+END SUBROUTINE apply_all
 
 ! *****************************************************************************
 SUBROUTINE make_full_single(preconditioner_env, fm, matrix_h, matrix_s, &
@@ -1598,13 +1767,13 @@ END SUBROUTINE make_full_all_ortho
 
   END SUBROUTINE make_diag_inner_precond
 
-  SUBROUTINE apply_solve_lin_system(preconditioner_env, matrix_in, matrix_out, error)
+  SUBROUTINE apply_solve_lin_system_fm(preconditioner_env, matrix_in, matrix_out, error)
     !
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'apply_solve_lin_system', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_solve_lin_system_fm', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: max_iter = 200, &
                                                 restart_every = 50
@@ -1714,7 +1883,127 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_fm_release(p ,error=error)
     CALL cp_fm_release(s ,error=error)
     CALL cp_fm_release(Ap,error=error)
-  END SUBROUTINE apply_solve_lin_system
+  END SUBROUTINE apply_solve_lin_system_fm
+
+  SUBROUTINE apply_solve_lin_system_dbcsr(preconditioner_env, matrix_in, matrix_out, error)
+    !
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(dbcsr_obj)                          :: matrix_in, matrix_out
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_solve_lin_system_dbcsr', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_iter = 200, &
+                                                restart_every = 50
+    REAL(dp), PARAMETER                      :: eps = 1.0e-2_dp
+
+    INTEGER                                  :: iter, m, n, output_unit
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: alpha, beta, residual_ot, &
+                                                tr_pAp, tr_rr, tr_sr_new, &
+                                                tr_sr_old
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj)                          :: Ap, p, r, s
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(preconditioner_env%sparse_matrix),cp_failure_level,routineP,error,failure)
+    !
+    CALL dbcsr_get_info(matrix_in,nfullrows_total=n,nfullcols_total=m)
+    CALL dbcsr_init(r)
+    CALL dbcsr_init(p)
+    CALL dbcsr_init(s)
+    CALL dbcsr_init(Ap)
+    CALL dbcsr_copy(r,matrix_in,error=error)
+    CALL dbcsr_copy(p,matrix_in,error=error)
+    CALL dbcsr_copy(s,matrix_in,error=error)
+    CALL dbcsr_copy(Ap,matrix_in,error=error)
+    !
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_io_unit(logger)
+    !
+    ! residual
+    CALL dbcsr_trace(matrix_in,matrix_in,residual_ot,error=error)
+    residual_ot = SQRT(residual_ot/(REAL(n,dp)*REAL(m,dp)))
+    !
+    ! r = b-A*x
+    CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,matrix_out,&
+         0.0_dp,r,error=error)
+    CALL dbcsr_add(r,matrix_in,-1.0_dp,1.0_dp,error=error)
+    CALL dbcsr_trace(r,r,tr_rr,error=error)
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',0,': ||r_ls||=',&
+            & SQRT(tr_rr/(REAL(n,dp)*REAL(m,dp))),' ||r_ot||=',residual_ot
+    ENDIF
+    !
+    ! let's go!
+    DO iter = 1,max_iter
+       !
+       ! s = M * r
+       IF(ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
+          CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix_inner,r,&
+               0.0_dp,s,error=error)
+       ELSE
+          CALL dbcsr_copy(s,r,error=error)
+       ENDIF
+       CALL dbcsr_trace(s,r,tr_sr_new,error=error)
+       !
+       ! beta (this might be better when O(N) beta=(s_k,r_k-r_{k-1})/(s_{k-1},r_{k-1}))
+       IF(iter.EQ.1) THEN
+          beta = 0.0_dp
+       ELSE
+          beta = tr_sr_new/tr_sr_old
+       ENDIF
+       !
+       ! p = r + beta * p
+       CALL dbcsr_add(p,s,beta,1.0_dp,error=error)
+       !
+       ! Ap = A * p
+       CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,p,&
+            0.0_dp,Ap,error=error)
+       CALL dbcsr_trace(Ap,p,tr_pAp,error=error)
+       !
+       ! alpha = Tr(s_k'*r_k)/Tr(p_k'*Ap_k)
+       alpha = tr_sr_new/tr_pAp
+       !
+       ! x = x + alpha * p
+       CALL dbcsr_add(matrix_out,p,1.0_dp,alpha,error=error)
+       !
+       ! r = r - alpha * Ap or r = b - A * x
+       IF(MOD(iter,restart_every).EQ.0) THEN
+          CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,matrix_out,&
+               0.0_dp,r,error=error)
+          CALL dbcsr_add(r,matrix_in,-1.0_dp,1.0_dp,error=error)
+       ELSE
+          CALL dbcsr_add(r,Ap,1.0_dp,-alpha,error=error)
+       ENDIF
+       tr_sr_old = tr_sr_new
+       !
+       ! printing
+       IF(MOD(iter,10).EQ.0.AND.output_unit>0) THEN
+          WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',iter,': ||r_ls||=',&
+               & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' ||r_ls||/||r_ot||=',&
+               & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
+       ENDIF
+       !
+       ! exit
+       IF(SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot.LT.eps) EXIT
+       !
+    ENDDO
+    !
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',iter,': ||r_ls||=',&
+            & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp))),' ||r_ls||/||r_ot||=',&
+            & SQRT(tr_sr_new/(REAL(n,dp)*REAL(m,dp)))/residual_ot
+    ENDIF
+    IF(iter.GT.max_iter) THEN
+       CALL stop_program("apply_solve_lin_system","increase max_iter")
+    ENDIF
+    !
+    CALL dbcsr_release(r)
+    CALL dbcsr_release(p)
+    CALL dbcsr_release(s)
+    CALL dbcsr_release(Ap)
+  END SUBROUTINE apply_solve_lin_system_dbcsr
 
 ! *****************************************************************************
 !> \brief DBCSR BIF based Inverse with
