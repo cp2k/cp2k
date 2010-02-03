@@ -2137,7 +2137,7 @@ CONTAINS
        row_p(row+1) = lr
        prev_row = row
     ENDDO
-    row_p(prev_row+1:nblkrows_local+1) = lr
+    row_p(prev_row+1:nblkrows_total+1) = lr
     !
     FORALL (row = 1 : nblkrows_local)
        FORALL (col = 1 : nblkcols_local)
