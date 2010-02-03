@@ -628,3 +628,5 @@ H2O-OT-ASPC-6.inp
 vib-mixed.inp
 # turned on dbcsr_multiply_fm_fm_t
 vib-int-mixed.inp
+#
+H2O-OT-1.inp
