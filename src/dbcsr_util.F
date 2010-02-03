@@ -3919,9 +3919,9 @@ CONTAINS
             cp_warning_level, cp_internal_error, r,&
             'row_p decreases')
        mb = row_blk_size(br)
-       CALL dbcsr_assert(mb, "GT", 0,&
+       CALL dbcsr_assert(mb, "GE", 0,&
             cp_warning_level, cp_internal_error, r,&
-            'Row blocked size is zero')
+            'Row blocked size is negative')
        DO blk = m%m%row_p(br)+1, m%m%row_p(br+1)
           CALL dbcsr_assert(blk, "GT", 0,&
                cp_warning_level, cp_internal_error, r,&
@@ -3940,9 +3940,9 @@ CONTAINS
                cp_warning_level, cp_internal_error, r,&
                'col_i too high')
           n = col_blk_size(bc)
-          CALL dbcsr_assert(n, "GT", 0,&
+          CALL dbcsr_assert(n, "GE", 0,&
                cp_warning_level, cp_internal_error, r,&
-               'Column blocked size is zero')
+               'Column blocked size is negative')
           blk_p = m%m%blk_p(blk)
           mn = mb*n
           !CALL dbcsr_assert(dbg,blk_p.GT.0, r, 'Block pointer is negative')
