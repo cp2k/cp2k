@@ -790,8 +790,10 @@ CONTAINS
           CALL scp_control_release(dft_control%scp_control, error=error)
           CALL wfn_fitting_control_release(dft_control%wfn_fitting_control, error=error)
           CALL efield_fields_release(dft_control%efield_fields, error=error)
-          DEALLOCATE(dft_control%rtp_control,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          IF (ASSOCIATED(dft_control%rtp_control)) THEN
+             DEALLOCATE(dft_control%rtp_control,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          ENDIF
           DEALLOCATE(dft_control, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
