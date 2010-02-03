@@ -1310,6 +1310,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: zi, zj
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: c_array_me, c_array_partner
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
     INTEGER :: dim2, handle, i, idim, ii, ik, il1, il2, il_recv, &
       il_recv_partner, ilow1, ilow2, ip, ip_has_i, ip_partner, ip_recv_from, &
@@ -1332,8 +1334,7 @@ CONTAINS
     TYPE(set_c_1d_type), DIMENSION(:), &
       POINTER                                :: zdiag_all, zdiag_me
     TYPE(set_c_2d_type), DIMENSION(:), &
-      POINTER                                :: cz_ij_loc, xyz_me, xyz_mix, &
-                                                xyz_mix_ns, xyz_partner
+      POINTER                                :: cz_ij_loc, xyz_mix, xyz_mix_ns
 
     CALL timeset(routineN,handle)
 
@@ -1343,7 +1344,7 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
 
     NULLIFY(rmat, cz_ij_loc, zdiag_all, zdiag_me)
-    NULLIFY(xyz_me, xyz_mix,xyz_mix_ns, xyz_partner)
+    NULLIFY(xyz_mix,xyz_mix_ns)
     NULLIFY(mii,mij,mjj)
 
     dim2 = SIZE(zij,2)
@@ -1430,18 +1431,20 @@ CONTAINS
        rotmat(i,ii) = 1.0_dp
     END DO
 
-    ALLOCATE(xyz_me(dim2),STAT=istat)
-    ALLOCATE(xyz_partner(dim2),STAT=istat)
     ALLOCATE(xyz_mix(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(xyz_mix_ns(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(zdiag_me(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(zdiag_all(dim2),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ns_me = ns_bound(para_env%mepos,2) - ns_bound(para_env%mepos,1) +1
     IF(ns_me/=0) THEN
+      ALLOCATE(c_array_me(nstate,ns_me,dim2),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       DO idim = 1,dim2
-         ALLOCATE(xyz_me(idim)%c_array(nstate,ns_me),STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          ALLOCATE(xyz_mix_ns(idim)%c_array(nstate,ns_me),STAT=istat)
          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       END DO
@@ -1475,7 +1478,7 @@ CONTAINS
       t1= m_walltime()
 
       DO iperm = 1,nperm
-  
+
         ! fix partners for this permutation, and get the number of states
         CALL eberlein(iperm,para_env,list_pair,error)
         ip_partner = -1
@@ -1497,25 +1500,28 @@ CONTAINS
 
         ! if there is a non-zero block connecting two partners, jacobi-sweep it.
         IF(ns_partner*ns_me /= 0) THEN
+
           ALLOCATE(rmat_loc(ns_me+ns_partner,ns_me+ns_partner),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           rmat_loc = 0.0_dp
           DO i = 1, ns_me+ns_partner
             rmat_loc(i,i) = 1.0_dp
           END DO
-          
+         
+          ALLOCATE(c_array_partner(nstate,ns_partner,dim2),STAT=istat) 
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
           DO idim = 1,dim2
-            NULLIFY(xyz_partner(idim)%c_array)
-            ALLOCATE(xyz_partner(idim)%c_array(nstate,ns_partner),STAT=istat)
-            NULLIFY(xyz_mix(idim)%c_array)
             ALLOCATE(xyz_mix(idim)%c_array(ns_me+ns_partner,ns_me+ns_partner),STAT=istat)
+            CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
             DO i = 1,ns_me
-               xyz_me(idim)%c_array(1:nstate,i) = cz_ij_loc(idim)%c_array(1:nstate,i) 
+               c_array_me(1:nstate,i,idim) = cz_ij_loc(idim)%c_array(1:nstate,i)
             END DO
-            ! exchange between partners (XXXX could merge over dim2 for speed XXXX)
-            CALL mp_sendrecv(msgin=xyz_me(idim)%c_array,dest=ip_partner,&
-                msgout=xyz_partner(idim)%c_array,source=ip_partner,comm=para_env%group)
           END DO
+
+          CALL mp_sendrecv(msgin=c_array_me,dest=ip_partner,&
+                msgout=c_array_partner,source=ip_partner,comm=para_env%group)
+
           n1=ns_me
           n2=ns_partner
           ilow1=ns_bound(para_env%mepos,1)
@@ -1538,12 +1544,12 @@ CONTAINS
  
           DO idim= 1,dim2
              DO i = 1,n1
-               xyz_mix(idim)%c_array(il1:iu1,il1+i-1) = xyz_me(idim)%c_array(ilow1:iup1,i)
-               xyz_mix(idim)%c_array(il2:iu2,il1+i-1) = xyz_me(idim)%c_array(ilow2:iup2,i)
+               xyz_mix(idim)%c_array(il1:iu1,il1+i-1) = c_array_me(ilow1:iup1,i,idim)
+               xyz_mix(idim)%c_array(il2:iu2,il1+i-1) = c_array_me(ilow2:iup2,i,idim)
              END DO
              DO i = 1,n2
-               xyz_mix(idim)%c_array(il2:iu2,il2+i-1) = xyz_partner(idim)%c_array(ilow2:iup2,i)
-               xyz_mix(idim)%c_array(il1:iu1,il2+i-1) = xyz_partner(idim)%c_array(ilow1:iup1,i)
+               xyz_mix(idim)%c_array(il2:iu2,il2+i-1) = c_array_partner(ilow2:iup2,i,idim)
+               xyz_mix(idim)%c_array(il1:iu1,il2+i-1) = c_array_partner(ilow1:iup1,i,idim)
              END DO
           END DO
 
@@ -1584,6 +1590,7 @@ CONTAINS
           k=nblock_max+1
           CALL mp_sendrecv(rotmat(1:nstate,1:ns_me),ip_partner,&
                rotmat(1:nstate,k:k+n2-1),ip_partner,para_env%group)
+
           IF(ilow1<ilow2) THEN
             CALL dgemm("N","N",nstate,n1,n2,1.0_dp,rotmat(1,k),nstate,rmat_loc(1+n1,1),n1+n2,0.0_dp,gmat,nstate)
             CALL dgemm("N","N",nstate,n1,n1,1.0_dp,rotmat(1,1),nstate,rmat_loc(1,1),n1+n2,1.0_dp,gmat,nstate)
@@ -1603,7 +1610,7 @@ CONTAINS
                DO jstate = 1,nstate
                   DO i = 1,n2
                      xyz_mix_ns(idim)%c_array(jstate,istate) = xyz_mix_ns(idim)%c_array(jstate,istate) +& 
-                               xyz_partner(idim)%c_array(jstate,i)*rmat_loc(il2+i-1,il1+istate-1)
+                               c_array_partner(jstate,i,idim)*rmat_loc(il2+i-1,il1+istate-1)
                   END DO
                END DO
              END DO
@@ -1611,11 +1618,15 @@ CONTAINS
                DO jstate = 1,nstate
                   DO i = 1,n1
                      xyz_mix_ns(idim)%c_array(jstate,istate) = xyz_mix_ns(idim)%c_array(jstate,istate) +& 
-                               xyz_me(idim)%c_array(jstate,i)*rmat_loc(il1+i-1,il1+istate-1)
+                               c_array_me(jstate,i,idim)*rmat_loc(il1+i-1,il1+istate-1)
                   END DO
                END DO
              END DO
           END DO  ! idim
+
+          DEALLOCATE(c_array_partner,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
         ELSE ! save my data
           DO idim = 1,dim2
              DO i = 1,ns_me
@@ -1631,7 +1642,7 @@ CONTAINS
         END DO
 
         IF(ns_partner*ns_me /= 0) THEN
-        ! transpose rotation matrix rmat_loc
+          ! transpose rotation matrix rmat_loc
           DO i =1,ns_me+ns_partner
             DO j = i+1,ns_me+ns_partner
               ri = rmat_loc(i,j)
@@ -1640,7 +1651,7 @@ CONTAINS
             END DO
           END DO
 
-         ! prepare for distribution
+          ! prepare for distribution
           DO i = 1,n1
              rmat_send(1:n1,i) = rmat_loc(il1:iu1,il1+i-1)
           END DO
@@ -1652,10 +1663,10 @@ CONTAINS
           rmat_send = 0.0_dp
         END IF
 
-        ! collect data from all tasks 
+        ! collect data from all tasks (this takes some significant time)
         CALL mp_allgather(rmat_send,rmat_recv_all,para_env%group)
 
-        ! update blocks everywhere (this is what takes most time)
+        ! update blocks everywhere 
         DO ip = 0,para_env%num_pe-1
       
           ip_recv_from=MOD(para_env%mepos-IP+para_env%num_pe,para_env%num_pe)
@@ -1730,11 +1741,13 @@ CONTAINS
 
         IF(ns_partner*ns_me /= 0) THEN
           DEALLOCATE(rmat_loc, STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           DO idim = 1,dim2
-            DEALLOCATE(xyz_partner(idim)%c_array,STAT=istat)
             DEALLOCATE(xyz_mix(idim)%c_array,STAT=istat)
+            CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           END DO 
         END IF
+  
       END DO  ! iperm
 
       ! calculate the max gradient
@@ -1800,7 +1813,9 @@ CONTAINS
       CALL external_control(should_stop,"LOC",target_time=target_time, start_time=start_time,error=error)
       IF(should_stop) EXIT
 
+
     END DO ! sweeps
+
 
     IF(output_unit>0) THEN
        WRITE(output_unit,*) ' LOCALIZATION! loop did not converge within the maximum number of iterations.'
@@ -1817,23 +1832,19 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(rmat_send, STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF (ns_me>0) THEN
+       DEALLOCATE(c_array_me,STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     DO idim = 1,dim2
-      IF(ns_me/=0) THEN
-        DEALLOCATE(xyz_me(idim)%c_array,STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-      ENDIF
       DEALLOCATE(zdiag_me(idim)%c_array, STAT=istat)
       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(zdiag_all(idim)%c_array, STAT=istat)
       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
-    DEALLOCATE(xyz_me,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(zdiag_me, STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(zdiag_all, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(xyz_partner,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(xyz_mix,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
