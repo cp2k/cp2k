@@ -722,6 +722,32 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RESTART",&
+            description="Restart the localization from a set of orbitals"//&
+            " read from a localization restart file.",&
+            usage="RESTART", default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LOCHOMO_RESTART_FILE_NAME",&
+            description="File name where to read the MOS from"//&
+            "which to restart the localization procedure for occupied states",&
+            usage="LOCHOMO_RESTART_FILE_NAME <FILENAME>",&
+            type_of_var=lchar_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LOCLUMO_RESTART_FILE_NAME",&
+            description="File name where to read the MOS from"//&
+            "which to restart the localization procedure for unoccupied states",&
+            usage="LOCLUMO_RESTART_FILE_NAME <FILENAME>",&
+            type_of_var=lchar_t,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword,name="OPERATOR",&
             description="Type of opertator which defines the spread functional",&
             usage="OPERATOR (BERRY|BOYS|PIPEK)",&
@@ -867,6 +893,15 @@ CONTAINS
          error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
+
+    NULLIFY(print_key)
+    CALL cp_print_key_section_create(print_key,"LOC_RESTART",&
+         description="Controls the printing of restart file for localized MOS", &
+         print_level=high_print_level,add_last=add_last_numeric,filename="",&
+         error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
   END SUBROUTINE print_wanniers
 
 ! *****************************************************************************

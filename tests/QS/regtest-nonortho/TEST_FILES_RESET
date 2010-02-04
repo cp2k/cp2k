@@ -136,3 +136,5 @@ graphite.inp
 graphite2.inp
 # fm to dbcsr
 graphite3.inp
+#
+graphite.inp

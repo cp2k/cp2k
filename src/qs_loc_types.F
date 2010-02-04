@@ -360,6 +360,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_loc_env', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, istat
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -390,6 +391,14 @@ CONTAINS
        END IF
        IF (PRESENT(particle_set)) qs_loc_env%particle_set => particle_set
        IF(PRESENT(moloc_coeff)) THEN
+          IF(ASSOCIATED(qs_loc_env%moloc_coeff )) THEN
+            DO i=1,SIZE ( qs_loc_env % moloc_coeff,1)
+               CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix,error=error)
+            END DO
+            DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+            NULLIFY(qs_loc_env%moloc_coeff)
+          END IF
           qs_loc_env%moloc_coeff => moloc_coeff
        END IF
        IF(PRESENT(op_sm_set)) THEN

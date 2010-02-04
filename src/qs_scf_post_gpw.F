@@ -118,7 +118,9 @@ MODULE qs_scf_post_gpw
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
                                              qs_loc_env_destroy,&
                                              qs_loc_env_new_type
-  USE qs_loc_utils,                    ONLY: qs_loc_env_init
+  USE qs_loc_utils,                    ONLY: loc_read_restart,&
+                                             loc_write_restart,&
+                                             qs_loc_env_init
   USE qs_mo_methods,                   ONLY: calculate_orthonormality,&
                                              calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
@@ -365,9 +367,6 @@ CONTAINS
        !  - Possibly gets wannier functions
        !  - Possibly gets molecular states
        IF (p_loc_homo) THEN
-          do_homo=.TRUE.
-          CALL qs_loc_env_create(qs_loc_env_homo,error=error)
-          CALL qs_loc_init(qs_env,qs_loc_env_homo,dft_section,do_homo,do_mo_cubes,error)
           IF (qs_env%dft_control%restricted) THEN
              IF (output_unit>0) WRITE(output_unit,*) &
                   " Unclear how we define MOs / localization in the restricted case ... skipping"
@@ -386,8 +385,14 @@ CONTAINS
                 CALL cp_fm_create(homo_localized(ispin)%matrix,occupied_orbs(ispin)%matrix%matrix_struct,error=error)
                 CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix,homo_localized(ispin)%matrix,error=error)
              END DO
+             do_homo=.TRUE.
+             CALL qs_loc_env_create(qs_loc_env_homo,error=error)
+             CALL qs_loc_control_init(qs_loc_env_homo,dft_section,do_homo,error)
+             CALL qs_loc_init(qs_env,qs_loc_env_homo,dft_section,homo_localized,do_homo,do_mo_cubes,error=error)
              CALL get_localization_info(qs_env,qs_loc_env_homo,dft_section,homo_localized, wf_r, wf_g,particles,&
                   occupied_orbs,occupied_evals,error=error)
+             !write restart for localization of occupied orbitals
+             CALL loc_write_restart(qs_env,qs_loc_env_homo,localization_section,mos,homo_localized, do_homo, error=error)
              CALL cp_fm_vect_dealloc(homo_localized,error)
              DEALLOCATE(occupied_orbs,stat=istat)
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -410,9 +415,10 @@ CONTAINS
           IF(p_loc_lumo)THEN
              do_homo=.FALSE.
              CALL qs_loc_env_create(qs_loc_env_lumo,error=error)
-             CALL qs_loc_init(qs_env,qs_loc_env_lumo,dft_section,do_homo,do_mo_cubes,error)          
-             min_lumos=MAX(MAXVAL(qs_loc_env_lumo%localized_wfn_control%loc_states(:)),nlumo)         
+             CALL qs_loc_control_init(qs_loc_env_lumo,dft_section,do_homo,error)
+             min_lumos=MAX(MAXVAL(qs_loc_env_lumo%localized_wfn_control%loc_states(:,:)),nlumo)         
           END IF
+ 
           ALLOCATE(unoccupied_orbs(dft_control%nspins),STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(unoccupied_evals(dft_control%nspins),STAT=istat)
@@ -447,10 +453,14 @@ CONTAINS
                 CALL cp_fm_create(lumo_localized(ispin)%matrix,unoccupied_orbs(ispin)%matrix%matrix_struct,error=error)
                 CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix,lumo_localized(ispin)%matrix,error=error) 
              END DO
+             CALL qs_loc_init(qs_env,qs_loc_env_lumo,dft_section,lumo_localized,do_homo,do_mo_cubes,&
+                  evals=unoccupied_evals, error=error)          
              CALL qs_loc_env_init(qs_loc_env_lumo,qs_loc_env_lumo%localized_wfn_control,qs_env,&
-                  lumo_coeff=unoccupied_orbs,error=error) 
+                  loc_coeff=unoccupied_orbs,error=error) 
              CALL get_localization_info(qs_env,qs_loc_env_lumo,dft_section, lumo_localized, wf_r, wf_g,particles,&
                   unoccupied_orbs,unoccupied_evals,error=error)
+             CALL loc_write_restart(qs_env,qs_loc_env_lumo,localization_section,mos,homo_localized, do_homo,&
+                   evals=unoccupied_evals, error=error)
              lumo_ptr=>lumo_localized
           END IF
        ENDIF
@@ -637,7 +647,8 @@ CONTAINS
       POINTER                                :: unoccupied_orbs
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_evals
-    INTEGER                                  :: nlumo, nlumos
+    INTEGER                                  :: nlumo
+    INTEGER, INTENT(OUT)                     :: nlumos
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_lumo', &
@@ -786,16 +797,40 @@ CONTAINS
 
   END SUBROUTINE make_mo_eig
 
-
   ! *****************************************************************************
   !> \brief initializes everything needed for localization of the HOMOs
   ! *****************************************************************************
-  
-  SUBROUTINE qs_loc_init(qs_env,qs_loc_env,dft_section,do_homo,do_mo_cubes,error)
+  SUBROUTINE qs_loc_control_init(qs_loc_env,dft_section,do_homo,error)
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: dft_section
+    LOGICAL                                  :: do_homo
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(section_vals_type), POINTER         :: localization_section, &
+                                                localize_section
+
+    localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
+    localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
+
+    CALL localized_wfn_control_create(qs_loc_env%localized_wfn_control,error=error)
+    qs_loc_env%localized_wfn_control%do_homo=do_homo
+    CALL read_loc_section(qs_loc_env%localized_wfn_control,localize_section,&
+         localization_section,qs_loc_env%do_localize,error=error)
+
+  END SUBROUTINE  qs_loc_control_init
+
+  SUBROUTINE qs_loc_init(qs_env,qs_loc_env,dft_section,mos_localized, do_homo,do_mo_cubes,evals,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_localized
     LOGICAL                                  :: do_homo, do_mo_cubes
+    TYPE(cp_1d_r_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: evals
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_init', &
@@ -825,91 +860,106 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CALL localized_wfn_control_create(qs_loc_env%localized_wfn_control,error=error)
-    qs_loc_env%localized_wfn_control%do_homo=do_homo
-    CALL read_loc_section(qs_loc_env%localized_wfn_control,localize_section,&
-         localization_section,qs_loc_env%do_localize,error=error)
     IF (qs_loc_env%do_localize) THEN
-       ! Some setup for MOs to be localized
-       nmoloc = 0
-       DO ispin = 1,dft_control%nspins
-          CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,homo=homo,nao=nao,&
-               mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, occupation_numbers=occupation)
-          ! Get eigenstates (only needed if HOMOs are not requested before)
-          IF (((.NOT.do_mo_cubes).OR.section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)==0).AND.do_homo) THEN
-             CALL make_mo_eig(qs_env,error)
-          END IF
-          IF(qs_loc_env%localized_wfn_control%set_of_states == state_loc_all.AND.do_homo) THEN
-             nmoloc(ispin) = NINT(nelectron/occupation(1))
-             IF(n_mo(ispin)>homo) THEN
-                DO i= nmoloc(ispin),1,-1
-                   IF(occupation(1)-occupation(i) < qs_loc_env%localized_wfn_control%eps_occ) THEN
-                      ilast_intocc = i
-                      EXIT
-                   END IF
-                END DO
-             ELSE
-                ilast_intocc = nmoloc(ispin)
-             END IF
-             nmoloc(ispin) = ilast_intocc
-             IF(nmoloc(ispin)/=n_mo(ispin)) THEN
-                IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I6,A,F12.6,A,F12.6,A)") "LOCALIZATION| The first ",&
-                     ilast_intocc," occupied orbitals are localized, corresponding to energies from ",&
-                     mo_eigenvalues(1), " to ",  mo_eigenvalues(ilast_intocc) , " [a.u.]." 
-             END IF
-          ELSE IF(qs_loc_env%localized_wfn_control%set_of_states == energy_loc_range.AND.do_homo) THEN
-             ilow = 0
-             iup = 0
-             DO i = 1,n_mo(ispin)
-                IF(mo_eigenvalues(i)>=qs_loc_env%localized_wfn_control%lu_ene_bound(1) ) THEN
-                   ilow = i
-                   EXIT
-                END IF
-             END DO
-             DO i = n_mo(ispin),1,-1
-                IF(mo_eigenvalues(i)<=qs_loc_env%localized_wfn_control%lu_ene_bound(2) ) THEN
-                   iup = i
-                   EXIT
-                END IF
-             END DO
-             qs_loc_env%localized_wfn_control%lu_bound_states(1,ispin) = ilow
-             qs_loc_env%localized_wfn_control%lu_bound_states(2,ispin) = iup
-             qs_loc_env%localized_wfn_control%nloc_states(ispin) = iup-ilow +1
-             nmoloc(ispin) = qs_loc_env%localized_wfn_control%nloc_states(ispin) 
-             IF(occupation(ilow)-occupation(iup) > qs_loc_env%localized_wfn_control%eps_occ) THEN
-                CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                     "The selected energy range includes orbitals with different occupation number. "//&
-                     " The localization procedure cannot be applied."//&
-                     CPSourceFileRef,&
-                     only_ionode=.TRUE.)
-             END IF
-             IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I6,A)") "LOCALIZATION| ",&
-                  nmoloc(ispin)," orbitals in the selected energy range are localized, ."
-          ELSE
-             nmoloc(ispin) = MIN(qs_loc_env%localized_wfn_control%nloc_states(1) ,n_mo(ispin))
-             IF (output_unit>0.AND.do_homo) WRITE(output_unit,"(/,T2,A,I6,A)") "LOCALIZATION| ",&
-                  nmoloc(ispin)," occupied orbitals are localized, as given in the input list."
-             IF (output_unit>0.AND.(.NOT.do_homo)) WRITE(output_unit,"(/,T2,A,I6,A)") "LOCALIZATION| ",&
-                  nmoloc(ispin)," unoccupied orbitals are localized, as given in the input list."
-             IF(n_mo(ispin)>homo.AND.do_homo) THEN
-                ! write warning
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                     "User requested the calculation of localized wavefunction from a subset of MOs, "//&
-                     "since there are MOs with different occupations, check that in the selected subset "//&
-                     " the MOs have same occupation, because the electronic density is not invariant with "//&
-                     "respect to rotations among orbitals with different occupation numbers!"//&
-                     CPSourceFileRef,&
-                     only_ionode=.TRUE.)
-             END IF
-          ENDIF
-       ENDDO  ! ispin
-       n_mos(:)=nao-n_mo(:)
-       IF(do_homo)n_mos=n_mo
-       CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mos,dft_control%nspins,error=error)
-       CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,dft_control%nspins,error=error)
-       IF(do_homo)THEN
-          CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,qs_env,error=error)
-       END IF
+      ! Some setup for MOs to be localized
+      IF(qs_loc_env%localized_wfn_control%loc_restart) THEN
+         CALL loc_read_restart(qs_loc_env,mos,mos_localized,localize_section,&
+              localization_section,qs_env%para_env,do_homo,evals=evals,error=error)
+         IF (output_unit>0) WRITE(output_unit,"(/,T2,A,A)") "LOCALIZATION| ",&
+                    "   The orbitals to be localized are read from localization restart file."
+         nmoloc = qs_loc_env%localized_wfn_control%nloc_states
+      ELSE
+         nmoloc = 0
+         DO ispin = 1,dft_control%nspins
+            CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,homo=homo,nao=nao,&
+                 mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, occupation_numbers=occupation)
+            ! Get eigenstates (only needed if not already calculated before)
+            IF (((.NOT.do_mo_cubes).OR.&
+                  section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO",error=error)==0)&
+                  .AND.do_homo .AND. qs_env%scf_env%method==ot_method_nr) THEN
+               CALL make_mo_eig(qs_env,error)
+            END IF
+            IF(qs_loc_env%localized_wfn_control%set_of_states == state_loc_all.AND.do_homo) THEN
+               nmoloc(ispin) = NINT(nelectron/occupation(1))
+               IF(n_mo(ispin)>homo) THEN
+                  DO i= nmoloc(ispin),1,-1
+                     IF(occupation(1)-occupation(i) < qs_loc_env%localized_wfn_control%eps_occ) THEN
+                        ilast_intocc = i
+                        EXIT
+                     END IF
+                  END DO
+               ELSE
+                  ilast_intocc = nmoloc(ispin)
+               END IF
+               nmoloc(ispin) = ilast_intocc
+               qs_loc_env%localized_wfn_control%lu_bound_states(1,ispin) = 1
+               qs_loc_env%localized_wfn_control%lu_bound_states(2,ispin) = ilast_intocc
+               IF(nmoloc(ispin)/=n_mo(ispin)) THEN
+                  IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I4,A,I6,A,F12.6,A,F12.6,A)") "LOCALIZATION| Spin ", &
+                       ispin ," The first ",&
+                       ilast_intocc," occupied orbitals are localized, corresponding to energies from ",&
+                       mo_eigenvalues(1), " to ",  mo_eigenvalues(ilast_intocc) , " [a.u.]." 
+               END IF
+            ELSE IF(qs_loc_env%localized_wfn_control%set_of_states == energy_loc_range.AND.do_homo) THEN
+               ilow = 0
+               iup = 0
+               DO i = 1,n_mo(ispin)
+                  IF(mo_eigenvalues(i)>=qs_loc_env%localized_wfn_control%lu_ene_bound(1) ) THEN
+                     ilow = i
+                     EXIT
+                  END IF
+               END DO
+               DO i = n_mo(ispin),1,-1
+                  IF(mo_eigenvalues(i)<=qs_loc_env%localized_wfn_control%lu_ene_bound(2) ) THEN
+                     iup = i
+                     EXIT
+                  END IF
+               END DO
+               qs_loc_env%localized_wfn_control%lu_bound_states(1,ispin) = ilow
+               qs_loc_env%localized_wfn_control%lu_bound_states(2,ispin) = iup
+               qs_loc_env%localized_wfn_control%nloc_states(ispin) = iup-ilow +1
+               nmoloc(ispin) = qs_loc_env%localized_wfn_control%nloc_states(ispin) 
+               IF(occupation(ilow)-occupation(iup) > qs_loc_env%localized_wfn_control%eps_occ) THEN
+                  CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
+                       "The selected energy range includes orbitals with different occupation number. "//&
+                       " The localization procedure cannot be applied."//&
+                       CPSourceFileRef,&
+                       only_ionode=.TRUE.)
+               END IF
+               IF (output_unit>0) WRITE(output_unit,"(/,T2,A,I4,A,I6,A)") "LOCALIZATION| Spin ", ispin ," : ",&
+                    nmoloc(ispin)," orbitals in the selected energy range are localized."
+            ELSE
+               nmoloc(ispin) = MIN(qs_loc_env%localized_wfn_control%nloc_states(1) ,n_mo(ispin))
+               IF (output_unit>0.AND.do_homo) WRITE(output_unit,"(/,T2,A,I4,A,I6,A)") "LOCALIZATION| Spin ", ispin,&
+                  " : ", nmoloc(ispin)," occupied orbitals are localized, as given in the input list."
+               IF (output_unit>0.AND.(.NOT.do_homo)) WRITE(output_unit,"(/,T2,A,I4,A,I6,A)") "LOCALIZATION| Spin ",&
+                   ispin, " : ", nmoloc(ispin)," unoccupied orbitals are localized, as given in the input list."
+               IF(n_mo(ispin)>homo.AND.do_homo) THEN
+                  ilow = qs_loc_env%localized_wfn_control%loc_states(1,ispin)
+                  DO i = 2,nmoloc(ispin)
+                    iup = qs_loc_env%localized_wfn_control%loc_states(i,ispin)
+                    IF(ABS(occupation(ilow) - occupation(iup))>qs_loc_env%localized_wfn_control%eps_occ) THEN
+                  ! write warning
+                      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                       "User requested the calculation of localized wavefunction from a subset of MOs, "//&
+                       "including MOs with different occupations. Check the selected subset, "//&
+                       " the electronic density is not invariant with "//&
+                       "respect to rotations among orbitals with different occupation numbers!"//&
+                       CPSourceFileRef,&
+                       only_ionode=.TRUE.)
+                    END IF
+                  END DO
+               END IF
+            ENDIF
+         ENDDO  ! ispin
+         n_mos(:)=nao-n_mo(:)
+         IF(do_homo)n_mos=n_mo
+         CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mos,dft_control%nspins,error=error)
+      END IF
+      CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,dft_control%nspins,error=error)
+      IF(do_homo)THEN
+         CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,qs_env,loc_coeff=mos_localized,error=error)
+      END IF
     ELSE
        ! Let's inform in case the section is not present in the input
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&

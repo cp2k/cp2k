@@ -2726,6 +2726,8 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) reaction path collective variable
+!>             ss(R) = [\sum_i i*dt exp{-\lambda \sum_a(S_a(R)-f_a(i))^2}]/
+!>                     [\sum_i exp{-\lambda \sum_a(S_a(R)-f_a(i))^2}]
 !> \author fschiff
 !> \note the system is still able to move in the space spanned by the CV
 !>       perpendicular to the path 
@@ -3011,6 +3013,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) distance from reaction path collective variable
+!>             ss(R) = -1/\lambda \log[\sum_i exp{-\lambda \sum_a(S_a(R)-f_a(i))^2}]
 !> \author MI
 !> \date 01.2010
 ! *****************************************************************************

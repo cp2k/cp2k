@@ -619,8 +619,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: my_pos
     INTEGER :: dim_op, handle, i, imo, imoloc, ir, ispin, istat, istate, j, &
-      jstate, l_spin, lb, loc_method, my_nspins, n_rep, nao, ncubes, nmo, &
-      nmosub, s_spin, ub
+      jstate, l_spin, lb, loc_method, n_rep, nao, ncubes, nmo, nmosub, &
+      s_spin, ub
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, list_cubes
     LOGICAL                                  :: append_cube, failure, &
                                                 list_cubes_setup
@@ -667,7 +667,6 @@ CONTAINS
        l_spin = myspin
     END IF
 
-    my_nspins = dft_control%nspins
     DO ispin = s_spin,l_spin
        loc_method = localized_wfn_control%localization_method
        SELECT CASE (localized_wfn_control%operator_type)
@@ -701,7 +700,6 @@ CONTAINS
           END DO
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
            
-
           CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set,&
                op_fm_set, para_env, cell, weights, ispin, loc_section, print_loc_section,  error=error)
 
@@ -744,7 +742,7 @@ CONTAINS
              ! Get the index in the subset
              imoloc = imoloc + 1
              ! Get the index in the full set
-             imo = localized_wfn_control%loc_states(i)
+             imo = localized_wfn_control%loc_states(i,ispin)
 
              CALL cp_fm_get_submatrix(moloc_coeff(ispin)%matrix,vecbuffer,1,imoloc,&
                   nao,1,transpose=.TRUE.,error=error)
@@ -822,7 +820,7 @@ CONTAINS
           DO i = 1, ncubes
              istate = list_cubes(i)
              DO j = 1,localized_wfn_control%nloc_states(ispin)
-                jstate = localized_wfn_control%loc_states(j)
+                jstate = localized_wfn_control%loc_states(j,ispin)
                 IF(istate==jstate) THEN
                    centers(1:6,i) = localized_wfn_control%centers_set(ispin)%array(1:6,j)
                    EXIT

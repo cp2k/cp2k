@@ -20,7 +20,10 @@ MODULE qs_loc_utils
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -28,6 +31,11 @@ MODULE qs_loc_utils
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_generate_filename,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
@@ -39,9 +47,15 @@ MODULE qs_loc_utils
                                              op_loc_berry,&
                                              op_loc_pipek,&
                                              state_loc_list
-  USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: pi,&
                                              twopi
+  USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
@@ -73,7 +87,7 @@ MODULE qs_loc_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_utils'
 
 ! *** Public ***
-  PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init
+  PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart, loc_read_restart
 
 CONTAINS
 
@@ -305,7 +319,7 @@ CONTAINS
 !>      04.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,lumo_coeff,error)
+  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,loc_coeff,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(localized_wfn_control_type), &
@@ -314,7 +328,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: myspin
     LOGICAL, INTENT(IN), OPTIONAL            :: do_localize
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: lumo_coeff
+      OPTIONAL, POINTER                      :: loc_coeff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
@@ -389,11 +403,16 @@ CONTAINS
           lb = localized_wfn_control%lu_bound_states(1,ispin)
           ub = localized_wfn_control%lu_bound_states(2,ispin)
 
+          IF(PRESENT(loc_coeff)) THEN
+            mat_ptr=> loc_coeff(ispin)%matrix
+          ELSE
+            mat_ptr=> mo_coeff
+          END IF
           IF(localized_wfn_control%set_of_states == state_loc_list) THEN
              ALLOCATE(vecbuffer(1,nao),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              IF(localized_wfn_control%do_homo)THEN
-                 my_occ =  occupations(localized_wfn_control%loc_states(1))
+                 my_occ =  occupations(localized_wfn_control%loc_states(1, ispin))
              END IF
              nmosub = SIZE(localized_wfn_control%loc_states,1)
              CPPostcondition(nmosub>0,cp_failure_level,routineP,error,failure)
@@ -402,7 +421,7 @@ CONTAINS
                 ! Get the index in the subset
                 imoloc = imoloc + 1
                 ! Get the index in the full set
-                imo = localized_wfn_control%loc_states(i)
+                imo = localized_wfn_control%loc_states(i,ispin)
                 IF(localized_wfn_control%do_homo)THEN
                    occ_imo = occupations(imo)
                    IF(ABS(occ_imo-my_occ) > localized_wfn_control% eps_occ) THEN
@@ -410,9 +429,6 @@ CONTAINS
                            CALL stop_program(routineP,"States with different occupations"//&
                            " cannot be rotated together")
                    END IF
-                   mat_ptr=>mo_coeff
-                ELSE
-                   mat_ptr=>lumo_coeff(ispin)%matrix
                 END IF
                 ! Take the imo vector from the full set and copy in the imoloc vector of the subset
                 CALL cp_fm_get_submatrix(mat_ptr,vecbuffer,1,imo,&
@@ -431,7 +447,7 @@ CONTAINS
                      " cannot be rotated together")
              END IF
              nmosub = localized_wfn_control%nloc_states(ispin)
-             CALL cp_fm_to_fm(mo_coeff,moloc_coeff(ispin)%matrix,nmosub,lb,1)
+             CALL cp_fm_to_fm(mat_ptr,moloc_coeff(ispin)%matrix,nmosub,lb,1)
           END IF
        END DO
        CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules,&
@@ -833,6 +849,298 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE get_berry_operator
+
+  SUBROUTINE loc_write_restart(qs_env,qs_loc_env,section,mo_array, coeff_localized, do_homo, evals, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: section
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: coeff_localized
+    LOGICAL, INTENT(IN)                      :: do_homo
+    TYPE(cp_1d_r_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: evals
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'loc_write_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: my_middle
+    INTEGER                                  :: handle, i, i_block, ispin, &
+                                                istat, j, max_block, nao, &
+                                                nloc, nmo, output_unit, &
+                                                rst_unit
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+    NULLIFY (logger)
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_io_unit(logger)
+
+    IF (qs_loc_env%do_localize) THEN
+
+      print_key => section_vals_get_subs_vals(section,"LOC_RESTART",error=error)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+                section,"LOC_RESTART",error=error),&
+                cp_p_file)) THEN
+   
+         ! Open file
+         rst_unit = -1
+   
+         IF(do_homo) THEN
+            my_middle="LOC_HOMO"
+         ELSE
+            my_middle="LOC_LUMO"
+         END IF
+   
+         rst_unit = cp_print_key_unit_nr(logger,section,"LOC_RESTART",&
+                    extension=".wfn", file_status="REPLACE", file_action="WRITE",&
+                    file_form="UNFORMATTED",middle_name=TRIM(my_middle), error=error)
+   
+         IF(rst_unit>0) filename = cp_print_key_generate_filename(logger,print_key,&
+                    middle_name=TRIM(my_middle),extension=".wfn",&
+                    my_local=.FALSE.,error=error)
+   
+         IF(output_unit>0) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T2,A, A/)")&
+                 "LOCALIZATION| Write restart file for the localized MOS : ",&
+                  filename
+         END IF
+   
+         IF(rst_unit>0) THEN
+           WRITE(rst_unit) qs_loc_env%localized_wfn_control%set_of_states
+           WRITE(rst_unit) qs_loc_env%localized_wfn_control%lu_bound_states
+           WRITE(rst_unit) qs_loc_env%localized_wfn_control%nloc_states
+         END IF
+   
+         DO ispin = 1,SIZE(coeff_localized)
+           mo_coeff => coeff_localized(ispin)%matrix
+           CALL cp_fm_get_info(mo_coeff, nrow_global=nao,ncol_global=nmo,ncol_block=max_block,error=error)
+           nloc=qs_loc_env%localized_wfn_control%nloc_states(ispin)
+           IF(rst_unit>0) THEN
+             WRITE(rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc,ispin) 
+             IF(do_homo) THEN
+               WRITE (rst_unit) nmo,&
+                     mo_array(ispin)%mo_set%homo,&
+                     mo_array(ispin)%mo_set%lfomo,&
+                     mo_array(ispin)%mo_set%nelectron
+               WRITE (rst_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
+                     mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
+             ELSE
+               WRITE (rst_unit) nmo
+               WRITE (rst_unit) evals(ispin)%array(1:nmo)
+             END IF
+           END IF
+   
+           ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+           DO i=1,nmo,MAX(max_block,1)
+               i_block=MIN(max_block,nmo-i+1)
+               CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,i,nao,i_block,error=error)
+               ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
+               ! to old ones, and in cases where max_block is different between runs, as might happen during
+               ! restarts with a different number of CPUs
+               DO j=1,i_block
+                  IF (rst_unit>0) WRITE (rst_unit) vecbuffer(1:nao,j)
+               ENDDO
+   
+           END DO
+   
+           DEALLOCATE (vecbuffer,STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+         END DO
+   
+   
+         CALL cp_print_key_finished_output(rst_unit,logger,section,&
+                    "LOC_RESTART", error=error)
+      END IF
+
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE  loc_write_restart
+
+
+  SUBROUTINE  loc_read_restart(qs_loc_env,mos,mos_localized,section, section2,para_env,do_homo,evals,error)
+
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_localized
+    TYPE(section_vals_type), POINTER         :: section, section2
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(IN)                      :: do_homo
+    TYPE(cp_1d_r_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: evals
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'loc_read_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=25)                        :: fname_key
+    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: my_middle
+    INTEGER :: group, handle, homo_read, i, ispin, istat, lfomo_read, &
+      max_nloc, n_rep_val, nao, nelectron_read, nloc, nmo, nmo_read, nspin, &
+      rst_unit, source
+    LOGICAL                                  :: exist, failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    failure = .FALSE.
+
+    nspin = SIZE(mos_localized)
+    nao = mos(1)%mo_set%nao
+    rst_unit = -1
+
+    group = para_env%group
+    source = para_env%source
+
+    IF(do_homo) THEN
+      fname_key="LOCHOMO_RESTART_FILE_NAME"
+    ELSE
+      fname_key="LOCLUMO_RESTART_FILE_NAME"
+    END IF
+
+    exist = .FALSE. 
+    CALL section_vals_val_get(section,fname_key,n_rep_val=n_rep_val,error=error)
+    IF (n_rep_val>0) THEN
+      CALL section_vals_val_get(section,fname_key,c_val=filename,error=error)
+    ELSE
+
+       print_key => section_vals_get_subs_vals(section2,"LOC_RESTART",error=error)
+       IF(do_homo) THEN
+          my_middle="LOC_HOMO"
+       ELSE
+          my_middle="LOC_LUMO"
+       END IF
+       filename = cp_print_key_generate_filename(logger,print_key,&
+                  middle_name=TRIM(my_middle),extension=".wfn",&
+                  my_local=.FALSE.,error=error)
+    END IF
+
+    INQUIRE(FILE=filename,exist=exist)
+
+    IF (para_env%ionode) THEN
+      CALL open_file(file_name=filename,&
+                     file_action="READ",&
+                     file_form="UNFORMATTED",&
+                     file_status="OLD",&
+                     unit_number=rst_unit)
+
+       READ(rst_unit) qs_loc_env%localized_wfn_control%set_of_states
+       READ(rst_unit) qs_loc_env%localized_wfn_control%lu_bound_states
+       READ(rst_unit) qs_loc_env%localized_wfn_control%nloc_states
+
+    END IF
+
+    CALL mp_bcast(qs_loc_env%localized_wfn_control%set_of_states,source,group)
+    CALL mp_bcast(qs_loc_env%localized_wfn_control%lu_bound_states,source,group)
+    CALL mp_bcast(qs_loc_env%localized_wfn_control%nloc_states,source,group)
+
+    max_nloc = MAXVAL(qs_loc_env%localized_wfn_control%nloc_states(:))
+
+    ALLOCATE (vecbuffer(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF(ASSOCIATED(qs_loc_env%localized_wfn_control%loc_states)) THEN
+      DEALLOCATE(qs_loc_env%localized_wfn_control%loc_states,STAT=istat)
+    END IF
+    ALLOCATE(qs_loc_env%localized_wfn_control%loc_states(max_nloc,2),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    qs_loc_env%localized_wfn_control%loc_states = 0
+   
+    DO ispin=1,nspin
+       IF(do_homo) THEN
+         nmo=mos(ispin)%mo_set%nmo
+       ELSE
+         nmo = SIZE(evals(ispin)%array,1)
+       END IF
+       IF (para_env%ionode.AND.(nmo > 0)) THEN
+         nloc = qs_loc_env%localized_wfn_control%nloc_states(ispin)
+         READ(rst_unit) qs_loc_env%localized_wfn_control%loc_states(1:nloc,ispin) 
+         IF(do_homo) THEN
+           READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
+           ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           eig_read = 0.0_dp
+           occ_read = 0.0_dp
+           READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
+         ELSE
+           READ (rst_unit) nmo_read
+           ALLOCATE(eig_read(nmo_read), STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           eig_read = 0.0_dp
+           READ (rst_unit) eig_read(1:nmo_read)
+         END IF
+         CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
+              "The number of MOs on the restart unit is smaller than the number of "//&
+              "the allocated MOs. "//&
+              CPSourceFileRef,&
+              only_ionode=.TRUE.)
+         CALL cp_assert((nmo_read<=nmo),cp_warning_level,cp_assertion_failed,routineP,&
+             "The number of MOs on the restart unit is greater than the number of "//&
+             "the allocated MOs. The read MO set will be truncated!"//&
+             CPSourceFileRef,&
+             only_ionode=.TRUE.)
+
+         nmo = MIN(nmo,nmo_read)
+         IF(do_homo) THEN
+           mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
+           mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
+           DEALLOCATE(eig_read, occ_read, STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ELSE
+           evals(ispin)%array(1:nmo) = eig_read(1:nmo)
+           DEALLOCATE(eig_read, STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         END IF
+
+      END IF
+      IF(do_homo) THEN
+        CALL mp_bcast(mos(ispin)%mo_set%eigenvalues,source,group)
+        CALL mp_bcast(mos(ispin)%mo_set%occupation_numbers,source,group)
+      ELSE
+        CALL mp_bcast(evals(ispin)%array,source,group)
+      END IF
+
+      DO i = 1,nmo
+          IF (para_env%ionode) THEN
+             READ (rst_unit) vecbuffer
+          ELSE
+             vecbuffer(1,:) = 0.0_dp
+          END IF
+          CALL mp_bcast(vecbuffer,source,group)
+          CALL cp_fm_set_submatrix(mos_localized(ispin)%matrix,&
+                 vecbuffer,1,i,nao,1,transpose=.TRUE.,error=error)
+      END DO
+    END DO
+
+    CALL mp_bcast(qs_loc_env%localized_wfn_control%loc_states,source,group)
+
+    DEALLOCATE(vecbuffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Close restart file
+    IF (para_env%ionode) CALL close_file(unit_number=rst_unit)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE  loc_read_restart
+
 
 END MODULE qs_loc_utils
 

@@ -118,6 +118,9 @@ wfn_mix_1.inp
 wfn_mix_2.inp
 wfn_mix_loc-0.inp
 wfn_mix_loc-1.inp
-
 # fm to dbcsr
 wfn_mix_1.inp
+#
+wfn_mix_1.inp
+wfn_mix_loc-1.inp
+wfn_mix_loc-1.inp

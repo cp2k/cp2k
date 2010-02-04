@@ -71,7 +71,8 @@ MODULE qs_loc_control
     LOGICAL                              :: print_centers
     LOGICAL                              :: print_spreads
     LOGICAL                              :: do_homo
-    INTEGER, POINTER, DIMENSION(:)       :: loc_states
+    LOGICAL                              :: loc_restart
+    INTEGER, POINTER, DIMENSION(:,:)       :: loc_states
     TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set
   END TYPE localized_wfn_control_type
 
@@ -210,8 +211,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, ir, n_list, n_rep, &
-                                                n_state, nline, output_unit
-    INTEGER, DIMENSION(:), POINTER           :: list
+                                                n_state, nline, output_unit, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: list, loc_list
     LOGICAL                                  :: failure, my_do_xas
     REAL(dp), POINTER                        :: ene(:)
     TYPE(cp_logger_type), POINTER            :: logger
@@ -227,6 +229,7 @@ CONTAINS
        CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",l_val=localize,error=error)
        IF(localize) THEN
           NULLIFY (list)
+          NULLIFY (loc_list)
           localized_wfn_control%lu_bound_states = 0
           localized_wfn_control%lu_ene_bound = 0.0_dp
           localized_wfn_control%nloc_states     = 0
@@ -255,46 +258,66 @@ CONTAINS
                i_val=localized_wfn_control%localization_method,error=error)
           CALL section_vals_val_get(loc_section,"OPERATOR",&
                i_val=localized_wfn_control%operator_type,error=error)
+          CALL section_vals_val_get(loc_section,"RESTART",&
+               l_val=localized_wfn_control%loc_restart,error=error)
 
           IF(localized_wfn_control%do_homo)THEN
-          ! List of States HOMO
-          CALL section_vals_val_get(loc_section,"LIST",  n_rep_val=n_rep,error=error)
-          IF(n_rep>0) THEN
-            n_list = 0
-            DO ir = 1,n_rep
-               NULLIFY(list)
-               CALL section_vals_val_get(loc_section,"LIST",i_rep_val=ir,i_vals=list,error=error)
-               IF(ASSOCIATED(list)) THEN
-                  CALL reallocate(localized_wfn_control%loc_states,1,n_list+SIZE(list))
-                  DO i = 1, SIZE(list)
-                     localized_wfn_control%loc_states(n_list+i) = list(i)
-                  END DO ! i
-                  localized_wfn_control%nloc_states(1) = n_list + SIZE(list)
-                  n_list = n_list +  SIZE(list)
+            ! List of States HOMO
+            CALL section_vals_val_get(loc_section,"LIST",  n_rep_val=n_rep,error=error)
+            IF(n_rep>0) THEN
+              n_list = 0
+              DO ir = 1,n_rep
+                 NULLIFY(list)
+                 CALL section_vals_val_get(loc_section,"LIST",i_rep_val=ir,i_vals=list,error=error)
+                 IF(ASSOCIATED(list)) THEN
+                    CALL reallocate(loc_list,1,n_list+SIZE(list))
+                    DO i = 1, SIZE(list)
+                       loc_list(n_list+i) = list(i)
+                    END DO ! i
+                    n_list = n_list +  SIZE(list)
+                 END IF
+              END DO ! ir
+              IF(n_list/=0) THEN
+                 localized_wfn_control%set_of_states=state_loc_list
+                 ALLOCATE(localized_wfn_control%loc_states(n_list,2),STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                 localized_wfn_control%loc_states = 0
+                 localized_wfn_control%loc_states(:,1) = loc_list(:)
+                 localized_wfn_control%loc_states(:,2) = loc_list(:)
+                 localized_wfn_control%nloc_states(1) = n_list 
+                 DEALLOCATE(loc_list, STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                END IF
-            END DO ! ir
-            IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list
-          END IF
+            END IF
 
           ELSE
-          ! List of States LUMO
-          CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep,error=error)
-          IF(n_rep>0) THEN
-            n_list = 0
-            DO ir = 1,n_rep
-               NULLIFY(list)
-               CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",i_rep_val=ir,i_vals=list,error=error)
-               IF(ASSOCIATED(list)) THEN
-                  CALL reallocate(localized_wfn_control%loc_states,1,n_list+SIZE(list))
-                  DO i = 1, SIZE(list)
-                     localized_wfn_control%loc_states(n_list+i) = list(i)
-                  END DO ! i
-                  localized_wfn_control%nloc_states(1) = n_list + SIZE(list)
-                  n_list = n_list +  SIZE(list)
-               END IF
-            END DO ! ir
-            IF(n_list/=0) localized_wfn_control%set_of_states=state_loc_list
-          END IF
+            ! List of States LUMO
+            CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep,error=error)
+            IF(n_rep>0) THEN
+              n_list = 0
+              DO ir = 1,n_rep
+                 NULLIFY(list)
+                 CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",i_rep_val=ir,i_vals=list,error=error)
+                 IF(ASSOCIATED(list)) THEN
+                    CALL reallocate(loc_list,1,n_list+SIZE(list))
+                    DO i = 1, SIZE(list)
+                       loc_list(n_list+i) = list(i)
+                    END DO ! i
+                    n_list = n_list +  SIZE(list)
+                 END IF
+              END DO ! ir
+              IF(n_list/=0) THEN
+                 localized_wfn_control%set_of_states=state_loc_list
+                 ALLOCATE(localized_wfn_control%loc_states(n_list,2),STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                 localized_wfn_control%loc_states = 0
+                 localized_wfn_control%loc_states(:,1) = loc_list(:)
+                 localized_wfn_control%loc_states(:,2) = loc_list(:)
+                 localized_wfn_control%nloc_states(1) = n_list 
+                 DEALLOCATE(loc_list, STAT=stat)
+                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              END IF
+            END IF
           END IF
 
           IF(localized_wfn_control%set_of_states == 0) THEN
@@ -350,8 +373,6 @@ CONTAINS
                      "LOCALIZE| Orbitals to be localized: Those with index between ",&
                      localized_wfn_control%lu_bound_states(1,1), " and ",&
                      localized_wfn_control%lu_bound_states(2,1)
-!                WRITE (UNIT=output_unit,FMT="(T10,A,10I") " Total number of orbitals to be localized : ",&
-!                      localized_wfn_control%nloc_states
              CASE (state_loc_list)
                 WRITE (UNIT=output_unit,FMT="(T2,A)")&
                      "LOCALIZE| Orbitals to be localized: Those with index in the following list"
@@ -359,11 +380,11 @@ CONTAINS
                 ind = 0
                 DO i = 1,nline
                   IF(ind+10<localized_wfn_control%nloc_states(1)) THEN
-                    WRITE (UNIT=output_unit,FMT="(T8,10I7)") localized_wfn_control%loc_states(ind+1:ind+10)
+                    WRITE (UNIT=output_unit,FMT="(T8,10I7)") localized_wfn_control%loc_states(ind+1:ind+10,1)
                     ind=ind+10
                   ELSE
                     WRITE (UNIT=output_unit,FMT="(T8,10I7)") &
-                        localized_wfn_control%loc_states(ind+1:localized_wfn_control%nloc_states(1))
+                        localized_wfn_control%loc_states(ind+1:localized_wfn_control%nloc_states(1),1)
                     ind = localized_wfn_control%nloc_states(1)
                   END IF
                 END DO
@@ -473,8 +494,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_wfn_lists', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iloc, ispin, istat, &
-                                                max_iloc, max_nmoloc
+    INTEGER                                  :: i, ispin, istat, max_iloc, &
+                                                max_nmoloc
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -486,45 +507,52 @@ CONTAINS
     CASE(state_loc_list) 
        ! List
        CPPrecondition(ASSOCIATED(localized_wfn_control%loc_states),cp_failure_level,routineP,error,failure)
-       IF(max_nmoloc<SIZE(localized_wfn_control%loc_states,1)) THEN
-          CALL reallocate(localized_wfn_control%loc_states,1,max_nmoloc)
-       END IF
        DO ispin = 1,nspins
           localized_wfn_control%lu_bound_states(1,ispin) = 1
           localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
-          IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
-          DO i = 1,nmoloc(ispin)
-             iloc = localized_wfn_control%loc_states(i)
-             IF(localized_wfn_control%do_homo)THEN
-                CPPostcondition(iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
-             END IF
-          ENDDO
+          IF(nmoloc(ispin)< 1) THEN
+              localized_wfn_control%lu_bound_states(1,ispin) = 0
+              localized_wfn_control%loc_states(:,ispin) = 0
+          END IF
        END DO
     CASE(state_loc_range)
        ! Range
+       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       localized_wfn_control%loc_states = 0
        DO ispin = 1,nspins
           localized_wfn_control%lu_bound_states(1,ispin) = &
                localized_wfn_control%lu_bound_states(1,1)
           localized_wfn_control%lu_bound_states(2,ispin) = &
                localized_wfn_control%lu_bound_states(1,1) +  nmoloc(ispin) -1
           max_iloc = localized_wfn_control%lu_bound_states(2,ispin)
+          DO i = 1,nmoloc(ispin)
+             localized_wfn_control%loc_states(i,ispin) = localized_wfn_control%lu_bound_states(1,ispin) + i -1
+          END DO
           CPPostcondition(max_iloc<=nmo(ispin),cp_failure_level,routineP,error,failure)
        END DO
     CASE(energy_loc_range)
        ! Energy
+       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       localized_wfn_control%loc_states = 0
        DO ispin = 1,nspins
-          
+          DO i = 1,nmoloc(ispin)
+             localized_wfn_control%loc_states(i,ispin) = localized_wfn_control%lu_bound_states(1,ispin) + i -1
+          END DO
        END DO
     CASE(state_loc_all)
        ! All
-       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc),STAT=istat)
+       ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       localized_wfn_control%loc_states = 0
+
        DO ispin = 1,nspins
           localized_wfn_control%lu_bound_states(1,ispin) = 1
           localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
           IF(nmoloc(ispin)< 1) localized_wfn_control%lu_bound_states(1,ispin) = 0
           DO i = 1, nmoloc(ispin)
-             localized_wfn_control%loc_states(i) = i
+             localized_wfn_control%loc_states(i,ispin) = i
           END DO
        END DO
     END SELECT
