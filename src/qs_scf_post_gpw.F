@@ -2003,7 +2003,7 @@ CONTAINS
           CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw, error=error)
           CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw,alpha=-1._dp, error=error)
           total_abs_spin_dens=pw_integrate_function(wf_r%pw,oprt="ABS", error=error)
-          IF (output_unit>0) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
+          IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='(/,(T3,A,T61,F20.10))')&
                "Integrated absolute spin density  : ",total_abs_spin_dens
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
           !
@@ -2029,7 +2029,7 @@ CONTAINS
           ELSE
              CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square,&
                   s_square_ideal=s_square_ideal,error=error)
-             IF (output_unit>0) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
+             IF (output_unit > 0) WRITE (UNIT=output_unit,FMT='(T3,A,T51,2F15.6)')&
                   "Ideal and single determinant S**2 : ",s_square_ideal,s_square
           END IF
        ENDIF
