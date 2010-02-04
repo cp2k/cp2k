@@ -1414,8 +1414,8 @@ CONTAINS
          WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
               "Orbital basis set information for",TRIM(orb_basis_set%name)
        CASE (use_aux_fit_basis_set)
-         WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
-              "Basis set info for wfn fitting   ",TRIM(orb_basis_set%name)
+         WRITE (UNIT=output_unit,FMT="(/,T6,A,T61,A20)")&
+              "Basis set info for auxiliary density matrix method",TRIM(orb_basis_set%name)
        END SELECT
 
        WRITE (UNIT=output_unit,FMT="(/,(T8,A,T71,I10))")&

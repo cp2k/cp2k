@@ -1,4 +1,6 @@
 OBJECTS_GENERIC =\
+ admm_methods.o\
+ admm_types.o\
  ai_angmom.o\
  ai_coulomb.o\
  ai_coulomb_test.o\
@@ -683,8 +685,6 @@ OBJECTS_GENERIC =\
  vibrational_analysis.o\
  virial_methods.o\
  virial_types.o\
- wfn_fitting_methods.o\
- wfn_fitting_types.o\
  whittaker.o\
  wiener_process.o\
  xas_control.o\

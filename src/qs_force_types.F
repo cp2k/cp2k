@@ -31,7 +31,7 @@ MODULE qs_force_types
                                          gth_ppnl,&
                                          kinetic,&
                                          overlap,&
-                                         overlap_wfn_fit,&
+                                         overlap_admm,&
                                          rho_core,&
                                          rho_elec,&
                                          vhxc_atom,&
@@ -116,9 +116,9 @@ CONTAINS
       IF (istat /= 0) THEN
         CALL stop_memory(routineP,"qs_force(ikind)%overlap",3*n*dp_size)
       END IF
-      ALLOCATE (qs_force(ikind)%overlap_wfn_fit(3,n),STAT=istat)
+      ALLOCATE (qs_force(ikind)%overlap_admm(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routineP,"qs_force(ikind)%overlap_wfn_fit",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%overlap_admm",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%rho_core(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -261,10 +261,10 @@ CONTAINS
         END IF
       END IF
 
-      IF (ASSOCIATED(qs_force(ikind)%overlap_wfn_fit)) THEN
-        DEALLOCATE (qs_force(ikind)%overlap_wfn_fit,STAT=istat)
+      IF (ASSOCIATED(qs_force(ikind)%overlap_admm)) THEN
+        DEALLOCATE (qs_force(ikind)%overlap_admm,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routineP,"qs_force%overlap_wfn_fit")
+          CALL stop_memory(routineP,"qs_force%overlap_admm")
         END IF
       END IF
 
@@ -421,7 +421,7 @@ CONTAINS
       qs_force(ikind)%gth_ppnl(:,:) = 0.0_dp
       qs_force(ikind)%kinetic(:,:) = 0.0_dp
       qs_force(ikind)%overlap(:,:) = 0.0_dp
-      qs_force(ikind)%overlap_wfn_fit(:,:) = 0.0_dp
+      qs_force(ikind)%overlap_admm(:,:) = 0.0_dp
       qs_force(ikind)%rho_core(:,:) = 0.0_dp
       qs_force(ikind)%rho_elec(:,:) = 0.0_dp
       qs_force(ikind)%vhxc_atom(:,:) = 0.0_dp
@@ -493,7 +493,7 @@ CONTAINS
         qs_force_output(ikind)%gth_ppnl(:,:) = qs_force_input(ikind)%gth_ppnl(:,:)
         qs_force_output(ikind)%kinetic(:,:) = qs_force_input(ikind)%kinetic(:,:)
         qs_force_output(ikind)%overlap(:,:) = qs_force_input(ikind)%overlap(:,:)
-        qs_force_output(ikind)%overlap_wfn_fit(:,:) = qs_force_input(ikind)%overlap_wfn_fit(:,:)
+        qs_force_output(ikind)%overlap_admm(:,:) = qs_force_input(ikind)%overlap_admm(:,:)
         qs_force_output(ikind)%rho_core(:,:) = qs_force_input(ikind)%rho_core(:,:)
         qs_force_output(ikind)%rho_elec(:,:) = qs_force_input(ikind)%rho_elec(:,:)
         qs_force_output(ikind)%vhxc_atom(:,:) = qs_force_input(ikind)%vhxc_atom(:,:)

@@ -377,7 +377,7 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_wfn_fitting_section(subsection,error)
+    CALL create_admm_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -2362,11 +2362,11 @@ CONTAINS
   END SUBROUTINE create_dftb_control_section
 
 ! *****************************************************************************
-  SUBROUTINE create_wfn_fitting_section(section,error)
+  SUBROUTINE create_admm_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_wfn_fitting_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_admm_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -2376,7 +2376,7 @@ CONTAINS
     NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"WFN_FITTING",&
+       CALL section_create(section,"AUXILIARY_DENSITY_MATRIX_METHOD",&
             description="Parameters needed to set wavefunction fitting",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -2385,15 +2385,16 @@ CONTAINS
             keyword=keyword,&
             name="METHOD",&
             description="Method that shall be used for wavefunction fitting",&
-            usage="METHOD BASIS_SET_FIT",&
-            enum_c_vals=s2a("BASIS_SET_FIT"),&
-            enum_i_vals=(/do_wfn_fit_basis_set/),&
-            enum_desc=s2a("Fit wavefunction using AUX_BASIS_FIT"), &
-            default_i_val=do_wfn_fit_basis_set, error=error)
+            usage="METHOD BASIS_PROJECTION",&
+            enum_c_vals=s2a("BASIS_PROJECTION","BLOCK_DENSITY_MATRIX"),&
+            enum_i_vals=(/do_admm_basis_set_projection, do_admm_blocked_density_matrix/),&
+            enum_desc=s2a("Construct auxiliary density matrix from auxiliary basis", &
+                          "Construct auxiliary density from a blocked Fock matrix"), &
+            default_i_val=do_admm_basis_set_projection, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
-  END SUBROUTINE create_wfn_fitting_section 
+  END SUBROUTINE create_admm_section 
 
 ! *****************************************************************************
   SUBROUTINE create_dftb_parameter_section(section, error)

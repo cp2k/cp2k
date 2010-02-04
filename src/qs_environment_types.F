@@ -11,6 +11,8 @@
 ! *****************************************************************************
 MODULE qs_environment_types
 
+  USE admm_types,                      ONLY: admm_env_release,&
+                                             admm_type
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_release,&
@@ -173,8 +175,6 @@ MODULE qs_environment_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
-  USE wfn_fitting_types,               ONLY: wfn_fitting_env_release,&
-                                             wfn_fitting_type
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,&
                                              xas_environment_type
@@ -210,7 +210,7 @@ MODULE qs_environment_types
 !> \param dft_control object that contains the values of various parameters
 !>        relevant to a dft calculation
 !> \param mos the molecular orbitals, in LSD array with the different spins
-!> \param mos_aux_fit molecular orbitals for wfn_fitting
+!> \param mos_aux_fit molecular orbitals for admm
 !> \param sab_orb ,sac_ae, sac_ppl, sap_ppnl:
 !>        neighbor lists for the calculation of the core Hamiltonian matrix
 !> \param sap_oce: neighbor lists for the calculation of the expansion
@@ -376,7 +376,7 @@ MODULE qs_environment_types
     TYPE(task_list_type), POINTER                         :: task_list
     TYPE(task_list_type), POINTER                         :: task_list_aux_fit
     TYPE(task_list_type), POINTER                         :: task_list_soft
-    TYPE(wfn_fitting_type), POINTER                       :: wfn_fitting_env
+    TYPE(admm_type), POINTER                              :: admm_env
     ! HFX RI
     TYPE(ri_environment_type), POINTER                    :: hfx_ri_env
     TYPE(qs_dispersion_type), POINTER                     :: dispersion_env
@@ -424,7 +424,7 @@ CONTAINS
        mo_derivs_aux_fit,tddfpt_control,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
-       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, wfn_fitting_env, &
+       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
        hfx_ri_env,dispersion_env, vee, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -552,8 +552,7 @@ CONTAINS
     TYPE(nddo_mpole_type), OPTIONAL, POINTER :: se_nddo_mpole
     TYPE(fist_nonbond_env_type), OPTIONAL, &
       POINTER                                :: se_nonbond_env
-    TYPE(wfn_fitting_type), OPTIONAL, &
-      POINTER                                :: wfn_fitting_env
+    TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
     TYPE(ri_environment_type), OPTIONAL, &
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
@@ -653,7 +652,7 @@ CONTAINS
     IF (PRESENT(se_store_int_env)) se_store_int_env => qs_env%se_store_int_env
     IF (PRESENT(se_nddo_mpole)) se_nddo_mpole => qs_env%se_nddo_mpole
     IF (PRESENT(se_nonbond_env)) se_nonbond_env => qs_env%se_nonbond_env
-    IF (PRESENT(wfn_fitting_env)) wfn_fitting_env => qs_env%wfn_fitting_env
+    IF (PRESENT(admm_env)) admm_env => qs_env%admm_env
     IF (PRESENT(hfx_ri_env)) hfx_ri_env => qs_env%hfx_ri_env
     IF (PRESENT(dispersion_env)) dispersion_env => qs_env%dispersion_env
     IF (PRESENT(run_rtp)) run_rtp=qs_env%run_rtp
@@ -809,7 +808,7 @@ CONTAINS
     NULLIFY (qs_env%se_store_int_env)
     NULLIFY (qs_env%se_nddo_mpole)
     NULLIFY (qs_env%se_nonbond_env)
-    NULLIFY (qs_env%wfn_fitting_env)
+    NULLIFY (qs_env%admm_env)
     NULLIFY (qs_env%hfx_ri_env)
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
@@ -865,7 +864,7 @@ CONTAINS
        mo_derivs_dbcsr,mo_derivs_aux_fit,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
-       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,wfn_fitting_env,&
+       scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
        hfx_ri_env,dispersion_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -970,8 +969,7 @@ CONTAINS
     TYPE(nddo_mpole_type), OPTIONAL, POINTER :: se_nddo_mpole
     TYPE(fist_nonbond_env_type), OPTIONAL, &
       POINTER                                :: se_nonbond_env
-    TYPE(wfn_fitting_type), OPTIONAL, &
-      POINTER                                :: wfn_fitting_env
+    TYPE(admm_type), OPTIONAL, POINTER       :: admm_env
     TYPE(ri_environment_type), OPTIONAL, &
       POINTER                                :: hfx_ri_env
     TYPE(qs_dispersion_type), OPTIONAL, &
@@ -1233,7 +1231,7 @@ CONTAINS
        CALL fist_nonbond_env_release(qs_env%se_nonbond_env,error)
        qs_env%se_nonbond_env => se_nonbond_env
     END IF
-    IF( PRESENT(wfn_fitting_env) ) qs_env%wfn_fitting_env => wfn_fitting_env
+    IF( PRESENT(admm_env) ) qs_env%admm_env => admm_env
     IF( PRESENT(hfx_ri_env) ) qs_env%hfx_ri_env => hfx_ri_env
     IF( PRESENT(dispersion_env) ) qs_env%dispersion_env => dispersion_env
   END SUBROUTINE set_qs_env
@@ -1627,8 +1625,8 @@ CONTAINS
           IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
              CALL fist_nonbond_env_release(qs_env%se_nonbond_env,error)
           END IF
-          IF (ASSOCIATED(qs_env%wfn_fitting_env)) THEN
-            CALL wfn_fitting_env_release(qs_env%wfn_fitting_env, error)
+          IF (ASSOCIATED(qs_env%admm_env)) THEN
+            CALL admm_env_release(qs_env%admm_env, error)
           END IF
           IF (ASSOCIATED(qs_env%hfx_ri_env)) THEN
             CALL ri_env_release(qs_env%hfx_ri_env, error)

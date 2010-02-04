@@ -983,8 +983,8 @@ CONTAINS
     END DO
 
     CALL set_qs_env(qs_env,mos=mos,error=error)
-    ! If we do wfn fitting, set mo_set_aux_fit
-    IF( dft_control%do_wfn_fitting ) THEN
+    ! If we use auxiliary density matrix methods , set mo_set_aux_fit
+    IF( dft_control%do_admm ) THEN
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              nsgf=n_ao_aux_fit,&
                              nelectron=nelectron,&

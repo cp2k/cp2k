@@ -212,11 +212,11 @@ MODULE cp_control_types
   END TYPE s2_restraint_type
 
 ! *****************************************************************************
-! \brief some parameters useful for wfn_fitting
+! \brief some parameters useful for auxiliary density matrix method
 ! *****************************************************************************
-  TYPE wfn_fitting_control_type
+  TYPE admm_control_type
     INTEGER                         :: method_id
-  END TYPE wfn_fitting_control_type
+  END TYPE admm_control_type
 
 ! *****************************************************************************
 ! \brief Control parameters for a QUICKSTEP and KIM-GORDON calculation ***
@@ -314,8 +314,8 @@ MODULE cp_control_types
      TYPE(xas_control_type), POINTER   :: xas_control
      TYPE(scp_control_type),POINTER    :: scp_control
      TYPE(rtp_control_type),POINTER    :: rtp_control
-     TYPE(wfn_fitting_control_type), POINTER &
-                                       :: wfn_fitting_control
+     TYPE(admm_control_type), POINTER &
+                                       :: admm_control
      TYPE(efield_p_type),POINTER,&
                         DIMENSION(:)   :: efield_fields
      INTEGER                           :: nspins,&
@@ -342,7 +342,7 @@ MODULE cp_control_types
                                           apply_efield_field,&
                                           apply_external_potential,&
                                           eval_external_potential,&
-                                          do_wfn_fitting,&
+                                          do_admm,&
                                           smear,&
                                           low_spin_roks
   END TYPE dft_control_type
@@ -367,7 +367,7 @@ MODULE cp_control_types
             becke_restraint_type,&
             semi_empirical_control_type,&
             s2_restraint_type,&
-            wfn_fitting_control_type,&
+            admm_control_type,&
             rtp_control_type
 
 ! *** Public subroutines ***
@@ -378,7 +378,7 @@ MODULE cp_control_types
             scp_control_create,&
             xas_control_create,&
             tddfpt_control_create,&
-            wfn_fitting_control_create,&
+            admm_control_create,&
             ddapc_control_create
 
 CONTAINS
@@ -736,7 +736,7 @@ CONTAINS
        NULLIFY(dft_control%qs_control)
        NULLIFY(dft_control%tddfpt_control)
        NULLIFY(dft_control%efield_fields)
-       NULLIFY(dft_control%wfn_fitting_control)
+       NULLIFY(dft_control%admm_control)
        NULLIFY(dft_control%rtp_control)
        CALL qs_control_create(dft_control%qs_control, error=error)       
     END IF
@@ -788,7 +788,7 @@ CONTAINS
           CALL tddfpt_control_release(dft_control%tddfpt_control, error=error)
           CALL xas_control_release(dft_control%xas_control, error=error)
           CALL scp_control_release(dft_control%scp_control, error=error)
-          CALL wfn_fitting_control_release(dft_control%wfn_fitting_control, error=error)
+          CALL admm_control_release(dft_control%admm_control, error=error)
           CALL efield_fields_release(dft_control%efield_fields, error=error)
           IF (ASSOCIATED(dft_control%rtp_control)) THEN
              DEALLOCATE(dft_control%rtp_control,stat=stat)
@@ -1110,11 +1110,11 @@ CONTAINS
   END SUBROUTINE se_control_release
 
 ! *****************************************************************************
-  SUBROUTINE wfn_fitting_control_create(wfn_fitting_control,error)
-    TYPE(wfn_fitting_control_type), POINTER  :: wfn_fitting_control
+  SUBROUTINE admm_control_create(admm_control,error)
+    TYPE(admm_control_type), POINTER         :: admm_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'wfn_fitting_control_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'admm_control_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -1122,18 +1122,18 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(wfn_fitting_control),cp_failure_level,routineP,error,failure)
-    ALLOCATE(wfn_fitting_control,stat=stat)
+    CPPrecondition(.NOT.ASSOCIATED(admm_control),cp_failure_level,routineP,error,failure)
+    ALLOCATE(admm_control,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE wfn_fitting_control_create
+  END SUBROUTINE admm_control_create
 
 ! *****************************************************************************
-  SUBROUTINE wfn_fitting_control_release(wfn_fitting_control,error)
-    TYPE(wfn_fitting_control_type), POINTER  :: wfn_fitting_control
+  SUBROUTINE admm_control_release(admm_control,error)
+    TYPE(admm_control_type), POINTER         :: admm_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'wfn_fitting_control_release', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'admm_control_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -1141,11 +1141,11 @@ CONTAINS
 
     failure=.FALSE.
 
-    IF (ASSOCIATED(wfn_fitting_control)) THEN
-       DEALLOCATE(wfn_fitting_control,stat=stat)
+    IF (ASSOCIATED(admm_control)) THEN
+       DEALLOCATE(admm_control,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-  END SUBROUTINE wfn_fitting_control_release
+  END SUBROUTINE admm_control_release
 
 END MODULE cp_control_types
 

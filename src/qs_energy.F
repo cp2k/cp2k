@@ -174,7 +174,7 @@ CONTAINS
        CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
                                           calculate_forces=.FALSE.,error=error)
        ! *** In case of denisty_fitting, calculate the corresponding overlap_matrices
-       IF( dft_control%do_wfn_fitting) THEN
+       IF( dft_control%do_admm) THEN
          NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
          IF( my_calc_forces ) THEN
            nder = 1

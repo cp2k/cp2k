@@ -744,9 +744,10 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: use_orb_basis_set=1,&
                                               use_aux_fit_basis_set=2,&
                                               use_aux_basis_set=3
-  ! WFN FITTING PARAMETER
-  ! This parameter identifies the fitting method to use
-  INTEGER, PARAMETER, PUBLIC               ::  do_wfn_fit_basis_set=1
+  ! ADMM PARAMETER
+  ! This parameter the method to use in order to get an auxiliary density matrix
+  INTEGER, PARAMETER, PUBLIC               ::  do_admm_basis_set_projection=1,&
+                                               do_admm_blocked_density_matrix=2
 
   ! Define DFT+U method identifier codes
   INTEGER, PARAMETER, PUBLIC               :: plus_u_lowdin=1,&

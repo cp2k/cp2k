@@ -13,10 +13,10 @@ MODULE cp_control_utils
        Seifert1996, Stewart1989, Stewart2007, Thiel1992, VandeVondele2005a, &
        VandeVondele2005b, Zhechkov2005, cite_reference
   USE cp_control_types,                ONLY: &
-       ddapc_control_create, ddapc_restraint_type, dft_control_create, &
-       dft_control_type, efield_type, qs_control_type, scp_control_create, &
-       tddfpt_control_create, tddfpt_control_type, &
-       wfn_fitting_control_create, xas_control_create
+       admm_control_create, ddapc_control_create, ddapc_restraint_type, &
+       dft_control_create, dft_control_type, efield_type, qs_control_type, &
+       scp_control_create, tddfpt_control_create, tddfpt_control_type, &
+       xas_control_create
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -161,13 +161,13 @@ CPSourceFileRef,&
     END IF
 
     !! check if we do wavefunction fitting
-    tmp_section => section_vals_get_subs_vals(dft_section,"WFN_FITTING",error=error)
+    tmp_section => section_vals_get_subs_vals(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD",error=error)
     CALL section_vals_get(tmp_section,explicit=is_present,error=error)
-    dft_control%do_wfn_fitting = is_present
+    dft_control%do_admm = is_present
     IF(is_present) THEN
-      CALL section_vals_val_get(dft_section,"WFN_FITTING%METHOD",i_val=method_id,error=error)
-      CALL wfn_fitting_control_create(dft_control%wfn_fitting_control, error)
-      dft_control%wfn_fitting_control%method_id = method_id
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%METHOD",i_val=method_id,error=error)
+      CALL admm_control_create(dft_control%admm_control, error)
+      dft_control%admm_control%method_id = method_id
     END IF
 
     CALL section_vals_val_get(dft_section,"SCP%_SECTION_PARAMETERS_",l_val=dft_control%scp,error=error)

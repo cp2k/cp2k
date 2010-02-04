@@ -9,7 +9,9 @@
 !>      04.2008 created [Manuel Guidon]
 !> \author Manuel Guidon 
 ! *****************************************************************************
-MODULE wfn_fitting_methods 
+MODULE admm_methods 
+  USE admm_types,                      ONLY: admm_env_create,&
+                                             admm_type
   USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -44,10 +46,13 @@ MODULE wfn_fitting_methods
                                              dbcsr_init,&
                                              dbcsr_row_block_sizes,&
                                              dbcsr_uses_special_memory
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_get_block_p
+  USE dbcsr_operations,                ONLY: dbcsr_add,&
+                                             dbcsr_copy,&
+                                             dbcsr_get_block_p,&
+                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
-                                             dbcsr_type_normal
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: dbcsr_create,&
                                              dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -81,19 +86,20 @@ MODULE wfn_fitting_methods
        neighbor_node_type, next
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE wfn_fitting_types,               ONLY: wfn_fitting_env_create,&
-                                             wfn_fitting_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
    
   PUBLIC fit_mo_coeffs, &
+         merge_ks_matrix, &
          merge_mo_derivs, &
+         remove_ks_matrix, &
          calc_mixed_overlap_force, &
-         create_wfn_fitting_xc_section
+         create_admm_xc_section,&
+         print_matlab_matrix
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wfn_fitting_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_methods'
 
 !***
   
@@ -103,7 +109,7 @@ MODULE wfn_fitting_methods
 !> \brief Calculates the MO coefficients for the auxiliary fitting basis set  
 !>        by minimizing int (psi_i - psi_aux_i)^2 using Lagrangian Multipliers
 !>      
-!> \param wfn_fitting_env The wavefunction fitting env
+!> \param admm_env The ADMM env
 !> \param para_env The parallel env  
 !> \param matrix_s_aux_fit the overlap matrix of the auxiliary fitting basis set
 !> \param matrix_s_mixed the mixed overlap matrix of the auxiliary fitting basis
@@ -116,11 +122,11 @@ MODULE wfn_fitting_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE fit_mo_coeffs(qs_env, wfn_fitting_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+  SUBROUTINE fit_mo_coeffs(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
                            mos, mos_aux_fit, geometry_did_change, error) 
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
@@ -143,77 +149,79 @@ MODULE wfn_fitting_methods
 
     CALL timeset(routineN,handle)
 
-    IF (.NOT.(ASSOCIATED(wfn_fitting_env) )) THEN
-      CALL wfn_fitting_env_create(mos, mos_aux_fit, &
-                                  para_env, wfn_fitting_env,&
+    IF (.NOT.(ASSOCIATED(admm_env) )) THEN
+      CALL admm_env_create(mos, mos_aux_fit, &
+                                  para_env, admm_env,&
                                   error)
       CALL get_qs_env(qs_env, input=input, error=error)
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-      CALL create_wfn_fitting_xc_section(qs_env, xc_section, wfn_fitting_env, error)
+      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
     END IF
 
-    nao_aux_fit = wfn_fitting_env%nao_aux_fit
-    nao_orb = wfn_fitting_env%nao_orb
+    nao_aux_fit = admm_env%nao_aux_fit
+    nao_orb = admm_env%nao_orb
     nspins = SIZE(mos)
 
 
     ! *** This part only depends on overlap matrices ==> needs only to be calculated if the geometry changed
 
     IF( geometry_did_change ) THEN
-      CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,wfn_fitting_env%S,error)
-      CALL cp_fm_upper_to_full(wfn_fitting_env%S,wfn_fitting_env%work_aux_aux,error=error)
-      CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix,wfn_fitting_env%P,error)
+      CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix,admm_env%S_inv,error)
+      CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux,error=error)
+      CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S, error=error) 
+
+      CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix,admm_env%Q,error)
 
 
       !! Calculate S'_inverse
-      CALL cp_fm_cholesky_decompose(wfn_fitting_env%S,error=error)
-      CALL cp_fm_cholesky_invert(wfn_fitting_env%S,error=error) 
+      CALL cp_fm_cholesky_decompose(admm_env%S_inv,error=error)
+      CALL cp_fm_cholesky_invert(admm_env%S_inv,error=error) 
       !! Symmetrize the guy
-      CALL cp_fm_upper_to_full(wfn_fitting_env%S,wfn_fitting_env%work_aux_aux,error=error)
+      CALL cp_fm_upper_to_full(admm_env%S_inv,admm_env%work_aux_aux,error=error)
       !! Calculate A=S'^(-1)*P
       CALL cp_fm_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
-                    1.0_dp,wfn_fitting_env%S,wfn_fitting_env%P,0.0_dp,&
-                    wfn_fitting_env%A,error)
+                    1.0_dp,admm_env%S_inv,admm_env%Q,0.0_dp,&
+                    admm_env%A,error)
 
-      !! B=P^(T)*A
+      !! B=Q^(T)*A
       CALL cp_fm_gemm('T','N',nao_orb,nao_orb,nao_aux_fit,&
-                      1.0_dp,wfn_fitting_env%P,wfn_fitting_env%A,0.0_dp,&
-                      wfn_fitting_env%B,error)
+                      1.0_dp,admm_env%Q,admm_env%A,0.0_dp,&
+                      admm_env%B,error)
  
    END IF
 
     ! *** Calculate the mo_coeffs for the fitting basis
     DO ispin=1,nspins
-      nmo = wfn_fitting_env%nmo(ispin)
+      nmo = admm_env%nmo(ispin)
       IF( nmo == 0 ) CYCLE
       !! Lambda = C^(T)*B*C
       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
       CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
        
       CALL cp_fm_gemm('N','N',nao_orb,nmo,nao_orb,&
-                      1.0_dp,wfn_fitting_env%B,mo_coeff,0.0_dp,&
-                      wfn_fitting_env%work_orb_nmo(ispin)%matrix,error)
+                      1.0_dp,admm_env%B,mo_coeff,0.0_dp,&
+                      admm_env%work_orb_nmo(ispin)%matrix,error)
       CALL cp_fm_gemm('T','N',nmo,nmo,nao_orb,&
-                      1.0_dp,mo_coeff,wfn_fitting_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                      wfn_fitting_env%lambda(ispin)%matrix,error)
-      CALL cp_fm_to_fm(wfn_fitting_env%lambda(ispin)%matrix, wfn_fitting_env%work_nmo_nmo1(ispin)%matrix, error=error) 
-      CALL cp_fm_syevd(wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,wfn_fitting_env%R(ispin)%matrix,&
-                       wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data,error)
+                      1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
+                      admm_env%lambda(ispin)%matrix,error)
+      CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, error=error) 
+      CALL cp_fm_syevd(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%R(ispin)%matrix,&
+                       admm_env%eigvals_lambda(ispin)%eigvals%data,error)
       ALLOCATE(eig_work(nmo), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO i=1,nmo
-        eig_work(i) = 1.0_dp/SQRT(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(i))
+        eig_work(i) = 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(i))
       END DO
-      CALL cp_fm_to_fm(wfn_fitting_env%R(ispin)%matrix, wfn_fitting_env%work_nmo_nmo1(ispin)%matrix, error=error)
-      CALL cp_fm_column_scale(wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,eig_work)       
+      CALL cp_fm_to_fm(admm_env%R(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, error=error)
+      CALL cp_fm_column_scale(admm_env%work_nmo_nmo1(ispin)%matrix,eig_work)       
       CALL cp_fm_gemm('N','T',nmo,nmo,nmo,&
-                      1.0_dp,wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,wfn_fitting_env%R(ispin)%matrix,0.0_dp,&
-                      wfn_fitting_env%lambda_inv_sqrt(ispin)%matrix,error)
+                      1.0_dp,admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%R(ispin)%matrix,0.0_dp,&
+                      admm_env%lambda_inv_sqrt(ispin)%matrix,error)
       CALL cp_fm_gemm('N','N',nao_orb,nmo,nmo,&
-                      1.0_dp,mo_coeff,wfn_fitting_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
-                      wfn_fitting_env%work_orb_nmo(ispin)%matrix,error)
+                      1.0_dp,mo_coeff,admm_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
+                      admm_env%work_orb_nmo(ispin)%matrix,error)
       CALL cp_fm_gemm('N','N',nao_aux_fit,nmo,nao_orb,&
-                      1.0_dp,wfn_fitting_env%A,wfn_fitting_env%work_orb_nmo(ispin)%matrix, 0.0_dp,&
+                      1.0_dp,admm_env%A,admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp,&
                       mo_coeff_aux_fit,error)
       DEALLOCATE(eig_work, STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -231,7 +239,7 @@ MODULE wfn_fitting_methods
 !>        in order to use OT
 !>      
 !> \param ispin which spin to transform
-!> \param wfn_fitting_env The wavefunction fitting env
+!> \param admm_env The ADMM env
 !> \param mo_coeff the MO coefficients from the orbital basis set  
 !> \param mo_coeff_aux_fit the MO coefficients from the auxiliary fitting basis set
 !> \param mo_derivs KS x mo_coeff from the orbital basis set to which we add the
@@ -243,10 +251,10 @@ MODULE wfn_fitting_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE merge_mo_derivs(ispin, wfn_fitting_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
+  SUBROUTINE merge_mo_derivs(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
                              mo_derivs_aux_fit, matrix_ks_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -260,6 +268,7 @@ MODULE wfn_fitting_methods
 
     INTEGER                                  :: handle, i, j, nao_aux_fit, &
                                                 nao_orb, nmo, stat
+    INTEGER, SAVE                            :: counter = 0
     LOGICAL                                  :: failure
     REAL(dp)                                 :: eig_diff, pole, tmp32, tmp52, &
                                                 tmp72, tmp92
@@ -270,60 +279,62 @@ MODULE wfn_fitting_methods
 
     CALL timeset(routineN,handle)
 
-    nao_aux_fit = wfn_fitting_env%nao_aux_fit
-    nao_orb = wfn_fitting_env%nao_orb
-    nmo = wfn_fitting_env%nmo(ispin)
+    counter = counter + 1
 
-    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,wfn_fitting_env%K(ispin)%matrix,error)
-    CALL cp_fm_upper_to_full(wfn_fitting_env%K(ispin)%matrix,wfn_fitting_env%work_aux_aux,error=error)
+    nao_aux_fit = admm_env%nao_aux_fit
+    nao_orb = admm_env%nao_orb
+    nmo = admm_env%nmo(ispin)
+
+    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
+    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
 
     CALL cp_fm_gemm('N','N', nao_aux_fit, nmo, nao_aux_fit,&
-                    1.0_dp,wfn_fitting_env%K(ispin)%matrix,mo_coeff_aux_fit,0.0_dp,&
-                    wfn_fitting_env%H(ispin)%matrix,error)
+                    1.0_dp,admm_env%K(ispin)%matrix,mo_coeff_aux_fit,0.0_dp,&
+                    admm_env%H(ispin)%matrix,error)
 
     CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
     ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     scaling_factor = 2.0_dp*occupation_numbers
 
-    CALL cp_fm_column_scale(wfn_fitting_env%H(ispin)%matrix,scaling_factor)
+    CALL cp_fm_column_scale(admm_env%H(ispin)%matrix,scaling_factor)
 
-    CALL cp_fm_to_fm(wfn_fitting_env%H(ispin)%matrix, mo_derivs_aux_fit(ispin)%matrix, error=error) 
+    CALL cp_fm_to_fm(admm_env%H(ispin)%matrix, mo_derivs_aux_fit(ispin)%matrix, error=error) 
 
     ! *** Add first term 
     CALL cp_fm_gemm('N','T', nao_aux_fit, nmo, nmo,&
-                    1.0_dp,wfn_fitting_env%H(ispin)%matrix,wfn_fitting_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_aux_nmo(ispin)%matrix,error)
+                    1.0_dp,admm_env%H(ispin)%matrix,admm_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
+                    admm_env%work_aux_nmo(ispin)%matrix,error)
     CALL cp_fm_gemm('T','N', nao_orb, nmo, nao_aux_fit,&
-                    1.0_dp,wfn_fitting_env%A,wfn_fitting_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,error)
+                    1.0_dp,admm_env%A,admm_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
+                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
 
 
     ! *** Construct Matrix M for Hadamard Product
     pole = 0.0_dp
     DO i=1,nmo
       DO j=i,nmo
-        eig_diff = ( wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(i) -&
-                     wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j) )
+        eig_diff = ( admm_env%eigvals_lambda(ispin)%eigvals%data(i) -&
+                     admm_env%eigvals_lambda(ispin)%eigvals%data(j) )
         ! *** two eigenvalues could be the degenerated. In that case use 2nd order formula for the poles
         IF( ABS(eig_diff) < 0.0001_dp ) THEN
-          tmp32 = 1.0_dp/SQRT(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j))**3
-          tmp52 = tmp32/wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
-          tmp72 = tmp52/wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
-          tmp92 = tmp72/wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
+          tmp32 = 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(j))**3
+          tmp52 = tmp32/admm_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
+          tmp72 = tmp52/admm_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
+          tmp92 = tmp72/admm_env%eigvals_lambda(ispin)%eigvals%data(j)*eig_diff
 
           pole = -0.5_dp*tmp32 + 3.0_dp/8.0_dp*tmp52 - 5.0_dp/16.0_dp*tmp72 + 35.0_dp/128.0_dp*tmp92
-          CALL cp_fm_set_element(wfn_fitting_env%M(ispin)%matrix,i,j,pole,error)
+          CALL cp_fm_set_element(admm_env%M(ispin)%matrix,i,j,pole,error)
         ELSE
-          pole = 1.0_dp/SQRT(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(i))
-          pole = pole - 1.0_dp/SQRT(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j))
-          pole = pole/(wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(i)-&
-                       wfn_fitting_env%eigvals_lambda(ispin)%eigvals%data(j))
-          CALL cp_fm_set_element(wfn_fitting_env%M(ispin)%matrix,i,j,pole,error) 
+          pole = 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(i))
+          pole = pole - 1.0_dp/SQRT(admm_env%eigvals_lambda(ispin)%eigvals%data(j))
+          pole = pole/(admm_env%eigvals_lambda(ispin)%eigvals%data(i)-&
+                       admm_env%eigvals_lambda(ispin)%eigvals%data(j))
+          CALL cp_fm_set_element(admm_env%M(ispin)%matrix,i,j,pole,error) 
         END IF
       END DO
     END DO
-    CALL cp_fm_upper_to_full(wfn_fitting_env%M(ispin)%matrix,wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,error=error)    
+    CALL cp_fm_upper_to_full(admm_env%M(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,error=error)    
 
     ! *** 2nd term to be added to fm_H
   
@@ -332,56 +343,57 @@ MODULE wfn_fitting_methods
 
     ! *** H'*R
     CALL cp_fm_gemm('N','N', nao_aux_fit, nmo, nmo,&
-                    1.0_dp,wfn_fitting_env%H(ispin)%matrix,wfn_fitting_env%R(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_aux_nmo(ispin)%matrix,error)
+                    1.0_dp,admm_env%H(ispin)%matrix,admm_env%R(ispin)%matrix,0.0_dp,&
+                    admm_env%work_aux_nmo(ispin)%matrix,error)
     ! *** A^(T)*H'*R
     CALL cp_fm_gemm('T','N', nao_orb, nmo, nao_aux_fit,&
-                    1.0_dp,wfn_fitting_env%A,wfn_fitting_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_orb_nmo(ispin)%matrix,error)
+                    1.0_dp,admm_env%A,admm_env%work_aux_nmo(ispin)%matrix,0.0_dp,&
+                    admm_env%work_orb_nmo(ispin)%matrix,error)
     ! *** c^(T)*A^(T)*H'*R
     CALL cp_fm_gemm('T','N', nmo, nmo, nao_orb,&
-                    1.0_dp,mo_coeff,wfn_fitting_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,error)
+                    1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
+                    admm_env%work_nmo_nmo1(ispin)%matrix,error)
     ! *** R^(T)*c^(T)*A^(T)*H'*R
     CALL cp_fm_gemm('T','N', nmo, nmo, nmo,&
-                    1.0_dp,wfn_fitting_env%R(ispin)%matrix,wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_nmo_nmo2(ispin)%matrix,error)
+                    1.0_dp,admm_env%R(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,0.0_dp,&
+                    admm_env%work_nmo_nmo2(ispin)%matrix,error)
     ! *** R^(T)*c^(T)*A^(T)*H'*R x M
-    CALL cp_fm_schur_product(wfn_fitting_env%work_nmo_nmo2(ispin)%matrix,&
-                             wfn_fitting_env%M(ispin)%matrix,wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,error) 
+    CALL cp_fm_schur_product(admm_env%work_nmo_nmo2(ispin)%matrix,&
+                             admm_env%M(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,error) 
     ! *** R* (R^(T)*c^(T)*A^(T)*H'*R x M)
     CALL cp_fm_gemm('N','N', nmo, nmo, nmo,&
-                    1.0_dp,wfn_fitting_env%R(ispin)%matrix,wfn_fitting_env%work_nmo_nmo1(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_nmo_nmo2(ispin)%matrix,error)
+                    1.0_dp,admm_env%R(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,0.0_dp,&
+                    admm_env%work_nmo_nmo2(ispin)%matrix,error)
 
     ! *** R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)
     CALL cp_fm_gemm('N','T', nmo, nmo, nmo,&
-                    1.0_dp,wfn_fitting_env%work_nmo_nmo2(ispin)%matrix,wfn_fitting_env%R(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%R_schur_R_t(ispin)%matrix,error)
+                    1.0_dp,admm_env%work_nmo_nmo2(ispin)%matrix,admm_env%R(ispin)%matrix,0.0_dp,&
+                    admm_env%R_schur_R_t(ispin)%matrix,error)
 
     ! *** B^(T)*c
     CALL cp_fm_gemm('T','N', nao_orb, nmo, nao_orb,&
-                    1.0_dp,wfn_fitting_env%B,mo_coeff,0.0_dp,&
-                    wfn_fitting_env%work_orb_nmo(ispin)%matrix,error)
+                    1.0_dp,admm_env%B,mo_coeff,0.0_dp,&
+                    admm_env%work_orb_nmo(ispin)%matrix,error)
 
     ! *** Add first term to fm_H
     ! *** B^(T)*c* R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)
     CALL cp_fm_gemm('N','N', nao_orb, nmo, nmo,&
-                    1.0_dp,wfn_fitting_env%work_orb_nmo(ispin)%matrix,wfn_fitting_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
-                    wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,error)
+                    1.0_dp,admm_env%work_orb_nmo(ispin)%matrix,admm_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
+                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
 
     ! *** Add second term to fm_H
     ! *** B*C *[ R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)]^(T)
     CALL cp_fm_gemm('N','T', nao_orb, nmo, nmo,&
-                    1.0_dp,wfn_fitting_env%work_orb_nmo(ispin)%matrix,wfn_fitting_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
-                    wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,error)
+                    1.0_dp,admm_env%work_orb_nmo(ispin)%matrix,admm_env%R_schur_R_t(ispin)%matrix,1.0_dp,&
+                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
 
     DO i = 1,SIZE(scaling_factor)
       scaling_factor(i) = 1.0_dp/scaling_factor(i)
     END DO
 
-    CALL cp_fm_column_scale(wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,scaling_factor)
-    CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(ispin)%matrix,1.0_dp,wfn_fitting_env%mo_derivs_tmp(ispin)%matrix,error)
+    CALL cp_fm_column_scale(admm_env%mo_derivs_tmp(ispin)%matrix,scaling_factor)
+
+    CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(ispin)%matrix,1.0_dp,admm_env%mo_derivs_tmp(ispin)%matrix,error)
 
     DEALLOCATE(scaling_factor, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -397,16 +409,16 @@ MODULE wfn_fitting_methods
 !>        dE/dC = Ks'*c'*occ = H'
 !>
 !>        dC'/dR = - tr(A*lambda^(-1/2)*H'^(T)*S^(-1) * dS'/dR)
-!>                 - tr(A*C*Y^(T)*C^(T)*P^(T)*A^(T) * dS'/dR)
-!>                 + tr(C*lambda^(-1/2)*H'^(T)*S^(-1) * dP/dR)
-!>                 + tr(A*C*Y^(T)*c^(T) * dP/dR)
-!>                 + tr(C*Y^(T)*C^(T)*A^(T) * dP/dR)
+!>                 - tr(A*C*Y^(T)*C^(T)*Q^(T)*A^(T) * dS'/dR)
+!>                 + tr(C*lambda^(-1/2)*H'^(T)*S^(-1) * dQ/dR)
+!>                 + tr(A*C*Y^(T)*c^(T) * dQ/dR)
+!>                 + tr(C*Y^(T)*C^(T)*A^(T) * dQ/dR)
 !>
 !>        where
 !>
-!>        A = S'^(-1)*P
+!>        A = S'^(-1)*Q
 !>        lambda = C^(T)*B*C
-!>        B = P^(T)*A
+!>        B = Q^(T)*A
 !>        Y = R*[ (R^(T)*C^(T)*A^(T)*H'*R) xx M ]*R^(T)
 !>        lambda = R*D*R^(T)
 !>        Mij = Poles-Matrix (see above)
@@ -414,7 +426,7 @@ MODULE wfn_fitting_methods
 !>        
 !> \param qs_env the QS environment      
 !> \param ispin which spin to transform
-!> \param wfn_fitting_env The wavefunction fitting env
+!> \param admm_env The ADMM env
 !> \param mo_coeff the MO coefficients from the orbital basis set  
 !> \param matrix_s_aux_fit overlap matrix from auxiliary fitting basis
 !> \param matrix_s_aux_fit_vs_orb mixed orbital/aux fit overlap matrix 
@@ -424,14 +436,14 @@ MODULE wfn_fitting_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE calc_mixed_overlap_force(qs_env, para_env, ispin, wfn_fitting_env, mo_coeff,  &
+  SUBROUTINE calc_mixed_overlap_force(qs_env, para_env, ispin, admm_env, mo_coeff,  &
                                       matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger,&
                                       iw, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s_aux_fit, &
@@ -445,16 +457,16 @@ MODULE wfn_fitting_methods
 
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
                                                 neighbor_list_id, nmo
-    TYPE(dbcsr_obj), POINTER                 :: matrix_w_p, matrix_w_s
+    TYPE(dbcsr_obj), POINTER                 :: matrix_w_q, matrix_w_s
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(matrix_w_p, matrix_w_s, distribution_2d)
+    NULLIFY(matrix_w_q, matrix_w_s, distribution_2d)
 
-    nao_aux_fit = wfn_fitting_env%nao_aux_fit
-    nao_orb = wfn_fitting_env%nao_orb
-    nmo = wfn_fitting_env%nmo(ispin)
+    nao_aux_fit = admm_env%nao_aux_fit
+    nao_orb = admm_env%nao_orb
+    nmo = admm_env%nmo(ispin)
 
 
     ! *** Create sparse work matrices
@@ -473,69 +485,69 @@ MODULE wfn_fitting_methods
     CALL dbcsr_finalize(matrix_w_s, error=error)
     CALL dbcsr_alloc_block_from_nbl(matrix_w_s,qs_env%sab_aux_fit_asymm,error=error)
 
-    ALLOCATE(matrix_w_p)
-    CALL dbcsr_init(matrix_w_p)
-    CALL dbcsr_copy(matrix_w_p,matrix_s_aux_fit_vs_orb(1)%matrix,&
-                    "W MATRIX AUX P",error=error)
+    ALLOCATE(matrix_w_q)
+    CALL dbcsr_init(matrix_w_q)
+    CALL dbcsr_copy(matrix_w_q,matrix_s_aux_fit_vs_orb(1)%matrix,&
+                    "W MATRIX AUX Q",error=error)
 
     ! *** S'^(-T)*H'
     CALL cp_fm_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit,&
-                    1.0_dp,wfn_fitting_env%S,qs_env%mo_derivs_aux_fit(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_aux_nmo(ispin)%matrix,error)
+                    1.0_dp,admm_env%S_inv,qs_env%mo_derivs_aux_fit(ispin)%matrix,0.0_dp,&
+                    admm_env%work_aux_nmo(ispin)%matrix,error)
     ! *** S'^(-T)*H'*Lambda^(-T/2)
     CALL cp_fm_gemm('N', 'T',  nao_aux_fit,nmo, nmo,&
-                    1.0_dp,wfn_fitting_env%work_aux_nmo(ispin)%matrix,wfn_fitting_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_aux_nmo2(ispin)%matrix,error)
+                    1.0_dp,admm_env%work_aux_nmo(ispin)%matrix,admm_env%lambda_inv_sqrt(ispin)%matrix,0.0_dp,&
+                    admm_env%work_aux_nmo2(ispin)%matrix,error)
     ! *** C*Lambda^(-1/2)*H'^(T)*S'^(-1) minus sign due to force = -dE/dR
     CALL cp_fm_gemm('N', 'T',  nao_aux_fit, nao_orb, nmo,&
-                    -1.0_dp,wfn_fitting_env%work_aux_nmo2(ispin)%matrix,mo_coeff,0.0_dp,&
-                    wfn_fitting_env%work_aux_orb,error)
+                    -1.0_dp,admm_env%work_aux_nmo2(ispin)%matrix,mo_coeff,0.0_dp,&
+                    admm_env%work_aux_orb,error)
 
     ! *** A*C*Lambda^(-1/2)*H'^(T)*S'^(-1), minus sign to recover from above
     CALL cp_fm_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nao_orb,&
-                    -1.0_dp,wfn_fitting_env%work_aux_orb,wfn_fitting_env%A,0.0_dp,&
-                    wfn_fitting_env%work_aux_aux,error)
+                    -1.0_dp,admm_env%work_aux_orb,admm_env%A,0.0_dp,&
+                    admm_env%work_aux_aux,error)
 
     ! *** C*Y
     CALL cp_fm_gemm('N', 'N',  nao_orb, nmo, nmo,&
-                    1.0_dp,mo_coeff,wfn_fitting_env%R_schur_R_t(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_orb_nmo(ispin)%matrix,error)
+                    1.0_dp,mo_coeff,admm_env%R_schur_R_t(ispin)%matrix,0.0_dp,&
+                    admm_env%work_orb_nmo(ispin)%matrix,error)
     ! *** C*Y^(T)*C^(T)
     CALL cp_fm_gemm('N', 'T',  nao_orb, nao_orb, nmo,&
-                    1.0_dp,mo_coeff,wfn_fitting_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_orb_orb,error)
+                    1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
+                    admm_env%work_orb_orb,error)
     ! *** A*C*Y^(T)*C^(T) Add to work aux_orb, minus sign due to force = -dE/dR
     CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
-                    -1.0_dp,wfn_fitting_env%A,wfn_fitting_env%work_orb_orb,1.0_dp,&
-                    wfn_fitting_env%work_aux_orb,error)
+                    -1.0_dp,admm_env%A,admm_env%work_orb_orb,1.0_dp,&
+                    admm_env%work_aux_orb,error)
 
     ! *** C*Y^(T)
     CALL cp_fm_gemm('N', 'T',  nao_orb, nmo, nmo,&
-                    1.0_dp,mo_coeff,wfn_fitting_env%R_schur_R_t(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_orb_nmo(ispin)%matrix,error)
+                    1.0_dp,mo_coeff,admm_env%R_schur_R_t(ispin)%matrix,0.0_dp,&
+                    admm_env%work_orb_nmo(ispin)%matrix,error)
     ! *** C*Y*C^(T)
     CALL cp_fm_gemm('N', 'T',  nao_orb, nao_orb, nmo,&
-                    1.0_dp,mo_coeff,wfn_fitting_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
-                    wfn_fitting_env%work_orb_orb,error)
+                    1.0_dp,mo_coeff,admm_env%work_orb_nmo(ispin)%matrix,0.0_dp,&
+                    admm_env%work_orb_orb,error)
     ! *** A*C*Y*C^(T) Add to work aux_orb, minus sign due to -dE/dR
     CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
-                    -1.0_dp,wfn_fitting_env%A,wfn_fitting_env%work_orb_orb,1.0_dp,&
-                    wfn_fitting_env%work_aux_orb,error)
+                    -1.0_dp,admm_env%A,admm_env%work_orb_orb,1.0_dp,&
+                    admm_env%work_aux_orb,error)
 
     ! *** copy to sparse matrix
-    CALL copy_fm_to_dbcsr(wfn_fitting_env%work_aux_orb, matrix_w_p,keep_sparsity=.TRUE.)
+    CALL copy_fm_to_dbcsr(admm_env%work_aux_orb, matrix_w_q,keep_sparsity=.TRUE.)
  
     ! *** A*C*Y^(T)*C^(T)
     CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_orb,&
-                    1.0_dp,wfn_fitting_env%A,wfn_fitting_env%work_orb_orb,0.0_dp,&
-                    wfn_fitting_env%work_aux_orb,error)
+                    1.0_dp,admm_env%A,admm_env%work_orb_orb,0.0_dp,&
+                    admm_env%work_aux_orb,error)
     ! *** A*C*Y^(T)*C^(T)*A^(T) add to aux_aux, minus sign cancels
     CALL cp_fm_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nao_orb,&
-                    1.0_dp,wfn_fitting_env%work_aux_orb,wfn_fitting_env%A,1.0_dp,&
-                    wfn_fitting_env%work_aux_aux,error)
+                    1.0_dp,admm_env%work_aux_orb,admm_env%A,1.0_dp,&
+                    admm_env%work_aux_aux,error)
 
     ! *** copy to sparse matrix
-    CALL copy_fm_to_dbcsr(wfn_fitting_env%work_aux_aux, matrix_w_s,keep_sparsity=.TRUE.)
+    CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s,keep_sparsity=.TRUE.)
 
     ! *** This can be done in one call w_total = w_alpha + w_beta
 
@@ -543,7 +555,7 @@ MODULE wfn_fitting_methods
                                    use_aux_fit_basis_set, use_aux_fit_basis_set, qs_env%sab_aux_fit_asymm, &
                                    do_symmetric=.FALSE., error=error)
 
-    CALL calc_overlap_force_general(qs_env,para_env,matrix_w_p,&
+    CALL calc_overlap_force_general(qs_env,para_env,matrix_w_q,&
                                     use_aux_fit_basis_set, use_orb_basis_set, qs_env%sab_aux_fit_vs_orb, &
                                     do_symmetric=.FALSE., error=error)
 
@@ -559,22 +571,22 @@ MODULE wfn_fitting_methods
          qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(matrix_w_p,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL dbcsr_write_sparse_matrix(matrix_w_q,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT", error=error)
     END IF
 
     ! *** Deallocated weighted density matrices
     CALL dbcsr_deallocate_matrix(matrix_w_s,error)
-    CALL dbcsr_deallocate_matrix(matrix_w_p,error)
+    CALL dbcsr_deallocate_matrix(matrix_w_q,error)
 
     CALL timestop(handle)
 
   END SUBROUTINE calc_mixed_overlap_force
 
 ! *****************************************************************************
-!> \brief Calculates dExc/dR from contribution of wfn_fitting and adds the
-!>        forces to force(:)%overlap_wfn_fit(:,:). The routines basically
+!> \brief Calculates dExc/dR from contribution of ADMM and adds the
+!>        forces to force(:)%overlap_admm(:,:). The routines basically
 !>        calculates dE/dR= trace(W^(T)*d(S)/dR) using a decontraction of
 !>        W and S in order to assign the corresponding contributions to the
 !>        correct kinds
@@ -867,11 +879,11 @@ MODULE wfn_fitting_methods
                                  rab,dab,sab,nder,return_s_derivatives,&
                                  ai_work,ldai,sdab,pab,force_a)
                     IF( do_symmetric ) THEN
-                      force(ikind)%overlap_wfn_fit(:,atom_a)=force(ikind)%overlap_wfn_fit(:,atom_a) - 2.0_dp*force_a(:)
-                      force(jkind)%overlap_wfn_fit(:,atom_b)=force(jkind)%overlap_wfn_fit(:,atom_b) + 2.0_dp*force_a(:)
+                      force(ikind)%overlap_admm(:,atom_a)=force(ikind)%overlap_admm(:,atom_a) - 2.0_dp*force_a(:)
+                      force(jkind)%overlap_admm(:,atom_b)=force(jkind)%overlap_admm(:,atom_b) + 2.0_dp*force_a(:)
                     ELSE
-                      force(ikind)%overlap_wfn_fit(:,atom_a)=force(ikind)%overlap_wfn_fit(:,atom_a) - force_a(:)
-                      force(jkind)%overlap_wfn_fit(:,atom_b)=force(jkind)%overlap_wfn_fit(:,atom_b) + force_a(:)
+                      force(ikind)%overlap_admm(:,atom_a)=force(ikind)%overlap_admm(:,atom_a) - force_a(:)
+                      force(jkind)%overlap_admm(:,atom_b)=force(jkind)%overlap_admm(:,atom_b) + force_a(:)
                     END IF
                   END IF
                 END IF
@@ -920,17 +932,17 @@ MODULE wfn_fitting_methods
 !>      
 !> \param qs_env the qs environment 
 !> \param xc_section the original xc_section
-!> \param wfn_fitting_env the wfn fitting environment
+!> \param admm_env the ADMM environment
 !> \param error 
 !>
 !> \par History
 !>      12.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE create_wfn_fitting_xc_section(qs_env, xc_section, wfn_fitting_env,error)
+  SUBROUTINE create_admm_xc_section(qs_env, xc_section, admm_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xc_section
-    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: hfx_potential_type, ifun, nfun
@@ -939,16 +951,16 @@ MODULE wfn_fitting_methods
                                                 omega, scale_x
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section
 
-    NULLIFY(wfn_fitting_env%xc_section_aux, wfn_fitting_env%xc_section_primary)
+    NULLIFY(admm_env%xc_section_aux, admm_env%xc_section_primary)
 
     !! ** Duplicate existing xc-section
 
-    CALL section_vals_duplicate(xc_section,wfn_fitting_env%xc_section_aux,error=error)
-    CALL section_vals_duplicate(xc_section,wfn_fitting_env%xc_section_primary,error=error)
+    CALL section_vals_duplicate(xc_section,admm_env%xc_section_aux,error=error)
+    CALL section_vals_duplicate(xc_section,admm_env%xc_section_primary,error=error)
 
     !** Now modify the auxiliary basis
     !** First remove all functionals
-    xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
+    xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
 
     !* Overwrite possible shortcut
     CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
@@ -1011,7 +1023,7 @@ MODULE wfn_fitting_methods
 
 
     !** Now modify the functionals for the primary basis
-    xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
+    xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
     !* Overwrite possible shortcut
     CALL section_vals_val_set(xc_fun_section,"_SECTION_PARAMETERS_",&
                               i_val=xc_funct_no_shortcut,error=error)
@@ -1131,7 +1143,7 @@ MODULE wfn_fitting_methods
 
     IF( 0==1 ) THEN
       WRITE(*,*) "primary"
-      xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
+      xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
       ifun = 0
       funct_found = .FALSE.
       DO
@@ -1155,7 +1167,7 @@ MODULE wfn_fitting_methods
       END DO
 
       WRITE(*,*) "auxiliary"
-      xc_fun_section => section_vals_get_subs_vals(wfn_fitting_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
+      xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
       ifun = 0
       funct_found = .FALSE.
       DO
@@ -1178,6 +1190,225 @@ MODULE wfn_fitting_methods
       END DO
     END IF
 
-  END SUBROUTINE create_wfn_fitting_xc_section
+  END SUBROUTINE create_admm_xc_section
 
-END MODULE wfn_fitting_methods
+  SUBROUTINE merge_ks_matrix(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
+                             matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_p_aux_fit, error)
+    INTEGER, INTENT(IN)                      :: ispin
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                matrix_s, matrix_p_aux_fit
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
+                                                nmo
+    INTEGER, SAVE                            :: counter = 0
+    LOGICAL                                  :: failure
+    TYPE(dbcsr_obj), POINTER                 :: matrix_k_tilde
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+    counter = counter + 1
+    nao_aux_fit = admm_env%nao_aux_fit
+    nao_orb = admm_env%nao_orb
+    nmo = admm_env%nmo(ispin)
+
+    IF ( 1==0 ) THEN
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,admm_env%work_orb_orb,error)
+      CALL cp_fm_upper_to_full(admm_env%work_orb_orb,admm_env%work_orb_orb2,error=error)
+      CALL print_matlab_matrix(admm_env%work_orb_orb, "S_real.dat", counter)
+      CALL print_matlab_matrix(mo_coeff,"C.dat",counter)
+      CALL print_matlab_matrix(mo_coeff_aux_fit,"C_tilde.dat",counter)
+      CALL print_matlab_matrix(admm_env%Q,"Q.dat",counter)
+      CALL print_matlab_matrix(admm_env%S,"S.dat",counter)
+    END IF
+
+    !! Calculate Lambda^{-2}
+    CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, error=error) 
+    CALL cp_fm_cholesky_decompose(admm_env%work_nmo_nmo1(ispin)%matrix,error=error)
+    CALL cp_fm_cholesky_invert(admm_env%work_nmo_nmo1(ispin)%matrix,error=error) 
+    !! Symmetrize the guy
+    CALL cp_fm_upper_to_full(admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%lambda_inv2(ispin)%matrix,error=error)
+    !! Take square
+    CALL cp_fm_gemm('N', 'T',  nmo, nmo, nmo,&
+                    1.0_dp,admm_env%work_nmo_nmo1(ispin)%matrix,admm_env%work_nmo_nmo1(ispin)%matrix,0.0_dp,&
+                    admm_env%lambda_inv2(ispin)%matrix,error)
+
+    !! ** C_hat = AC
+    CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nmo, nao_orb,&
+                    1.0_dp,admm_env%A,mo_coeff,0.0_dp,&
+                    admm_env%C_hat(ispin)%matrix,error)
+
+    !! ** P_tilde
+    CALL cp_fm_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nmo,&
+                    1.0_dp,mo_coeff_aux_fit,mo_coeff_aux_fit,0.0_dp,&
+                    admm_env%P_tilde(ispin)%matrix,error)
+    
+
+    !! ** C_hat*Lambda^{-2}
+    CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nmo, nmo,&
+                    1.0_dp,admm_env%C_hat(ispin)%matrix,admm_env%lambda_inv2(ispin)%matrix,0.0_dp,&
+                    admm_env%work_aux_nmo(ispin)%matrix,error)
+
+    !! ** C_hat*Lambda^{-2}*C_hat^T
+    CALL cp_fm_gemm('N', 'T',  nao_aux_fit, nao_aux_fit, nmo,&
+                    1.0_dp,admm_env%work_aux_nmo(ispin)%matrix,admm_env%C_hat(ispin)%matrix,0.0_dp,&
+                    admm_env%work_aux_aux,error)
+
+
+    !! ** S*C_hat*Lambda^{-2}*C_hat^T 
+    CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
+                    1.0_dp,admm_env%S,admm_env%work_aux_aux,0.0_dp,&
+                    admm_env%work_aux_aux2,error)
+
+
+    CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
+    CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+
+    !! ** S*C_hat*Lambda^{-2}*C_hat^T*H_tilde 
+    CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
+                    1.0_dp,admm_env%work_aux_aux2,admm_env%K(ispin)%matrix,0.0_dp,&
+                    admm_env%work_aux_aux,error)
+
+    !! ** P_tilde*S
+    CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
+                    1.0_dp,admm_env%P_tilde(ispin)%matrix,admm_env%S,0.0_dp,&
+                    admm_env%work_aux_aux2,error)
+
+
+    !! ** -S*C_hat*Lambda^{-2}*C_hat^T*H_tilde*P_tilde*S
+    CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
+                    -1.0_dp,admm_env%work_aux_aux,admm_env%work_aux_aux2,0.0_dp,&
+                    admm_env%work_aux_aux3,error)
+
+    
+    !! ** -S*C_hat*Lambda^{-2}*C_hat^T*H_tilde*P_tilde*S+S*C_hat*Lambda^{-2}*C_hat^T*H_tilde
+    CALL cp_fm_scale_and_add(1.0_dp,admm_env%work_aux_aux3,1.0_dp,admm_env%work_aux_aux,error)
+
+
+    !! first_part*A
+    CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
+                    1.0_dp,admm_env%work_aux_aux3,admm_env%A,0.0_dp,&
+                    admm_env%work_aux_orb,error)
+
+    !! + first_part^T*A
+    CALL cp_fm_gemm('T', 'N',  nao_aux_fit, nao_orb, nao_aux_fit,&
+                    1.0_dp,admm_env%work_aux_aux3,admm_env%A,1.0_dp,&
+                    admm_env%work_aux_orb,error)
+    
+
+
+    !! A^T*(first+seccond)=H
+    CALL cp_fm_gemm('T', 'N',  nao_orb, nao_orb, nao_aux_fit,&
+                    1.0_dp,admm_env%A,admm_env%work_aux_orb,0.0_dp,&
+                    admm_env%work_orb_orb,error)
+
+
+    NULLIFY(matrix_k_tilde)
+    ALLOCATE(matrix_k_tilde)
+    CALL dbcsr_init (matrix_k_tilde, error)
+    CALL dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
+         dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
+         dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), matrix_ks(ispin)%matrix%m%nblks, matrix_ks(ispin)%matrix%m%nze,&
+         matrix_ks(ispin)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
+    CALL dbcsr_finalize(matrix_k_tilde, error=error)
+
+
+    CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error) 
+
+    CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
+    CALL dbcsr_set(matrix_k_tilde, 0.0_dp, error)
+    CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
+
+    CALL cp_fm_gemm('N', 'N',  nao_orb, nmo, nao_orb,&
+                    1.0_dp,admm_env%work_orb_orb,mo_coeff,0.0_dp,&
+                    admm_env%mo_derivs_tmp(ispin)%matrix,error)
+    
+
+    CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)   
+
+    CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix,admm_env%work_orb_orb,error)
+    CALL cp_fm_upper_to_full(admm_env%work_orb_orb,admm_env%work_orb_orb2,error=error) 
+    CALL print_matlab_matrix(admm_env%work_orb_orb, "KS_full.dat", counter)
+
+
+    CALL dbcsr_deallocate_matrix(matrix_k_tilde,error) 
+
+    CALL timestop(handle)
+
+  END SUBROUTINE merge_ks_matrix
+
+  SUBROUTINE print_matlab_matrix(matrix, filename, counter)
+    TYPE(cp_fm_type), POINTER                :: matrix
+    CHARACTER(LEN=*)                         :: filename
+    INTEGER                                  :: counter
+
+    CHARACTER(LEN=20)                        :: string
+    CHARACTER(LEN=50)                        :: filename_count
+    INTEGER                                  :: i, j
+
+    WRITE(filename_count,FMT='(A,I0)') filename, counter
+    OPEN (unit=120,file=TRIM(filename_count))
+    j=SIZE(matrix%local_data,2)
+    WRITE(string,FMT='(A1,I4,A7)') "(",j,"F20.16)"
+    DO i=1,SIZE(matrix%local_data,1)
+      WRITE(unit=120,FMT=string) matrix%local_data(i,:)
+    END DO
+    CLOSE (unit=120)
+  END SUBROUTINE
+  
+  SUBROUTINE remove_ks_matrix(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
+                             matrix_ks, matrix_ks_aux_fit, error)
+    INTEGER, INTENT(IN)                      :: ispin
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_ks_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    TYPE(dbcsr_obj), POINTER                 :: matrix_k_tilde
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+
+    NULLIFY(matrix_k_tilde)
+    ALLOCATE(matrix_k_tilde)
+    CALL dbcsr_init (matrix_k_tilde, error)
+    CALL dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
+         dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
+         dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), matrix_ks(ispin)%matrix%m%nblks, matrix_ks(ispin)%matrix%m%nze,&
+         matrix_ks(ispin)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
+    CALL dbcsr_finalize(matrix_k_tilde, error=error)
+
+
+    CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error) 
+
+    CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
+    CALL dbcsr_set(matrix_k_tilde, 0.0_dp, error)
+    CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, matrix_k_tilde, keep_sparsity=.TRUE.)
+
+    CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, -1.0_dp, error)   
+
+    CALL dbcsr_deallocate_matrix(matrix_k_tilde,error) 
+
+    CALL timestop(handle)
+
+  END SUBROUTINE remove_ks_matrix
+
+END MODULE admm_methods

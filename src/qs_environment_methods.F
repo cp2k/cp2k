@@ -172,8 +172,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
               ncol_block=scf_control%ncol_block,&
               error=error)
        
-       ! If we do wfn_fitting rebuild fm_pools
-       IF( qs_env%dft_control%do_wfn_fitting ) THEN
+       ! If we use auxiliary density matrix methods rebuild fm_pools
+       IF( qs_env%dft_control%do_admm ) THEN
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                   nsgf=n_ao_aux_fit,&
                                   basis_set_id=use_aux_fit_basis_set)
@@ -271,7 +271,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
 
     
-    IF( dft_control%do_wfn_fitting) THEN
+    IF( dft_control%do_admm) THEN
       ! *** rebuilds the S_sm_pools ***
       CALL mpools_rebuild_s_sm_pools(qs_env%mpools_aux_fit,s=qs_env%matrix_s_aux_fit,&
            nspins=dft_control%nspins,particle_set=particle_set,&
@@ -354,7 +354,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        ENDIF
     ENDIF
 
-    IF( dft_control%do_wfn_fitting) THEN
+    IF( dft_control%do_admm) THEN
       ! generate the aux_fit task list
       CALL get_qs_env(qs_env=qs_env,task_list_aux_fit=task_list,error=error)
       IF (.NOT. ASSOCIATED(task_list)) THEN
@@ -535,14 +535,14 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_wfn_fitting, gapw_xc
+    LOGICAL                                  :: do_admm, gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,error=error)
     gapw_xc=dft_control%qs_control%gapw_xc
-    do_wfn_fitting = dft_control%do_wfn_fitting
+    do_admm = dft_control%do_admm
     CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
     IF(gapw_xc) THEN
@@ -550,7 +550,7 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, gapw_xc=gapw_xc, error=error)
       qs_env%rho_xc%rho_ao => qs_env%rho%rho_ao
     END IF
-    IF(do_wfn_fitting) THEN
+    IF(do_admm) THEN
       CALL qs_rho_rebuild(qs_env%rho_aux_fit,qs_env=qs_env,&
                           rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
                           basis_set_id=use_aux_fit_basis_set, error=error)

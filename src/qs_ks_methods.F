@@ -18,6 +18,10 @@
 ! *****************************************************************************
 MODULE qs_ks_methods
 
+  USE admm_methods,                    ONLY: fit_mo_coeffs,&
+                                             merge_ks_matrix,&
+                                             merge_mo_derivs
+  USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
@@ -155,9 +159,6 @@ MODULE qs_ks_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE wfn_fitting_methods,             ONLY: fit_mo_coeffs,&
-                                             merge_mo_derivs
-  USE wfn_fitting_types,               ONLY: wfn_fitting_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
   USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
@@ -320,6 +321,7 @@ CONTAINS
                                                 s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -358,7 +360,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: adiabatic_rescaling_section, &
       hfx_ri_section, hfx_sections, input, scf_section, xc_section
     TYPE(virial_type), POINTER               :: virial
-    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -610,10 +611,10 @@ CONTAINS
        END IF
 
        ! calculate the density matrix for the fitted mo_coeffs
-       IF( dft_control%do_wfn_fitting ) THEN       
+       IF( dft_control%do_admm ) THEN       
           NULLIFY(mo_coeff_aux_fit)
           CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
-          CALL get_qs_env(qs_env,mos=mos,wfn_fitting_env=wfn_fitting_env,error=error)
+          CALL get_qs_env(qs_env,mos=mos,admm_env=admm_env,error=error)
           
           !! ** Wavefunction fitting can only be used with HFX
           IF ( .NOT. do_hfx ) THEN
@@ -630,10 +631,10 @@ CONTAINS
                            only_ionode=.TRUE.)
           END IF
 
-          CALL fit_mo_coeffs(qs_env, wfn_fitting_env, para_env, &
+          CALL fit_mo_coeffs(qs_env, admm_env, para_env, &
                              qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
                              mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
-          CALL set_qs_env(qs_env,wfn_fitting_env=wfn_fitting_env,error=error)
+          CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
           
           DO ispin=1,nspins
              matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
@@ -658,9 +659,9 @@ CONTAINS
           ! *** calculate the xc potential on the pw density ***
           ! *** associates v_rspace_new if the xc potential needs to be computed.
           ! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
-          IF( dft_control%do_wfn_fitting ) THEN
+          IF( dft_control%do_admm ) THEN
              
-            xc_section => wfn_fitting_env%xc_section_aux
+            xc_section => admm_env%xc_section_aux
              
             CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
                                vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
@@ -670,8 +671,8 @@ CONTAINS
           END IF
 
 
-          IF( dft_control%do_wfn_fitting ) THEN
-            xc_section => wfn_fitting_env%xc_section_primary
+          IF( dft_control%do_admm ) THEN
+            xc_section => admm_env%xc_section_primary
           ELSE
             xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
           END IF
@@ -700,7 +701,7 @@ CONTAINS
        ENDIF
        
        ! *** Initialize the auxiliary ks matrix to zero if required
-       IF( dft_control%do_wfn_fitting ) THEN
+       IF( dft_control%do_admm ) THEN
           DO ispin = 1,nspins
              CALL dbcsr_set(qs_env%matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error) 
           END DO
@@ -735,7 +736,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO irep = 1,n_rep_hf
                 IF( .NOT. do_adiabatic_rescaling) THEN
-                   IF( dft_control%do_wfn_fitting ) THEN
+                   IF( dft_control%do_admm ) THEN
                       IF ( .NOT. hfx_treat_lsd_in_core ) THEN 
                          CALL integrate_four_center(qs_env, qs_env%matrix_ks_aux_fit,energy,&
                                                     qs_env%rho_aux_fit,hfx_sections,&
@@ -1097,8 +1098,8 @@ CONTAINS
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
 
-          ! Add contributions from wfn_fitting if requested
-          IF (dft_control%do_wfn_fitting) THEN
+          ! Add contributions from ADMM if requested
+          IF (dft_control%do_admm) THEN
             IF( ASSOCIATED(v_rspace_new_aux_fit)) THEN
               DO ispin=1,nspins
                 ! Calculate the xc potential
@@ -1217,6 +1218,21 @@ CONTAINS
           energy%efermi = energy%efermi /REAL(SIZE(mo_array))
        ENDIF
 
+       IF( 0==1 ) THEN
+         !** merge the auxiliary KS matrix and the primary one
+         IF( dft_control%do_admm) THEN
+           DO ispin=1,SIZE(mo_derivs)
+             CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+             CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
+             CALL merge_ks_matrix(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
+                  mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
+                  matrix_p_aux_fit,  error)
+           END DO
+         END IF
+       END IF
+
+
        ! Right now we can compute the orbital derivative here, as it depends currently only on the available
        ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
        ! from this routine, notice that this part of the calculation in not linear scaling
@@ -1241,13 +1257,13 @@ CONTAINS
              !vwCALL dbcsr_multiply(ks_matrix(ispin)%matrix,mo_coeff_b,&
              !vw      mo_derivs_dbcsr(ispin)%matrix, last_column=k, error=error)
 
-             IF( dft_control%do_wfn_fitting) THEN
+             IF( dft_control%do_admm) THEN
                CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mos,error=error)
                CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
                CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
-               CALL merge_mo_derivs(ispin, qs_env%wfn_fitting_env, mos(ispin)%mo_set, mo_coeff,&
+               CALL merge_mo_derivs(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
                     mo_coeff_aux_fit, mo_derivs,mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error)
              END IF
 
@@ -1312,7 +1328,7 @@ CONTAINS
             energy%becke + energy%dft_plus_u + energy%kTS + energy%efield +energy%efield_core+&
             energy%ee + energy%ee_core
 
-       IF( dft_control%do_wfn_fitting ) THEN
+       IF( dft_control%do_admm ) THEN
          energy%total = energy%total + energy%exc_aux_fit
        END IF 
 
@@ -1329,7 +1345,7 @@ CONTAINS
          output_unit = -1
        END IF
        IF (output_unit>0) THEN
-          IF (dft_control%do_wfn_fitting) THEN
+          IF (dft_control%do_admm) THEN
             WRITE (UNIT=output_unit,FMT="((T3,A,T60,F20.10))")&
                    "Wfn fit exchange-correlation energy:           ",energy%exc_aux_fit
           END IF
@@ -1340,7 +1356,7 @@ CONTAINS
                "XC and Kin. energy of the total density:       ",energy%exc,&
                "Kin. energy of the molecular densities:        ",energy%kg_gpw_ekin_mol
           ELSE
-            IF( dft_control%do_wfn_fitting ) THEN
+            IF( dft_control%do_admm ) THEN
               WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
                  "Core Hamiltonian energy:                       ",energy%core,&
                  "Hartree energy:                                ",energy%hartree,&

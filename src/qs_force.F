@@ -9,6 +9,8 @@
 ! *****************************************************************************
 MODULE qs_force
 
+  USE admm_methods,                    ONLY: calc_mixed_overlap_force
+  USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
@@ -78,8 +80,6 @@ MODULE qs_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE wfn_fitting_methods,             ONLY: calc_mixed_overlap_force
-  USE wfn_fitting_types,               ONLY: wfn_fitting_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -118,6 +118,7 @@ CONTAINS
                                                 natom_of_kind
     LOGICAL                                  :: failure, gapw, harris_flag, &
                                                 obasis
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -148,7 +149,6 @@ CONTAINS
     TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
-    TYPE(wfn_fitting_type), POINTER          :: wfn_fitting_env
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -169,7 +169,7 @@ CONTAINS
     NULLIFY (rho)
     NULLIFY (scf_control)
     NULLIFY ( scp_env, scp_force )
-    NULLIFY (wfn_fitting_env)
+    NULLIFY (admm_env)
     NULLIFY (matrix_s_aux_fit_vs_orb)
 
     harris_flag = qs_env%use_harris
@@ -364,18 +364,18 @@ CONTAINS
 
        ! Add forces resulting from wavefunction fitting
 
-       IF (dft_control%do_wfn_fitting ) THEN
+       IF (dft_control%do_admm ) THEN
           CALL get_qs_env(qs_env=qs_env,&
                matrix_s_aux_fit=matrix_s_aux_fit,&
                matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                mos=mos,&
-               wfn_fitting_env=wfn_fitting_env,&
+               admm_env=admm_env,&
                error=error)
           DO ispin=1,nspin
              mo_set => mos(ispin)%mo_set
              CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff) 
 
-             CALL calc_mixed_overlap_force(qs_env, para_env, ispin, wfn_fitting_env, mo_coeff, &
+             CALL calc_mixed_overlap_force(qs_env, para_env, ispin, admm_env, mo_coeff, &
                                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger, &
                                            iw, error)
           END DO
@@ -384,7 +384,7 @@ CONTAINS
        !  *** replicate forces ***
        DO ikind=1,SIZE(force)
           CALL mp_sum(force(ikind)%overlap,para_env%group)
-          CALL mp_sum(force(ikind)%overlap_wfn_fit,para_env%group)
+          CALL mp_sum(force(ikind)%overlap_admm,para_env%group)
           CALL mp_sum(force(ikind)%kinetic,para_env%group)
           CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
           CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
@@ -409,7 +409,7 @@ CONTAINS
                force(ikind)%all_potential(:,:) +&
                force(ikind)%kinetic(:,:) +&
                force(ikind)%overlap(:,:) +&
-               force(ikind)%overlap_wfn_fit(:,:) +&
+               force(ikind)%overlap_admm(:,:) +&
                force(ikind)%rho_core(:,:) +&
                force(ikind)%rho_elec(:,:) +&
                force(ikind)%vhxc_atom(:,:) +&
@@ -599,7 +599,7 @@ CONTAINS
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-                  iatom,ikind,"overlap_wfn_fit",qs_force(ikind)%overlap_wfn_fit(1:3,i),&
+                  iatom,ikind,"overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
                   iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
@@ -623,7 +623,7 @@ CONTAINS
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-                  iatom,ikind,"overlap_wfn_fit",qs_force(ikind)%overlap_wfn_fit(1:3,i),&
+                  iatom,ikind,"overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
                   iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
@@ -660,7 +660,7 @@ CONTAINS
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
-                  iatom,ikind,"overlap_wfn_fit",qs_force(ikind)%overlap_wfn_fit(1:3,i),&
+                  iatom,ikind,"overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"        kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"        gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
                   iatom,ikind,"       gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
@@ -681,7 +681,7 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"  all_potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
-                  iatom,ikind,"overlap_wfn_fit",qs_force(ikind)%overlap_wfn_fit(1:3,i),&
+                  iatom,ikind,"overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
                   iatom,ikind,"     dispersion",qs_force(ikind)%dispersion(1:3,i),&

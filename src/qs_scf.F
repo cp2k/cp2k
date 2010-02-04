@@ -1162,7 +1162,7 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
             "Electronic energy:                             ",energy%hartree,&
             "Dispersion energy:                             ",energy%dispersion
        ELSE
-         IF( dft_control%do_wfn_fitting ) THEN
+         IF( dft_control%do_admm ) THEN
            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
               "Overlap energy of the core charge distribution:",energy%core_overlap,&
               "Self energy of the core charge distribution:   ",energy%core_self,&
@@ -2126,7 +2126,7 @@ CPSourceFileRef)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
          S_sm_pools=S_sm_pools,&
          error=error)
-    IF( dft_control%do_wfn_fitting) THEN
+    IF( dft_control%do_admm) THEN
       CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
            S_sm_pools=S_sm_pools_aux_fit,&
            error=error)
@@ -2176,8 +2176,8 @@ CPSourceFileRef)
        END DO
     END IF
 
-!   *** finish initialization of the MOs for wfn fitting ***
-    IF(dft_control%do_wfn_fitting) THEN
+!   *** finish initialization of the MOs for ADMM ***
+    IF(dft_control%do_admm) THEN
       CPPrecondition(ASSOCIATED(mos_aux_fit),cp_failure_level,routineP,error,failure)
       IF (.NOT.failure) THEN
          DO ispin=1,SIZE(mos_aux_fit)
@@ -2254,7 +2254,7 @@ CPSourceFileRef)
     ENDIF
 
 !   *** get the mo_derivs OK if needed ***
-    IF( dft_control%do_wfn_fitting) THEN
+    IF( dft_control%do_admm) THEN
       IF (qs_env%requires_mo_derivs) THEN
        CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
        IF (.NOT.ASSOCIATED(mo_derivs_aux_fit)) THEN
@@ -2377,7 +2377,7 @@ CPSourceFileRef)
 
 !   *** Allocate matrix_ks_aux_fit if requested and put it in the QS environment ***
 
-    IF( dft_control%do_wfn_fitting) THEN
+    IF( dft_control%do_admm) THEN
       IF (.NOT.ASSOCIATED(matrix_ks_aux_fit)) THEN
          CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
          DO ispin=1,dft_control%nspins
@@ -2386,7 +2386,7 @@ CPSourceFileRef)
 
             CALL dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                 "KOHN-SHAM_MATRIX for wfn fitting", &
+                 "KOHN-SHAM_MATRIX for ADMM", &
                  dist=qs_env%matrix_s_aux_fit(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
                  row_blk_size=qs_env%matrix_s_aux_fit(1)%matrix%m%row_blk_size,&
                  col_blk_size=qs_env%matrix_s_aux_fit(1)%matrix%m%col_blk_size,&

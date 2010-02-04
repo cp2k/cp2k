@@ -636,7 +636,7 @@ CONTAINS
     CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
          "/SAB_ORB","sab_orb","ORBITAL ORBITAL",error)
 
-    IF( qs_env%dft_control%do_wfn_fitting ) THEN
+    IF( qs_env%dft_control%do_admm ) THEN
        IF (molecule_only) THEN
           ! *** this needs to be checked
           CALL build_restricted_neighbor_lists(sab_aux_fit,atom,cell,r_skin,&

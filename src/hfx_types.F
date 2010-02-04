@@ -588,7 +588,7 @@ MODULE hfx_types
         DO ikind = 1,nkind
             NULLIFY(atom_kind)
             atom_kind => atomic_kind_set(ikind)
-            IF( .NOT.dft_control%do_wfn_fitting ) THEN
+            IF( .NOT.dft_control%do_admm ) THEN
               CALL get_atomic_kind(atomic_kind=atom_kind,&
                                    orb_basis_set=orb_basis_a)
               CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
