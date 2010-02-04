@@ -803,3 +803,5 @@ H2O-ata.inp
 H+solv1.inp
 # fm to dbcsr
 dynamics.inp
+# format change 
+CN.inp
