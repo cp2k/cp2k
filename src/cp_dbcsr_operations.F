@@ -1675,7 +1675,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sm_fm_multiply', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k_in, k_out, timing_handle
+    INTEGER                                  :: k_in, k_out, timing_handle, timing_handle_mult
     TYPE(dbcsr_obj)                          :: in, out, out_copy
     TYPE(dbcsr_distribution_obj)             :: dist_right_in, &
                                                 dist_right_out, product_dist
@@ -1733,10 +1733,13 @@ CONTAINS
        CALL dbcsr_finalize(out)
 
        CALL copy_fm_to_dbcsr(fm_in, in)
-       CALL copy_fm_to_dbcsr(fm_out, out)
+       IF(ncol.NE.k_out.OR.my_beta.NE.0.0_dp) &
+            CALL copy_fm_to_dbcsr(fm_out, out)
 
+       CALL timeset(routineN//' (core)', timing_handle_mult)
        CALL dbcsr_multiply("N", "N", dbcsr_scalar(my_alpha), matrix, in,&
             dbcsr_scalar(my_beta), out, last_column=ncol, error=error)
+       CALL timestop(timing_handle_mult)
 
        CALL copy_dbcsr_to_fm(out, fm_out,error)
 

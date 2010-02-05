@@ -369,7 +369,7 @@ CPSourceFileRef,&
 
     CALL copy_dbcsr_to_fm(matrix, fm_matrix)
     CALL copy_dbcsr_to_fm(matrixb, fm_matrixb)
-    CALL copy_dbcsr_to_fm(matrixout, fm_matrixout)
+    !CALL copy_dbcsr_to_fm(matrixout, fm_matrixout)
 
     context => fm_matrix%matrix_struct%context
     myprow=context%mepos(1)
