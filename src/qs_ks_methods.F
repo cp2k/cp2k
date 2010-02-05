@@ -18,9 +18,9 @@
 ! *****************************************************************************
 MODULE qs_ks_methods
 
-  USE admm_methods,                    ONLY: fit_mo_coeffs,&
-                                             merge_ks_matrix,&
-                                             merge_mo_derivs
+  USE admm_methods,                    ONLY: admm_fit_mo_coeffs,&
+                                             admm_merge_ks_matrix,&
+                                             admm_merge_mo_derivs
   USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -612,44 +612,52 @@ CONTAINS
 
        ! calculate the density matrix for the fitted mo_coeffs
        IF( dft_control%do_admm ) THEN       
-          NULLIFY(mo_coeff_aux_fit)
-          CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
-          CALL get_qs_env(qs_env,mos=mos,admm_env=admm_env,error=error)
-          
-          !! ** Wavefunction fitting can only be used with HFX
-          IF ( .NOT. do_hfx ) THEN
-            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Wavefunction fitting requested without Hartree-Fock."//&
-                           CPSourceFileRef,&
-                           only_ionode=.TRUE.)
-          END IF 
-          CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
-          IF ( n_rep_hf > 1 ) THEN
-            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Wavefunction fitting, can handle only one HF section."//&
-                           CPSourceFileRef,&
-                           only_ionode=.TRUE.)
-          END IF
+         ! ** Method only implemented for GPW
+         IF( gapw ) THEN
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                                    message="ADMM only implemented for GPW", &
+                                    error=error, error_level=cp_failure_level)
+         END IF
 
-          CALL fit_mo_coeffs(qs_env, admm_env, para_env, &
-                             qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
-                             mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
-          CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
+         NULLIFY(mo_coeff_aux_fit)
+         CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
+         CALL get_qs_env(qs_env,mos=mos,admm_env=admm_env,error=error)
           
-          DO ispin=1,nspins
-             matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
-             CALL calculate_density_matrix(mos_aux_fit(ispin)%mo_set, &
-                                           matrix_p_aux_fit(ispin)%matrix,error=error)
-             CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
-                  rho=qs_env%rho_aux_fit%rho_r(ispin),&
-                  rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
-                  total_rho=qs_env%rho_aux_fit%tot_rho_r(ispin),&
-                  qs_env=qs_env,soft_valid=.FALSE.,&
-                  basis_set_id=use_aux_fit_basis_set, error=error)
-          END DO
+         !! ** ADMM can only be used with HFX
+         IF ( .NOT. do_hfx ) THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                          "Wavefunction fitting requested without Hartree-Fock."//&
+                          CPSourceFileRef,&
+                          only_ionode=.TRUE.)
+         END IF 
+         CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+         IF ( n_rep_hf > 1 ) THEN
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                          "ADMM can handle only one HF section."//&
+                          CPSourceFileRef,&
+                          only_ionode=.TRUE.)
+         END IF
 
-          qs_env%rho_aux_fit%rho_r_valid=.TRUE.
-          qs_env%rho_aux_fit%rho_g_valid=.TRUE.
+         CALL admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
+                                 qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
+                                 mos, mos_aux_fit, ks_env%s_mstruct_changed, error)
+
+         CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
+          
+         DO ispin=1,nspins
+            matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
+            CALL calculate_density_matrix(mos_aux_fit(ispin)%mo_set, &
+                                          matrix_p_aux_fit(ispin)%matrix,error=error)
+            CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
+                 rho=qs_env%rho_aux_fit%rho_r(ispin),&
+                 rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
+                 total_rho=qs_env%rho_aux_fit%tot_rho_r(ispin),&
+                 qs_env=qs_env,soft_valid=.FALSE.,&
+                 basis_set_id=use_aux_fit_basis_set, error=error)
+         END DO
+
+         qs_env%rho_aux_fit%rho_r_valid=.TRUE.
+         qs_env%rho_aux_fit%rho_g_valid=.TRUE.
        END IF
 
        ! only activate stress calculation if 
@@ -1218,20 +1226,17 @@ CONTAINS
           energy%efermi = energy%efermi /REAL(SIZE(mo_array))
        ENDIF
 
-       IF( 0==1 ) THEN
-         !** merge the auxiliary KS matrix and the primary one
-         IF( dft_control%do_admm) THEN
-           DO ispin=1,SIZE(mo_derivs)
-             CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
-             CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
-             CALL merge_ks_matrix(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
-                  mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
-                  matrix_p_aux_fit,  error)
-           END DO
-         END IF
+       !** merge the auxiliary KS matrix and the primary one
+       IF( dft_control%do_admm) THEN
+         DO ispin=1,nspins
+           CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
+           CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+           CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
+           CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
+                mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
+                matrix_p_aux_fit,  error)
+         END DO
        END IF
-
 
        ! Right now we can compute the orbital derivative here, as it depends currently only on the available
        ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
@@ -1263,7 +1268,7 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
                CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
-               CALL merge_mo_derivs(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
+               CALL admm_merge_mo_derivs(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
                     mo_coeff_aux_fit, mo_derivs,mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error)
              END IF
 

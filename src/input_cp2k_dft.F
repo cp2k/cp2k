@@ -2393,6 +2393,24 @@ CONTAINS
             default_i_val=do_admm_basis_set_projection, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="ADMM_PURIFICATION_METHOD",&
+            description="Method that shall be used for wavefunction fitting",&
+            usage="ADMM_PURIFICATION_METHOD NONE",&
+            enum_c_vals=s2a("NONE","CAUCHY","CAUCHY_SUBSPACE","MO_DIAG", "MO_NO_DIAG"),&
+            enum_i_vals=(/do_admm_purify_none, do_admm_purify_cauchy, do_admm_purify_cauchy_subspace,&
+                          do_admm_purify_mo_diag, do_admm_purify_mo_no_diag/),&
+            enum_desc=s2a("Do not apply any purification", &
+                          "Apply McWeeny purification via general Cauchy representation", &
+                          "Apply McWeeny purification via Cauchy representation in occupied subspace", &
+                          "Calculate MO derivatives via Cauchy representation by diagonalization", &
+                          "Calculate MO derivatives via Cauchy representation by inversion"), &
+            default_i_val=do_admm_purify_mo_diag, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
   END SUBROUTINE create_admm_section 
 

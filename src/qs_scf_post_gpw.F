@@ -10,6 +10,9 @@
 !> \author Joost VandeVondele (10.2003)
 ! *****************************************************************************
 MODULE qs_scf_post_gpw
+  USE admm_methods,                    ONLY: admm_correct_for_eigenvalues,&
+                                             admm_uncorrect_for_eigenvalues
+  USE admm_types,                      ONLY: admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
@@ -657,12 +660,14 @@ CONTAINS
     INTEGER                                  :: handle, homo, ispin, istat, &
                                                 n, nao, nmo, output_unit
     LOGICAL                                  :: failure
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
+      POINTER                                :: ks_rmpv, ks_rmpv_aux_fit, &
+                                                matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -671,9 +676,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(mos,ks_rmpv,scf_control,dft_control)
+    NULLIFY(mos,ks_rmpv,scf_control,dft_control,admm_env,ks_rmpv_aux_fit)
     CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,scf_control=scf_control,&
-                    dft_control=dft_control,matrix_s=matrix_s,error=error)
+                    dft_control=dft_control,matrix_s=matrix_s,admm_env=admm_env,&
+                    matrix_ks_aux_fit=ks_rmpv_aux_fit, error=error)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger) 
 
@@ -705,7 +711,13 @@ CONTAINS
              NULLIFY(local_preconditioner)
           ENDIF
        ENDIF
-       
+      
+       ! ** If we do ADMM, we add have to modify the kohn-sham matrix
+       IF( dft_control%do_admm ) THEN
+         CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                           ks_rmpv_aux_fit(ispin)%matrix, error)
+       END IF
+
        CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=matrix_s(1)%matrix, &
             matrix_c_fm=unoccupied_orbs(ispin)%matrix, &
             matrix_orthogonal_space_fm=mo_coeff, &
@@ -717,7 +729,14 @@ CONTAINS
        CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
             unoccupied_evals(ispin)%array, scr=output_unit, &
             ionode=output_unit>0,error=error)
-       
+
+
+       ! ** If we do ADMM, we restore the original kohn-sham matrix
+       IF( dft_control%do_admm ) THEN
+         CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                             ks_rmpv_aux_fit(ispin)%matrix, error)
+       END IF
+      
     END DO
     
     CALL timestop(handle)
@@ -738,10 +757,11 @@ CONTAINS
     INTEGER                                  :: handle, homo, ispin, nmo, &
                                                 output_unit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_deriv
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv
+      POINTER                                :: ks_rmpv, ks_rmpv_aux_fit
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -749,8 +769,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(mos,ks_rmpv,scf_control,dft_control)
-    CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,scf_control=scf_control,dft_control=dft_control,error=error)
+    NULLIFY(mos,ks_rmpv,scf_control,dft_control,admm_env,ks_rmpv_aux_fit)
+    CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,scf_control=scf_control,dft_control=dft_control,&
+                    admm_env=admm_env, matrix_ks_aux_fit=ks_rmpv_aux_fit, error=error)
+    
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)   
 
@@ -781,9 +803,26 @@ CONTAINS
           ELSE
              mo_coeff_deriv=>NULL()
           ENDIF
+
+
+          ! ** If we do ADMM, we add have to modify the kohn-sham matrix
+          IF( dft_control%do_admm ) THEN
+            CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                              ks_rmpv_aux_fit(ispin)%matrix, error)
+          END IF
+
+
           CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                scr=output_unit, ionode=output_unit>0, do_rotation=.TRUE.,&
                co_rotate=mo_coeff_deriv,error=error)
+
+          
+          ! ** If we do ADMM, we restore the original kohn-sham matrix
+          IF( dft_control%do_admm ) THEN
+            CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix, &
+                                                ks_rmpv_aux_fit(ispin)%matrix, error)
+          END IF
+         
 
           CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') &

@@ -97,7 +97,7 @@ MODULE admm_types
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work_aux_nmo2
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: H
+      POINTER                                :: H, H_corr
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_tmp
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -113,6 +113,8 @@ MODULE admm_types
       POINTER                                :: lambda_inv2, C_hat, P_tilde
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: ks_to_be_merged
+    INTEGER                                  :: method_id
+    INTEGER                                  :: purification_method
   END TYPE
 
   
@@ -225,7 +227,8 @@ MODULE admm_types
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%mo_derivs_tmp(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+    ALLOCATE(admm_env%H_corr(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%ks_to_be_merged(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%lambda_inv2(nspins),STAT=istat)
@@ -266,6 +269,7 @@ MODULE admm_types
       CALL cp_fm_create(admm_env%R(ispin)%matrix,fm_struct_nmo_nmo,name="R",error=error)
       CALL cp_fm_create(admm_env%K(ispin)%matrix,fm_struct_aux_aux,name="K",error=error)
       CALL cp_fm_create(admm_env%H(ispin)%matrix,fm_struct_aux_nmo,name="H",error=error)
+      CALL cp_fm_create(admm_env%H_corr(ispin)%matrix,fm_struct_orb_orb,name="H_corr",error=error)
       CALL cp_fm_create(admm_env%M(ispin)%matrix,fm_struct_nmo_nmo,name="M",error=error)
       CALL cp_fm_create(admm_env%work_aux_nmo(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo",error=error)
       CALL cp_fm_create(admm_env%work_aux_nmo2(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo2",error=error)
@@ -333,6 +337,7 @@ MODULE admm_types
       CALL cp_fm_release(admm_env%P_tilde(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%R(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%H(ispin)%matrix, error=error)
+      CALL cp_fm_release(admm_env%H_corr(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%K(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%M(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%work_orb_nmo(ispin)%matrix, error=error)
@@ -360,6 +365,8 @@ MODULE admm_types
     DEALLOCATE(admm_env%M,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(admm_env%H,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(admm_env%H_corr,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(admm_env%K,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

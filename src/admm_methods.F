@@ -18,6 +18,7 @@ MODULE admm_methods
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_control_types,                ONLY: admm_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              dbcsr_alloc_block_from_nbl,&
@@ -56,12 +57,13 @@ MODULE admm_methods
   USE dbcsr_util,                      ONLY: dbcsr_create,&
                                              dbcsr_finalize
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
-                                             do_hfx_potential_short,&
-                                             do_hfx_potential_truncated,&
-                                             use_aux_fit_basis_set,&
-                                             use_orb_basis_set,&
-                                             xc_funct_no_shortcut
+  USE input_constants,                 ONLY: &
+       do_admm_basis_set_projection, do_admm_blocked_density_matrix, &
+       do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
+       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+       do_admm_purify_none, do_hfx_potential_coulomb, do_hfx_potential_short, &
+       do_hfx_potential_truncated, use_aux_fit_basis_set, use_orb_basis_set, &
+       xc_funct_no_shortcut
   USE input_section_types,             ONLY: section_vals_duplicate,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -91,19 +93,162 @@ MODULE admm_methods
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC fit_mo_coeffs, &
-         merge_ks_matrix, &
-         merge_mo_derivs, &
+  PUBLIC admm_fit_mo_coeffs, &
+         admm_merge_ks_matrix, &
+         admm_merge_mo_derivs, &
          remove_ks_matrix, &
          calc_mixed_overlap_force, &
          create_admm_xc_section,&
-         print_matlab_matrix
+         print_matlab_matrix,&
+         admm_correct_for_eigenvalues,&
+         admm_uncorrect_for_eigenvalues
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_methods'
 
 !***
   
   CONTAINS
+
+  SUBROUTINE admm_merge_mo_derivs(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
+                                  mo_derivs_aux_fit, matrix_ks_aux_fit, error)
+    INTEGER, INTENT(IN)                      :: ispin
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs, mo_derivs_aux_fit
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_aux_fit
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_merge_mo_derivs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+    SELECT CASE(admm_env%method_id)
+    CASE (do_admm_basis_set_projection)
+      SELECT CASE(admm_env%purification_method)
+      CASE(do_admm_purify_none)
+      CASE(do_admm_purify_cauchy)
+      CASE(do_admm_purify_cauchy_subspace)
+      CASE(do_admm_purify_mo_diag)
+        CALL merge_mo_derivs_diag(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit,&
+                                  mo_derivs,mo_derivs_aux_fit, matrix_ks_aux_fit,&
+                                  error)
+      CASE(do_admm_purify_mo_no_diag)
+    END SELECT
+    
+    CASE(do_admm_blocked_density_matrix)
+
+    END SELECT
+
+    CALL timestop(handle)
+
+  END SUBROUTINE admm_merge_mo_derivs
+
+  SUBROUTINE admm_merge_ks_matrix(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
+                                             matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_p_aux_fit, error)
+    INTEGER, INTENT(IN)                      :: ispin
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                matrix_s, matrix_p_aux_fit
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_merge_ks_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+    SELECT CASE(admm_env%method_id)
+    CASE (do_admm_basis_set_projection)
+      SELECT CASE(admm_env%purification_method)
+      CASE(do_admm_purify_none)
+      CASE(do_admm_purify_cauchy)
+      CASE(do_admm_purify_cauchy_subspace)
+        CALL merge_ks_matrix_cauchy_subspace(ispin, admm_env, mo_set, mo_coeff,&
+                                             mo_coeff_aux_fit, matrix_ks, matrix_ks_aux_fit, &
+                                             matrix_s, matrix_p_aux_fit, error)
+      CASE(do_admm_purify_mo_diag)
+      CASE(do_admm_purify_mo_no_diag)
+    END SELECT
+    
+    CASE(do_admm_blocked_density_matrix)
+
+    END SELECT
+
+    CALL timestop(handle)
+
+  END SUBROUTINE admm_merge_ks_matrix
+  
+  SUBROUTINE admm_fit_mo_coeffs(qs_env, admm_env, admm_control, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+                                mos, mos_aux_fit, geometry_did_change, error) 
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(admm_control_type), POINTER         :: admm_control
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit, &
+                                                matrix_s_mixed
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos, mos_aux_fit
+    LOGICAL, INTENT(IN)                      :: geometry_did_change
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_fit_mo_coeffs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(section_vals_type), POINTER         :: input, xc_section
+
+    CALL timeset(routineN,handle)
+
+    IF (.NOT.(ASSOCIATED(admm_env) )) THEN
+      CALL admm_env_create(mos, mos_aux_fit, &
+                           para_env, admm_env,&
+                           error)
+      CALL get_qs_env(qs_env, input=input, error=error)
+      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
+      admm_env%method_id = admm_control%method_id
+      admm_env%purification_method = admm_control%purification_method
+    END IF
+  
+    SELECT CASE(admm_env%method_id)
+    CASE (do_admm_basis_set_projection)
+      SELECT CASE(admm_env%purification_method)
+      CASE(do_admm_purify_none)
+      CASE(do_admm_purify_cauchy)
+      CASE(do_admm_purify_cauchy_subspace)
+        CALL fit_mo_coeffs_diag(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+                                mos, mos_aux_fit, geometry_did_change, error)
+      CASE(do_admm_purify_mo_diag)
+        CALL fit_mo_coeffs_diag(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+                                mos, mos_aux_fit, geometry_did_change, error)
+      CASE(do_admm_purify_mo_no_diag)
+    END SELECT
+    
+    CASE(do_admm_blocked_density_matrix)
+
+    END SELECT
+
+    CALL timestop(handle)
+
+  END SUBROUTINE admm_fit_mo_coeffs
 
 ! *****************************************************************************
 !> \brief Calculates the MO coefficients for the auxiliary fitting basis set  
@@ -122,8 +267,8 @@ MODULE admm_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE fit_mo_coeffs(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
-                           mos, mos_aux_fit, geometry_did_change, error) 
+  SUBROUTINE fit_mo_coeffs_diag(qs_env, admm_env, para_env, matrix_s_aux_fit, matrix_s_mixed, &
+                                mos, mos_aux_fit, geometry_did_change, error) 
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
@@ -136,7 +281,7 @@ MODULE admm_methods
     LOGICAL, INTENT(IN)                      :: geometry_did_change
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_mo_coeffs', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_mo_coeffs_diag', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ispin, istat, &
@@ -151,8 +296,8 @@ MODULE admm_methods
 
     IF (.NOT.(ASSOCIATED(admm_env) )) THEN
       CALL admm_env_create(mos, mos_aux_fit, &
-                                  para_env, admm_env,&
-                                  error)
+                           para_env, admm_env,&
+                           error)
       CALL get_qs_env(qs_env, input=input, error=error)
       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
       CALL create_admm_xc_section(qs_env, xc_section, admm_env, error)
@@ -171,7 +316,6 @@ MODULE admm_methods
       CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S, error=error) 
 
       CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix,admm_env%Q,error)
-
 
       !! Calculate S'_inverse
       CALL cp_fm_cholesky_decompose(admm_env%S_inv,error=error)
@@ -197,7 +341,6 @@ MODULE admm_methods
       !! Lambda = C^(T)*B*C
       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
       CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
-       
       CALL cp_fm_gemm('N','N',nao_orb,nmo,nao_orb,&
                       1.0_dp,admm_env%B,mo_coeff,0.0_dp,&
                       admm_env%work_orb_nmo(ispin)%matrix,error)
@@ -230,7 +373,7 @@ MODULE admm_methods
     
     CALL timestop(handle)
 
-  END SUBROUTINE fit_mo_coeffs
+  END SUBROUTINE fit_mo_coeffs_diag
 
 
 ! *****************************************************************************
@@ -251,8 +394,8 @@ MODULE admm_methods
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE merge_mo_derivs(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
-                             mo_derivs_aux_fit, matrix_ks_aux_fit, error)
+  SUBROUTINE merge_mo_derivs_diag(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, mo_derivs, &
+                                  mo_derivs_aux_fit, matrix_ks_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -263,7 +406,7 @@ MODULE admm_methods
       POINTER                                :: matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_diag', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, nao_aux_fit, &
@@ -400,7 +543,7 @@ MODULE admm_methods
 
     CALL timestop(handle)
 
-  END SUBROUTINE merge_mo_derivs 
+  END SUBROUTINE merge_mo_derivs_diag
 
 ! *****************************************************************************
 !> \brief Calculates contribution of forces due to basis transformation
@@ -1192,8 +1335,8 @@ MODULE admm_methods
 
   END SUBROUTINE create_admm_xc_section
 
-  SUBROUTINE merge_ks_matrix(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
-                             matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_p_aux_fit, error)
+  SUBROUTINE merge_ks_matrix_cauchy_subspace(ispin, admm_env, mo_set, mo_coeff, mo_coeff_aux_fit, &
+                                             matrix_ks, matrix_ks_aux_fit, matrix_s, matrix_p_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -1203,7 +1346,8 @@ MODULE admm_methods
                                                 matrix_s, matrix_p_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'merge_ks_matrix_cauchy_subspace', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
@@ -1272,6 +1416,9 @@ MODULE admm_methods
 
     CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix,admm_env%K(ispin)%matrix,error)
     CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix,admm_env%work_aux_aux,error=error)
+    IF( 1==0 ) THEN
+      CALL print_matlab_matrix(admm_env%K(ispin)%matrix, "KS_in.dat", counter) 
+    END IF
 
     !! ** S*C_hat*Lambda^{-2}*C_hat^T*H_tilde 
     CALL cp_fm_gemm('N', 'N',  nao_aux_fit, nao_aux_fit, nao_aux_fit,&
@@ -1335,16 +1482,18 @@ MODULE admm_methods
 
     CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)   
 
-    CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix,admm_env%work_orb_orb,error)
-    CALL cp_fm_upper_to_full(admm_env%work_orb_orb,admm_env%work_orb_orb2,error=error) 
-    CALL print_matlab_matrix(admm_env%work_orb_orb, "KS_full.dat", counter)
+    IF( 1==0 ) THEN
+      CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix,admm_env%work_orb_orb,error)
+      CALL cp_fm_upper_to_full(admm_env%work_orb_orb,admm_env%work_orb_orb2,error=error) 
+      CALL print_matlab_matrix(admm_env%work_orb_orb, "KS_full.dat", counter)
+    END IF
 
 
     CALL dbcsr_deallocate_matrix(matrix_k_tilde,error) 
 
     CALL timestop(handle)
 
-  END SUBROUTINE merge_ks_matrix
+  END SUBROUTINE merge_ks_matrix_cauchy_subspace
 
   SUBROUTINE print_matlab_matrix(matrix, filename, counter)
     TYPE(cp_fm_type), POINTER                :: matrix
@@ -1410,5 +1559,162 @@ MODULE admm_methods
     CALL timestop(handle)
 
   END SUBROUTINE remove_ks_matrix
+
+  SUBROUTINE admm_correct_for_eigenvalues(ispin, admm_env, ks_matrix, ks_matrix_aux_fit, error)
+    INTEGER, INTENT(IN)                      :: ispin
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(dbcsr_obj), POINTER                 :: ks_matrix, ks_matrix_aux_fit
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: nao_aux_fit, nao_orb
+    TYPE(dbcsr_obj), POINTER                 :: work
+
+    nao_aux_fit = admm_env%nao_aux_fit
+    nao_orb = admm_env%nao_orb
+
+
+    SELECT CASE(admm_env%method_id)
+    CASE (do_admm_basis_set_projection)
+      SELECT CASE(admm_env%purification_method)
+      CASE(do_admm_purify_none)
+      CASE(do_admm_purify_cauchy)
+      CASE(do_admm_purify_cauchy_subspace)
+        !* remove what has been added and add the correction
+        NULLIFY(work)
+        ALLOCATE(work)
+        CALL dbcsr_init (work, error)
+        CALL dbcsr_create(work, 'work', &
+             dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix),&
+             dbcsr_col_block_sizes(ks_matrix), ks_matrix%m%nblks, ks_matrix%m%nze,&
+             ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
+        CALL dbcsr_finalize(work, error=error)
+
+        CALL dbcsr_copy(work, ks_matrix, error=error)
+        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
+
+        CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
+
+        ! ** calculate A^T*H_tilde*A
+        CALL cp_fm_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
+                        1.0_dp, admm_env%K(ispin)%matrix,admm_env%A, 0.0_dp,&
+                        admm_env%work_aux_orb,error)
+        CALL cp_fm_gemm('T','N',nao_orb,nao_orb,nao_aux_fit,&
+                        1.0_dp, admm_env%A, admm_env%work_aux_orb ,0.0_dp,&
+                        admm_env%H_corr(ispin)%matrix,error)
+
+        CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+
+        CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
+        CALL dbcsr_deallocate_matrix(work,error)
+
+      CASE(do_admm_purify_mo_diag)
+        !* remove what has been added and add the correction
+        NULLIFY(work)
+        ALLOCATE(work)
+        CALL dbcsr_init (work, error)
+        CALL dbcsr_create(work, 'work', &
+             dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix),&
+             dbcsr_col_block_sizes(ks_matrix), ks_matrix%m%nblks, ks_matrix%m%nze,&
+             ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
+        CALL dbcsr_finalize(work, error=error)
+
+        CALL dbcsr_copy(work, ks_matrix, error=error)
+        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
+
+        ! ** calculate A^T*H_tilde*A
+        CALL cp_fm_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
+                        1.0_dp, admm_env%K(ispin)%matrix,admm_env%A, 0.0_dp,&
+                        admm_env%work_aux_orb,error)
+        CALL cp_fm_gemm('T','N',nao_orb,nao_orb,nao_aux_fit,&
+                        1.0_dp, admm_env%A, admm_env%work_aux_orb ,0.0_dp,&
+                        admm_env%H_corr(ispin)%matrix,error)
+
+        CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+
+        CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
+        CALL dbcsr_deallocate_matrix(work,error)
+
+      CASE(do_admm_purify_mo_no_diag)
+    END SELECT
+
+    CASE(do_admm_blocked_density_matrix)
+
+    END SELECT
+
+
+  END SUBROUTINE admm_correct_for_eigenvalues
+
+  SUBROUTINE admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_matrix, ks_matrix_aux_fit, error)
+    INTEGER, INTENT(IN)                      :: ispin
+    TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(dbcsr_obj), POINTER                 :: ks_matrix, ks_matrix_aux_fit
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    INTEGER                                  :: nao_aux_fit, nao_orb
+    TYPE(dbcsr_obj), POINTER                 :: work
+
+    nao_aux_fit = admm_env%nao_aux_fit
+    nao_orb = admm_env%nao_orb
+
+
+    SELECT CASE(admm_env%method_id)
+    CASE (do_admm_basis_set_projection)
+      SELECT CASE(admm_env%purification_method)
+      CASE(do_admm_purify_none)
+      CASE(do_admm_purify_cauchy)
+      CASE(do_admm_purify_cauchy_subspace)
+        !* remove what has been added and add the correction
+        NULLIFY(work)
+        ALLOCATE(work)
+        CALL dbcsr_init (work, error)
+        CALL dbcsr_create(work, 'work', &
+             dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix),&
+             dbcsr_col_block_sizes(ks_matrix), ks_matrix%m%nblks, ks_matrix%m%nze,&
+             ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
+        CALL dbcsr_finalize(work, error=error)
+
+        CALL dbcsr_copy(work, ks_matrix, error=error)
+        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+
+        CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
+
+        CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+
+        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
+
+        CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
+        CALL dbcsr_deallocate_matrix(work,error)
+
+      CASE(do_admm_purify_mo_diag)
+        NULLIFY(work)
+        ALLOCATE(work)
+        CALL dbcsr_init (work, error)
+        CALL dbcsr_create(work, 'work', &
+             dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix),&
+             dbcsr_col_block_sizes(ks_matrix), ks_matrix%m%nblks, ks_matrix%m%nze,&
+             ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
+        CALL dbcsr_finalize(work, error=error)
+
+        CALL dbcsr_copy(work, ks_matrix, error=error)
+        CALL dbcsr_set(work, 0.0_dp, error)
+
+        CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
+
+        CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
+        CALL dbcsr_deallocate_matrix(work,error)
+
+      CASE(do_admm_purify_mo_no_diag)
+    END SELECT
+
+    CASE(do_admm_blocked_density_matrix)
+
+    END SELECT
+    
+  END SUBROUTINE admm_uncorrect_for_eigenvalues
+
 
 END MODULE admm_methods

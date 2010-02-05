@@ -216,6 +216,7 @@ MODULE cp_control_types
 ! *****************************************************************************
   TYPE admm_control_type
     INTEGER                         :: method_id
+    INTEGER                         :: purification_method
   END TYPE admm_control_type
 
 ! *****************************************************************************

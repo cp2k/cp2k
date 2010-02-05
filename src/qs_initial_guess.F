@@ -522,7 +522,8 @@ CPSourceFileRef,&
           ELSE
              IF(ASSOCIATED(scf_env%krylov_space)) do_std_diag = (scf_env%krylov_space%eps_std_diag > 0.0_dp)
              IF (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr .OR. &
-                  (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag)) THEN
+                  (scf_env%method==block_krylov_diag_method_nr .AND. .NOT. do_std_diag) &
+                  .OR. dft_control%do_admm) THEN
                 IF (dft_control%restricted.AND.(ispin == 2)) THEN
                    CALL mo_set_restrict(mo_array,error=error)
                 ELSE

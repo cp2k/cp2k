@@ -76,8 +76,8 @@ CONTAINS
                                                 potential_file_name
     INTEGER                                  :: excitations, i, method_id, &
                                                 nrep, stat, xc_deriv_method_id
-    LOGICAL                                  :: failure, is_present, l_param, &
-                                                not_SE, was_present
+    LOGICAL                                  :: do_ot, failure, is_present, &
+                                                l_param, not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     TYPE(section_vals_type), POINTER         :: scf_section, scp_section, &
@@ -165,9 +165,41 @@ CPSourceFileRef,&
     CALL section_vals_get(tmp_section,explicit=is_present,error=error)
     dft_control%do_admm = is_present
     IF(is_present) THEN
-      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%METHOD",i_val=method_id,error=error)
+      do_ot = .FALSE.
+      CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=do_ot,error=error)
       CALL admm_control_create(dft_control%admm_control, error)
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%METHOD",i_val=method_id,error=error)
       dft_control%admm_control%method_id = method_id
+      CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD",i_val=method_id,error=error)
+      dft_control%admm_control%purification_method = method_id
+      ! ** Some algorithms are not implemented yet
+      IF( dft_control%admm_control%method_id == do_admm_blocked_density_matrix ) THEN
+        CALL cp_unimplemented_error(fromWhere=routineP, &
+                                    message="ADMM: Blocked density matrix method not implemented", &
+                                    error=error, error_level=cp_failure_level)
+      ELSE
+        SELECT CASE (dft_control%admm_control%purification_method)
+        CASE (do_admm_purify_none)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+                                    message="ADMM: Purify None not yet implemented", &
+                                    error=error, error_level=cp_failure_level)
+        CASE (do_admm_purify_cauchy)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+                                    message="ADMM: Purify Cauchy not yet implemented", &
+                                    error=error, error_level=cp_failure_level)
+        CASE (do_admm_purify_cauchy_subspace)
+        CASE (do_admm_purify_mo_diag)
+          IF( .NOT. do_ot) THEN
+            CALL cp_unimplemented_error(fromWhere=routineP, &
+                                        message="ADMM: Purify MO DIAG only works with OT", &
+                                        error=error, error_level=cp_failure_level)
+          END IF
+        CASE (do_admm_purify_mo_no_diag)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+                                    message="ADMM: Purify MO NO_DIAG not yet implemented", &
+                                    error=error, error_level=cp_failure_level)
+        END SELECT
+      END IF
     END IF
 
     CALL section_vals_val_get(dft_section,"SCP%_SECTION_PARAMETERS_",l_val=dft_control%scp,error=error)

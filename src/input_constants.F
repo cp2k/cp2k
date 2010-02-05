@@ -749,6 +749,13 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               ::  do_admm_basis_set_projection=1,&
                                                do_admm_blocked_density_matrix=2
 
+ ! This parameter defines the method to use for the purification
+  INTEGER, PARAMETER, PUBLIC               :: do_admm_purify_none=1,&
+                                              do_admm_purify_cauchy=2,&
+                                              do_admm_purify_cauchy_subspace=3,&
+                                              do_admm_purify_mo_diag=4,&
+                                              do_admm_purify_mo_no_diag=5
+
   ! Define DFT+U method identifier codes
   INTEGER, PARAMETER, PUBLIC               :: plus_u_lowdin=1,&
                                               plus_u_mulliken=2,&
