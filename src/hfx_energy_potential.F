@@ -275,7 +275,16 @@ MODULE hfx_energy_potential
     INTEGER::ii
     REAL(dp), DIMENSION(:), POINTER          :: p_work
 
+#if defined(__USE_PAT)
+    INTEGER :: istat
+#include "pat_apif.h"
+#endif
+
     CALL timeset(routineN,handle)
+
+#if defined(__USE_PAT)
+  CALL PAT_sampling_state(PAT_STATE_ON,istat)
+#endif
 
     rho_ao=>rho%rho_ao
 
@@ -2024,6 +2033,10 @@ MODULE hfx_energy_potential
 
 !$OMP BARRIER
 !$OMP END PARALLEL
+
+#if defined(__USE_PAT)
+  CALL PAT_sampling_state(PAT_STATE_OFF,istat)
+#endif
 
     CALL timestop(handle)
   END SUBROUTINE integrate_four_center

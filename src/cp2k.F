@@ -51,10 +51,13 @@ PROGRAM cp2k
   USE f77_blas
 #include "cp_common_uses.h"
   IMPLICIT NONE
+#if defined(__USE_PAT)
+#include "pat_apif.h"
+#endif
 
   CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,arg_att
   CHARACTER(LEN=default_string_length) :: dev_flag
-  INTEGER                              :: output_unit
+  INTEGER                              :: output_unit,istat
   INTEGER                              :: ierr, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
                                           permissive
@@ -72,6 +75,10 @@ PROGRAM cp2k
 
   ! do the initial setup of cp2k, provides a default_para_env
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
+
+#if defined(__USE_PAT)
+  CALL PAT_sampling_state(PAT_STATE_OFF,istat)
+#endif
 
   IF (ierr==0) THEN
 #if defined(__HMD)
@@ -294,6 +301,10 @@ arg_loop: DO WHILE (i_arg<n_arg)
   ELSE
      WRITE(UNIT=output_unit,FMT="(/,A)") "initial setup (MPI ?) error" 
   END IF
+
+#if defined(__USE_PAT)
+  CALL PAT_sampling_state(PAT_STATE_ON,istat)
+#endif
 
   ! and the final cleanup
   CALL finalize_cp2k(finalize_mpi=.TRUE.,ierr=ierr)
