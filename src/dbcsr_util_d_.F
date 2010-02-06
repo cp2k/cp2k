@@ -473,7 +473,7 @@
     ENDIF
     IF (ub_orig.LT.ub) THEN
        IF (PRESENT(factor)) THEN
-          size_increase = ub_new - ub_orig
+          size_increase = ub - ub_orig
           size_increase = MAX (NINT(REAL(size_increase)*factor),&
                                NINT(REAL(old_size)*factor))
           ub_new = MAX (ub_orig, ub + size_increase)
