@@ -32,6 +32,9 @@ MODULE dbcsr_methods
                                              real_4,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_allocate,&
+                                             mp_cart_create,&
+                                             mp_cart_sub,&
+                                             mp_comm_free,&
                                              mp_deallocate,&
                                              mp_sum
   USE dbcsr_types,                     ONLY: &
@@ -59,7 +62,10 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release
   PUBLIC :: dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
-            dbcsr_mp_myprow, dbcsr_mp_mypcol, dbcsr_mp_pgrid_equal, dbcsr_mp_get_coordinates
+            dbcsr_mp_myprow, dbcsr_mp_mypcol, dbcsr_mp_pgrid_equal,&
+            dbcsr_mp_get_coordinates,&
+            dbcsr_mp_my_row_group, dbcsr_mp_my_col_group,&
+            dbcsr_mp_has_subgroups, dbcsr_mp_get_process, dbcsr_mp_grid_setup
   PUBLIC :: dbcsr_distribution_new, dbcsr_distribution_hold,&
             dbcsr_distribution_release, dbcsr_distribution_init
   PUBLIC :: dbcsr_distribution_mp, dbcsr_distribution_processor,&
@@ -512,7 +518,10 @@ CONTAINS
 !> \param[out] mp_env         multiprocessor environment
 !> \param[in] pgrid           process grid
 !> \param[in] mynode          my processor number
-!> \param[in] numnodes         total number of processors (processes)
+!> \param[in] numnodes        total number of processors (processes)
+!> \par History
+!>      UB (2010-02-04)       Duplicates own communicator and sets up
+!>                            cartesian grid
 ! *****************************************************************************
   SUBROUTINE dbcsr_mp_new(mp_env, pgrid, mp_group, mynode, numnodes, myprow,&
        mypcol)
@@ -525,34 +534,89 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    ALLOCATE(mp_env%mp)
-    mp_env%mp%refcount = 1
-    ALLOCATE (mp_env%mp%pgrid (0:SIZE(pgrid, 1)-1, 0:SIZE(pgrid, 2)-1 ))
-    mp_env%mp%pgrid(:,:) = pgrid(:,:)
-    mp_env%mp%mynode = mynode
-    mp_env%mp%mp_group = mp_group
-    IF (PRESENT (numnodes)) THEN
-       mp_env%mp%numnodes = numnodes
-    ELSE
-       mp_env%mp%numnodes = SIZE (pgrid)
-    ENDIF
-    IF (PRESENT (myprow) .AND. PRESENT (mypcol)) THEN
-       mp_env%mp%myprow = myprow
-       mp_env%mp%mypcol = mypcol
-    ELSE
-       mp_env%mp%myprow = -33777
-       mp_env%mp%mypcol = -33777
-       column_loop: DO pcol = LBOUND (pgrid, 2), UBOUND (pgrid, 2)
-          row_loop: DO prow = LBOUND (pgrid, 1), UBOUND (pgrid, 1)
-             test_position: IF (pgrid (prow, pcol) .EQ. mynode) THEN
-                mp_env%mp%myprow = prow
-                mp_env%mp%mypcol = pcol
-                EXIT column_loop
-             ENDIF test_position
-          ENDDO row_loop
-       ENDDO column_loop
-    ENDIF
+     ALLOCATE(mp_env%mp)
+     mp_env%mp%refcount = 1
+     ALLOCATE (mp_env%mp%pgrid (0:SIZE(pgrid, 1)-1, 0:SIZE(pgrid, 2)-1 ))
+     mp_env%mp%pgrid(:,:) = pgrid(:,:)
+     mp_env%mp%mynode = mynode
+     mp_env%mp%mp_group = mp_group
+     IF (PRESENT (numnodes)) THEN
+        mp_env%mp%numnodes = numnodes
+     ELSE
+        mp_env%mp%numnodes = SIZE (pgrid)
+     ENDIF
+     IF (PRESENT (myprow) .AND. PRESENT (mypcol)) THEN
+        mp_env%mp%myprow = myprow
+        mp_env%mp%mypcol = mypcol
+     ELSE
+        mp_env%mp%myprow = -33777
+        mp_env%mp%mypcol = -33777
+        column_loop: DO pcol = LBOUND (pgrid, 2), UBOUND (pgrid, 2)
+           row_loop: DO prow = LBOUND (pgrid, 1), UBOUND (pgrid, 1)
+              test_position: IF (pgrid (prow, pcol) .EQ. mynode) THEN
+                 mp_env%mp%myprow = prow
+                 mp_env%mp%mypcol = pcol
+                 EXIT column_loop
+              ENDIF test_position
+           ENDDO row_loop
+        ENDDO column_loop
+     ENDIF
+     mp_env%mp%subgroups_defined = .FALSE.
+!!!! KG workaround in place.
+!!!! This will be the replacement:
+!    ALLOCATE(mp_env%mp)
+!    mp_env%mp%refcount = 1
+!    ndims = 2
+!    dims(1:2) = (/ SIZE (pgrid, 1), SIZE (pgrid, 2) /)
+!    CALL mp_cart_create (mp_group, ndims,&
+!         dims, my_pos,&
+!         mp_env%mp%mp_group)
+!    CALL mp_environ (mp_env%mp%numnodes, mp_env%mp%mynode, mp_env%mp%mp_group)
+!    mp_env%mp%myprow = my_pos(1)
+!    mp_env%mp%mypcol = my_pos(2)
+!    ALLOCATE (mp_env%mp%pgrid (0:SIZE(pgrid, 1)-1, 0:SIZE(pgrid, 2)-1 ))
+!    column_loop: DO pcol = 0, SIZE (mp_env%mp%pgrid, 2)-1
+!       row_loop: DO prow = 0, SIZE (mp_env%mp%pgrid, 1)-1
+!          CALL mp_cart_rank (mp_env%mp%mp_group, (/ prow, pcol /),&
+!               mp_env%mp%pgrid (prow, pcol))
+!       ENDDO row_loop
+!    ENDDO column_loop
+!    mp_env%mp%subgroups_defined = .FALSE.
   END SUBROUTINE dbcsr_mp_new
+
+! *****************************************************************************
+!> \brief Sets up MPI cartesian process grid
+!> \param[in,out] mp_env      multiprocessor environment
+! *****************************************************************************
+  SUBROUTINE dbcsr_mp_grid_setup(mp_env)
+    TYPE(dbcsr_mp_obj), INTENT(INOUT)        :: mp_env
+
+    INTEGER                                  :: ndims, tmp_group
+    INTEGER, DIMENSION(2)                    :: dims, my_pos
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT. mp_env%mp%subgroups_defined) THEN
+       ! KG workaround.
+       ! This will be deleted (replaced by code in mp_new).
+       ndims = 2
+       dims(1:2) = (/ SIZE (mp_env%mp%pgrid, 1), SIZE (mp_env%mp%pgrid, 2) /)
+       CALL mp_cart_create (mp_env%mp%mp_group, ndims,&
+            dims, my_pos,&
+            tmp_group)
+       CALL cp_assert (my_pos(1) .EQ. mp_env%mp%myprow,&
+            cp_fatal_level, cp_internal_error, "mp_grid_setup",&
+            "Got different MPI process grid")
+       CALL cp_assert (my_pos(2) .EQ. mp_env%mp%mypcol,&
+            cp_fatal_level, cp_internal_error, "mp_grid_setup",&
+            "Got different MPI process grid")
+       !
+       CALL mp_cart_sub (tmp_group, (/.FALSE., .TRUE./), mp_env%mp%prow_group)
+       CALL mp_cart_sub (tmp_group, (/.TRUE., .FALSE./), mp_env%mp%pcol_group)
+       CALL mp_comm_free (tmp_group)
+       mp_env%mp%subgroups_defined = .TRUE.
+    ENDIF
+  END SUBROUTINE dbcsr_mp_grid_setup
 
 ! *****************************************************************************
 !> \brief Locks the DBCSR data structure for modification.
@@ -620,12 +684,26 @@ CONTAINS
     IF (ASSOCIATED (mp_env%mp)) THEN
        mp_env%mp%refcount = mp_env%mp%refcount - 1
        IF (mp_env%mp%refcount .LE. 0) THEN
+          IF (mp_env%mp%subgroups_defined) THEN
+             CALL mp_comm_free (mp_env%mp%prow_group)
+             CALL mp_comm_free (mp_env%mp%pcol_group)
+          ENDIF
+          ! KG workaround
+          !CALL mp_comm_free (mp_env%mp%mp_group)
           DEALLOCATE (mp_env%mp%pgrid)
           DEALLOCATE (mp_env%mp)
           NULLIFY (mp_env%mp)
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_mp_release
+
+  PURE FUNCTION dbcsr_mp_get_process(mp_env, prow, pcol) RESULT (process)
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    INTEGER, INTENT(IN)                      :: prow, pcol
+    INTEGER                                  :: process
+
+    process = mp_env%mp%pgrid(prow, pcol)
+  END FUNCTION dbcsr_mp_get_process
 
   PURE SUBROUTINE dbcsr_mp_get_coordinates(mp_env, node, prow, pcol)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -689,6 +767,24 @@ CONTAINS
 
     mypcol = mp_env%mp%mypcol
   END FUNCTION dbcsr_mp_mypcol
+  PURE FUNCTION dbcsr_mp_has_subgroups(mp_env) RESULT (has_subgroups)
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    LOGICAL                                  :: has_subgroups
+
+    has_subgroups = mp_env%mp%subgroups_defined
+  END FUNCTION dbcsr_mp_has_subgroups
+  PURE FUNCTION dbcsr_mp_my_row_group(mp_env) RESULT (row_group)
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    INTEGER                                  :: row_group
+
+    row_group = mp_env%mp%prow_group
+  END FUNCTION dbcsr_mp_my_row_group
+  PURE FUNCTION dbcsr_mp_my_col_group(mp_env) RESULT (col_group)
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
+    INTEGER                                  :: col_group
+
+    col_group = mp_env%mp%pcol_group
+  END FUNCTION dbcsr_mp_my_col_group
   FUNCTION dbcsr_mp_pgrid_equal(mp_env1, mp_env2) RESULT (equal_pgrid)
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env1, mp_env2
     LOGICAL                                  :: equal_pgrid

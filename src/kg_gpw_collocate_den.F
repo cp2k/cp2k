@@ -26,6 +26,8 @@ MODULE kg_gpw_collocate_den
                                              dbcsr_from_sm,&
                                              sm_from_dbcsr
   USE cube_utils,                      ONLY: cube_info_type
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_mp
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -678,8 +680,8 @@ CONTAINS
     !CALL dbcsr_init(matrix_p, error)!sm->dbcsr
     !CALL dbcsr_init(matrix_h, error)!sm->dbcsr
     CALL dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error, distribution_2d)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error, distribution_2d)!sm->dbcsr
-
+    CALL dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error, distribution_2d,&
+         mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_p)))!sm->dbcsr
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
     IF (PRESENT(compute_tau)) THEN

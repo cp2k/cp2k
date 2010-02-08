@@ -44,7 +44,9 @@ MODULE dkh_main
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_release,&
                                              dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_get_block_p
@@ -308,7 +310,8 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
-    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error=error,&
+         mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_s(1)%matrix)))
     ALLOCATE (rbs(natom), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_pgf, rbs, last_pgf)

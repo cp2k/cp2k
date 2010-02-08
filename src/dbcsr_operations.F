@@ -246,10 +246,12 @@ CONTAINS
     CHARACTER(LEN=80), PARAMETER :: &
       fdata = '(A,1X,I4,"(",2(I3),"x",2(I3),")","(",I3,"x",I3,")")', fxfer = &
       '(A,1X,I4,"->",I4,2(1X,"(",I3,"x",I3,")"),1X,"IM (",I3,"x",I3,")"))'
-    INTEGER, PARAMETER                       :: idata = 1, imeta = 2
+    INTEGER, PARAMETER                       :: idata = 1, imeta = 2, &
+                                                M_L = 2, M_P = 1, M_R = 3, &
+                                                RC_C = 2, RC_R = 1
 
     CHARACTER                                :: data_type
-    INTEGER :: debug_level, i, ithread, left_col_image, left_col_mult, &
+    INTEGER :: debug_level, grp, i, ithread, left_col_image, left_col_mult, &
       left_col_nimages, left_col_v_offset, left_dst_icol, left_dst_irow, &
       left_dst_p, left_dst_pcol, left_dst_prow, left_dst_v_col, &
       left_dst_v_row, left_recv_icol, left_recv_irow, left_recv_p, &
@@ -280,6 +282,7 @@ CONTAINS
                                                 right_sizes
     INTEGER, ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: all_sizes
+    INTEGER, DIMENSION(3, 2)                 :: mp_rc_groups
     INTEGER, DIMENSION(:), POINTER           :: left_index_rp, left_index_sp, &
                                                 right_index_rp, right_index_sp
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
@@ -337,6 +340,24 @@ CONTAINS
     left_pgrid => dbcsr_mp_pgrid (left_mp_obj)
     right_pgrid => dbcsr_mp_pgrid (right_mp_obj)
     product_pgrid => dbcsr_mp_pgrid (product_mp_obj)
+    CALL dbcsr_mp_grid_setup (product_mp_obj)
+    CALL dbcsr_assert (dbcsr_mp_has_subgroups (product_mp_obj),&
+         cp_fatal_level, cp_internal_error, routineN,&
+         "Row/column subgroups must be defined")
+    mp_rc_groups(M_P, 1:2) = (/ dbcsr_mp_my_row_group (product_mp_obj),&
+                                dbcsr_mp_my_col_group (product_mp_obj) /)
+    CALL dbcsr_mp_grid_setup (left_mp_obj)
+    CALL dbcsr_assert (dbcsr_mp_has_subgroups (left_mp_obj),&
+         cp_fatal_level, cp_internal_error, routineN,&
+         "Row/column subgroups must be defined")
+    mp_rc_groups(M_L, 1:2) = (/ dbcsr_mp_my_row_group (left_mp_obj),&
+                                dbcsr_mp_my_col_group (left_mp_obj) /)
+    CALL dbcsr_mp_grid_setup (right_mp_obj)
+    CALL dbcsr_assert (dbcsr_mp_has_subgroups (right_mp_obj),&
+         cp_fatal_level, cp_internal_error, routineN,&
+         "Row/column subgroups must be defined")
+    mp_rc_groups(M_R, 1:2) = (/ dbcsr_mp_my_row_group (right_mp_obj),&
+                                dbcsr_mp_my_col_group (right_mp_obj) /)
     ! Dummy checks
     ! left/right matching
     CALL cp_assert (left_col_nimages .EQ. right_row_mult&
@@ -660,32 +681,36 @@ CONTAINS
                   right_dst_prow, right_dst_irow,&
                   right_dst_pcol, right_dst_icol,&
                   right_dst_v_row, right_dst_v_col
+             ! These are column-communicator relative
+             right_send_p = right_send_prow
+             right_recv_p = right_recv_prow
+             grp = mp_rc_groups(M_R, RC_C)
              SELECT CASE (data_type)
              CASE (dbcsr_type_real_4)
                 CALL mp_isend (right_data_sp%d%r_sp, right_send_p,&
-                     mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
                 CALL mp_irecv (right_data_rp%d%r_sp, right_recv_p,&
-                     mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
              CASE (dbcsr_type_real_8)
                 CALL mp_isend (right_data_sp%d%r_dp, right_send_p,&
-                     mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
                 CALL mp_irecv (right_data_rp%d%r_dp, right_recv_p,&
-                     mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
              CASE (dbcsr_type_complex_4)
                 CALL mp_isend (right_data_sp%d%c_sp, right_send_p,&
-                     mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
                 CALL mp_irecv (right_data_rp%d%c_sp, right_recv_p,&
-                     mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
              CASE (dbcsr_type_complex_8)
                 CALL mp_isend (right_data_sp%d%c_dp, right_send_p,&
-                     mp_group, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
                 CALL mp_irecv (right_data_rp%d%c_dp, right_recv_p,&
-                     mp_group, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
              END SELECT
              CALL mp_isend (right_index_sp, right_send_p,&
-                  mp_group, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
+                  grp, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
              CALL mp_irecv (right_index_rp, right_recv_p,&
-                  mp_group, right_index_rr(v_ki+1, 1), tag=right_src_v_row)
+                  grp, right_index_rr(v_ki+1, 1), tag=right_src_v_row)
           ENDDO
        ENDIF xfer_right
        !
@@ -841,32 +866,36 @@ CONTAINS
                   left_dst_prow, left_dst_irow,&
                   left_dst_pcol, left_dst_icol,&
                   left_dst_v_row, left_dst_v_col
+             ! These are column-communicator relative
+             left_send_p = left_send_pcol
+             left_recv_p = left_recv_pcol
+             grp = mp_rc_groups(M_L, RC_R)
              SELECT CASE (data_type)
              CASE (dbcsr_type_real_4)
                 CALL mp_isend (left_data_sp%d%r_sp, left_send_p,&
-                     mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
                 CALL mp_irecv (left_data_rp%d%r_sp, left_recv_p,&
-                     mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
              CASE (dbcsr_type_real_8)
                 CALL mp_isend (left_data_sp%d%r_dp, left_send_p,&
-                     mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
                 CALL mp_irecv (left_data_rp%d%r_dp, left_recv_p,&
-                     mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
              CASE (dbcsr_type_complex_4)
                 CALL mp_isend (left_data_sp%d%c_sp, left_send_p,&
-                     mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
                 CALL mp_irecv (left_data_rp%d%c_sp, left_recv_p,&
-                     mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
              CASE (dbcsr_type_complex_8)
                 CALL mp_isend (left_data_sp%d%c_dp, left_send_p,&
-                     mp_group, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
                 CALL mp_irecv (left_data_rp%d%c_dp, left_recv_p,&
-                     mp_group, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
              END SELECT
              CALL mp_isend (left_index_sp, left_send_p,&
-                  mp_group, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
+                  grp, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
              CALL mp_irecv (left_index_rp, left_recv_p,&
-                  mp_group, left_index_rr(1, v_ki+1), tag=left_src_v_col)
+                  grp, left_index_rr(1, v_ki+1), tag=left_src_v_col)
           ENDDO
        ENDIF xfer_left
        !
@@ -5002,33 +5031,37 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DBG 'E'
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
-       CALL mp_alltoall(&
-            send_data%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            mp_group)
+       CALL hybrid_alltoall_s1(&
+            send_data%d%r_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_obj_new)
     CASE (dbcsr_type_real_8)
-       CALL mp_alltoall(&
-            send_data%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            mp_group)
+       !CALL mp_alltoall(&
+       !     send_data%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+       !     recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
+       !     mp_group)
+       CALL hybrid_alltoall_d1 (&
+            send_data%d%r_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_obj_new)
     CASE (dbcsr_type_complex_4)
-       CALL mp_alltoall(&
-            send_data%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            mp_group)
+       CALL hybrid_alltoall_c1(&
+            send_data%d%c_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_obj_new)
     CASE (dbcsr_type_complex_8)
-       CALL mp_alltoall(&
-            send_data%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            mp_group)
+       CALL hybrid_alltoall_z1(&
+            send_data%d%c_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_obj_new)
     CASE default
        CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
             routineN, "Invalid matrix type")
     END SELECT
     DBG 'F'
     DBG 'send_data'
-    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
-         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
+    CALL hybrid_alltoall_i1(send_meta(:), SUM(metalen*total_send_count(1,:)), metalen*total_send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), SUM(metalen*total_recv_count(1,:)), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
     DBG 'G'
     !
     t_unpack = m_walltime()
@@ -5383,25 +5416,29 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DBG 'E'
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
-       CALL mp_alltoall(&
-            send_data%d%r_sp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            mp_group)
+       CALL hybrid_alltoall_s1(&
+            send_data%d%r_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_obj_new)
     CASE (dbcsr_type_real_8)
-       CALL mp_alltoall(&
-            send_data%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            mp_group)
+       !CALL mp_alltoall(&
+       !     send_data%d%r_dp(:), total_send_count(2,:), sd_disp(:)-1,&
+       !     recv_data%d%r_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
+       !     mp_group)
+       CALL hybrid_alltoall_d1 (&
+            send_data%d%r_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%r_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_obj_new)
     CASE (dbcsr_type_complex_4)
-       CALL mp_alltoall(&
-            send_data%d%c_sp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%c_sp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            mp_group)
+       CALL hybrid_alltoall_c1(&
+            send_data%d%c_sp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_sp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_obj_new)
     CASE (dbcsr_type_complex_8)
-       CALL mp_alltoall(&
-            send_data%d%c_dp(:), total_send_count(2,:), sd_disp(:)-1,&
-            recv_data%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
-            mp_group)
+       CALL hybrid_alltoall_z1(&
+            send_data%d%c_dp(:), SUM(total_send_count(2,:)), total_send_count(2,:), sd_disp(:)-1,&
+            recv_data%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
+            mp_obj_new)
     END SELECT
     !CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
     !     recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
@@ -5411,8 +5448,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     IF (dbg) WRITE(*,ifmt) send_meta
     DBG 'send_data'
     !IF (dbg) WRITE(*,'(10(1X,F5.2))') send_data
-    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
-         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
+    CALL hybrid_alltoall_i1(send_meta(:), SIZE(send_meta), metalen*total_send_count(1,:), sm_disp(:)-1,&
+         recv_meta(:), SIZE(recv_meta), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)
     DBG 'recv_meta'
     IF (dbg) WRITE(*,ifmt) recv_meta
     DBG 'recv_data'

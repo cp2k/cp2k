@@ -52,13 +52,13 @@ MODULE cp_dbcsr_operations
        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, &
        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_get_coordinates, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_row_block_sizes, dbcsr_scalar, &
-       dbcsr_scalar_are_equal, dbcsr_scalar_one, dbcsr_scalar_zero, &
-       dbcsr_valid_index
+       dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
+       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
+       dbcsr_scalar_zero, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_complete_redistribute, dbcsr_conjg, &
        dbcsr_copy, dbcsr_distribute, dbcsr_filter, dbcsr_get_block, &
@@ -233,12 +233,13 @@ CONTAINS
 !> \par History
 !>    move form dbcsr_operation 01.2010
 ! *****************************************************************************
-  SUBROUTINE dbcsr_dist2d_to_dist(dist2d, dist, error)
+  SUBROUTINE dbcsr_dist2d_to_dist(dist2d, dist, error, mp_obj)
     TYPE(distribution_2d_type), INTENT(IN), &
       TARGET                                 :: dist2d
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_mp_obj), INTENT(IN), OPTIONAL :: mp_obj
 
     INTEGER                                  :: mypcol, myproc, myprow, &
                                                 numproc
@@ -262,8 +263,13 @@ CONTAINS
          blacs2mpi=pgrid)
     myproc = para_env%mepos
     numproc = para_env%num_pe
-    CALL dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc,&
-         myprow, mypcol)
+    IF (PRESENT (mp_obj)) THEN
+       mp_env = mp_obj
+       CALL dbcsr_mp_hold (mp_env)
+    ELSE
+       CALL dbcsr_mp_new(mp_env, pgrid, para_env%group, myproc, numproc,&
+            myprow, mypcol)
+    ENDIF
     CALL array_nullify (rd)
     CALL array_nullify (cd)
     CALL array_new(rd, row_dist_data)
@@ -3720,12 +3726,13 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[in] sm    cp2k sparse matrix
 !> \param[in,out] error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_from_sm(matrix, sm, error, distribution_2d)
+  SUBROUTINE dbcsr_from_sm(matrix, sm, error, distribution_2d, mp_obj)
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
     TYPE(real_matrix_type), POINTER          :: sm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
+    TYPE(dbcsr_mp_obj), INTENT(IN), OPTIONAL :: mp_obj
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_from_sm', &
       routineP = moduleN//':'//routineN
@@ -3761,7 +3768,7 @@ END FUNCTION cp_dbcsr_get_id_nr
        dist2d => sm%distribution_2d
     ENDIF
     CALL dbcsr_distribution_init (dist)
-    CALL dbcsr_dist2d_to_dist (dist2d, dist, error)
+    CALL dbcsr_dist2d_to_dist (dist2d, dist, mp_obj=mp_obj, error=error)
     symmetric = (sm%symmetry .EQ. "symmetric")
     nblkrows_total = sm%nblock_row
     nblkcols_total = sm%nblock_col

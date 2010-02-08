@@ -91,7 +91,9 @@ MODULE dbcsr_types
 !> \var mp_group              message-passing group ID
 !> \var pgrid                 processor grid
 !> \var refcount              reference counter
-!> \var numthreads, mythread  number of threads
+!> \var subgroups_defined     whether the subgroups are defined
+!> \var prow_group            per-process-row communicator
+!> \var pcol_group            pre-process-column communicator
 ! *****************************************************************************
   TYPE dbcsr_mp_type
      INTEGER                            :: mynode, numnodes, myprow, mypcol
@@ -99,6 +101,8 @@ MODULE dbcsr_types
      INTEGER, DIMENSION(:,:), POINTER   :: pgrid
      INTEGER                            :: numthreads
      INTEGER                            :: refcount
+     LOGICAL                            :: subgroups_defined
+     INTEGER                            :: prow_group, pcol_group
   END TYPE dbcsr_mp_type
 
 ! *****************************************************************************

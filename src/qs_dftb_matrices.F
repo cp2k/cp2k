@@ -34,7 +34,9 @@ MODULE qs_dftb_matrices
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_release,&
                                              dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_add,&
                                              dbcsr_copy,&
@@ -227,7 +229,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       gamma_matrix=gamma_matrix,error=error)
 
-      CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+      CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error,&
+           mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_s(1)%matrix)))
       ALLOCATE (rbs(natom), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL convert_offsets_to_sizes (felem, rbs, lelem)

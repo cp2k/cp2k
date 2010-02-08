@@ -136,7 +136,7 @@ CONTAINS
 
     ALLOCATE (array%low)
     array%low%refcount = 1
-    ub = UBOUND(DATA, 1)
+    ub = lb + SIZE(DATA) - 1
     ALLOCATE (array%low%data(lb:ub))
     array%low%data(:) = DATA(:)
   END SUBROUTINE array_new_i1d_lb
@@ -170,7 +170,8 @@ CONTAINS
 
     ALLOCATE (array%low)
     array%low%refcount = 1
-    ub = UBOUND(DATA)
+    ub(1) = lb(1) + SIZE(DATA,1) - 1
+    ub(2) = lb(2) + SIZE(DATA,2) - 1
     ALLOCATE (array%low%data(lb(1):ub(1), lb(2):ub(2)))
     array%low%data(:,:) = DATA(:,:)
   END SUBROUTINE array_new_i2d_lb
@@ -204,7 +205,7 @@ CONTAINS
 
     ALLOCATE (array%low)
     array%low%refcount = 1
-    ub = UBOUND(DATA, 1)
+    ub = lb + SIZE(DATA) - 1
     ALLOCATE (array%low%data(lb:ub))
     array%low%data(:) = DATA(:)
   END SUBROUTINE array_new_d1d_lb
@@ -239,7 +240,8 @@ CONTAINS
 
     ALLOCATE (array%low)
     array%low%refcount = 1
-    ub = UBOUND(DATA)
+    ub(1) = lb(1) + SIZE(DATA,1) - 1
+    ub(2) = lb(2) + SIZE(DATA,2) - 1
     ALLOCATE (array%low%data(lb(1):ub(1), lb(2):ub(2)))
     array%low%data(:,:) = DATA(:,:)
   END SUBROUTINE array_new_d2d_lb
