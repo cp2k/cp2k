@@ -148,6 +148,7 @@ OBJECTS_GENERIC =\
  d3_poly.o\
  dbcsr_methods.o\
  dbcsr_operations.o\
+ dbcsr_tests.o\
  dbcsr_util.o\
  dft_plus_u.o\
  dg_rho0_types.o\

@@ -19,13 +19,13 @@ MODULE dbcsr_tests
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE cp_dbcsr_operations
-  USE dbcsr_message_passing,           ONLY: mp_cart_create,&
+  USE cp_dbcsr_operations,             ONLY: dbcsr_multiply
+  USE dbcsr_message_passing,           ONLY: dmp_max,&
+                                             mp_cart_create,&
                                              mp_cart_rank,&
                                              mp_comm_null,&
                                              mp_dims_create,&
                                              mp_environ,&
-                                             mp_max=>dmp_max,&
                                              mp_sum,&
                                              mp_sync
   USE dbcsr_methods
@@ -313,7 +313,7 @@ CONTAINS
        ENDIF
        t2 = m_walltime()
        t_max = t2 - t1
-       CALL mp_max (t_max, group)
+       CALL dmp_max (t_max, group)
        flop_sum = flop
        CALL mp_sum (flop_sum, group)
        t_max = MAX (t_max, 0.001_real_8)
@@ -474,6 +474,7 @@ CONTAINS
 
 !
 
+    NULLIFY (sizes)
     nsize_mix = SIZE (size_mix) / 2
     ALLOCATE (mixer (3, nsize_mix))
     mixer(1, :) = size_mix(1:nsize_mix*2-1:2)
