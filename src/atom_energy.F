@@ -205,7 +205,7 @@ CONTAINS
         END DO
 
         ! is there a pseudo potential
-        pp_calc = INDEX(tmpstringlist(1),"CORE") /= 0
+        pp_calc = ANY(INDEX(tmpstringlist(1:),"CORE") /= 0)
         IF ( pp_calc ) THEN
           ! get and set the core occupations 
           CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist, error=error)

@@ -220,6 +220,7 @@ CONTAINS
       END DO
  
       IF (js==0 .AND. mult==-2) mult=1
+      IF (js==0 .AND. mult==-3) mult=1
       IF (js==0) THEN
         CPAssert(mult==1,cp_failure_level,routineP,error,failure)
       END IF
@@ -232,7 +233,7 @@ CONTAINS
         IF(mult==-3) mult=MOD(k,2)+1
         CPAssert(MOD(k+1-mult,2)==0,cp_failure_level,routineP,error,failure)
       END IF
-      IF (js>1) THEN
+      IF (js>1 .AND. mult/=-2) THEN
         CPAssert(mult==-2,cp_failure_level,routineP,error,failure)
       END IF
       
@@ -735,10 +736,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE exchange_numeric ( kmat, state, wfn, basis, error )
+  SUBROUTINE exchange_numeric ( kmat, state, occ, wfn, basis, error )
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: kmat
     TYPE(atom_state), INTENT(IN)             :: state
+    REAL(KIND=dp), DIMENSION(0:, :), &
+      INTENT(IN)                             :: occ
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: wfn
     TYPE(atom_basis_type), INTENT(IN)        :: basis
@@ -790,7 +793,7 @@ CONTAINS
               nai(:) = orb(:,i)*basis%bf(:,ia,lad)
               CALL potential_numeric(cpot,nai,nu,basis%grid,error)
               DO ib=1,basis%nbas(lad)
-                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*state%occupation(lbc,i)* &
+                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*occ(lbc,i)* &
                   integrate_grid(cpot,orb(:,i),basis%bf(:,ib,lad),basis%grid)
               END DO
             END DO
@@ -809,10 +812,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE exchange_semi_analytic ( kmat, state, wfn, basis, error )
+  SUBROUTINE exchange_semi_analytic ( kmat, state, occ, wfn, basis, error )
     REAL(KIND=dp), DIMENSION(:, :, 0:), &
       INTENT(INOUT)                          :: kmat
     TYPE(atom_state), INTENT(IN)             :: state
+    REAL(KIND=dp), DIMENSION(0:, :), &
+      INTENT(IN)                             :: occ
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: wfn
     TYPE(atom_basis_type), INTENT(IN)        :: basis
@@ -873,7 +878,7 @@ CONTAINS
                 cpot(:) = cpot(:) + pot(:,ia,k)*wfn(k,i,lbc)
               END DO
               DO ib=1,basis%nbas(lad)
-                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*state%occupation(lbc,i)* &
+                kmat(ia,ib,lad) = kmat(ia,ib,lad) + almn*occ(lbc,i)* &
                   integrate_grid(cpot,orb(:,i),basis%bf(:,ib,lad),basis%grid)
               END DO
             END DO
@@ -1382,8 +1387,8 @@ CONTAINS
 
   END SUBROUTINE err_matrix
 ! *****************************************************************************
-  SUBROUTINE slater_density(density,zcore,state,grid,error)
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density
+  SUBROUTINE slater_density(density1,density2,zcore,state,grid,error)
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: density1, density2
     INTEGER, INTENT(IN)                      :: zcore
     TYPE(atom_state), INTENT(IN)             :: state
     TYPE(grid_atom_type), INTENT(IN)         :: grid
@@ -1396,7 +1401,8 @@ CONTAINS
     INTEGER, DIMENSION(4, 7)                 :: ne
     REAL(KIND=dp)                            :: a, pf
 
-    density = 0._dp
+    density1 = 0._dp
+    density2 = 0._dp
     ne(1:4,1:7) = state%core(0:3,1:7) + state%occ(0:3,1:7)
     DO l=0,state%maxl_occ
       DO i=1,SIZE(state%occ,2)
@@ -1404,11 +1410,15 @@ CONTAINS
           n = i+l
           a = srules(zcore,ne,n,l)
           pf = 1._dp/SQRT(fac(2*n)) * (2._dp*a)**(n+0.5_dp)
-          density(:) = density(:)+state%occ(l,i)*(grid%rad(:)**(n-1)*EXP(-a*grid%rad(:))*pf)**2
+          IF (state%multiplicity == -1) THEN
+            density1(:) = density1(:)+state%occ(l,i)/fourpi*(grid%rad(:)**(n-1)*EXP(-a*grid%rad(:))*pf)**2
+          ELSE
+            density1(:) = density1(:)+state%occa(l,i)/fourpi*(grid%rad(:)**(n-1)*EXP(-a*grid%rad(:))*pf)**2
+            density2(:) = density2(:)+state%occb(l,i)/fourpi*(grid%rad(:)**(n-1)*EXP(-a*grid%rad(:))*pf)**2
+          END IF
         END IF
       END DO
     END DO
-    density(:) = density(:)/fourpi
 
   END SUBROUTINE slater_density
 ! *****************************************************************************

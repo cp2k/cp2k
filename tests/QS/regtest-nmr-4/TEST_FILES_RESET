@@ -329,3 +329,7 @@ c2h2_list-1.inp
 o2-gapw-uks-1.inp
 # fm to dbcsr
 o2-gapw-uks-restart-1.inp
+# atomic code: unrestricted calculations 
+o2-gapw-uks-1.inp
+# atomic code: unrestricted calculations 
+o2-gapw-uks-restart-1.inp

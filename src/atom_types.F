@@ -142,14 +142,14 @@ MODULE atom_types
 !> Holds atomic orbitals and energies
 ! *****************************************************************************
   TYPE atom_orbitals 
-    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: wfn
-    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: pmat
-    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: ener
-    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: refene,refchg,refnod
-    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: wrefene,wrefchg,wrefnod
-    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: crefene,crefchg,crefnod
-    REAL(KIND=dp),DIMENSION(:),POINTER            :: wpsir0
-    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: rcmax
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: wfn,wfna,wfnb
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: pmat,pmata,pmatb
+    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: ener,enera,enerb
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: refene,refchg,refnod
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: wrefene,wrefchg,wrefnod
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: crefene,crefchg,crefnod
+    REAL(KIND=dp),DIMENSION(:,:),POINTER          :: wpsir0
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: rcmax
   END TYPE atom_orbitals
 
 !> Operator matrices
@@ -676,37 +676,43 @@ CONTAINS
     ALLOCATE(orbs,STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     
-    ALLOCATE(orbs%wfn(mbas,mo,0:3),STAT=ierr)
+    ALLOCATE(orbs%wfn(mbas,mo,0:3),orbs%wfna(mbas,mo,0:3),orbs%wfnb(mbas,mo,0:3),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%wfn = 0._dp
+    orbs%wfna = 0._dp
+    orbs%wfnb = 0._dp
     
-    ALLOCATE(orbs%pmat(mbas,mbas,0:3),STAT=ierr)
+    ALLOCATE(orbs%pmat(mbas,mbas,0:3),orbs%pmata(mbas,mbas,0:3),orbs%pmatb(mbas,mbas,0:3),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%pmat = 0._dp
+    orbs%pmata = 0._dp
+    orbs%pmatb = 0._dp
 
-    ALLOCATE(orbs%ener(mo,0:3),STAT=ierr)
+    ALLOCATE(orbs%ener(mo,0:3),orbs%enera(mo,0:3),orbs%enerb(mo,0:3),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%ener = 0._dp
+    orbs%enera = 0._dp
+    orbs%enerb = 0._dp
 
-    ALLOCATE(orbs%refene(mo,0:3),orbs%refchg(mo,0:3),orbs%refnod(mo,0:3),STAT=ierr)
+    ALLOCATE(orbs%refene(mo,0:3,2),orbs%refchg(mo,0:3,2),orbs%refnod(mo,0:3,2),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%refene = 0._dp
     orbs%refchg = 0._dp
     orbs%refnod = 0._dp
-    ALLOCATE(orbs%wrefene(mo,0:3),orbs%wrefchg(mo,0:3),orbs%wrefnod(mo,0:3),STAT=ierr)
+    ALLOCATE(orbs%wrefene(mo,0:3,2),orbs%wrefchg(mo,0:3,2),orbs%wrefnod(mo,0:3,2),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%wrefene = 0._dp
     orbs%wrefchg = 0._dp
     orbs%wrefnod = 0._dp
-    ALLOCATE(orbs%crefene(mo,0:3),orbs%crefchg(mo,0:3),orbs%crefnod(mo,0:3),STAT=ierr)
+    ALLOCATE(orbs%crefene(mo,0:3,2),orbs%crefchg(mo,0:3,2),orbs%crefnod(mo,0:3,2),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%crefene = 0._dp
     orbs%crefchg = 0._dp
     orbs%crefnod = 0._dp
-    ALLOCATE(orbs%rcmax(mo,0:3),STAT=ierr)
+    ALLOCATE(orbs%rcmax(mo,0:3,2),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%rcmax = 0._dp
-    ALLOCATE(orbs%wpsir0(mo),STAT=ierr)
+    ALLOCATE(orbs%wpsir0(mo,2),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     orbs%wpsir0 = 0._dp
 
@@ -727,19 +733,19 @@ CONTAINS
     CPAssert(ASSOCIATED(orbs),cp_failure_level,routineP,error,failure)
 
     IF(ASSOCIATED(orbs%wfn)) THEN
-      DEALLOCATE(orbs%wfn,STAT=ierr)
+      DEALLOCATE(orbs%wfn,orbs%wfna,orbs%wfnb,STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-      NULLIFY(orbs%wfn)
+      NULLIFY(orbs%wfn,orbs%wfna,orbs%wfnb)
     END IF
     IF(ASSOCIATED(orbs%pmat)) THEN
-      DEALLOCATE(orbs%pmat,STAT=ierr)
+      DEALLOCATE(orbs%pmat,orbs%pmata,orbs%pmatb,STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-      NULLIFY(orbs%pmat)
+      NULLIFY(orbs%pmat,orbs%pmata,orbs%pmatb)
     END IF
     IF(ASSOCIATED(orbs%ener)) THEN
-      DEALLOCATE(orbs%ener,STAT=ierr)
+      DEALLOCATE(orbs%ener,orbs%enera,orbs%enerb,STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-      NULLIFY(orbs%ener)
+      NULLIFY(orbs%ener,orbs%enera,orbs%enerb)
     END IF
     IF(ASSOCIATED(orbs%refene)) THEN
       DEALLOCATE(orbs%refene,STAT=ierr)

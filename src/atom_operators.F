@@ -768,6 +768,7 @@ CONTAINS
     ! fill default occupation
     state%core = 0._dp
     state%occ = 0._dp
+    state%multiplicity = -1
     z = NINT(zcore)
     DO l=0,3
       IF ( ptable(z)%e_conv(l) /= 0 ) THEN
@@ -788,7 +789,7 @@ CONTAINS
     modpot = -zcore/grid%rad(:)
 
     ! Coulomb potential
-    CALL slater_density(rho,NINT(zcore),state,grid,error)
+    CALL slater_density(rho,pot,NINT(zcore),state,grid,error)
     CALL coulomb_potential_numeric(pot,rho,grid,error)
     modpot = modpot + pot
 

@@ -416,7 +416,7 @@ CONTAINS
     ALLOCATE(wem(n,m),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     wem = 1._dp
-    ALLOCATE(pval(2,10,0:3,m,n),STAT=ierr)
+    ALLOCATE(pval(4,10,0:3,m,n),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
     CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", explicit=explicit, error=error)
@@ -438,6 +438,7 @@ CONTAINS
 
     ALLOCATE(xi(200),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+!decide here what to optimize
     CALL get_pseudo_param(xi,ostate%nvar,ppot%gth_pot,error)
     ALLOCATE(x(ostate%nvar),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -462,46 +463,100 @@ CONTAINS
       DO j=1,SIZE(atom_info,2)
         atom => atom_info(i,j)%atom
         IF(atom_consistent_method(atom%method_type,atom%state%multiplicity)) THEN
-          atom%weight = wem(i,j)
-          ncore = get_maxn_occ(atom_info(i,j)%atom%state%core)
-          DO l=0,3
-            np = atom%state%maxn_calc(l)
-            DO k=1,np
-              CALL atom_orbital_max(rmax,atom_refs(i,j)%atom%orbitals%wfn(:,ncore(l)+k,l),&
-                                    rcov,l,atom_refs(i,j)%atom%basis,error)
-              atom%orbitals%rcmax(k,l) = MAX(rcov,rmax)
-              CALL atom_orbital_charge(charge,atom_refs(i,j)%atom%orbitals%wfn(:,ncore(l)+k,l),&
-                                       atom%orbitals%rcmax(k,l),l,atom_refs(i,j)%atom%basis,error)
-              atom%orbitals%refene(k,l) = atom_refs(i,j)%atom%orbitals%ener(ncore(l)+k,l)
-              atom%orbitals%refchg(k,l) = charge
-              IF ( k > atom%state%maxn_occ(l) ) THEN
-                IF ( k <= atom%state%maxn_occ(l)+1 ) THEN
-                  atom%orbitals%wrefene(k,l) = w_virt
-                  atom%orbitals%wrefchg(k,l) = w_virt/100._dp
+          IF(atom%state%multiplicity==-1) THEN
+            ! no spin polarization
+            atom%weight = wem(i,j)
+            ncore = get_maxn_occ(atom_info(i,j)%atom%state%core)
+            DO l=0,3
+              np = atom%state%maxn_calc(l)
+              DO k=1,np
+                CALL atom_orbital_max(rmax,atom_refs(i,j)%atom%orbitals%wfn(:,ncore(l)+k,l),&
+                                      rcov,l,atom_refs(i,j)%atom%basis,error)
+                atom%orbitals%rcmax(k,l,1) = MAX(rcov,rmax)
+                CALL atom_orbital_charge(charge,atom_refs(i,j)%atom%orbitals%wfn(:,ncore(l)+k,l),&
+                                         atom%orbitals%rcmax(k,l,1),l,atom_refs(i,j)%atom%basis,error)
+                atom%orbitals%refene(k,l,1) = atom_refs(i,j)%atom%orbitals%ener(ncore(l)+k,l)
+                atom%orbitals%refchg(k,l,1) = charge
+                IF ( k > atom%state%maxn_occ(l) ) THEN
+                  IF ( k <= atom%state%maxn_occ(l)+1 ) THEN
+                    atom%orbitals%wrefene(k,l,1) = w_virt
+                    atom%orbitals%wrefchg(k,l,1) = w_virt/100._dp
+                  ELSE
+                    atom%orbitals%wrefene(k,l,1) = 0._dp
+                    atom%orbitals%wrefchg(k,l,1) = 0._dp
+                  END IF
+                  atom%orbitals%crefene(k,l,1) = t_virt
+                ELSEIF ( k < atom%state%maxn_occ(l) ) THEN
+                  atom%orbitals%wrefene(k,l,1) = w_semi
+                  atom%orbitals%wrefchg(k,l,1) = w_semi/100._dp
+                  atom%orbitals%crefene(k,l,1) = t_semi
                 ELSE
-                  atom%orbitals%wrefene(k,l) = 0._dp
-                  atom%orbitals%wrefchg(k,l) = 0._dp
+                  atom%orbitals%wrefene(k,l,1) = w_valence
+                  atom%orbitals%wrefchg(k,l,1) = w_valence/100._dp
+                  atom%orbitals%crefene(k,l,1) = t_valence
+                  IF ( l==0 ) THEN
+                    atom%orbitals%wpsir0(k,1) = w_psir0
+                  END IF
                 END IF
-                atom%orbitals%crefene(k,l) = t_virt
-              ELSEIF ( k < atom%state%maxn_occ(l) ) THEN
-                atom%orbitals%wrefene(k,l) = w_semi
-                atom%orbitals%wrefchg(k,l) = w_semi/100._dp
-                atom%orbitals%crefene(k,l) = t_semi
-              ELSE
-                atom%orbitals%wrefene(k,l) = w_valence
-                atom%orbitals%wrefchg(k,l) = w_valence/100._dp
-                atom%orbitals%crefene(k,l) = t_valence
-                IF ( l==0 ) THEN
-                  atom%orbitals%wpsir0(k) = w_psir0
+              END DO
+              DO k=1,np
+                atom%orbitals%refnod(k,l,1) = REAL(k-1,KIND=dp)
+                ! we only enforce 0-nodes for the first state
+                IF ( k==1 .AND. atom%state%occupation(l,k)/=0._dp ) atom%orbitals%wrefnod(k,l,1) = w_node
+              END DO
+            END DO
+          ELSE
+            ! spin polarization
+            atom%weight = wem(i,j)
+            ncore = get_maxn_occ(atom_info(i,j)%atom%state%core)
+            DO l=0,3
+              np = atom%state%maxn_calc(l)
+              DO k=1,np
+                CALL atom_orbital_max(rmax,atom_refs(i,j)%atom%orbitals%wfna(:,ncore(l)+k,l),&
+                                      rcov,l,atom_refs(i,j)%atom%basis,error)
+                atom%orbitals%rcmax(k,l,1) = MAX(rcov,rmax)
+                CALL atom_orbital_max(rmax,atom_refs(i,j)%atom%orbitals%wfnb(:,ncore(l)+k,l),&
+                                      rcov,l,atom_refs(i,j)%atom%basis,error)
+                atom%orbitals%rcmax(k,l,2) = MAX(rcov,rmax)
+                CALL atom_orbital_charge(charge,atom_refs(i,j)%atom%orbitals%wfna(:,ncore(l)+k,l),&
+                                         atom%orbitals%rcmax(k,l,1),l,atom_refs(i,j)%atom%basis,error)
+                atom%orbitals%refene(k,l,1) = atom_refs(i,j)%atom%orbitals%enera(ncore(l)+k,l)
+                atom%orbitals%refchg(k,l,1) = charge
+                CALL atom_orbital_charge(charge,atom_refs(i,j)%atom%orbitals%wfnb(:,ncore(l)+k,l),&
+                                         atom%orbitals%rcmax(k,l,1),l,atom_refs(i,j)%atom%basis,error)
+                atom%orbitals%refene(k,l,2) = atom_refs(i,j)%atom%orbitals%enerb(ncore(l)+k,l)
+                atom%orbitals%refchg(k,l,2) = charge
+                ! the following assignments could be further specialized
+                IF ( k > atom%state%maxn_occ(l) ) THEN
+                  IF ( k <= atom%state%maxn_occ(l)+1 ) THEN
+                    atom%orbitals%wrefene(k,l,1:2) = w_virt
+                    atom%orbitals%wrefchg(k,l,1:2) = w_virt/100._dp
+                  ELSE
+                    atom%orbitals%wrefene(k,l,1:2) = 0._dp
+                    atom%orbitals%wrefchg(k,l,1:2) = 0._dp
+                  END IF
+                  atom%orbitals%crefene(k,l,1:2) = t_virt
+                ELSEIF ( k < atom%state%maxn_occ(l) ) THEN
+                  atom%orbitals%wrefene(k,l,1:2) = w_semi
+                  atom%orbitals%wrefchg(k,l,1:2) = w_semi/100._dp
+                  atom%orbitals%crefene(k,l,1:2) = t_semi
+                ELSE
+                  atom%orbitals%wrefene(k,l,1:2) = w_valence
+                  atom%orbitals%wrefchg(k,l,1:2) = w_valence/100._dp
+                  atom%orbitals%crefene(k,l,1:2) = t_valence
+                  IF ( l==0 ) THEN
+                    atom%orbitals%wpsir0(k,1:2) = w_psir0
+                  END IF
                 END IF
-              END IF
+              END DO
+              DO k=1,np
+                atom%orbitals%refnod(k,l,1:2) = REAL(k-1,KIND=dp)
+                ! we only enforce 0-nodes for the first state
+                IF ( k==1 .AND. atom%state%occa(l,k)/=0._dp ) atom%orbitals%wrefnod(k,l,1) = w_node
+                IF ( k==1 .AND. atom%state%occb(l,k)/=0._dp ) atom%orbitals%wrefnod(k,l,2) = w_node
+              END DO
             END DO
-            DO k=1,np
-              atom%orbitals%refnod(k,l) = REAL(k-1,KIND=dp)
-              ! we only enforce 0-nodes for the first state
-              IF ( k==1 .AND. atom%state%occupation(l,k)/=0._dp ) atom%orbitals%wrefnod(k,l) = w_node
-            END DO
-          END DO
+          END IF
           CALL calculate_atom(atom,0,error=error)
         END IF
       END DO
@@ -518,23 +573,54 @@ CONTAINS
         atom => atom_info(i,j)%atom
         IF(atom_consistent_method(atom%method_type,atom%state%multiplicity)) THEN
           WRITE(iunit,'(/," Reference configuration  ",T31,i5,T50," Method number ",T76,i5)') i,j
-          WRITE(iunit,'("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
-          DO l=0,3
-            np = atom%state%maxn_calc(l)
-            IF (np > 0) THEN
-              DO k=1,np
-                oc = atom%state%occupation(l,k)
-                eig = atom%orbitals%ener(k,l)
-                deig = eig - atom%orbitals%refene(k,l)
-                peig = pval(1,k,l,j,i)/ostate%f * 100._dp
-                CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),atom%orbitals%rcmax(k,l),l,atom%basis,error)
-                drho = charge - atom%orbitals%refchg(k,l)
-                pchg = pval(2,k,l,j,i)/ostate%f * 100._dp
-                WRITE(iunit,'(I5,I5,F14.2,F21.10,F14.6,"[",I2,"]",F13.6,"[",I2,"]")') &
-                            l,k,oc,eig*evolt,deig*evolt,NINT(peig),drho,NINT(pchg)
-              END DO
-            END IF
-          END DO
+          IF(atom%state%multiplicity==-1) THEN
+            ! no spin polarization
+            WRITE(iunit,'("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
+            DO l=0,3
+              np = atom%state%maxn_calc(l)
+              IF (np > 0) THEN
+                DO k=1,np
+                  oc = atom%state%occupation(l,k)
+                  eig = atom%orbitals%ener(k,l)
+                  deig = eig - atom%orbitals%refene(k,l,1)
+                  peig = pval(1,k,l,j,i)/ostate%f * 100._dp
+                  CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),atom%orbitals%rcmax(k,l,1),l,atom%basis,error)
+                  drho = charge - atom%orbitals%refchg(k,l,1)
+                  pchg = pval(2,k,l,j,i)/ostate%f * 100._dp
+                  WRITE(iunit,'(I5,I5,F14.2,F21.10,F14.6,"[",I2,"]",F13.6,"[",I2,"]")') &
+                              l,k,oc,eig*evolt,deig*evolt,NINT(peig),drho,NINT(pchg)
+                END DO
+              END IF
+            END DO
+          ELSE
+            ! spin polarization
+            WRITE(iunit,'("    L    N   Spin Occupation    Eigenvalue [eV]          dE [eV]         dCharge ")')
+            DO l=0,3
+              np = atom%state%maxn_calc(l)
+              IF (np > 0) THEN
+                DO k=1,np
+                  oc = atom%state%occa(l,k)
+                  eig = atom%orbitals%enera(k,l)
+                  deig = eig - atom%orbitals%refene(k,l,1)
+                  peig = pval(1,k,l,j,i)/ostate%f * 100._dp
+                  CALL atom_orbital_charge(charge,atom%orbitals%wfna(:,k,l),atom%orbitals%rcmax(k,l,1),l,atom%basis,error)
+                  drho = charge - atom%orbitals%refchg(k,l,1)
+                  pchg = pval(2,k,l,j,i)/ostate%f * 100._dp
+                  WRITE(iunit,'(I5,I5,2X,A5,F11.2,F19.10,F13.6,"[",I2,"]",F12.6,"[",I2,"]")') &
+                              l,k,"alpha",oc,eig*evolt,deig*evolt,NINT(peig),drho,NINT(pchg)
+                  oc = atom%state%occb(l,k)
+                  eig = atom%orbitals%enerb(k,l)
+                  deig = eig - atom%orbitals%refene(k,l,2)
+                  peig = pval(3,k,l,j,i)/ostate%f * 100._dp
+                  CALL atom_orbital_charge(charge,atom%orbitals%wfnb(:,k,l),atom%orbitals%rcmax(k,l,2),l,atom%basis,error)
+                  drho = charge - atom%orbitals%refchg(k,l,2)
+                  pchg = pval(4,k,l,j,i)/ostate%f * 100._dp
+                  WRITE(iunit,'(I5,I5,2X,A5,F11.2,F19.10,F13.6,"[",I2,"]",F12.6,"[",I2,"]")') &
+                              l,k," beta",oc,eig*evolt,deig*evolt,NINT(peig),drho,NINT(pchg)
+                END DO
+              END IF
+            END DO
+          END IF
         END IF
       END DO
       WRITE(iunit,*)
@@ -586,29 +672,69 @@ CONTAINS
           atom => atom_info(i,j)%atom
           IF(atom_consistent_method(atom%method_type,atom%state%multiplicity)) THEN
             WRITE(iunit,'(/," Reference configuration  ",T31,i5,T50," Method number ",T76,i5)') i,j
-            WRITE(iunit,'("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
-            DO l=0,3
-              np = atom%state%maxn_calc(l)
-              IF (np > 0) THEN
-                DO k=1,np
-                  oc = atom%state%occupation(l,k)
-                  eig = atom%orbitals%ener(k,l)
-                  deig = eig - atom%orbitals%refene(k,l)
-                  peig = pval(1,k,l,j,i)/ostate%f * 100._dp
-                  CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),atom%orbitals%rcmax(k,l),l,atom%basis,error)
-                  drho = charge - atom%orbitals%refchg(k,l)
-                  pchg = pval(2,k,l,j,i)/ostate%f * 100._dp
-                  WRITE(iunit,'(I5,I5,F14.2,F21.10,F14.6,"[",I2,"]",F13.6,"[",I2,"]")') &
-                              l,k,oc,eig*evolt,deig*evolt,NINT(peig),drho,NINT(pchg)
-                END DO
-              END IF
-            END DO
-            np = atom%state%maxn_calc(0)
-            DO k=1,np
-               CALL atom_wfnr0(pv,atom%orbitals%wfn(:,k,0),atom%basis,error)
-               pchg = atom%weight*atom%orbitals%wpsir0(k)*pv*pv/ostate%f * 100._dp
-               WRITE(iunit,'("    s-states"," N=",I5,T40,"Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k,pv,NINT(pchg)
-            END DO
+            IF(atom%state%multiplicity==-1) THEN
+              !no spin polarization
+              WRITE(iunit,'("    L    N    Occupation      Eigenvalue [eV]           dE [eV]          dCharge ")')
+              DO l=0,3
+                np = atom%state%maxn_calc(l)
+                IF (np > 0) THEN
+                  DO k=1,np
+                    oc = atom%state%occupation(l,k)
+                    eig = atom%orbitals%ener(k,l)
+                    deig = eig - atom%orbitals%refene(k,l,1)
+                    peig = pval(1,k,l,j,i)/ostate%f * 100._dp
+                    CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),atom%orbitals%rcmax(k,l,1),l,atom%basis,error)
+                    drho = charge - atom%orbitals%refchg(k,l,1)
+                    pchg = pval(2,k,l,j,i)/ostate%f * 100._dp
+                    WRITE(iunit,'(I5,I5,F14.2,F21.10,F14.6,"[",I2,"]",F13.6,"[",I2,"]")') &
+                                l,k,oc,eig*evolt,deig*evolt,NINT(peig),drho,NINT(pchg)
+                  END DO
+                END IF
+              END DO
+              np = atom%state%maxn_calc(0)
+              DO k=1,np
+                 CALL atom_wfnr0(pv,atom%orbitals%wfn(:,k,0),atom%basis,error)
+                 pchg = atom%weight*atom%orbitals%wpsir0(k,1)*pv*pv/ostate%f * 100._dp
+                 WRITE(iunit,'("    s-states"," N=",I5,T40,"Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k,pv,NINT(pchg)
+              END DO
+            ELSE
+              !spin polarization
+              WRITE(iunit,'("    L    N   Spin Occupation     Eigenvalue [eV]          dE [eV]        dCharge ")')
+              DO l=0,3
+                np = atom%state%maxn_calc(l)
+                IF (np > 0) THEN
+                  DO k=1,np
+                    oc = atom%state%occa(l,k)
+                    eig = atom%orbitals%enera(k,l)
+                    deig = eig - atom%orbitals%refene(k,l,1)
+                    peig = pval(1,k,l,j,i)/ostate%f * 100._dp
+                    CALL atom_orbital_charge(charge,atom%orbitals%wfna(:,k,l),atom%orbitals%rcmax(k,l,1),l,atom%basis,error)
+                    drho = charge - atom%orbitals%refchg(k,l,1)
+                    pchg = pval(2,k,l,j,i)/ostate%f * 100._dp
+                    WRITE(iunit,'(I5,I5,A,F11.2,F20.10,F13.6,"[",I2,"]",F11.6,"[",I2,"]")') &
+                                l,k,"  alpha",oc,eig*evolt,deig*evolt,NINT(peig),drho,NINT(pchg)
+                    oc = atom%state%occb(l,k)
+                    eig = atom%orbitals%enerb(k,l)
+                    deig = eig - atom%orbitals%refene(k,l,2)
+                    peig = pval(3,k,l,j,i)/ostate%f * 100._dp
+                    CALL atom_orbital_charge(charge,atom%orbitals%wfnb(:,k,l),atom%orbitals%rcmax(k,l,2),l,atom%basis,error)
+                    drho = charge - atom%orbitals%refchg(k,l,2)
+                    pchg = pval(4,k,l,j,i)/ostate%f * 100._dp
+                    WRITE(iunit,'(I5,I5,A,F11.2,F20.10,F13.6,"[",I2,"]",F11.6,"[",I2,"]")') &
+                                l,k,"   beta",oc,eig*evolt,deig*evolt,NINT(peig),drho,NINT(pchg)
+                  END DO
+                END IF
+              END DO
+              np = atom%state%maxn_calc(0)
+              DO k=1,np
+                 CALL atom_wfnr0(pv,atom%orbitals%wfna(:,k,0),atom%basis,error)
+                 pchg = atom%weight*atom%orbitals%wpsir0(k,1)*pv*pv/ostate%f * 100._dp
+                 WRITE(iunit,'("    s-states"," N=",I5,T35,"Alpha Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k,pv,NINT(pchg)
+                 CALL atom_wfnr0(pv,atom%orbitals%wfnb(:,k,0),atom%basis,error)
+                 pchg = atom%weight*atom%orbitals%wpsir0(k,2)*pv*pv/ostate%f * 100._dp
+                 WRITE(iunit,'("    s-states"," N=",I5,T36,"Beta Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k,pv,NINT(pchg)
+              END DO
+            END IF
           END IF
           ! Print wfn information
           aref => atom_refs(i,j)%atom
@@ -806,7 +932,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l, n, node
-    REAL(KIND=dp)                            :: charge, de, fde, pv, rcov, tv
+    REAL(KIND=dp)                            :: charge, de, fde, pv, rcov, &
+                                                rcov1, rcov2, tv
     TYPE(atom_integrals), POINTER            :: pp_int
     TYPE(atom_type), POINTER                 :: atom
 
@@ -826,30 +953,81 @@ CONTAINS
           DO l=0,atom%state%maxl_calc
             n = atom%state%maxn_calc(l)
             DO k=1,n
-              rcov = atom%orbitals%rcmax(k,l)
-              tv = atom%orbitals%crefene(k,l)
-              de = ABS(atom%orbitals%ener(k,l)-atom%orbitals%refene(k,l))
-              fde = 1._dp/(1._dp+EXP(10._dp*(1._dp-de/tv)))
-              pv = atom%weight*atom%orbitals%wrefene(k,l)*de*de*fde
-              afun = afun + pv
-              pval(1,k,l,j,i) = pv
-              IF(atom%orbitals%wrefchg(k,l) > 0._dp) THEN
-                CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
-                pv = 0.01_dp*atom%weight*atom%orbitals%wrefchg(k,l)*(charge-atom%orbitals%refchg(k,l))**2
+              IF(atom%state%multiplicity==-1) THEN
+                !no spin polarization
+                rcov = atom%orbitals%rcmax(k,l,1)
+                tv = atom%orbitals%crefene(k,l,1)
+                de = ABS(atom%orbitals%ener(k,l)-atom%orbitals%refene(k,l,1))
+                fde = 1._dp/(1._dp+EXP(10._dp*(1._dp-de/tv)))
+                pv = atom%weight*atom%orbitals%wrefene(k,l,1)*de*de*fde
                 afun = afun + pv
-                pval(2,k,l,j,i) = pv
-              END IF
-              IF(atom%orbitals%wrefnod(k,l) > 0._dp) THEN
-                CALL atom_orbital_nodes(node,atom%orbitals%wfn(:,k,l),2*rcov,l,atom%basis,error)
-                afun = afun + atom%weight*atom%orbitals%wrefnod(k,l)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l))
-              END IF
-              IF ( l==0 ) THEN
-                IF(atom%orbitals%wpsir0(k) > 0._dp) THEN
-                  CALL atom_wfnr0(pv,atom%orbitals%wfn(:,k,l),atom%basis,error)
-                  pv = atom%weight*atom%orbitals%wpsir0(k)*pv*pv
+                pval(1,k,l,j,i) = pv
+                IF(atom%orbitals%wrefchg(k,l,1) > 0._dp) THEN
+                  CALL atom_orbital_charge(charge,atom%orbitals%wfn(:,k,l),rcov,l,atom%basis,error)
+                  pv = 0.01_dp*atom%weight*atom%orbitals%wrefchg(k,l,1)*(charge-atom%orbitals%refchg(k,l,1))**2
                   afun = afun + pv
+                  pval(2,k,l,j,i) = pv
                 END IF
-              END IF
+                IF(atom%orbitals%wrefnod(k,l,1) > 0._dp) THEN
+                  CALL atom_orbital_nodes(node,atom%orbitals%wfn(:,k,l),2*rcov,l,atom%basis,error)
+                  afun = afun + atom%weight*atom%orbitals%wrefnod(k,l,1)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l,1))
+                END IF
+                IF ( l==0 ) THEN
+                  IF(atom%orbitals%wpsir0(k,1) > 0._dp) THEN
+                    CALL atom_wfnr0(pv,atom%orbitals%wfn(:,k,l),atom%basis,error)
+                    pv = atom%weight*atom%orbitals%wpsir0(k,1)*pv*pv
+                    afun = afun + pv
+                  END IF
+                END IF
+              ELSE
+                !spin polarization
+                rcov1 = atom%orbitals%rcmax(k,l,1)
+                rcov2 = atom%orbitals%rcmax(k,l,2)
+                tv = atom%orbitals%crefene(k,l,1)
+                de = ABS(atom%orbitals%enera(k,l)-atom%orbitals%refene(k,l,1))
+                fde = 1._dp/(1._dp+EXP(10._dp*(1._dp-de/tv)))
+                pv = atom%weight*atom%orbitals%wrefene(k,l,1)*de*de*fde
+                afun = afun + pv
+                pval(1,k,l,j,i) = pv
+                tv = atom%orbitals%crefene(k,l,2)
+                de = ABS(atom%orbitals%enerb(k,l)-atom%orbitals%refene(k,l,2))
+                fde = 1._dp/(1._dp+EXP(10._dp*(1._dp-de/tv)))
+                pv = atom%weight*atom%orbitals%wrefene(k,l,2)*de*de*fde
+                afun = afun + pv
+                pval(3,k,l,j,i) = pv
+                IF(atom%orbitals%wrefchg(k,l,1) > 0._dp) THEN
+                  CALL atom_orbital_charge(charge,atom%orbitals%wfna(:,k,l),rcov1,l,atom%basis,error)
+                  pv = 0.01_dp*atom%weight*atom%orbitals%wrefchg(k,l,1)*(charge-atom%orbitals%refchg(k,l,1))**2
+                  afun = afun + pv
+                  pval(2,k,l,j,i) = pv
+                END IF
+                IF(atom%orbitals%wrefchg(k,l,2) > 0._dp) THEN
+                  CALL atom_orbital_charge(charge,atom%orbitals%wfnb(:,k,l),rcov2,l,atom%basis,error)
+                  pv = 0.01_dp*atom%weight*atom%orbitals%wrefchg(k,l,2)*(charge-atom%orbitals%refchg(k,l,2))**2
+                  afun = afun + pv
+                  pval(4,k,l,j,i) = pv
+                END IF
+                IF(atom%orbitals%wrefnod(k,l,1) > 0._dp) THEN
+                  CALL atom_orbital_nodes(node,atom%orbitals%wfna(:,k,l),2*rcov1,l,atom%basis,error)
+                  afun = afun + atom%weight*atom%orbitals%wrefnod(k,l,1)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l,1))
+                END IF
+                IF(atom%orbitals%wrefnod(k,l,2) > 0._dp) THEN
+                  CALL atom_orbital_nodes(node,atom%orbitals%wfnb(:,k,l),2*rcov2,l,atom%basis,error)
+                  afun = afun + atom%weight*atom%orbitals%wrefnod(k,l,2)*ABS(REAL(node,dp)-atom%orbitals%refnod(k,l,2))
+                END IF
+                IF ( l==0 ) THEN
+                  IF(atom%orbitals%wpsir0(k,1) > 0._dp) THEN
+                    CALL atom_wfnr0(pv,atom%orbitals%wfna(:,k,l),atom%basis,error)
+                    pv = atom%weight*atom%orbitals%wpsir0(k,1)*pv*pv
+                    afun = afun + pv
+                  END IF
+                  IF(atom%orbitals%wpsir0(k,2) > 0._dp) THEN
+                    CALL atom_wfnr0(pv,atom%orbitals%wfnb(:,k,l),atom%basis,error)
+                    pv = atom%weight*atom%orbitals%wpsir0(k,2)*pv*pv
+                    afun = afun + pv
+                  END IF
+                END IF
+              ENDIF
             END DO
           END DO
         END IF

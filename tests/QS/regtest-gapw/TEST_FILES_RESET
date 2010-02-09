@@ -281,3 +281,5 @@ He2-all-md.inp
 Be_GAPW.inp
 # fm to dbcsr
 Na_atom.inp
+# atomic code: unrestricted calculations 
+Na_atom.inp

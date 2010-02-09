@@ -185,3 +185,9 @@ w2.inp
 w2-r1.inp
 # fm to dbcsr
 w2-r2.inp
+# atomic code: unrestricted calculations 
+w2.inp
+# atomic code: unrestricted calculations 
+w2-r1.inp
+# atomic code: unrestricted calculations 
+w2-r2.inp

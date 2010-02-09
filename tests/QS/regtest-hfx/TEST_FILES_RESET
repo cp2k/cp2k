@@ -287,3 +287,15 @@ H2O-hfx-3.inp
 4H2O-mix-disk-ram-on-the-fly.inp
 # more to reset
 H2O-hfx-emd-restart.inp
+# atomic code: unrestricted calculations 
+CH-hfx-md.inp
+# atomic code: unrestricted calculations 
+CH-hfx-md-2.inp
+# atomic code: unrestricted calculations 
+4H2O-disk.inp
+# atomic code: unrestricted calculations 
+4H2O-mix-disk-ram.inp
+# atomic code: unrestricted calculations 
+4H2O-mix-disk-ram-on-the-fly.inp
+# atomic code: unrestricted calculations 
+H2O-hfx-emd-restart.inp

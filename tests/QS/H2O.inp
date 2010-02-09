@@ -5,6 +5,7 @@
       CUTOFF 280
     &END MGRID
     &QS
+      METHOD       GAPW
       EPS_DEFAULT 1.0E-12
     &END QS
     &SCF

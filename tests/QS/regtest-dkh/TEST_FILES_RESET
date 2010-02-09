@@ -2,3 +2,7 @@
 dkh_p_o2_pFULL_tATOM.inp
 # fm to dbcsr
 dkh_p_o3_pFULL_tATOM.inp
+# atomic code: unrestricted calculations 
+dkh_p_o2_pFULL_tATOM.inp
+# atomic code: unrestricted calculations 
+dkh_p_o3_pFULL_tATOM.inp

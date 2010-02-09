@@ -741,3 +741,7 @@ h2o-otdiag-lsd.inp
 h2o-otdiag.inp
 h2o-otdiag-lsd.inp
 
+# atomic code: unrestricted calculations 
+H2O-meta_hydro.inp
+# atomic code: unrestricted calculations 
+NO2-EFG-1.inp

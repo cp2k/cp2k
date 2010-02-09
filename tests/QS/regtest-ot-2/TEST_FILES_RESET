@@ -839,3 +839,23 @@ N3-9.inp
 N3-10.inp
 # fm to dbcsr
 H2O.inp
+# atomic code: unrestricted calculations 
+N3-2.inp
+# atomic code: unrestricted calculations 
+N3-3.inp
+# atomic code: unrestricted calculations 
+N3-4.inp
+# atomic code: unrestricted calculations 
+N3-5.inp
+# atomic code: unrestricted calculations 
+N3-6.inp
+# atomic code: unrestricted calculations 
+N3-7.inp
+# atomic code: unrestricted calculations 
+N3-8.inp
+# atomic code: unrestricted calculations 
+N3-9.inp
+# atomic code: unrestricted calculations 
+N3-10.inp
+# atomic code: unrestricted calculations 
+H2O.inp

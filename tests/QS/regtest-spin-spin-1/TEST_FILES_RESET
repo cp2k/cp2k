@@ -54,3 +54,5 @@ no-gapw-issc-1.inp
 ch4-gapw-issc-2.inp
 # fm to dbcsr
 no-gapw-issc-1.inp
+# atomic code: unrestricted calculations 
+no-gapw-issc-1.inp

@@ -208,3 +208,5 @@ crys_per_qmmm_spln.inp
 acn-qmmm-re.inp
 # fm to dbcsr
 acn-conn-1.inp
+# atomic code: unrestricted calculations 
+acn-conn-1.inp

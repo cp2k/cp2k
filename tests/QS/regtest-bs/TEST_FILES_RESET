@@ -54,3 +54,11 @@ cu2cl6_m3_std.inp
 cu2cl6_m1_clp6cud9.inp
 # fm to dbcsr
 cu2cl6_m3_clp6cud9.inp
+# atomic code: unrestricted calculations 
+cu2cl6_m1_std.inp
+# atomic code: unrestricted calculations 
+cu2cl6_m3_std.inp
+# atomic code: unrestricted calculations 
+cu2cl6_m1_clp6cud9.inp
+# atomic code: unrestricted calculations 
+cu2cl6_m3_clp6cud9.inp

@@ -214,3 +214,11 @@ CO_xastpxhh.inp
 CO_xastpval.inp
 # fm to dbcsr
 CO_xastpxhh_loclist.inp
+# atomic code: unrestricted calculations 
+CO.inp
+# atomic code: unrestricted calculations 
+CO_xastpxhh.inp
+# atomic code: unrestricted calculations 
+CO_xastpval.inp
+# atomic code: unrestricted calculations 
+CO_xastpxhh_loclist.inp

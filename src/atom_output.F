@@ -78,7 +78,9 @@ CONTAINS
       CASE (-1)
         WRITE(iw,'(T5,A,T68,A)') "Multiplicity","not specified"
       CASE (-2)
-        WRITE(iw,'(T5,A,T68,A)') "Multiplicity","not specified"
+        WRITE(iw,'(T5,A,T72,A)') "Multiplicity","high spin"
+      CASE (-3)
+        WRITE(iw,'(T5,A,T73,A)') "Multiplicity","low spin"
       CASE (1)
         WRITE(iw,'(T5,A,T74,A)') "Multiplicity","singlet"
       CASE (2)
@@ -100,17 +102,42 @@ CONTAINS
     mlc = get_maxl_occ(state%core)
     mm  = get_maxn_occ(state%core)
 
-    DO l=0,MAX(mlo,mlc)
-      mo = state%maxn_occ(l)
-      IF ( SUM(state%core(l,:)) == 0 ) THEN
-         WRITE(iw,'(A5,T10,10F6.2)') label(l),(state%occ(l,j),j=1,mo)
-      ELSE
-         mc = mm(l)
-         CPPrecondition(SUM(state%occ(l,1:mc))==0,cp_failure_level,routineP,error,failure)
-         WRITE(iw,ADVANCE="no",FMT='(A5,T9,A1,10F6.2)') label(l),"[",(state%core(l,j),j=1,mc)
-         WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occ(l,j),j=mc+1,mc+mo)
-      END IF
-    END DO
+    IF (state%multiplicity == -1) THEN
+      DO l=0,MAX(mlo,mlc)
+        mo = state%maxn_occ(l)
+        IF ( SUM(state%core(l,:)) == 0 ) THEN
+           WRITE(iw,'(A5,T10,10F6.2)') label(l),(state%occ(l,j),j=1,mo)
+        ELSE
+           mc = mm(l)
+           CPPrecondition(SUM(state%occ(l,1:mc))==0,cp_failure_level,routineP,error,failure)
+           WRITE(iw,ADVANCE="no",FMT='(A5,T9,A1,10F6.2)') label(l),"[",(state%core(l,j),j=1,mc)
+           WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occ(l,j),j=mc+1,mc+mo)
+        END IF
+      END DO
+    ELSE
+      WRITE(iw,'(T5,A)') "Alpha Electrons"
+      DO l=0,MAX(mlo,mlc)
+        mo = state%maxn_occ(l)
+        IF ( SUM(state%core(l,:)) == 0 ) THEN
+           WRITE(iw,'(A5,T10,10F6.2)') label(l),(state%occa(l,j),j=1,mo)
+        ELSE
+           mc = mm(l)
+           WRITE(iw,ADVANCE="no",FMT='(A5,T9,A1,10F6.2)') label(l),"[",(0.5_dp*state%core(l,j),j=1,mc)
+           WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occa(l,j),j=1,mo)
+        END IF
+      END DO
+      WRITE(iw,'(T5,A)') "Beta Electrons"
+      DO l=0,MAX(mlo,mlc)
+        mo = state%maxn_occ(l)
+        IF ( SUM(state%core(l,:)) == 0 ) THEN
+           WRITE(iw,'(A5,T10,10F6.2)') label(l),(state%occb(l,j),j=1,mo)
+        ELSE
+           mc = mm(l)
+           WRITE(iw,ADVANCE="no",FMT='(A5,T9,A1,10F6.2)') label(l),"[",(0.5_dp*state%core(l,j),j=1,mc)
+           WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occb(l,j),j=1,mo)
+        END IF
+      END DO
+    END IF
     WRITE(iw,*)
 
   END SUBROUTINE atom_print_state
@@ -144,16 +171,33 @@ CONTAINS
        WRITE(iw,'(T36,A,T61,F20.12)') "     Confinement ::",atom%energy%econfinement
     END IF
 
-    WRITE(iw,'(/,A,T20,A,T30,A,T36,A,T49,A,T71,A,/)') " Orbital energies",&
-         "State","L","Occupation","Energy[a.u.]","Energy[eV]"
-    DO l=0,atom%state%maxl_calc
-      n = atom%state%maxn_calc(l)
-      DO i=1,n 
-        WRITE(iw,'(T23,I2,T30,I1,T36,F10.3,T46,F15.6,T66,F15.6)') &
-           i,l,atom%state%occupation(l,i),atom%orbitals%ener(i,l),atom%orbitals%ener(i,l)*evolt
-      END DO
-      IF (n>0) WRITE(iw,*)
-    END DO
+    IF ( atom%state%multiplicity == -1 ) THEN
+       WRITE(iw,'(/,A,T20,A,T30,A,T36,A,T49,A,T71,A,/)') " Orbital energies",&
+            "State","L","Occupation","Energy[a.u.]","Energy[eV]"
+       DO l=0,atom%state%maxl_calc
+         n = atom%state%maxn_calc(l)
+         DO i=1,n 
+           WRITE(iw,'(T23,I2,T30,I1,T36,F10.3,T46,F15.6,T66,F15.6)') &
+              i,l,atom%state%occupation(l,i),atom%orbitals%ener(i,l),atom%orbitals%ener(i,l)*evolt
+         END DO
+         IF (n>0) WRITE(iw,*)
+       END DO
+    ELSE
+       WRITE(iw,'(/,A,T20,A,T30,A,T36,A,T42,A,T55,A,T71,A,/)') " Orbital energies",&
+            "State","Spin","L","Occupation","Energy[a.u.]","Energy[eV]"
+       DO l=0,atom%state%maxl_calc
+         n = atom%state%maxn_calc(l)
+         DO i=1,n 
+           WRITE(iw,'(T23,I2,T29,A,T36,I1,T42,F10.3,T52,F15.6,T68,F13.6)') &
+              i,"alpha",l,atom%state%occa(l,i),atom%orbitals%enera(i,l),atom%orbitals%enera(i,l)*evolt
+         END DO
+         DO i=1,n 
+           WRITE(iw,'(T23,I2,T29,A,T36,I1,T42,F10.3,T52,F15.6,T68,F13.6)') &
+              i," beta",l,atom%state%occb(l,i),atom%orbitals%enerb(i,l),atom%orbitals%enerb(i,l)*evolt
+         END DO
+         IF (n>0) WRITE(iw,*)
+       END DO
+    END IF
 
   END SUBROUTINE atom_print_energies
 ! *****************************************************************************
@@ -276,7 +320,7 @@ CONTAINS
       CASE (do_rhf_atom)
         IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Hartree-Fock Calculation')")
       CASE (do_uhf_atom)
-        IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Unrestricted Kohn-Sham Calculation')")
+        IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Unrestricted Hartree-Fock Calculation')")
       CASE (do_rohf_atom)
         IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Open-Shell Kohn-Sham Calculation')")
     END SELECT

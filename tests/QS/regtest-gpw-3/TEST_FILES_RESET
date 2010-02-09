@@ -805,3 +805,13 @@ H+solv1.inp
 dynamics.inp
 # format change 
 CN.inp
+# atomic code: unrestricted calculations 
+H2O-bloechl.inp
+# atomic code: unrestricted calculations 
+H2O-bloechl-Spl.inp
+# atomic code: unrestricted calculations 
+H2O-bloechl-restraint.inp
+# atomic code: unrestricted calculations 
+H2O-solv.inp
+# atomic code: unrestricted calculations 
+dynamics.inp

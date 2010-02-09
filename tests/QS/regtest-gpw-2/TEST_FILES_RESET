@@ -621,3 +621,5 @@ H2O-meta_coord.inp
 hcn_ts_r.inp
 # fm to dbcsr
 Au12_rmsd_mtd.inp
+# atomic code: unrestricted calculations 
+hcn_ts_r.inp
