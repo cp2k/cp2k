@@ -14,11 +14,13 @@ MODULE preconditioner
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj
   USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, dbcsr_copy_vec, &
-       dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_multiply, &
-       dbcsr_multiply_vec, dbcsr_pack_vec, dbcsr_sm_fm_multiply, &
-       dbcsr_unpack_vec, packed_vec_bcast, packed_vec_bif_tech2, &
-       packed_vec_build_u, packed_vec_ini, packed_vec_scale
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, &
+       cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_filter, &
+       cp_dbcsr_multiply, dbcsr_copy_vec, dbcsr_deallocate_matrix, &
+       dbcsr_from_fm, dbcsr_multiply_vec, dbcsr_pack_vec, &
+       dbcsr_sm_fm_multiply, dbcsr_unpack_vec, packed_vec_bcast, &
+       packed_vec_bif_tech2, packed_vec_build_u, packed_vec_ini, &
+       packed_vec_scale
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -50,8 +52,7 @@ MODULE preconditioner
        dbcsr_release, dbcsr_release_p, dbcsr_row_block_sizes, &
        dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: &
-       block_add_on_diag_d, block_chol_inv_d, dbcsr_add, dbcsr_add_on_diag, &
-       dbcsr_btriu, dbcsr_copy, dbcsr_filter, dbcsr_get_block, &
+       block_add_on_diag_d, block_chol_inv_d, dbcsr_btriu, dbcsr_get_block, &
        dbcsr_get_block_p, dbcsr_norm, dbcsr_put_block, dbcsr_scale, &
        dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
@@ -331,7 +332,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      IF(ASSOCIATED(preconditioner_env%fm)) THEN
         CALL copy_fm_to_dbcsr(preconditioner_env%fm,preconditioner_env%dbcsr_matrix)
      ELSEIF(ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-        CALL dbcsr_copy(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, error=error)
+        CALL cp_dbcsr_copy(preconditioner_env%dbcsr_matrix, preconditioner_env%sparse_matrix, error=error)
      ELSE
         CALL stop_program(routineN,"something wrong")
      ENDIF
@@ -693,7 +694,7 @@ SUBROUTINE apply_single(preconditioner_env, matrix_in, matrix_out,error)
   IF(.NOT.ASSOCIATED(preconditioner_env%dbcsr_matrix)) &
        CALL stop_program(routineN," NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
   CALL dbcsr_get_info(matrix_in,nfullrows_total=n,nfullcols_total=k)
-  CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix,matrix_in,&
+  CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix,matrix_in,&
        0.0_dp,matrix_out,last_row=n,last_column=k,last_k=n,&
        left_set=preconditioner_env%dbcsr_matrix%m%predistributed,error=error)
 
@@ -1080,8 +1081,8 @@ SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
   CALL dbcsr_get_info(matrix_in,nfullrows_total=n,nfullcols_total=k)
 
   CALL dbcsr_init(matrix_tmp)
-  CALL dbcsr_copy(matrix_tmp,matrix_in,name="apply_full_all",error=error)
-  CALL dbcsr_multiply('T','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
+  CALL cp_dbcsr_copy(matrix_tmp,matrix_in,name="apply_full_all",error=error)
+  CALL cp_dbcsr_multiply('T','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
                   matrix_in,0.0_dp,matrix_tmp,&
                   last_row=n,last_column=k,last_k=n,error=error)
   ! do the right scaling
@@ -1101,7 +1102,7 @@ SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
   ENDDO
   CALL dbcsr_iterator_stop(iter)
   ! mult back
-  CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
+  CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix, &
                   matrix_tmp,0.0_dp,matrix_out,&
                   last_row=n,last_column=k,last_k=n,error=error)
   CALL dbcsr_release(matrix_tmp)
@@ -1241,7 +1242,7 @@ END SUBROUTINE make_full_s_inverse
   CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
   shift=MAX(0.0_dp,energy_gap)
-  CALL dbcsr_add(matrix_t,matrix_s,alpha_scalar=1.0_dp,beta_scalar=shift,error=error)
+  CALL cp_dbcsr_add(matrix_t,matrix_s,alpha_scalar=1.0_dp,beta_scalar=shift,error=error)
   CALL copy_dbcsr_to_fm(matrix_t,fm)
   CALL timestop(handle)
 
@@ -1913,10 +1914,10 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_init(p)
     CALL dbcsr_init(s)
     CALL dbcsr_init(Ap)
-    CALL dbcsr_copy(r,matrix_in,error=error)
-    CALL dbcsr_copy(p,matrix_in,error=error)
-    CALL dbcsr_copy(s,matrix_in,error=error)
-    CALL dbcsr_copy(Ap,matrix_in,error=error)
+    CALL cp_dbcsr_copy(r,matrix_in,error=error)
+    CALL cp_dbcsr_copy(p,matrix_in,error=error)
+    CALL cp_dbcsr_copy(s,matrix_in,error=error)
+    CALL cp_dbcsr_copy(Ap,matrix_in,error=error)
     !
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -1926,9 +1927,9 @@ END SUBROUTINE make_full_all_ortho
     residual_ot = SQRT(residual_ot/(REAL(n,dp)*REAL(m,dp)))
     !
     ! r = b-A*x
-    CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,matrix_out,&
+    CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,matrix_out,&
          0.0_dp,r,error=error)
-    CALL dbcsr_add(r,matrix_in,-1.0_dp,1.0_dp,error=error)
+    CALL cp_dbcsr_add(r,matrix_in,-1.0_dp,1.0_dp,error=error)
     CALL dbcsr_trace(r,r,tr_rr,error=error)
     IF(output_unit>0) THEN
        WRITE(output_unit,'(A,I3,2(A,E12.5))') 'apply_solve_lin_system:',0,': ||r_ls||=',&
@@ -1940,10 +1941,10 @@ END SUBROUTINE make_full_all_ortho
        !
        ! s = M * r
        IF(ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
-          CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix_inner,r,&
+          CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix_inner,r,&
                0.0_dp,s,error=error)
        ELSE
-          CALL dbcsr_copy(s,r,error=error)
+          CALL cp_dbcsr_copy(s,r,error=error)
        ENDIF
        CALL dbcsr_trace(s,r,tr_sr_new,error=error)
        !
@@ -1955,10 +1956,10 @@ END SUBROUTINE make_full_all_ortho
        ENDIF
        !
        ! p = r + beta * p
-       CALL dbcsr_add(p,s,beta,1.0_dp,error=error)
+       CALL cp_dbcsr_add(p,s,beta,1.0_dp,error=error)
        !
        ! Ap = A * p
-       CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,p,&
+       CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,p,&
             0.0_dp,Ap,error=error)
        CALL dbcsr_trace(Ap,p,tr_pAp,error=error)
        !
@@ -1966,15 +1967,15 @@ END SUBROUTINE make_full_all_ortho
        alpha = tr_sr_new/tr_pAp
        !
        ! x = x + alpha * p
-       CALL dbcsr_add(matrix_out,p,1.0_dp,alpha,error=error)
+       CALL cp_dbcsr_add(matrix_out,p,1.0_dp,alpha,error=error)
        !
        ! r = r - alpha * Ap or r = b - A * x
        IF(MOD(iter,restart_every).EQ.0) THEN
-          CALL dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,matrix_out,&
+          CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%sparse_matrix,matrix_out,&
                0.0_dp,r,error=error)
-          CALL dbcsr_add(r,matrix_in,-1.0_dp,1.0_dp,error=error)
+          CALL cp_dbcsr_add(r,matrix_in,-1.0_dp,1.0_dp,error=error)
        ELSE
-          CALL dbcsr_add(r,Ap,1.0_dp,-alpha,error=error)
+          CALL cp_dbcsr_add(r,Ap,1.0_dp,-alpha,error=error)
        ENDIF
        tr_sr_old = tr_sr_new
        !
@@ -2092,7 +2093,7 @@ END SUBROUTINE make_full_all_ortho
     IF(dbg_print_matrix)CALL dbcsr_print(mat_t,error)
 
     occ_in = dbcsr_get_occupation(mat_t)
-    CALL dbcsr_filter(mat_t,1e-5_dp,error=error)
+    CALL cp_dbcsr_filter(mat_t,1e-5_dp,error=error)
     IF(.FALSE.)CALL dbcsr_verify_matrix(mat_t, error)
     occ_out = dbcsr_get_occupation(mat_t)
 
@@ -2386,18 +2387,18 @@ END SUBROUTINE make_full_all_ortho
     CALL dbcsr_btriu(mat_lt, mat_v, error=error)
     !chksum = dbcsr_checksum(mat_lt,error)
     !WRITE(*,*) 'checksum(lt)_1',chksum
-    CALL dbcsr_add_on_diag(mat_lt, s, error=error)
+    CALL cp_dbcsr_add_on_diag(mat_lt, s, error=error)
     !chksum = dbcsr_checksum(mat_lt,error)
     !WRITE(*,*) 'checksum(lt)_2',chksum,SUM(ABS(pkd_inv_d))
     CALL dbcsr_scale(mat_lt, alpha_matrix=pkd_inv_d, side='left', error=error)
     !chksum = dbcsr_checksum(mat_lt,error)
     !WRITE(*,*) 'checksum(lt)_3',chksum
     CALL dbcsr_init (mat_li_scaled)
-    CALL dbcsr_copy(mat_li_scaled, mat_li, error=error)
+    CALL cp_dbcsr_copy(mat_li_scaled, mat_li, error=error)
     CALL dbcsr_scale(mat_li_scaled, alpha_matrix=pkd_inv_d, side='left', error=error)
 
     CALL dbcsr_init (mat_lt_scaled)
-    CALL dbcsr_copy(mat_lt_scaled, mat_lt, error=error)
+    CALL cp_dbcsr_copy(mat_lt_scaled, mat_lt, error=error)
     CALL dbcsr_scale(mat_lt_scaled, alpha_matrix=pkd_d, side='left', error=error)
 
     occ_in = dbcsr_get_occupation(mat_lt)
@@ -2428,7 +2429,7 @@ END SUBROUTINE make_full_all_ortho
     IF(.FALSE.)CALL dbcsr_verify_matrix(mat_li, error)
     IF(.FALSE.)CALL dbcsr_verify_matrix(mat_t, error)
     IF(.FALSE.)CALL dbcsr_verify_matrix(mat_li_scaled, error)
-    CALL dbcsr_multiply("T", "N", 1.0_dp, mat_li, mat_li_scaled, 0.0_dp, prcnd, error=error)
+    CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mat_li, mat_li_scaled, 0.0_dp, prcnd, error=error)
     !CALL dbcsr_print(prcnd, error, matlab_format=.TRUE.)
 
     chksum = dbcsr_checksum(prcnd,error)
@@ -2449,31 +2450,31 @@ END SUBROUTINE make_full_all_ortho
             dbcsr_row_block_sizes (mat_t), dbcsr_col_block_sizes (mat_t),&
             error=error)
        CALL dbcsr_finalize(mat_tmp,error=error)
-       CALL dbcsr_multiply("N", "N", 1.0_dp, mat_li_scaled, mat_t, 0.0_dp, mat_tmp, error=error)
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_li_scaled, mat_t, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_trace(mat_li, mat_tmp, trace, error=error)
        WRITE(*,*) 'trace(Li^t*A*Li*D)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
        !
-       CALL dbcsr_multiply("N", "N", 1.0_dp, prcnd, mat_t, 0.0_dp, mat_tmp, error=error)
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, prcnd, mat_t, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(A*Li*D*li^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
-       CALL dbcsr_multiply("T", "T", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
+       CALL cp_dbcsr_multiply("T", "T", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(A*Li*D*li^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
-       CALL dbcsr_multiply("N", "N", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_t, prcnd, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(Li*D*li^t*A)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
        !
        !norm(Lt'*D*Lt-A,'fro')
-       CALL dbcsr_copy(mat_tmp, mat_t, error=error)
-       CALL dbcsr_multiply("T", "N", 1.0_dp, mat_lt, mat_lt_scaled, -1.0_dp, mat_tmp, error=error)
+       CALL cp_dbcsr_copy(mat_tmp, mat_t, error=error)
+       CALL cp_dbcsr_multiply("T", "N", 1.0_dp, mat_lt, mat_lt_scaled, -1.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(Lt^t*D*Lt-A) = ',trace
        !
        !norm(Lt*Linv'-I,'fro')
-       CALL dbcsr_multiply("N", "T", 1.0_dp, mat_lt, mat_li, 0.0_dp, mat_tmp, error=error)
+       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mat_lt, mat_li, 0.0_dp, mat_tmp, error=error)
        CALL dbcsr_norm(mat_tmp, which_norm=dbcsr_norm_frobenius, norm_scalar=trace, error=error)
        WRITE(*,*) 'norm(Lt*Linv^t)/n-1 = ',trace**2 / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
@@ -2536,7 +2537,7 @@ WRITE(*,*) 'tend',t(13)-t(12)
     CALL dbcsr_create(matrix_result, "result", dist_result, 'N',&
          dbcsr_row_block_sizes (preconditioner_env%dbcsr_matrix),&
          dbcsr_col_block_sizes (matrix_right), error=error)
-    CALL dbcsr_multiply("N", "N", 1.0_dp, preconditioner_env%dbcsr_matrix,&
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, preconditioner_env%dbcsr_matrix,&
          matrix_right, 0.0_dp, matrix_result, error=error)
     CALL dbcsr_distribution_release (dist_result)
     CALL dbcsr_release (matrix_right)
@@ -2585,9 +2586,9 @@ WRITE(*,*) 'tend',t(13)-t(12)
 
     ! M = T - epsilon * S
     shift=MAX(0.0_dp,energy_gap)
-    CALL dbcsr_add(preconditioner_env%sparse_matrix,matrix_t,&
+    CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_t,&
          alpha_scalar=0.0_dp,beta_scalar=1.0_dp,error=error)
-    CALL dbcsr_add(preconditioner_env%sparse_matrix,matrix_s,&
+    CALL cp_dbcsr_add(preconditioner_env%sparse_matrix,matrix_s,&
          alpha_scalar=1.0_dp,beta_scalar=shift,error=error)
   CALL timestop(handle)
 

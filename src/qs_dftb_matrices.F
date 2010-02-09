@@ -20,7 +20,9 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_dist2d_to_dist,&
                                              dbcsr_obj_p_type,&
@@ -38,9 +40,7 @@ MODULE qs_dftb_matrices
                                              dbcsr_distribution_mp,&
                                              dbcsr_distribution_release,&
                                              dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
-                                             dbcsr_get_block_p
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
@@ -278,9 +278,9 @@ CONTAINS
       matrix_p => rho%rho_ao
 
       IF (SIZE(matrix_p) == 2) THEN
-         CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+         CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
               alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
-         CALL dbcsr_add(matrix_w(1)%matrix,matrix_w(2)%matrix,&
+         CALL cp_dbcsr_add(matrix_w(1)%matrix,matrix_w(2)%matrix,&
               alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
       END IF
       natom = SIZE (particle_set)
@@ -637,7 +637,7 @@ CONTAINS
 
      IF(calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
-          CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,&
+          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,&
                beta_scalar=-1.0_dp,error=error)
        END IF
        DEALLOCATE(atom_of_kind,STAT=istat)
@@ -719,7 +719,7 @@ CONTAINS
 
        DO ispin=1,nspins
          ! copy the core matrix into the fock matrix
-          CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+          CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
        END DO
 
        IF ( dft_control%qs_control%dftb_control%self_consistent ) THEN

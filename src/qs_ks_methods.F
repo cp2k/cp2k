@@ -27,14 +27,11 @@ MODULE qs_ks_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_plus_fm_fm_t,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_copy, &
+       cp_dbcsr_filter, cp_dbcsr_set, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
+       dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD,&
                                              qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -61,10 +58,6 @@ MODULE qs_ks_methods
                                              cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_occupation,&
                                              dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
-                                             dbcsr_filter,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential
@@ -711,13 +704,13 @@ CONTAINS
        ! *** Initialize the auxiliary ks matrix to zero if required
        IF( dft_control%do_admm ) THEN
           DO ispin = 1,nspins
-             CALL dbcsr_set(qs_env%matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error) 
+             CALL cp_dbcsr_set(qs_env%matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error) 
           END DO
        END IF
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hfx ) THEN
           DO ispin = 1,nspins
-             CALL dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
           END DO
           CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
           !! set hf exchange energy to zero
@@ -801,7 +794,8 @@ CONTAINS
 
           ! *** Add Core-Hamiltonian-Matrix ***
           DO ispin=1,nspins
-             CALL dbcsr_add(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+             CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
+                  1.0_dp,1.0_dp,error=error)
           END DO
        END IF
 
@@ -911,7 +905,7 @@ CONTAINS
           IF( .NOT.do_hfx ) THEN
             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
              DO ispin=1,nspins
-                CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+                CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
              END DO
           END IF
 
@@ -1208,7 +1202,7 @@ CONTAINS
        ! At this point the ks matrix should be up to date, filter it if requested
        DO ispin=1,nspins
           IF(.FALSE.)WRITE(*,*) 'before',dbcsr_get_occupation(ks_matrix(ispin)%matrix)
-          CALL dbcsr_filter(ks_matrix(ispin)%matrix,&
+          CALL cp_dbcsr_filter(ks_matrix(ispin)%matrix,&
                qs_env%dft_control%qs_control%eps_filter_matrix,&
                error=error)
           IF(.FALSE.)WRITE(*,*) 'after',dbcsr_get_occupation(ks_matrix(ispin)%matrix)
@@ -1259,7 +1253,7 @@ CONTAINS
              !vwCALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff_b=mo_coeff_b, &
              !vw      occupation_numbers=occupation_numbers )
              !vwCALL dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
-             !vwCALL dbcsr_multiply(ks_matrix(ispin)%matrix,mo_coeff_b,&
+             !vwCALL cp_dbcsr_multiply(ks_matrix(ispin)%matrix,mo_coeff_b,&
              !vw      mo_derivs_dbcsr(ispin)%matrix, last_column=k, error=error)
 
              IF( dft_control%do_admm) THEN
@@ -1691,9 +1685,9 @@ CONTAINS
     DO ispin=1,Nspin
        ALLOCATE(matrix_p(ispin)%matrix)
        CALL dbcsr_init(matrix_p(ispin)%matrix)
-       CALL dbcsr_copy(matrix_p(ispin)%matrix,rho%rho_ao(1)%matrix,&
+       CALL cp_dbcsr_copy(matrix_p(ispin)%matrix,rho%rho_ao(1)%matrix,&
             name="density matrix low spin roks",error=error)
-       CALL dbcsr_set(matrix_p(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_p(ispin)%matrix,0.0_dp,error=error)
     ENDDO
 
     NULLIFY(matrix_h)
@@ -1701,9 +1695,9 @@ CONTAINS
     DO ispin=1,Nspin
        ALLOCATE(matrix_h(ispin)%matrix)
        CALL dbcsr_init(matrix_h(ispin)%matrix)
-       CALL dbcsr_copy(matrix_h(ispin)%matrix,rho%rho_ao(1)%matrix,&
+       CALL cp_dbcsr_copy(matrix_h(ispin)%matrix,rho%rho_ao(1)%matrix,&
             name="KS matrix low spin roks",error=error)
-       CALL dbcsr_set(matrix_h(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_h(ispin)%matrix,0.0_dp,error=error)
     ENDDO
 
     ! grids in real and g space for rho and vxc
@@ -1740,7 +1734,7 @@ CONTAINS
 
        DO ispin=1,Nspin
           ! compute the proper density matrices with the required occupations
-          CALL dbcsr_set(matrix_p(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(matrix_p(ispin)%matrix,0.0_dp,error=error)
           scaling=1.0_dp
           scaling(k_alpha-Nelectron+1:k_alpha)=occupations(ispin,:,iterm)
           CALL cp_fm_to_fm(mo_coeff,fm_scaled,error=error)
@@ -1774,7 +1768,7 @@ CONTAINS
               work_v_rspace%pw%cr3d = (energy_scaling(iterm) * vxc(ispin)%pw %pw_grid%dvol)* &
                                       vxc(ispin)%pw%cr3d 
               ! zero first ?!
-              CALL dbcsr_set(matrix_h(ispin)%matrix,0.0_dp,error=error)
+              CALL cp_dbcsr_set(matrix_h(ispin)%matrix,0.0_dp,error=error)
               CALL integrate_v_rspace(v_rspace=work_v_rspace,p=matrix_p(ispin),h=matrix_h(ispin),&
                                       qs_env=qs_env,calculate_forces=calculate_forces,error=error) 
               CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc(ispin)%pw,error=error)
@@ -1966,16 +1960,16 @@ CONTAINS
 
     ALLOCATE(orb_density_matrix)
     CALL dbcsr_init(orb_density_matrix)
-    CALL dbcsr_copy(orb_density_matrix,rho%rho_ao(1)%matrix,&
+    CALL cp_dbcsr_copy(orb_density_matrix,rho%rho_ao(1)%matrix,&
          name="orb_density_matrix",error=error)
-    CALL dbcsr_set(orb_density_matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_set(orb_density_matrix,0.0_dp,error=error)
     orb_density_matrix_p%matrix=>orb_density_matrix
 
     ALLOCATE(orb_h)
     CALL dbcsr_init(orb_h)
-    CALL dbcsr_copy(orb_h,rho%rho_ao(1)%matrix,&
+    CALL cp_dbcsr_copy(orb_h,rho%rho_ao(1)%matrix,&
          name="orb_density_matrix",error=error)
-    CALL dbcsr_set(orb_h,0.0_dp,error=error)
+    CALL cp_dbcsr_set(orb_h,0.0_dp,error=error)
     orb_h_p%matrix=>orb_h
 
     CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
@@ -2019,7 +2013,7 @@ CONTAINS
        CALL cp_fm_to_fm(mo_coeff,matrix_v,1,sic_orbital_list(2,iorb),1)
 
        ! construct the density matrix and the corresponding density
-       CALL dbcsr_set(orb_density_matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(orb_density_matrix,0.0_dp,error=error)
        CALL dbcsr_plus_fm_fm_t(orb_density_matrix,matrix_v=matrix_v,ncol=1,&
                                   alpha=1.0_dp,error=error)
 
@@ -2038,7 +2032,7 @@ CONTAINS
             CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw, error=error)
             CALL pw_scale(work_v_rspace%pw, - dft_control%sic_scaling_a * work_v_rspace%pw%pw_grid%dvol,&
                  error=error)
-            CALL dbcsr_set(orb_h,0.0_dp,error=error)
+            CALL cp_dbcsr_set(orb_h,0.0_dp,error=error)
        ENDIF
 
        IF (just_energy) THEN
@@ -3160,7 +3154,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(weighted_vectors)
 
-    CALL dbcsr_set(w_matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_set(w_matrix,0.0_dp,error=error)
     CALL cp_fm_create(weighted_vectors,mo_set%mo_coeff%matrix_struct,"weighted_vectors",error=error)
     CALL cp_fm_to_fm(mo_set%mo_coeff,weighted_vectors,error=error)
 
@@ -3262,7 +3256,7 @@ CONTAINS
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                     mo_set%mo_coeff,h_block,0.0_dp,weighted_vectors,error=error)
 
-    CALL dbcsr_set(w_matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_set(w_matrix,0.0_dp,error=error)
     CALL dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix,&
                             matrix_v=mo_set%mo_coeff,&
                             matrix_g=weighted_vectors,&
@@ -3336,7 +3330,7 @@ CONTAINS
     CALL cp_fm_upper_to_full(p,work,error)
     CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,p,0.0_dp,work,error=error)
     CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks,error=error)
-    CALL dbcsr_set(matrix_w,0.0_dp,error=error)
+    CALL cp_dbcsr_set(matrix_w,0.0_dp,error=error)
     CALL copy_fm_to_dbcsr(ks,matrix_w,keep_sparsity=.TRUE.)
 
     CALL cp_fm_release(work,error=error)

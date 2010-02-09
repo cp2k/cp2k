@@ -10,12 +10,12 @@ MODULE qs_ks_apply_restraints
 
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE et_coupling,                     ONLY: becke_restraint
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -84,9 +84,9 @@ CONTAINS
                 NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
                 ALLOCATE(qs_env%et_coupling%rest_mat(1)%matrix)
                 CALL dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
-                CALL dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1)%matrix, &
+                CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1)%matrix, &
                      name="ET_RESTRAINT_MATRIX_A", error=error)
-                CALL dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix,0.0_dp,error=error)
                 !CALL dbcsr_from_sm(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1)%matrix, error)
                 !CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                 !     TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
@@ -101,9 +101,9 @@ CONTAINS
                 NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)                  
                 ALLOCATE(qs_env%et_coupling%rest_mat(2)%matrix)
                 CALL dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
-                CALL dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1)%matrix, &
+                CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1)%matrix, &
                      name="ET_RESTRAINT_MATRIX_B", error=error)
-                CALL dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix,0.0_dp,error=error)
                 !CALL dbcsr_from_sm(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1)%matrix, error)
                 !CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                 !     TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&

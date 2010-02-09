@@ -13,7 +13,9 @@
 MODULE stm_images
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_deallocate_matrix,&
                                              dbcsr_plus_fm_fm_t
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -27,8 +29,6 @@ MODULE stm_images
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
@@ -153,7 +153,7 @@ CONTAINS
 
      ALLOCATE(stm_density_ao)
      CALL dbcsr_init(stm_density_ao)
-     CALL dbcsr_copy(stm_density_ao,rho%rho_ao(1)%matrix,&
+     CALL cp_dbcsr_copy(stm_density_ao,rho%rho_ao(1)%matrix,&
           name="stm_density_ao",error=error)
 
      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -362,7 +362,7 @@ CONTAINS
        CALL cp_fm_column_scale(matrix_vf,occ_tot(1:istates))
        alpha=1.0_dp
 
-       CALL dbcsr_set(stm_density_ao,0.0_dp,error=error)
+       CALL cp_dbcsr_set(stm_density_ao,0.0_dp,error=error)
        CALL dbcsr_plus_fm_fm_t(stm_density_ao,matrix_v=matrix_v, matrix_g=matrix_vf,ncol=istates,&
                                alpha=alpha,error=error)
 

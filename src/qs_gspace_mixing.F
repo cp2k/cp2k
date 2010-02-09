@@ -7,12 +7,10 @@
 MODULE qs_gspace_mixing
 
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             dbcsr_alloc_block_from_nbl,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_scale, &
+       cp_dbcsr_set, dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full
@@ -23,10 +21,7 @@ MODULE qs_gspace_mixing
                                              dbcsr_init,&
                                              dbcsr_row_block_sizes,&
                                              dbcsr_uses_special_memory
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_scale,&
-                                             dbcsr_set,&
-                                             dbcsr_trace
+  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: dbcsr_create
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -113,7 +108,7 @@ CONTAINS
     ! Compute the difference (p_out - p_in)and check convergence
     delta = 0.0_dp
     DO ispin = 1,nspin
-       CALL dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp, error=error)
+       CALL cp_dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp, error=error)
        CALL cp_sm_mix(m1=p_out(ispin)%matrix,m2=p_in(ispin)%matrix,&
             p_mix=1.0_dp,delta=tmp, para_env=para_env,&
             m3=matrix_q(ispin)%matrix,error=error)
@@ -194,7 +189,7 @@ CONTAINS
     ! Compute the difference (p_out - p_in)and check convergence
     delta = 0.0_dp
     DO ispin = 1,nspin
-       CALL dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp,error=error)
  !      CALL cp_sm_mix(m1=p_in(ispin)%matrix,m2=p_out(ispin)%matrix,&
        CALL cp_sm_mix(m1=p_out(ispin)%matrix,m2=p_in(ispin)%matrix,&
             p_mix=1.0_dp,delta=tmp, para_env=para_env,&
@@ -248,7 +243,7 @@ CONTAINS
        
        CALL pw_scale ( kerker_pot_rspace%pw, pw_grid%dvol, error=error)
 
-       CALL dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_q(ispin)%matrix, 0.0_dp,error=error)
        CALL integrate_v_rspace(v_rspace=kerker_pot_rspace, &
             h=matrix_q(ispin), qs_env=qs_env,&
             calculate_forces =.FALSE., gapw=gapw, error=error)
@@ -260,7 +255,7 @@ CONTAINS
        CALL cp_fm_upper_to_full(scf_env%scf_work2,scf_env%scf_work1(ispin)%matrix,error=error) 
        CALL cp_fm_trace(scf_env%s_minus_one,scf_env%scf_work2,trace,error=error)
        trace = -trace / REAL(nao)
-       CALL dbcsr_add(matrix_a=matrix_q(ispin)%matrix,matrix_b=matrix_s(1)%matrix,&
+       CALL cp_dbcsr_add(matrix_a=matrix_q(ispin)%matrix,matrix_b=matrix_s(1)%matrix,&
             alpha_scalar=1.0_dp,beta_scalar=trace,error=error)
     END IF
 
@@ -279,11 +274,11 @@ CONTAINS
        a_mix = scf_env%p_mix_alpha
        CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
             p_out(ispin)%matrix,a_mix,0.0_dp,keep_sparsity=.TRUE.)
-       CALL dbcsr_add(p_out(ispin)%matrix,p_in(ispin)%matrix,&
+       CALL cp_dbcsr_add(p_out(ispin)%matrix,p_in(ispin)%matrix,&
             alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
        CALL dbcsr_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, error=error)
        t2 =t1/ trace
-       CALL dbcsr_scale(p_out(ispin)%matrix,t2,error=error)
+       CALL cp_dbcsr_scale(p_out(ispin)%matrix,t2,error=error)
        
     END DO  !ispin
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhog%pw,error=error)
@@ -1595,7 +1590,7 @@ CONTAINS
                nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
                error=error)
           CALL dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i)%matrix,sab_orb,error=error)
-          CALL dbcsr_set(scf_env%p_mix_new(i)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(scf_env%p_mix_new(i)%matrix,0.0_dp,error=error)
        ENDDO
     END IF
 
@@ -1614,7 +1609,7 @@ CONTAINS
                   nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
                   error=error)
              CALL dbcsr_alloc_block_from_nbl(scf_env%p_delta(i)%matrix,sab_orb,error=error)
-             CALL dbcsr_set(scf_env%p_delta(i)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(scf_env%p_delta(i)%matrix,0.0_dp,error=error)
           ENDDO
        END IF
        CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)

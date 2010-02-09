@@ -12,7 +12,8 @@
 ! *****************************************************************************
 MODULE kg_gpw_fm_mol_utils
 
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_set,&
+                                             dbcsr_deallocate_matrix,&
                                              dbcsr_from_sm,&
                                              sm_from_dbcsr
   USE cp_files,                        ONLY: close_file,&
@@ -22,8 +23,7 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
-                                             dbcsr_set
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -120,7 +120,7 @@ CONTAINS
     ALLOCATE(wmo(ldao,ldmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     wmo = 0.0_dp
-    CALL dbcsr_set(w_matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_set(w_matrix,0.0_dp,error=error)
 
     DO imolecule_kind = 1, nmolecule_kind
 

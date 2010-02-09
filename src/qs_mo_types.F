@@ -24,7 +24,8 @@ MODULE qs_mo_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_copy_columns_hack
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             dbcsr_copy_columns_hack
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
@@ -41,7 +42,6 @@ MODULE qs_mo_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init_p,&
                                              dbcsr_release_p
-  USE dbcsr_operations,                ONLY: dbcsr_copy
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE fermi_utils,                     ONLY: FermiFixed,&
                                              FermiFixedDeriv
@@ -181,7 +181,7 @@ CONTAINS
     NULLIFY(mo_set_new%mo_coeff_b)
     IF(ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
        CALL dbcsr_init_p(mo_set_new%mo_coeff_b)
-       CALL dbcsr_copy(mo_set_new%mo_coeff_b,mo_set_old%mo_coeff_b,error=error)
+       CALL cp_dbcsr_copy(mo_set_new%mo_coeff_b,mo_set_old%mo_coeff_b,error=error)
     ENDIF
 
     ALLOCATE (mo_set_new%eigenvalues(nmo),STAT=istat)

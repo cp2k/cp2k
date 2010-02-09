@@ -14,7 +14,9 @@ MODULE qmmm_se_energy
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -23,9 +25,7 @@ MODULE qmmm_se_energy
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_set
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -156,9 +156,9 @@ CONTAINS
 
     CALL dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix,error)
 
-    CALL dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix,matrix_s(1)%matrix,&
+    CALL cp_dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix,matrix_s(1)%matrix,&
                     name="QMMM HAMILTONIAN MATRIX",error=error)
-    CALL dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp,error)
+    CALL cp_dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp,error)
 
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE(do_qmmm_coulomb,do_qmmm_gauss,do_qmmm_swave)
@@ -235,7 +235,7 @@ CONTAINS
        CALL semi_empirical_release(se_kind_mm,error)
     CASE(do_qmmm_none)
        ! Zero Matrix 
-       CALL dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp,error=error)
     END SELECT
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"QMMM%PRINT%QMMM_MATRIX",error=error),cp_p_file)) THEN

@@ -18,6 +18,7 @@ MODULE xas_tp_scf
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_copy,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -36,7 +37,6 @@ MODULE xas_tp_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_copy
   USE f77_blas
   USE input_constants,                 ONLY: core_guess,&
                                              ot_precond_full_kinetic,&
@@ -470,7 +470,7 @@ CONTAINS
        !   *** mixing methods have the new density matrix in p_mix_new
        IF (xas_env%mixing_method.EQ.direct_mixing_nr) THEN
           DO ispin=1,dft_control%nspins
-             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
                   error=error)
           END DO
        ENDIF

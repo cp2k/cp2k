@@ -18,7 +18,9 @@ MODULE qs_ot_types
                                              cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
@@ -33,8 +35,6 @@ MODULE qs_ot_types
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data_size, dbcsr_init_p, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_release_p, dbcsr_row_block_sizes
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_complex_default,&
@@ -292,20 +292,20 @@ CONTAINS
     qs_ot_env%ds_min=qs_ot_env%settings%ds_min
     qs_ot_env%os_valid=.FALSE.
 
-    CALL dbcsr_set(qs_ot_env%matrix_gx,0.0_dp,error=error)
+    CALL cp_dbcsr_set(qs_ot_env%matrix_gx,0.0_dp,error=error)
 
     IF (qs_ot_env%use_dx) &
-         CALL dbcsr_set(qs_ot_env%matrix_dx,0.0_dp,error=error)
+         CALL cp_dbcsr_set(qs_ot_env%matrix_dx,0.0_dp,error=error)
 
     IF (qs_ot_env%use_gx_old) &
-         CALL dbcsr_set(qs_ot_env%matrix_gx_old,0.0_dp,error=error)
+         CALL cp_dbcsr_set(qs_ot_env%matrix_gx_old,0.0_dp,error=error)
 
     IF (qs_ot_env%settings%do_rotation) THEN
-       CALL dbcsr_set(qs_ot_env%rot_mat_gx,0.0_dp,error=error)
+       CALL cp_dbcsr_set(qs_ot_env%rot_mat_gx,0.0_dp,error=error)
        IF (qs_ot_env%use_dx) &
-            CALL dbcsr_set(qs_ot_env%rot_mat_dx,0.0_dp,error=error)
+            CALL cp_dbcsr_set(qs_ot_env%rot_mat_dx,0.0_dp,error=error)
        IF (qs_ot_env%use_gx_old) &
-            CALL dbcsr_set(qs_ot_env%rot_mat_gx_old,0.0_dp,error=error)
+            CALL cp_dbcsr_set(qs_ot_env%rot_mat_gx_old,0.0_dp,error=error)
     ENDIF
     ! **** SCP
     IF (qs_ot_env%settings%scp_dft) THEN
@@ -316,11 +316,11 @@ CONTAINS
             qs_ot_env % gx_old ( : ) = 0.0_dp
     ENDIF
     IF (qs_ot_env%settings%scp_nddo) THEN
-       CALL dbcsr_set( qs_ot_env % gxmat, 0.0_dp, error=error )
+       CALL cp_dbcsr_set( qs_ot_env % gxmat, 0.0_dp, error=error )
        IF (qs_ot_env%use_dx) &
-            CALL dbcsr_set ( qs_ot_env % dxmat, 0.0_dp, error=error )
+            CALL cp_dbcsr_set ( qs_ot_env % dxmat, 0.0_dp, error=error )
        IF (qs_ot_env%use_gx_old) &
-            CALL dbcsr_set ( qs_ot_env % gx_oldmat, 0.0_dp, error=error )
+            CALL cp_dbcsr_set ( qs_ot_env % gx_oldmat, 0.0_dp, error=error )
     ENDIF
     ! **** SCP
     IF (qs_ot_env%settings%do_ener) THEN
@@ -793,8 +793,8 @@ CONTAINS
       NULLIFY ( qs_ot_env % gx_oldmat )
 
       CALL dbcsr_init_p(qs_ot_env % xmat, error=error)
-      CALL dbcsr_copy(qs_ot_env % xmat,scp_sm,"SCP_XMAT",error=error)
-      CALL dbcsr_set ( qs_ot_env % xmat, 0.0_dp, error=error )
+      CALL cp_dbcsr_copy(qs_ot_env % xmat,scp_sm,"SCP_XMAT",error=error)
+      CALL cp_dbcsr_set ( qs_ot_env % xmat, 0.0_dp, error=error )
       
       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
         CALL dbcsr_allocate_matrix_set ( qs_ot_env % he_mat, m_diis, error ) 
@@ -802,29 +802,29 @@ CONTAINS
 
         DO ii = 1, m_diis
            CALL dbcsr_init_p(qs_ot_env % he_mat ( ii )%matrix, error=error)
-           CALL dbcsr_copy(qs_ot_env % he_mat ( ii )%matrix, scp_sm, "SCP_HE_MAT", error=error)
-           CALL dbcsr_set (qs_ot_env % he_mat ( ii )%matrix, 0.0_dp, error=error )
+           CALL cp_dbcsr_copy(qs_ot_env % he_mat ( ii )%matrix, scp_sm, "SCP_HE_MAT", error=error)
+           CALL cp_dbcsr_set (qs_ot_env % he_mat ( ii )%matrix, 0.0_dp, error=error )
 
            CALL dbcsr_init_p(qs_ot_env % hx_mat ( ii )%matrix, error=error)
-           CALL dbcsr_copy(qs_ot_env % hx_mat ( ii )%matrix, scp_sm, "SCP_HX_MAT", error=error)
-           CALL dbcsr_set (qs_ot_env % hx_mat ( ii )%matrix, 0.0_dp, error=error )
+           CALL cp_dbcsr_copy(qs_ot_env % hx_mat ( ii )%matrix, scp_sm, "SCP_HX_MAT", error=error)
+           CALL cp_dbcsr_set (qs_ot_env % hx_mat ( ii )%matrix, 0.0_dp, error=error )
         END DO
       ENDIF
 
       CALL dbcsr_init_p(qs_ot_env % gxmat, error=error)
-      CALL dbcsr_copy(qs_ot_env % gxmat, scp_sm,"SCP_GXMAT",error=error)
-      CALL dbcsr_set ( qs_ot_env % gxmat, 0.0_dp, error=error )
+      CALL cp_dbcsr_copy(qs_ot_env % gxmat, scp_sm,"SCP_GXMAT",error=error)
+      CALL cp_dbcsr_set ( qs_ot_env % gxmat, 0.0_dp, error=error )
 
       IF (qs_ot_env%use_gx_old) THEN
          CALL dbcsr_init_p(qs_ot_env % gx_oldmat, error=error)
-         CALL dbcsr_copy(qs_ot_env % gx_oldmat, scp_sm,"SCP_GX_OLDMAT",error=error)
-         CALL dbcsr_set (qs_ot_env % gx_oldmat, 0.0_dp, error=error )
+         CALL cp_dbcsr_copy(qs_ot_env % gx_oldmat, scp_sm,"SCP_GX_OLDMAT",error=error)
+         CALL cp_dbcsr_set (qs_ot_env % gx_oldmat, 0.0_dp, error=error )
       ENDIF
 
       IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_init_p(qs_ot_env % dxmat, error=error)
-         CALL dbcsr_copy(qs_ot_env % dxmat, scp_sm,"SCP_DXMAT",error=error)
-         CALL dbcsr_set (qs_ot_env % dxmat, 0.0_dp, error=error )
+         CALL cp_dbcsr_copy(qs_ot_env % dxmat, scp_sm,"SCP_DXMAT",error=error)
+         CALL cp_dbcsr_set (qs_ot_env % dxmat, 0.0_dp, error=error )
       END IF
 
 ! Finding the actuall number of allocated elements in scp_sm.  This will coresspond

@@ -28,7 +28,9 @@ MODULE qs_linres_current_utils
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_alloc_block_from_nbl,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_dist2d_to_dist,&
@@ -52,8 +54,6 @@ MODULE qs_linres_current_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
                                              dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
@@ -279,14 +279,14 @@ CONTAINS
        CALL array_release (row_blk_sizes)
        !
        !
-       CALL dbcsr_set(op_p_ao(1)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(op_p_ao(1)%matrix,0.0_dp,error=error)
        DO idir = 2,3
           ALLOCATE(op_p_ao(idir)%matrix)
           CALL dbcsr_init(op_p_ao(idir)%matrix)
-          CALL dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
+          CALL cp_dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
                "current_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
                error=error)
-          CALL dbcsr_set(op_p_ao(idir)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(op_p_ao(idir)%matrix,0.0_dp,error=error)
        ENDDO
        !
        !CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)

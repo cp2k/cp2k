@@ -35,7 +35,8 @@ MODULE qs_integrate_potential
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
@@ -47,8 +48,7 @@ MODULE qs_integrate_potential
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_d32cp2k
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_get_block_p
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dbcsr_util,                      ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
@@ -725,7 +725,7 @@ CONTAINS
           NULLIFY ( deltap )
           ALLOCATE(deltap)
           CALL dbcsr_init(deltap)
-          CALL dbcsr_copy(deltap,p%matrix,name="LocalP",error=error)
+          CALL cp_dbcsr_copy(deltap,p%matrix,name="LocalP",error=error)
           ! this matrix has no strict sparsity pattern in parallel
           !deltap%sparsity_id=-1
           !CALL distribution_2d_release(deltap%distribution_2d,error=error)

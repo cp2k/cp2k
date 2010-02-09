@@ -17,9 +17,9 @@ MODULE core_ppnl
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_get_block_p
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             dbcsr_obj_p_type
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE kinds,                           ONLY: dp
@@ -135,9 +135,9 @@ CONTAINS
 
       IF (calculate_forces) THEN
          IF (SIZE(matrix_p) == 2) THEN
-            CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+            CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
                            alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
-            CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+            CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
                            alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
          END IF
       END IF
@@ -449,9 +449,9 @@ CONTAINS
          ! *** If LSD, then recover alpha density and beta density     ***
          ! *** from the total density (1) and the spin density (2)     ***
          IF (SIZE(matrix_p) == 2) THEN
-            CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+            CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
                            alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
-            CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+            CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
                            alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
          END IF
       END IF

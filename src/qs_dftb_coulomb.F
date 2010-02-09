@@ -14,15 +14,15 @@ MODULE qs_dftb_coulomb
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_multiply_local,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             dbcsr_multiply_local,&
                                              dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_get_block_p
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_1d,&
@@ -295,7 +295,7 @@ CONTAINS
       matrix_p => rho%rho_ao
 
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
-        CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+        CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
              alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
       END IF
 
@@ -339,7 +339,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
-         CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
+         CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
                         alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
       END IF
    END IF

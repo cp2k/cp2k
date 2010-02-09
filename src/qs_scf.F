@@ -44,13 +44,10 @@ MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             dbcsr_alloc_block_from_nbl,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_set, &
+       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
@@ -81,8 +78,6 @@ MODULE qs_scf
        dbcsr_distribution_new, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_init, dbcsr_init_p, &
        dbcsr_mp_npcols, dbcsr_row_block_sizes
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_normal,&
@@ -830,13 +825,13 @@ CONTAINS
                     scf_env%mixing_store, rho%rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
                                    diis=diis_step, invert=.TRUE.,error=error)
                   DO ispin=1,dft_control%nspins
-                     CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                     CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
                           error=error)
                   END DO
                 CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
                       broyden_mixing_new_nr,multisecant_mixing_nr)
                   DO ispin=1,dft_control%nspins
-                     CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                     CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
                           error=error)
                   END DO
                 END SELECT
@@ -891,7 +886,7 @@ CONTAINS
           ! ** mixing methods have the new density matrix in p_mix_new **
           IF (scf_env%mixing_method>0) THEN
              DO ispin=1,dft_control%nspins
-                CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
+                CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
                      error=error)
               END DO
           ENDIF
@@ -2367,7 +2362,7 @@ CPSourceFileRef)
           CALL dbcsr_finalize(matrix_ks(ispin)%matrix,error=error)
           ! for hfx we need to allocate the blocks
           CALL dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
-          CALL dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
 
        CALL set_qs_env(qs_env=qs_env,&
@@ -2396,7 +2391,7 @@ CPSourceFileRef)
             ! for hfx we need to allocate the blocks
             CALL dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
                  error=error)
-            CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
+            CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
          ENDDO
 
          CALL set_qs_env(qs_env=qs_env,&

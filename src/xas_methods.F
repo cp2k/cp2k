@@ -26,7 +26,9 @@ MODULE xas_methods
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_alloc_block_from_nbl,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_dist2d_to_dist,&
                                              dbcsr_obj_p_type,&
@@ -51,8 +53,6 @@ MODULE xas_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
                                              dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
@@ -853,10 +853,10 @@ CONTAINS
         DO i = 1,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
            CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
-           CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix,matrix_s(1)%matrix,&
+           CALL cp_dbcsr_copy(xas_env%ostrength_sm(i)%matrix,matrix_s(1)%matrix,&
                 "xas_env%ostrength_sm"//&
                 "-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
-           CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
+           CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
         END DO
       ELSEIF(xas_control%dipole_form==xas_dip_vel) THEN
          !
@@ -891,13 +891,13 @@ CONTAINS
               nblks=0, nze=0, mutable_work=.TRUE., &
               error=error)
          CALL dbcsr_alloc_block_from_nbl(xas_env%ostrength_sm(1)%matrix,sab_orb,error=error)
-         CALL dbcsr_set(xas_env%ostrength_sm(1)%matrix,0.0_dp,error=error)
+         CALL cp_dbcsr_set(xas_env%ostrength_sm(1)%matrix,0.0_dp,error=error)
         DO i = 2,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
            CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
-           CALL dbcsr_copy(xas_env%ostrength_sm(i)%matrix,xas_env%ostrength_sm(1)%matrix,&
+           CALL cp_dbcsr_copy(xas_env%ostrength_sm(i)%matrix,xas_env%ostrength_sm(1)%matrix,&
                 "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
-           CALL dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
+           CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
         END DO
 
         CALL dbcsr_distribution_release (dbcsr_dist)
@@ -1113,7 +1113,7 @@ CONTAINS
                 all_vectors,all_evals,fm_work,&
                 spectrum,dft_control%xas_estate,error=error)
            DO i = 1,SIZE(ostrength_sm,1)
-              CALL dbcsr_set(ostrength_sm(i)%matrix,0.0_dp,error=error)
+              CALL cp_dbcsr_set(ostrength_sm(i)%matrix,0.0_dp,error=error)
            END DO
         ELSE
            DO i = 1,3

@@ -18,6 +18,8 @@ MODULE rt_propagation_methods
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type,&
@@ -41,8 +43,6 @@ MODULE rt_propagation_methods
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_arnoldi,&
@@ -552,8 +552,8 @@ CONTAINS
     ALLOCATE(tmp_rho_im, tmp_rho_re)
     CALL dbcsr_init(tmp_rho_re)
     CALL dbcsr_init(tmp_rho_im)
-    CALL dbcsr_copy(tmp_rho_re,rho%rho_ao(1)%matrix,"tmp_tho_rts_re",error=error)
-    CALL dbcsr_copy(tmp_rho_im,rho%rho_ao(1)%matrix,"tmp_tho_rts_im",error=error)
+    CALL cp_dbcsr_copy(tmp_rho_re,rho%rho_ao(1)%matrix,"tmp_tho_rts_re",error=error)
+    CALL cp_dbcsr_copy(tmp_rho_im,rho%rho_ao(1)%matrix,"tmp_tho_rts_im",error=error)
 
     DO i=1,SIZE(mos)
        re_part=2*(i-1)+1       
@@ -563,9 +563,9 @@ CONTAINS
        CALL cp_fm_to_fm(mos_new(re_part)%matrix,mos(i)%mo_set%mo_coeff,error)
        CALL calculate_density_matrix(mos(i)%mo_set,tmp_rho_re,error=error)
 
-       CALL dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_re,&
+       CALL cp_dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_re,&
             alpha_scalar=zero,beta_scalar=one,error=error)
-       CALL dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_im,&
+       CALL cp_dbcsr_add(rho%rho_ao(i)%matrix,tmp_rho_im,&
             alpha_scalar=one,beta_scalar=one,error=error)
     END DO
 
@@ -623,7 +623,7 @@ CONTAINS
        DO ispin=1,dft_control%nspins
           ALLOCATE(matrix_ks(ispin)%matrix)
           CALL dbcsr_init(matrix_ks(ispin)%matrix)
-          CALL dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
+          CALL cp_dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
                name="KOHN-SHAM_MATRIX",error=error)
        ENDDO
 
@@ -845,7 +845,7 @@ CONTAINS
        END IF
        ALLOCATE(rtp%history%s_history(ihist)%matrix)
        CALL dbcsr_init(rtp%history%s_history(ihist)%matrix)
-       CALL dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
+       CALL cp_dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
     END IF
 
   END SUBROUTINE put_data_to_history

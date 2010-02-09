@@ -21,6 +21,9 @@ MODULE admm_methods
   USE cp_control_types,                ONLY: admm_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
                                              dbcsr_alloc_block_from_nbl,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type
@@ -47,10 +50,7 @@ MODULE admm_methods
                                              dbcsr_init,&
                                              dbcsr_row_block_sizes,&
                                              dbcsr_uses_special_memory
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_set
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_symmetric
@@ -630,7 +630,7 @@ MODULE admm_methods
 
     ALLOCATE(matrix_w_q)
     CALL dbcsr_init(matrix_w_q)
-    CALL dbcsr_copy(matrix_w_q,matrix_s_aux_fit_vs_orb(1)%matrix,&
+    CALL cp_dbcsr_copy(matrix_w_q,matrix_s_aux_fit_vs_orb(1)%matrix,&
                     "W MATRIX AUX Q",error=error)
 
     ! *** S'^(-T)*H'
@@ -1471,8 +1471,8 @@ MODULE admm_methods
 
     CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error) 
 
-    CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
-    CALL dbcsr_set(matrix_k_tilde, 0.0_dp, error)
+    CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
+    CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp, error)
     CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
     CALL cp_fm_gemm('N', 'N',  nao_orb, nmo, nao_orb,&
@@ -1480,7 +1480,7 @@ MODULE admm_methods
                     admm_env%mo_derivs_tmp(ispin)%matrix,error)
     
 
-    CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)   
+    CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)   
 
     IF( 1==0 ) THEN
       CALL copy_dbcsr_to_fm(matrix_ks(1)%matrix,admm_env%work_orb_orb,error)
@@ -1548,11 +1548,11 @@ MODULE admm_methods
 
     CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error) 
 
-    CALL dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
-    CALL dbcsr_set(matrix_k_tilde, 0.0_dp, error)
+    CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)
+    CALL cp_dbcsr_set(matrix_k_tilde, 0.0_dp, error)
     CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, matrix_k_tilde, keep_sparsity=.TRUE.)
 
-    CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, -1.0_dp, error)   
+    CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, -1.0_dp, error)   
 
     CALL dbcsr_deallocate_matrix(matrix_k_tilde,error) 
 
@@ -1589,11 +1589,11 @@ MODULE admm_methods
              ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
         CALL dbcsr_finalize(work, error=error)
 
-        CALL dbcsr_copy(work, ks_matrix, error=error)
-        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL cp_dbcsr_copy(work, ks_matrix, error=error)
+        CALL cp_dbcsr_set(work, 0.0_dp, error)
         CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-        CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
+        CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
 
         ! ** calculate A^T*H_tilde*A
         CALL cp_fm_gemm('N','N',nao_aux_fit,nao_orb,nao_aux_fit,&
@@ -1605,7 +1605,7 @@ MODULE admm_methods
 
         CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-        CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
+        CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
         CALL dbcsr_deallocate_matrix(work,error)
 
       CASE(do_admm_purify_mo_diag)
@@ -1619,8 +1619,8 @@ MODULE admm_methods
              ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
         CALL dbcsr_finalize(work, error=error)
 
-        CALL dbcsr_copy(work, ks_matrix, error=error)
-        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL cp_dbcsr_copy(work, ks_matrix, error=error)
+        CALL cp_dbcsr_set(work, 0.0_dp, error)
         CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
         ! ** calculate A^T*H_tilde*A
@@ -1633,7 +1633,7 @@ MODULE admm_methods
 
         CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-        CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
+        CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
         CALL dbcsr_deallocate_matrix(work,error)
 
       CASE(do_admm_purify_mo_no_diag)
@@ -1675,18 +1675,18 @@ MODULE admm_methods
              ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
         CALL dbcsr_finalize(work, error=error)
 
-        CALL dbcsr_copy(work, ks_matrix, error=error)
-        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL cp_dbcsr_copy(work, ks_matrix, error=error)
+        CALL cp_dbcsr_set(work, 0.0_dp, error)
         CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-        CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
+        CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
 
         CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL cp_dbcsr_set(work, 0.0_dp, error)
         CALL copy_fm_to_dbcsr(admm_env%ks_to_be_merged(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-        CALL dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
+        CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, 1.0_dp, error)
         CALL dbcsr_deallocate_matrix(work,error)
 
       CASE(do_admm_purify_mo_diag)
@@ -1699,12 +1699,12 @@ MODULE admm_methods
              ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
         CALL dbcsr_finalize(work, error=error)
 
-        CALL dbcsr_copy(work, ks_matrix, error=error)
-        CALL dbcsr_set(work, 0.0_dp, error)
+        CALL cp_dbcsr_copy(work, ks_matrix, error=error)
+        CALL cp_dbcsr_set(work, 0.0_dp, error)
 
         CALL copy_fm_to_dbcsr(admm_env%H_corr(ispin)%matrix, work, keep_sparsity=.TRUE.)
 
-        CALL dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
+        CALL cp_dbcsr_add(ks_matrix, work, 1.0_dp, -1.0_dp, error)
         CALL dbcsr_deallocate_matrix(work,error)
 
       CASE(do_admm_purify_mo_no_diag)

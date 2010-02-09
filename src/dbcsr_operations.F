@@ -2331,8 +2331,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: data_type
-    INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
-      col_offset, i, last_col, row_offset, timing_handle
+    INTEGER                                  :: a_blk, a_col, a_col_size, &
+                                                a_nze, a_row, a_row_size, &
+                                                col_offset, i, last_col, &
+                                                row_offset
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start, m_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: do_scale, limit_col, right, tr
@@ -2340,10 +2342,9 @@ CONTAINS
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
+!
+! last_column => alpha_scalar
 
-    CALL timeset(routineN, timing_handle)
-    !
-    ! last_column => alpha_scalar
     CALL cp_assert (.NOT. PRESENT (last_column) .OR. scale_type .EQ. 'S', &
          cp_fatal_level, cp_wrong_args_error, routineN,&
          "Column limiting supported only with scalar scaling")
@@ -2502,8 +2503,6 @@ CONTAINS
        CALL dbcsr_data_release (mat_tmp)
     ENDIF
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_scale_anytype
 
   !> \brief Interface for matrix scaling by a scalar
@@ -2617,17 +2616,15 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CHARACTER                                :: data_type
     INTEGER                                  :: a_blk, a_col, a_col_size, &
                                                 a_nze, a_row, a_row_size, &
-                                                col_offset, i, row_offset, &
-                                                timing_handle
+                                                col_offset, i, row_offset
     LOGICAL                                  :: right, tr
     TYPE(dbcsr_data_obj)                     :: data_any
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
+!
+! check that alpha and matrix have the same data type
 
-    CALL timeset(routineN, timing_handle)
-    !
-    ! check that alpha and matrix have the same data type
     CALL cp_assert (dbcsr_get_data_type (matrix_a).EQ.alpha%d%data_type, cp_fatal_level,&
          cp_wrong_args_error, routineN, "wrong data type matrix_a="//&
          dbcsr_get_data_type (matrix_a)//' alpha='//alpha%d%data_type)
@@ -2695,8 +2692,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer (data_any)
     CALL dbcsr_data_release (data_any)
-
-    CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_scale_by_vector_anytype
 
@@ -2770,15 +2765,14 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_anytype', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, col, row
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
+!
 
-    CALL timeset(routineN, timing_handle)
-    !
     CALL dbcsr_data_init (data_block)
     CALL dbcsr_data_new (data_block, dbcsr_get_data_type (matrix))
     CALL dbcsr_iterator_start(iter, matrix)
@@ -2790,7 +2784,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_data_clear_pointer (data_block)
     CALL dbcsr_data_release (data_block)
     !
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_set_anytype
 
 ! *****************************************************************************
@@ -2806,15 +2799,14 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: data_type
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, col, row
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_any
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
+!
 
-    CALL timeset(routineN, timing_handle)
-    !
     data_type = dbcsr_get_data_type(matrix)
     CALL dbcsr_data_init (data_any)
     CALL dbcsr_data_new (data_any, data_type)
@@ -2833,8 +2825,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer(data_any)
     CALL dbcsr_data_release(data_any)
-    !
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_conjg
 
 ! *****************************************************************************
@@ -2901,8 +2891,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: data_type_a, data_type_b
-    INTEGER                                  :: blk, col, row, size_a, &
-                                                size_b, timing_handle
+    INTEGER                                  :: blk, col, row, size_a, size_b
     LOGICAL                                  :: do_scale, tr
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
@@ -2911,8 +2900,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, timing_handle)
-    
     data_type_a = dbcsr_get_data_type(matrix_a)
     data_type_b = dbcsr_get_data_type(matrix_b)
     !
@@ -2966,8 +2953,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CALL dbcsr_data_release (data_block)
 
     ENDIF
-
-    CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_add_anytype
 
@@ -3088,14 +3073,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CHARACTER                                :: data_type
     INTEGER                                  :: blk, col, col_size, nze, row, &
-                                                row_size, timing_handle
+                                                row_size
     LOGICAL                                  :: found, tr_a, tr_b
     TYPE(dbcsr_data_obj)                     :: a_data, b_data, c_data
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL cp_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b).AND.&
          dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_c), &
@@ -3155,8 +3138,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_data_release (a_data)
     CALL dbcsr_data_release (b_data)
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_hadamard_product
 
 ! *****************************************************************************
@@ -3178,15 +3159,13 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       POINTER                                :: data_c
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: data_z
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, col, row
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL cp_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b), &
          cp_fatal_level, cp_wrong_args_error, routineN, "data types not consistent")
@@ -3222,7 +3201,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_finalize (matrix_a)
     !
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_replace_blocks
 
 ! *****************************************************************************
@@ -3238,16 +3216,13 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: hold, mynode, n, row, &
-                                                timing_handle
+    INTEGER                                  :: hold, mynode, n, row
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: found, tr
     REAL(kind=real_8), DIMENSION(:, :), &
       POINTER                                :: buff, data_d
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL cp_assert (dbcsr_nblkrows_total(matrix).EQ.dbcsr_nblkcols_total(matrix).AND.&
          dbcsr_nfullrows_total(matrix).EQ.dbcsr_nfullrows_total(matrix), &
@@ -3277,8 +3252,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL dbcsr_finalize(matrix, error=error)
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_add_on_diag
 
 ! *****************************************************************************
@@ -3296,14 +3269,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, col, row
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL dbcsr_create(diag, 'diag of '//matrix%m%name, &
          matrix%m%dist, matrix%m%matrix_type, matrix%m%row_blk_size,&
@@ -3327,8 +3298,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_finalize(diag, error=error)
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_get_block_diag
 
 ! *****************************************************************************
@@ -3346,15 +3315,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, i, row, row_offset, &
-                                                timing_handle
+    INTEGER                                  :: blk, col, i, row, row_offset
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL cp_assert (dbcsr_nfullrows_total(matrix).LE.SIZE(diag), &
          cp_fatal_level, cp_wrong_args_error, routineN, "SIZE(diag) too small")
@@ -3388,8 +3354,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL dbcsr_iterator_stop(iter)
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_get_diag
 
 ! *****************************************************************************
@@ -3407,15 +3371,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, i, row, row_offset, &
-                                                timing_handle
+    INTEGER                                  :: blk, col, i, row, row_offset
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL cp_assert (dbcsr_nfullrows_total(matrix).LE.SIZE(diag), &
          cp_fatal_level, cp_wrong_args_error, routineN, "SIZE(diag) too small")
@@ -3442,8 +3403,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
-
-    CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_set_diag
 
@@ -3473,12 +3432,9 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: new_type
-    INTEGER                                  :: timing_handle
     LOGICAL                                  :: keep_sparse, shallow
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     shallow = .FALSE. ; IF (PRESENT (shallow_data)) shallow = shallow_data
     keep_sparse = .FALSE.
@@ -3553,8 +3509,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
        matrix_b%m%sparsity_id = matrix_a%m%sparsity_id
     ENDIF
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_copy
 
 ! *****************************************************************************
@@ -3574,15 +3528,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CHARACTER                                :: data_type
     INTEGER                                  :: col_size, cs, dst_col, &
                                                 dst_row, rel, row_size, rs, &
-                                                src_col, src_row, &
-                                                timing_handle
+                                                src_col, src_row
     LOGICAL                                  :: dst_tr, src_tr
     TYPE(dbcsr_data_obj)                     :: dst_data, src_data
     TYPE(dbcsr_iterator)                     :: dst_iter, src_iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL cp_assert (dbcsr_get_data_type(matrix_b)&
          .EQ. dbcsr_get_data_type(matrix_a), cp_fatal_level,&
@@ -3650,7 +3601,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_data_release (src_data)
     CALL dbcsr_data_release (dst_data)
 
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_copy_into_existing
 
 
@@ -3679,8 +3629,10 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: data_type
-    INTEGER :: col_size, dst_col, dst_row, first_col, last_col, num_col, rel, &
-      row_size, src_col, src_row, timing_handle
+    INTEGER                                  :: col_size, dst_col, dst_row, &
+                                                first_col, last_col, num_col, &
+                                                rel, row_size, src_col, &
+                                                src_row
     INTEGER, DIMENSION(:), POINTER           :: dst_col_offsets, &
                                                 dst_col_sizes, &
                                                 src_col_offsets, src_col_sizes
@@ -3689,8 +3641,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     TYPE(dbcsr_iterator)                     :: dst_iter, src_iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL cp_assert (dbcsr_get_data_type(matrix_b)&
          .EQ. dbcsr_get_data_type(matrix_a), cp_fatal_level,&
@@ -3794,7 +3744,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_data_release (src_data)
     CALL dbcsr_data_release (dst_data)
 
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_copy_columns
 
 
@@ -3841,12 +3790,10 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                row, row_size, timing_handle
+                                                row, row_size
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL dbcsr_copy(matrix_b, matrix_a, name="triu of "//matrix_a%m%name, error=error)
 
@@ -3862,8 +3809,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_iterator_stop(iter)
 
     CALL dbcsr_finalize (matrix_b, error=error)
-
-    CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_btriu
 
@@ -3881,15 +3826,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                i, j, row, row_size, &
-                                                timing_handle
+                                                i, j, row, row_size
     LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL dbcsr_iterator_start(iter, matrix_a)
 
@@ -3911,8 +3853,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL dbcsr_finalize (matrix_a, error=error)
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_triu
 
 ! *****************************************************************************
@@ -3929,15 +3869,13 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, col_size, i, j, &
-                                                row, row_size, timing_handle
+                                                row, row_size
     LOGICAL                                  :: tr
     REAL(dp)                                 :: dum
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL dbcsr_iterator_start(iter, matrix_a)
 
@@ -3958,8 +3896,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL dbcsr_finalize(matrix_a, error=error)
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_symmetrize_block_diag
 
 ! *****************************************************************************
@@ -3976,15 +3912,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                i, j, row, row_size, &
-                                                timing_handle
+                                                i, j, row, row_size
     LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     CALL dbcsr_iterator_start(iter, matrix_a)
 
@@ -4006,8 +3939,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL dbcsr_finalize (matrix_a, error=error)
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_tril
 
 ! *****************************************************************************
@@ -4028,16 +3959,13 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                my_method, row, row_size, &
-                                                timing_handle
+                                                my_method, row, row_size
     LOGICAL                                  :: tr
     REAL(dp)                                 :: ddot, nrm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     my_method = dbcsr_filter_frobenius
     IF(PRESENT(method)) my_method = method
@@ -4074,8 +4002,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CALL dbcsr_finalize (matrix, error=error)
 
     ENDIF
-
-    CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_filter
 
@@ -4188,8 +4114,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: data_c
     INTEGER                                  :: blk, col, col_offset, i, j, &
-                                                nc, nr, row, row_offset, &
-                                                timing_handle
+                                                nc, nr, row, row_offset
     LOGICAL                                  :: any_sym, tr
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff_d
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
@@ -4197,8 +4122,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     nr = dbcsr_nfullrows_total(matrix)
     nc = dbcsr_nfullcols_total(matrix)
@@ -4266,8 +4189,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     dbcsr_gershgorin_norm = MAXVAL(buff_d)
     DEALLOCATE(buff_d)
 
-    CALL timestop(timing_handle)
-
   END FUNCTION dbcsr_gershgorin_norm
 
 ! *****************************************************************************
@@ -4287,15 +4208,13 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       POINTER                                :: data_z
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: data_c
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, col, row
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     dbcsr_maxabs_norm = 0.0_dp
     CALL dbcsr_iterator_start(iter, matrix)
@@ -4325,8 +4244,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     !    exported from the module timings
     CALL dmp_max( dbcsr_maxabs_norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
 
-    CALL timestop(timing_handle)
-
   END FUNCTION dbcsr_maxabs_norm
 
 ! *****************************************************************************
@@ -4347,7 +4264,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       POINTER                                :: data_z
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: data_c
-    INTEGER                                  :: blk, col, row, timing_handle
+    INTEGER                                  :: blk, col, row
     LOGICAL                                  :: any_sym, tr
     REAL(dp)                                 :: fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
@@ -4355,8 +4272,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN, timing_handle)
 
     any_sym = dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
               dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric
@@ -4395,8 +4310,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL mp_sum(dbcsr_frobenius_norm,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
     dbcsr_frobenius_norm = SQRT(dbcsr_frobenius_norm)
 
-    CALL timestop(timing_handle)
-
   END FUNCTION dbcsr_frobenius_norm
 
 ! *****************************************************************************
@@ -4412,8 +4325,10 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER :: blk, blk_l, blk_ps, blks, col, dst_p, mp_group, numnodes, nze, &
-      row, src_p, stored_col, stored_row, timing_handle
+    INTEGER                                  :: blk, blk_l, blk_ps, blks, &
+                                                col, dst_p, mp_group, &
+                                                numnodes, nze, row, src_p, &
+                                                stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -4440,7 +4355,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
     tstart = m_walltime ()
     CALL cp_assert (dbcsr_valid_index(matrix%m),&
          cp_fatal_level, cp_caller_error,&
@@ -4659,7 +4573,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     matrix%m%nblks = replicated%m%nblks
     CALL dbcsr_release (replicated)
     DBG 'Done replicating'
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_replicate_all
 
 
@@ -4738,7 +4651,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       col_offset_old, col_rle, col_size, data_offset_l, dst_p, i, meta_l, &
       mp_group, nblkcols_total_new, nblkrows_total_new, numnodes, nze_rle, &
       row, row_int, row_offset_new, row_offset_old, row_prev, row_rle, &
-      row_size, src_p, stored_col_new, stored_row_new, timing_handle
+      row_size, src_p, stored_col_new, stored_row_new
     INTEGER, ALLOCATABLE, DIMENSION(:) :: col_end_new, col_end_old, &
       col_start_new, col_start_old, rd_disp, recv_meta, rm_disp, row_end_new, &
       row_end_old, row_start_new, row_start_old, sd_disp, sdp, send_meta, &
@@ -4763,7 +4676,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
     t_all = m_walltime()
     t_prolog = t_all
     CALL cp_assert (dbcsr_valid_index(matrix%m),&
@@ -5224,7 +5136,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     !WRITE(*,*)routineN//" Checksums=",cs1, cs2, cs1-cs2
     !CALL cp_assert (cs1-cs2 .LT. 0.00001, cp_fatal_level, cp_internal_error,&
     !     routineN, "Mangled data!")
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_complete_redistribute
 
 ! *****************************************************************************
@@ -5247,7 +5158,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CHARACTER(len=80)                        :: ifmt
     INTEGER :: blk, blk_ps, blks, col, col_size, dst_p, meta_l, mp_group, &
       numnodes, nze, row, row_prev, row_size, src_p, stored_col_new, &
-      stored_row_new, timing_handle
+      stored_row_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -5268,7 +5179,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
     IF (dbg) CALL dbcsr_print (matrix)
     !call dbcsr_print_dist (matrix%m%dist)
     !call dbcsr_print_dist (redist%m%dist)
@@ -5507,7 +5417,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_meta)
     DBG 'Done redistributing'
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_redistribute
 
 
@@ -5543,7 +5452,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: new_type
-    INTEGER                                  :: stat, timing_handle
+    INTEGER                                  :: stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
     LOGICAL                                  :: shallow, tr_blocks, tr_dist
     TYPE(dbcsr_distribution_obj)             :: new_dist
@@ -5552,7 +5461,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
     CALL cp_assert (dbcsr_valid_index(normal), cp_fatal_level, cp_caller_error,&
          routineN, "Matrix does not exist.")
     ! Internalize options
@@ -5665,7 +5573,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CALL dbcsr_release (transposed)
        transposed = t2
     ENDIF
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_new_transposed
 
 ! *****************************************************************************
@@ -5688,7 +5595,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, dst_p, mp_group, &
       nsymmetries, numproc, nze, pcol, prow, row, src_p, stored_col, &
-      stored_row, symmetry_i, timing_handle
+      stored_row, symmetry_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -5711,7 +5618,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL timeset(routineN, timing_handle)
     tstart = m_walltime ()
     CALL cp_assert (dbcsr_valid_index (sm),&
          cp_fatal_level, cp_caller_error, routineN,&
@@ -5962,7 +5868,6 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEALLOCATE(send_meta)
     DBG 'desym name',desm%m%name
     DBG 'Done desymmetrizing!'
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_desymmetrize_deep
 
 

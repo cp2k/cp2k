@@ -14,7 +14,9 @@ MODULE qs_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
@@ -26,8 +28,6 @@ MODULE qs_force
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE f77_blas
@@ -251,7 +251,7 @@ CONTAINS
           DO ispin=1,nspin
              ALLOCATE(matrix_w(ispin)%matrix)
              CALL dbcsr_init(matrix_w(ispin)%matrix)
-             CALL dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
                   name="W MATRIX",error=error)
 
              mo_set => mos(ispin)%mo_set
@@ -260,7 +260,7 @@ CONTAINS
                 IF (scf_control%use_ot) THEN
                    IF (ispin > 1) THEN
                       ! not very elegant, indeed ...
-                      CALL dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+                      CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
                    ELSE
                       CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
                            matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
@@ -302,9 +302,9 @@ CONTAINS
        DO ispin=1,nspin
              ALLOCATE(matrix_w(ispin)%matrix)
              CALL dbcsr_init(matrix_w(ispin)%matrix)
-             CALL dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
                   name="W MATRIX",error=error)
-             CALL dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
        END DO
        
        CALL calc_c_mat_force(qs_env,dp_imag,error)

@@ -15,6 +15,8 @@ MODULE qs_scf_diagonalization
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
                                              dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -40,8 +42,6 @@ MODULE qs_scf_diagonalization
                                              dbcsr_init,&
                                              dbcsr_row_block_sizes,&
                                              dbcsr_uses_special_memory
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: dbcsr_create
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -281,8 +281,8 @@ CONTAINS
     END DO
 
     DO ispin=1,nspin
-       CALL dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho%rho_ao(ispin)%matrix,error=error )
-       CALL dbcsr_copy( rho%rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix,error=error )
+       CALL cp_dbcsr_copy(subspace_env%p_matrix_store(ispin)%matrix, rho%rho_ao(ispin)%matrix,error=error )
+       CALL cp_dbcsr_copy( rho%rho_ao(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix,error=error )
     END DO
 
     subspace_env%p_matrix_mix => scf_env%p_mix_new
@@ -369,7 +369,7 @@ CONTAINS
       END IF
 
       DO ispin=1,nspin
-         CALL dbcsr_copy( rho%rho_ao(ispin)%matrix,subspace_env%p_matrix_mix(ispin)%matrix ,error=error )
+         CALL cp_dbcsr_copy( rho%rho_ao(ispin)%matrix,subspace_env%p_matrix_mix(ispin)%matrix ,error=error )
       END DO
       ! update of density
       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -398,8 +398,8 @@ CONTAINS
 
     NULLIFY (subspace_env%p_matrix_mix)
     DO ispin=1,nspin
-        CALL dbcsr_copy( scf_env%p_mix_new(ispin)%matrix,rho%rho_ao(ispin)%matrix,error=error )
-        CALL dbcsr_copy( rho%rho_ao(ispin)%matrix,  subspace_env%p_matrix_store(ispin)%matrix ,error=error )
+        CALL cp_dbcsr_copy( scf_env%p_mix_new(ispin)%matrix,rho%rho_ao(ispin)%matrix,error=error )
+        CALL cp_dbcsr_copy( rho%rho_ao(ispin)%matrix,  subspace_env%p_matrix_store(ispin)%matrix ,error=error )
 
         DEALLOCATE(eval_first(ispin)%array,occ_first(ispin)%array)
     END DO
@@ -458,7 +458,7 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
                error=error)
           CALL dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix,&
                sab_orb, error=error)
-          CALL dbcsr_set(subspace_env%p_matrix_store(i)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(subspace_env%p_matrix_store(i)%matrix,0.0_dp,error=error)
        ENDDO
 
     END IF

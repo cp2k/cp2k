@@ -15,15 +15,15 @@ MODULE scp_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_get_diag,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_dist2d_to_dist
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
                                              dbcsr_get_info,&
                                              dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_get_diag,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_repl_full,&
@@ -292,13 +292,13 @@ CONTAINS
 
     ALLOCATE (ascp_diag(nrow),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL dbcsr_get_diag( pscp, ascp_diag, error=error )
+    CALL cp_dbcsr_get_diag( pscp, ascp_diag, error=error )
     CALL set_scp_env ( scp_env=scp_env, ascp_diag=ascp_diag, error = error )
 
-    CALL dbcsr_set(pscp,0.0_dp,error=error)
+    CALL cp_dbcsr_set(pscp,0.0_dp,error=error)
     ALLOCATE(ks_scp)
     CALL dbcsr_init(ks_scp)
-    CALL dbcsr_copy(ks_scp,pscp,'KS_SCP',error=error)
+    CALL cp_dbcsr_copy(ks_scp,pscp,'KS_SCP',error=error)
 
     CALL set_scp_env (scp_env=scp_env,ks_scp=ks_scp,pscp=pscp,error=error)
 

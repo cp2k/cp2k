@@ -13,7 +13,11 @@ MODULE se_core_matrix
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_get_block_diag,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
@@ -23,13 +27,9 @@ MODULE se_core_matrix
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
-                                             dbcsr_distribute,&
-                                             dbcsr_get_block_diag,&
+  USE dbcsr_operations,                ONLY: dbcsr_distribute,&
                                              dbcsr_get_block_p,&
                                              dbcsr_replicate_all,&
-                                             dbcsr_set,&
                                              dbcsr_sum_replicated
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
@@ -159,7 +159,7 @@ CONTAINS
        matrix_p => rho%rho_ao
 
        IF (SIZE(matrix_p) == 2) THEN
-          CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp, error=error)
+          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, alpha_scalar=1.0_dp, beta_scalar=1.0_dp, error=error)
        END IF
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -169,7 +169,7 @@ CONTAINS
                                 atom_of_kind=atom_of_kind)
        ALLOCATE(diagmat_p)!sm->dbcsr
        CALL dbcsr_init (diagmat_p)
-       CALL dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p, error=error)
+       CALL cp_dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p, error=error)
        CALL dbcsr_replicate_all(diagmat_p)
      END IF
 
@@ -177,14 +177,14 @@ CONTAINS
      CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
      ALLOCATE(matrix_h(1)%matrix)
      CALL dbcsr_init(matrix_h(1)%matrix)
-     CALL dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
-     CALL dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
+     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
+     CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
 
      ! Allocate a diagonal block matrix
      ALLOCATE(diagmat_h)!sm->dbcsr
      CALL dbcsr_init(diagmat_h)
-     CALL dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h, error=error)
-     CALL dbcsr_set(diagmat_h, 0.0_dp, error=error)
+     CALL cp_dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h, error=error)
+     CALL cp_dbcsr_set(diagmat_h, 0.0_dp, error=error)
      CALL dbcsr_replicate_all(diagmat_h)
 
      CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
@@ -371,7 +371,7 @@ CONTAINS
 
      CALL dbcsr_sum_replicated(diagmat_h)
      CALL dbcsr_distribute(diagmat_h)
-     CALL dbcsr_add(matrix_h(1)%matrix, diagmat_h,error=error)
+     CALL cp_dbcsr_add(matrix_h(1)%matrix, diagmat_h,1.0_dp,1.0_dp,error=error)
      CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
 
      qs_env%energy%core_self    = econst
@@ -388,7 +388,7 @@ CONTAINS
 
      IF(calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
-          CALL dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
        END IF
        DEALLOCATE(atom_of_kind)
        CALL dbcsr_deallocate_matrix(diagmat_p,error=error)

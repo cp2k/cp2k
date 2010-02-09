@@ -86,7 +86,10 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_filter,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_dist2d_to_dist,&
@@ -101,10 +104,7 @@ MODULE qs_core_hamiltonian
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
                                              dbcsr_get_occupation,&
                                              dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
-                                             dbcsr_filter,&
-                                             dbcsr_get_block_p
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
@@ -350,13 +350,13 @@ CONTAINS
        !     (matrix_p is restored at the end of the run, matrix_w is left in its modified state
        !     (as it should not be needed afterwards)
        IF (SIZE(matrix_p) == 2) THEN
-          CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
-          CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+          CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
                          alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
-          CALL dbcsr_add(matrix_w(1)%matrix, matrix_w(2)%matrix, &
+          CALL cp_dbcsr_add(matrix_w(1)%matrix, matrix_w(2)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
-          CALL dbcsr_add(matrix_w(2)%matrix, matrix_w(1)%matrix, &
+          CALL cp_dbcsr_add(matrix_w(2)%matrix, matrix_w(1)%matrix, &
                          alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     ELSE
@@ -913,7 +913,7 @@ CONTAINS
     DO i = 1,SIZE(matrix_s)
        CALL dbcsr_finalize(matrix_s(i)%matrix, error=error)
        IF(.FALSE.)WRITE(*,*) 'before',dbcsr_get_occupation(matrix_s(i)%matrix)
-       CALL dbcsr_filter(matrix_s(i)%matrix, &
+       CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
             qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
        IF(.FALSE.)WRITE(*,*) 'after',dbcsr_get_occupation(matrix_s(i)%matrix)
     ENDDO
@@ -936,9 +936,9 @@ CONTAINS
        ! *** The W matrix is neglected, since it will be destroyed   ***
        ! *** in the calling force routine after leaving this routine ***
        IF (SIZE(matrix_p) == 2) THEN
-          CALL dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
                          alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
-          CALL dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+          CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
                          alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     END IF
@@ -1093,9 +1093,9 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(matrix_v,1,error=error)
       ALLOCATE(matrix_v(1)%matrix)
       CALL dbcsr_init(matrix_v(1)%matrix)
-      CALL dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
+      CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
            name="POTENTIAL ENERGY MATRIX",error=error)
-      CALL dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
+      CALL cp_dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
            alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
       CALL dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
       CALL dbcsr_deallocate_matrix_set(matrix_v,error=error)

@@ -12,7 +12,9 @@ MODULE xc_pot_saop
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -26,8 +28,6 @@ MODULE xc_pot_saop
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_set
   USE f77_blas
   USE input_constants,                 ONLY: do_method_gapw,&
                                              oe_gllb,&
@@ -211,7 +211,7 @@ CONTAINS
        rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
        ALLOCATE(orbital_density_matrix(ispin)%matrix)
        CALL dbcsr_init(orbital_density_matrix(ispin)%matrix)
-       CALL dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
+       CALL cp_dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
             rho_struct%rho_ao(ispin)%matrix,"orbital density",error=error)
     END DO
     bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -340,7 +340,7 @@ CONTAINS
                                    1, orb, nrow(ispin), 1, error=error)
           CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
                                    1, orb, error=error)
-          CALL dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
           CALL dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                   matrix_v=single_mo_coeff(ispin)%matrix,&
                                   matrix_g=single_mo_coeff(ispin)%matrix,&
@@ -411,7 +411,7 @@ CONTAINS
                                    1, orb, nrow(ispin), 1, error=error)
           CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
                                    1, orb, error=error)
-          CALL dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
           CALL dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                   matrix_v=single_mo_coeff(ispin)%matrix,&
                                   matrix_g=single_mo_coeff(ispin)%matrix,&
@@ -619,7 +619,7 @@ CONTAINS
                            nrow_global=nrow(ispin), ncol_global=ncol(ispin),error=error)
        ALLOCATE(orbital_density_matrix(ispin)%matrix)
        CALL dbcsr_init(orbital_density_matrix(ispin)%matrix)
-       CALL dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
+       CALL cp_dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
             rho_structure%rho_ao(ispin)%matrix, &
             "orbital density", error=error)
     END DO
@@ -818,7 +818,7 @@ CONTAINS
                                          1, orb, nrow(ispin), 1, error=error)
                 CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
                                          1, orb, error=error)
-                CALL dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
                 CALL dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                         matrix_v=single_mo_coeff(ispin)%matrix,&
                                         matrix_g=single_mo_coeff(ispin)%matrix,&
@@ -921,7 +921,7 @@ CONTAINS
                                          1, orb, nrow(ispin), 1, error=error)
                 CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
                                          1, orb, error=error)
-                CALL dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(orbital_density_matrix(ispin)%matrix,0.0_dp,error=error)
                 CALL dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix,&
                                         matrix_v=single_mo_coeff(ispin)%matrix,&
                                         matrix_g=single_mo_coeff(ispin)%matrix,&

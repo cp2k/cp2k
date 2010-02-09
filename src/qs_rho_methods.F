@@ -11,14 +11,14 @@
 ! *****************************************************************************
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_alloc_block_from_nbl,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_alloc_block_from_nbl,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: dbcsr_create,&
                                              dbcsr_finalize
@@ -188,7 +188,7 @@ CONTAINS
                     error=error)
                CALL dbcsr_finalize(rho%rho_ao(i)%matrix,error=error)
                CALL dbcsr_alloc_block_from_nbl(rho%rho_ao(i)%matrix,sab_orb,error=error)
-               CALL dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
+               CALL cp_dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
             END DO
          END IF
        END IF
@@ -533,10 +533,10 @@ END SUBROUTINE qs_rho_update_rho
         DO i = 1, nspins
            ALLOCATE(rho_output%rho_ao(i)%matrix)
            CALL dbcsr_init(rho_output%rho_ao(i)%matrix)
-           CALL dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
+           CALL cp_dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
                 name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &
                 error=error)
-           CALL dbcsr_set(rho_output%rho_ao(i)%matrix,0.0_dp,error=error)
+           CALL cp_dbcsr_set(rho_output%rho_ao(i)%matrix,0.0_dp,error=error)
         END DO
       END IF
     END IF
@@ -768,10 +768,10 @@ END SUBROUTINE qs_rho_update_rho
          CALL dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         !DO i = 1, SIZE(rho_input%rho_ao)
         DO i = 1, nspins
-           CALL dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input1%rho_ao(i)%matrix, &
+           CALL cp_dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input1%rho_ao(i)%matrix, &
                 name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &
                 error=error)
-           CALL dbcsr_add(rho_output%rho_ao(i)%matrix,rho_input2%rho_ao(i)%matrix,&
+           CALL cp_dbcsr_add(rho_output%rho_ao(i)%matrix,rho_input2%rho_ao(i)%matrix,&
                 alpha_scalar=a,beta_scalar=b,error=error)
         END DO
       END IF
@@ -983,14 +983,14 @@ END SUBROUTINE qs_rho_update_rho
         IF (.NOT. ASSOCIATED(rho_output%rho_ao)) THEN
            CALL dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
           DO i = 1, nspins
-             CALL dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
+             CALL cp_dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
                   name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &
                   error=error)
-             CALL dbcsr_set(rho_output%rho_ao(i)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(rho_output%rho_ao(i)%matrix,0.0_dp,error=error)
           END DO
         ELSE
           DO i = 1,nspins
-             CALL dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
+             CALL cp_dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
                   error=error)
           END DO
         END IF

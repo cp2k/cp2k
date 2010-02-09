@@ -14,7 +14,8 @@
 ! *****************************************************************************
 MODULE qs_scf_methods
 
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -34,8 +35,7 @@ MODULE qs_scf_methods
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_get_block_p
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE f77_blas
@@ -121,7 +121,7 @@ CONTAINS
           IF (my_invert) THEN
              CPPrecondition(my_p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
              IF (my_p_mix/=1.0_dp) THEN
-                CALL dbcsr_add(matrix_a=p_mix_new(ispin)%matrix,&
+                CALL cp_dbcsr_add(matrix_a=p_mix_new(ispin)%matrix,&
                      alpha_scalar=1.0_dp/my_p_mix,&
                      matrix_b=rho_ao(ispin)%matrix,&
                      beta_scalar=(my_p_mix-1.0_dp)/my_p_mix,&

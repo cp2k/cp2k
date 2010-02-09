@@ -17,6 +17,7 @@ MODULE dkh_main
                                              gto_basis_set_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_add,&
                                              dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
@@ -48,8 +49,7 @@ MODULE dkh_main
                                              dbcsr_distribution_mp,&
                                              dbcsr_distribution_release,&
                                              dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_get_block_p
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
@@ -937,7 +937,7 @@ CONTAINS
 
     IF(dkh_full) THEN
        IF(qs_env%rel_control%rel_potential.eq.rel_pot_erfc)THEN
-          CALL dbcsr_add(matrix_hpgf(1)%matrix,matrix_vnuc(1)%matrix,&
+          CALL cp_dbcsr_add(matrix_hpgf(1)%matrix,matrix_vnuc(1)%matrix,&
                          alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
        END IF
 
@@ -960,11 +960,11 @@ CONTAINS
        CALL copy_fm_to_dbcsr(matrix_v_full,matrix_hpgf(1)%matrix,keep_sparsity=.TRUE.)
        CALL copy_fm_to_dbcsr(matrix_t_full,matrix_tpgf(1)%matrix,keep_sparsity=.TRUE.)
 
-       CALL dbcsr_add(matrix_hpgf(1)%matrix,matrix_tpgf(1)%matrix,&
+       CALL cp_dbcsr_add(matrix_hpgf(1)%matrix,matrix_tpgf(1)%matrix,&
                       alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
 
        IF(qs_env%rel_control%rel_potential.eq.rel_pot_full)THEN
-          CALL dbcsr_add(matrix_hpgf(1)%matrix,matrix_vnuc(1)%matrix,&
+          CALL cp_dbcsr_add(matrix_hpgf(1)%matrix,matrix_vnuc(1)%matrix,&
                          alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
        END IF
 

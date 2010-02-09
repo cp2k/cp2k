@@ -19,11 +19,10 @@ MODULE qs_initial_guess
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             dbcsr_from_fm,&
-                                             dbcsr_multiply,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, cp_dbcsr_filter, cp_dbcsr_get_diag, &
+       cp_dbcsr_multiply, cp_dbcsr_scale, cp_dbcsr_set_diag, dbcsr_from_fm, &
+       dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
@@ -38,11 +37,7 @@ MODULE qs_initial_guess
        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_release, &
        dbcsr_row_block_sizes
-  USE dbcsr_operations,                ONLY: dbcsr_filter,&
-                                             dbcsr_get_diag,&
-                                             dbcsr_scale,&
-                                             dbcsr_set_diag,&
-                                             dbcsr_trace
+  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
                                              dbcsr_obj
@@ -501,7 +496,7 @@ CPSourceFileRef,&
 
           CALL dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1, error=error)
           scale=REAL(nelectron,dp)/trps1
-          CALL dbcsr_scale(p_rmpv(ispin)%matrix, scale, error=error)
+          CALL cp_dbcsr_scale(p_rmpv(ispin)%matrix, scale, error=error)
 
           IF (output_unit > 0) THEN
             IF (nspin > 1) THEN
@@ -614,7 +609,7 @@ CPSourceFileRef,&
        checksum = dbcsr_checksum(s_sparse(1)%matrix, error=error)
        i = dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
        IF(output_unit>0)WRITE(output_unit,*) 'S nblks',i,' checksum',checksum
-       CALL dbcsr_filter(s_sparse(1)%matrix, eps, error=error)
+       CALL cp_dbcsr_filter(s_sparse(1)%matrix, eps, error=error)
        CALL dbcsr_verify_matrix(s_sparse(1)%matrix, error=error)
        checksum = dbcsr_checksum(s_sparse(1)%matrix, error=error)
        i = dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
@@ -653,7 +648,7 @@ CPSourceFileRef,&
           i = dbcsr_get_num_blocks (p_rmpv(ispin)%matrix); CALL mp_sum(i,group)
           IF(output_unit>0)WRITE(output_unit,*) 'P_init nblks',i,' checksum',checksum
           ! so far p needs to have the same sparsity as S
-          !CALL dbcsr_filter(p_rmpv(ispin)%matrix, eps, error=error)
+          !CALL cp_dbcsr_filter(p_rmpv(ispin)%matrix, eps, error=error)
           !CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
           checksum = dbcsr_checksum(p_rmpv(ispin)%matrix, error=error)
           i = dbcsr_get_num_blocks (p_rmpv(ispin)%matrix); CALL mp_sum(i,group)
@@ -661,7 +656,7 @@ CPSourceFileRef,&
 
           CALL dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1, error=error)
           scale=REAL(nelectron,dp)/trps1
-          CALL dbcsr_scale(p_rmpv(ispin)%matrix, scale, error=error)
+          CALL cp_dbcsr_scale(p_rmpv(ispin)%matrix, scale, error=error)
 
           CALL dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
           checksum = dbcsr_checksum(p_rmpv(ispin)%matrix, error=error)
@@ -776,7 +771,7 @@ CPSourceFileRef,&
              checksum = dbcsr_checksum(mo_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
              IF(output_unit>0)WRITE(output_unit,*) 'C nblks',i,' checksum',checksum
-             CALL dbcsr_filter(mo_dbcsr, eps, error=error)
+             CALL cp_dbcsr_filter(mo_dbcsr, eps, error=error)
              CALL dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
@@ -797,14 +792,14 @@ CPSourceFileRef,&
              CALL dbcsr_create(mo_tmp_dbcsr, "mo_tmp", product_dist, 'N',&
                   dbcsr_row_block_sizes (s_sparse(1)%matrix),&
                   dbcsr_col_block_sizes (mo_dbcsr), error=error)
-             CALL dbcsr_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
+             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
                   0.0_dp, mo_tmp_dbcsr,&
                   error=error)
              CALL dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_tmp_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_tmp_dbcsr); CALL mp_sum(i,group)
              IF(output_unit>0)WRITE(output_unit,*) 'S*C nblks',i,' checksum',checksum
-             CALL dbcsr_filter(mo_tmp_dbcsr, eps, error=error)
+             CALL cp_dbcsr_filter(mo_tmp_dbcsr, eps, error=error)
              CALL dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_tmp_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_tmp_dbcsr); CALL mp_sum(i,group)
@@ -818,13 +813,13 @@ CPSourceFileRef,&
              CALL dbcsr_create (mo_dbcsr, "mo", product_dist, 'N',&
                   dbcsr_row_block_sizes (p_rmpv(ispin)%matrix),&
                   dbcsr_col_block_sizes (mo_tmp_dbcsr), error=error)
-             CALL dbcsr_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix,&
+             CALL cp_dbcsr_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix,&
                   mo_tmp_dbcsr, 0.0_dp, mo_dbcsr, error=error)
              CALL dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
              IF(output_unit>0)WRITE(output_unit,*) 'P*SC nblks',i,' checksum',checksum
-             CALL dbcsr_filter(mo_dbcsr, eps, error=error)
+             CALL cp_dbcsr_filter(mo_dbcsr, eps, error=error)
              CALL dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = dbcsr_checksum(mo_dbcsr, error=error)
              i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
@@ -889,7 +884,7 @@ CPSourceFileRef,&
        IF (ortho_basis) THEN
           sdiag(:) = 1.0_dp
        ELSE
-          CALL dbcsr_get_diag(s_sparse(1)%matrix, sdiag, error=error)
+          CALL cp_dbcsr_get_diag(s_sparse(1)%matrix, sdiag, error=error)
           CALL mp_sum(sdiag,group)
        END IF
 
@@ -1082,7 +1077,7 @@ CPSourceFileRef,&
              pdiag=pdiag+0.01_dp
           ENDIF
 
-          CALL dbcsr_set_diag(p_rmpv(ispin)%matrix, pdiag, error=error)
+          CALL cp_dbcsr_set_diag(p_rmpv(ispin)%matrix, pdiag, error=error)
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)

@@ -12,7 +12,10 @@
 MODULE qs_mo_methods
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
-                                             dbcsr_multiply,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_multiply,&
+                                             cp_dbcsr_scale_by_vector,&
+                                             cp_dbcsr_set,&
                                              dbcsr_plus_fm_fm_t,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -36,9 +39,6 @@ MODULE qs_mo_methods
   USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
                                              dbcsr_init,&
                                              dbcsr_release
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_scale_by_vector,&
-                                             dbcsr_set
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -448,16 +448,16 @@ CONTAINS
     ENDIF
 
 
-    CALL dbcsr_set(density_matrix,0.0_dp,error=error)
+    CALL cp_dbcsr_set(density_matrix,0.0_dp,error=error)
 
     IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
 
        IF(my_use_dbcsr) THEN
           CALL dbcsr_init(dbcsr_tmp)
-          CALL dbcsr_copy(dbcsr_tmp,mo_set%mo_coeff_b,error=error)
-          CALL dbcsr_scale_by_vector(dbcsr_tmp,mo_set%occupation_numbers(1:mo_set%homo),&
+          CALL cp_dbcsr_copy(dbcsr_tmp,mo_set%mo_coeff_b,error=error)
+          CALL cp_dbcsr_scale_by_vector(dbcsr_tmp,mo_set%occupation_numbers(1:mo_set%homo),&
                side='right',error=error)
-          CALL dbcsr_multiply("N", "T", 1.0_dp, mo_set%mo_coeff_b, dbcsr_tmp,&
+          CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_set%mo_coeff_b, dbcsr_tmp,&
                1.0_dp, density_matrix, retain_sparsity=.TRUE.,&
                last_k = mo_set%homo, error=error)
           CALL dbcsr_release(dbcsr_tmp)
@@ -476,7 +476,7 @@ CONTAINS
        ENDIF
     ELSE
        IF(my_use_dbcsr) THEN
-          CALL dbcsr_multiply("N", "T", mo_set%maxocc, mo_set%mo_coeff_b, mo_set%mo_coeff_b,&
+          CALL cp_dbcsr_multiply("N", "T", mo_set%maxocc, mo_set%mo_coeff_b, mo_set%mo_coeff_b,&
                1.0_dp, density_matrix, retain_sparsity=.TRUE.,&
                last_k = mo_set%homo, error=error)
        ELSE

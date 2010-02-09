@@ -6,7 +6,8 @@
 ! *****************************************************************************
 MODULE qs_tddfpt_eigensolver
   USE cp_control_types,                ONLY: tddfpt_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_plus_fm_fm_t,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_set,&
+                                             dbcsr_plus_fm_fm_t,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_symm,&
@@ -26,7 +27,6 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm
-  USE dbcsr_operations,                ONLY: dbcsr_set
   USE f77_blas
   USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
@@ -556,7 +556,7 @@ CONTAINS
     !-----------------!
     IF (do_kernel) THEN
        DO spin=1, nspins
-          CALL dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp, error=error) ! optimize?
+          CALL cp_dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp, error=error) ! optimize?
           CALL dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=p_env%psi0d(spin)%matrix,&
                                   matrix_g=X(spin)%matrix,&

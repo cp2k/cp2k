@@ -16,7 +16,10 @@ MODULE se_fock_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -24,10 +27,7 @@ MODULE se_fock_matrix
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
-                                             dbcsr_set,&
-                                             dbcsr_trace
+  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -163,13 +163,13 @@ CONTAINS
 
        DO ispin=1,nspins
           ! Copy the core matrix into the fock matrix
-          CALL dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+          CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
        END DO
 
        ! Zero the ks_scp matrix.  Will get info from coulomb routines
        IF (scp_nddo) THEN
           CALL get_scp_env(scp_env, ks_scp=ks_scp, error=error)
-          CALL dbcsr_set(ks_scp,0.0_dp,error=error)
+          CALL cp_dbcsr_set(ks_scp,0.0_dp,error=error)
        END IF
 
 
@@ -227,7 +227,8 @@ CONTAINS
        IF (qs_env%qmmm) THEN
           DO ispin = 1, nspins
              ! If QM/MM sumup the 1el Hamiltonian
-             CALL dbcsr_add(ks_matrix(ispin)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,error=error)
+             CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
+                  1.0_dp,1.0_dp,error=error)
              ! Compute QM/MM Energy
              CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
                   matrix_p(ispin)%matrix,trace=qmmm_el,error=error)

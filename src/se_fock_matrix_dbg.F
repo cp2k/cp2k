@@ -4,9 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 MODULE se_fock_matrix_dbg
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
-  USE dbcsr_operations,                ONLY: dbcsr_set,&
-                                             dbcsr_trace
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_set,&
+                                             dbcsr_obj_p_type
+  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_energy_types,                 ONLY: init_qs_energy,&
@@ -51,7 +51,7 @@ CONTAINS
     ! Zero structures only for debugging purpose
     CALL init_qs_energy(energy)
     DO ispin = 1, nspins
-       CALL dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
     END DO
 
     ! Evaluate Coulomb Long-Range

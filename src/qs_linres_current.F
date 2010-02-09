@@ -29,10 +29,11 @@ MODULE qs_linres_current
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       dbcsr_add_block_node, dbcsr_alloc_block_from_nbl, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
-       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type, &
-       dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
+       cp_dbcsr_copy, cp_dbcsr_set, dbcsr_add_block_node, &
+       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
+       dbcsr_dist2d_to_dist, dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, &
+       dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -54,9 +55,7 @@ MODULE qs_linres_current
   USE cube_utils,                      ONLY: cube_info_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
                                              dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_set
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_antisymmetric,&
@@ -335,19 +334,19 @@ CONTAINS
        !density_matrix_a
        ALLOCATE(density_matrix_a(ispin)%matrix)
        CALL dbcsr_init(density_matrix_a(ispin)%matrix,error=error)
-       CALL dbcsr_copy(density_matrix_a(ispin)%matrix,density_matrix0(ispin)%matrix,&
+       CALL cp_dbcsr_copy(density_matrix_a(ispin)%matrix,density_matrix0(ispin)%matrix,&
             name="density_matrix_a",error=error)
        !
        !density_matrix_ii
        ALLOCATE(density_matrix_ii(ispin)%matrix)
        CALL dbcsr_init(density_matrix_ii(ispin)%matrix,error=error)
-       CALL dbcsr_copy(density_matrix_ii(ispin)%matrix,density_matrix0(ispin)%matrix,&
+       CALL cp_dbcsr_copy(density_matrix_ii(ispin)%matrix,density_matrix0(ispin)%matrix,&
             name="density_matrix_ii",error=error)
        !
        !density_matrix_iii
        ALLOCATE(density_matrix_iii(ispin)%matrix)
        CALL dbcsr_init(density_matrix_iii(ispin)%matrix,error=error)
-       CALL dbcsr_copy(density_matrix_iii(ispin)%matrix,density_matrix0(ispin)%matrix,&
+       CALL cp_dbcsr_copy(density_matrix_iii(ispin)%matrix,density_matrix0(ispin)%matrix,&
             name="density_matrix_iii",error=error)
     ENDDO
     !
@@ -374,7 +373,7 @@ CONTAINS
           !
           !
           ! Build the first density matrix
-          CALL dbcsr_set(density_matrix0(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(density_matrix0(ispin)%matrix,0.0_dp,error=error)
           CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix0(ispin)%matrix ,&
                &                  matrix_v=mo_coeff,matrix_g=mo_coeff,&
                &                  ncol=nmo,alpha=maxocc,error=error)
@@ -424,19 +423,19 @@ CONTAINS
           ! Multiply by the occupation number for the density matrix
           !
           ! Build the first density matrix
-          CALL dbcsr_set(density_matrix_a(ispin)%matrix ,0.0_dp,error=error)
+          CALL cp_dbcsr_set(density_matrix_a(ispin)%matrix ,0.0_dp,error=error)
           CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_a(ispin)%matrix ,&
                &                  matrix_v=mo_coeff,matrix_g=psi_a_iB,&
                &                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Build the second density matrix
-          CALL dbcsr_set(density_matrix_iii(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(density_matrix_iii(ispin)%matrix,0.0_dp,error=error)
           CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
                &                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiiB)%matrix,&
                &                  ncol=nmo,alpha=maxocc,error=error)
           !
           ! Build the third density matrix
-          CALL dbcsr_set(density_matrix_ii(ispin)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(density_matrix_ii(ispin)%matrix,0.0_dp,error=error)
           CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
                &                  matrix_v=mo_coeff,matrix_g=psi1_p(ispin,iiB)%matrix,&
                &                  ncol=nmo,alpha=maxocc,error=error)
@@ -2346,19 +2345,19 @@ CONTAINS
     DO idir2=1,3
        ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
        CALL dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
-       CALL dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
+       CALL cp_dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
             "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),error)
     ENDDO
 
     DO idir = 2,SIZE(op_mom_ao,1)
        ALLOCATE(op_mom_ao(idir)%matrix)
        CALL dbcsr_init(op_mom_ao(idir)%matrix)
-       CALL dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
+       CALL cp_dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
             "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
        DO idir2=1,3
           ALLOCATE(op_mom_der_ao(idir,idir2)%matrix)
           CALL dbcsr_init(op_mom_der_ao(idir,idir2)%matrix)
-          CALL dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
+          CALL cp_dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
                "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),error)
        ENDDO
     ENDDO
@@ -2377,7 +2376,7 @@ CONTAINS
     DO idir=2,3
        ALLOCATE(op_p_ao(idir)%matrix)
        CALL dbcsr_init(op_p_ao(idir)%matrix)
-       CALL dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
+       CALL cp_dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
             "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
     ENDDO
     !
@@ -2447,9 +2446,9 @@ CONTAINS
           ! Compute the multipole integrals for the state istate,
           ! using as reference center the corresponding Wannier center
           DO idir = 1,9
-             CALL dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp,error=error)
              DO idir2 = 1,3
-                CALL dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp,error=error)
+                CALL cp_dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp,error=error)
              ENDDO
           ENDDO
           CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
@@ -2796,19 +2795,19 @@ CONTAINS
     DO idir2=1,3
        ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
        CALL dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
-       CALL dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
+       CALL cp_dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
             "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),error)
     ENDDO
 
     DO idir = 2,SIZE(op_mom_ao,1)
        ALLOCATE(op_mom_ao(idir)%matrix)
        CALL dbcsr_init(op_mom_ao(idir)%matrix)
-       CALL dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
+       CALL cp_dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
             "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
        DO idir2=1,3
           ALLOCATE(op_mom_der_ao(idir,idir2)%matrix)
           CALL dbcsr_init(op_mom_der_ao(idir,idir2)%matrix)
-          CALL dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
+          CALL cp_dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
                "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),error)
        ENDDO
     ENDDO
@@ -2827,7 +2826,7 @@ CONTAINS
     DO idir=2,3
        ALLOCATE(op_p_ao(idir)%matrix)
        CALL dbcsr_init(op_p_ao(idir)%matrix)
-       CALL dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
+       CALL cp_dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
             "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
     ENDDO
     !
@@ -2875,9 +2874,9 @@ CONTAINS
        ! Compute the multipole integrals for the state istate,
        ! using as reference center the corresponding Wannier center
        DO idir = 1,9
-          CALL dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp,error=error)
+          CALL cp_dbcsr_set(op_mom_ao(idir)%matrix,0.0_dp,error=error)
           DO idir2 = 1,3
-             CALL dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp,error=error)
+             CALL cp_dbcsr_set(op_mom_der_ao(idir,idir2)%matrix,0.0_dp,error=error)
           ENDDO
        ENDDO
        CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&

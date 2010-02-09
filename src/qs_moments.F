@@ -28,7 +28,9 @@ MODULE qs_moments
                                              cp_cfm_p_type,&
                                              cp_cfm_release
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -48,9 +50,7 @@ MODULE qs_moments
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_copy,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_set,&
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
                                              dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -158,8 +158,8 @@ CONTAINS
     DO i=1,nm
        ALLOCATE(moments(i)%matrix)
        CALL dbcsr_init (moments(i)%matrix)
-       CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments", error)
-       CALL dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments", error)
+       CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
     END DO
 
     NULLIFY (atomic_kind_set,particle_set,sab_orb,cell)
@@ -427,8 +427,8 @@ CONTAINS
                     particle_set=particle_set,cell=cell,&
                     sab_orb=sab_orb,error=error)
 
-    CALL dbcsr_set(sinmat,0.0_dp,error=error)
-    CALL dbcsr_set(cosmat,0.0_dp,error=error)
+    CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
+    CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxco=ldwork )
     ldab = ldwork
@@ -668,10 +668,10 @@ CONTAINS
        ALLOCATE(cosmat, sinmat)
        CALL dbcsr_init(cosmat)
        CALL dbcsr_init(sinmat)
-       CALL dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
-       CALL dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
-       CALL dbcsr_set(cosmat,0.0_dp,error=error)
-       CALL dbcsr_set(sinmat,0.0_dp,error=error)
+       CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
+       CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
+       CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
+       CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
 
        ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

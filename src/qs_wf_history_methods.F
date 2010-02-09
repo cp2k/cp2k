@@ -22,7 +22,10 @@ MODULE qs_wf_history_methods
                                              VandeVondele2005a,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_set,&
+                                             dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -45,9 +48,6 @@ MODULE qs_wf_history_methods
                                              cp_print_key_unit_nr
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_add,&
-                                             dbcsr_copy,&
-                                             dbcsr_set
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -248,17 +248,17 @@ END SUBROUTINE wfs_create
       IF (ASSOCIATED(input_snapshot%rho_ao)) THEN
         CALL dbcsr_allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao),error=error)
         DO i = 1,SIZE(input_snapshot%rho_ao)
-           CALL dbcsr_copy(output_snapshot%rho_ao(i)%matrix,input_snapshot%rho_ao(i)%matrix, &
+           CALL cp_dbcsr_copy(output_snapshot%rho_ao(i)%matrix,input_snapshot%rho_ao(i)%matrix, &
                 name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
-           CALL dbcsr_set(output_snapshot%rho_ao(i)%matrix,0.0_dp,error=error)
+           CALL cp_dbcsr_set(output_snapshot%rho_ao(i)%matrix,0.0_dp,error=error)
         END DO
       END IF
 
       ! overlap
       IF (ASSOCIATED(input_snapshot%overlap)) THEN
-         CALL dbcsr_copy(output_snapshot%overlap,input_snapshot%overlap,&
+         CALL cp_dbcsr_copy(output_snapshot%overlap,input_snapshot%overlap,&
               name="myOverlapMatrix",error=error)
-         CALL dbcsr_set(output_snapshot%overlap,0.0_dp,error=error)
+         CALL cp_dbcsr_set(output_snapshot%overlap,0.0_dp,error=error)
          !CALL replicate_matrix(source=input_snapshot%overlap, &
          !                     TARGET=output_snapshot%overlap, &
          !                     target_name="myOverlapMatrix", &
@@ -440,7 +440,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
         DO ispin=1,nspins
            ALLOCATE(snapshot%rho_ao(ispin)%matrix)
            CALL dbcsr_init(snapshot%rho_ao(ispin)%matrix)
-           CALL dbcsr_copy(snapshot%rho_ao(ispin)%matrix,rho_ao(ispin)%matrix,&
+           CALL cp_dbcsr_copy(snapshot%rho_ao(ispin)%matrix,rho_ao(ispin)%matrix,&
                 error=error)
         END DO
      END IF
@@ -456,7 +456,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
         !             snapshot%overlap,"snapshot%overlap",error=error)
         ALLOCATE(snapshot%overlap)
         CALL dbcsr_init(snapshot%overlap)
-        CALL dbcsr_copy(snapshot%overlap,s_array(1)%matrix,error=error)
+        CALL cp_dbcsr_copy(snapshot%overlap,s_array(1)%matrix,error=error)
      END IF
 
      IF (wf_history%store_frozen_density) THEN
@@ -740,7 +740,7 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
-             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
                              t0_state%rho_frozen%rho_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
@@ -758,7 +758,7 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
                              t0_state%rho_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
@@ -806,7 +806,7 @@ END FUNCTION wfi_get_method_label
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
           DO ispin=1,SIZE(t0_state%rho_ao)
-             CALL dbcsr_copy(rho%rho_ao(ispin)%matrix,&
+             CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,&
                              t0_state%rho_ao(ispin)%matrix,&
                              keep_sparsity=.TRUE.,&
                              error=error)
@@ -905,9 +905,9 @@ END FUNCTION wfi_get_method_label
             t1=t1_state%dt
             t2=t1+dt
             DO ispin=1,SIZE(rho%rho_ao)
-               CALL dbcsr_add(rho%rho_ao(ispin)%matrix,t1_state%rho_ao(ispin)%matrix,&
+               CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix,t1_state%rho_ao(ispin)%matrix,&
                     alpha_scalar=0.0_dp,beta_scalar=(t2-t0)/(t1-t0),error=error) ! this copy should be unnecessary
-               CALL dbcsr_add(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
+               CALL cp_dbcsr_add(rho%rho_ao(ispin)%matrix,t0_state%rho_ao(ispin)%matrix,&
                     alpha_scalar=1.0_dp,beta_scalar=(t1-t2)/(t1-t0),error=error)
             END DO
             CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)

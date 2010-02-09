@@ -24,6 +24,8 @@ MODULE dft_plus_u
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                             cp_dbcsr_get_block_diag,&
+                                             cp_dbcsr_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_plus_fm_fm_t,&
@@ -47,9 +49,7 @@ MODULE dft_plus_u
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_diag,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_set
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -402,12 +402,12 @@ CONTAINS
     ALLOCATE (sm_q,STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     CALL dbcsr_init(sm_q,error=error)
-    CALL dbcsr_get_block_diag(sm_s,sm_q,error=error)
+    CALL cp_dbcsr_get_block_diag(sm_s,sm_q,error=error)
 
     ALLOCATE (sm_v,STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
     CALL dbcsr_init(sm_v,error=error)
-    CALL dbcsr_get_block_diag(sm_s,sm_v,error=error)
+    CALL cp_dbcsr_get_block_diag(sm_s,sm_v,error=error)
 
     ! Loop over all spins
 
@@ -429,8 +429,8 @@ CONTAINS
 
       sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
 
-      CALL dbcsr_set(sm_q,0.0_dp,error=error)
-      CALL dbcsr_set(sm_v,0.0_dp,error=error)
+      CALL cp_dbcsr_set(sm_q,0.0_dp,error=error)
+      CALL cp_dbcsr_set(sm_v,0.0_dp,error=error)
 
       ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
 
@@ -1048,17 +1048,17 @@ CONTAINS
         ALLOCATE (sm_q,STAT=stat)
         CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
         CALL dbcsr_init(sm_q,error=error)
-        CALL dbcsr_get_block_diag(sm_p,sm_q,error=error)
+        CALL cp_dbcsr_get_block_diag(sm_p,sm_q,error=error)
       END IF
-      CALL dbcsr_set(sm_q,0.0_dp,error=error)
+      CALL cp_dbcsr_set(sm_q,0.0_dp,error=error)
 
       IF (.NOT.ASSOCIATED(sm_v)) THEN
         ALLOCATE (sm_v,STAT=stat)
         CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
         CALL dbcsr_init(sm_v,error=error)
-        CALL dbcsr_get_block_diag(sm_p,sm_v,error=error)
+        CALL cp_dbcsr_get_block_diag(sm_p,sm_v,error=error)
       END IF
-      CALL dbcsr_set(sm_v,0.0_dp,error=error)
+      CALL cp_dbcsr_set(sm_v,0.0_dp,error=error)
 
       DO iatom=1,natom
 
