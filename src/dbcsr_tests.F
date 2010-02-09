@@ -82,8 +82,7 @@ CONTAINS
       routineN = 'cp_test_multiplies', routineP = moduleN//':'//routineN
 
     CHARACTER                                :: t_a, t_b
-    INTEGER                                  :: bmax, bmin, mynode, numnodes, &
-                                                test
+    INTEGER                                  :: bmax, bmin, mynode, numnodes
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: group_sizes
     LOGICAL                                  :: pgiven
     TYPE(array_i1d_obj)                      :: sizes_k, sizes_m, sizes_n
@@ -154,10 +153,12 @@ CONTAINS
        group_sizes(:,1) = nproc(:)
        group_sizes(:,2) = 0
     ELSE
-       ALLOCATE (group_sizes (numnodes, 2))
-       DO test = numnodes, 1, -1
-          group_sizes(1+numnodes-test, 1:2) = (/ test, 0 /)
-       ENDDO
+       !ALLOCATE (group_sizes (numnodes, 2))
+       !DO test = numnodes, 1, -1
+       !   group_sizes(1+numnodes-test, 1:2) = (/ test, 0 /)
+       !ENDDO
+       ALLOCATE (group_sizes (1, 2))
+       group_sizes(1, 1:2) = (/ numnodes, 0 /)
     ENDIF
     t_a = 'N' ; IF (trs(1)) t_a = 'T'
     t_b = 'N' ; IF (trs(2)) t_b = 'T'
