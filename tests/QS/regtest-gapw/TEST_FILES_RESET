@@ -283,3 +283,5 @@ Be_GAPW.inp
 Na_atom.inp
 # atomic code: unrestricted calculations 
 Na_atom.inp
+C-levelshift.inp
+HF_gapw_all_LB.inp

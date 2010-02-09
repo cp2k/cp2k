@@ -6,3 +6,5 @@ dkh_p_o3_pFULL_tATOM.inp
 dkh_p_o2_pFULL_tATOM.inp
 # atomic code: unrestricted calculations 
 dkh_p_o3_pFULL_tATOM.inp
+dkh_p_o2_pERFC_tATOM.inp
+dkh_p_o3_pERFC_tATOM.inp
