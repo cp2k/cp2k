@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g.  #      35 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests ATOMIC code LSD version
+H.inp  35
+He_1.inp  35
+He_2.inp  35
+He_3.inp  35
+He_4.inp  35
+He_5.inp  35
+F_1.inp  35
+F_2.inp  35
+F_3.inp  35
+F_4.inp  35
+F_5.inp  35
+U.inp  35
