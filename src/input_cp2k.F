@@ -714,6 +714,10 @@ CONTAINS
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_cp_dbcsr_section(subsection,error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
   END SUBROUTINE create_test_section
 
 ! *****************************************************************************
@@ -928,6 +932,143 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
   END SUBROUTINE create_cp_fm_gemm_section
+
+! *****************************************************************************
+!> \brief   creates the cp_dbcsr section for use in the test section
+!> \author  Urban Borstnik
+!> \date    2010-02-08
+! *****************************************************************************
+  SUBROUTINE create_cp_dbcsr_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cp_dbcsr_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="CP_DBCSR",&
+         description="Benchmark and test the cp_dbcsr routines",&
+         n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="N_LOOP",&
+         description="Number of operations being timed (useful for small matrices).",&
+         usage="N_LOOP 10",default_i_val=10,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="M",&
+         description="Dimension 1 of C",&
+         usage="A 1024",default_i_val=256,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="N",&
+         description="Dimension 2 of C",&
+         usage="A 1024",default_i_val=256,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="K",&
+         description="Inner dimension M   ",&
+         usage="A 1024",default_i_val=256,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="TRANSA",&
+         description="Transpose matrix A",&
+         usage="TRANSA",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="TRANSB",&
+         description="Transpose matrix B",&
+         usage="TRANSB",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="BS_M",&
+         description="Row block sizes of C", n_var=-1,&
+         usage="BS_M 1 13 2 5",default_i_vals=(/1, 13, 2, 15/),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="BS_N",&
+         description="Column block sizes of C", n_var=-1,&
+         usage="BS_N 1 13 2 5",default_i_vals=(/1, 13, 2, 15/),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="BS_K",&
+         description="Block sizes of inner dimension", n_var=-1,&
+         usage="BS_K 1 13 2 5",default_i_vals=(/1, 13, 2, 15/),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="ATYPE",&
+         description="Matrix A type",&
+         usage="ATYPE N",default_c_val='N',error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="BTYPE",&
+         description="Matrix B type",&
+         usage="BTYPE N",default_c_val='N',error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="CTYPE",&
+         description="Matrix C type",&
+         usage="CTYPE N",default_c_val='N',error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="NPROC",&
+         description="Number of processors to test", n_var=-1,&
+         usage="NPROC 128 16 1",default_i_vals=(/0/),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+
+    CALL keyword_create(keyword, name="KEEPSPARSE",&
+         description="Keep product sparse",&
+         usage="KEEPSPARSE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="ASPARSITY",&
+         description="Sparsity of A matrix",&
+         usage="ASPARSITY 70",default_r_val=0.0_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="BSPARSITY",&
+         description="Sparsity of B matrix",&
+         usage="ASPARSITY 80",default_r_val=0.0_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="CSPARSITY",&
+         description="Sparsity of C matrix",&
+         usage="ASPARSITY 90",default_r_val=0.0_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="ALPHA",&
+         description="Multiplication factor",&
+         usage="ALPHA 2.0",default_r_val=1.0_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="BETA",&
+         description="Product premultiplication factor",&
+         usage="BETA 1.0",default_r_val=0.0_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+  END SUBROUTINE create_cp_dbcsr_section
+
 
 ! *****************************************************************************
 !> \brief section to setup debugging parameter

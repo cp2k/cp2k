@@ -44,6 +44,7 @@ MODULE library_tests
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE dbcsr_tests,                     ONLY: cp_test_multiplies
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FWFFT,&
@@ -130,9 +131,8 @@ CONTAINS
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: cp_fm_gemm_test_section, &
-                                                pw_transfer_section, &
-                                                rs_pw_transfer_section
+    TYPE(section_vals_type), POINTER :: cp_dbcsr_test_section, &
+      cp_fm_gemm_test_section, pw_transfer_section, rs_pw_transfer_section
 
     CALL timeset(routineN,handle)
 
@@ -180,9 +180,19 @@ CONTAINS
 
     cp_fm_gemm_test_section => section_vals_get_subs_vals(root_section,"TEST%CP_FM_GEMM",error=error)
     CALL section_vals_get(cp_fm_gemm_test_section,explicit=explicit, error=error)
+
     IF (explicit) THEN
       CALL cp_fm_gemm_test ( para_env, iw, cp_fm_gemm_test_section, error )
     ENDIF
+
+    ! DBCSR tests
+    cp_dbcsr_test_section => section_vals_get_subs_vals(root_section,&
+         "TEST%CP_DBCSR", error=error)
+    CALL section_vals_get(cp_dbcsr_test_section, explicit=explicit, error=error)
+    IF (explicit) THEN
+       CALL cp_dbcsr_tests (para_env, iw, cp_dbcsr_test_section, error)
+    ENDIF
+
 
     CALL cp_print_key_finished_output(iw,logger,root_section,"TEST%PROGRAM_RUN_INFO", error=error)
 
@@ -1906,5 +1916,73 @@ CONTAINS
 
 
   END SUBROUTINE cp_fm_gemm_test
+
+! *****************************************************************************
+!> \brief Tests the DBCSR interface.
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_tests (para_env, iw, input_section, error )
+
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iw
+    TYPE(section_vals_type), POINTER         :: input_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_tests', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=1)                         :: transa, transb
+    CHARACTER, DIMENSION(3)                  :: types
+    INTEGER                                  :: i_rep, k, m, n, N_loop, n_rep
+    INTEGER, DIMENSION(:), POINTER           :: bs_k, bs_m, bs_n, nproc
+    LOGICAL                                  :: keep_sparsity, transa_p, &
+                                                transb_p
+    REAL(KIND=dp)                            :: alpha, beta, s_a, s_b, s_c
+
+!   ---------------------------------------------------------------------------
+
+    NULLIFY (bs_m, bs_n, bs_k)
+    CALL section_vals_get(input_section,n_repetition=n_rep,error=error)
+    DO i_rep = 1, n_rep
+       ! how often should we do the multiply
+       CALL section_vals_val_get(input_section,"N_loop",i_rep_section=i_rep,i_val=N_loop,error=error )
+       
+       ! matrices def.
+       CALL section_vals_val_get(input_section,"K",i_rep_section=i_rep,i_val=k,error=error )
+       CALL section_vals_val_get(input_section,"N",i_rep_section=i_rep,i_val=n,error=error )
+       CALL section_vals_val_get(input_section,"M",i_rep_section=i_rep,i_val=m,error=error )
+       CALL section_vals_val_get(input_section,"transa",i_rep_section=i_rep,l_val=transa_p,error=error )
+       CALL section_vals_val_get(input_section,"transb",i_rep_section=i_rep,l_val=transb_p,error=error )
+       CALL section_vals_val_get(input_section,"bs_m",i_rep_section=i_rep,&
+            i_vals=bs_m, error=error)
+       CALL section_vals_val_get(input_section,"bs_n",i_rep_section=i_rep,&
+            i_vals=bs_n, error=error)
+       CALL section_vals_val_get(input_section,"bs_k",i_rep_section=i_rep,&
+            i_vals=bs_k, error=error)
+       CALL section_vals_val_get(input_section,"keepsparse",i_rep_section=i_rep,l_val=keep_sparsity,error=error )
+       CALL section_vals_val_get(input_section,"asparsity",i_rep_section=i_rep,r_val=s_a,error=error )
+       CALL section_vals_val_get(input_section,"bsparsity",i_rep_section=i_rep,r_val=s_b,error=error )
+       CALL section_vals_val_get(input_section,"csparsity",i_rep_section=i_rep,r_val=s_c,error=error )
+       CALL section_vals_val_get(input_section,"alpha",i_rep_section=i_rep,r_val=alpha,error=error )
+       CALL section_vals_val_get(input_section,"beta",i_rep_section=i_rep,r_val=beta,error=error )
+       CALL section_vals_val_get(input_section,"nproc",i_rep_section=i_rep,&
+            i_vals=nproc, error=error)
+       CALL section_vals_val_get(input_section,"atype",i_rep_section=i_rep,&
+            c_val=types(1), error=error)
+       CALL section_vals_val_get(input_section,"btype",i_rep_section=i_rep,&
+            c_val=types(2), error=error)
+       CALL section_vals_val_get(input_section,"ctype",i_rep_section=i_rep,&
+            c_val=types(3), error=error)
+
+       CALL cp_test_multiplies (para_env%group, iw, nproc,&
+            (/ m, n, k /),&
+            types,&
+            (/ transa_p, transb_p /),&
+            bs_m, bs_n, bs_k,&
+            (/ s_a, s_b, s_c /),&
+            alpha, beta,&
+            error=error)
+    END DO
+  END SUBROUTINE cp_dbcsr_tests
+
 
 END MODULE library_tests

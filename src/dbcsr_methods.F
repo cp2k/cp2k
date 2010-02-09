@@ -83,7 +83,8 @@ MODULE dbcsr_methods
             dbcsr_nfullrows_local, dbcsr_nfullcols_local,&
             dbcsr_max_row_size, dbcsr_max_col_size,&
             dbcsr_uses_special_memory, dbcsr_get_occupation,&
-            dbcsr_is_real, dbcsr_is_complex
+            dbcsr_is_real, dbcsr_is_complex,&
+            dbcsr_name
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area, dbcsr_data_convert,&
