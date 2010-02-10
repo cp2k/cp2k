@@ -18,7 +18,8 @@
 ! *****************************************************************************
 MODULE qs_ks_methods
 
-  USE admm_methods,                    ONLY: admm_fit_mo_coeffs,&
+  USE admm_methods,                    ONLY: admm_calculate_density_matrix,&
+                                             admm_fit_mo_coeffs,&
                                              admm_merge_ks_matrix,&
                                              admm_merge_mo_derivs
   USE admm_types,                      ONLY: admm_type
@@ -136,7 +137,6 @@ MODULE qs_ks_methods
                                              scp_modify_hartree_pot
   USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
@@ -325,8 +325,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
-                                                matrix_p_aux_fit, matrix_s, &
-                                                my_rho
+                                                matrix_p, matrix_p_aux_fit, &
+                                                matrix_s, my_rho
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -639,8 +639,8 @@ CONTAINS
           
          DO ispin=1,nspins
             matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
-            CALL calculate_density_matrix(mos_aux_fit(ispin)%mo_set, &
-                                          matrix_p_aux_fit(ispin)%matrix,error=error)
+            CALL admm_calculate_density_matrix(admm_env, mos_aux_fit(ispin)%mo_set, &
+                                               matrix_p_aux_fit(ispin)%matrix,ispin,error=error)
             CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
                  rho=qs_env%rho_aux_fit%rho_r(ispin),&
                  rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&
@@ -1223,12 +1223,13 @@ CONTAINS
        !** merge the auxiliary KS matrix and the primary one
        IF( dft_control%do_admm) THEN
          DO ispin=1,nspins
+           matrix_p =>qs_env%rho%rho_ao
            CALL get_qs_env(qs_env,mos_aux_fit=mos_aux_fit,error=error)
            CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
            CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
            CALL admm_merge_ks_matrix(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
                 mo_coeff_aux_fit, qs_env%matrix_ks, qs_env%matrix_ks_aux_fit, qs_env%matrix_s,&
-                matrix_p_aux_fit,  error)
+                matrix_p_aux_fit, matrix_p, error)
          END DO
        END IF
 

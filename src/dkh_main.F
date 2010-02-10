@@ -1601,7 +1601,7 @@ CONTAINS
     !     Calculate matrix representation from nonrelativistic T matrix
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_t,matrix_sinv, error)  
+    CALL cp_fm_cholesky_reduce(matrix_t,matrix_sinv,error=error)  
     CALL cp_fm_syevd(matrix_t,matrix_eig,tt,error)
 
     !-----------------------------------------------------------------------
@@ -1639,7 +1639,7 @@ CONTAINS
     !     Transform v integrals to T-basis (v -> v(t))
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_v,matrix_sinv, error)  
+    CALL cp_fm_cholesky_reduce(matrix_v,matrix_sinv,error=error)  
     CALL cp_fm_upper_to_full(matrix_v,matrix_aux,error)
     CALL cp_fm_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_v,0.0_dp,matrix_aux,error) 
     CALL cp_fm_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_eig,0.0_dp,matrix_v,error)
@@ -1648,7 +1648,7 @@ CONTAINS
     !     Transform pVp integrals to T-basis (pVp -> pVp(t))
     !-----------------------------------------------------------------------
 
-    CALL cp_fm_cholesky_reduce(matrix_pVp,matrix_sinv, error)  
+    CALL cp_fm_cholesky_reduce(matrix_pVp,matrix_sinv,error=error)  
     CALL cp_fm_upper_to_full(matrix_pVp,matrix_aux,error)
     CALL cp_fm_gemm("T","N",n,n,n,1.0_dp,matrix_eig,matrix_pVp,0.0_dp,matrix_aux,error)
     CALL cp_fm_gemm("N","N",n,n,n,1.0_dp,matrix_aux,matrix_eig,0.0_dp,matrix_pVp,error)

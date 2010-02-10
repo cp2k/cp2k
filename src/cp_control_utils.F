@@ -180,13 +180,7 @@ CPSourceFileRef,&
       ELSE
         SELECT CASE (dft_control%admm_control%purification_method)
         CASE (do_admm_purify_none)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-                                    message="ADMM: Purify None not yet implemented", &
-                                    error=error, error_level=cp_failure_level)
         CASE (do_admm_purify_cauchy)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-                                    message="ADMM: Purify Cauchy not yet implemented", &
-                                    error=error, error_level=cp_failure_level)
         CASE (do_admm_purify_cauchy_subspace)
         CASE (do_admm_purify_mo_diag)
           IF( .NOT. do_ot) THEN
@@ -195,10 +189,12 @@ CPSourceFileRef,&
                                         error=error, error_level=cp_failure_level)
           END IF
         CASE (do_admm_purify_mo_no_diag)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-                                    message="ADMM: Purify MO NO_DIAG not yet implemented", &
-                                    error=error, error_level=cp_failure_level)
-        END SELECT
+           IF( .NOT. do_ot) THEN
+            CALL cp_unimplemented_error(fromWhere=routineP, &
+                                        message="ADMM: Purify MO NO DIAG only works with OT", &
+                                        error=error, error_level=cp_failure_level)
+          END IF
+         END SELECT
       END IF
     END IF
 

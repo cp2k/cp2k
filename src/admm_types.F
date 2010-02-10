@@ -76,13 +76,13 @@ MODULE admm_types
     TYPE(cp_fm_type), POINTER                :: A
     TYPE(cp_fm_type), POINTER                :: B
     TYPE(cp_fm_type), POINTER                :: work_orb_orb, work_orb_orb2
-    TYPE(cp_fm_type), POINTER                :: work_aux_orb
+    TYPE(cp_fm_type), POINTER                :: work_aux_orb, work_aux_orb2
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: lambda
+      POINTER                                :: lambda, lambda_inv
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: lambda_inv_sqrt
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: R
+      POINTER                                :: R, R_purify
     TYPE(cp_fm_type), POINTER                :: work_aux_aux, work_aux_aux2, work_aux_aux3
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work_orb_nmo
@@ -103,10 +103,10 @@ MODULE admm_types
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: K
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: M
+      POINTER                                :: M, M_purify, P_to_be_purified
     INTEGER                                  :: nao_orb, nao_aux_fit, nmo(2)
     TYPE(eigvals_p_type), DIMENSION(:), &
-      POINTER                                :: eigvals_lambda
+      POINTER                                :: eigvals_lambda, eigvals_P_to_be_purified
     TYPE(section_vals_type), POINTER         :: xc_section_primary
     TYPE(section_vals_type), POINTER         :: xc_section_aux
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -194,16 +194,21 @@ MODULE admm_types
     CALL cp_fm_create(admm_env%work_orb_orb,fm_struct_orb_orb,name="work_orb_orb",error=error)
     CALL cp_fm_create(admm_env%work_orb_orb2,fm_struct_orb_orb,name="work_orb_orb",error=error)
     CALL cp_fm_create(admm_env%work_aux_orb,fm_struct_aux_orb,name="work_aux_orb",error=error)
+    CALL cp_fm_create(admm_env%work_aux_orb2,fm_struct_aux_orb,name="work_aux_orb2",error=error)
 
     CALL cp_fm_create(admm_env%work_aux_aux,fm_struct_aux_aux,name="work_aux_aux",error=error)
     CALL cp_fm_create(admm_env%work_aux_aux2,fm_struct_aux_aux,name="work_aux_aux2",error=error)
     CALL cp_fm_create(admm_env%work_aux_aux3,fm_struct_aux_aux,name="work_aux_aux3",error=error)
 
+    ALLOCATE(admm_env%lambda_inv(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%lambda(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%lambda_inv_sqrt(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%R(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(admm_env%R_purify(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%work_orb_nmo(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -215,11 +220,17 @@ MODULE admm_types
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%eigvals_lambda(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(admm_env%eigvals_P_to_be_purified(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%H(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%K(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%M(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(admm_env%M_purify(nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(admm_env%P_to_be_purified(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(admm_env%work_aux_nmo(nspins),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -265,12 +276,16 @@ MODULE admm_types
       CALL cp_fm_create(admm_env%R_schur_R_t(ispin)%matrix,fm_struct_nmo_nmo,name="R_schur_R_t",error=error)
       CALL cp_fm_create(admm_env%work_nmo_nmo2(ispin)%matrix,fm_struct_nmo_nmo,name="work_nmo_nmo2",error=error)
       CALL cp_fm_create(admm_env%lambda(ispin)%matrix,fm_struct_nmo_nmo,name="lambda",error=error)
+      CALL cp_fm_create(admm_env%lambda_inv(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv",error=error)
       CALL cp_fm_create(admm_env%lambda_inv_sqrt(ispin)%matrix,fm_struct_nmo_nmo,name="lambda_inv_sqrt",error=error)
       CALL cp_fm_create(admm_env%R(ispin)%matrix,fm_struct_nmo_nmo,name="R",error=error)
+      CALL cp_fm_create(admm_env%R_purify(ispin)%matrix,fm_struct_aux_aux,name="R_purify",error=error)
       CALL cp_fm_create(admm_env%K(ispin)%matrix,fm_struct_aux_aux,name="K",error=error)
       CALL cp_fm_create(admm_env%H(ispin)%matrix,fm_struct_aux_nmo,name="H",error=error)
       CALL cp_fm_create(admm_env%H_corr(ispin)%matrix,fm_struct_orb_orb,name="H_corr",error=error)
       CALL cp_fm_create(admm_env%M(ispin)%matrix,fm_struct_nmo_nmo,name="M",error=error)
+      CALL cp_fm_create(admm_env%M_purify(ispin)%matrix,fm_struct_aux_aux,name="M aux",error=error)
+      CALL cp_fm_create(admm_env%P_to_be_purified(ispin)%matrix,fm_struct_aux_aux,name="P_to_be_purified",error=error)
       CALL cp_fm_create(admm_env%work_aux_nmo(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo",error=error)
       CALL cp_fm_create(admm_env%work_aux_nmo2(ispin)%matrix,fm_struct_aux_nmo,name="work_aux_nmo2",error=error)
       CALL cp_fm_create(admm_env%mo_derivs_tmp(ispin)%matrix,fm_struct_orb_nmo,name="mo_derivs_tmp",error=error)
@@ -283,9 +298,14 @@ MODULE admm_types
 
       ALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals, STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals, STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals%data(nmo), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(nao_aux_fit), STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       admm_env%eigvals_lambda(ispin)%eigvals%data = 0.0_dp
+      admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data = 0.0_dp
       CALL cp_fm_struct_release(fm_struct_aux_nmo,error=error)
       CALL cp_fm_struct_release(fm_struct_orb_nmo,error=error)
       CALL cp_fm_struct_release(fm_struct_nmo_nmo,error=error)
@@ -329,17 +349,22 @@ MODULE admm_types
     CALL cp_fm_release(admm_env%work_aux_aux2, error=error)
     CALL cp_fm_release(admm_env%work_aux_aux3, error=error)
     CALL cp_fm_release(admm_env%work_aux_orb, error=error)
+    CALL cp_fm_release(admm_env%work_aux_orb2, error=error)
     DO ispin = 1,SIZE(admm_env%lambda)
       CALL cp_fm_release(admm_env%lambda(ispin)%matrix, error=error)
+      CALL cp_fm_release(admm_env%lambda_inv(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%lambda_inv_sqrt(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%C_hat(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%P_tilde(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%R(ispin)%matrix, error=error)
+      CALL cp_fm_release(admm_env%R_purify(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%H(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%H_corr(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%K(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%M(ispin)%matrix, error=error)
+      CALL cp_fm_release(admm_env%M_purify(ispin)%matrix, error=error)
+      CALL cp_fm_release(admm_env%P_to_be_purified(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%work_orb_nmo(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%work_nmo_nmo1(ispin)%matrix, error=error)
       CALL cp_fm_release(admm_env%R_schur_R_t(ispin)%matrix, error=error)
@@ -351,18 +376,32 @@ MODULE admm_types
       CALL cp_fm_release(admm_env%lambda_inv2(ispin)%matrix, error=error)
       DEALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals%data,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(admm_env%eigvals_lambda(ispin)%eigvals,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(admm_env%eigvals_P_to_be_purified(ispin)%eigvals,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
     DEALLOCATE(admm_env%eigvals_lambda,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(admm_env%eigvals_P_to_be_purified,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(admm_env%lambda,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(admm_env%lambda_inv,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(admm_env%lambda_inv_sqrt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(admm_env%R,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(admm_env%R_purify,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(admm_env%M,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(admm_env%M_purify,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(admm_env%P_to_be_purified,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(admm_env%H,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

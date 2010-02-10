@@ -172,25 +172,28 @@ CONTAINS
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE cp_fm_cholesky_reduce(matrix,matrixb, error)
+  SUBROUTINE cp_fm_cholesky_reduce(matrix,matrixb, itype, error)
    TYPE(cp_fm_type), POINTER           :: matrix,matrixb
+   INTEGER, OPTIONAL                   :: itype
    TYPE(cp_error_type), INTENT(inout)  :: error
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_reduce',&
          routineP=moduleN//':'//routineN
     REAL(KIND = dp), DIMENSION(:,:), POINTER         :: a,b
-    INTEGER                                   :: info,itype,handle
-    INTEGER                                   :: n
+    INTEGER                                   :: info,handle
+    INTEGER                                   :: n, my_itype
     INTEGER                                   :: nprow,npcol,myprow,mypcol
     INTEGER, DIMENSION(9)                     :: desca,descb
-    REAL(KIND = dp)                                  :: scale
+    REAL(KIND = dp)                           :: scale
     LOGICAL                                   :: failure
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
     n = matrix%matrix_struct%nrow_global
-    itype =1
+
+    my_itype =1
+    IF( PRESENT(itype) ) my_itype = itype
 
     a => matrix%local_data
     b => matrixb%local_data
@@ -200,7 +203,7 @@ CONTAINS
     desca(:) = matrix%matrix_struct%descriptor(:)
     descb(:) = matrixb%matrix_struct%descriptor(:)
 
-    CALL pdsygst(itype,'U',n,a(1,1),1,1,desca,b(1,1),1,1,descb,scale,info)
+    CALL pdsygst(my_itype,'U',n,a(1,1),1,1,desca,b(1,1),1,1,descb,scale,info)
 
     ! this is supposed to be one in current version of lapack
     ! if not, eigenvalues have to be scaled by this number
@@ -211,7 +214,7 @@ CPSourceFileRef,&
          error,failure)
 #else
 
-    CALL dsygst(itype,'U',n,a(1,1),n,b(1,1),n,info)
+    CALL dsygst(my_itype,'U',n,a(1,1),n,b(1,1),n,info)
 
 #endif
 
