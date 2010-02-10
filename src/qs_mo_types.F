@@ -33,7 +33,7 @@ MODULE qs_mo_types
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
-       cp_fm_type,cp_fm_write_unformatted
+       cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -947,6 +947,8 @@ CPSourceFileRef,&
 
     ! use the scalapack block size as a default for buffering columns
     CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
+    ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
 
 
     DO ispin=1,nspin
@@ -961,13 +963,34 @@ CPSourceFileRef,&
        END IF
        IF(PRESENT(rt_mos))THEN
           DO imat=2*ispin-1,2*ispin
-             CALL cp_fm_write_unformatted(rt_mos(imat)%matrix,ires,error)
+             DO i=1,nmo,MAX(max_block,1)
+                i_block=MIN(max_block,nmo-i+1)
+                CALL cp_fm_get_submatrix(rt_mos(imat)%matrix,vecbuffer,1,i,nao,i_block,error=error)
+                ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
+                ! to old ones, and in cases where max_block is different between runs, as might happen during
+                ! restarts with a different number of CPUs
+                DO j=1,i_block
+                   IF (ires>0) WRITE (ires) vecbuffer(1:nao,j)
+                ENDDO
+             END DO
           END DO
        ELSE
-          CALL cp_fm_write_unformatted(mo_array(ispin)%mo_set%mo_coeff,ires,error)
+          DO i=1,nmo,MAX(max_block,1)
+             i_block=MIN(max_block,nmo-i+1)
+             CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block,error=error)
+             ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
+             ! to old ones, and in cases where max_block is different between runs, as might happen during
+             ! restarts with a different number of CPUs
+             DO j=1,i_block
+                IF (ires>0) WRITE (ires) vecbuffer(1:nao,j)
+             ENDDO
+          END DO
        END IF
     END DO
        
+    DEALLOCATE (vecbuffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+
     CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_low

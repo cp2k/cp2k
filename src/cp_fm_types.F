@@ -14,10 +14,7 @@ MODULE cp_fm_types
 
   USE cp_array_r_utils,                ONLY: cp_2d_r_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
-                                             cp_blacs_dgebs2d,&
-                                             cp_blacs_gridexit,&
-                                             cp_blacs_gridinfo,&
-                                             cp_blacs_gridinit
+                                             cp_blacs_dgebs2d
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
@@ -34,8 +31,6 @@ MODULE cp_fm_types
   USE message_passing,                 ONLY: cp2k_is_parallel,&
                                              mp_bcast,&
                                              mp_max,&
-                                             mp_recv,&
-                                             mp_send,&
                                              mp_sum
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
@@ -72,9 +67,7 @@ MODULE cp_fm_types
             cp_fm_write, &             ! writes lots of information and data (might need further development)
             cp_fm_to_fm,&              ! copy (parts of) a fm to a fm
             cp_fm_vectorsnorm,&          ! compute the norm of the column-vectors
-            cp_fm_to_fm_submat,&       ! copy (parts of) a fm to a fm
-            cp_fm_write_unformatted
-            
+            cp_fm_to_fm_submat          ! copy (parts of) a fm to a fm
 
   INTERFACE cp_fm_to_fm
     MODULE PROCEDURE cp_fm_to_fm_matrix, &  ! a full matrix
@@ -1577,90 +1570,5 @@ CPSourceFileRef,&
 #endif
 
   END SUBROUTINE cp_fm_add_to_element
-
- SUBROUTINE cp_fm_write_unformatted(fm,unit,error)
-    TYPE(cp_fm_type), POINTER                :: fm
-    INTEGER                                  :: unit
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write_unformatted', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, i, i_block, icol_local, ictxt_loc, in, info, ipcol, &
-      iprow, irow_local, istat, j, max_block, mepos, mypcol, myprow, &
-      ncol_global, npcol, nprow, nrow_global, num_pe, numroc, rb,tag
-    INTEGER, DIMENSION(9)                    :: desc
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: newdat
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-   failure=.FALSE.
-
-   CALL timeset(routineN,handle)
-   CALL cp_fm_get_info(fm, nrow_global=nrow_global,ncol_global=ncol_global,ncol_block=max_block,&
-        para_env=para_env,error=error)
-
-    num_pe=para_env%num_pe
-    mepos =para_env%mepos
-    rb=nrow_global
-    tag =0
-    ! get a new context
-    ictxt_loc=para_env%group
-    CALL cp_blacs_gridinit(ictxt_loc,'R',1,num_pe)
-    CALL cp_blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
-    CALL descinit(desc,nrow_global,ncol_global,rb,max_block,0,0,ictxt_loc,nrow_global,info)
-    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
-    in=numroc(ncol_global,max_block,mypcol,0,npcol)
-
-    ALLOCATE(newdat(nrow_global,MAX(1,in)))
-
-    ! do the actual scalapack to cols reordering
-    CALL pdgemr2d(nrow_global,ncol_global,fm%local_data(1,1),1,1,&
-         fm%matrix_struct%descriptor, &
-         newdat(1,1),1,1,desc,ictxt_loc)
-
-
-   ALLOCATE(vecbuf(nrow_global*max_block),STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-   DO i=1,ncol_global,MAX(max_block,1)
-      i_block=MIN(max_block,ncol_global-i+1)
-      CALL infog2l(1,i,desc,nprow,npcol,myprow,mypcol,&
-               irow_local,icol_local,iprow,ipcol)
-      IF (ipcol==mypcol) THEN
-         DO j=1,i_block
-            vecbuf((j-1)*nrow_global+1:nrow_global*j)=newdat(:,icol_local+j-1) 
-         END DO
-      END IF
-
-      IF (ipcol==0) THEN
-         ! do nothing
-      ELSE
-         IF (ipcol==mypcol) THEN
-            CALL mp_send(vecbuf(:),0,tag,para_env%group)
-         ENDIF
-         IF (mypcol==0) THEN
-            CALL mp_recv(vecbuf(:),ipcol,tag,para_env%group)
-         ENDIF
-      ENDIF
-
-      IF (unit>0)THEN
-         DO j=1,i_block
-            WRITE (unit) vecbuf((j-1)*nrow_global+1:nrow_global*j)
-         END DO
-      END IF
-
-   END DO
-
-   DEALLOCATE(vecbuf,STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-   CALL cp_blacs_gridexit(ictxt_loc)
-
-   DEALLOCATE(newdat,STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-   CALL timestop(handle)
- END SUBROUTINE cp_fm_write_unformatted
 
 END MODULE cp_fm_types
