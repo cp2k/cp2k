@@ -1,0 +1,19 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+CH3-BP-MO_DIAG.inp                      1
+CH3-BP-MO_NO_DIAG.inp                   1
+CH3-BP-NONE.inp                         1
+CH3-BP-NONE_OT_OFF.inp                  1
+CH3-BP-CAUCHY_SUBSPACE.inp              1
+CH3-BP-CAUCHY_SUBSPACE_OT_OFF.inp       1
+CH3-BP-CAUCHY.inp                       1
+CH3-BP-CAUCHY_OT_OFF.inp                1
+CH4-BP-MO_DIAG.inp                      1
+CH4-BP-MO_NO_DIAG.inp                   1
+CH4-BP-NONE.inp                         1
+CH4-BP-NONE_OT_OFF.inp                  1
+CH4-BP-CAUCHY_SUBSPACE.inp              1
+CH4-BP-CAUCHY_SUBSPACE_OT_OFF.inp       1
+CH4-BP-CAUCHY.inp                       1
+CH4-BP-CAUCHY_OT_OFF.inp                1
