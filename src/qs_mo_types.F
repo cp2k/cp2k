@@ -33,7 +33,7 @@ MODULE qs_mo_types
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
-       cp_fm_type
+       cp_fm_type, cp_fm_write_unformatted
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -839,14 +839,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, i_block, iatom, imat, iset, ishell, ispin, istat, &
-      j, lmax, lshell, max_block, nao, natom, nmo, nset, nset_max, &
-      nshell_max, nspin
+    INTEGER :: handle, iatom, imat, iset, ishell, ispin, istat, lmax, lshell, &
+      max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
@@ -947,8 +945,6 @@ CPSourceFileRef,&
 
     ! use the scalapack block size as a default for buffering columns
     CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
-    ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
 
 
     DO ispin=1,nspin
@@ -963,34 +959,13 @@ CPSourceFileRef,&
        END IF
        IF(PRESENT(rt_mos))THEN
           DO imat=2*ispin-1,2*ispin
-             DO i=1,nmo,MAX(max_block,1)
-                i_block=MIN(max_block,nmo-i+1)
-                CALL cp_fm_get_submatrix(rt_mos(imat)%matrix,vecbuffer,1,i,nao,i_block,error=error)
-                ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
-                ! to old ones, and in cases where max_block is different between runs, as might happen during
-                ! restarts with a different number of CPUs
-                DO j=1,i_block
-                   IF (ires>0) WRITE (ires) vecbuffer(1:nao,j)
-                ENDDO
-             END DO
+             CALL cp_fm_write_unformatted(rt_mos(imat)%matrix,ires,error)
           END DO
        ELSE
-          DO i=1,nmo,MAX(max_block,1)
-             i_block=MIN(max_block,nmo-i+1)
-             CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,i_block,error=error)
-             ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
-             ! to old ones, and in cases where max_block is different between runs, as might happen during
-             ! restarts with a different number of CPUs
-             DO j=1,i_block
-                IF (ires>0) WRITE (ires) vecbuffer(1:nao,j)
-             ENDDO
-          END DO
+          CALL cp_fm_write_unformatted(mo_array(ispin)%mo_set%mo_coeff,ires,error)
        END IF
     END DO
        
-    DEALLOCATE (vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-
     CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_low
@@ -1482,20 +1457,17 @@ CPSourceFileRef,&
       END IF
 
       IF(.NOT. my_xas.AND..NOT.PRESENT(rt_mos)) THEN
-
         IF(ispin==1 .AND. nspin_read<nspin) THEN
 
           mos(ispin+1)%mo_set%homo = mos(ispin)%mo_set%homo
           mos(ispin+1)%mo_set%lfomo = mos(ispin)%mo_set%lfomo
           nelectron = mos(ispin)%mo_set%nelectron
-          IF (MODULO(nelectron + my_mult - 1,2) /= 0) THEN
+          IF (my_mult.NE.1) THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "LSD: try to use different multiplicity. "//&
+                  "Restarting an LSD calculation from an LDA wfn only works for multiplicity=1 (singlets)."//&
                   CPSourceFileRef,&
                   only_ionode=.TRUE.)
           END IF
-          mos(ispin)%mo_set%nelectron = (nelectron + my_mult - 1)/2
-          mos(ispin+1)%mo_set%nelectron = (nelectron - my_mult + 1)/2
           IF(mos(ispin+1)%mo_set%nelectron < 0)THEN
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "LSD: too few electrons for this multiplisity. "//&
@@ -1503,6 +1475,7 @@ CPSourceFileRef,&
                   only_ionode=.TRUE.)
           END IF
           mos(ispin+1)%mo_set%eigenvalues = mos(ispin)%mo_set%eigenvalues
+          mos(ispin)%mo_set%occupation_numbers = mos(ispin)%mo_set%occupation_numbers/2.0_dp
           mos(ispin+1)%mo_set%occupation_numbers = mos(ispin)%mo_set%occupation_numbers
           CALL cp_fm_to_fm(mos(ispin)%mo_set%mo_coeff,mos(ispin+1)%mo_set%mo_coeff,error=error)
           EXIT

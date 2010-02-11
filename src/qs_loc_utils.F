@@ -32,7 +32,7 @@ MODULE qs_loc_utils
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
-       cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+       cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -868,10 +868,9 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_middle
-    INTEGER                                  :: handle, i, i_block, ispin, &
-                                                istat, j, max_block, nao, &
-                                                nloc, nmo, output_unit, &
-                                                rst_unit
+    INTEGER                                  :: handle, ispin, istat, &
+                                                max_block, nao, nloc, nmo, &
+                                                output_unit, rst_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -941,17 +940,7 @@ CONTAINS
    
            ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-           DO i=1,nmo,MAX(max_block,1)
-               i_block=MIN(max_block,nmo-i+1)
-               CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,i,nao,i_block,error=error)
-               ! doing this in one write would increase efficiency, but breaks RESTART compatibility.
-               ! to old ones, and in cases where max_block is different between runs, as might happen during
-               ! restarts with a different number of CPUs
-               DO j=1,i_block
-                  IF (rst_unit>0) WRITE (rst_unit) vecbuffer(1:nao,j)
-               ENDDO
-   
-           END DO
+           CALL cp_fm_write_unformatted(mo_coeff,rst_unit,error)
    
            DEALLOCATE (vecbuffer,STAT=istat)
            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
