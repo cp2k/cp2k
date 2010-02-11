@@ -299,3 +299,5 @@ CH-hfx-md-2.inp
 4H2O-mix-disk-ram-on-the-fly.inp
 # atomic code: unrestricted calculations 
 H2O-hfx-emd-restart.inp
+# numerics
+H2O-hfx-3.inp

@@ -734,3 +734,9 @@ no-gapw-gpw-1.inp
 no-gapw-1-distributed.inp
 # fm to dbcsr
 no-gapw-gpw-1.inp
+# numerics
+no-gapw-1-distributed.inp
+no-gapw-1.inp
+no-gapw-1-replicated.inp
+no-gapw-3.inp
+no-gapw-4.inp

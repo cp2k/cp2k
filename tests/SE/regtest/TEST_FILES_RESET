@@ -459,3 +459,5 @@ dimer3.inp
 dimer4.inp
 # fm to dbcsr
 h2o_gks_p.inp
+# numerics
+ice-scp-ewald_gks.inp

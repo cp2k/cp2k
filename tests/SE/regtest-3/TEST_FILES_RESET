@@ -100,3 +100,5 @@ LiH.inp
 SiO2_lr_quad.inp
 # fm to dbcsr
 Co_complex.inp
+# numerics
+N3-rp_colvar.inp
