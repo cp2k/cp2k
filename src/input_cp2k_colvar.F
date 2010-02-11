@@ -472,13 +472,6 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-!       CALL keyword_create(keyword, name="R0",&
-!            variants=(/"R_0"/),&
-!            description="Specify the R0 parameter.",&
-!            usage="R0 {real}",default_r_val=3.0_dp,&
-!            n_var=1, error=error)
-!       CALL section_add_keyword(section,keyword,error=error)
-!       CALL keyword_release(keyword,error=error)
      END IF
 
   END SUBROUTINE create_colvar_gyr_section
@@ -754,7 +747,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-! Must be present in each colvar and handled properly
+       ! Must be present in each colvar and handled properly
        CALL create_point_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -948,7 +941,8 @@ CONTAINS
        CALL keyword_create(keyword, name="XYZ",&
             description="Specifies the xyz of the fixed point (if the case)",&
             usage="XYZ {real} {real} {real}",required=.TRUE.,&
-            n_var=3, type_of_var=real_t, repeats=.FALSE., error=error)
+            n_var=3, type_of_var=real_t, unit_str="bohr",&
+            repeats=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error) 
    
