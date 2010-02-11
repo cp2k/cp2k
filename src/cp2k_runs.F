@@ -731,7 +731,10 @@ CONTAINS
              IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,I5.5,A)",ADVANCE="NO") " Running Job ",i, &
                            " in "//TRIM(farming_env%Job(i)%cwd)//"."
              CALL execute_job(i)
-             IF (output_unit > 0) WRITE(output_unit,FMT="(A)") " Done, output in "//TRIM(output_file)
+             IF (output_unit > 0) THEN
+                WRITE(output_unit,FMT="(A)") " Done, output in "//TRIM(output_file)
+                CALL m_flush(output_unit)
+             ENDIF
           ENDIF
        ENDDO
     ENDIF
