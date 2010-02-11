@@ -1944,7 +1944,7 @@ CPSourceFileRef,&
                                                 shell_present
     REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
                                                 roll_tol_thrs, trvg
-    REAL(KIND=dp), DIMENSION(3)              :: vector_v
+    REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin, uh
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2113,9 +2113,12 @@ CPSourceFileRef,&
            shell_particle_set, nparticle_kind, shell_adiabatic,npt=npt,error=error)
 
        roll_tol = 0.0_dp
+       vector_r = tmp%scale_r*tmp%poly_r
+       vector_v = tmp%scale_v*tmp%poly_v
+
        IF ( simpar%constraint ) CALL shake_roll_control( gci, local_molecules, &
             molecule_set, molecule_kind_set, particle_set, tmp%pos, tmp%vel, dt,&
-            simpar, roll_tol, iroll, tmp%scale_r*tmp%poly_r, tmp%scale_v*tmp%poly_v, &
+            simpar, roll_tol, iroll, vector_r, vector_v, &
             para_env%group, u=tmp%u, cell=cell,&
             local_particles=local_particles, error=error )
     END DO SR
