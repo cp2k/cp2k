@@ -24,14 +24,11 @@ MODULE qs_linres_issc_utils
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_alloc_block_from_nbl,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_set, &
+       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type, &
+       dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -49,13 +46,11 @@ MODULE qs_linres_issc_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -998,8 +993,8 @@ CONTAINS
     ! efg, pso and fc operators
     CALL dbcsr_allocate_matrix_set(issc_env%matrix_efg,6,error=error)
     ALLOCATE(issc_env%matrix_efg(1)%matrix)
-    CALL dbcsr_init(issc_env%matrix_efg(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=issc_env%matrix_efg(1)%matrix, &
+    CALL cp_dbcsr_init(issc_env%matrix_efg(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=issc_env%matrix_efg(1)%matrix, &
          name="efg (3xx-rr)/3", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -1010,11 +1005,11 @@ CONTAINS
     ALLOCATE(issc_env%matrix_efg(2)%matrix,&
              issc_env%matrix_efg(3)%matrix,issc_env%matrix_efg(4)%matrix,&
              issc_env%matrix_efg(5)%matrix,issc_env%matrix_efg(6)%matrix)
-    CALL dbcsr_init (issc_env%matrix_efg(2)%matrix)
-    CALL dbcsr_init (issc_env%matrix_efg(3)%matrix)
-    CALL dbcsr_init (issc_env%matrix_efg(4)%matrix)
-    CALL dbcsr_init (issc_env%matrix_efg(5)%matrix)
-    CALL dbcsr_init (issc_env%matrix_efg(6)%matrix)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(2)%matrix,error=error)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(3)%matrix,error=error)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(4)%matrix,error=error)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(5)%matrix,error=error)
+    CALL cp_dbcsr_init (issc_env%matrix_efg(6)%matrix,error=error)
     CALL cp_dbcsr_copy(issc_env%matrix_efg(2)%matrix,issc_env%matrix_efg(1)%matrix,&
                    'efg xy',error=error)
     CALL cp_dbcsr_copy(issc_env%matrix_efg(3)%matrix,issc_env%matrix_efg(1)%matrix,&
@@ -1036,8 +1031,8 @@ CONTAINS
     ! PSO
     CALL dbcsr_allocate_matrix_set(issc_env%matrix_pso,3,error=error)
     ALLOCATE(issc_env%matrix_pso(1)%matrix)
-    CALL dbcsr_init(issc_env%matrix_pso(1)%matrix)
-    CALL dbcsr_create(matrix=issc_env%matrix_pso(1)%matrix, &
+    CALL cp_dbcsr_init(issc_env%matrix_pso(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=issc_env%matrix_pso(1)%matrix, &
          name="pso x", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -1046,8 +1041,8 @@ CONTAINS
     CALL dbcsr_alloc_block_from_nbl(issc_env%matrix_pso(1)%matrix,sab_orb,error=error)
 
     ALLOCATE(issc_env%matrix_pso(2)%matrix,issc_env%matrix_pso(3)%matrix)
-    CALL dbcsr_init (issc_env%matrix_pso(2)%matrix)
-    CALL dbcsr_init (issc_env%matrix_pso(3)%matrix)
+    CALL cp_dbcsr_init (issc_env%matrix_pso(2)%matrix,error=error)
+    CALL cp_dbcsr_init (issc_env%matrix_pso(3)%matrix,error=error)
     CALL cp_dbcsr_copy(issc_env%matrix_pso(2)%matrix,issc_env%matrix_pso(1)%matrix,&
                    'pso y',error=error)
     CALL cp_dbcsr_copy(issc_env%matrix_pso(3)%matrix,issc_env%matrix_pso(1)%matrix,&
@@ -1059,9 +1054,9 @@ CONTAINS
     ! DSO
     CALL dbcsr_allocate_matrix_set(issc_env%matrix_dso,3,error=error)
     ALLOCATE(issc_env%matrix_dso(1)%matrix,issc_env%matrix_dso(2)%matrix,issc_env%matrix_dso(3)%matrix)
-    CALL dbcsr_init(issc_env%matrix_dso(1)%matrix)
-    CALL dbcsr_init(issc_env%matrix_dso(2)%matrix)
-    CALL dbcsr_init(issc_env%matrix_dso(3)%matrix)
+    CALL cp_dbcsr_init(issc_env%matrix_dso(1)%matrix,error=error)
+    CALL cp_dbcsr_init(issc_env%matrix_dso(2)%matrix,error=error)
+    CALL cp_dbcsr_init(issc_env%matrix_dso(3)%matrix,error=error)
     CALL cp_dbcsr_copy(issc_env%matrix_dso(1)%matrix,issc_env%matrix_efg(1)%matrix,&
                    'dso x',error=error)
     CALL cp_dbcsr_copy(issc_env%matrix_dso(2)%matrix,issc_env%matrix_efg(1)%matrix,&
@@ -1075,7 +1070,7 @@ CONTAINS
     ! FC
     CALL dbcsr_allocate_matrix_set(issc_env%matrix_fc,1,error=error)
     ALLOCATE(issc_env%matrix_fc(1)%matrix)
-    CALL dbcsr_init(issc_env%matrix_fc(1)%matrix)
+    CALL cp_dbcsr_init(issc_env%matrix_fc(1)%matrix,error=error)
     CALL cp_dbcsr_copy(issc_env%matrix_fc(1)%matrix,issc_env%matrix_efg(1)%matrix,&
                    'fc',error=error)
     CALL cp_dbcsr_set(issc_env%matrix_fc(1)%matrix,0.0_dp,error=error)

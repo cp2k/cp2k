@@ -13,24 +13,18 @@ MODULE se_core_matrix
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_get_block_diag,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
+       cp_dbcsr_get_block_diag, cp_dbcsr_init, cp_dbcsr_replicate_all, &
+       cp_dbcsr_set, cp_dbcsr_sum_replicated, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix, dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_distribute,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_replicate_all,&
-                                             dbcsr_sum_replicated
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -168,24 +162,24 @@ CONTAINS
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
        ALLOCATE(diagmat_p)!sm->dbcsr
-       CALL dbcsr_init (diagmat_p)
+       CALL cp_dbcsr_init (diagmat_p, error=error)
        CALL cp_dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p, error=error)
-       CALL dbcsr_replicate_all(diagmat_p)
+       CALL cp_dbcsr_replicate_all(diagmat_p,error=error)
      END IF
 
      ! Allocate the core Hamiltonian matrix
      CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
      ALLOCATE(matrix_h(1)%matrix)
-     CALL dbcsr_init(matrix_h(1)%matrix)
+     CALL cp_dbcsr_init(matrix_h(1)%matrix, error=error)
      CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
      CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
 
      ! Allocate a diagonal block matrix
      ALLOCATE(diagmat_h)!sm->dbcsr
-     CALL dbcsr_init(diagmat_h)
+     CALL cp_dbcsr_init(diagmat_h, error=error)
      CALL cp_dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h, error=error)
      CALL cp_dbcsr_set(diagmat_h, 0.0_dp, error=error)
-     CALL dbcsr_replicate_all(diagmat_h)
+     CALL cp_dbcsr_replicate_all(diagmat_h,error=error)
 
      CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
 
@@ -369,8 +363,8 @@ CONTAINS
 
      END DO ! ikind
 
-     CALL dbcsr_sum_replicated(diagmat_h)
-     CALL dbcsr_distribute(diagmat_h)
+     CALL cp_dbcsr_sum_replicated(diagmat_h, error=error)
+     CALL cp_dbcsr_distribute(diagmat_h,error=error)
      CALL cp_dbcsr_add(matrix_h(1)%matrix, diagmat_h,1.0_dp,1.0_dp,error=error)
      CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
 

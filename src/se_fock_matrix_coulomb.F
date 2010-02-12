@@ -21,22 +21,15 @@ MODULE se_fock_matrix_coulomb
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_get_block_diag,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
+       cp_dbcsr_get_block_diag, cp_dbcsr_init, cp_dbcsr_replicate_all, &
+       cp_dbcsr_set, cp_dbcsr_sum_replicated, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_distribute,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_replicate_all,&
-                                             dbcsr_sum_replicated
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -216,13 +209,13 @@ CONTAINS
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
           ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
-          CALL dbcsr_init(diagmat_p(ispin)%matrix)
-          CALL dbcsr_init(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_init(diagmat_p(ispin)%matrix, error=error)
+          CALL cp_dbcsr_init(diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
           CALL cp_dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
-          CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
-          CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_replicate_all(diagmat_p(ispin)%matrix, error=error)
+          CALL cp_dbcsr_replicate_all(diagmat_ks(ispin)%matrix, error=error)
        END DO
 
        IF (scp_nddo)  THEN 
@@ -492,13 +485,13 @@ CONTAINS
           ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
           CALL cp_dbcsr_copy ( ks_scp, diagmat_ks(1)%matrix, 'ks_scp', error )
           ! sum over all procs to get the replicated ks_scp
-          CALL dbcsr_sum_replicated( ks_scp )
+          CALL cp_dbcsr_sum_replicated( ks_scp, error=error )
           CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
        ENDIF 
 
        DO ispin = 1, nspins
-          CALL dbcsr_sum_replicated( diagmat_ks(ispin)%matrix )
-          CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_sum_replicated( diagmat_ks(ispin)%matrix, error=error)
+          CALL cp_dbcsr_distribute(diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,&
                1.0_dp,1.0_dp,error=error)
        END DO
@@ -629,13 +622,13 @@ CONTAINS
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
           ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
-          CALL dbcsr_init(diagmat_p(ispin)%matrix)
-          CALL dbcsr_init(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_init(diagmat_p(ispin)%matrix, error=error)
+          CALL cp_dbcsr_init(diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
           CALL cp_dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
-          CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
-          CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_replicate_all(diagmat_p(ispin)%matrix, error=error)
+          CALL cp_dbcsr_replicate_all(diagmat_ks(ispin)%matrix, error=error)
        END DO
 
        ! Handle the case of SCP-NDDO
@@ -881,10 +874,10 @@ CONTAINS
        IF ( scp_nddo ) THEN
           ! transfer to dummy dbm
           ALLOCATE(dbm)!sm->dbcsr
-          CALL dbcsr_init(dbm)
+          CALL cp_dbcsr_init(dbm, error=error)
           CALL cp_dbcsr_copy ( dbm, diagmat_ks(1)%matrix, 'dbm', error )
           ! replicate the dbm
-          CALL dbcsr_sum_replicated( dbm )
+          CALL cp_dbcsr_sum_replicated( dbm, error=error )
           ! add dbm (which is the long range part of (P+p)C + CZ )to the replicated ks_scp
           CALL cp_dbcsr_add(ks_scp, dbm, &
                1.0_dp,1.0_dp,error=error)
@@ -893,8 +886,8 @@ CONTAINS
        ENDIF
        
        DO ispin = 1, nspins
-          CALL dbcsr_sum_replicated( diagmat_ks(ispin)%matrix )
-          CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_sum_replicated( diagmat_ks(ispin)%matrix, error=error )
+          CALL cp_dbcsr_distribute(diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,&
                1.0_dp,1.0_dp,error=error)
        END DO
@@ -1310,7 +1303,7 @@ CONTAINS
           ! Update the SCP coulomb fock matrix.  Should be K = (P + p )C + CZ
           CALL cp_dbcsr_copy ( ks_scp, diagmat_ks(1)%matrix, 'ks_scp', error )
           ! sum over all procs to get the replicated ks_scp
-          CALL dbcsr_sum_replicated( ks_scp )
+          CALL cp_dbcsr_sum_replicated( ks_scp, error=error )
        ENDIF 
 
        IF (calculate_forces) THEN 
@@ -1446,13 +1439,13 @@ CONTAINS
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
           ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
-          CALL dbcsr_init(diagmat_p(ispin)%matrix)
-          CALL dbcsr_init(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_init(diagmat_p(ispin)%matrix, error=error)
+          CALL cp_dbcsr_init(diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_get_block_diag(matrix_p(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
           CALL cp_dbcsr_get_block_diag(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
-          CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
-          CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_replicate_all(diagmat_p(ispin)%matrix, error=error)
+          CALL cp_dbcsr_replicate_all(diagmat_ks(ispin)%matrix, error=error)
        END DO
 
        ! Possibly compute forces
@@ -1659,8 +1652,8 @@ CONTAINS
        
 
        DO ispin = 1, nspins
-          CALL dbcsr_sum_replicated( diagmat_ks(ispin)%matrix )
-          CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+          CALL cp_dbcsr_sum_replicated( diagmat_ks(ispin)%matrix, error=error )
+          CALL cp_dbcsr_distribute(diagmat_ks(ispin)%matrix, error=error)
           CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,&
                1.0_dp,1.0_dp,error=error)
        END DO

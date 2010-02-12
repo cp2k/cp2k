@@ -18,12 +18,12 @@ MODULE hfx_energy_potential
                                              guidon2009
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_trace,&
+                                             dbcsr_obj_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
                                              get_atomic_block_maps,&
@@ -1804,10 +1804,10 @@ MODULE hfx_energy_potential
 
     IF( distribute_fock_matrix) THEN
       !! ** Calculate the exchange energy
-      CALL dbcsr_trace(ks_matrix(ispin)%matrix, rho_ao(ispin)%matrix, &
+      CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix, rho_ao(ispin)%matrix, &
                           ene_x_aa, error=error)
       IF( nspins == 2 .AND. .NOT. treat_lsd_in_core ) THEN
-        CALL dbcsr_trace(ks_matrix(2)%matrix, rho_ao(2)%matrix, &
+        CALL cp_dbcsr_trace(ks_matrix(2)%matrix, rho_ao(2)%matrix, &
                             ene_x_bb, error=error)
       END IF
   

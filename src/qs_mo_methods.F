@@ -10,14 +10,10 @@
 !> \author Joost VandeVondele (2003-08)
 ! *****************************************************************************
 MODULE qs_mo_methods
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_multiply,&
-                                             cp_dbcsr_scale_by_vector,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_plus_fm_fm_t,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale_by_vector, &
+       cp_dbcsr_set, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_syrk,&
@@ -36,9 +32,7 @@ MODULE qs_mo_methods
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
-                                             dbcsr_init,&
-                                             dbcsr_release
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -206,16 +200,16 @@ CONTAINS
     CALL cp_fm_create(fm_svmatrix,fm_struct_tmp,name="fm_svmatrix",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    CALL copy_dbcsr_to_fm(vmatrix,fm_vmatrix)
-    CALL copy_dbcsr_to_fm(svmatrix,fm_svmatrix)
+    CALL copy_dbcsr_to_fm(vmatrix,fm_vmatrix,error=error)
+    CALL copy_dbcsr_to_fm(svmatrix,fm_svmatrix,error=error)
 
     CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,fm_vmatrix,fm_svmatrix,rzero, overlap_vv,error=error)
     CALL cp_fm_cholesky_decompose(overlap_vv,error=error)
     CALL cp_fm_triangular_multiply(overlap_vv,fm_vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
     CALL cp_fm_triangular_multiply(overlap_vv,fm_svmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.,error=error)
 
-    CALL copy_fm_to_dbcsr(fm_vmatrix,vmatrix)
-    CALL copy_fm_to_dbcsr(fm_svmatrix,svmatrix)
+    CALL copy_fm_to_dbcsr(fm_vmatrix,vmatrix, error=error)
+    CALL copy_fm_to_dbcsr(fm_svmatrix,svmatrix, error=error)
 
     CALL cp_fm_release(overlap_vv,error=error)
     CALL cp_fm_release(fm_vmatrix,error=error)
@@ -453,14 +447,14 @@ CONTAINS
     IF ( .NOT. mo_set%uniform_occupation ) THEN ! not all orbitals 1..homo are equally occupied
 
        IF(my_use_dbcsr) THEN
-          CALL dbcsr_init(dbcsr_tmp)
+          CALL cp_dbcsr_init(dbcsr_tmp,error=error)
           CALL cp_dbcsr_copy(dbcsr_tmp,mo_set%mo_coeff_b,error=error)
           CALL cp_dbcsr_scale_by_vector(dbcsr_tmp,mo_set%occupation_numbers(1:mo_set%homo),&
                side='right',error=error)
           CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_set%mo_coeff_b, dbcsr_tmp,&
                1.0_dp, density_matrix, retain_sparsity=.TRUE.,&
                last_k = mo_set%homo, error=error)
-          CALL dbcsr_release(dbcsr_tmp)
+          CALL cp_dbcsr_release(dbcsr_tmp, error=error)
        ELSE
           NULLIFY(fm_tmp)
           CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct,error=error)

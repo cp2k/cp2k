@@ -22,6 +22,7 @@ MODULE qs_loc_utils
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_obj_p_type
   USE cp_files,                        ONLY: close_file,&
@@ -39,7 +40,6 @@ MODULE qs_loc_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -474,7 +474,7 @@ CONTAINS
              DO j=1, SIZE ( qs_loc_env % op_sm_set, 1 )
                 NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
                 ALLOCATE(qs_loc_env%op_sm_set(j,i)%matrix)
-                CALL dbcsr_init(qs_loc_env%op_sm_set(j,i)%matrix)
+                CALL cp_dbcsr_init(qs_loc_env%op_sm_set(j,i)%matrix, error=error)
                 CALL cp_dbcsr_copy(qs_loc_env%op_sm_set(j,i)%matrix, matrix_s(1)%matrix,&
                      name="qs_loc_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))),&
                      error=error)

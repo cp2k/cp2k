@@ -14,6 +14,7 @@ MODULE stm_images
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_plus_fm_fm_t
@@ -28,7 +29,6 @@ MODULE stm_images
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
@@ -152,7 +152,7 @@ CONTAINS
      END IF
 
      ALLOCATE(stm_density_ao)
-     CALL dbcsr_init(stm_density_ao)
+     CALL cp_dbcsr_init(stm_density_ao, error=error)
      CALL cp_dbcsr_copy(stm_density_ao,rho%rho_ao(1)%matrix,&
           name="stm_density_ao",error=error)
 

@@ -26,13 +26,10 @@ MODULE xas_methods
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_alloc_block_from_nbl,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_set, &
+       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       dbcsr_dist2d_to_dist, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -51,12 +48,10 @@ MODULE xas_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: &
        do_loc_none, state_loc_all, state_loc_list, state_loc_range, &
@@ -852,7 +847,7 @@ CONTAINS
          CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
         DO i = 1,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
-           CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
+           CALL cp_dbcsr_init(xas_env%ostrength_sm(i)%matrix,error=error)
            CALL cp_dbcsr_copy(xas_env%ostrength_sm(i)%matrix,matrix_s(1)%matrix,&
                 "xas_env%ostrength_sm"//&
                 "-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
@@ -883,8 +878,8 @@ CONTAINS
          !
          CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
          ALLOCATE(xas_env%ostrength_sm(1)%matrix)
-         CALL dbcsr_init(xas_env%ostrength_sm(1)%matrix)
-         CALL dbcsr_create(matrix=xas_env%ostrength_sm(1)%matrix, &
+         CALL cp_dbcsr_init(xas_env%ostrength_sm(1)%matrix,error=error)
+         CALL cp_dbcsr_create(matrix=xas_env%ostrength_sm(1)%matrix, &
               name="xas_env%ostrength_sm", &
               dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -894,7 +889,7 @@ CONTAINS
          CALL cp_dbcsr_set(xas_env%ostrength_sm(1)%matrix,0.0_dp,error=error)
         DO i = 2,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
-           CALL dbcsr_init(xas_env%ostrength_sm(i)%matrix)
+           CALL cp_dbcsr_init(xas_env%ostrength_sm(i)%matrix,error=error)
            CALL cp_dbcsr_copy(xas_env%ostrength_sm(i)%matrix,xas_env%ostrength_sm(1)%matrix,&
                 "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
            CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)

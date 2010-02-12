@@ -15,14 +15,11 @@ MODULE dkh_main
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_add,&
-                                             dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_create, &
+       cp_dbcsr_finalize, cp_dbcsr_init, dbcsr_add_block_node, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, &
+       dbcsr_dist2d_to_dist, dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -47,14 +44,11 @@ MODULE dkh_main
                                              cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_init
+                                             dbcsr_distribution_release
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -320,8 +314,8 @@ CONTAINS
 
     CALL dbcsr_allocate_matrix_set(matrix_spgf,1,error=error)
     ALLOCATE(matrix_spgf(1)%matrix)
-    CALL dbcsr_init(matrix_spgf(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=matrix_spgf(1)%matrix, &
+    CALL cp_dbcsr_init(matrix_spgf(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=matrix_spgf(1)%matrix, &
          name="OVERLAP MATRIX PGF", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -339,8 +333,8 @@ CONTAINS
 
     CALL dbcsr_allocate_matrix_set(matrix_tpgf,1,error=error)             
     ALLOCATE(matrix_tpgf(1)%matrix)
-    CALL dbcsr_init(matrix_tpgf(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=matrix_tpgf(1)%matrix, name="KINETIC ENERGY MATRIX PGF", &
+    CALL cp_dbcsr_init(matrix_tpgf(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=matrix_tpgf(1)%matrix, name="KINETIC ENERGY MATRIX PGF", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
@@ -348,8 +342,8 @@ CONTAINS
 
     CALL dbcsr_allocate_matrix_set(matrix_hpgf,1,error=error)
     ALLOCATE(matrix_hpgf(1)%matrix)
-    CALL dbcsr_init(matrix_hpgf(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=matrix_hpgf(1)%matrix, &
+    CALL cp_dbcsr_init(matrix_hpgf(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=matrix_hpgf(1)%matrix, &
          name="CORE HAMILTONIAN MATRIX PGF", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -358,8 +352,8 @@ CONTAINS
 
     CALL dbcsr_allocate_matrix_set(matrix_vnuc,1,error=error)                                   
     ALLOCATE(matrix_vnuc(1)%matrix)
-    CALL dbcsr_init(matrix_vnuc(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=matrix_vnuc(1)%matrix, &
+    CALL cp_dbcsr_init(matrix_vnuc(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=matrix_vnuc(1)%matrix, &
          name="NUCLEAR POTENTIAL ENERGY MATRIX PGF", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -368,8 +362,8 @@ CONTAINS
 
     CALL dbcsr_allocate_matrix_set(matrix_pVppgf,1,error=error)
     ALLOCATE(matrix_pVppgf(1)%matrix)
-    CALL dbcsr_init(matrix_pVppgf(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=matrix_pVppgf(1)%matrix, &
+    CALL cp_dbcsr_init(matrix_pVppgf(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=matrix_pVppgf(1)%matrix, &
          name="pVp MATRIX PGF", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -928,11 +922,11 @@ CONTAINS
     END DO
 
 
-    CALL dbcsr_finalize(matrix_spgf(1)%matrix, error=error)
-    CALL dbcsr_finalize(matrix_tpgf(1)%matrix, error=error)
-    CALL dbcsr_finalize(matrix_vnuc(1)%matrix, error=error)
-    CALL dbcsr_finalize(matrix_hpgf(1)%matrix, error=error)
-    CALL dbcsr_finalize(matrix_pVppgf(1)%matrix, error=error)
+    CALL cp_dbcsr_finalize(matrix_spgf(1)%matrix, error=error)
+    CALL cp_dbcsr_finalize(matrix_tpgf(1)%matrix, error=error)
+    CALL cp_dbcsr_finalize(matrix_vnuc(1)%matrix, error=error)
+    CALL cp_dbcsr_finalize(matrix_hpgf(1)%matrix, error=error)
+    CALL cp_dbcsr_finalize(matrix_pVppgf(1)%matrix, error=error)
 
 
     IF(dkh_full) THEN
@@ -956,9 +950,12 @@ CONTAINS
             qs_env%rel_control%rel_dkh_order,error)
 
 
-       CALL copy_fm_to_dbcsr(matrix_s_full,matrix_spgf(1)%matrix,keep_sparsity=.TRUE.)
-       CALL copy_fm_to_dbcsr(matrix_v_full,matrix_hpgf(1)%matrix,keep_sparsity=.TRUE.)
-       CALL copy_fm_to_dbcsr(matrix_t_full,matrix_tpgf(1)%matrix,keep_sparsity=.TRUE.)
+       CALL copy_fm_to_dbcsr(matrix_s_full,matrix_spgf(1)%matrix,keep_sparsity=.TRUE., &
+            error=error)
+       CALL copy_fm_to_dbcsr(matrix_v_full,matrix_hpgf(1)%matrix,keep_sparsity=.TRUE., &
+            error=error)
+       CALL copy_fm_to_dbcsr(matrix_t_full,matrix_tpgf(1)%matrix,keep_sparsity=.TRUE., &
+            error=error)
 
        CALL cp_dbcsr_add(matrix_hpgf(1)%matrix,matrix_tpgf(1)%matrix,&
                       alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)

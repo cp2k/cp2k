@@ -18,6 +18,8 @@ MODULE task_list_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_finalize,&
+                                             cp_dbcsr_work_create
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
@@ -28,9 +30,7 @@ MODULE task_list_methods
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
-                                             dbcsr_finalize,&
-                                             dbcsr_work_create
+  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
@@ -2122,7 +2122,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
        recv_buf_r, recv_sizes, recv_disps, rs % desc % group)
 
-  CALL dbcsr_work_create(pmat,work_mutable=.TRUE.,&
+  CALL cp_dbcsr_work_create(pmat,work_mutable=.TRUE.,&
       nblks_guess=SIZE(atom_pair_recv),sizedata_guess=SIZE(recv_buf_r),&
       error=error)
 
@@ -2169,7 +2169,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      recv_sizes(l)=recv_sizes(l)+nrow*ncol
   ENDDO
 
-  CALL dbcsr_finalize(pmat, error=error)
+  CALL cp_dbcsr_finalize(pmat, error=error)
 
   DEALLOCATE(send_buf_r,STAT=stat)
   IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%desc%group_size)

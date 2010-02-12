@@ -13,7 +13,9 @@
 MODULE qs_linres_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_checksum,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type,&
@@ -41,9 +43,7 @@ MODULE qs_linres_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_checksum
   USE f77_blas
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: do_loc_none,&
@@ -641,7 +641,7 @@ CONTAINS
 
        chksum = 0.0_dp
        DO ispin = 1,nspins
-          chksum = chksum + dbcsr_checksum(p_env%p1(ispin)%matrix,error=error)
+          chksum = chksum + cp_dbcsr_checksum(p_env%p1(ispin)%matrix,error=error)
        ENDDO
 
        !
@@ -1218,7 +1218,7 @@ CONTAINS
              !CALL compress(name,full=.TRUE.)
              DO ispin=1,nspins
                 ALLOCATE(p_env%kpp1(ispin)%matrix)
-                CALL dbcsr_init(p_env%kpp1(ispin)%matrix)
+                CALL cp_dbcsr_init(p_env%kpp1(ispin)%matrix,error=error)
                 CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,matrix_s(1)%matrix,&
                      name=TRIM(name)//ADJUSTL(cp_to_string(ispin)),error=error)
                 CALL cp_dbcsr_set(p_env%kpp1(ispin)%matrix,0.0_dp,error=error)
@@ -1296,7 +1296,7 @@ CONTAINS
        CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error)
           DO ispin=1,nspins
              ALLOCATE(kpp1_env%v_ao(ispin)%matrix)
-             CALL dbcsr_init(kpp1_env%v_ao(ispin)%matrix)
+             CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix,error=error)
              CALL cp_dbcsr_copy(kpp1_env%v_ao(ispin)%matrix,matrix_s(1)%matrix,&
                   name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
           END DO

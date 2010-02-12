@@ -13,30 +13,27 @@ MODULE qs_ot_scf
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_get_diag,&
-                                             cp_dbcsr_multiply,&
-                                             cp_dbcsr_scale_by_vector,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_set_diag,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, &
+       cp_dbcsr_get_diag, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
+       cp_dbcsr_release, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
+       cp_dbcsr_set_diag, cp_dbcsr_trace, dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_info, dbcsr_init, dbcsr_init_p, dbcsr_mp_npcols, &
-       dbcsr_release, dbcsr_row_block_sizes
-  USE dbcsr_operations,                ONLY: dbcsr_trace
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_distribution_row_dist,&
+                                             dbcsr_get_info,&
+                                             dbcsr_mp_npcols,&
+                                             dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default
-  USE dbcsr_util,                      ONLY: create_bl_distribution,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: create_bl_distribution
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -261,7 +258,7 @@ CONTAINS
           CALL cp_dbcsr_set_diag(qs_ot_env(ispin)%matrix_buf2,expectation_values(ispin)%array,error=error)
  
           ! get nondiag energy trace (D^T D)
-          CALL dbcsr_trace(qs_ot_env(ispin)%matrix_buf2,qs_ot_env(ispin)%matrix_buf2,trace,error=error)
+          CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_buf2,qs_ot_env(ispin)%matrix_buf2,trace,error=error)
           ener_nondiag=ener_nondiag+0.5_dp*qs_ot_env(1)%settings%nondiag_energy_strength*trace
 
           ! get gradient (again ignoring dependencies of H)
@@ -287,7 +284,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ispin=1,SIZE(matrix_dedc)
        ALLOCATE(matrix_dedc_scaled(ispin)%matrix)
-       CALL dbcsr_init(matrix_dedc_scaled(ispin)%matrix)
+       CALL cp_dbcsr_init(matrix_dedc_scaled(ispin)%matrix, error=error)
        CALL cp_dbcsr_copy(matrix_dedc_scaled(ispin)%matrix,matrix_dedc(ispin)%matrix,error=error)
 
        ! as a preconditioner, one might want to scale only with a constant, not with f(i)
@@ -368,7 +365,7 @@ CONTAINS
     DEALLOCATE(occupation_numbers,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ispin=1,SIZE(matrix_dedc_scaled)
-       CALL dbcsr_release(matrix_dedc_scaled(ispin)%matrix)
+       CALL cp_dbcsr_release(matrix_dedc_scaled(ispin)%matrix, error=error)
        DEALLOCATE(matrix_dedc_scaled(ispin)%matrix)
     ENDDO
     DEALLOCATE(matrix_dedc_scaled,stat=stat)
@@ -419,11 +416,11 @@ CONTAINS
                dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_ks))))
           CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_ks)),&
                dbcsr_distribution_row_dist(dbcsr_distribution(matrix_ks)), col_dist)
-          CALL dbcsr_init_p(mo_array(ispin)%mo_set%mo_coeff_b)
-          CALL dbcsr_create(mo_array(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_normal,&
+          CALL cp_dbcsr_init_p(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
+          CALL cp_dbcsr_create(mo_array(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_normal,&
                dbcsr_row_block_sizes(matrix_ks), col_blk_size, 0, 0, dbcsr_type_real_default,&
-               special=.TRUE.)
-          CALL dbcsr_finalize(mo_array(ispin)%mo_set%mo_coeff_b)
+               special=.TRUE.,error=error)
+          CALL cp_dbcsr_finalize(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
           CALL dbcsr_distribution_release (dist)
           CALL array_release (col_dist)
           CALL array_release (col_blk_size)
@@ -440,7 +437,7 @@ CONTAINS
     DO ispin=1,nspin
 
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff_b=mo_coeff,mo_coeff=mo_coeff_fm)
-       CALL copy_fm_to_dbcsr(mo_coeff_fm,mo_coeff)!fm -> dbcsr
+       CALL copy_fm_to_dbcsr(mo_coeff_fm,mo_coeff, error=error)!fm -> dbcsr
 
        CALL dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
 

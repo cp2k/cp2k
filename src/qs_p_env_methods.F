@@ -13,14 +13,10 @@
 ! *****************************************************************************
 MODULE qs_p_env_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_scale,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_plus_fm_fm_t,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_scale, cp_dbcsr_set, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, &
+       dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
@@ -50,7 +46,6 @@ MODULE qs_p_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE hartree_local_methods,           ONLY: init_coulomb_local
@@ -195,7 +190,7 @@ CONTAINS
           CALL dbcsr_allocate_matrix_set(p_env%p1,n_spins,error)
           DO spin=1, n_spins
              ALLOCATE(p_env%p1(spin)%matrix)
-             CALL dbcsr_init(p_env%p1(spin)%matrix)
+             CALL cp_dbcsr_init(p_env%p1(spin)%matrix,error=error)
              CALL cp_dbcsr_copy(p_env%p1(spin)%matrix,qs_env%matrix_s(1)%matrix,&
                   name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                   "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))),error=error)
@@ -352,7 +347,7 @@ CONTAINS
              CALL compress(name,full=.TRUE.)
              DO ispin=1,nspins
                 ALLOCATE(p_env%kpp1(ispin)%matrix)
-                CALL dbcsr_init(p_env%kpp1(ispin)%matrix)
+                CALL cp_dbcsr_init(p_env%kpp1(ispin)%matrix,error=error)
                 CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,matrix_s(1)%matrix,&
                      name=TRIM(name)//ADJUSTL(cp_to_string(ispin)),error=error)
              END DO

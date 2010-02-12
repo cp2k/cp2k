@@ -23,7 +23,10 @@ MODULE qs_overlap
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_create,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_init,&
+                                             dbcsr_add_block_node,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_dist2d_to_dist,&
                                              dbcsr_obj_p_type
@@ -34,15 +37,12 @@ MODULE qs_overlap
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -242,8 +242,8 @@ CONTAINS
 
 
     ALLOCATE(matrix_s(1)%matrix)
-    CALL dbcsr_init(matrix_s(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=matrix_s(1)%matrix, &
+    CALL cp_dbcsr_init(matrix_s(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=matrix_s(1)%matrix, &
          name=TRIM(matrix_name), &
          dist=dbcsr_dist, matrix_type=symmetry_string,&
          row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
@@ -264,8 +264,8 @@ CONTAINS
       CALL compress(name)
       CALL uppercase(name)
       ALLOCATE(matrix_s(i)%matrix)
-      CALL dbcsr_init(matrix_s(i)%matrix,error=error)
-      CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
+      CALL cp_dbcsr_init(matrix_s(i)%matrix,error=error)
+      CALL cp_dbcsr_create(matrix=matrix_s(i)%matrix, &
            name=TRIM(name), &
            dist=dbcsr_dist, matrix_type=symmetry_string,&
            row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
@@ -528,7 +528,7 @@ CONTAINS
     END DO
 
     DO i = 1,SIZE(matrix_s)
-       CALL dbcsr_finalize(matrix_s(i)%matrix, error=error)
+       CALL cp_dbcsr_finalize(matrix_s(i)%matrix, error=error)
     ENDDO
 
 !   *** Release work storage ***

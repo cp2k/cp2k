@@ -7,14 +7,14 @@
   SUBROUTINE dbcsr_trace_a_s(matrix_a, trace, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     REAL(kind=real_4), INTENT(INOUT)                   :: trace
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_s', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a_blk, a_col, a_col_size, &
                                                 a_nze, a_row, a_row_size, i, &
-                                                mynode, timing_handle
+                                                mynode
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size,&
                                                 row_dist, col_dist
     REAL(kind=real_4), DIMENSION(:), POINTER           :: a_data, data_p
@@ -23,8 +23,6 @@
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, timing_handle)
-    
     row_blk_size => array_data (matrix_a%m%row_blk_size)
     col_blk_size => array_data (matrix_a%m%col_blk_size)
     CALL dbcsr_get_data (matrix_a%m%data_area, data_p)
@@ -47,7 +45,7 @@
                   row_dist, col_dist)) CYCLE
           ENDIF
           a_col_size = col_blk_size(a_col)
-          CALL cp_assert (a_row_size.EQ.a_col_size, cp_fatal_level,&
+          CALL dbcsr_assert (a_row_size.EQ.a_col_size, cp_fatal_level,&
                cp_internal_error, routineN, "is that a square matrix?")
           a_nze = a_row_size**2
           a_data => pointer_view (data_p, ABS(matrix_a%m%blk_p(a_blk)),&
@@ -64,8 +62,6 @@
     ! summe
     CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
-    CALL timestop(timing_handle)
-
   END SUBROUTINE dbcsr_trace_a_s
 
 ! *****************************************************************************
@@ -81,14 +77,14 @@
     REAL(kind=real_4), INTENT(INOUT)                   :: trace
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
     LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_ab_s', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: my_trans_a, my_trans_b
     INTEGER :: a_blk, a_col, a_col_size, a_row_size, b_blk, b_col_size, &
-      b_frst_blk, b_last_blk, b_row_size, nze, row, timing_handle, a_beg, a_end, b_beg, b_end
+      b_frst_blk, b_last_blk, b_row_size, nze, row, a_beg, a_end, b_beg, b_end
     INTEGER, DIMENSION(:), POINTER           :: a_col_blk_size, &
                                                 a_row_blk_size, &
                                                 b_col_blk_size, b_row_blk_size
@@ -105,11 +101,10 @@
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, timing_handle)
     my_local_sum = .FALSE.
     IF(PRESENT(local_sum)) my_local_sum=local_sum
     IF(.NOT.my_local_sum) THEN!fixme
-       CALL cp_assert (matrix_a%m%replication_type .EQ. dbcsr_repl_none&
+       CALL dbcsr_assert (matrix_a%m%replication_type .EQ. dbcsr_repl_none&
             .AND. matrix_b%m%replication_type .EQ. dbcsr_repl_none,&
             cp_failure_level, cp_unimplemented_error_nr, routineN,&
             "Trace of product of replicated matrices not yet possible.")
@@ -138,12 +133,12 @@
     IF(PRESENT(trans_a)) my_trans_a = trans_a
     my_trans_b = 'N'
     IF(PRESENT(trans_b)) my_trans_b = trans_b
-    CALL cp_assert (my_trans_a.EQ.'T'.AND.my_trans_b.EQ.'N', cp_fatal_level,&
+    CALL dbcsr_assert (my_trans_a.EQ.'T'.AND.my_trans_b.EQ.'N', cp_fatal_level,&
          cp_unimplemented_error_nr, routineN, "this combination of transpose is NYI")
     !
     ! let's go
     trace = REAL(0.0,real_4)
-    CALL cp_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total,&
+    CALL dbcsr_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total,&
          cp_fatal_level, cp_internal_error, routineN, "this combination of transpose is NYI")
     DO row = 1, matrix_a%m%nblkrows_total
        a_row_size = a_row_blk_size(row)
@@ -151,7 +146,7 @@
        IF(a_row_size.NE.b_row_size) THEN
           WRITE(*,*) 'a_row_size',a_row_size
           WRITE(*,*) 'b_row_size',b_row_size
-          CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, &
+          CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_internal_error, &
                routineN, "matrices not consistent")
        ENDIF
        b_blk = matrix_b%m%row_p(row)+1
@@ -170,7 +165,7 @@
              IF(a_col_size.NE.b_col_size)  THEN
                 WRITE(*,*) 'a_col_size',a_col_size
                 WRITE(*,*) 'b_col_size',b_col_size
-                CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, &
+                CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_internal_error, &
                      routineN, "matrices not consistent")
              ENDIF
              !
@@ -214,7 +209,7 @@
                         a_data_z(ABS(matrix_a%m%blk_p(a_blk))),1,&
                         b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1)
                 ELSE
-                   CALL cp_assert (.FALSE., cp_fatal_level, cp_unimplemented_error_nr, &
+                   CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_unimplemented_error_nr, &
                         routineN, "combination of types NYI")
                 ENDIF
              ENDIF
@@ -225,8 +220,6 @@
     ! summe
     IF(.NOT.my_local_sum) &
          & CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
-
-    CALL timestop(timing_handle)
 
   END SUBROUTINE dbcsr_trace_ab_s
 
@@ -262,7 +255,7 @@
     TYPE(btree_2d_data_s)          :: data_block
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
-    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
+    CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
          cp_fatal_level, cp_caller_error,&
          routineN, "Data type mismatch for requested block.")
 
@@ -291,7 +284,7 @@
           ENDIF
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
-       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
+       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
             cp_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.")
        iw = 1
@@ -574,6 +567,7 @@
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found, gift, tr
     REAL(kind=real_4), DIMENSION(:,:), POINTER         :: original_block
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -599,7 +593,7 @@
     !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
     !     cp_caller_error, routineN, "Work matrices not prepared")
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_work_create (matrix, work_mutable=.TRUE.)
+       CALL dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
        matrix%m%valid = .FALSE.
     ENDIF
 
@@ -762,6 +756,7 @@
                                                 iw
     LOGICAL                                  :: found, tr, do_sum
     REAL(kind=real_4), DIMENSION(:), POINTER           :: block_1d
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
     IF (PRESENT (transposed)) THEN
@@ -785,7 +780,7 @@
     ! check for 0 block
     IF(nze.LE.0) RETURN
 
-    CALL cp_assert (SIZE(block) .GE. nze, cp_fatal_level,&
+    CALL dbcsr_assert (SIZE(block) .GE. nze, cp_fatal_level,&
          cp_caller_error, routineN, "Invalid block dimensions")
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, offset)
@@ -823,21 +818,21 @@
        !     cp_caller_error, routineN, "Work matrices not prepared")
        IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
           CALL dbcsr_work_create (matrix, nblks_guess=1,&
-               sizedata_guess=SIZE(block))
+               sizedata_guess=SIZE(block),error=error)
        ENDIF
        iw = 1
 !$     iw = omp_get_thread_num()+1
        blk_p = matrix%m%wms(iw)%datasize + 1
        IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(iw))) THEN
           IF (tr) blk_p = -blk_p
-          CALL add_work_coordinate (matrix%m%wms(iw), row, col, blk_p)
+          CALL add_work_coordinate (matrix%m%wms(iw), row, col, blk_p, error=error)
           CALL dbcsr_data_ensure_size (matrix%m%wms(iw)%data_area,&
                matrix%m%wms(iw)%datasize+SIZE(block),&
-               factor=default_resize_factor)
+               factor=default_resize_factor, error=error)
           IF (PRESENT (scale)) THEN
-             CALL addto_array (matrix%m%wms(iw)%data_area, scale*block, ABS(blk_p))
+             CALL addto_array (matrix%m%wms(iw)%data_area, scale*block, ABS(blk_p), error=error)
           ELSE
-             CALL addto_array (matrix%m%wms(iw)%data_area, block, ABS(blk_p))
+             CALL addto_array (matrix%m%wms(iw)%data_area, block, ABS(blk_p), error=error)
           ENDIF
        ELSE
           ALLOCATE (data_block%p (row_size, col_size))
@@ -857,7 +852,7 @@
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.TRUE.)
              IF (found) THEN
-                CALL cp_assert (ASSOCIATED (data_block2%p), cp_warning_level,&
+                CALL dbcsr_assert (ASSOCIATED (data_block2%p), cp_warning_level,&
                      cp_internal_error, routineN,&
                      "Data was not present in block")
                 IF (ASSOCIATED (data_block2%p)) DEALLOCATE (data_block2%p)
@@ -1020,7 +1015,7 @@
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix_a
     REAL(kind=real_4), DIMENSION(:), INTENT(IN), TARGET :: alpha
     CHARACTER(LEN=*), INTENT(IN)              :: side
-    TYPE(cp_error_type), INTENT(INOUT)        :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)     :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_by_vector_s', &
       routineP = moduleN//':'//routineN
     REAL(kind=real_4), DIMENSION(:), POINTER            :: tmp_p
@@ -1044,7 +1039,7 @@
     REAL(kind=real_4), DIMENSION(:), INTENT(IN), TARGET  :: alpha_matrix
     INTEGER, INTENT(IN), OPTIONAL              :: last_column
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL     :: side
-    TYPE(cp_error_type), INTENT(INOUT)         :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)      :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_s_m', &
       routineP = moduleN//':'//routineN
     REAL(kind=real_4), DIMENSION(:), POINTER             :: tmp_p
@@ -1066,17 +1061,17 @@
   SUBROUTINE dbcsr_set_s(matrix, alpha, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(kind=real_4), INTENT(IN)                      :: alpha
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha), error)
   END SUBROUTINE dbcsr_set_s
 
-  !> \brief Interface for dbcsr_add
+  !> \brief Interface for dbcsr_add THIS IS NOT NEEDED ANYMORE (alpha and beta ALWAYS REQUESTED)
   SUBROUTINE dbcsr_add_alpha_s(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
     REAL(kind=real_4), INTENT(IN)                      :: alpha_scalar
     REAL(kind=real_4), INTENT(IN), OPTIONAL            :: beta_scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     IF (PRESENT(beta_scalar)) THEN
        CALL dbcsr_add_anytype(matrix_a, matrix_b,&
             alpha_scalar=dbcsr_scalar(alpha_scalar),&
@@ -1086,13 +1081,13 @@
             alpha_scalar=dbcsr_scalar(alpha_scalar), error=error)
     ENDIF
   END SUBROUTINE dbcsr_add_alpha_s
-  !> \brief Interface for dbcsr_add
+  !> \brief Interface for dbcsr_add THIS IS NOT NEEDED ANYMORE (alpha and beta ALWAYS REQUESTED)
   SUBROUTINE dbcsr_add_beta_s(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
     REAL(kind=real_4), INTENT(IN), OPTIONAL            :: alpha_scalar
     REAL(kind=real_4), INTENT(IN)                      :: beta_scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     IF (PRESENT(alpha_scalar)) THEN
        CALL dbcsr_add_anytype(matrix_a, matrix_b,&
             alpha_scalar=dbcsr_scalar(alpha_scalar),&
@@ -1114,7 +1109,7 @@
 !> \param[out] lflop           (optional) Number of FLOPs used by DGEMM
 ! *****************************************************************************
   SUBROUTINE process_dgemm_stack_s(params, n,&
-       left_data_a, right_data_a, product_data_area, lflop)
+       left_data_a, right_data_a, product_data_area, lflop, error)
     INTEGER, INTENT(IN)                       :: n
     TYPE(dgemm_parameters), DIMENSION(1:n), &
       INTENT(IN)                              :: params
@@ -1123,17 +1118,18 @@
     TYPE(dbcsr_data_obj), INTENT(INOUT)       :: product_data_area
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                                :: lflop
+    TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'process_dgemm_stack_s', &
       routineP = moduleN//':'//routineN
-    REAL, PARAMETER                          :: resize_factor = 1.618034
+    REAL, PARAMETER                           :: resize_factor = 1.618034
 
-    INTEGER                                  :: c, lda, ldb, ldc, maxs, r, sp,&
+    INTEGER                                   :: c, lda, ldb, ldc, maxs, r, sp,&
                                                 poff
-    LOGICAL                                  :: do_resize
-    REAL(kind=real_4), DIMENSION(:), POINTER           :: left_data, product_data, &
+    LOGICAL                                   :: do_resize
+    REAL(kind=real_4), DIMENSION(:), POINTER            :: left_data, product_data, &
                                                 right_data
-    TYPE(dbcsr_scalar_type)                  :: any_zero
+    TYPE(dbcsr_scalar_type)                   :: any_zero
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -1154,7 +1150,7 @@
             WRITE(*,*)routineN//" Data area too small, increasing!", &
             maxs, dbcsr_get_data_size(product_data_area)
        CALL dbcsr_data_ensure_size (product_data_area,&
-            maxs, factor=resize_factor)
+            maxs, factor=resize_factor, error=error)
     ENDIF
     ! Setup encapsulated data area
     any_zero = dbcsr_scalar_zero(product_data_area%d%data_type)

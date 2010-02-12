@@ -29,11 +29,11 @@ MODULE qs_linres_current
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_set, dbcsr_add_block_node, &
-       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, &
-       dbcsr_dist2d_to_dist, dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, &
-       dbcsr_sm_fm_multiply
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init, &
+       cp_dbcsr_set, dbcsr_add_block_node, dbcsr_alloc_block_from_nbl, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
+       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type, &
+       dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -53,16 +53,13 @@ MODULE qs_linres_current
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_normal
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: current_gauge_atom
@@ -322,8 +319,8 @@ CONTAINS
        !
        !density_matrix0
        ALLOCATE(density_matrix0(ispin)%matrix)
-       CALL dbcsr_init(density_matrix0(ispin)%matrix,error=error)
-       CALL dbcsr_create(matrix=density_matrix0(ispin)%matrix, &
+       CALL cp_dbcsr_init(density_matrix0(ispin)%matrix,error=error)
+       CALL cp_dbcsr_create(matrix=density_matrix0(ispin)%matrix, &
             name="density_matrix0", &
             dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -333,19 +330,19 @@ CONTAINS
        !
        !density_matrix_a
        ALLOCATE(density_matrix_a(ispin)%matrix)
-       CALL dbcsr_init(density_matrix_a(ispin)%matrix,error=error)
+       CALL cp_dbcsr_init(density_matrix_a(ispin)%matrix,error=error)
        CALL cp_dbcsr_copy(density_matrix_a(ispin)%matrix,density_matrix0(ispin)%matrix,&
             name="density_matrix_a",error=error)
        !
        !density_matrix_ii
        ALLOCATE(density_matrix_ii(ispin)%matrix)
-       CALL dbcsr_init(density_matrix_ii(ispin)%matrix,error=error)
+       CALL cp_dbcsr_init(density_matrix_ii(ispin)%matrix,error=error)
        CALL cp_dbcsr_copy(density_matrix_ii(ispin)%matrix,density_matrix0(ispin)%matrix,&
             name="density_matrix_ii",error=error)
        !
        !density_matrix_iii
        ALLOCATE(density_matrix_iii(ispin)%matrix)
-       CALL dbcsr_init(density_matrix_iii(ispin)%matrix,error=error)
+       CALL cp_dbcsr_init(density_matrix_iii(ispin)%matrix,error=error)
        CALL cp_dbcsr_copy(density_matrix_iii(ispin)%matrix,density_matrix0(ispin)%matrix,&
             name="density_matrix_iii",error=error)
     ENDDO
@@ -837,27 +834,27 @@ CONTAINS
     ! whereas this is not the case for replicated grids
     IF (distributed_rs_grids) THEN
        ALLOCATE(deltajp_a,deltajp_b,deltajp_c)
-       CALL dbcsr_init(deltajp_a)
-       CALL dbcsr_init(deltajp_b)
-       CALL dbcsr_init(deltajp_c)
+       CALL cp_dbcsr_init(deltajp_a, error=error)
+       CALL cp_dbcsr_init(deltajp_b, error=error)
+       CALL cp_dbcsr_init(deltajp_c, error=error)
        IF(do_igaim) THEN
           ALLOCATE(deltajp_d)
-          CALL dbcsr_init(deltajp_d)
+          CALL cp_dbcsr_init(deltajp_d, error=error)
        ENDIF
 
-       CALL dbcsr_create(deltajp_a, ' deltajp_a ', &
+       CALL cp_dbcsr_create(deltajp_a, ' deltajp_a ', &
             mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
             mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
             error=error)
-       CALL dbcsr_create(deltajp_b, ' deltajp_b ', &
+       CALL cp_dbcsr_create(deltajp_b, ' deltajp_b ', &
             mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
             mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
             error=error)
-       CALL dbcsr_create(deltajp_c, ' deltajp_c ', &
+       CALL cp_dbcsr_create(deltajp_c, ' deltajp_c ', &
             mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
             mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
             error=error)
-       IF(do_igaim) CALL dbcsr_create(deltajp_d, ' deltajp_d ', &
+       IF(do_igaim) CALL cp_dbcsr_create(deltajp_d, ' deltajp_d ', &
             mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
             mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
             error=error)
@@ -1008,10 +1005,10 @@ CONTAINS
     END DO loop_ikind
 
     IF (distributed_rs_grids) THEN
-       CALL dbcsr_finalize(deltajp_a, error=error)
-       CALL dbcsr_finalize(deltajp_b, error=error)
-       CALL dbcsr_finalize(deltajp_c, error=error)
-       IF(do_igaim) CALL dbcsr_finalize(deltajp_d, error=error)
+       CALL cp_dbcsr_finalize(deltajp_a, error=error)
+       CALL cp_dbcsr_finalize(deltajp_b, error=error)
+       CALL cp_dbcsr_finalize(deltajp_c, error=error)
+       IF(do_igaim) CALL cp_dbcsr_finalize(deltajp_d, error=error)
     ENDIF
 
     ! sorts / redistributes the task list
@@ -2333,8 +2330,8 @@ CONTAINS
     !
     !
     ALLOCATE(op_mom_ao(1)%matrix)
-    CALL dbcsr_init(op_mom_ao(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=op_mom_ao(1)%matrix, &
+    CALL cp_dbcsr_init(op_mom_ao(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=op_mom_ao(1)%matrix, &
          name="op_mom", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -2344,19 +2341,19 @@ CONTAINS
 
     DO idir2=1,3
        ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
-       CALL dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
+       CALL cp_dbcsr_init(op_mom_der_ao(1,idir2)%matrix, error=error)
        CALL cp_dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
             "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),error)
     ENDDO
 
     DO idir = 2,SIZE(op_mom_ao,1)
        ALLOCATE(op_mom_ao(idir)%matrix)
-       CALL dbcsr_init(op_mom_ao(idir)%matrix)
+       CALL cp_dbcsr_init(op_mom_ao(idir)%matrix, error=error)
        CALL cp_dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
             "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
        DO idir2=1,3
           ALLOCATE(op_mom_der_ao(idir,idir2)%matrix)
-          CALL dbcsr_init(op_mom_der_ao(idir,idir2)%matrix)
+          CALL cp_dbcsr_init(op_mom_der_ao(idir,idir2)%matrix, error=error)
           CALL cp_dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
                "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),error)
        ENDDO
@@ -2364,8 +2361,8 @@ CONTAINS
     !
     CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
     ALLOCATE(op_p_ao(1)%matrix)
-    CALL dbcsr_init(op_p_ao(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
+    CALL cp_dbcsr_init(op_p_ao(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
          name="op_p_ao", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -2375,7 +2372,7 @@ CONTAINS
 
     DO idir=2,3
        ALLOCATE(op_p_ao(idir)%matrix)
-       CALL dbcsr_init(op_p_ao(idir)%matrix)
+       CALL cp_dbcsr_init(op_p_ao(idir)%matrix, error=error)
        CALL cp_dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
             "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
     ENDDO
@@ -2783,8 +2780,8 @@ CONTAINS
     !
     !
     ALLOCATE(op_mom_ao(1)%matrix)
-    CALL dbcsr_init(op_mom_ao(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=op_mom_ao(1)%matrix, &
+    CALL cp_dbcsr_init(op_mom_ao(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=op_mom_ao(1)%matrix, &
          name="op_mom", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -2794,19 +2791,19 @@ CONTAINS
 
     DO idir2=1,3
        ALLOCATE(op_mom_der_ao(1,idir2)%matrix)
-       CALL dbcsr_init(op_mom_der_ao(1,idir2)%matrix)
+       CALL cp_dbcsr_init(op_mom_der_ao(1,idir2)%matrix, error=error)
        CALL cp_dbcsr_copy(op_mom_der_ao(1,idir2)%matrix,op_mom_ao(1)%matrix,&
             "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir2))),error)
     ENDDO
 
     DO idir = 2,SIZE(op_mom_ao,1)
        ALLOCATE(op_mom_ao(idir)%matrix)
-       CALL dbcsr_init(op_mom_ao(idir)%matrix)
+       CALL cp_dbcsr_init(op_mom_ao(idir)%matrix, error=error)
        CALL cp_dbcsr_copy(op_mom_ao(idir)%matrix,op_mom_ao(1)%matrix,&
             "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
        DO idir2=1,3
           ALLOCATE(op_mom_der_ao(idir,idir2)%matrix)
-          CALL dbcsr_init(op_mom_der_ao(idir,idir2)%matrix)
+          CALL cp_dbcsr_init(op_mom_der_ao(idir,idir2)%matrix, error=error)
           CALL cp_dbcsr_copy(op_mom_der_ao(idir,idir2)%matrix,op_mom_ao(1)%matrix,&
                "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),error)
        ENDDO
@@ -2814,8 +2811,8 @@ CONTAINS
     !
     CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
     ALLOCATE(op_p_ao(1)%matrix)
-    CALL dbcsr_init(op_p_ao(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
+    CALL cp_dbcsr_init(op_p_ao(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
          name="op_p_ao", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -2825,7 +2822,7 @@ CONTAINS
 
     DO idir=2,3
        ALLOCATE(op_p_ao(idir)%matrix)
-       CALL dbcsr_init(op_p_ao(idir)%matrix)
+       CALL cp_dbcsr_init(op_p_ao(idir)%matrix, error=error)
        CALL cp_dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
             "op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),error)
     ENDDO

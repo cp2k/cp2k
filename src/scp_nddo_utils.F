@@ -10,10 +10,10 @@
 MODULE scp_nddo_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_get_diag,&
+                                             cp_dbcsr_set_diag
   USE dbcsr_methods,                   ONLY: dbcsr_get_info
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
-                                             dbcsr_get_diag,&
-                                             dbcsr_set_diag
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: get_se_param,&
@@ -111,14 +111,14 @@ CONTAINS
        ALLOCATE (ksdiag(n_el),STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      CALL dbcsr_get_diag ( ks_scp, ksdiag, error=error )
+      CALL cp_dbcsr_get_diag ( ks_scp, ksdiag, error=error )
       sum_ksdiag = SUM ( ksdiag )
       sum_adiag = SUM ( ascp_diag )
       ratio = sum_ksdiag/sum_adiag
       DO ii = 1, n_el
          ksdiag ( ii ) = ksdiag ( ii ) - ascp_diag ( ii ) * ratio 
       END DO
-      CALL dbcsr_set_diag ( ks_scp, ksdiag, error=error )
+      CALL cp_dbcsr_set_diag ( ks_scp, ksdiag, error=error )
       DEALLOCATE (ksdiag,STAT=stat)
       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF

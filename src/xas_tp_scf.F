@@ -280,7 +280,7 @@ CONTAINS
        CASE(xas_scf_general) ! diagonalisation (default)
 
           DO ispin=1,dft_control%nspins
-             CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix)
+             CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix,error=error)
           ENDDO
 
           IF (iter_count > 1  .AND. .NOT. scf_env%skip_diis) THEN

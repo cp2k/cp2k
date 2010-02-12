@@ -35,24 +35,18 @@ MODULE qs_integrate_potential
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
-                                             dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init, &
+       cp_dbcsr_work_create, dbcsr_add_block_node, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_d32cp2k
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_create,&
-                                             dbcsr_finalize,&
-                                             dbcsr_work_create
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE gauss_colloc,                    ONLY: integrateGaussFull
@@ -695,8 +689,8 @@ CONTAINS
        NULLIFY ( dh )
        h_duplicated = .TRUE.
        ALLOCATE(dh)
-       CALL dbcsr_init(dh)
-       CALL dbcsr_create(dh, 'LocalH', &
+       CALL cp_dbcsr_init(dh, error=error)
+       CALL cp_dbcsr_create(dh, 'LocalH', &
             h%matrix%m%dist, h%matrix%m%matrix_type, h%matrix%m%row_blk_size,&
             h%matrix%m%col_blk_size, h%matrix%m%nblks, h%matrix%m%nze,&
             error=error)
@@ -706,8 +700,8 @@ CONTAINS
           CALL dbcsr_allocate_matrix_set(ddv,3,error=error)
           DO idir=1,3
              ALLOCATE(ddv(idir)%matrix)
-             CALL dbcsr_init(ddv(idir)%matrix)
-             CALL dbcsr_create(ddv(idir)%matrix, "LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))), &
+             CALL cp_dbcsr_init(ddv(idir)%matrix, error=error)
+             CALL cp_dbcsr_create(ddv(idir)%matrix, "LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))), &
                   h%matrix%m%dist, h%matrix%m%matrix_type, h%matrix%m%row_blk_size,&
                   h%matrix%m%col_blk_size, h%matrix%m%nblks, h%matrix%m%nze,&
                   error=error)
@@ -715,7 +709,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL dbcsr_work_create(dh,work_mutable=.TRUE.,error=error)
+    CALL cp_dbcsr_work_create(dh,work_mutable=.TRUE.,error=error)
 
     p_duplicated = .FALSE.
     IF ( pab_required ) THEN
@@ -724,7 +718,7 @@ CONTAINS
           p_duplicated = .TRUE.
           NULLIFY ( deltap )
           ALLOCATE(deltap)
-          CALL dbcsr_init(deltap)
+          CALL cp_dbcsr_init(deltap, error=error)
           CALL cp_dbcsr_copy(deltap,p%matrix,name="LocalP",error=error)
           ! this matrix has no strict sparsity pattern in parallel
           !deltap%sparsity_id=-1
@@ -1167,7 +1161,7 @@ CONTAINS
 
     END DO loop_tasks
 
-    CALL dbcsr_finalize(dh, error=error)
+    CALL cp_dbcsr_finalize(dh, error=error)
 
     IF (has_dv) THEN
        DO idir=1,3

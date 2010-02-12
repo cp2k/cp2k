@@ -1123,7 +1123,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ALLOCATE(s)!sm->dbcsr
-    !CALL dbcsr_init(s, error)
+    !CALL cp_dbcsr_init(s, error)
     CALL dbcsr_from_sm(s, s_sm, error)!sm->dbcsr
 
     failure = .FALSE.

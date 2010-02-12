@@ -13,6 +13,7 @@ MODULE xc_pot_saop
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
@@ -27,7 +28,6 @@ MODULE xc_pot_saop
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE input_constants,                 ONLY: do_method_gapw,&
                                              oe_gllb,&
@@ -210,7 +210,7 @@ CONTAINS
     DO ispin=1,nspins
        rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
        ALLOCATE(orbital_density_matrix(ispin)%matrix)
-       CALL dbcsr_init(orbital_density_matrix(ispin)%matrix)
+       CALL cp_dbcsr_init(orbital_density_matrix(ispin)%matrix, error=error)
        CALL cp_dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
             rho_struct%rho_ao(ispin)%matrix,"orbital density",error=error)
     END DO
@@ -618,7 +618,7 @@ CONTAINS
        CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
                            nrow_global=nrow(ispin), ncol_global=ncol(ispin),error=error)
        ALLOCATE(orbital_density_matrix(ispin)%matrix)
-       CALL dbcsr_init(orbital_density_matrix(ispin)%matrix)
+       CALL cp_dbcsr_init(orbital_density_matrix(ispin)%matrix, error=error)
        CALL cp_dbcsr_copy(orbital_density_matrix(ispin)%matrix,&
             rho_structure%rho_ao(ispin)%matrix, &
             "orbital density", error=error)

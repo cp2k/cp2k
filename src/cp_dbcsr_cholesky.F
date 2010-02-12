@@ -89,7 +89,7 @@ CONTAINS
     CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
 
     my_n = MIN(fm_matrix%matrix_struct%nrow_global,&
          fm_matrix%matrix_struct%ncol_global)
@@ -122,7 +122,7 @@ CONTAINS
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-    CALL copy_fm_to_dbcsr(fm_matrix, matrix)
+    CALL copy_fm_to_dbcsr(fm_matrix, matrix, error=error)
 
     CALL cp_fm_release(fm_matrix, error)
 
@@ -172,7 +172,7 @@ CONTAINS
     CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
 
     my_n = MIN(fm_matrix%matrix_struct%nrow_global,&
          fm_matrix%matrix_struct%ncol_global)
@@ -212,7 +212,7 @@ CONTAINS
        CALL cp_fm_release(fm_matrix_tmp, error)
     ENDIF
 
-    CALL copy_fm_to_dbcsr(fm_matrix, matrix)
+    CALL copy_fm_to_dbcsr(fm_matrix, matrix, error=error)
 
     CALL cp_fm_release(fm_matrix, error)
 
@@ -265,7 +265,7 @@ CONTAINS
     CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
 
     CALL dbcsr_get_info(matrixb,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
 
@@ -274,7 +274,7 @@ CONTAINS
     CALL cp_fm_create(fm_matrixb,fm_struct,name="fm_matrixb",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_fm(matrixb, fm_matrixb)
+    CALL copy_dbcsr_to_fm(matrixb, fm_matrixb, error=error)
 
     n = fm_matrix%matrix_struct%nrow_global
     itype =1
@@ -304,7 +304,7 @@ CPSourceFileRef,&
 
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
-    CALL copy_fm_to_dbcsr(fm_matrix, matrix)
+    CALL copy_fm_to_dbcsr(fm_matrix, matrix, error=error)
 
     CALL cp_fm_release(fm_matrix, error)
     CALL cp_fm_release(fm_matrixb, error)
@@ -367,8 +367,8 @@ CPSourceFileRef,&
     CALL cp_fm_create(fm_matrixout,fm_struct,name="fm_matrixout",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
-    CALL copy_dbcsr_to_fm(matrixb, fm_matrixb)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
+    CALL copy_dbcsr_to_fm(matrixb, fm_matrixb, error=error)
     !CALL copy_dbcsr_to_fm(matrixout, fm_matrixout)
 
     context => fm_matrix%matrix_struct%context
@@ -469,7 +469,7 @@ CPSourceFileRef,&
 
 #endif
 
-    CALL copy_fm_to_dbcsr(fm_matrixout, matrixout)
+    CALL copy_fm_to_dbcsr(fm_matrixout, matrixout, error=error)
 
     CALL cp_fm_release(fm_matrix, error)
     CALL cp_fm_release(fm_matrixb, error)

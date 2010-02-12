@@ -20,13 +20,10 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, &
+       cp_dbcsr_init, dbcsr_add_block_node, dbcsr_allocate_matrix_set, &
+       dbcsr_dist2d_to_dist, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -38,15 +35,12 @@ MODULE qs_dftb_matrices
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_init
+                                             dbcsr_distribution_release
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -240,9 +234,9 @@ CONTAINS
 
       CALL dbcsr_allocate_matrix_set(gamma_matrix,nmat,error=error)
       ALLOCATE(gamma_matrix(1)%matrix)
-      CALL dbcsr_init(gamma_matrix(1)%matrix)
+      CALL cp_dbcsr_init(gamma_matrix(1)%matrix, error=error)
 
-      CALL dbcsr_create(matrix=gamma_matrix(1)%matrix, &
+      CALL cp_dbcsr_create(matrix=gamma_matrix(1)%matrix, &
            name="GAMMA MATRIX", &
            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -251,9 +245,9 @@ CONTAINS
 
       DO i=2,nmat
          ALLOCATE(gamma_matrix(i)%matrix)
-         CALL dbcsr_init(gamma_matrix(i)%matrix)
+         CALL cp_dbcsr_init(gamma_matrix(i)%matrix, error=error)
 
-         CALL dbcsr_create(matrix=gamma_matrix(i)%matrix, &
+         CALL cp_dbcsr_create(matrix=gamma_matrix(i)%matrix, &
               name="DERIVATIVE GAMMA MATRIX", &
               dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -600,15 +594,15 @@ CONTAINS
 
      IF ( dftb_control%self_consistent ) THEN
         DO i=1,SIZE(gamma_matrix)
-           CALL dbcsr_finalize(gamma_matrix(i)%matrix,error=error)
+           CALL cp_dbcsr_finalize(gamma_matrix(i)%matrix,error=error)
         ENDDO
         CALL set_qs_env(qs_env=qs_env,gamma_matrix=gamma_matrix,error=error)
      ENDIF
      DO i=1,SIZE(matrix_s)
-        CALL dbcsr_finalize(matrix_s(i)%matrix,error=error)
+        CALL cp_dbcsr_finalize(matrix_s(i)%matrix,error=error)
      ENDDO
      DO i=1,SIZE(matrix_h)
-        CALL dbcsr_finalize(matrix_h(i)%matrix,error=error)
+        CALL cp_dbcsr_finalize(matrix_h(i)%matrix,error=error)
      ENDDO
 
      ! set repulsive energy
@@ -871,8 +865,8 @@ CONTAINS
     CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
 
     ALLOCATE(matrix_s(1)%matrix)
-    CALL dbcsr_init(matrix_s(1)%matrix)
-    CALL dbcsr_create(matrix=matrix_s(1)%matrix, &
+    CALL cp_dbcsr_init(matrix_s(1)%matrix, error=error)
+    CALL cp_dbcsr_create(matrix=matrix_s(1)%matrix, &
          name="OVERLAP MATRIX DFTB", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -885,8 +879,8 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE(matrix_h(1)%matrix)
-    CALL dbcsr_init(matrix_h(1)%matrix)
-    CALL dbcsr_create(matrix=matrix_h(1)%matrix, &
+    CALL cp_dbcsr_init(matrix_h(1)%matrix, error=error)
+    CALL cp_dbcsr_create(matrix=matrix_h(1)%matrix, &
          name="CORE HAMILTONIAN MATRIX DFTB", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -896,8 +890,8 @@ CONTAINS
     IF ( nmat > 1 ) THEN
       DO i=2,nmat
          ALLOCATE(matrix_s(i)%matrix)
-         CALL dbcsr_init(matrix_s(i)%matrix)
-         CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
+         CALL cp_dbcsr_init(matrix_s(i)%matrix, error=error)
+         CALL cp_dbcsr_create(matrix=matrix_s(i)%matrix, &
               name="OVERLAP DERIVATIVE MATRIX DFTB", &
               dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &

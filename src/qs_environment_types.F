@@ -24,7 +24,8 @@ MODULE qs_environment_types
                                              dft_control_retain,&
                                              dft_control_type,&
                                              tddfpt_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_release_p,&
+                                             dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
                                              cp_ddapc_ewald_type,&
@@ -48,7 +49,6 @@ MODULE qs_environment_types
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsys_type
-  USE dbcsr_methods,                   ONLY: dbcsr_release_p
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -1351,7 +1351,7 @@ CONTAINS
 
           IF (ASSOCIATED(qs_env%mo_derivs_dbcsr)) THEN
              DO I=1,SIZE(qs_env%mo_derivs_dbcsr)
-                CALL dbcsr_release_p(qs_env%mo_derivs_dbcsr(I)%matrix)
+                CALL cp_dbcsr_release_p(qs_env%mo_derivs_dbcsr(I)%matrix, error=error)
              ENDDO
              DEALLOCATE(qs_env%mo_derivs_dbcsr, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

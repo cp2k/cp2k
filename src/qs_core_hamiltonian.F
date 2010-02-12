@@ -86,14 +86,11 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_filter,&
-                                             dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
+       cp_dbcsr_finalize, cp_dbcsr_init, dbcsr_add_block_node, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, &
+       dbcsr_dist2d_to_dist, dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
                                              dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -102,15 +99,12 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_get_occupation,&
-                                             dbcsr_init
+                                             dbcsr_get_occupation
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE dkh_main,                        ONLY: dkh_mol_integrals
   USE ep_qs_types,                     ONLY: ep_qs_type
@@ -409,14 +403,14 @@ CONTAINS
     CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
 
     ALLOCATE(matrix_s(1)%matrix)
-    CALL dbcsr_init(matrix_s(1)%matrix,error=error)
-    CALL dbcsr_create(matrix=matrix_s(1)%matrix, &
+    CALL cp_dbcsr_init(matrix_s(1)%matrix,error=error)
+    CALL cp_dbcsr_create(matrix=matrix_s(1)%matrix, &
          name="OVERLAP MATRIX", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL dbcsr_finalize(matrix_s(1)%matrix,error=error)
+    CALL cp_dbcsr_finalize(matrix_s(1)%matrix,error=error)
 
 !   *** Allocate the matrix of coefficients for one center expansions
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
@@ -438,14 +432,14 @@ CONTAINS
       CALL compress(name)
       CALL uppercase(name)
       ALLOCATE(matrix_s(i)%matrix)
-      CALL dbcsr_init(matrix_s(i)%matrix,error=error)
-      CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
+      CALL cp_dbcsr_init(matrix_s(i)%matrix,error=error)
+      CALL cp_dbcsr_create(matrix=matrix_s(i)%matrix, &
            name=TRIM(name), &
            dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
            nblks=0, nze=0, mutable_work=.TRUE., &
            error=error)
-      CALL dbcsr_finalize(matrix_s(i)%matrix,error=error)
+      CALL cp_dbcsr_finalize(matrix_s(i)%matrix,error=error)
    END DO
    
    !   *** Allocate the kinetic energy integral ***
@@ -482,14 +476,14 @@ CONTAINS
       END IF
 
       ALLOCATE(matrix_t(1)%matrix)
-      CALL dbcsr_init(matrix_t(1)%matrix,error=error)
-      CALL dbcsr_create(matrix=matrix_t(1)%matrix, &
+      CALL cp_dbcsr_init(matrix_t(1)%matrix,error=error)
+      CALL cp_dbcsr_create(matrix=matrix_t(1)%matrix, &
            name="KINETIC ENERGY MATRIX", &
            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
            nblks=0, nze=0, mutable_work=.TRUE., &
            error=error)
-      CALL dbcsr_finalize(matrix_t(1)%matrix,error=error)
+      CALL cp_dbcsr_finalize(matrix_t(1)%matrix,error=error)
 
 
       DO i=2,SIZE(matrix_t)
@@ -499,14 +493,14 @@ CONTAINS
          CALL compress(name)
          CALL uppercase(name)
          ALLOCATE(matrix_t(i)%matrix)
-         CALL dbcsr_init(matrix_t(i)%matrix,error=error)
-         CALL dbcsr_create(matrix=matrix_t(i)%matrix, &
+         CALL cp_dbcsr_init(matrix_t(i)%matrix,error=error)
+         CALL cp_dbcsr_create(matrix=matrix_t(i)%matrix, &
               name=TRIM(name), &
               dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
               nblks=0, nze=0, mutable_work=.TRUE., &
               error=error)
-         CALL dbcsr_finalize(matrix_t(i)%matrix,error=error)
+         CALL cp_dbcsr_finalize(matrix_t(i)%matrix,error=error)
       END DO
    END IF
 
@@ -514,14 +508,14 @@ CONTAINS
    CALL dbcsr_allocate_matrix_set(matrix_h,1,error)
 
    ALLOCATE(matrix_h(1)%matrix)
-   CALL dbcsr_init(matrix_h(1)%matrix,error=error)
-   CALL dbcsr_create(matrix=matrix_h(1)%matrix, &
+   CALL cp_dbcsr_init(matrix_h(1)%matrix,error=error)
+   CALL cp_dbcsr_create(matrix=matrix_h(1)%matrix, &
         name="CORE HAMILTONIAN MATRIX", &
         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
         nblks=0, nze=0, mutable_work=.TRUE., &
         error=error)
-   CALL dbcsr_finalize(matrix_h(1)%matrix,error=error)
+   CALL cp_dbcsr_finalize(matrix_h(1)%matrix,error=error)
 
    ! *** Allocate work storage ***
    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -911,7 +905,7 @@ CONTAINS
     END DO
 
     DO i = 1,SIZE(matrix_s)
-       CALL dbcsr_finalize(matrix_s(i)%matrix, error=error)
+       CALL cp_dbcsr_finalize(matrix_s(i)%matrix, error=error)
        IF(.FALSE.)WRITE(*,*) 'before',dbcsr_get_occupation(matrix_s(i)%matrix)
        CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
             qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
@@ -920,11 +914,11 @@ CONTAINS
 
     IF (build_kinetic_energy_matrix) THEN
        DO i = 1,SIZE(matrix_t)
-          CALL dbcsr_finalize(matrix_t(i)%matrix, error=error)
+          CALL cp_dbcsr_finalize(matrix_t(i)%matrix, error=error)
        ENDDO
     ENDIF
 
-    CALL dbcsr_finalize(matrix_h(1)%matrix, error=error)
+    CALL cp_dbcsr_finalize(matrix_h(1)%matrix, error=error)
 
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=stat)
@@ -1092,7 +1086,7 @@ CONTAINS
             extension=".Log",error=error)
       CALL dbcsr_allocate_matrix_set(matrix_v,1,error=error)
       ALLOCATE(matrix_v(1)%matrix)
-      CALL dbcsr_init(matrix_v(1)%matrix)
+      CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
       CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
            name="POTENTIAL ENERGY MATRIX",error=error)
       CALL cp_dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&

@@ -16,6 +16,7 @@ MODULE cp_ddapc
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_obj_p_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
@@ -27,7 +28,6 @@ MODULE cp_ddapc
                                              restraint_functional_potential
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -166,7 +166,7 @@ CONTAINS
                 IF(qs_env%et_coupling%first_run)THEN
                    NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)                  
                    ALLOCATE(qs_env%et_coupling%rest_mat(1)%matrix)
-                   CALL dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix)
+                   CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix, error=error)
                    CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1)%matrix, &
                         name="ET_RESTRAINT_MATRIX_B", error=error)
                    CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp, error=error)
@@ -180,7 +180,7 @@ CONTAINS
                 ELSE
                    NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix) 
                    ALLOCATE(qs_env%et_coupling%rest_mat(2)%matrix)
-                   CALL dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix)
+                   CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix, error=error)
                    CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1)%matrix, &
                         name="ET_RESTRAINT_MATRIX_B", error=error)
                    CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp, error=error)

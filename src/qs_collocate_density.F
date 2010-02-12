@@ -41,6 +41,7 @@ MODULE qs_collocate_density
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              dbcsr_deallocate_matrix
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
@@ -51,7 +52,6 @@ MODULE qs_collocate_density
                                              return_cube,&
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_cp2k2d3
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE external_potential_types,        ONLY: get_potential,&
@@ -886,7 +886,7 @@ CONTAINS
        NULLIFY(deltap)
        !CALL replicate_matrix(matrix_p,deltap,target_name="DeltaP",error=error)
        ALLOCATE(deltap)
-       CALL dbcsr_init(deltap)
+       CALL cp_dbcsr_init(deltap, error=error)
        CALL cp_dbcsr_copy(deltap,matrix_p,name="DeltaP",error=error)
        ! this matrix has no strict sparsity pattern in parallel
        !deltap%sparsity_id=-1
@@ -1285,7 +1285,7 @@ CONTAINS
     IF (distributed_rs_grids) THEN
        NULLIFY(deltap)
        ALLOCATE(deltap)
-       CALL dbcsr_init(deltap)
+       CALL cp_dbcsr_init(deltap, error=error)
        CALL cp_dbcsr_copy(deltap,matrix_p,name="DeltaP",error=error)
        !CALL replicate_matrix(matrix_p,deltap,target_name="DeltaP",error=error)
        ! this matrix has no strict sparsity pattern in parallel

@@ -18,13 +18,16 @@ MODULE qs_ot
                                              dbcsr_syevd
   USE cp_dbcsr_operations,             ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, &
-       cp_dbcsr_hadamard_product, cp_dbcsr_multiply, cp_dbcsr_scale, &
-       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_transposed
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution, dbcsr_get_info, dbcsr_init, dbcsr_init_p, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_release, &
-       dbcsr_release_p
+       cp_dbcsr_hadamard_product, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_release_p, &
+       cp_dbcsr_scale, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
+       cp_dbcsr_transposed
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_get_info,&
+                                             dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
   USE dbcsr_operations,                ONLY: dbcsr_frobenius_norm,&
                                              dbcsr_gershgorin_norm,&
                                              dbcsr_get_block_p
@@ -91,7 +94,7 @@ CONTAINS
     qs_ot_env%preconditioner => preconditioner
     qs_ot_env%os_valid = .FALSE.
     IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
-       CALL dbcsr_init_p(qs_ot_env%matrix_psc0)
+       CALL cp_dbcsr_init_p(qs_ot_env%matrix_psc0, error=error)
        CALL cp_dbcsr_copy(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0,'matrix_psc0',error=error)
     ENDIF
 
@@ -99,10 +102,10 @@ CONTAINS
 
     IF (.NOT. qs_ot_env%use_dx) THEN
        qs_ot_env%use_dx=.TRUE.
-       CALL dbcsr_init_p(qs_ot_env%matrix_dx)
+       CALL cp_dbcsr_init_p(qs_ot_env%matrix_dx, error=error)
        CALL cp_dbcsr_copy(qs_ot_env%matrix_dx,qs_ot_env%matrix_gx,'matrix_dx',error=error)
        IF (qs_ot_env%settings%do_rotation) THEN
-          CALL dbcsr_init_p(qs_ot_env%rot_mat_dx)
+          CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_dx, error=error)
           CALL cp_dbcsr_copy(qs_ot_env%rot_mat_dx,qs_ot_env%rot_mat_gx,'rot_mat_dx',error=error)
        ENDIF
        IF (qs_ot_env%settings%do_ener) THEN
@@ -120,7 +123,7 @@ CONTAINS
        ENDIF
        IF ( qs_ot_env % settings % scp_nddo ) THEN
           ALLOCATE(qs_ot_env % dxmat)
-          CALL dbcsr_init(qs_ot_env % dxmat, error=error)
+          CALL cp_dbcsr_init(qs_ot_env % dxmat, error=error)
           CALL cp_dbcsr_copy(qs_ot_env % dxmat, qs_ot_env % gxmat, "SCP_DXMAT", error=error)
           CALL cp_dbcsr_set (qs_ot_env % dxmat, 0.0_dp, error=error )
        ENDIF
@@ -759,8 +762,8 @@ CONTAINS
     CALL dbcsr_get_info(qs_ot_env%rot_mat_x,nfullrows_total=k)
 
     IF (k/=0) THEN
-       CALL dbcsr_init(cmat_x)
-       CALL dbcsr_init(cmat_u)
+       CALL cp_dbcsr_init(cmat_x, error=error)
+       CALL cp_dbcsr_init(cmat_u, error=error)
        CALL cp_dbcsr_copy(cmat_x,qs_ot_env%rot_mat_evec,name='cmat_x',error=error)
        CALL cp_dbcsr_copy(cmat_u,qs_ot_env%rot_mat_evec,name='cmat_u',error=error)
        ALLOCATE(evals_exp(k))
@@ -795,8 +798,8 @@ CONTAINS
        CALL cp_dbcsr_scale_by_vector(cmat_x,alpha=evals_exp,side='right',error=error)
        CALL cp_dbcsr_multiply('N','C',cone,cmat_x,qs_ot_env%rot_mat_evec,czero,cmat_u,error=error)
        CALL cp_dbcsr_copy(qs_ot_env%rot_mat_u, cmat_u, keep_imaginary=.FALSE., error=error)
-       CALL dbcsr_release(cmat_x)
-       CALL dbcsr_release(cmat_u)
+       CALL cp_dbcsr_release(cmat_x, error=error)
+       CALL cp_dbcsr_release(cmat_u, error=error)
        DEALLOCATE(evals_exp)
     END IF
 
@@ -837,8 +840,8 @@ CONTAINS
     IF (k/=0) THEN
        CALL cp_dbcsr_copy(qs_ot_env%matrix_buf1,qs_ot_env%rot_mat_dedu,error=error)
        ! now we get to the derivative wrt the antisymmetric matrix rot_mat_x
-       CALL dbcsr_init(cmat_buf1)
-       CALL dbcsr_init(cmat_buf2)
+       CALL cp_dbcsr_init(cmat_buf1, error=error)
+       CALL cp_dbcsr_init(cmat_buf2, error=error)
        CALL cp_dbcsr_copy(cmat_buf1,qs_ot_env%rot_mat_evec,"cmat_buf1",error=error)
        CALL cp_dbcsr_copy(cmat_buf2,qs_ot_env%rot_mat_evec,"cmat_buf2",error=error)
        
@@ -898,8 +901,8 @@ CONTAINS
        CALL cp_dbcsr_add(qs_ot_env%matrix_buf1,qs_ot_env%matrix_buf2,&
             alpha_scalar=-1.0_dp,beta_scalar=+1.0_dp,error=error)
        CALL cp_dbcsr_copy(qs_ot_env%rot_mat_gx,qs_ot_env%matrix_buf1,error=error)
-       CALL dbcsr_release(cmat_buf1)
-       CALL dbcsr_release(cmat_buf2)
+       CALL cp_dbcsr_release(cmat_buf1, error=error)
+       CALL cp_dbcsr_release(cmat_buf2, error=error)
     END IF
     CALL timestop(handle)
   CONTAINS
@@ -1117,7 +1120,7 @@ CONTAINS
     ! for lagrangian multipliers)
     IF (qs_ot_env % settings % do_rotation) THEN
        CALL cp_dbcsr_copy(matrix_gx,matrix_hc,error=error) ! use gx as temporary
-       CALL dbcsr_init_p(matrix_hc_local)
+       CALL cp_dbcsr_init_p(matrix_hc_local, error=error)
        CALL cp_dbcsr_copy(matrix_hc_local,matrix_hc,name='matrix_hc_local',error=error)
        CALL cp_dbcsr_set(matrix_hc_local,0.0_dp,error=error)
        CALL cp_dbcsr_multiply('N','T',rone,matrix_gx,qs_ot_env%rot_mat_u,rzero,matrix_hc_local,error=error)
@@ -1174,7 +1177,7 @@ CONTAINS
     ENDIF
 
     IF (qs_ot_env % settings % do_rotation) THEN
-       CALL dbcsr_release_p(matrix_hc_local)
+       CALL cp_dbcsr_release_p(matrix_hc_local, error=error)
     ENDIF
 
     CALL timestop(handle)

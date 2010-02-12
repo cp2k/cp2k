@@ -12,14 +12,14 @@
 MODULE preconditioner_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_release_p,&
+                                             dbcsr_deallocate_matrix
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_release_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_constants,                 ONLY: ot_precond_solver_default
   USE kinds,                           ONLY: dp
@@ -108,14 +108,14 @@ CONTAINS
        NULLIFY(preconditioner_env%sparse_matrix)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
-       CALL dbcsr_release_p (preconditioner_env%sparse_matrix_inner)
+       CALL cp_dbcsr_release_p (preconditioner_env%sparse_matrix_inner, error=error)
     ENDIF
  
     IF (ASSOCIATED(preconditioner_env%fm)) THEN
        CALL cp_fm_release(preconditioner_env%fm,error=error)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
-       CALL dbcsr_release_p (preconditioner_env%dbcsr_matrix)
+       CALL cp_dbcsr_release_p (preconditioner_env%dbcsr_matrix, error=error)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%occ_evals)) THEN
        DEALLOCATE(preconditioner_env%occ_evals)

@@ -45,7 +45,8 @@ MODULE qs_scf
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_set, &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_finalize, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_set, &
        dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
        dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix,&
@@ -73,19 +74,20 @@ MODULE qs_scf
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_init, dbcsr_init_p, &
-       dbcsr_mp_npcols, dbcsr_row_block_sizes
+  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
+                                             dbcsr_distribution,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_distribution_row_dist,&
+                                             dbcsr_mp_npcols,&
+                                             dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: create_bl_distribution,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: create_bl_distribution
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type
@@ -1006,7 +1008,8 @@ CONTAINS
     DO ispin=1,SIZE(mos)!fm -> dbcsr
        IF(.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &
             CALL stop_program(routineN, "mo_coeff_b is not allocated")
-       CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b)!fm -> dbcsr
+       CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b, &
+            error=error)!fm -> dbcsr
     ENDDO!fm -> dbcsr
 
     CALL get_qs_env(qs_env=qs_env,mo_derivs_dbcsr=mo_derivs_dbcsr,error=error)!fm -> dbcsr
@@ -1014,7 +1017,8 @@ CONTAINS
        DO ispin=1,SIZE(mo_derivs)!fm -> dbcsr
           IF(.NOT.ASSOCIATED(mo_derivs_dbcsr(ispin)%matrix)) &
                CALL stop_program(routineN, "mo_derivs_dbcsr is not allocated")
-          CALL copy_fm_to_dbcsr(mo_derivs(ispin)%matrix,mo_derivs_dbcsr(ispin)%matrix)!fm -> dbcsr
+          CALL copy_fm_to_dbcsr(mo_derivs(ispin)%matrix,mo_derivs_dbcsr(ispin)%matrix, &
+               error=error)!fm -> dbcsr
        ENDDO!fm -> dbcsr
     ENDIF
 
@@ -1034,7 +1038,7 @@ CONTAINS
     ENDDO
 
     DO ispin=1,SIZE(mos)!fm -> dbcsr
-       CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff)!fm -> dbcsr
+       CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm -> dbcsr
     ENDDO!fm -> dbcsr
 
     DO ispin=1,SIZE(mos)
@@ -2148,11 +2152,11 @@ CPSourceFileRef)
                   dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_s(1)%matrix))))! fm->dbcsr
              CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_s(1)%matrix)),&! fm->dbcsr
                   dbcsr_distribution_row_dist(dbcsr_distribution(matrix_s(1)%matrix)), col_dist)! fm->dbcsr
-             CALL dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b)
-             CALL dbcsr_create(mos(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_normal,&! fm->dbcsr
+             CALL cp_dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b,error=error)
+             CALL cp_dbcsr_create(mos(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_normal,&! fm->dbcsr
                   dbcsr_row_block_sizes(matrix_s(1)%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&!fm->dbcsr
-                  special=.TRUE.)! fm->dbcsr
-             CALL dbcsr_finalize(mos(ispin)%mo_set%mo_coeff_b)! fm->dbcsr
+                  special=.TRUE.,error=error)! fm->dbcsr
+             CALL cp_dbcsr_finalize(mos(ispin)%mo_set%mo_coeff_b, error=error)! fm->dbcsr
              CALL dbcsr_distribution_release (dist)! fm->dbcsr
              CALL array_release (col_blk_size)! fm->dbcsr
              CALL array_release (col_dist)! fm->dbcsr
@@ -2222,23 +2226,23 @@ CPSourceFileRef)
            ALLOCATE(mo_derivs_dbcsr(1))
            CALL get_mo_set(mos(1)%mo_set,mo_coeff_b=mo_coeff_b)
            NULLIFY(mo_derivs_dbcsr(1)%matrix)
-           CALL dbcsr_init_p(mo_derivs_dbcsr(1)%matrix)
-           CALL dbcsr_create(mo_derivs_dbcsr(1)%matrix, "mo_derivs_dbcsr",&
+           CALL cp_dbcsr_init_p(mo_derivs_dbcsr(1)%matrix,error=error)
+           CALL cp_dbcsr_create(mo_derivs_dbcsr(1)%matrix, "mo_derivs_dbcsr",&
                 dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
                 dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
-                0, 0, dbcsr_type_real_default, special=.TRUE.)
-           CALL dbcsr_finalize(mo_derivs_dbcsr(1)%matrix)
+                0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
+           CALL cp_dbcsr_finalize(mo_derivs_dbcsr(1)%matrix, error=error)
         ELSE
            ALLOCATE(mo_derivs_dbcsr(dft_control%nspins))
            DO ispin=1,dft_control%nspins
               CALL get_mo_set(mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b)
               NULLIFY(mo_derivs_dbcsr(ispin)%matrix)
-              CALL dbcsr_init_p(mo_derivs_dbcsr(ispin)%matrix)
-              CALL dbcsr_create(mo_derivs_dbcsr(ispin)%matrix, "mo_derivs_dbcsr",&
+              CALL cp_dbcsr_init_p(mo_derivs_dbcsr(ispin)%matrix,error=error)
+              CALL cp_dbcsr_create(mo_derivs_dbcsr(ispin)%matrix, "mo_derivs_dbcsr",&
                    dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
                    dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
-                   0, 0, dbcsr_type_real_default, special=.TRUE.)
-              CALL dbcsr_finalize(mo_derivs_dbcsr(ispin)%matrix)
+                   0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
+              CALL cp_dbcsr_finalize(mo_derivs_dbcsr(ispin)%matrix, error=error)
            ENDDO
         ENDIF
         CALL set_qs_env(qs_env,mo_derivs_dbcsr=mo_derivs_dbcsr,error=error)
@@ -2349,9 +2353,9 @@ CPSourceFileRef)
        CALL dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
        DO ispin=1,dft_control%nspins
           ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL dbcsr_init(matrix_ks(ispin)%matrix)
+          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
 
-          CALL dbcsr_create(matrix=matrix_ks(ispin)%matrix, &
+          CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix, &
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                "KOHN-SHAM_MATRIX", &
                dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
@@ -2359,7 +2363,7 @@ CPSourceFileRef)
                col_blk_size=matrix_s(1)%matrix%m%col_blk_size,&
                nblks=0, nze=0, mutable_work=.TRUE., &
                error=error)
-          CALL dbcsr_finalize(matrix_ks(ispin)%matrix,error=error)
+          CALL cp_dbcsr_finalize(matrix_ks(ispin)%matrix,error=error)
           ! for hfx we need to allocate the blocks
           CALL dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
           CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
@@ -2377,9 +2381,9 @@ CPSourceFileRef)
          CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins, error)
          DO ispin=1,dft_control%nspins
             ALLOCATE(matrix_ks_aux_fit(ispin)%matrix)
-            CALL dbcsr_init(matrix_ks_aux_fit(ispin)%matrix)
+            CALL cp_dbcsr_init(matrix_ks_aux_fit(ispin)%matrix,error=error)
 
-            CALL dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
+            CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                  "KOHN-SHAM_MATRIX for ADMM", &
                  dist=qs_env%matrix_s_aux_fit(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
@@ -2387,7 +2391,7 @@ CPSourceFileRef)
                  col_blk_size=qs_env%matrix_s_aux_fit(1)%matrix%m%col_blk_size,&
                  nblks=0, nze=0, mutable_work=.TRUE., &
                  error=error)
-            CALL dbcsr_finalize(matrix_ks_aux_fit(ispin)%matrix,error=error)
+            CALL cp_dbcsr_finalize(matrix_ks_aux_fit(ispin)%matrix,error=error)
             ! for hfx we need to allocate the blocks
             CALL dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
                  error=error)

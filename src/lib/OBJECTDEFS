@@ -10,6 +10,7 @@ LIB3_OBJECTS = array_types.o\
                btree_i8_k_cp2d_v.o\
                btree_i8_k_zp2d_v.o\
                dbcsr_c_mpi_calls.o\
+               dbcsr_error_handling.o\
                dbcsr_kinds.o\
                dbcsr_machine.o\
                dbcsr_message_passing.o\

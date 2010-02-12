@@ -16,21 +16,21 @@ MODULE scp_environment
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_finalize,&
                                              cp_dbcsr_get_diag,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_add_block_node,&
                                              dbcsr_dist2d_to_dist
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_get_info,&
-                                             dbcsr_init
+                                             dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_repl_full,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -241,8 +241,8 @@ CONTAINS
     CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
 
     ALLOCATE(pscp)
-    CALL dbcsr_init(pscp,error=error)
-    CALL dbcsr_create(matrix=pscp, &
+    CALL cp_dbcsr_init(pscp,error=error)
+    CALL cp_dbcsr_create(matrix=pscp, &
          name="PSCP", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
@@ -277,7 +277,7 @@ CONTAINS
           CALL dbcsr_add_block_node(matrix=pscp,&
                                     block_row=iatom,&
                                     block_col=iatom,&
-                                    BLOCK=BLOCK)
+                                    BLOCK=BLOCK,error=error)
           DO ii=1,SIZE(block,1)
              DO jj=1,SIZE(block,2)
                 block(ii,jj) = a_scp (ii,jj) 
@@ -286,7 +286,7 @@ CONTAINS
        END DO ! ilist
     END DO ! ikind 
 
-    CALL dbcsr_finalize(pscp,error=error)
+    CALL cp_dbcsr_finalize(pscp,error=error)
 
     CALL dbcsr_get_info ( pscp, nfullrows_total=nrow )
 
@@ -297,7 +297,7 @@ CONTAINS
 
     CALL cp_dbcsr_set(pscp,0.0_dp,error=error)
     ALLOCATE(ks_scp)
-    CALL dbcsr_init(ks_scp)
+    CALL cp_dbcsr_init(ks_scp, error=error)
     CALL cp_dbcsr_copy(ks_scp,pscp,'KS_SCP',error=error)
 
     CALL set_scp_env (scp_env=scp_env,ks_scp=ks_scp,pscp=pscp,error=error)

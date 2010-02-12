@@ -20,6 +20,7 @@ MODULE rt_propagation_methods
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type,&
@@ -42,7 +43,6 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_arnoldi,&
@@ -550,8 +550,8 @@ CONTAINS
     CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
 
     ALLOCATE(tmp_rho_im, tmp_rho_re)
-    CALL dbcsr_init(tmp_rho_re)
-    CALL dbcsr_init(tmp_rho_im)
+    CALL cp_dbcsr_init(tmp_rho_re,error=error)
+    CALL cp_dbcsr_init(tmp_rho_im,error=error)
     CALL cp_dbcsr_copy(tmp_rho_re,rho%rho_ao(1)%matrix,"tmp_tho_rts_re",error=error)
     CALL cp_dbcsr_copy(tmp_rho_im,rho%rho_ao(1)%matrix,"tmp_tho_rts_im",error=error)
 
@@ -622,7 +622,7 @@ CONTAINS
        CALL dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
        DO ispin=1,dft_control%nspins
           ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL dbcsr_init(matrix_ks(ispin)%matrix)
+          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
           CALL cp_dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
                name="KOHN-SHAM_MATRIX",error=error)
        ENDDO
@@ -844,7 +844,7 @@ CONTAINS
           CALL dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
        END IF
        ALLOCATE(rtp%history%s_history(ihist)%matrix)
-       CALL dbcsr_init(rtp%history%s_history(ihist)%matrix)
+       CALL cp_dbcsr_init(rtp%history%s_history(ihist)%matrix,error=error)
        CALL cp_dbcsr_copy(rtp%history%s_history(ihist)%matrix,s_mat(1)%matrix,error=error)
     END IF
 

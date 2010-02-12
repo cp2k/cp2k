@@ -28,13 +28,10 @@ MODULE qs_moments
                                              cp_cfm_p_type,&
                                              cp_cfm_release
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_trace, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
+       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
@@ -49,9 +46,7 @@ MODULE qs_moments
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
-  USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
-                                             dbcsr_trace
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: default_string_length,&
@@ -157,7 +152,7 @@ CONTAINS
 
     DO i=1,nm
        ALLOCATE(moments(i)%matrix)
-       CALL dbcsr_init (moments(i)%matrix)
+       CALL cp_dbcsr_init (moments(i)%matrix, error=error)
        CALL cp_dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments", error)
        CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
     END DO
@@ -666,8 +661,8 @@ CONTAINS
 
        NULLIFY ( cosmat, sinmat )
        ALLOCATE(cosmat, sinmat)
-       CALL dbcsr_init(cosmat)
-       CALL dbcsr_init(sinmat)
+       CALL cp_dbcsr_init(cosmat, error=error)
+       CALL cp_dbcsr_init(sinmat, error=error)
        CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
        CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
        CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
@@ -820,7 +815,7 @@ CONTAINS
        ! charge
        trace = 0.0_dp
        DO ispin=1,dft_control%nspins
-         CALL dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
          rmom(1,1) = rmom(1,1) + trace
        END DO
 
@@ -1164,14 +1159,14 @@ CONTAINS
 
        trace = 0.0_dp
        DO ispin=1,dft_control%nspins
-         CALL dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+         CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
          rmom(1,1) = rmom(1,1) + trace
        END DO
 
        DO i = 1, SIZE(moments)
           strace = 0._dp
           DO ispin=1,dft_control%nspins
-            CALL dbcsr_trace(rho%rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
+            CALL cp_dbcsr_trace(rho%rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
             strace = strace + trace
           END DO
           rmom(i+1,1) = strace

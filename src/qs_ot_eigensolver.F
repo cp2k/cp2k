@@ -13,29 +13,22 @@ MODULE qs_ot_eigensolver
                                              array_release
   USE cp_dbcsr_cholesky,               ONLY: dbcsr_cholesky_decompose,&
                                              dbcsr_cholesky_invert
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_multiply,&
-                                             cp_dbcsr_scale,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_copy_columns_hack,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_finalize, cp_dbcsr_init_p, cp_dbcsr_multiply, &
+       cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
+       dbcsr_copy_columns_hack, dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_info, dbcsr_init_p, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_release_p, dbcsr_row_block_sizes
-  USE dbcsr_operations,                ONLY: dbcsr_trace
+       dbcsr_get_info, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default
-  USE dbcsr_util,                      ONLY: create_bl_distribution,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: create_bl_distribution
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_in_use,&
@@ -127,12 +120,13 @@ CONTAINS
          dbcsr_distribution_row_dist(dbcsr_distribution(matrix_h)), col_dist)! fm->dbcsr
     CALL array_release (col_dist)! fm->dbcsr
 
-    CALL dbcsr_init_p(matrix_c)! fm->dbcsr
-    CALL dbcsr_create(matrix_c, "matrix_c", dist, dbcsr_type_normal,&! fm->dbcsr
-         dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.)! fm->dbcsr
-    CALL dbcsr_finalize(matrix_c)! fm->dbcsr
+    CALL cp_dbcsr_init_p(matrix_c, error=error)! fm->dbcsr
+    CALL cp_dbcsr_create(matrix_c, "matrix_c", dist, dbcsr_type_normal,&! fm->dbcsr
+         dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+         error=error)! fm->dbcsr
+    CALL cp_dbcsr_finalize(matrix_c, error=error)! fm->dbcsr
 
-    CALL copy_fm_to_dbcsr(matrix_c_fm,matrix_c)! fm->dbcsr
+    CALL copy_fm_to_dbcsr(matrix_c_fm,matrix_c, error=error)! fm->dbcsr
 
     CALL dbcsr_distribution_release (dist)! fm->dbcsr! fm->dbcsr
     CALL array_release (col_blk_size)
@@ -152,7 +146,7 @@ CONTAINS
       ALLOCATE(qs_ot_env(1))
       ALLOCATE(matrix_hc(1))
       NULLIFY(matrix_hc(1)%matrix)
-      CALL dbcsr_init_p(matrix_hc(1)%matrix)
+      CALL cp_dbcsr_init_p(matrix_hc(1)%matrix, error=error)
       CALL cp_dbcsr_copy(matrix_hc(1)%matrix,matrix_c,'matrix_hc',error=error)
 
       ortho=.FALSE.
@@ -176,12 +170,13 @@ CONTAINS
               dbcsr_distribution_row_dist(dbcsr_distribution(matrix_h)), col_dist)
          CALL array_release (col_dist)
 
-         CALL dbcsr_init_p(matrix_orthogonal_space)
-         CALL dbcsr_create(matrix_orthogonal_space, "matrix_orthogonal_space", dist, dbcsr_type_normal,&
-              dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.)
-         CALL dbcsr_finalize(matrix_orthogonal_space)
+         CALL cp_dbcsr_init_p(matrix_orthogonal_space, error=error)
+         CALL cp_dbcsr_create(matrix_orthogonal_space, "matrix_orthogonal_space", dist, dbcsr_type_normal,&
+              dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+              error=error)
+         CALL cp_dbcsr_finalize(matrix_orthogonal_space, error=error)
 
-         CALL copy_fm_to_dbcsr(matrix_orthogonal_space_fm,matrix_orthogonal_space)
+         CALL copy_fm_to_dbcsr(matrix_orthogonal_space_fm,matrix_orthogonal_space, error=error)
 
          CALL dbcsr_distribution_release (dist)
          CALL array_release (col_blk_size)
@@ -199,7 +194,7 @@ CONTAINS
       IF (ortho) THEN
           ! construct an initial guess that is orthogonal to matrix_orthogonal_space
 
-         CALL dbcsr_init_p(matrix_s_ortho)
+         CALL cp_dbcsr_init_p(matrix_s_ortho, error=error)
          CALL cp_dbcsr_copy(matrix_s_ortho,matrix_orthogonal_space,name="matrix_s_ortho",error=error)
 
          CALL create_bl_distribution (col_dist_o, col_blk_size_o, ortho_space_k, &
@@ -217,20 +212,23 @@ CONTAINS
          CALL array_release(row_dist_o); CALL array_release(col_dist_o)
          CALL array_release(row_dist); CALL array_release(col_dist)
          
-         CALL dbcsr_init_p(matrix_os_ortho)
-         CALL dbcsr_create(matrix_os_ortho, "matrix_os_ortho", dist_o_o, dbcsr_type_normal,&
-              row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default, special=.TRUE.)
-         CALL dbcsr_finalize(matrix_os_ortho)
+         CALL cp_dbcsr_init_p(matrix_os_ortho, error=error)
+         CALL cp_dbcsr_create(matrix_os_ortho, "matrix_os_ortho", dist_o_o, dbcsr_type_normal,&
+              row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default, special=.TRUE.,& 
+              error=error)
+         CALL cp_dbcsr_finalize(matrix_os_ortho, error=error)
 
-         CALL dbcsr_init_p(matrix_buf1_ortho)
-         CALL dbcsr_create(matrix_buf1_ortho, "matrix_buf1_ortho", dist, dbcsr_type_normal,&
-              row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.)
-         CALL dbcsr_finalize(matrix_buf1_ortho)
+         CALL cp_dbcsr_init_p(matrix_buf1_ortho, error=error)
+         CALL cp_dbcsr_create(matrix_buf1_ortho, "matrix_buf1_ortho", dist, dbcsr_type_normal,&
+              row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+              error=error)
+         CALL cp_dbcsr_finalize(matrix_buf1_ortho, error=error)
 
-         CALL dbcsr_init_p(matrix_buf2_ortho)
-         CALL dbcsr_create(matrix_buf2_ortho, "matrix_buf2_ortho", dist, dbcsr_type_normal,&
-              row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.)
-         CALL dbcsr_finalize(matrix_buf2_ortho)
+         CALL cp_dbcsr_init_p(matrix_buf2_ortho, error=error)
+         CALL cp_dbcsr_create(matrix_buf2_ortho, "matrix_buf2_ortho", dist, dbcsr_type_normal,&
+              row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+              error=error)
+         CALL cp_dbcsr_finalize(matrix_buf2_ortho, error=error)
 
          CALL dbcsr_distribution_release (dist_o_o)
          CALL dbcsr_distribution_release (dist)
@@ -276,10 +274,10 @@ CONTAINS
           CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1,&
                para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,error=error)
 
-          CALL dbcsr_release_p(matrix_buf1_ortho)
-          CALL dbcsr_release_p(matrix_buf2_ortho)
-          CALL dbcsr_release_p(matrix_os_ortho)
-          CALL dbcsr_release_p(matrix_s_ortho)
+          CALL cp_dbcsr_release_p(matrix_buf1_ortho, error=error)
+          CALL cp_dbcsr_release_p(matrix_buf2_ortho, error=error)
+          CALL cp_dbcsr_release_p(matrix_os_ortho, error=error)
+          CALL cp_dbcsr_release_p(matrix_s_ortho, error=error)
           
       ELSE
 
@@ -329,7 +327,7 @@ CONTAINS
         ! the energy is cHc, the gradient is 2*H*c
         CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_h,matrix_c, &
             0.0_dp,matrix_hc(1)%matrix,last_column=k,error=error)
-        CALL dbcsr_trace(matrix_c,matrix_hc(1)%matrix,energy,error=error)
+        CALL cp_dbcsr_trace(matrix_c,matrix_hc(1)%matrix,energy,error=error)
         IF (.NOT. energy_only) THEN
            CALL cp_dbcsr_scale(matrix_hc(1)%matrix,2.0_dp,error=error)
         ENDIF
@@ -354,9 +352,9 @@ CONTAINS
 
       CALL qs_ot_destroy(qs_ot_env(1),error=error)
       DEALLOCATE(qs_ot_env)
-      CALL dbcsr_release_p(matrix_hc(1)%matrix)
+      CALL cp_dbcsr_release_p(matrix_hc(1)%matrix, error=error)
       DEALLOCATE(matrix_hc)
-      CALL dbcsr_release_p(matrix_orthogonal_space)
+      CALL cp_dbcsr_release_p(matrix_orthogonal_space, error=error)
 
       IF (delta < eps_gradient) THEN
           IF ((output_unit>0) .AND. .NOT.my_silent) THEN
@@ -380,8 +378,8 @@ CONTAINS
     ENDDO outer_scf
 
 
-    CALL copy_dbcsr_to_fm(matrix_c,matrix_c_fm)! fm->dbcsr
-    CALL dbcsr_release_p(matrix_c)! fm->dbcsr
+    CALL copy_dbcsr_to_fm(matrix_c,matrix_c_fm,error=error)! fm->dbcsr
+    CALL cp_dbcsr_release_p(matrix_c, error=error)! fm->dbcsr
 
     CALL timestop(handle)
 

@@ -19,6 +19,7 @@ MODULE se_fock_matrix
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_set,&
+                                             cp_dbcsr_trace,&
                                              dbcsr_obj_p_type,&
                                              dbcsr_sm_fm_multiply
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -27,7 +28,6 @@ MODULE se_fock_matrix
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -206,7 +206,7 @@ CONTAINS
        ! Compute the Hartree energy
        ! NOTE: If we are performing SCP-NDDO, ks_matrix contains coulomb piece from SCP.
        DO ispin=1,nspins
-          CALL dbcsr_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,error=error)
+          CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix,matrix_p(ispin)%matrix,trace=ecoul,error=error)
           energy%hartree = energy%hartree + ecoul
        END DO
        ! Compute the SCP Hartree energy and polarization energy and update ks_scp
@@ -214,7 +214,7 @@ CONTAINS
           CALL get_scp_env ( scp_env, pscp=pscp, ks_scp=ks_scp, energy=energy_scp, &
                              ascp_diag= ascp_diag, error = error )
           ! Get energy
-          CALL dbcsr_trace(ks_scp,pscp,trace=ecoul_scp,local_sum=.TRUE.,error=error)
+          CALL cp_dbcsr_trace(ks_scp,pscp,trace=ecoul_scp,local_sum=.TRUE.,error=error)
           energy_scp%e_scp_hartree = ecoul_scp*0.5_dp
           ! evalulate kernel and forces on the SCP coeffs
           CALL evaluate_scp_force ( atomic_kind_set, pscp, ks_scp, ascp_diag, &
@@ -230,7 +230,7 @@ CONTAINS
              CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
                   1.0_dp,1.0_dp,error=error)
              ! Compute QM/MM Energy
-             CALL dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
+             CALL cp_dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
                   matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
              energy%qmmm_el = energy%qmmm_el + qmmm_el
           END DO

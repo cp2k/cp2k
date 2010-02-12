@@ -25,6 +25,7 @@ MODULE dft_plus_u
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_get_block_diag,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_deallocate_matrix,&
                                              dbcsr_obj_p_type,&
@@ -44,8 +45,7 @@ MODULE dft_plus_u
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: dbcsr_init,&
-                                             dbcsr_iterator_blocks_left,&
+  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
@@ -401,12 +401,12 @@ CONTAINS
 
     ALLOCATE (sm_q,STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-    CALL dbcsr_init(sm_q,error=error)
+    CALL cp_dbcsr_init(sm_q,error=error)
     CALL cp_dbcsr_get_block_diag(sm_s,sm_q,error=error)
 
     ALLOCATE (sm_v,STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-    CALL dbcsr_init(sm_v,error=error)
+    CALL cp_dbcsr_init(sm_v,error=error)
     CALL cp_dbcsr_get_block_diag(sm_s,sm_v,error=error)
 
     ! Loop over all spins
@@ -462,7 +462,7 @@ CONTAINS
       ! interested in the diagonal (atomic) blocks, i.e. the previous full
       ! matrix product is not the most efficient choice, anyway.
 
-      CALL copy_fm_to_dbcsr(fm_work2,sm_q,keep_sparsity=.TRUE.)
+      CALL copy_fm_to_dbcsr(fm_work2,sm_q,keep_sparsity=.TRUE.,error=error)
 
       ! E[DFT+U] = E[DFT] + E[U]
       !          = E[DFT] + (U - J)*(Tr(q) - Tr(q*q))/2
@@ -1047,7 +1047,7 @@ CONTAINS
       IF (.NOT.ASSOCIATED(sm_q)) THEN
         ALLOCATE (sm_q,STAT=stat)
         CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        CALL dbcsr_init(sm_q,error=error)
+        CALL cp_dbcsr_init(sm_q,error=error)
         CALL cp_dbcsr_get_block_diag(sm_p,sm_q,error=error)
       END IF
       CALL cp_dbcsr_set(sm_q,0.0_dp,error=error)
@@ -1055,7 +1055,7 @@ CONTAINS
       IF (.NOT.ASSOCIATED(sm_v)) THEN
         ALLOCATE (sm_v,STAT=stat)
         CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-        CALL dbcsr_init(sm_v,error=error)
+        CALL cp_dbcsr_init(sm_v,error=error)
         CALL cp_dbcsr_get_block_diag(sm_p,sm_v,error=error)
       END IF
       CALL cp_dbcsr_set(sm_v,0.0_dp,error=error)

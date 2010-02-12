@@ -22,14 +22,10 @@ MODULE qs_wf_history_methods
                                              VandeVondele2005a,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_set, &
+       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
+       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_scale_and_add
@@ -47,7 +43,6 @@ MODULE qs_wf_history_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -439,7 +434,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
         CALL dbcsr_allocate_matrix_set(snapshot%rho_ao,nspins,error=error)
         DO ispin=1,nspins
            ALLOCATE(snapshot%rho_ao(ispin)%matrix)
-           CALL dbcsr_init(snapshot%rho_ao(ispin)%matrix)
+           CALL cp_dbcsr_init(snapshot%rho_ao(ispin)%matrix,error=error)
            CALL cp_dbcsr_copy(snapshot%rho_ao(ispin)%matrix,rho_ao(ispin)%matrix,&
                 error=error)
         END DO
@@ -455,7 +450,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
         !        CALL sm_pool_create_matrix(S_sm_pools(1)%pool,&
         !             snapshot%overlap,"snapshot%overlap",error=error)
         ALLOCATE(snapshot%overlap)
-        CALL dbcsr_init(snapshot%overlap)
+        CALL cp_dbcsr_init(snapshot%overlap,error=error)
         CALL cp_dbcsr_copy(snapshot%overlap,s_array(1)%matrix,error=error)
      END IF
 

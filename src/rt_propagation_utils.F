@@ -24,12 +24,10 @@ MODULE  rt_propagation_utils
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init, &
+       dbcsr_add_block_node, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -45,14 +43,11 @@ MODULE  rt_propagation_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_restart_wfn,&
                                              use_rt_restart
@@ -239,8 +234,8 @@ MODULE  rt_propagation_utils
        CALL compress(name)
        CALL uppercase(name)
        ALLOCATE(s_derivs(m)%matrix)
-       CALL dbcsr_init(s_derivs(m)%matrix,error=error)
-       CALL dbcsr_create(matrix=s_derivs(m)%matrix, &
+       CALL cp_dbcsr_init(s_derivs(m)%matrix,error=error)
+       CALL cp_dbcsr_create(matrix=s_derivs(m)%matrix, &
             name=TRIM(name), &
             dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -255,8 +250,8 @@ MODULE  rt_propagation_utils
        CALL compress(name)
        CALL uppercase(name)
        ALLOCATE(s_derivs(m)%matrix)
-       CALL dbcsr_init(s_derivs(m)%matrix,error=error)
-       CALL dbcsr_create(matrix=s_derivs(m)%matrix, &
+       CALL cp_dbcsr_init(s_derivs(m)%matrix,error=error)
+       CALL cp_dbcsr_create(matrix=s_derivs(m)%matrix, &
             name=TRIM(name), &
             dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -460,7 +455,7 @@ MODULE  rt_propagation_utils
    END DO
 
     DO i = 1,SIZE(s_derivs)
-       CALL dbcsr_finalize(s_derivs(i)%matrix,error=error)
+       CALL cp_dbcsr_finalize(s_derivs(i)%matrix,error=error)
     ENDDO
  
     DEALLOCATE (sab,STAT=stat)

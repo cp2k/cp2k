@@ -330,7 +330,7 @@ CONTAINS
     !   Copy the overlap sparse matrix in a full matrix
     CALL mpools_get(qs_env%mpools,ao_ao_fm_pools=ao_ao_fm_pools,error=error)
     CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, ov_fm, name=" ", error=error)
-    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,ov_fm)
+    CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,ov_fm,error=error)
 
     !   Compute zij here
     DO iatom = 1, natom

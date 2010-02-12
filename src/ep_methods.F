@@ -19,7 +19,7 @@ MODULE ep_methods
   USE cp_array_utils,                  ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_scale, cp_dbcsr_set, &
        dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
        dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply, &
        sm_from_dbcsr
@@ -54,7 +54,6 @@ MODULE ep_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
   USE ep_qs_methods,                   ONLY: ep_qs_create
@@ -642,7 +641,7 @@ CONTAINS
     CALL dbcsr_allocate_matrix_set(matrix_ks,dft_control%nspins,error=error)
     DO ispin=1,dft_control%nspins
        ALLOCATE (matrix_ks(ispin)%matrix)
-       CALL dbcsr_init(matrix_ks(ispin)%matrix)
+       CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
        CALL cp_dbcsr_copy(matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
             "KOHN-SHAM MATRIX-"//ADJUSTL(cp_to_string(ispin)),error=error)
     END DO
@@ -1445,7 +1444,7 @@ CONTAINS
        CALL dbcsr_allocate_matrix_set( matrix_ks, dft_control%nspins, error )
        DO ispin=1,SIZE(matrix_ks)
           ALLOCATE(matrix_ks(ispin)%matrix)
-          CALL dbcsr_init(matrix_ks(ispin)%matrix)
+          CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
           CALL cp_dbcsr_copy(matrix_ks(ispin)%matrix, matrix_s(ispin)%matrix,&
                name="EP"//TRIM(cp_iter_string(logger%iter_info,error=error))//&
                "KOHN-SHAM_MATRIX", error=error)
@@ -1904,7 +1903,7 @@ CONTAINS
     CALL dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
     DO ispin=1,nspin
        ALLOCATE(matrix_w(ispin)%matrix)
-       CALL dbcsr_init(matrix_w(ispin)%matrix)
+       CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
        CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
             "W MATRIX"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
     END DO

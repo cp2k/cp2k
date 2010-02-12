@@ -7,13 +7,14 @@
   SUBROUTINE dbcsr_set_diagonal_z (matrix, value, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     COMPLEX(kind=real_8), INTENT(IN)                      :: value
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diagonal_z', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_p, col, local_row, &
-                                                my_pcol, nze, row, row_size
+                                                my_pcol, nze, row, row_size,&
+                                                error_handler
     INTEGER, DIMENSION(:), POINTER           :: local_rows, pcol_dist, &
                                                 row_blk_size
     LOGICAL                                  :: in_this_row, valid_index
@@ -22,16 +23,17 @@
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL cp_assert (dbcsr_valid_index (matrix),&
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          cp_fatal_level, cp_caller_error,&
          routineN, "Matrix not initialized.")
-    CALL cp_assert(matrix%m%nblkrows_total .EQ. matrix%m%nblkcols_total,&
+    CALL dbcsr_assert(matrix%m%nblkrows_total, 'EQ', matrix%m%nblkcols_total,&
          cp_failure_level, cp_caller_error, routineP,&
-         "Can not set diagonal of non-square matrix.", error=error)
-    CALL cp_assert (dbcsr_type_complex_8 .EQ. matrix%m%data_type, cp_failure_level,&
+         "Can not set diagonal of non-square matrix.")
+    CALL dbcsr_assert (dbcsr_type_complex_8, 'EQ', matrix%m%data_type, cp_failure_level,&
          cp_caller_error, routineN, "Datatype mismatch.")
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_work_create (matrix, error=error, n=1)
+       CALL dbcsr_work_create (matrix, n=1, error=error)
     ENDIF
     row_blk_size => array_data (matrix%m%row_blk_size)
     CALL dbcsr_get_info (matrix, local_rows = local_rows,&
@@ -76,7 +78,7 @@
                error=error)
           ! add_work_coordinate increments the block counter
           CALL dbcsr_data_ensure_size (matrix%m%wms(1)%data_area,&
-               matrix%m%wms(1)%datasize + nze)
+               matrix%m%wms(1)%datasize + nze, error=error)
           !CALL ensure_array_size (matrix%m%w%data, ub=matrix%m%w%datasize+nze,&
           !     error=error)
           data_p => pointer_view (&
@@ -89,6 +91,7 @@
           matrix%m%wms(1)%datasize = matrix%m%wms(1)%datasize + nze
        ENDIF
     ENDDO ! row
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_set_diagonal_z
 
 ! *****************************************************************************
@@ -368,13 +371,13 @@
     INTEGER                                  :: lb_s, ub, ub_s
 !   ---------------------------------------------------------------------------
     IF (bcsr_debug) THEN
-       CALL cp_assert (ASSOCIATED (dst%d),&
+       CALL dbcsr_assert (ASSOCIATED (dst%d),&
             cp_fatal_level, cp_caller_error, routineN,&
             "Target data area must be setup.")
-       CALL cp_assert (SIZE(src) .GE. data_size,&
+       CALL dbcsr_assert (SIZE(src) .GE. data_size,&
             cp_fatal_level, cp_caller_error, routineN,&
             "Not enough source data.")
-       CALL cp_assert (dst%d%data_type .EQ. dbcsr_type_complex_8, cp_failure_level,&
+       CALL dbcsr_assert (dst%d%data_type .EQ. dbcsr_type_complex_8, cp_failure_level,&
             cp_caller_error, routineN, "Data type mismatch.")
     ENDIF
     ub = lb + data_size - 1
@@ -404,26 +407,27 @@
 !>                            write nothing
 ! *****************************************************************************
   SUBROUTINE ensure_array_size_z(array, lb, ub, factor,&
-       nocopy, special, zero_pad)
+       nocopy, special, zero_pad, error)
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: array
     INTEGER, INTENT(IN), OPTIONAL            :: lb
     INTEGER, INTENT(IN)                      :: ub
     REAL, INTENT(IN), OPTIONAL               :: factor
     LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special, zero_pad
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_z', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lb_new, lb_orig, stat, &
                                                 ub_new, ub_orig, old_size,&
-                                                size_increase
+                                                size_increase, error_handler
     LOGICAL                                  :: dbg, docopy = .TRUE., &
                                                 failure = .TRUE., info, spec,&
                                                 pad
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: newarray
 
 !   ---------------------------------------------------------------------------
-
+    CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
     info = .FALSE.
     CALL dbcsr_set_debug(dbg, info=info)
@@ -440,7 +444,7 @@
     IF (.NOT.ASSOCIATED(array)) THEN
        failure = .FALSE.
        IF (spec) THEN
-          CALL cp_assert (lb.EQ.1, cp_warning_level, cp_internal_error,&
+          CALL dbcsr_assert (lb.EQ.1, cp_warning_level, cp_internal_error,&
                routineN, "Special memory can only start at 1.")
           CALL mp_allocate(array, ub-lb_new+1, stat=stat)
        ELSE
@@ -448,6 +452,7 @@
        ENDIF
        IF (stat /= 0) CALL stop_memory(routineP, 'array', ub-lb+1)
        IF (pad) array(:) = CMPLX(0.0, 0.0, real_8)
+       CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
@@ -455,6 +460,7 @@
     old_size = ub_orig - lb_orig + 1
     ! The existing array is big enough.
     IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
+       CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
     ! A reallocation must be performed
@@ -492,7 +498,7 @@
        ENDIF
     ENDIF
     IF (spec) THEN
-       CALL cp_assert (lb_new.EQ.1, cp_warning_level, cp_internal_error,&
+       CALL dbcsr_assert (lb_new.EQ.1, cp_warning_level, cp_internal_error,&
             routineN, "Special memory can only start at 1.")
        CALL mp_allocate(newarray, ub_new-lb_new+1, stat=stat)
     ELSE
@@ -500,7 +506,7 @@
     ENDIF
     IF(stat /= 0) CALL stop_memory(routineP, 'newarray', ub_new-lb_new+1)
     IF(docopy) THEN
-       IF(dbg) CALL cp_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
+       IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             cp_failure_level, cp_internal_error, routineP,&
             "Old extent exceeds the new one.")
        newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
@@ -520,6 +526,7 @@
     IF(dbg.AND.bcsr_verbose)&
          WRITE(*,*)routineP//' New array',array(lb_orig:ub_orig)
     IF (dbg) WRITE(*,*)routineP//' New array size', SIZE(array)
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE ensure_array_size_z
 
 
@@ -533,22 +540,23 @@
 !> \param[in] factor          factor for size increase
 !> \param error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE addto_array_az(to, from, offset, factor)
+  SUBROUTINE addto_array_az(to, from, offset, factor, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: to
     COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN)        :: from
     INTEGER, INTENT(IN), OPTIONAL            :: offset
     REAL, INTENT(IN), OPTIONAL               :: factor
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'addto_array_az', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: last, lb_t, s_f, s_t, start, &
-                                                timing_handle, ub_t
+                                                timing_handle, ub_t, error_handler
     LOGICAL                                  :: dbg, spec
     REAL                                     :: f
 
 !   ---------------------------------------------------------------------------
-
+    CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
     CALL dbcsr_set_debug(dbg)
     spec = to%d%special
@@ -564,12 +572,12 @@
           last = offset + SIZE(from)-1
           CALL ensure_array_size(to%d%c_dp, lb=start,&
                ub=last,&
-               factor=1.0, nocopy=.TRUE., special=spec)
+               factor=1.0, nocopy=.TRUE., special=spec, error=error)
        ELSE
           start = 1
           last = SIZE(from)
           CALL ensure_array_size(to%d%c_dp, ub=last,&
-               factor=1.0, nocopy=.TRUE., special=spec)          
+               factor=1.0, nocopy=.TRUE., special=spec, error=error)
        ENDIF
     ELSE
        ub_t = UBOUND(to%d%c_dp, 1)
@@ -595,10 +603,11 @@
           !CALL reallocate(to, lb_t, ub_t)
           CALL ensure_array_size(to%d%c_dp, lb_t, ub_t,&
                factor=1.0, nocopy=.FALSE.,&
-               special=spec)
+               special=spec, error=error)
        ENDIF
     ENDIF
     to%d%c_dp(start:last) = from(:)
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE addto_array_az
 
 ! *****************************************************************************
@@ -617,18 +626,18 @@
     INTEGER, INTENT(IN), OPTIONAL            :: offset
     REAL, INTENT(IN), OPTIONAL               :: factor
     LOGICAL, INTENT(IN), OPTIONAL            :: special
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'addto_array_z', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: last, lb_t, s_f, s_t, start, &
-                                                ub_t
+                                                ub_t, error_handler
     LOGICAL                                  :: dbg, spec
     REAL                                     :: f
 
 !   ---------------------------------------------------------------------------
-
+    CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
     CALL dbcsr_set_debug(dbg)
     spec = .FALSE.
@@ -660,9 +669,10 @@
             'to',ub_t
        !CALL reallocate(to, lb_t, ub_t)
        CALL ensure_array_size(to, lb_t, ub_t, factor=1.0, nocopy=.FALSE.,&
-            special=spec)
+            special=spec, error=error)
     ENDIF
     to(start:last) = from(:)
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE addto_array_z
 
 
@@ -671,17 +681,19 @@
 !>
 !> \param[in,out] wm      work matrix to convert
 ! *****************************************************************************
-  SUBROUTINE tree_to_linear_z(wm)
+  SUBROUTINE tree_to_linear_z(wm, error)
     USE btree_I8_k_zp2d_v,&
         ONLY: btree_2d_data_z => zp2d,&
               btree_destroy_z => btree_delete,&
               btree_size_z => btree_get_entries
     TYPE(dbcsr_work_type), INTENT(INOUT)     :: wm
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tree_to_linear_z', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p, i, treesize
+    INTEGER                                  :: blk, blk_p, i, treesize, &
+         error_handler
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: keys
     COMPLEX(kind=real_8), DIMENSION(:, :), POINTER        :: block_2d
@@ -691,27 +703,28 @@
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
+    CALL dbcsr_error_set(routineN, error_handler, error)
     IF (dbg) WRITE(*,'(1X,A,I5,A)')routineN//" Work matrix",i,&
          " has mutable data"
     ! srt = .TRUE. ! Not needed because of the copy
     treesize = btree_size_z(wm%mutable%m%btree_z)
     IF (dbg) WRITE(*,*)routineN//" Declared size",wm%lastblk,&
          "present blocks",treesize
-    CALL cp_assert(wm%lastblk .EQ. treesize,&
+    CALL dbcsr_assert(wm%lastblk .EQ. treesize,&
          cp_fatal_level, cp_internal_error, routineN,&
          "Mismatch in number of blocks")
     ALLOCATE (keys(treesize), values(treesize))
     CALL btree_destroy_z (wm%mutable%m%btree_z, keys, values)
-    CALL ensure_array_size (wm%row_i, ub=treesize)
-    CALL ensure_array_size (wm%col_i, ub=treesize)
+    CALL ensure_array_size (wm%row_i, ub=treesize, error=error)
+    CALL ensure_array_size (wm%col_i, ub=treesize, error=error)
     CALL dbcsr_unpack_i8_2i4 (keys, wm%row_i,&
          wm%col_i)
     ! For now we also fill the data, sloooowly, but this should
     ! be avoided and the data should be copied directly from the
     ! source in the subroutine's main loop.
-    CALL ensure_array_size (wm%blk_p, ub=treesize)
+    CALL ensure_array_size (wm%blk_p, ub=treesize, error=error)
     CALL dbcsr_data_ensure_size (wm%data_area,&
-         wm%datasize)
+         wm%datasize, error=error)
     blk_p = 1
     DO blk = 1, treesize
        block_2d => values(blk)%p
@@ -736,9 +749,8 @@
     !     treesize
     !write(*,'(10(1X,F5.1))')&
     !dbcsr_get_data_p (wm%data_area, 0.0_dp)
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE tree_to_linear_z
-
-
 
 ! *****************************************************************************
 !> \brief Row/column and global all-to-all

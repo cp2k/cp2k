@@ -677,8 +677,8 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(matrix_p,matrix_h)!sm->dbcsr
-    !CALL dbcsr_init(matrix_p, error)!sm->dbcsr
-    !CALL dbcsr_init(matrix_h, error)!sm->dbcsr
+    !CALL cp_dbcsr_init(matrix_p, error)!sm->dbcsr
+    !CALL cp_dbcsr_init(matrix_h, error)!sm->dbcsr
     CALL dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error, distribution_2d)!sm->dbcsr
     CALL dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error, distribution_2d,&
          mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_p)))!sm->dbcsr

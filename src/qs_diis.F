@@ -345,7 +345,7 @@ CONTAINS
         CALL cp_fm_symm("L","U",nao,homo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix,error=error)
 
         IF (PRESENT(s_matrix)) THEN
-          CALL copy_dbcsr_to_fm(s_matrix(1)%matrix,new_errors)
+          CALL copy_dbcsr_to_fm(s_matrix(1)%matrix,new_errors,error=error)
           ! SC <- S*C
           CALL cp_fm_symm("L","U",nao,homo,1.0_dp,new_errors,c,0.0_dp,sc,error=error)
           CALL cp_fm_column_scale(sc,occ(1:homo))
@@ -374,7 +374,7 @@ CONTAINS
 
         IF (PRESENT(s_matrix)) THEN
           ! I guess that this copy can be avoided for LSD
-          CALL copy_dbcsr_to_fm(s_matrix(1)%matrix,new_errors)
+          CALL copy_dbcsr_to_fm(s_matrix(1)%matrix,new_errors,error=error)
           ! sc <- S*C
           CALL cp_fm_symm("L","U",nao,homo,2.0_dp,new_errors,c,0.0_dp,sc,error=error)
           ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K

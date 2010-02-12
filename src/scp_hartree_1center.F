@@ -16,18 +16,13 @@ MODULE  scp_hartree_1center
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_get_block_diag,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_add, cp_dbcsr_distribute, cp_dbcsr_get_block_diag, &
+       cp_dbcsr_init, cp_dbcsr_replicate_all, cp_dbcsr_set, &
+       cp_dbcsr_sum_replicated, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
-  USE dbcsr_operations,                ONLY: dbcsr_distribute,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_replicate_all,&
-                                             dbcsr_sum_replicated
+  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -200,13 +195,13 @@ CONTAINS
     DO ispin=1,nspins
        ! Allocate diagonal block matrices
        ALLOCATE(diagmat_p(ispin)%matrix,diagmat_ks(ispin)%matrix)!sm->dbcsr
-       CALL dbcsr_init (diagmat_p(ispin)%matrix)
-       CALL dbcsr_init (diagmat_ks(ispin)%matrix)
+       CALL cp_dbcsr_init (diagmat_p(ispin)%matrix, error=error)
+       CALL cp_dbcsr_init (diagmat_ks(ispin)%matrix, error=error)
        CALL cp_dbcsr_get_block_diag(p_mat(ispin)%matrix, diagmat_p(ispin)%matrix, error=error)
        CALL cp_dbcsr_get_block_diag(h_mat(ispin)%matrix, diagmat_ks(ispin)%matrix, error=error)
        CALL cp_dbcsr_set(diagmat_ks(ispin)%matrix, 0.0_dp, error=error)
-       CALL dbcsr_replicate_all(diagmat_p(ispin)%matrix)
-       CALL dbcsr_replicate_all(diagmat_ks(ispin)%matrix)
+       CALL cp_dbcsr_replicate_all(diagmat_p(ispin)%matrix, error=error)
+       CALL cp_dbcsr_replicate_all(diagmat_ks(ispin)%matrix, error=error)
     END DO
 
     DO ikind=1,nkind
@@ -492,8 +487,8 @@ CONTAINS
     END DO ! ikind
 
     DO ispin = 1, nspins
-       CALL dbcsr_sum_replicated( diagmat_ks(ispin)%matrix )
-       CALL dbcsr_distribute(diagmat_ks(ispin)%matrix)
+       CALL cp_dbcsr_sum_replicated( diagmat_ks(ispin)%matrix, error=error )
+       CALL cp_dbcsr_distribute(diagmat_ks(ispin)%matrix, error=error)
        CALL cp_dbcsr_add(h_mat(ispin)%matrix, diagmat_ks(ispin)%matrix,1.0_dp,1.0_dp,error=error)
     END DO
 

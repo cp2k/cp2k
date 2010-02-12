@@ -25,14 +25,11 @@ MODULE qs_linres_op
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_alloc_block_from_nbl,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, &
+       cp_dbcsr_set, dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type, &
+       dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -44,14 +41,11 @@ MODULE qs_linres_op
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_normal
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_checksum,&
-                                             dbcsr_create
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -239,11 +233,11 @@ CONTAINS
     !
     CALL dbcsr_allocate_matrix_set(op_ao,3,error=error)
     ALLOCATE(op_ao(1)%matrix,op_ao(2)%matrix,op_ao(3)%matrix)
-    CALL dbcsr_init (op_ao(1)%matrix)
-    CALL dbcsr_init (op_ao(2)%matrix)
-    CALL dbcsr_init (op_ao(3)%matrix)
+    CALL cp_dbcsr_init (op_ao(1)%matrix, error=error)
+    CALL cp_dbcsr_init (op_ao(2)%matrix, error=error)
+    CALL cp_dbcsr_init (op_ao(3)%matrix, error=error)
 
-    CALL dbcsr_create(matrix=op_ao(1)%matrix, &
+    CALL cp_dbcsr_create(matrix=op_ao(1)%matrix, &
          name="op_ao", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -276,9 +270,9 @@ CONTAINS
           CALL build_ang_mom_matrix(qs_env,op_ao,centers_set(ispin)%array(1:3,icenter),error)
           !
           ! accumulate checksums
-          chk(1) = chk(1)+dbcsr_checksum(op_ao(1)%matrix,error)
-          chk(2) = chk(2)+dbcsr_checksum(op_ao(2)%matrix,error)
-          chk(3) = chk(3)+dbcsr_checksum(op_ao(3)%matrix,error)
+          chk(1) = chk(1)+cp_dbcsr_checksum(op_ao(1)%matrix,error=error)
+          chk(2) = chk(2)+cp_dbcsr_checksum(op_ao(2)%matrix,error=error)
+          chk(3) = chk(3)+cp_dbcsr_checksum(op_ao(3)%matrix,error=error)
           DO idir = 1,3
              CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
              CALL dbcsr_sm_fm_multiply(op_ao(idir)%matrix,mo_coeff,&
@@ -308,11 +302,11 @@ CONTAINS
     ! Calculate the px py pz operators
     CALL dbcsr_allocate_matrix_set(op_ao,3,error=error)
     ALLOCATE(op_ao(1)%matrix,op_ao(2)%matrix,op_ao(3)%matrix)
-    CALL dbcsr_init (op_ao(1)%matrix)
-    CALL dbcsr_init (op_ao(2)%matrix)
-    CALL dbcsr_init (op_ao(3)%matrix)
+    CALL cp_dbcsr_init (op_ao(1)%matrix, error=error)
+    CALL cp_dbcsr_init (op_ao(2)%matrix, error=error)
+    CALL cp_dbcsr_init (op_ao(3)%matrix, error=error)
 
-    CALL dbcsr_create(matrix=op_ao(1)%matrix, &
+    CALL cp_dbcsr_create(matrix=op_ao(1)%matrix, &
          name="op_ao", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -331,9 +325,9 @@ CONTAINS
     !CALL p_xyz_ao(op_ao,qs_env,minimum_image=.FALSE.,error=error)
     !
     ! print checksums
-    chk(1) = dbcsr_checksum(op_ao(1)%matrix,error)
-    chk(2) = dbcsr_checksum(op_ao(2)%matrix,error)
-    chk(3) = dbcsr_checksum(op_ao(3)%matrix,error)
+    chk(1) = cp_dbcsr_checksum(op_ao(1)%matrix,error=error)
+    chk(2) = cp_dbcsr_checksum(op_ao(2)%matrix,error=error)
+    chk(3) = cp_dbcsr_checksum(op_ao(3)%matrix,error=error)
     IF(output_unit>0) THEN
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_x =',chk(1)
        WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_y =',chk(2)
@@ -538,7 +532,7 @@ CONTAINS
        CALL cp_dbcsr_set(matrix_fc(1)%matrix,0.0_dp,error=error)
        CALL build_fermi_contact_matrix(qs_env,matrix_fc,r_i,error)
 
-       chk(1) = dbcsr_checksum(matrix_fc(1)%matrix,error=error)
+       chk(1) = cp_dbcsr_checksum(matrix_fc(1)%matrix,error=error)
 
        IF(output_unit>0) THEN
           WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| fermi_contact: CheckSum =',chk(1)
@@ -553,9 +547,9 @@ CONTAINS
        CALL cp_dbcsr_set(matrix_pso(3)%matrix,0.0_dp,error=error)
        CALL build_pso_matrix(qs_env,matrix_pso,r_i,error)
 
-       chk(2) = dbcsr_checksum(matrix_pso(1)%matrix,error=error)
-       chk(3) = dbcsr_checksum(matrix_pso(2)%matrix,error=error)
-       chk(4) = dbcsr_checksum(matrix_pso(3)%matrix,error=error)
+       chk(2) = cp_dbcsr_checksum(matrix_pso(1)%matrix,error=error)
+       chk(3) = cp_dbcsr_checksum(matrix_pso(2)%matrix,error=error)
+       chk(4) = cp_dbcsr_checksum(matrix_pso(3)%matrix,error=error)
 
        IF(output_unit>0) THEN
           WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| pso_x: CheckSum =',chk(2)
@@ -575,12 +569,12 @@ CONTAINS
        CALL cp_dbcsr_set(matrix_efg(6)%matrix,0.0_dp,error=error)
        CALL build_efg_matrix(qs_env,matrix_efg,r_i,error)
 
-       chk(5) = dbcsr_checksum(matrix_efg(1)%matrix,error=error)
-       chk(6) = dbcsr_checksum(matrix_efg(2)%matrix,error=error)
-       chk(7) = dbcsr_checksum(matrix_efg(3)%matrix,error=error)
-       chk(8) = dbcsr_checksum(matrix_efg(4)%matrix,error=error)
-       chk(9) = dbcsr_checksum(matrix_efg(5)%matrix,error=error)
-       chk(10)= dbcsr_checksum(matrix_efg(6)%matrix,error=error)
+       chk(5) = cp_dbcsr_checksum(matrix_efg(1)%matrix,error=error)
+       chk(6) = cp_dbcsr_checksum(matrix_efg(2)%matrix,error=error)
+       chk(7) = cp_dbcsr_checksum(matrix_efg(3)%matrix,error=error)
+       chk(8) = cp_dbcsr_checksum(matrix_efg(4)%matrix,error=error)
+       chk(9) = cp_dbcsr_checksum(matrix_efg(5)%matrix,error=error)
+       chk(10)= cp_dbcsr_checksum(matrix_efg(6)%matrix,error=error)
 
        IF(output_unit>0) THEN
           WRITE(output_unit,'(T2,A,E23.16)') 'ISSC| efg (3xx-rr)/3: CheckSum =',chk(5)

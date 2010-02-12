@@ -101,7 +101,7 @@ CONTAINS
     CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
 
     context => fm_matrix%matrix_struct%context
     myprow = context%mepos(1)
@@ -196,7 +196,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "eig")
 
-    CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
+    CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors, error=error)
 
     CALL cp_fm_release(fm_matrix, error)
     CALL cp_fm_release(fm_eigenvectors, error)
@@ -275,7 +275,7 @@ CONTAINS
          CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
 
     needs_evecs=PRESENT(eigenvectors)
 
@@ -472,7 +472,8 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "w")
 
-    IF(PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
+    IF(PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors, &
+         error=error)
     IF(PRESENT(eigenvectors)) CALL cp_fm_release(fm_eigenvectors, error)
     CALL cp_fm_release(fm_matrix, error)
 
@@ -538,7 +539,7 @@ CONTAINS
     CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_fm(matrix, fm_matrix, error=error)
 
     ! by default all
     neig=n
@@ -678,7 +679,8 @@ CONTAINS
     DEALLOCATE (w,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    IF(PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
+    IF(PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors, &
+         error=error)
     IF(PRESENT(eigenvectors)) CALL cp_fm_release(fm_eigenvectors, error)
     CALL cp_fm_release(fm_matrix, error)
 
@@ -725,7 +727,7 @@ CONTAINS
     CALL cp_cfm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL copy_dbcsr_to_cfm(matrix, fm_matrix)
+    CALL copy_dbcsr_to_cfm(matrix, fm_matrix, error=error)
 
     n = fm_matrix%matrix_struct%nrow_global
     m => fm_matrix%local_data
@@ -768,7 +770,7 @@ CONTAINS
     IF (info.NE.0) CALL stop_program(routineN,"unable to diagonalize matrix")
     DEALLOCATE(work,iwork,rwork)
 
-    CALL copy_cfm_to_dbcsr(fm_eigenvectors, eigenvectors)
+    CALL copy_cfm_to_dbcsr(fm_eigenvectors, eigenvectors, error=error)
 
     CALL cp_cfm_release(fm_matrix, error)
     CALL cp_cfm_release(fm_eigenvectors, error)

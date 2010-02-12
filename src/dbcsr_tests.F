@@ -20,6 +20,7 @@ MODULE dbcsr_tests
                                              array_release,&
                                              array_size
   USE cp_dbcsr_operations,             ONLY: dbcsr_multiply
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_cart_create,&
                                              mp_cart_rank,&
@@ -118,24 +119,24 @@ CONTAINS
     ! Create the undistributed matrices.
     CALL test_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
-         mp_group)
+         mp_group, error=error)
     IF (trs(1)) THEN
        CALL test_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group)
+            mp_group, error=error)
     ELSE
        CALL test_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group)
+            mp_group, error=error)
     ENDIF
     IF (trs(2)) THEN
        CALL test_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group)
+            mp_group, error=error)
     ELSE
        CALL test_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group)
+            mp_group, error=error)
     ENDIF
     CALL array_release (sizes_m)
     CALL array_release (sizes_n)
@@ -214,6 +215,7 @@ CONTAINS
                                                 col_dist_c, row_dist_a, &
                                                 row_dist_b, row_dist_c
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
     TYPE(dbcsr_obj)                          :: m_a, m_b, m_c
 
@@ -275,25 +277,28 @@ CONTAINS
             dist_a, dbcsr_type_normal,&
             dbcsr_row_block_sizes (matrix_a),&
             dbcsr_col_block_sizes (matrix_a),&
-            data_type=dbcsr_get_data_type (matrix_a))
+            data_type=dbcsr_get_data_type (matrix_a),&
+            error=dbcsr_error)
        CALL dbcsr_distribution_release (dist_a)
-       CALL dbcsr_redistribute (matrix_a, m_a)
+       CALL dbcsr_redistribute (matrix_a, m_a, error=dbcsr_error)
        ! B
        CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name (matrix_b)),&
             dist_b, dbcsr_type_normal,&
             dbcsr_row_block_sizes (matrix_b),&
             dbcsr_col_block_sizes (matrix_b),&
-            data_type=dbcsr_get_data_type (matrix_b))
+            data_type=dbcsr_get_data_type (matrix_b),&
+            error=dbcsr_error)
        CALL dbcsr_distribution_release (dist_b)
-       CALL dbcsr_redistribute (matrix_b, m_b)
+       CALL dbcsr_redistribute (matrix_b, m_b, error=dbcsr_error)
        ! C
        CALL dbcsr_create (m_c, "Test for "//TRIM(dbcsr_name (matrix_c)),&
             dist_c, dbcsr_type_normal,&
             dbcsr_row_block_sizes (matrix_c),&
             dbcsr_col_block_sizes (matrix_c),&
-            data_type=dbcsr_get_data_type (matrix_c))
+            data_type=dbcsr_get_data_type (matrix_c),&
+            error=dbcsr_error)
        CALL dbcsr_distribution_release (dist_c)
-       CALL dbcsr_redistribute (matrix_c, m_c)
+       CALL dbcsr_redistribute (matrix_c, m_c, error=dbcsr_error)
        ! Perform multiply
        CALL mp_sync (group)
        t1 = m_walltime()
@@ -401,12 +406,13 @@ CONTAINS
 !> \brief Creates a random matrix.
 !>        Only the master process gets the data.
   SUBROUTINE test_make_random_matrix (matrix, row_blk_sizes, col_blk_sizes,&
-       name, sparsity, mp_group)
+       name, sparsity, mp_group, error)
     TYPE(dbcsr_obj), INTENT(out)             :: matrix
     TYPE(array_i1d_obj), INTENT(in)          :: row_blk_sizes, col_blk_sizes
     CHARACTER(len=*), INTENT(in)             :: name
     REAL(kind=real_8), INTENT(in)            :: sparsity
     INTEGER, INTENT(in)                      :: mp_group
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_make_random_matrix', &
       routineP = moduleN//':'//routineN
@@ -418,6 +424,7 @@ CONTAINS
       DIMENSION(:)                           :: values
     REAL(kind=real_8), DIMENSION(1)          :: value
     TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 ! Create the matrix
@@ -429,7 +436,8 @@ CONTAINS
             dist, dbcsr_type_normal,&
             row_blk_sizes,&
             col_blk_sizes,&
-            data_type=dbcsr_type_real_default)
+            data_type=dbcsr_type_real_default,&
+            error=dbcsr_error)
     rbs => array_data (row_blk_sizes)
     cbs => array_data (col_blk_sizes)
     !
@@ -443,7 +451,7 @@ CONTAINS
        CALL dbcsr_work_create (matrix,&
             nblks_guess=INT(dbcsr_nblkrows_total(matrix)*dbcsr_nblkcols_total(matrix)*(1.0-sparsity)),&
             sizedata_guess=INT(dbcsr_nfullrows_total(matrix)*dbcsr_nfullcols_total(matrix)*(1.0-sparsity)),&
-            work_mutable = .FALSE.)
+            work_mutable = .FALSE.,error=dbcsr_error)
        ALLOCATE (values (max_nze))
        DO row = 1, dbcsr_nblkrows_total (matrix)
           DO col = 1, dbcsr_nblkcols_total (matrix)
@@ -456,8 +464,8 @@ CONTAINS
        ENDDO
     ENDIF
     CALL dbcsr_distribution_release (dist)
-    CALL dbcsr_finalize (matrix)
-    CALL dbcsr_verify_matrix (matrix)
+    CALL dbcsr_finalize (matrix, error=dbcsr_error)
+    CALL dbcsr_verify_matrix (matrix, error=dbcsr_error)
   END SUBROUTINE test_make_random_matrix
 
   SUBROUTINE make_random_block_sizes(block_sizes, size_sum, size_mix)
@@ -472,6 +480,7 @@ CONTAINS
                                                 nblocks, nsize_mix, selector
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mixer
     INTEGER, DIMENSION(:), POINTER           :: sizes
+    TYPE(dbcsr_error_type)                   :: error
 
 !
 
@@ -483,7 +492,7 @@ CONTAINS
     mixer(3, :) = 1
     nblocks = 0
     current_sum = 0
-    CALL ensure_array_size (sizes, lb=1, ub=1)
+    CALL ensure_array_size (sizes, lb=1, ub=1, error=error)
 
     selector = 1
     !
@@ -496,7 +505,7 @@ CONTAINS
             size_sum - current_sum)
        sizes(nblocks) = block_size
        current_sum = current_sum + block_size
-       CALL ensure_array_size (sizes, ub=nblocks+1, factor=2.0)
+       CALL ensure_array_size (sizes, ub=nblocks+1, factor=2.0, error=error)
        mixer(3, selector) = mixer(3, selector) + 1
        IF (mixer(3, selector) .GT. mixer(1, selector)) THEN
           mixer(3, selector) = 1

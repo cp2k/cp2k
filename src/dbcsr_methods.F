@@ -241,14 +241,13 @@ CONTAINS
 !> \param[out] matrix         uninitialized matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_type (matrix, error)
+  SUBROUTINE dbcsr_init_type (matrix)
     TYPE(dbcsr_type), INTENT(OUT)            :: matrix
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_type', &
       routineP = moduleN//':'//routineN
 
+!TYPE(dbcsr_error_type), INTENT(INOUT)   :: error
 !   ---------------------------------------------------------------------------
 
     matrix%initialized = dbcsr_magic_number
@@ -272,14 +271,13 @@ CONTAINS
 !> \param[out] matrix         uninitialized matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_obj (matrix, error)
+  SUBROUTINE dbcsr_init_obj (matrix)
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj', &
       routineP = moduleN//':'//routineN
 
+!TYPE(dbcsr_error_type), INTENT(INOUT)   :: error
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_init(matrix%m)
@@ -292,14 +290,13 @@ CONTAINS
 !> \param[out] matrix         uninitialized matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_obj_p (matrix, error)
+  SUBROUTINE dbcsr_init_obj_p (matrix)
     TYPE(dbcsr_obj), POINTER                 :: matrix
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj_p', &
       routineP = moduleN//':'//routineN
 
+!TYPE(dbcsr_error_type), INTENT(INOUT)   :: error
 !   ---------------------------------------------------------------------------
 
     IF(ASSOCIATED(matrix)) CALL dbcsr_release_p(matrix)

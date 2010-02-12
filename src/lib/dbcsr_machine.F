@@ -1,6 +1,6 @@
 MODULE dbcsr_machine
 
-  USE  dbcsr_kinds,  ONLY        : dp
+  USE dbcsr_kinds,                     ONLY: dp
 
   IMPLICIT NONE
 

@@ -284,7 +284,7 @@ CONTAINS
     NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_p)
 
     ALLOCATE(p_ispin)!sm->dbcsr
-    !CALL dbcsr_init(p_ispin, error)
+    !CALL cp_dbcsr_init(p_ispin, error)
     CALL dbcsr_from_sm(p_ispin, p_ispin_sm, error,distribution_2d)!sm->dbcsr
 
     CALL get_fm_mol_block(fm_mol_block = mol_block,&

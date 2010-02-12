@@ -11,13 +11,11 @@
 ! *****************************************************************************
 
 MODULE dbcsr_message_passing
-  USE dbcsr_kinds,                     ONLY: int_4, int_8, &
-                                             real_4, real_8, &
-                                             int_4_size, int_8_size, &
-                                             real_4_size, real_8_size, &
-                                             sp, dp
   USE dbcsr_c_mpi_calls,               ONLY: mp_alloc_mem,&
                                              mp_free_mem
+  USE dbcsr_kinds,                     ONLY: &
+       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
+       real_8_size
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_walltime
 !                                            m_abort,&
@@ -785,8 +783,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rank_compare', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: g1, g2, i, ierr, n, &
-                                                n1, n2
+    INTEGER                                  :: g1, g2, i, ierr, n, n1, n2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rin
 
     ierr = 0
@@ -1027,9 +1024,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: color, i, ierr, j, k, &
-                                                mepos, my_subgroup_min_size, &
-                                                nnodes
+    INTEGER                                  :: color, i, ierr, j, k, mepos, &
+                                                my_subgroup_min_size, nnodes
 
     ierr = 0
 

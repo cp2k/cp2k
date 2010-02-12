@@ -89,6 +89,7 @@ realpretty: prettyclean pretty
 
 pretty: dirs
 	$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) _pretty
+	$(MAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) _pretty_lib3
 
 deptool: dirs
 	$(MAKE) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
@@ -209,6 +210,7 @@ _lib: $(ALL_LIB)
 _cpshell: $(CP2KSHELL)
 
 _pretty:$(OBJECTS:.o=.pretty)
+_pretty_lib3:$(LIB3_OBJECTS:.o=.pretty)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $?

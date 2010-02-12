@@ -13,14 +13,10 @@
 MODULE qs_scf_diagonalization
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_alloc_block_from_nbl,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_init, cp_dbcsr_set, dbcsr_alloc_block_from_nbl, &
+       dbcsr_allocate_matrix_set, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -39,11 +35,9 @@ MODULE qs_scf_diagonalization
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
                                              dbcsr_distribution,&
-                                             dbcsr_init,&
                                              dbcsr_row_block_sizes,&
                                              dbcsr_uses_special_memory
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: dbcsr_create
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              cholesky_off,&
@@ -448,8 +442,8 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
 
        DO i=1,nspin
           ALLOCATE(subspace_env%p_matrix_store(i)%matrix)
-          CALL dbcsr_init(subspace_env%p_matrix_store(i)%matrix)
-          CALL dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, &
+          CALL cp_dbcsr_init(subspace_env%p_matrix_store(i)%matrix,error=error)
+          CALL cp_dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, &
                name="DENSITY_STORE", &
                dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
@@ -627,7 +621,7 @@ END SUBROUTINE diag_subspace_allocate
       scf_env%iter_method = "DIIS/OTdiag"
       DO ispin=1,SIZE(matrix_ks)
          CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
-              matrix_ks(ispin)%matrix,keep_sparsity=.TRUE.)
+              matrix_ks(ispin)%matrix,keep_sparsity=.TRUE., error=error)
       END DO
       eps_iter = MAX(eps_iter,scf_control%diagonalization%eps_adapt*diis_error)
     ELSE

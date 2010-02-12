@@ -11,9 +11,9 @@
 ! *****************************************************************************
 MODULE harris_functional
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_trace,&
+                                             dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE f77_blas
   USE harris_energy_types,             ONLY: harris_energy_type
   USE harris_env_types,                ONLY: harris_env_get,&
@@ -337,7 +337,7 @@ CONTAINS
 
       nspins = dft_control%nspins
       DO ispin = 1,nspins
-        CALL dbcsr_trace(matrix_ks(ispin)%matrix, rho_ao(ispin)%matrix, &
+        CALL cp_dbcsr_trace(matrix_ks(ispin)%matrix, rho_ao(ispin)%matrix, &
                          trace=harris_energy%sum_of_eigenvalues, error=error)
       END DO
 
@@ -404,7 +404,7 @@ CONTAINS
 
       nspins = dft_control%nspins
       DO ispin = 1,nspins
-        CALL dbcsr_trace(matrix_ks(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
+        CALL cp_dbcsr_trace(matrix_ks(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
                             trace=harris_energy%sum_of_eigenvalues, &
                             error=error)
       END DO

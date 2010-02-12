@@ -15,6 +15,7 @@ MODULE qs_force
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_deallocate_matrix_set,&
@@ -27,7 +28,6 @@ MODULE qs_force
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE f77_blas
@@ -250,7 +250,7 @@ CONTAINS
 
           DO ispin=1,nspin
              ALLOCATE(matrix_w(ispin)%matrix)
-             CALL dbcsr_init(matrix_w(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
              CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
                   name="W MATRIX",error=error)
 
@@ -301,7 +301,7 @@ CONTAINS
 
        DO ispin=1,nspin
              ALLOCATE(matrix_w(ispin)%matrix)
-             CALL dbcsr_init(matrix_w(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
              CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
                   name="W MATRIX",error=error)
              CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)

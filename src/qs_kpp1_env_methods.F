@@ -14,6 +14,7 @@ MODULE qs_kpp1_env_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_scale,&
                                              cp_dbcsr_set,&
                                              dbcsr_allocate_matrix_set,&
@@ -22,7 +23,6 @@ MODULE qs_kpp1_env_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE f77_blas
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: do_method_gapw,&
@@ -586,7 +586,7 @@ CONTAINS
     CALL dbcsr_allocate_matrix_set(ks_2,nspins,error=error)
     DO ispin=1,nspins
        ALLOCATE(ks_2(ispin)%matrix)
-       CALL dbcsr_init(ks_2(ispin)%matrix)
+       CALL cp_dbcsr_init(ks_2(ispin)%matrix,error=error)
        CALL cp_dbcsr_copy(ks_2(ispin)%matrix,matrix_s(1)%matrix,&
             name="tmp_ks2-"//ADJUSTL(cp_to_string(ispin)),error=error)
     END DO
@@ -695,7 +695,7 @@ CONTAINS
           CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error=error)
              DO ispin=1,nspins
                 ALLOCATE(kpp1_env%v_ao(ispin)%matrix)
-                CALL dbcsr_init(kpp1_env%v_ao(ispin)%matrix)
+                CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix,error=error)
                 CALL cp_dbcsr_copy(kpp1_env%v_ao(ispin)%matrix,matrix_s(1)%matrix,&
                      name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
              END DO

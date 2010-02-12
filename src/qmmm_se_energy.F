@@ -15,6 +15,7 @@ MODULE qmmm_se_energy
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_allocate_matrix_set,&
                                              dbcsr_obj_p_type
@@ -24,7 +25,6 @@ MODULE qmmm_se_energy
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_init
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -154,7 +154,7 @@ CONTAINS
     ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix, STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix,error)
+    CALL cp_dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix,error)
 
     CALL cp_dbcsr_copy(ks_qmmm_env_loc%matrix_h(1)%matrix,matrix_s(1)%matrix,&
                     name="QMMM HAMILTONIAN MATRIX",error=error)

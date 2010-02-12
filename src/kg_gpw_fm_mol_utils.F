@@ -110,7 +110,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(w_matrix)!sm->dbcsr
-    !CALL dbcsr_init(w_matrix, error)!sm->dbcsr
+    !CALL cp_dbcsr_init(w_matrix, error)!sm->dbcsr
     CALL dbcsr_from_sm(w_matrix, w_matrix_sm, error, distribution_2d)!sm->dbcsr
 
     nmolecule_kind = SIZE(fm_mol_set,1)
@@ -566,7 +566,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(matrix)!sm->dbcsr
-    !CALL dbcsr_init(matrix, error)!sm->dbcsr
+    !CALL cp_dbcsr_init(matrix, error)!sm->dbcsr
     CALL dbcsr_from_sm(matrix, matrix_sm, error)!sm->dbcsr
 
     NULLIFY(i_atom,ifirst_ao,ilast_ao)

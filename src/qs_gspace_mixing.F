@@ -8,8 +8,9 @@ MODULE qs_gspace_mixing
 
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_scale, &
-       cp_dbcsr_set, dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_create, &
+       cp_dbcsr_init, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
+       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
        dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_trace,&
@@ -18,12 +19,9 @@ MODULE qs_gspace_mixing
   USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
                                              dbcsr_distribution,&
                                              dbcsr_get_info,&
-                                             dbcsr_init,&
                                              dbcsr_row_block_sizes,&
                                              dbcsr_uses_special_memory
-  USE dbcsr_operations,                ONLY: dbcsr_trace
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: dbcsr_create
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
@@ -251,7 +249,7 @@ CONTAINS
        ! Impose Tr[S^-1 Q S^-1 S] = 0, i.e. the correction to P_out
        ! should not change the total number of electrons 
     IF(.FALSE.) THEN
-       CALL copy_dbcsr_to_fm(matrix_q(ispin)%matrix,scf_env%scf_work2)
+       CALL copy_dbcsr_to_fm(matrix_q(ispin)%matrix,scf_env%scf_work2,error=error)
        CALL cp_fm_upper_to_full(scf_env%scf_work2,scf_env%scf_work1(ispin)%matrix,error=error) 
        CALL cp_fm_trace(scf_env%s_minus_one,scf_env%scf_work2,trace,error=error)
        trace = -trace / REAL(nao)
@@ -259,7 +257,7 @@ CONTAINS
             alpha_scalar=1.0_dp,beta_scalar=trace,error=error)
     END IF
 
-       CALL dbcsr_trace(p_in(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+       CALL cp_dbcsr_trace(p_in(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
        t1 = trace
  
        CALL dbcsr_sm_fm_multiply(matrix_q(ispin)%matrix,scf_env%s_minus_one,&
@@ -273,10 +271,10 @@ CONTAINS
 
        a_mix = scf_env%p_mix_alpha
        CALL copy_fm_to_dbcsr(scf_env%scf_work1(ispin)%matrix,&
-            p_out(ispin)%matrix,a_mix,0.0_dp,keep_sparsity=.TRUE.)
+            p_out(ispin)%matrix,a_mix,0.0_dp,keep_sparsity=.TRUE., error=error)
        CALL cp_dbcsr_add(p_out(ispin)%matrix,p_in(ispin)%matrix,&
             alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
-       CALL dbcsr_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, error=error)
+       CALL cp_dbcsr_trace(p_out(ispin)%matrix,matrix_s(1)%matrix,trace, error=error)
        t2 =t1/ trace
        CALL cp_dbcsr_scale(p_out(ispin)%matrix,t2,error=error)
        
@@ -1581,8 +1579,8 @@ CONTAINS
        CALL dbcsr_allocate_matrix_set(scf_env%p_mix_new,nspins,error=error)
        DO i=1,nspins
           ALLOCATE(scf_env%p_mix_new(i)%matrix)
-          CALL dbcsr_init(scf_env%p_mix_new(i)%matrix)
-          CALL dbcsr_create(matrix=scf_env%p_mix_new(i)%matrix, &
+          CALL cp_dbcsr_init(scf_env%p_mix_new(i)%matrix, error=error)
+          CALL cp_dbcsr_create(matrix=scf_env%p_mix_new(i)%matrix, &
                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
                dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
@@ -1600,8 +1598,8 @@ CONTAINS
           CALL dbcsr_allocate_matrix_set(scf_env%p_delta,nspins,error=error)
           DO i=1,nspins
              ALLOCATE(scf_env%p_delta(i)%matrix)
-             CALL dbcsr_init(scf_env%p_delta(i)%matrix)
-             CALL dbcsr_create(matrix=scf_env%p_delta(i)%matrix, &
+             CALL cp_dbcsr_init(scf_env%p_delta(i)%matrix, error=error)
+             CALL cp_dbcsr_create(matrix=scf_env%p_delta(i)%matrix, &
                   name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//"DENSITY", &
                   dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                   row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &

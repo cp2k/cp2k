@@ -853,7 +853,7 @@ END SUBROUTINE kg_calculate_forces
     CALL dbcsr_allocate_matrix_set( matrix_w_b, SIZE(matrix_w), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_w_b)!sm->dbcsr
        ALLOCATE(matrix_w_b(ispin)%matrix)!sm->dbcsr
-       !CALL dbcsr_init(matrix_w_b(ispin)%matrix)
+       !CALL cp_dbcsr_init(matrix_w_b(ispin)%matrix)
        CALL dbcsr_from_sm(matrix_w_b(ispin)%matrix, matrix_w(ispin)%matrix, &
             error,distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr

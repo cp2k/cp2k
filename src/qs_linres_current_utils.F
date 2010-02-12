@@ -28,14 +28,11 @@ MODULE qs_linres_current_utils
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_alloc_block_from_nbl,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_set, &
+       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type, &
+       dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -52,12 +49,10 @@ MODULE qs_linres_current_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_init
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
-                                             dbcsr_create
+  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: current_gauge_atom,&
@@ -265,8 +260,8 @@ CONTAINS
        ! rebuild the linear momentum matrices
        CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
        ALLOCATE(op_p_ao(1)%matrix)
-       CALL dbcsr_init(op_p_ao(1)%matrix)
-       CALL dbcsr_create(matrix=op_p_ao(1)%matrix, &
+       CALL cp_dbcsr_init(op_p_ao(1)%matrix,error=error)
+       CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
             name="OP_P", &
             dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
@@ -282,7 +277,7 @@ CONTAINS
        CALL cp_dbcsr_set(op_p_ao(1)%matrix,0.0_dp,error=error)
        DO idir = 2,3
           ALLOCATE(op_p_ao(idir)%matrix)
-          CALL dbcsr_init(op_p_ao(idir)%matrix)
+          CALL cp_dbcsr_init(op_p_ao(idir)%matrix,error=error)
           CALL cp_dbcsr_copy(op_p_ao(idir)%matrix,op_p_ao(1)%matrix,&
                "current_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
                error=error)
