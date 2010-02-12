@@ -133,6 +133,7 @@ CONTAINS
 
     INTEGER :: handle, homo, ispin, n, n_mo(2), nao, nelectron, nhomo, nlumo, &
       nlumos, nmo, nmoloc(2), nmos, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: marked_states
     LOGICAL :: do_mo_cubes, do_stm, do_wannier_cubes, explicit, failure, &
       ionode, my_localized_wfn, p_loc, p_molstates, uniform_occ
     REAL(KIND=dp)                            :: maxocc
@@ -374,7 +375,9 @@ CPSourceFileRef,&
                    IF ( p_molstates ) THEN
                       CALL construct_molecular_states(molecule_set, mo_localized, mo_coeff, mo_eigenvalues,&
                            ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env,  wf_r, wf_g,&
-                           localization_section=localization_section, particles=particles, tag="HOMO", error=error)
+                           localization_section=localization_section, particles=particles, tag="HOMO",&
+                           marked_states=marked_states, error=error)
+                      IF(ASSOCIATED(marked_states)) DEALLOCATE(marked_states)
                    ENDIF
                 END IF
                 CALL cp_fm_release(mo_localized,error=error)

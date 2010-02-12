@@ -74,7 +74,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
-       localization_section, particles, tag, error)
+       localization_section, particles, tag, marked_states,error)
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -86,6 +86,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: localization_section
     TYPE(particle_list_type), POINTER        :: particles
     CHARACTER(LEN=*), INTENT(IN)             :: tag
+    INTEGER, DIMENSION(:), POINTER           :: marked_states
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'construct_molecular_states', &
@@ -93,9 +94,10 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_path_length)       :: filename
-    INTEGER :: handle, i, imol, iproc, isos, k, ncol_global, nproc, &
-      nrow_global, ns, output_unit, unit_nr, unit_report
-    INTEGER, DIMENSION(:), POINTER           :: ind
+    INTEGER :: handle, i, imol, iproc, isos, k, n_rep, ncol_global, nproc, &
+      nrow_global, ns, output_unit, stat, unit_nr, unit_report
+    INTEGER, DIMENSION(:), POINTER           :: ind, mark_list
+    INTEGER, DIMENSION(:, :), POINTER        :: mark_states
     INTEGER, POINTER                         :: nstates(:), states(:)
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: tmp
@@ -119,7 +121,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(logger)
+    NULLIFY(logger,mark_states,mark_list)
     logger => cp_error_get_logger(error)
     !-----------------------------------------------------------------------------
     ! 1.
@@ -137,6 +139,23 @@ CONTAINS
        eval_range(1)=-HUGE(0.0_dp)
        eval_range(2)=+HUGE(0.0_dp)
     ENDIF
+    CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%MARK_STATES", &
+             n_rep_val=n_rep, error=error)
+    IF(n_rep.GT.0)THEN
+       ALLOCATE(mark_states(2,n_rep),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF(.NOT.ASSOCIATED(marked_states))THEN
+          ALLOCATE(marked_states(n_rep),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       DO i=1,n_rep
+          CALL section_vals_val_get(localization_section,"MOLECULAR_STATES%MARK_STATES",&
+                i_rep_val=i,i_vals=mark_list, error=error)
+          mark_states(:,i)=mark_list(:)
+       END DO
+    ELSE
+       NULLIFY(marked_states)
+    END IF
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -236,6 +255,11 @@ CONTAINS
        IF (output_unit>0) WRITE(output_unit,*)"ENERGY      original MO-index"
 
        DO k=1,ns
+          IF(ASSOCIATED(mark_states))THEN
+             DO i=1,n_rep
+                IF(imol==mark_states(1,i).AND.k==mark_states(2,i))marked_states(i)=ind(k)
+             END DO
+          END IF
           IF (output_unit>0) WRITE(output_unit,*) evals(k), ind(k)
        END DO
        IF (unit_report>0) THEN
@@ -319,6 +343,10 @@ CONTAINS
     CALL cp_fm_release(smo,error=error)
     CALL cp_fm_to_fm(storage,mo_localized,error)
     CALL cp_fm_release(storage,error)
+    IF(ASSOCIATED(mark_states))THEN
+       DEALLOCATE(mark_states,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
+    END IF
     DEALLOCATE(nstates,STAT=isos)
     IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
     CALL cp_print_key_finished_output(unit_report,logger,localization_section,&

@@ -198,6 +198,7 @@ CONTAINS
                                                 min_lumos, n_rep, nhomo, &
                                                 nlumo, nlumos, nmo, &
                                                 output_unit, unit_nr
+    INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     LOGICAL :: check_write, compute_lumos, do_homo, do_mo_cubes, do_stm, &
       do_wannier_cubes, failure, has_homo, has_lumo, my_localized_wfn, p_loc, &
       p_loc_homo, p_loc_lumo
@@ -250,7 +251,7 @@ CONTAINS
     NULLIFY(dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo,qs_loc_env_lumo, scf_control, &
          unoccupied_orbs, mo_eigenvalues, unoccupied_evals, molecule_set, &
-         tddfpt_control, subsys, particles, input, print_key, kinetic_m,lumo_ptr)
+         tddfpt_control, subsys, particles, input, print_key, kinetic_m,lumo_ptr,marked_states)
 
     has_homo=.FALSE.
     has_lumo=.FALSE.
@@ -393,7 +394,7 @@ CONTAINS
              CALL qs_loc_control_init(qs_loc_env_homo,dft_section,do_homo,error)
              CALL qs_loc_init(qs_env,qs_loc_env_homo,dft_section,homo_localized,do_homo,do_mo_cubes,error=error)
              CALL get_localization_info(qs_env,qs_loc_env_homo,dft_section,homo_localized, wf_r, wf_g,particles,&
-                  occupied_orbs,occupied_evals,error=error)
+                  occupied_orbs,occupied_evals,marked_states,error=error)
              !write restart for localization of occupied orbitals
              CALL loc_write_restart(qs_env,qs_loc_env_homo,localization_section,mos,homo_localized, do_homo, error=error)
              CALL cp_fm_vect_dealloc(homo_localized,error)
@@ -461,7 +462,7 @@ CONTAINS
              CALL qs_loc_env_init(qs_loc_env_lumo,qs_loc_env_lumo%localized_wfn_control,qs_env,&
                   loc_coeff=unoccupied_orbs,error=error) 
              CALL get_localization_info(qs_env,qs_loc_env_lumo,dft_section, lumo_localized, wf_r, wf_g,particles,&
-                  unoccupied_orbs,unoccupied_evals,error=error)
+                  unoccupied_orbs,unoccupied_evals,marked_states,error=error)
              CALL loc_write_restart(qs_env,qs_loc_env_lumo,localization_section,mos,homo_localized, do_homo,&
                    evals=unoccupied_evals, error=error)
              lumo_ptr=>lumo_localized
@@ -498,9 +499,12 @@ CONTAINS
 
        ! generate a mix of wfns, and write to a restart
        CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, &
-                    lumo_ptr, scf_env, matrix_s, output_unit, error)
+                    lumo_ptr, scf_env, matrix_s, output_unit, marked_states,error)
        IF(p_loc_lumo)CALL cp_fm_vect_dealloc(lumo_localized,error)
-          
+       IF(ASSOCIATED(marked_states))THEN
+          DEALLOCATE(marked_states,stat=istat)   
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
        ! Compute the optical conductivity (needs homos and lumos)
        CALL qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
@@ -550,7 +554,7 @@ CONTAINS
   !> \brief Performs localization of the orbitals
   ! *****************************************************************************
   SUBROUTINE get_localization_info(qs_env,qs_loc_env,dft_section,mo_local,&
-                                   wf_r, wf_g,particles,coeff,evals,error)
+                                   wf_r, wf_g,particles,coeff,evals,marked_states,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -563,14 +567,16 @@ CONTAINS
       POINTER                                :: coeff
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: evals
+    INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, ispin, &
-                                                output_unit
-    LOGICAL                                  :: do_homo
+    INTEGER                                  :: handle, homo, ispin, mystate, &
+                                                output_unit, stat
+    INTEGER, DIMENSION(:), POINTER           :: marked_states_spin
+    LOGICAL                                  :: do_homo, failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
@@ -583,7 +589,7 @@ CONTAINS
                                                 localize_section
 
     CALL timeset(routineN,handle)
-
+    failure=.FALSE.
     NULLIFY(mos,ks_rmpv,dft_control)
     CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,molecule_set=molecule_set,&
          dft_control=dft_control,matrix_s=matrix_s,error=error)
@@ -630,7 +636,18 @@ CONTAINS
              CALL construct_molecular_states(molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix,& 
                   evals(ispin)%array,ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
                   localization_section=localization_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo),&
-                  error=error)
+                  marked_states=marked_states_spin,error=error)
+             IF(ASSOCIATED(marked_states_spin))THEN
+                IF(.NOT.ASSOCIATED(marked_states))THEN
+                   ALLOCATE(marked_states(SIZE(marked_states_spin),dft_control%nspins,2),stat=stat)
+                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                END IF
+                mystate=1
+                IF(qs_loc_env%tag_mo=="LUMO")mystate=2
+                marked_states(:,ispin,mystate)=marked_states_spin(:)
+                DEALLOCATE(marked_states_spin,stat=stat)
+                CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
           ENDIF
        END IF
     ENDDO
@@ -1017,7 +1034,7 @@ CONTAINS
   !> \brief writes a new 'mixed' set of mos to restart file, without touching the current MOs
   ! *****************************************************************************
   SUBROUTINE wfn_mix(mos, particle_set, dft_section, atomic_kind_set, &
-                    unoccupied_orbs, scf_env, matrix_s, output_unit, error)
+                    unoccupied_orbs, scf_env, matrix_s, output_unit, marked_states,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1032,13 +1049,14 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     INTEGER                                  :: output_unit
+    INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfn_mix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i_rep, ispin, n_rep, orig_mo_index, orig_spin_index, &
-      result_mo_index, result_spin_index
+    INTEGER :: handle, i_rep, ispin, mark_ind, mark_number, n_rep, &
+      orig_mo_index, orig_spin_index, result_mo_index, result_spin_index
     LOGICAL                                  :: explicit, failure, &
                                                 orig_is_virtual
     REAL(KIND=dp)                            :: orig_scale, orthonormality, &
@@ -1085,14 +1103,21 @@ CONTAINS
        DO i_rep=1,n_rep
 
           CALL section_vals_val_get(update_section,"RESULT_MO_INDEX",i_rep_section=i_rep,i_val=result_mo_index,error=error)
+          CALL section_vals_val_get(update_section,"RESULT_MARKED_STATE",i_rep_section=i_rep,i_val=mark_number,error=error)
           CALL section_vals_val_get(update_section,"RESULT_SPIN_INDEX",i_rep_section=i_rep,i_val=result_spin_index,error=error)
           CALL section_vals_val_get(update_section,"RESULT_SCALE",i_rep_section=i_rep,r_val=result_scale,error=error)
 
+          mark_ind=1
+          IF(mark_number.GT.0)result_mo_index=marked_states(mark_number,result_spin_index,mark_ind)
+
           CALL section_vals_val_get(update_section,"ORIG_MO_INDEX",i_rep_section=i_rep,i_val=orig_mo_index,error=error)
+          CALL section_vals_val_get(update_section,"ORIG_MARKED_STATE",i_rep_section=i_rep,i_val=mark_number,error=error)
           CALL section_vals_val_get(update_section,"ORIG_SPIN_INDEX",i_rep_section=i_rep,i_val=orig_spin_index,error=error)
           CALL section_vals_val_get(update_section,"ORIG_SCALE",i_rep_section=i_rep,r_val=orig_scale,error=error)
           CALL section_vals_val_get(update_section,"ORIG_IS_VIRTUAL",i_rep_section=i_rep,l_val=orig_is_virtual,error=error)
-          
+
+          IF(orig_is_virtual)mark_ind=2         
+          IF(mark_number.GT.0)orig_mo_index=marked_states(mark_number,orig_spin_index,mark_ind)
 
           ! first get a copy of the proper orig
           IF (.NOT. ORIG_IS_VIRTUAL) THEN

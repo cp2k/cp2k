@@ -1740,7 +1740,15 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RESULT_MO_INDEX",&
             description="Index of the MO (y) to be modified. Counting down in energy with HOMO=1",&
-            usage="RESULT_MO_INDEX 1", type_of_var=integer_t, error=error)
+            usage="RESULT_MO_INDEX 1", type_of_var=integer_t,default_i_val=0, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESULT_MARKED_STATE",&
+            description="Specifies the MO according to "//&
+                        "the marks set in MOLECULAR_STATES. The value corresponds to the repetition "//&
+                        " of MARK_STATES in MOLECULAR_STATES",&
+            usage="ORIG_MARKED_STATE 1", type_of_var=integer_t,default_i_val=0, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1762,7 +1770,15 @@ CONTAINS
        CALL keyword_create(keyword, name="ORIG_MO_INDEX",&
             description="Index of the original MO (x). "//&
                         "Counting down in energy with HOMO=1 or up from LUMO=1, depending on ORIG_IS_VIRTUAL.",&
-            usage="ORIG_MO_INDEX 1", type_of_var=integer_t, error=error)
+            usage="ORIG_MO_INDEX 1", type_of_var=integer_t,default_i_val=0, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORIG_MARKED_STATE",&
+            description="Specifies the MO according to "//&
+                        "the marks set in MOLECULAR_STATES. The value corresponds to the repetition "//&
+                        " of MARK_STATES in MOLECULAR_STATES",&
+            usage="ORIG_MARKED_STATE 1", type_of_var=integer_t,default_i_val=0, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1824,6 +1840,18 @@ CONTAINS
             description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "//&
                         "Default is all states.",&
                         usage="CUBE_EVAL_RANGE -1.0 1.0",unit_str="hartree",n_var=2,type_of_var=real_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="MARK_STATES",&
+            description="Can be used to mark given molecular states."//&
+            " Sets a mark to both, occupied and unoccupied states. "//&
+            "Occupied states are counted beginning with HOMO=1, "//&
+            "unoccupied states are counted beginning with LUMO=1, "//&
+            "This is only meaningful in combination with WFN_MIX. "//&
+            "First integer specifies the molecule, second integer specifies the state.",&
+            usage="MARK_STATES integer integer",&
+            n_var=2,default_i_vals=(/-1,-1/), type_of_var=integer_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
