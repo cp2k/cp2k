@@ -364,8 +364,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, error)
       nspins=dft_control%nspins
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
-    END IF
-    IF (.NOT.failure) THEN
+
       ! get tmp grids
       IF(dft_control%qs_control%semi_empirical) THEN
         !

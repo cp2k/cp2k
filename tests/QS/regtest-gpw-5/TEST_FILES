@@ -43,3 +43,8 @@ si8_lsd_broy_wc.inp      23
 si8_lsd_broy_wc_rst.inp     23
 si8_lsd_broy_wc_list.inp     23
 si8_lsd_broy_wc_list_rst.inp   23
+#
+c8_kerker.inp       1
+c8_pmix.inp         1
+c8_pmix_gapw.inp    1
+c8_kerker_gapw.inp  1

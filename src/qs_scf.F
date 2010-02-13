@@ -163,6 +163,7 @@ MODULE qs_scf
                                              outer_loop_optimize,&
                                              outer_loop_update_qs_env,&
                                              outer_loop_variables_count
+  USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -897,7 +898,7 @@ CONTAINS
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           ! ** Density mixing through density matrix or on the reciprocal space grid (exclusive)
           IF(scf_env%mixing_method>=gspace_mixing_nr) THEN
-             CALL gspace_mixing(scf_env, scf_env%mixing_store, rho, qs_env%para_env, error=error)
+             CALL gspace_mixing(qs_env, scf_env, scf_env%mixing_store, rho, qs_env%para_env, error=error)
           END IF
           CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
@@ -2467,16 +2468,15 @@ CPSourceFileRef)
     INTEGER                                  :: extrapolation_method_nr, &
                                                 handle, ispin, nmo, &
                                                 output_unit
-    LOGICAL                                  :: failure, gapw, gapw_xc, &
-                                                orthogonal_wf
+    LOGICAL                                  :: failure, orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(mo_coeff )
-    gapw = qs_env%dft_control%qs_control%gapw
-    gapw_xc = qs_env%dft_control%qs_control%gapw_xc
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -2524,8 +2524,15 @@ CPSourceFileRef)
 
        ! Some preparation for the mixing
        IF(qs_env%scf_env%mixing_method>1) THEN
-          CALL mixing_init(qs_env%scf_env%mixing_method,qs_env%rho,qs_env%scf_env%mixing_store,&
+          IF(qs_env % dft_control % qs_control%gapw) THEN
+            CALL get_qs_env(qs_env=qs_env,&
+                 rho_atom_set=rho_atom,error=error)
+            CALL mixing_init(qs_env%scf_env%mixing_method,qs_env%rho,qs_env%scf_env%mixing_store,&
+                           qs_env%para_env,rho_atom=rho_atom,error=error)
+          ELSE
+            CALL mixing_init(qs_env%scf_env%mixing_method,qs_env%rho,qs_env%scf_env%mixing_store,&
                            qs_env%para_env,error=error)
+          END IF
        END IF
 
 ! *** SCP

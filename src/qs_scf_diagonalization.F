@@ -69,6 +69,7 @@ MODULE qs_scf_diagonalization
                                              set_mo_occupation
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+  USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
@@ -242,6 +243,8 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -290,9 +293,15 @@ CONTAINS
     IF (subspace_env%mixing_method>=gspace_mixing_nr) THEN
          CALL mixing_allocate(qs_env,subspace_env%mixing_method,subspace_env%mixing_store,&
               nspins=nspin,error=error)
-
-         CALL mixing_init(subspace_env%mixing_method,rho,subspace_env%mixing_store,&
+         IF(qs_env % dft_control % qs_control%gapw) THEN
+            CALL get_qs_env(qs_env=qs_env,&
+                 rho_atom_set=rho_atom,error=error)
+            CALL mixing_init(subspace_env%mixing_method,rho,subspace_env%mixing_store,&
+                           para_env,rho_atom=rho_atom,error=error)
+         ELSE
+            CALL mixing_init(subspace_env%mixing_method,rho,subspace_env%mixing_store,&
                            para_env,error=error)
+         END IF
     END IF
 
     ene_old = 0.0_dp
@@ -369,7 +378,7 @@ CONTAINS
       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
       ! Mixing in reciprocal space
       IF(subspace_env%mixing_method>=gspace_mixing_nr) THEN
-         CALL gspace_mixing(scf_env, subspace_env%mixing_store, &
+         CALL gspace_mixing(qs_env, scf_env, subspace_env%mixing_store, &
             rho, qs_env%para_env, error=error)
       END IF
 

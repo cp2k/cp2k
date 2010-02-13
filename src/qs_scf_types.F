@@ -27,6 +27,7 @@ MODULE qs_scf_types
                                              qs_diis_buffer_type
   USE qs_ot_types,                     ONLY: qs_ot_destroy,&
                                              qs_ot_type
+  USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE qs_util,                         ONLY: exp_radius
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -87,6 +88,7 @@ END TYPE qs_outer_scf_type
   TYPE mixing_storage_type
      INTEGER :: ref_count, ig_max, ncall, nbuffer, n_simple_mix, nskip_mixing, p_metric_method
      INTEGER, POINTER, DIMENSION(:) :: ig_global_index
+     LOGICAL, POINTER, DIMENSION(:) :: paw
      CHARACTER (len=15) :: iter_method
      REAL(dp) :: alpha, bconst, beta, broy_w0, max_g2, max_gvec_exp, pulay_alpha, pulay_beta, r_step,&
                  reg_par, sigma_max, wc, wmax
@@ -100,6 +102,7 @@ END TYPE qs_outer_scf_type
      TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: delta_res, u_vec, z_vec
      TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER ::drho_buffer, rhoin_buffer, &
       res_buffer
+     TYPE(rho_atom_coeff), DIMENSION(:,:,:), POINTER :: cpc_h_buffer, cpc_s_buffer
   END TYPE mixing_storage_type
 
   TYPE krylov_space_type
@@ -390,7 +393,7 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: alpha, alpha0, eps, gcut, rcut
+    REAL(dp)                                 :: alpha, eps, gcut
 
     failure=.FALSE.
 
@@ -427,6 +430,9 @@ CONTAINS
         NULLIFY(mixing_store%res_buffer)
         NULLIFY(mixing_store%norm_res_buffer)
         NULLIFY(mixing_store%ig_global_index)
+        NULLIFY(mixing_store%paw)
+        NULLIFY(mixing_store%cpc_h_buffer)
+        NULLIFY(mixing_store%cpc_s_buffer)
 
         CALL section_vals_val_get(mixing_section,"ALPHA",r_val=mixing_store%alpha,error=error)
         CALL section_vals_val_get(mixing_section,"BETA",r_val=mixing_store%beta,error=error)
@@ -438,7 +444,6 @@ CONTAINS
         IF(mixing_store%max_gvec_exp > 0._dp) THEN 
           alpha = 0.25_dp/mixing_store%max_gvec_exp
           eps = 1.e-4_dp
-          rcut = exp_radius(3,alpha0,eps,1.0_dp)
           gcut = exp_radius(3,alpha,eps,1.0_dp)
           mixing_store%max_g2 = gcut*gcut
         END IF
@@ -451,6 +456,7 @@ CONTAINS
            CALL section_vals_val_get(mixing_section,"PULAY_BETA",r_val=mixing_store%pulay_beta,error=error)
         CASE(broyden_mixing_nr)
            CALL section_vals_val_get(mixing_section,"BROY_W0",r_val=mixing_store%broy_w0,error=error)
+           mixing_store%bconst = 20.0_dp
         CASE(broyden_mixing_new_nr)
            CALL section_vals_val_get(mixing_section,"BROY_WREF",r_val=mixing_store%wc,error=error)
            CALL section_vals_val_get(mixing_section,"BROY_WMAX",r_val=mixing_store%wmax,error=error)
@@ -479,7 +485,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mixing_storage_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, stat
+    INTEGER                                  :: i, j, k, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -514,6 +520,29 @@ CONTAINS
            DEALLOCATE(mixing_store%rhoin_buffer,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
+
+        IF (ASSOCIATED(mixing_store%paw)) THEN
+          DEALLOCATE(mixing_store%paw,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(mixing_store%cpc_h_buffer)) THEN
+          DO i = 1,SIZE(mixing_store%cpc_h_buffer,3)
+          DO j = 1,SIZE(mixing_store%cpc_h_buffer,2)
+          DO k = 1,SIZE(mixing_store%cpc_h_buffer,1)
+             IF(ASSOCIATED(mixing_store%cpc_h_buffer(k,j,i)%r_coef)) THEN
+                DEALLOCATE(mixing_store%cpc_h_buffer(k,j,i)%r_coef,STAT=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                DEALLOCATE(mixing_store%cpc_s_buffer(k,j,i)%r_coef,STAT=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             END IF
+          END DO
+          END DO
+          END DO
+          DEALLOCATE(mixing_store%cpc_h_buffer,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(mixing_store%cpc_s_buffer,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
 
         IF (ASSOCIATED(mixing_store%res_buffer)) THEN
            DO i = 1,SIZE(mixing_store%res_buffer,2)
@@ -559,13 +588,19 @@ CONTAINS
         IF (ASSOCIATED(mixing_store%p_metric))THEN
            DEALLOCATE(mixing_store%p_metric, STAT=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
 
+        IF (ASSOCIATED(mixing_store%weight))THEN
            DEALLOCATE(mixing_store%weight, STAT=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
 
+        IF (ASSOCIATED(mixing_store%fmat))THEN
            DEALLOCATE(mixing_store%fmat, STAT=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
 
+        IF (ASSOCIATED(mixing_store%delta_res))THEN
            DO i = 1,SIZE(mixing_store%delta_res,2)
              DO j = 1,SIZE(mixing_store%delta_res,1)
                DEALLOCATE(mixing_store%delta_res(j,i)%cc, STAT=stat)
@@ -574,7 +609,9 @@ CONTAINS
            END DO
            DEALLOCATE(mixing_store%delta_res,STAT=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
 
+        IF (ASSOCIATED(mixing_store%u_vec))THEN
            DO i = 1,SIZE(mixing_store%u_vec,2)
              DO j = 1,SIZE(mixing_store%u_vec,1)
                DEALLOCATE(mixing_store%u_vec(j,i)%cc, STAT=stat)
@@ -583,7 +620,9 @@ CONTAINS
            END DO
            DEALLOCATE(mixing_store%u_vec,STAT=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
 
+        IF (ASSOCIATED(mixing_store%z_vec))THEN
            DO i = 1,SIZE(mixing_store%z_vec,2)
              DO j = 1,SIZE(mixing_store%z_vec,1)
                DEALLOCATE(mixing_store%z_vec(j,i)%cc, STAT=stat)
