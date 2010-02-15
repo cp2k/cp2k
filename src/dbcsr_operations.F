@@ -4843,7 +4843,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
          "Can not redistribute replicated matrix.")
     !
     my_keep_sparsity = .FALSE.
-    IF (PRESENT (keep_sparsity)) my_keep_sparsity = my_keep_sparsity
+    IF (PRESENT (keep_sparsity)) my_keep_sparsity = keep_sparsity
     !
     sym = dbcsr_get_matrix_type(redist) .EQ. dbcsr_type_symmetric .OR.&
          dbcsr_get_matrix_type(redist) .EQ. dbcsr_type_antisymmetric
