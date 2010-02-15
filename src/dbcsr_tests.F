@@ -20,7 +20,11 @@ MODULE dbcsr_tests
                                              array_release,&
                                              array_size
   USE cp_dbcsr_operations,             ONLY: dbcsr_multiply
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_type
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_error_type,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_message_passing,           ONLY: dmp_max,&
                                              mp_cart_create,&
                                              mp_cart_rank,&
@@ -221,18 +225,18 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (SIZE(group_sizes, 2), "EQ", 2, cp_fatal_level,&
-         cp_wrong_args_error, routineN,&
-         "second dimension of group_sizes must be 2")
+    CALL dbcsr_assert (SIZE(group_sizes, 2), "EQ", 2, dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "second dimension of group_sizes must be 2",__LINE__,dbcsr_error)
     CALL dbcsr_init (m_a)
     CALL dbcsr_init (m_b)
     CALL dbcsr_init (m_c)
     DO test = 1, SIZE(group_sizes, 1)
        npdims(1:2) = group_sizes(test, 1:2)
        numnodes = npdims(1) * npdims(2)
-       CALL dbcsr_assert (numnodes, "GE", 0, cp_fatal_level,&
-            cp_wrong_args_error, routineN,&
-            "Cartesian sides must be greater or equal to 0")
+       CALL dbcsr_assert (numnodes, "GE", 0, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Cartesian sides must be greater or equal to 0",__LINE__,dbcsr_error)
        ! Let MPI decide our process grid
        IF (numnodes .EQ. 0) THEN
           numnodes = MAXVAL (npdims)
@@ -311,11 +315,11 @@ CONTAINS
                last_column = limits(4),&
                first_k = limits(5),&
                last_k = limits(6),&
-               retain_sparsity=retain_sparsity, flop=flop, error=error)
+               retain_sparsity=retain_sparsity, flop=flop, error=dbcsr_error)
        ELSE
           CALL dbcsr_multiply (transa, transb, alpha,&
                m_a, m_b, beta, m_c,&
-               retain_sparsity=retain_sparsity, flop=flop, error=error)
+               retain_sparsity=retain_sparsity, flop=flop, error=dbcsr_error)
        ENDIF
        t2 = m_walltime()
        t_max = t2 - t1
@@ -514,8 +518,8 @@ CONTAINS
     ENDDO
     CALL array_new (block_sizes, sizes(1:nblocks), lb=1)
     current_sum = SUM (array_data (block_sizes))
-    CALL dbcsr_assert (current_sum, "EQ", size_sum, cp_fatal_level,&
-         cp_internal_error, routineN, "Incorrect block sizes")
+    CALL dbcsr_assert (current_sum, "EQ", size_sum, dbcsr_fatal_level,&
+         dbcsr_internal_error, routineN, "Incorrect block sizes",__LINE__,error)
   END SUBROUTINE make_random_block_sizes
 
 

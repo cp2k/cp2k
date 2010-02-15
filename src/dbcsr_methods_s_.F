@@ -135,7 +135,7 @@
 
     INTEGER                        :: l, u
     LOGICAL, PARAMETER             :: dbg = .TRUE.
-
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     ! The coersion argument is needed to make this function unique
@@ -149,12 +149,12 @@
           u = UBOUND (area%d%r_sp, 1)
           IF (PRESENT (ub)) u = ub
           IF (dbg) THEN
-             CALL cp_assert (l .GE. LBOUND (area%d%r_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (u .LE. UBOUND (area%d%r_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
+             CALL dbcsr_assert (l .GE. LBOUND (area%d%r_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (u .LE. UBOUND (area%d%r_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
           ENDIF
           DATA => area%d%r_sp(l:u)
        ELSE
@@ -186,7 +186,7 @@
 
     INTEGER                        :: l, u
     LOGICAL, PARAMETER             :: dbg = .TRUE.
-
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -196,12 +196,12 @@
           u = UBOUND (area%d%r_sp, 1)
           IF (PRESENT (ub)) u = ub
           IF (dbg) THEN
-             CALL cp_assert (l .GE. LBOUND (area%d%r_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (u .LE. UBOUND (area%d%r_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
+             CALL dbcsr_assert (l .GE. LBOUND (area%d%r_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (u .LE. UBOUND (area%d%r_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
           ENDIF
           DATA => area%d%r_sp(l:u)
        ELSE
@@ -233,7 +233,7 @@
 
     INTEGER, DIMENSION(2)          :: l, u
     LOGICAL, PARAMETER             :: dbg = .TRUE.
-
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -243,18 +243,18 @@
           u = UBOUND (area%d%r2_sp)
           IF (PRESENT (ub)) u = ub
           IF (dbg) THEN
-             CALL cp_assert (l(1) .GE. LBOUND (area%d%r2_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (l(2) .GE. LBOUND (area%d%r2_sp, 2),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (u(1) .LE. UBOUND (area%d%r2_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (u(2) .LE. UBOUND (area%d%r2_sp, 2),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
+             CALL dbcsr_assert (l(1) .GE. LBOUND (area%d%r2_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (l(2) .GE. LBOUND (area%d%r2_sp, 2),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (u(1) .LE. UBOUND (area%d%r2_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (u(2) .LE. UBOUND (area%d%r2_sp, 2),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
           ENDIF
           DATA => area%d%r2_sp(l(1):u(1), l(2):u(2))
        ELSE
@@ -300,7 +300,7 @@
 
     INTEGER                        :: l, u
     LOGICAL, PARAMETER             :: dbg = .TRUE.
-
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -310,12 +310,12 @@
           u = UBOUND (area%d%r_sp, 1)
           IF (PRESENT (ub)) u = ub
           IF (dbg) THEN
-             CALL cp_assert (l .GE. LBOUND (area%d%r_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (u .LE. UBOUND (area%d%r_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
+             CALL dbcsr_assert (l .GE. LBOUND (area%d%r_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (u .LE. UBOUND (area%d%r_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
           ENDIF
           DATA => area%d%r_sp(l:u)
        ELSE
@@ -344,7 +344,7 @@
 
     INTEGER, DIMENSION(2)          :: l, u
     LOGICAL, PARAMETER             :: dbg = .TRUE.
-
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -354,18 +354,18 @@
           u = UBOUND (area%d%r2_sp)
           IF (PRESENT (ub)) u = ub
           IF (dbg) THEN
-             CALL cp_assert (l(1) .GE. LBOUND (area%d%r2_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (l(2) .GE. LBOUND (area%d%r2_sp, 2),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (u(1) .LE. UBOUND (area%d%r2_sp, 1),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
-             CALL cp_assert (u(2) .LE. UBOUND (area%d%r2_sp, 2),&
-                  cp_fatal_level, cp_wrong_args_error, routineN,&
-                  "Out of bounds")
+             CALL dbcsr_assert (l(1) .GE. LBOUND (area%d%r2_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (l(2) .GE. LBOUND (area%d%r2_sp, 2),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (u(1) .LE. UBOUND (area%d%r2_sp, 1),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
+             CALL dbcsr_assert (u(2) .LE. UBOUND (area%d%r2_sp, 2),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Out of bounds",__LINE__,error)
           ENDIF
           DATA => area%d%r2_sp(l(1):u(1), l(2):u(2))
        ELSE

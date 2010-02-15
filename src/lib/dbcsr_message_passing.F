@@ -17,9 +17,9 @@ MODULE dbcsr_message_passing
        dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
        real_8_size
   USE dbcsr_machine,                   ONLY: default_output_unit,&
+                                             m_abort,&
+                                             m_flush,&
                                              m_walltime
-!                                            m_abort,&
-!                                            m_flush,&
 
   IMPLICIT NONE
 
@@ -466,15 +466,15 @@ CONTAINS
     taskid=0
 #endif
     IF (PRESENT(message)) THEN
-       WRITE(default_output_unit,'(A)')         ' CP2K| '//TRIM(message)
+       WRITE(default_output_unit,'(A)') ' libdbcsr| '//TRIM(message)
     ENDIF
-    WRITE(default_output_unit,'(A,I0)')   ' CP2K| Abnormal program termination, stopped by process number ',taskid
-!    CALL m_flush(default_output_unit)
+    WRITE(default_output_unit,'(A,I0)') ' libdbcsr| Abnormal program termination, stopped by process number ',taskid
+    CALL m_flush(default_output_unit)
 
 #if defined(__parallel)
     CALL mpi_abort ( MPI_COMM_WORLD, 1, ierr )
 #else
-    !CALL m_abort() ! uncomment if you want nice core dumps
+    CALL m_abort()
 #endif
     ! this routine never returns
     STOP 1

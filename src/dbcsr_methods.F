@@ -28,6 +28,14 @@ MODULE dbcsr_methods
                                              btree_new_s => btree_new
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                              btree_new_z => btree_new
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_error_type,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              real_4,&
                                              real_8
@@ -50,7 +58,6 @@ MODULE dbcsr_methods
   USE f77_blas_generic
 
   !$ USE OMP_LIB
-#include "cp_common_uses.h"
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
@@ -290,16 +297,16 @@ CONTAINS
 !> \param[out] matrix         uninitialized matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_obj_p (matrix)
+  SUBROUTINE dbcsr_init_obj_p (matrix, error)
     TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_obj_p', &
       routineP = moduleN//':'//routineN
 
-!TYPE(dbcsr_error_type), INTENT(INOUT)   :: error
 !   ---------------------------------------------------------------------------
 
-    IF(ASSOCIATED(matrix)) CALL dbcsr_release_p(matrix)
+    IF(ASSOCIATED(matrix)) CALL dbcsr_release_p(matrix, error)
     ALLOCATE(matrix)
     CALL dbcsr_init(matrix%m)
     matrix%m%initialized = 0
@@ -384,11 +391,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hold', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (matrix%m%initialized .EQ. dbcsr_magic_number,&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Matrix not initialized")
+    CALL dbcsr_assert (matrix%m%initialized .EQ. dbcsr_magic_number,&
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Matrix not initialized",__LINE__,error)
     matrix%m%refcount = matrix%m%refcount + 1
   END SUBROUTINE dbcsr_hold
 
@@ -405,15 +414,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_release', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (dbcsr_is_initialized (matrix),&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Matrix not initialized")
+    CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
+         dbcsr_warning_level, dbcsr_caller_error, routineN,&
+         "Matrix not initialized",__LINE__,error)
     IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
        matrix%m%refcount = matrix%m%refcount - 1
        IF (matrix%m%refcount .EQ. 0) THEN
-          CALL dbcsr_destroy (matrix)
+          CALL dbcsr_destroy (matrix,error)
        ENDIF
     ENDIF
   END SUBROUTINE dbcsr_release
@@ -425,8 +436,9 @@ CONTAINS
 !> If there are no references left, the matrix is destroyed.
 !> \param[in,out] set    DBCSR matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_release_p (matrix)
+  SUBROUTINE dbcsr_release_p (matrix,error)
     TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_release_p', &
       routineP = moduleN//':'//routineN
@@ -434,13 +446,13 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF(ASSOCIATED(matrix)) THEN
-       CALL cp_assert (dbcsr_is_initialized (matrix),&
-            cp_warning_level, cp_caller_error, routineN,&
-            "Matrix not initialized")
+       CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
+            dbcsr_warning_level, dbcsr_caller_error, routineN,&
+            "Matrix not initialized",__LINE__,error)
        IF (matrix%m%initialized .EQ. dbcsr_magic_number) THEN
           matrix%m%refcount = matrix%m%refcount - 1
           IF (matrix%m%refcount .EQ. 0) THEN
-             CALL dbcsr_destroy (matrix)
+             CALL dbcsr_destroy (matrix, error)
              DEALLOCATE(matrix)
           ENDIF
        ENDIF
@@ -455,44 +467,42 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dbcsr_destroy(matrix, error, force)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    TYPE(dbcsr_error_type)                   :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: force
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: force_all
-    TYPE(cp_error_type)                      :: my_error
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (dbcsr_is_initialized (matrix),&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Can not destroy uninitialized matrix object.")
+    CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
+         dbcsr_warning_level, dbcsr_caller_error, routineN,&
+         "Can not destroy uninitialized matrix object.",__LINE__,error)
     force_all = .FALSE.
     IF (PRESENT (force)) force_all = force
     IF (dbcsr_is_initialized (matrix)) THEN
-       CALL cp_assert (force_all .OR. matrix%m%refcount.EQ.0,&
-            cp_warning_level, cp_caller_error,&
-            routineN, "You should not destroy referenced matrix.")
-       CALL cp_assert (.NOT.force_all .OR. matrix%m%refcount.LE.1,&
-            cp_warning_level, cp_caller_error,&
-            routineN, "You should not destroy referenced matrix.")
+       CALL dbcsr_assert (force_all .OR. matrix%m%refcount.EQ.0,&
+            dbcsr_warning_level, dbcsr_caller_error,&
+            routineN, "You should not destroy referenced matrix.",__LINE__,error)
+       CALL dbcsr_assert (.NOT.force_all .OR. matrix%m%refcount.LE.1,&
+            dbcsr_warning_level, dbcsr_caller_error,&
+            routineN, "You should not destroy referenced matrix.",__LINE__,error)
        IF (force_all .OR. matrix%m%refcount .EQ. 0) THEN
-          CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
-               cp_caller_error, routineN, "Destroying unfinalized matrix")
+          CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%wms), dbcsr_warning_level,&
+               dbcsr_caller_error, routineN, "Destroying unfinalized matrix",__LINE__,error)
           IF (matrix%m%special_memory) THEN
              CALL MP_DEALLOCATE(matrix%m%index)
           ELSE
              DEALLOCATE(matrix%m%index)
           ENDIF
-          CALL cp_error_init(my_error)
+          !CALL cp_error_init(my_error)
           IF (ASSOCIATED (matrix%m%predistributed)) THEN
-             CALL cp_assert (ASSOCIATED (matrix%m%predistributed%mats),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Predistributed data should exist if allocated")
-             CALL dbcsr_destroy_array (matrix%m%predistributed)
+             CALL dbcsr_assert (ASSOCIATED (matrix%m%predistributed%mats),&
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Predistributed data should exist if allocated",__LINE__,error)
+             CALL dbcsr_destroy_array (matrix%m%predistributed,error)
              CALL dbcsr_destroy_image_dist (matrix%m%predistributed%image_dist)
              DEALLOCATE (matrix%m%predistributed)
           ENDIF
@@ -591,6 +601,7 @@ CONTAINS
 
     INTEGER                                  :: ndims, tmp_group
     INTEGER, DIMENSION(2)                    :: dims, my_pos
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -602,12 +613,12 @@ CONTAINS
        CALL mp_cart_create (mp_env%mp%mp_group, ndims,&
             dims, my_pos,&
             tmp_group)
-       CALL cp_assert (my_pos(1) .EQ. mp_env%mp%myprow,&
-            cp_fatal_level, cp_internal_error, "mp_grid_setup",&
-            "Got different MPI process grid")
-       CALL cp_assert (my_pos(2) .EQ. mp_env%mp%mypcol,&
-            cp_fatal_level, cp_internal_error, "mp_grid_setup",&
-            "Got different MPI process grid")
+       CALL dbcsr_assert (my_pos(1) .EQ. mp_env%mp%myprow,&
+            dbcsr_fatal_level, dbcsr_internal_error, "mp_grid_setup",&
+            "Got different MPI process grid",__LINE__,error)
+       CALL dbcsr_assert (my_pos(2) .EQ. mp_env%mp%mypcol,&
+            dbcsr_fatal_level, dbcsr_internal_error, "mp_grid_setup",&
+            "Got different MPI process grid",__LINE__,error)
        !
        CALL mp_cart_sub (tmp_group, (/.FALSE., .TRUE./), mp_env%mp%prow_group)
        CALL mp_cart_sub (tmp_group, (/.TRUE., .FALSE./), mp_env%mp%pcol_group)
@@ -1263,11 +1274,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_info', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (matrix%m%initialized.EQ.dbcsr_magic_number,&
-         cp_fatal_level, cp_caller_error, routineP,&
-         "Matrix not initialized")
+    CALL dbcsr_assert (matrix%m%initialized.EQ.dbcsr_magic_number,&
+         dbcsr_fatal_level, dbcsr_caller_error, routineP,&
+         "Matrix not initialized",__LINE__,error)
     !vw avoid massive priting of warnings
     !CALL cp_assert (matrix%m%valid, cp_warning_level, cp_caller_error,&
     !     routineP,"Invalid matrix")
@@ -1311,6 +1324,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'data_type_2d_from_1d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
     SELECT CASE (type_1d)
     CASE (dbcsr_type_real_4)
        type_2d = dbcsr_type_real_4_2d
@@ -1321,8 +1336,8 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        type_2d = dbcsr_type_complex_8_2d
     CASE default
-       CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-            routineN, "Invalid data type.")
+       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Invalid data type.",__LINE__,error)
     END SELECT
   END FUNCTION data_type_2d_from_1d
 
@@ -1334,6 +1349,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'data_type_1d_from_2d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
     SELECT CASE (type_2d)
     CASE (dbcsr_type_real_4_2d)
        type_1d = dbcsr_type_real_4
@@ -1344,8 +1361,8 @@ CONTAINS
     CASE (dbcsr_type_complex_8_2d)
        type_1d = dbcsr_type_complex_8
     CASE default
-       CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-            routineN, "Invalid data type.")
+       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Invalid data type.",__LINE__,error)
     END SELECT
   END FUNCTION data_type_1d_from_2d
 
@@ -1377,6 +1394,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_new', &
       routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -1410,11 +1429,11 @@ CONTAINS
              CALL mp_allocate (area%d%c_dp, data_size)
           CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
                dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-                  routineN, "Can not use special memory with 2D data areas.")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Can not use special memory with 2D data areas.",__LINE__,error)
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-                  routineN, "Invalid data type.")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Invalid data type.",__LINE__,error)
           END SELECT
        ELSE
           SELECT CASE (data_type)
@@ -1427,28 +1446,28 @@ CONTAINS
           CASE (dbcsr_type_complex_4)
              ALLOCATE (area%d%c_sp(data_size))
           CASE (dbcsr_type_real_8_2d)
-             CALL cp_assert (PRESENT(data_size2), cp_fatal_level,&
-                  cp_caller_error, routineN,&
-                  "Must specify either both or no sizes for 2D data")
+             CALL dbcsr_assert (PRESENT(data_size2), dbcsr_fatal_level,&
+                  dbcsr_caller_error, routineN,&
+                  "Must specify either both or no sizes for 2D data",__LINE__,error)
              ALLOCATE (area%d%r2_dp(data_size, data_size2))
           CASE (dbcsr_type_real_4_2d)
-             CALL cp_assert (PRESENT(data_size2), cp_fatal_level,&
-                  cp_caller_error, routineN,&
-                  "Must specify either both or no sizes for 2D data")
+             CALL dbcsr_assert (PRESENT(data_size2), dbcsr_fatal_level,&
+                  dbcsr_caller_error, routineN,&
+                  "Must specify either both or no sizes for 2D data",__LINE__,error)
              ALLOCATE (area%d%r2_sp(data_size, data_size2))
           CASE (dbcsr_type_complex_8_2d)
-             CALL cp_assert (PRESENT(data_size2), cp_fatal_level,&
-                  cp_caller_error, routineN,&
-                  "Must specify either both or no sizes for 2D data")
+             CALL dbcsr_assert (PRESENT(data_size2), dbcsr_fatal_level,&
+                  dbcsr_caller_error, routineN,&
+                  "Must specify either both or no sizes for 2D data",__LINE__,error)
              ALLOCATE (area%d%c2_dp(data_size, data_size2))
           CASE (dbcsr_type_complex_4_2d)
-             CALL cp_assert (PRESENT(data_size2), cp_fatal_level,&
-                  cp_caller_error, routineN,&
-                  "Must specify either both or no sizes for 2D data")
+             CALL dbcsr_assert (PRESENT(data_size2), dbcsr_fatal_level,&
+                  dbcsr_caller_error, routineN,&
+                  "Must specify either both or no sizes for 2D data",__LINE__,error)
              ALLOCATE (area%d%c2_sp(data_size, data_size2))
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-                  routineN, "Invalid data type.")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Invalid data type.",__LINE__,error)
           END SELECT
        ENDIF
     ENDIF
@@ -1477,13 +1496,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_release', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
     IF (.NOT. ASSOCIATED (area%d)) THEN
        RETURN
     ENDIF
-    CALL cp_assert (area%d%refcount .GT. 0, cp_warning_level, cp_caller_error,&
-         routineN, "Data seems to be unreferenced.")
+    CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Data seems to be unreferenced.",__LINE__,error)
     IF (area%d%refcount .GT. 0) THEN
        area%d%refcount = area%d%refcount - 1
     ELSE
@@ -1507,11 +1528,11 @@ CONTAINS
              NULLIFY (area%d%c_dp)
           CASE (dbcsr_type_real_8_2d, dbcsr_type_real_4_2d,&
                dbcsr_type_complex_8_2d, dbcsr_type_complex_4_2d)
-             CALL cp_assert (.FALSE., cp_failure_level, cp_internal_error,&
-                  routineN, "How could 2D data areas use special memory?")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_internal_error,&
+                  routineN, "How could 2D data areas use special memory?",__LINE__,error)
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-                  routineN, "Invalid data type.")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Invalid data type.",__LINE__,error)
           END SELECT
        ELSE
           SELECT CASE (area%d%data_type)
@@ -1548,8 +1569,8 @@ CONTAINS
                   DEALLOCATE (area%d%c2_sp)
              NULLIFY (area%d%c2_sp)
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-                  routineN, "Invalid data type.")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Invalid data type.",__LINE__,error)
           END SELECT
        ENDIF
        DEALLOCATE (area%d)
@@ -1567,13 +1588,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_clear_pointer', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
     IF (.NOT. ASSOCIATED (area%d)) THEN
        RETURN
     ENDIF
-    CALL cp_assert (area%d%refcount .GT. 0, cp_warning_level, cp_caller_error,&
-         routineN, "Data seems to be unreferenced.")
+    CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Data seems to be unreferenced.",__LINE__,error)
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_4)
        NULLIFY (area%d%r_sp)
@@ -1592,8 +1615,8 @@ CONTAINS
     CASE (dbcsr_type_complex_4_2d)
        NULLIFY (area%d%c2_sp)
     CASE default
-       CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-            routineN, "Invalid data type.")
+       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Invalid data type.",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_data_clear_pointer
 
@@ -1609,12 +1632,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_hold', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (area%d), cp_caller_error, cp_warning_level,&
-         routineN, "Can't hold an empty data area.")
-    CALL cp_assert (area%d%refcount .GT. 0, cp_caller_error, cp_warning_level,&
-         routineN, "Should not hold an area with zero references.")
+    CALL dbcsr_assert (ASSOCIATED (area%d), dbcsr_caller_error, dbcsr_warning_level,&
+         routineN, "Can't hold an empty data area.",__LINE__,error)
+    CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_caller_error, dbcsr_warning_level,&
+         routineN, "Should not hold an area with zero references.",__LINE__,error)
     IF (.NOT. ASSOCIATED (area%d)) THEN
        RETURN
     ENDIF
@@ -1737,6 +1762,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_data_size_area', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
     data_size = 0
     IF (ASSOCIATED (area%d)) THEN
        SELECT CASE (area%d%data_type)
@@ -1765,12 +1792,12 @@ CONTAINS
              IF (ASSOCIATED (area%d%c2_sp))&
                   data_size = SIZE (area%d%c2_sp)
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-                  routineN, "Incorrect data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Incorrect data type",__LINE__,error)
           END SELECT
     ELSE
-       CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
-            "Uninitialized data area")
+       CALL dbcsr_assert (.FALSE., dbcsr_warning_level, dbcsr_caller_error, routineN,&
+            "Uninitialized data area",__LINE__,error)
        data_size = 0
     ENDIF
   END FUNCTION get_data_size_area
@@ -1788,6 +1815,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_data_size_matrix', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
     data_size = 0
     IF (ASSOCIATED (matrix%m%data_area%d)) THEN
        SELECT CASE (matrix%m%data_area%d%data_type)
@@ -1804,12 +1833,12 @@ CONTAINS
              IF (ASSOCIATED (matrix%m%data_area%d%c_sp))&
                   data_size = SIZE (matrix%m%data_area%d%c_sp)
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error,&
-                  routineN, "Incorrect data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Incorrect data type",__LINE__,error)
           END SELECT
     ELSE
-       CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
-            "Uninitialized data area")
+       CALL dbcsr_assert (.FALSE., dbcsr_warning_level, dbcsr_caller_error, routineN,&
+            "Uninitialized data area",__LINE__,error)
        data_size = 0
     ENDIF
   END FUNCTION get_data_size_matrix
@@ -1837,13 +1866,14 @@ CONTAINS
     LOGICAL                                  :: shallow_copy
     REAL(KIND=real_4), DIMENSION(:), POINTER :: s_data_r, t_data_r
     REAL(KIND=real_8), DIMENSION(:), POINTER :: s_data_d, t_data_d
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (source_area%d), cp_warning_level,&
-         cp_caller_error, routineN, "Attempt to copy unassigned data")
-    CALL cp_assert (source_area%d%refcount .GT. 0, cp_warning_level,&
-         cp_caller_error, routineN, "Attempt to copy unheld data")
+    CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_warning_level,&
+         dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__,error)
+    CALL dbcsr_assert (source_area%d%refcount .GT. 0, dbcsr_warning_level,&
+         dbcsr_caller_error, routineN, "Attempt to copy unheld data",__LINE__,error)
     shallow_copy = .FALSE.
     IF (PRESENT (shallow)) shallow_copy = shallow
     IF (shallow_copy) THEN
@@ -1875,8 +1905,8 @@ CONTAINS
              CALL dbcsr_get_data (source_area, s_data_c)
              IF(n.GT.0)t_data_c(1:n) = s_data_c(1:n)
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
-                  routineN, "Invalid data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
+                  routineN, "Invalid data type",__LINE__,error)
           END SELECT
     ENDIF
     ! If we're releasing the last reference, then free the memory.
@@ -1909,13 +1939,14 @@ CONTAINS
     LOGICAL                                  :: keep_real, noimult
     REAL(KIND=real_4), DIMENSION(:), POINTER :: s_data_r, t_data_r
     REAL(KIND=real_8), DIMENSION(:), POINTER :: s_data_d, t_data_d
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (source_area%d), cp_warning_level,&
-         cp_caller_error, routineN, "Attempt to copy unassigned data")
-    CALL cp_assert (source_area%d%refcount .GT. 0, cp_warning_level,&
-         cp_caller_error, routineN, "Attempt to copy unheld data")
+    CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_warning_level,&
+         dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__,error)
+    CALL dbcsr_assert (source_area%d%refcount .GT. 0, dbcsr_warning_level,&
+         dbcsr_caller_error, routineN, "Attempt to copy unheld data",__LINE__,error)
     IF (.NOT. ASSOCIATED (source_area%d)) THEN
        RETURN
     ENDIF
@@ -1952,8 +1983,8 @@ CONTAINS
                 t_data_c(1:n) = CMPLX(0.0, s_data_d(1:n), KIND=real_8)
              ENDIF
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
-                  routineN, "Invalid data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
+                  routineN, "Invalid data type",__LINE__,error)
           END SELECT
        CASE (dbcsr_type_real_4)
           CALL dbcsr_get_data (source_area, s_data_r)
@@ -1979,8 +2010,8 @@ CONTAINS
                 t_data_c(1:n) = CMPLX(0.0, s_data_r(1:n), KIND=real_8)
              ENDIF
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
-                  routineN, "Invalid data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
+                  routineN, "Invalid data type",__LINE__,error)
           END SELECT
        CASE (dbcsr_type_complex_8)
           CALL dbcsr_get_data (source_area, s_data_z)
@@ -2006,8 +2037,8 @@ CONTAINS
              CALL dbcsr_get_data (target_area, t_data_c)
              t_data_c(1:n) = CMPLX(s_data_z(1:n), KIND=real_8)
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
-                  routineN, "Invalid data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
+                  routineN, "Invalid data type",__LINE__,error)
           END SELECT
        CASE (dbcsr_type_complex_4)
           CALL dbcsr_get_data (source_area, s_data_c)
@@ -2033,12 +2064,12 @@ CONTAINS
              CALL dbcsr_get_data (target_area, t_data_c)
              t_data_c(1:n) = s_data_c(1:n)
           CASE default
-             CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
-                  routineN, "Invalid data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
+                  routineN, "Invalid data type",__LINE__,error)
           END SELECT
        CASE default
-          CALL cp_assert (.FALSE., cp_failure_level, cp_caller_error, &
-               routineN, "Invalid data type")
+          CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
+               routineN, "Invalid data type",__LINE__,error)
        END SELECT
     ENDIF
   END SUBROUTINE dbcsr_data_convert
@@ -2620,6 +2651,7 @@ CONTAINS
     CHARACTER                                :: dt1, dt2
     INTEGER                                  :: bp, nze
     LOGICAL                                  :: compatible, pointee_is_2d, rmp
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -2632,20 +2664,20 @@ CONTAINS
          .OR. dt1 .EQ. dbcsr_type_real_8_2d .AND. dt2 .EQ. dbcsr_type_real_8&
          .OR. dt1 .EQ. dbcsr_type_complex_4_2d .AND. dt2 .EQ. dbcsr_type_complex_4&
          .OR. dt1 .EQ. dbcsr_type_complex_8_2d .AND. dt2 .EQ. dbcsr_type_complex_8
-    CALL cp_assert (compatible, cp_fatal_level,&
-         cp_wrong_args_error, routineN, "Can not point 1-d pointer to 2-d data")
+    CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "Can not point 1-d pointer to 2-d data",__LINE__,error)
     pointee_is_2d = dt2 .EQ. dbcsr_type_real_4_2d &
          .OR. dt2 .EQ. dbcsr_type_real_8_2d &
          .OR. dt2 .EQ. dbcsr_type_complex_4_2d &
          .OR. dt2 .EQ. dbcsr_type_complex_8_2d
-    CALL cp_assert (.NOT. PRESENT (source_lb) .OR. .NOT. pointee_is_2d, &
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Lower bound specification not possible with 2-d data")
+    CALL dbcsr_assert (.NOT. PRESENT (source_lb) .OR. .NOT. pointee_is_2d, &
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Lower bound specification not possible with 2-d data",__LINE__,error)
     ! Check if size is OK.
-    CALL cp_assert (bp .GE. 1&
+    CALL dbcsr_assert (bp .GE. 1&
          .AND. bp + nze - 1 .LE. dbcsr_get_data_size (pointee),&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Attempt to point out of bounds")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Attempt to point out of bounds",__LINE__,error)
     ! There's a remap if the ranks are compatible but not equal.
     rmp = dt1 .NE. dt2
     SELECT CASE (dt2)
@@ -2690,8 +2722,8 @@ CONTAINS
           area%d%c_dp => dbcsr_get_data_p_z (pointee, bp, bp+nze-1)
        ENDIF
     CASE default
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE set_data_area_area
 
@@ -2715,6 +2747,7 @@ CONTAINS
     CHARACTER                                :: dt1
     INTEGER                                  :: bp, csize, nze
     LOGICAL                                  :: compatible
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -2723,8 +2756,8 @@ CONTAINS
             .OR. dt1 .EQ. dbcsr_type_real_8&
             .OR. dt1 .EQ. dbcsr_type_complex_4&
             .OR. dt1 .EQ. dbcsr_type_complex_8
-    CALL cp_assert (compatible, cp_fatal_level,&
-         cp_wrong_args_error, routineN, "Must target 1-D data")
+    CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "Must target 1-D data",__LINE__,error)
     IF (PRESENT (offset)) THEN
        bp = offset
        nze = dbcsr_get_data_size (area) - offset + 1
@@ -2751,8 +2784,8 @@ CONTAINS
        CALL pointer_z_rank_remap2(area%d%c2_dp, rowsize, csize,&
             dbcsr_get_data_p_z (area, bp, bp+nze-1))
     CASE default
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_data_set_2d_pointer
 
@@ -2768,6 +2801,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: dt1
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -2782,8 +2816,8 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        NULLIFY (area%d%c2_dp)
     CASE default
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_data_clear_2d_pointer
 
@@ -2834,11 +2868,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_new_1d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (.NOT. ASSOCIATED (array%s), cp_warning_level,&
-         cp_caller_error, routineN,&
-         "Array was already allocated, memory leakage will occur")
+    CALL dbcsr_assert (.NOT. ASSOCIATED (array%s), dbcsr_warning_level,&
+         dbcsr_caller_error, routineN,&
+         "Array was already allocated, memory leakage will occur",__LINE__,error)
     ALLOCATE (array%s(n))
     ALLOCATE (array%refcount)
     array%refcount = 1
@@ -2856,11 +2892,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_new_2d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (.NOT. ASSOCIATED (array%s), cp_warning_level,&
-         cp_caller_error, routineN,&
-         "Array was already allocated, memory leakage will occur")
+    CALL dbcsr_assert (.NOT. ASSOCIATED (array%s), dbcsr_warning_level,&
+         dbcsr_caller_error, routineN,&
+         "Array was already allocated, memory leakage will occur",__LINE__,error)
     ALLOCATE (array%s(n(1), n(2)))
     ALLOCATE (array%refcount)
     array%refcount = 1
@@ -2882,14 +2920,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_put_1d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not insert into unallocated array")
-    CALL cp_assert(position .GE. LBOUND (array%s, 1)&
+    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not insert into unallocated array",__LINE__,error)
+    CALL dbcsr_assert(position .GE. LBOUND (array%s, 1)&
          .AND. position .LE. UBOUND (array%s, 1),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Insertion position out of bounds.")
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Insertion position out of bounds.",__LINE__,error)
     array%s(position) = matrix
     CALL dbcsr_hold (array%s(position))
   END SUBROUTINE array_put_1d
@@ -2910,16 +2950,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_put_2d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not insert into unallocated array")
-    CALL cp_assert(position(1) .GE. LBOUND (array%s, 1)&
+    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not insert into unallocated array",__LINE__,error)
+    CALL dbcsr_assert(position(1) .GE. LBOUND (array%s, 1)&
          .AND. position(1) .LE. UBOUND (array%s, 1)&
          .AND. position(2) .GE. LBOUND (array%s, 2)&
          .AND. position(2) .LE. UBOUND (array%s, 2),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Insertion position out of bounds.")
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Insertion position out of bounds.",__LINE__,error)
     array%s(position(1), position(2)) = matrix
     CALL dbcsr_hold (array%s(position(1), position(2)))
   END SUBROUTINE array_put_2d
@@ -2938,14 +2980,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_get_1d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not read from an unallocated array")
-    CALL cp_assert (position .GE. LBOUND (array%s,1)&
+    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not read from an unallocated array",__LINE__,error)
+    CALL dbcsr_assert (position .GE. LBOUND (array%s,1)&
          .AND. position .LE. UBOUND (array%s,1),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Read position out of bounds.")
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Read position out of bounds.",__LINE__,error)
     matrix = array%s(position)
   END FUNCTION array_get_1d
 
@@ -2963,16 +3007,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_get_2d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not read from an unallocated array")
-    CALL cp_assert(position(1) .GE. LBOUND (array%s, 1)&
+    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not read from an unallocated array",__LINE__,error)
+    CALL dbcsr_assert(position(1) .GE. LBOUND (array%s, 1)&
          .AND. position(1) .LE. UBOUND (array%s, 1)&
          .AND. position(2) .GE. LBOUND (array%s, 2)&
          .AND. position(2) .LE. UBOUND (array%s, 2),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Read position out of bounds.")
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Read position out of bounds.",__LINE__,error)
     matrix = array%s(position(1), position(2))
   END FUNCTION array_get_2d
 
@@ -2987,16 +3033,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not destroy an unallocated array")
-    CALL cp_assert (ASSOCIATED (array%refcount),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Reference count does not exist.")
-    CALL cp_assert (array%refcount .EQ. 0, cp_warning_level, cp_caller_error,&
-         routineN, "References are still held")
+    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not destroy an unallocated array",__LINE__,error)
+    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Reference count does not exist.",__LINE__,error)
+    CALL dbcsr_assert (array%refcount .EQ. 0, dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "References are still held",__LINE__,error)
     DO i = LBOUND (array%s, 1), UBOUND (array%s, 1)
        CALL dbcsr_release (array%s(i))
     ENDDO
@@ -3016,16 +3063,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%s), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not destroy an unallocated array")
-    CALL cp_assert (ASSOCIATED (array%refcount),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Reference count does not exist.")
-    CALL cp_assert (array%refcount .EQ. 0, cp_warning_level, cp_caller_error,&
-         routineN, "References are still held")
+    CALL dbcsr_assert (ASSOCIATED (array%s), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not destroy an unallocated array",__LINE__,error)
+    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Reference count does not exist.",__LINE__,error)
+    CALL dbcsr_assert (array%refcount .EQ. 0, dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "References are still held",__LINE__,error)
     DO i = LBOUND (array%s, 1), UBOUND (array%s, 1)
        DO j = LBOUND (array%s, 2), UBOUND (array%s, 2)
           CALL dbcsr_release (array%s(i, j))
@@ -3047,11 +3095,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_hold_1d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%refcount),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Reference count does not exist.")
+    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Reference count does not exist.",__LINE__,error)
     array%refcount = array%refcount + 1
   END SUBROUTINE array_hold_1d
 
@@ -3065,11 +3115,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_hold_2d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%refcount),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Reference count does not exist.")
+    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Reference count does not exist.",__LINE__,error)
     array%refcount = array%refcount + 1
   END SUBROUTINE array_hold_2d
 
@@ -3086,11 +3138,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_release_1d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%refcount),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Reference count does not exist.")
+    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Reference count does not exist.",__LINE__,error)
     array%refcount = array%refcount - 1
     IF (array%refcount .EQ. 0) THEN
        CALL dbcsr_array_destroy (array)
@@ -3109,11 +3163,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'array_release_2d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (array%refcount),&
-         cp_failure_level, cp_caller_error, routineN,&
-         "Reference count does not exist.")
+    CALL dbcsr_assert (ASSOCIATED (array%refcount),&
+         dbcsr_failure_level, dbcsr_caller_error, routineN,&
+         "Reference count does not exist.",__LINE__,error)
     array%refcount = array%refcount - 1
     IF (array%refcount .EQ. 0) THEN
        CALL dbcsr_array_destroy (array)
@@ -3125,8 +3181,9 @@ CONTAINS
 !> \param[in] source          input matrix
 !> \param[in,out] marray      matrix array
 ! *****************************************************************************
-  SUBROUTINE dbcsr_destroy_1d_array(marray)
+  SUBROUTINE dbcsr_destroy_1d_array(marray, error)
     TYPE(dbcsr_array_type), INTENT(INOUT)    :: marray
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy_1d_array', &
       routineP = moduleN//':'//routineN
@@ -3136,7 +3193,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     DO i = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
-       CALL dbcsr_destroy (marray%mats(i), force=.TRUE.)
+       CALL dbcsr_destroy (marray%mats(i), error=error, force=.TRUE.)
     ENDDO
     DEALLOCATE (marray%mats)
     !CALL dbcsr_destroy_image_dist(marray%image_dist)
@@ -3148,8 +3205,9 @@ CONTAINS
 !> \param[in] source          input matrix
 !> \param[in,out] marray      matrix array
 ! *****************************************************************************
-  SUBROUTINE dbcsr_destroy_2d_array(marray)
+  SUBROUTINE dbcsr_destroy_2d_array(marray,error)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: marray
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy_2d_array', &
       routineP = moduleN//':'//routineN
@@ -3160,7 +3218,7 @@ CONTAINS
 
     DO row = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
        DO col = LBOUND(marray%mats,2), UBOUND (marray%mats,2)
-          CALL dbcsr_destroy (marray%mats(row, col), force=.TRUE.)
+          CALL dbcsr_destroy (marray%mats(row, col), error=error, force=.TRUE.)
        ENDDO
     ENDDO
     DEALLOCATE (marray%mats)
@@ -3217,8 +3275,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (mutable%m)) THEN
-       !CALL cp_assert (mutable%m%refcount .EQ. 0, cp_warning_level,&
-       !     cp_caller_error, routineN, "Destroying with non-0 reference count")
+       !CALL dbcsr_assert (mutable%m%refcount .EQ. 0, dbcsr_warning_level,&
+       !     dbcsr_caller_error, routineN, "Destroying with non-0 reference count")
        CALL btree_destroy_s (mutable%m%btree_s)
        CALL btree_destroy_d (mutable%m%btree_d)
        CALL btree_destroy_c (mutable%m%btree_c)
@@ -3239,10 +3297,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_hold', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (mutable%m), cp_fatal_level,&
-         cp_caller_error, routineN, "Mutable data area not instantiated")
+    CALL dbcsr_assert (ASSOCIATED (mutable%m), dbcsr_fatal_level,&
+         dbcsr_caller_error, routineN, "Mutable data area not instantiated",__LINE__,error)
     mutable%m%refcount = mutable%m%refcount + 1
   END SUBROUTINE dbcsr_mutable_hold
 
@@ -3258,10 +3318,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_release', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (ASSOCIATED (mutable%m), cp_fatal_level,&
-         cp_caller_error, routineN, "Mutable data area not instantiated")
+    CALL dbcsr_assert (ASSOCIATED (mutable%m), dbcsr_fatal_level,&
+         dbcsr_caller_error, routineN, "Mutable data area not instantiated",__LINE__,error)
     mutable%m%refcount = mutable%m%refcount - 1
     IF (mutable%m%refcount .EQ. 0) THEN
        CALL dbcsr_mutable_destroy (mutable)
@@ -3282,15 +3344,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mutable_new', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
-    CALL cp_assert (.NOT.ASSOCIATED (mutable%m), cp_fatal_level,&
-         cp_caller_error, routineN, "Mutable data area already instantiated")
-    CALL cp_assert (data_type.EQ.dbcsr_type_real_4&
+    CALL dbcsr_assert (.NOT.ASSOCIATED (mutable%m), dbcsr_fatal_level,&
+         dbcsr_caller_error, routineN, "Mutable data area already instantiated",__LINE__,error)
+    CALL dbcsr_assert (data_type.EQ.dbcsr_type_real_4&
          .OR. data_type.EQ.dbcsr_type_real_8&
          .OR. data_type.EQ.dbcsr_type_complex_4&
-         .OR. data_type.EQ.dbcsr_type_complex_8, cp_fatal_level,&
-         cp_wrong_args_error, routineN, "Invalid data type")
+         .OR. data_type.EQ.dbcsr_type_complex_8, dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "Invalid data type",__LINE__,error)
     ALLOCATE (mutable%m)
     mutable%m%refcount = 1
     mutable%m%data_type = data_type

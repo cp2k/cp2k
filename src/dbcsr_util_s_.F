@@ -25,13 +25,13 @@
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix not initialized.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Matrix not initialized.",__LINE__,error)
     CALL dbcsr_assert(matrix%m%nblkrows_total, 'EQ', matrix%m%nblkcols_total,&
-         cp_failure_level, cp_caller_error, routineP,&
-         "Can not set diagonal of non-square matrix.")
-    CALL dbcsr_assert (dbcsr_type_real_4, 'EQ', matrix%m%data_type, cp_failure_level,&
-         cp_caller_error, routineN, "Datatype mismatch.")
+         dbcsr_failure_level, dbcsr_caller_error, routineP,&
+         "Can not set diagonal of non-square matrix.",__LINE__,error)
+    CALL dbcsr_assert (dbcsr_type_real_4, 'EQ', matrix%m%data_type, dbcsr_failure_level,&
+         dbcsr_caller_error, routineN, "Datatype mismatch.",__LINE__,error)
     IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_create (matrix, n=1, error=error)
     ENDIF
@@ -369,16 +369,17 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_set_as', &
          routineP = moduleN//':'//routineN
     INTEGER                                  :: lb_s, ub, ub_s
+    TYPE(dbcsr_error_type)                   :: error
 !   ---------------------------------------------------------------------------
     IF (bcsr_debug) THEN
        CALL dbcsr_assert (ASSOCIATED (dst%d),&
-            cp_fatal_level, cp_caller_error, routineN,&
-            "Target data area must be setup.")
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "Target data area must be setup.",__LINE__,error)
        CALL dbcsr_assert (SIZE(src) .GE. data_size,&
-            cp_fatal_level, cp_caller_error, routineN,&
-            "Not enough source data.")
-       CALL dbcsr_assert (dst%d%data_type .EQ. dbcsr_type_real_4, cp_failure_level,&
-            cp_caller_error, routineN, "Data type mismatch.")
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "Not enough source data.",__LINE__,error)
+       CALL dbcsr_assert (dst%d%data_type .EQ. dbcsr_type_real_4, dbcsr_failure_level,&
+            dbcsr_caller_error, routineN, "Data type mismatch.",__LINE__,error)
     ENDIF
     ub = lb + data_size - 1
     IF (PRESENT (source_lb)) THEN
@@ -444,8 +445,8 @@
     IF (.NOT.ASSOCIATED(array)) THEN
        failure = .FALSE.
        IF (spec) THEN
-          CALL dbcsr_assert (lb.EQ.1, cp_warning_level, cp_internal_error,&
-               routineN, "Special memory can only start at 1.")
+          CALL dbcsr_assert (lb.EQ.1, dbcsr_warning_level, dbcsr_internal_error,&
+               routineN, "Special memory can only start at 1.",__LINE__,error)
           CALL mp_allocate(array, ub-lb_new+1, stat=stat)
        ELSE
           ALLOCATE(array(lb_new:ub), stat=stat)
@@ -498,8 +499,8 @@
        ENDIF
     ENDIF
     IF (spec) THEN
-       CALL dbcsr_assert (lb_new.EQ.1, cp_warning_level, cp_internal_error,&
-            routineN, "Special memory can only start at 1.")
+       CALL dbcsr_assert (lb_new.EQ.1, dbcsr_warning_level, dbcsr_internal_error,&
+            routineN, "Special memory can only start at 1.",__LINE__,error)
        CALL mp_allocate(newarray, ub_new-lb_new+1, stat=stat)
     ELSE
        ALLOCATE(newarray(lb_new:ub_new), stat=stat)
@@ -507,8 +508,8 @@
     IF(stat /= 0) CALL stop_memory(routineP, 'newarray', ub_new-lb_new+1)
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
-            cp_failure_level, cp_internal_error, routineP,&
-            "Old extent exceeds the new one.")
+            dbcsr_failure_level, dbcsr_internal_error, routineP,&
+            "Old extent exceeds the new one.",__LINE__,error)
        newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
        IF (spec) THEN
           CALL mp_deallocate(array)
@@ -711,8 +712,8 @@
     IF (dbg) WRITE(*,*)routineN//" Declared size",wm%lastblk,&
          "present blocks",treesize
     CALL dbcsr_assert(wm%lastblk .EQ. treesize,&
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Mismatch in number of blocks")
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Mismatch in number of blocks",__LINE__,error)
     ALLOCATE (keys(treesize), values(treesize))
     CALL btree_destroy_s (wm%mutable%m%btree_s, keys, values)
     CALL ensure_array_size (wm%row_i, ub=treesize, error=error)
@@ -796,8 +797,8 @@
     REAL(kind=real_4), DIMENSION(:), POINTER           :: send_data_p, recv_data_p
     TYPE(dbcsr_mp_obj)                       :: mpe
 
-    !CALL dbcsr_assert (mp_env%mp%subgroups_defined, cp_warning_level,&
-    !     cp_caller_error, routineN, "Row/col communicators undefined.")
+    !CALL dbcsr_assert (mp_env%mp%subgroups_defined, dbcsr_warning_level,&
+    !     dbcsr_caller_error, routineN, "Row/col communicators undefined.")
     IF (.NOT. dbcsr_mp_has_subgroups (mp_env)) THEN
        mpe = mp_env
        CALL dbcsr_mp_grid_setup (mpe)

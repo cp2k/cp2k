@@ -45,8 +45,8 @@
                   row_dist, col_dist)) CYCLE
           ENDIF
           a_col_size = col_blk_size(a_col)
-          CALL dbcsr_assert (a_row_size.EQ.a_col_size, cp_fatal_level,&
-               cp_internal_error, routineN, "is that a square matrix?")
+          CALL dbcsr_assert (a_row_size.EQ.a_col_size, dbcsr_fatal_level,&
+               dbcsr_internal_error, routineN, "is that a square matrix?",__LINE__,error)
           a_nze = a_row_size**2
           a_data => pointer_view (data_p, ABS(matrix_a%m%blk_p(a_blk)),&
                ABS(matrix_a%m%blk_p(a_blk))+a_nze-1)
@@ -106,8 +106,8 @@
     IF(.NOT.my_local_sum) THEN!fixme
        CALL dbcsr_assert (matrix_a%m%replication_type .EQ. dbcsr_repl_none&
             .AND. matrix_b%m%replication_type .EQ. dbcsr_repl_none,&
-            cp_failure_level, cp_unimplemented_error_nr, routineN,&
-            "Trace of product of replicated matrices not yet possible.")
+            dbcsr_failure_level, dbcsr_unimplemented_error_nr, routineN,&
+            "Trace of product of replicated matrices not yet possible.",__LINE__,error)
     ENDIF
 
     sym_fac = REAL(1.0,real_4)
@@ -133,21 +133,23 @@
     IF(PRESENT(trans_a)) my_trans_a = trans_a
     my_trans_b = 'N'
     IF(PRESENT(trans_b)) my_trans_b = trans_b
-    CALL dbcsr_assert (my_trans_a.EQ.'T'.AND.my_trans_b.EQ.'N', cp_fatal_level,&
-         cp_unimplemented_error_nr, routineN, "this combination of transpose is NYI")
+    CALL dbcsr_assert (my_trans_a.EQ.'T'.AND.my_trans_b.EQ.'N', dbcsr_fatal_level,&
+         dbcsr_unimplemented_error_nr, routineN, "this combination of transpose is NYI",&
+         __LINE__,error)
     !
     ! let's go
     trace = REAL(0.0,real_4)
     CALL dbcsr_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total,&
-         cp_fatal_level, cp_internal_error, routineN, "this combination of transpose is NYI")
+         dbcsr_fatal_level, dbcsr_internal_error, routineN, "this combination of transpose is NYI",&
+         __LINE__,error)
     DO row = 1, matrix_a%m%nblkrows_total
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
        IF(a_row_size.NE.b_row_size) THEN
           WRITE(*,*) 'a_row_size',a_row_size
           WRITE(*,*) 'b_row_size',b_row_size
-          CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_internal_error, &
-               routineN, "matrices not consistent")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
+               routineN, "matrices not consistent",__LINE__,error)
        ENDIF
        b_blk = matrix_b%m%row_p(row)+1
        b_frst_blk = matrix_b%m%row_p(row)+1
@@ -165,8 +167,8 @@
              IF(a_col_size.NE.b_col_size)  THEN
                 WRITE(*,*) 'a_col_size',a_col_size
                 WRITE(*,*) 'b_col_size',b_col_size
-                CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_internal_error, &
-                     routineN, "matrices not consistent")
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
+                     routineN, "matrices not consistent",__LINE__,error)
              ENDIF
              !
              nze = a_row_size*a_col_size
@@ -209,8 +211,8 @@
                         a_data_z(ABS(matrix_a%m%blk_p(a_blk))),1,&
                         b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1)
                 ELSE
-                   CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_unimplemented_error_nr, &
-                        routineN, "combination of types NYI")
+                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+                        routineN, "combination of types NYI",__LINE__,error)
                 ENDIF
              ENDIF
           ENDIF
@@ -244,6 +246,8 @@
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    TYPE(dbcsr_error_type)                   :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_c', &
       routineP = moduleN//':'//routineN
     
@@ -256,8 +260,8 @@
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
     CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Data type mismatch for requested block.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Data type mismatch for requested block.",__LINE__,error)
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
@@ -284,9 +288,9 @@
           ENDIF
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
-            cp_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.")
+       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
+            dbcsr_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
        iw = 1
 !$     iw = omp_get_thread_num ()+1
        IF (dbcsr_use_mutable (matrix%m)) THEN
@@ -331,6 +335,8 @@
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    TYPE(dbcsr_error_type)                   :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_p_c', &
       routineP = moduleN//':'//routineN
     
@@ -342,9 +348,9 @@
     TYPE(btree_2d_data_c)          :: data_block
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
-    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Data type mismatch for requested block.")
+    CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Data type mismatch for requested block.",__LINE__,error)
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
@@ -373,9 +379,9 @@
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        iw = 1
 !$     iw = omp_get_thread_num()+1
-       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
-            cp_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.")
+       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
+            dbcsr_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
        IF (dbcsr_use_mutable (matrix%m)) THEN
           IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
              CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
@@ -413,6 +419,7 @@
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    TYPE(dbcsr_error_type)                   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_c', &
       routineP = moduleN//':'//routineN
@@ -425,9 +432,9 @@
     TYPE(btree_2d_data_c)          :: data_block
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block_1d
 !   ---------------------------------------------------------------------------
-    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Data type mismatch for requested block.")
+    CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Data type mismatch for requested block.",__LINE__,error)
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
@@ -456,9 +463,9 @@
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        iw = 1
 !$     iw = omp_get_thread_num()+1
-       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
-            cp_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.")
+       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
+            dbcsr_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
        IF (dbcsr_use_mutable (matrix%m)) THEN
           CALL btree_get_c (&
                matrix%m%wms(iw)%mutable%m%btree_c,&
@@ -499,6 +506,7 @@
     LOGICAL, INTENT(OUT)                     :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
+    TYPE(dbcsr_error_type)                   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_p_c', &
       routineP = moduleN//':'//routineN
@@ -509,9 +517,9 @@
                                                 stored_col
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
-    CALL cp_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Data type mismatch for requested block.")
+    CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_complex_4,&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Data type mismatch for requested block.",__LINE__,error)
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
@@ -530,12 +538,12 @@
             dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1&
             )
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
-       CALL cp_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
-            cp_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.")
-       CALL cp_assert (.NOT.dbcsr_use_mutable (matrix%m), cp_failure_level,&
-            cp_caller_error, routineN,&
-            "Can not retrieve rank-1 block pointers from mutable work matrices.")
+       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
+            dbcsr_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
+       CALL dbcsr_assert (.NOT.dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
+            dbcsr_caller_error, routineN,&
+            "Can not retrieve rank-1 block pointers from mutable work matrices.",__LINE__,error)
     ENDIF
   END SUBROUTINE dbcsr_get_block_p_c
 
@@ -780,8 +788,8 @@
     ! check for 0 block
     IF(nze.LE.0) RETURN
 
-    CALL dbcsr_assert (SIZE(block) .GE. nze, cp_fatal_level,&
-         cp_caller_error, routineN, "Invalid block dimensions")
+    CALL dbcsr_assert (SIZE(block) .GE. nze, dbcsr_fatal_level,&
+         dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__,error)
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, offset)
     IF(found) THEN
@@ -852,9 +860,9 @@
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.TRUE.)
              IF (found) THEN
-                CALL dbcsr_assert (ASSOCIATED (data_block2%p), cp_warning_level,&
-                     cp_internal_error, routineN,&
-                     "Data was not present in block")
+                CALL dbcsr_assert (ASSOCIATED (data_block2%p), dbcsr_warning_level,&
+                     dbcsr_internal_error, routineN,&
+                     "Data was not present in block",__LINE__,error)
                 IF (ASSOCIATED (data_block2%p)) DEALLOCATE (data_block2%p)
              ENDIF
           ELSE
@@ -885,7 +893,7 @@
     INTEGER, INTENT(IN)                      :: source
     CHARACTER(LEN=*), INTENT(IN)             :: scope
     TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'bcast_block_c', &
       routineP = moduleN//':'//routineN
@@ -932,11 +940,11 @@
           ENDIF
        ENDDO
     CASE('all')
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_unimplemented_error_nr, &
-            routineN, "combination of types NYI")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN, "combination of types NYI",__LINE__,error)
     CASE DEFAULT
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, &
-            routineN, "how do you wanna bcast")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
+            routineN, "how do you wanna bcast",__LINE__,error)
     END SELECT
     DEALLOCATE(buff)
 
@@ -987,6 +995,7 @@
   SUBROUTINE block_chol_inv_c(m, blk)
     INTEGER                                  :: m
     COMPLEX(kind=real_4)                                  :: blk(m,m)
+    TYPE(dbcsr_error_type)                   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_chol_inv_c', &
       routineP = moduleN//':'//routineN
@@ -996,11 +1005,11 @@
 !   ---------------------------------------------------------------------------
 
     CALL cpotrf( 'U', m, blk, m, info )
-    CALL cp_assert (info.EQ.0, cp_fatal_level, cp_internal_error, &
-            routineN, "error in dpotrf")
+    CALL dbcsr_assert (info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
+            routineN, "error in dpotrf",__LINE__,error)
     CALL cpotri( 'U', m, blk, m, info )
-    CALL cp_assert (info.EQ.0, cp_fatal_level, cp_internal_error, &
-            routineN, "error in dpotri")
+    CALL dbcsr_assert (info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
+            routineN, "error in dpotri",__LINE__,error)
     !
     ! symmetrize
     DO i=1,m

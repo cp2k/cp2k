@@ -30,23 +30,18 @@ MODULE dbcsr_operations
                                              btree_add_z => btree_add,&
                                              btree_get_z => btree_find,&
                                              btree_z => btree
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
+  USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
                                              int_4,&
                                              int_8,&
                                              real_4,&
                                              real_8,&
                                              sp
-  USE dbcsr_machine,                   ONLY: m_walltime
+  USE dbcsr_machine,                   ONLY: default_output_unit,&
+                                             m_walltime
   USE dbcsr_message_passing,           ONLY: &
        dmp_max, mp_allgather, mp_alltoall, mp_bcast, mp_irecv, mp_isend, &
        mp_sum, mp_type_descriptor_type, mp_type_free, mp_type_make, mp_waitall
-!dmp_max, this fixes a bug in g95
-! -> ambigous interface for mp_max
-!    in module dbcsr_message_passing and wrongly
-!    exported from module timings
   USE dbcsr_methods
   USE dbcsr_types
   USE dbcsr_util
@@ -55,7 +50,6 @@ MODULE dbcsr_operations
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -232,7 +226,7 @@ CONTAINS
       INTENT(INOUT), TARGET                  :: left_set, right_set
     TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
     INTEGER, DIMENSION(6), INTENT(IN)        :: submatrix_selection
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha, beta
@@ -288,7 +282,6 @@ CONTAINS
                                                 right_pgrid
     REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
                                                 trun, trun_t, tstart, tstop
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_2d_array_type), POINTER       :: left_buffer_calc, &
                                                 left_buffer_comm, &
                                                 right_buffer_calc, &
@@ -297,7 +290,6 @@ CONTAINS
                                                 right_buffer_1, right_buffer_2
     TYPE(dbcsr_data_obj)                     :: left_data_rp, left_data_sp, &
                                                 right_data_rp, right_data_sp
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
                                                 right_mp_obj
     TYPE(mp_type_descriptor_type), &
@@ -311,10 +303,12 @@ CONTAINS
                                                 right_recv_subtypes, &
                                                 right_send_subtypes
 
+!TYPE(cp_logger_type), POINTER            :: logger
+
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
+    CALL dbcsr_error_set(routineN, error_handler, error)
     debug_level=0
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
@@ -324,10 +318,11 @@ CONTAINS
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     !IF (.NOT. ASSOCIATED (product_matrix%m%wms)) THEN
        CALL dbcsr_work_create(product_matrix,&
-            work_mutable=.FALSE., error=dbcsr_error)
+            work_mutable=.FALSE., error=error)
     !ENDIF
-    logger => cp_error_get_logger (error)
-    output_unit = cp_logger_get_default_io_unit (logger)
+    !logger => cp_error_get_logger (error)
+    output_unit = default_output_unit
+    !cp_logger_get_default_io_unit (logger)
     tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
     t_dgemm = 0.0_dp ; t_all = 0.0_dp
     flop_total = 0
@@ -353,62 +348,62 @@ CONTAINS
     product_pgrid => dbcsr_mp_pgrid (product_mp_obj)
     CALL dbcsr_mp_grid_setup (product_mp_obj)
     CALL dbcsr_assert (dbcsr_mp_has_subgroups (product_mp_obj),&
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Row/column subgroups must be defined")
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Row/column subgroups must be defined",__LINE__,error)
     mp_rc_groups(M_P, 1:2) = (/ dbcsr_mp_my_row_group (product_mp_obj),&
                                 dbcsr_mp_my_col_group (product_mp_obj) /)
     CALL dbcsr_mp_grid_setup (left_mp_obj)
     CALL dbcsr_assert (dbcsr_mp_has_subgroups (left_mp_obj),&
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Row/column subgroups must be defined")
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Row/column subgroups must be defined",__LINE__,error)
     mp_rc_groups(M_L, 1:2) = (/ dbcsr_mp_my_row_group (left_mp_obj),&
                                 dbcsr_mp_my_col_group (left_mp_obj) /)
     CALL dbcsr_mp_grid_setup (right_mp_obj)
     CALL dbcsr_assert (dbcsr_mp_has_subgroups (right_mp_obj),&
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Row/column subgroups must be defined")
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Row/column subgroups must be defined",__LINE__,error)
     mp_rc_groups(M_R, 1:2) = (/ dbcsr_mp_my_row_group (right_mp_obj),&
                                 dbcsr_mp_my_col_group (right_mp_obj) /)
     ! Dummy checks
     ! left/right matching
-    CALL cp_assert (left_col_nimages .EQ. right_row_mult&
-         .AND. left_col_mult .EQ. right_row_nimages, cp_fatal_level,&
-         cp_internal_error, routineN, "Left/Right image mismatch", error=error)
-    CALL cp_assert (left_col_nimages * dbcsr_mp_npcols (left_mp_obj) &
+    CALL dbcsr_assert (left_col_nimages .EQ. right_row_mult&
+         .AND. left_col_mult .EQ. right_row_nimages, dbcsr_fatal_level,&
+         dbcsr_internal_error, routineN, "Left/Right image mismatch",__LINE__,error)
+    CALL dbcsr_assert (left_col_nimages * dbcsr_mp_npcols (left_mp_obj) &
          .EQ. right_row_nimages * dbcsr_mp_nprows (right_mp_obj), &
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Left/Right total mismatch", error=error)
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Left/Right total mismatch",__LINE__,error)
     ! product/left matching
-    CALL cp_assert (left_row_mult * dbcsr_mp_nprows (product_mp_obj) &
+    CALL dbcsr_assert (left_row_mult * dbcsr_mp_nprows (product_mp_obj) &
          .EQ. left_row_nimages * dbcsr_mp_nprows (left_mp_obj), &
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Product/Left total mismatch", error=error)
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Product/Left total mismatch",__LINE__,error)
     ! product/left matching
-    CALL cp_assert (right_col_mult * dbcsr_mp_npcols (product_mp_obj) &
+    CALL dbcsr_assert (right_col_mult * dbcsr_mp_npcols (product_mp_obj) &
          .EQ. right_col_nimages * dbcsr_mp_npcols (right_mp_obj), &
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Product/Right total mismatch", error=error)
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Product/Right total mismatch",__LINE__,error)
     ! Limitations
-    CALL cp_assert (left_row_nimages.eq.1 .AND. left_row_mult.eq.1,&
-         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
-         "Product/Left matrix process grid mismatch", error=error)
-    CALL cp_assert (right_col_nimages.eq.1 .AND. right_col_mult.eq.1,&
-         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
-         "Product/Right matrix process grid mismatch", error=error)
+    CALL dbcsr_assert (left_row_nimages.eq.1 .AND. left_row_mult.eq.1,&
+         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+         "Product/Left matrix process grid mismatch",__LINE__,error)
+    CALL dbcsr_assert (right_col_nimages.eq.1 .AND. right_col_mult.eq.1,&
+         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+         "Product/Right matrix process grid mismatch",__LINE__,error)
     !
     ! Setup product work areas
     DO i = 1, nthreads
        CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
             MAX(product_matrix%m%wms(i)%datasize,&
             dbcsr_nfullrows_local (product_matrix)&
-            *dbcsr_nfullcols_local (product_matrix)),error=dbcsr_error)
+            *dbcsr_nfullcols_local (product_matrix)),error=error)
             !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%nfullcols_local))
        CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=dbcsr_error)
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
        CALL ensure_array_size(product_matrix%m%wms(i)%col_i,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=dbcsr_error)
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
        CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=dbcsr_error)
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
     ENDDO
     !
     ! Exchange size data
@@ -502,10 +497,10 @@ CONTAINS
     max_nze = MAXVAL (all_sizes(idata, :, :, :))
     CALL setup_buffer_matrices (left_buffer_1, left_row_mult, left_col_nimages,&
          left_set%mats(1,1), index_size=max_nblks,&
-         data_size=max_nze, error=dbcsr_error)
+         data_size=max_nze, error=error)
     CALL setup_buffer_matrices (left_buffer_2, left_row_mult, left_col_nimages,&
          left_set%mats(1,1), index_size=max_nblks,&
-         data_size=max_nze, error=dbcsr_error)
+         data_size=max_nze, error=error)
     !left_buffer_calc => left_buffer_1
     left_buffer_calc => left_set
     left_buffer_comm => left_buffer_2
@@ -520,10 +515,10 @@ CONTAINS
     max_nze = MAXVAL (all_sizes(idata+2, :,:,:))
     CALL setup_buffer_matrices (right_buffer_1, right_row_nimages, right_col_mult,&
          right_set%mats(1,1), index_size=max_nblks, data_size=max_nze,&
-         error=dbcsr_error)
+         error=error)
     CALL setup_buffer_matrices (right_buffer_2, right_row_nimages, right_col_mult,&
          right_set%mats(1,1), index_size=max_nblks, data_size=max_nze,&
-         error=dbcsr_error)
+         error=error)
     !right_buffer_calc => right_buffer_1
     right_buffer_calc => right_set
     right_buffer_comm => right_buffer_2
@@ -584,8 +579,8 @@ CONTAINS
              right_send_irow = MOD (right_send_v_row, right_row_nimages)
              CALL dbcsr_assert (&
                   right_send_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong right send prow")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong right send prow",__LINE__,error)
 
              right_send_pcol = dbcsr_mp_mypcol(right_mp_obj)
              right_send_icol = 1
@@ -600,12 +595,12 @@ CONTAINS
              right_dst_irow = 1 + MOD (right_dst_v_row, right_row_nimages)
              CALL dbcsr_assert(&
                   right_dst_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong right dst prow")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong right dst prow",__LINE__,error)
              CALL dbcsr_assert(&
                   right_dst_irow, "LE", right_row_nimages,&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong right dst row image")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong right dst row image",__LINE__,error)
              right_dst_pcol = dbcsr_mp_mypcol(right_mp_obj)
              right_dst_icol = 1
              right_dst_v_col =&
@@ -636,8 +631,8 @@ CONTAINS
              right_recv_irow = MOD(right_recv_v_row, right_row_nimages)
              CALL dbcsr_assert (&
                   right_recv_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong right receive prow")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong right receive prow",__LINE__,error)
              right_recv_pcol = dbcsr_mp_mypcol (right_mp_obj)
              right_recv_icol = 1
              right_recv_v_col = dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
@@ -650,12 +645,12 @@ CONTAINS
              right_src_irow = 1 + MOD (right_src_v_row, right_row_nimages)
              CALL dbcsr_assert(&
                   right_src_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong right src prow")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong right src prow",__LINE__,error)
              CALL dbcsr_assert(&
                   right_src_irow, "LE", right_row_nimages,&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong right src row image")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong right src row image",__LINE__,error)
              right_src_pcol = dbcsr_mp_mypcol(right_mp_obj)
              right_src_icol = 1
              right_src_v_col = dbcsr_mp_mypcol(right_mp_obj)*right_col_nimages
@@ -791,8 +786,8 @@ CONTAINS
              left_send_icol = 1
              CALL dbcsr_assert (&
                   left_send_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong left send pcol")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong left send pcol",__LINE__,error)
              ! Calculate which data I send.
              left_dst_prow = dbcsr_mp_myprow(left_mp_obj)
              left_dst_irow = 1
@@ -807,12 +802,12 @@ CONTAINS
              left_dst_icol = 1 + MOD (left_dst_v_col, left_col_nimages)
              CALL dbcsr_assert(&
                   left_dst_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong left dst pcol")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong left dst pcol",__LINE__,error)
              CALL dbcsr_assert(&
                   left_dst_icol, "LE", left_col_nimages,&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong left dst col image")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong left dst col image",__LINE__,error)
              !
              left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
              CALL dbcsr_data_set_pointer(&
@@ -842,8 +837,8 @@ CONTAINS
              left_recv_icol = 1
              CALL dbcsr_assert (&
                   left_recv_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong receive pcol")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong receive pcol",__LINE__,error)
              ! Calculate which data I receive
              left_src_prow = dbcsr_mp_myprow (left_mp_obj)
              left_src_irow = 1
@@ -859,12 +854,12 @@ CONTAINS
              left_src_icol = 1 + MOD (left_src_v_col, left_col_nimages)
              CALL dbcsr_assert(&
                   left_src_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong left src pcol")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong left src pcol",__LINE__,error)
              CALL dbcsr_assert(&
                   left_src_icol, "LE", left_col_nimages,&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  "Wrong left src column image")
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Wrong left src column image",__LINE__,error)
              !
              left_src_p = left_pgrid (left_src_prow, left_src_pcol)
              CALL dbcsr_data_set_pointer(&
@@ -966,8 +961,8 @@ CONTAINS
           ENDIF
           DO v_ki = 0, min_nimages-1
              IF (dbg) THEN
-                CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE., error=dbcsr_error)
-                CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=dbcsr_error)
+                CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE., error=error)
+                CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
              ENDIF
              tstart = m_walltime ()
              CALL dbcsr_nn_mult_lin(&
@@ -977,7 +972,7 @@ CONTAINS
                   retain_sparsity=retain_sparsity,&
                   alpha=alpha,&
                   flop=flop_single,&
-                  t_all=t_all, t_dgemm=t_dgemm, error=dbcsr_error)
+                  t_all=t_all, t_dgemm=t_dgemm, error=error)
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
              IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
@@ -1014,10 +1009,10 @@ CONTAINS
             "MFLOPS"
     ENDIF
     !
-    CALL dbcsr_destroy_array (right_buffer_1)
-    CALL dbcsr_destroy_array (right_buffer_2)
-    CALL dbcsr_destroy_array (left_buffer_1)
-    CALL dbcsr_destroy_array (left_buffer_2)
+    CALL dbcsr_destroy_array (right_buffer_1, error=error)
+    CALL dbcsr_destroy_array (right_buffer_2, error=error)
+    CALL dbcsr_destroy_array (left_buffer_1, error=error)
+    CALL dbcsr_destroy_array (left_buffer_2, error=error)
     DEALLOCATE (my_sizes)
     !
     CALL dbcsr_data_clear_pointer(left_data_sp)
@@ -1029,10 +1024,10 @@ CONTAINS
     CALL dbcsr_data_release(right_data_sp)
     CALL dbcsr_data_release(right_data_rp)
     !
-    CALL dbcsr_finalize(product_matrix, error=dbcsr_error)
+    CALL dbcsr_finalize(product_matrix, error=error)
     !
     IF (dbg) THEN
-       checksum = dbcsr_checksum (product_matrix, error=dbcsr_error)
+       checksum = dbcsr_checksum (product_matrix, error=error)
        IF ((output_unit>0)) THEN
           WRITE(output_unit,'(1X,A,1X,F9.4)')"Product Checksum=",checksum
        ENDIF
@@ -1040,7 +1035,7 @@ CONTAINS
     !
     IF (PRESENT (flop)) flop = flop_total
     CALL timestop (timing_handle)
-    CALL dbcsr_error_stop(error_handler, dbcsr_error)
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mult_m_e_e
 
 
@@ -1277,14 +1272,14 @@ CONTAINS
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
     ! Submatrix handling
     CALL dbcsr_assert (submatrix_box(1) .EQ. 0,&
-         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
-         "Limiting first row not supported")
+         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+         "Limiting first row not supported",__LINE__,error)
     CALL dbcsr_assert (submatrix_box(3) .EQ. 0,&
-         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
-         "Limiting first column not supported")
+         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+         "Limiting first column not supported",__LINE__,error)
     CALL dbcsr_assert (submatrix_box(5) .EQ. 0,&
-         cp_fatal_level, cp_unimplemented_error_nr, routineN,&
-         "Limiting first k not supported")
+         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+         "Limiting first k not supported",__LINE__,error)
     left_limit_rows = MAXVAL (submatrix_box(1:2)) .GT. 0
     right_limit_cols = MAXVAL (submatrix_box(3:4)) .GT. 0
     limit_k = MAXVAL (submatrix_box(5:6)) .GT. 0
@@ -1358,8 +1353,8 @@ CONTAINS
                     MIN(submat_l_row, blk_start)&
                   - MAX(submat_f_row, blk_end)+1&
                   .EQ. blk_size,&
-                  cp_fatal_level, cp_unimplemented_error_nr,&
-                  routineN, "Submatrix must encompass complete block rows")
+                  dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
+                  routineN, "Submatrix must encompass complete block rows",__LINE__,error)
           ENDIF
        ENDIF
        a_row_size_logical = blk_size ! stored
@@ -1643,7 +1638,7 @@ CONTAINS
          product%wms(ithread+1)%row_i, product%wms(ithread+1)%col_i,&
          product%wms(ithread+1)%blk_p,&
          old_size,&
-         new_index, new_blk)
+         new_index, new_blk, error=error)
     ! Replace the index.
     CALL pointer_replace (product%wms(ithread+1)%row_i, new_row_i)
     CALL pointer_replace (product%wms(ithread+1)%col_i, new_col_i)
@@ -1798,8 +1793,8 @@ CONTAINS
        left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area,&
        lflop=lflop, error=error)
     CASE default
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_caller_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
     
     CALL dbcsr_error_stop(error_handler, error)
@@ -2133,7 +2128,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE merge_arrays (new_row_i, new_col_i, new_blk_p, new_size,&
        old_row_i, old_col_i, old_blk_p, old_size,&
-       add_ip, add_size, new_blk_d, old_blk_d)
+       add_ip, add_size, new_blk_d, old_blk_d, error)
     INTEGER, INTENT(IN)                      :: new_size
     INTEGER, DIMENSION(new_size), &
       INTENT(OUT)                            :: new_blk_p, new_col_i, &
@@ -2148,6 +2143,7 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: new_blk_d
     INTEGER, DIMENSION(old_size), &
       INTENT(IN), OPTIONAL                   :: old_blk_d
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     INTEGER                                  :: add_blk, i, merge_from_whom, &
                                                 new_blk, old_blk
@@ -2157,8 +2153,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     multidata = PRESENT (old_blk_d) .AND. PRESENT (new_blk_d)
-    CALL bcsr_assert(2, old_size+add_size .EQ. new_size, "merge_arrays",&
-         "Mismatch of new and old size")
+    CALL dbcsr_assert(old_size+add_size .EQ. new_size, &
+         dbcsr_warning_level, dbcsr_internal_error ,"merge_arrays",&
+         "Mismatch of new and old size",__LINE__,error)
     IF (dbg) THEN
        WRITE (*,*) " Old array", old_size
        DO i = 1, old_size
@@ -2434,14 +2431,14 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (.NOT. PRESENT (last_column) .OR. scale_type .EQ. 'S', &
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Column limiting supported only with scalar scaling")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Column limiting supported only with scalar scaling",__LINE__,error)
     last_col = 0
     IF (PRESENT (last_column)) THEN
        CALL dbcsr_assert (last_column .GE. 0 .AND. last_column .LE.&
-            dbcsr_nfullcols_total (matrix_a), cp_fatal_level,&
-            cp_wrong_args_error, routineN,&
-            "Specified last column is out of bounds.")
+            dbcsr_nfullcols_total (matrix_a), dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Specified last column is out of bounds.",__LINE__,error)
        last_col = last_column
        ALLOCATE (col_start(dbcsr_nblkcols_total(matrix_a)))
        ALLOCATE (col_end(dbcsr_nblkcols_total(matrix_a)))
@@ -2457,9 +2454,9 @@ CONTAINS
        CASE('right');right = .TRUE.
        CASE('left' );right = .FALSE.
        CASE DEFAULT
-          CALL dbcsr_assert (.FALSE., cp_fatal_level,&
-               cp_wrong_args_error, routineN,&
-               "wrong side="//side)
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "wrong side="//side,__LINE__,error)
        END SELECT
     ENDIF
     IF(scale_type .EQ. 'M') THEN     ! Matrix scaling
@@ -2572,9 +2569,9 @@ CONTAINS
                 CALL dbcsr_blas_copy(a_nze, buffer, 1, data_any, 1)
              ENDIF
           ELSE
-             CALL dbcsr_assert (.FALSE., cp_fatal_level,&
-                  cp_wrong_args_error, routineN,&
-                  "wrong logic")
+             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,&
+                  dbcsr_wrong_args_error, routineN,&
+                  "wrong logic",__LINE__,error)
           ENDIF
        ENDDO iterations
        CALL dbcsr_iterator_stop(iter)
@@ -2615,8 +2612,8 @@ CONTAINS
        CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
             scale_type=scale_type, alpha_scalar=dbcsr_scalar (REAL(alpha_scalar,real_4)))
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid data type",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_scale_d
@@ -2639,8 +2636,8 @@ CONTAINS
        CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
             scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid data type",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_scale_s
@@ -2666,8 +2663,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
             scale_type=scale_type, alpha_scalar=dbcsr_scalar (CMPLX(alpha_scalar,KIND=real_4)))
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid data type",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_scale_z
@@ -2690,8 +2687,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
             scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid data type",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_scale_c
@@ -2727,9 +2724,9 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_error_set(routineN, error_handler, error)
 
 ! check that alpha and matrix have the same data type
-    CALL dbcsr_assert (dbcsr_get_data_type (matrix_a).EQ.alpha%d%data_type, cp_fatal_level,&
-         cp_wrong_args_error, routineN, "wrong data type matrix_a="//&
-         dbcsr_get_data_type (matrix_a)//' alpha='//alpha%d%data_type)
+    CALL dbcsr_assert (dbcsr_get_data_type (matrix_a).EQ.alpha%d%data_type, dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "wrong data type matrix_a="//&
+         dbcsr_get_data_type (matrix_a)//' alpha='//alpha%d%data_type,__LINE__,error)
     !
     ! set vars
     right = .TRUE.
@@ -2737,8 +2734,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CASE('right');right = .TRUE.
     CASE('left' );right = .FALSE.
     CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, &
-            routineN, "wrong side="//side)
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
+            routineN, "wrong side="//side,__LINE__,error)
     END SELECT
     !
     ! let's go
@@ -2952,13 +2949,14 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     INTEGER                                  :: b, c, r
     LOGICAL                                  :: found, tr
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT (block_number)) THEN
        b = block_number
-       CALL dbcsr_assert (block_number .LE. matrix%m%nblks, cp_failure_level,&
-            cp_caller_error, routineN, "Block number too big.")
+       CALL dbcsr_assert (block_number .LE. matrix%m%nblks, dbcsr_failure_level,&
+            dbcsr_caller_error, routineN, "Block number too big.",__LINE__,error)
        found = .TRUE.
     ELSE
        CALL dbcsr_get_block_index (matrix, row, col, r, c, tr, found, b)
@@ -2970,11 +2968,11 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        matrix%m%valid = .FALSE.
        ! update nze accordingly
        matrix%m%nze = matrix%m%nze - block_nze
-       CALL dbcsr_assert (matrix%m%nze .GE. 0, cp_failure_level,&
-            cp_caller_error, routineN, "nze < 0!")
+       CALL dbcsr_assert (matrix%m%nze .GE. 0, dbcsr_failure_level,&
+            dbcsr_caller_error, routineN, "nze < 0!",__LINE__,error)
     ELSE
-       CALL dbcsr_assert (b .NE. 0, cp_warning_level, cp_caller_error, routineN,&
-            "Block does not exist or is already deleted.")
+       CALL dbcsr_assert (b .NE. 0, dbcsr_warning_level, dbcsr_caller_error, routineN,&
+            "Block does not exist or is already deleted.",__LINE__,error)
     ENDIF
   END SUBROUTINE dbcsr_remove_block
 
@@ -3020,7 +3018,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     !
     ! let's go
     CALL dbcsr_assert (dbcsr_nblkrows_total(matrix_a).EQ.dbcsr_nblkrows_total(matrix_b), &
-         cp_fatal_level, cp_wrong_args_error, routineN, "matrices not consistent")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__,error)
 
     do_scale = dbcsr_scalar_are_equal (&
          my_beta_scalar, dbcsr_scalar_one (data_type_b))
@@ -3100,8 +3098,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
             alpha_scalar=dbcsr_scalar(REAL(alpha_scalar,real_4)),&
             beta_scalar=dbcsr_scalar(beta_scalar), error=error)
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_d
@@ -3124,8 +3122,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
             alpha_scalar=dbcsr_scalar(alpha_scalar),&
             beta_scalar=dbcsr_scalar(beta_scalar), error=error)
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_s
@@ -3153,8 +3151,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
             alpha_scalar=dbcsr_scalar(CMPLX(alpha_scalar,KIND=real_4)),&
             beta_scalar=dbcsr_scalar(CMPLX(beta_scalar,KIND=real_4)), error=error)
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_z
@@ -3177,8 +3175,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
             alpha_scalar=dbcsr_scalar(alpha_scalar),&
             beta_scalar=dbcsr_scalar(beta_scalar), error=error)
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_c
@@ -3210,13 +3208,13 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b).AND.&
          dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_c), &
-         cp_fatal_level, cp_wrong_args_error, routineN, &
-         "data types not consistent, need to fix that")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+         "data types not consistent, need to fix that",__LINE__,error)
 
     CALL dbcsr_assert (dbcsr_nblkrows_total(matrix_a).EQ.dbcsr_nblkrows_total(matrix_b).AND.&
          dbcsr_nblkrows_total(matrix_c).EQ.dbcsr_nblkrows_total(matrix_a), &
-         cp_fatal_level, cp_wrong_args_error, routineN, &
-         "matrices not consistent")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+         "matrices not consistent",__LINE__,error)
 
     data_type = dbcsr_get_data_type(matrix_a)
     CALL dbcsr_data_init (c_data)
@@ -3236,8 +3234,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
                row_size=row_size, col_size=col_size)
           nze = row_size * col_size
           CALL dbcsr_get_block_p(matrix_b, row, col, b_data, tr_b, found)
-          CALL dbcsr_assert (tr_a.EQV.tr_b, cp_fatal_level, cp_wrong_args_error, routineN, &
-               "tr not consistent, need to fix that")
+          CALL dbcsr_assert (tr_a.EQV.tr_b, dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+               "tr not consistent, need to fix that",__LINE__,error)
           IF(found) THEN
              SELECT CASE (data_type)
              CASE (dbcsr_type_real_4)
@@ -3255,7 +3253,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           !CASE (dbcsr_type_complex_4)
           !CASE (dbcsr_type_complex_8)
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Only real double precision")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Only real double precision",__LINE__,error)
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -3299,11 +3298,11 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b), &
-         cp_fatal_level, cp_wrong_args_error, routineN, "data types not consistent")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "data types not consistent",__LINE__,error)
     !
     ! let's go
     CALL dbcsr_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total, &
-         cp_fatal_level, cp_wrong_args_error, routineN, "matrices not consistent")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__,error)
 
     CALL dbcsr_iterator_start(iter, matrix_b)
 
@@ -3324,7 +3323,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
           CALL dbcsr_put_block(matrix_a, row, col, data_z)
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Unkown precision")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Unkown precision",__LINE__,error)
        END SELECT
 
     ENDDO
@@ -3360,7 +3360,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_nblkrows_total(matrix).EQ.dbcsr_nblkcols_total(matrix).AND.&
          dbcsr_nfullrows_total(matrix).EQ.dbcsr_nfullrows_total(matrix), &
-         cp_fatal_level, cp_wrong_args_error, routineN, "matrices not consistent")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__,error)
 
     row_blk_size => array_data(dbcsr_row_block_sizes(matrix))
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
@@ -3425,8 +3425,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           !CASE (dbcsr_type_complex_4)
           !CASE (dbcsr_type_complex_8)
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,&
-               "Only real double precision")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Only real double precision",__LINE__,error)
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -3460,7 +3460,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (dbcsr_nfullrows_total(matrix).LE.SIZE(diag), &
-         cp_fatal_level, cp_wrong_args_error, routineN, "SIZE(diag) too small")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "SIZE(diag) too small",__LINE__,error)
 
     diag = 0.0_dp
 
@@ -3484,7 +3484,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           !CASE (dbcsr_type_complex_8)
           !CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Only real double precision")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Only real double precision",__LINE__,error)
        END SELECT
 
     ENDDO
@@ -3520,7 +3521,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_error_set(routineN, error_handler, error)
 
     CALL dbcsr_assert (dbcsr_nfullrows_total(matrix).LE.SIZE(diag), &
-         cp_fatal_level, cp_wrong_args_error, routineN, "SIZE(diag) too small")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "SIZE(diag) too small",__LINE__,error)
 
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -3540,7 +3541,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           !CASE (dbcsr_type_complex_8)
           !CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Only real double precision")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Only real double precision",__LINE__,error)
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -3583,15 +3585,15 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     keep_sparse = .FALSE.
     IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
 
-    !CALL cp_assert (dbcsr_is_initialized (matrix_b),&
-    !     cp_fatal_level, cp_wrong_args_error, routineN,&
+    !CALL dbcsr_assert (dbcsr_is_initialized (matrix_b),&
+    !     dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
     !     "Target matrix must be initialized", error=error)
     CALL dbcsr_assert (.not.keep_sparse.or.dbcsr_valid_index(matrix_b),&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Target matrix must be valid to keep its sparsity")
-    CALL dbcsr_assert (.not.keep_sparse.or..not.shallow, cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         "Shallow copy not compatibly with sparsity retainment")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Target matrix must be valid to keep its sparsity",__LINE__,error)
+    CALL dbcsr_assert (.not.keep_sparse.or..not.shallow, dbcsr_warning_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "Shallow copy not compatibly with sparsity retainment",__LINE__,error)
     IF (keep_sparse) THEN
        IF (PRESENT (name)) matrix_b%m%name = name
        CALL dbcsr_copy_into_existing(matrix_b, matrix_a, error)
@@ -3620,8 +3622,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)
        IF (.NOT. shallow) THEN
           CALL dbcsr_assert (matrix_a%m%nze .LE. dbcsr_get_data_size(matrix_a),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Source matrix sizes not consistent!")
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Source matrix sizes not consistent!",__LINE__,error)
           CALL dbcsr_data_ensure_size (matrix_b%m%data_area,&
                dbcsr_get_data_size(matrix_a), error=error)
           IF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_get_data_type(matrix_b))&
@@ -3634,9 +3636,9 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           ENDIF
        ELSE
           CALL dbcsr_assert (dbcsr_get_data_type(matrix_a) &
-               .EQ. dbcsr_get_data_type(matrix_b), cp_fatal_level,&
-               cp_wrong_args_error, routineN,&
-               "Shallow copy only possible when retaining data type.")
+               .EQ. dbcsr_get_data_type(matrix_b), dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "Shallow copy only possible when retaining data type.", __LINE__, error)
           CALL dbcsr_data_release (matrix_b%m%data_area)
           matrix_b%m%data_area = matrix_a%m%data_area
           CALL dbcsr_data_hold (matrix_b%m%data_area)
@@ -3679,8 +3681,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_get_data_type(matrix_b)&
-         .EQ. dbcsr_get_data_type(matrix_a), cp_fatal_level,&
-         cp_wrong_args_error, routineN, "Matrices have different data types.")
+         .EQ. dbcsr_get_data_type(matrix_a), dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "Matrices have different data types.",__LINE__,error)
     data_type = dbcsr_get_data_type (matrix_b)
 
     CALL dbcsr_data_init (src_data)
@@ -3718,8 +3720,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CASE (0)
           ! Copy the data
           CALL dbcsr_assert (dbcsr_get_data_size (src_data)&
-               .EQ. dbcsr_get_data_size (dst_data), cp_fatal_level,&
-               cp_internal_error, routineN, "Block sizes not equal!")
+               .EQ. dbcsr_get_data_size (dst_data), dbcsr_fatal_level,&
+               dbcsr_internal_error, routineN, "Block sizes not equal!",__LINE__,error)
           IF (src_tr .EQV. dst_tr) THEN
              CALL dbcsr_data_copyall (dst_data, src_data)
              !dst_r_dp(:) = src_r_dp(:)
@@ -3731,8 +3733,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
              !CALL dbcsr_block_transpose (dst_r_dp, src_r_dp, rs, cs)
           ENDIF
        CASE default
-          CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-               routineN, "Trouble syncing iterators")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+               routineN, "Trouble syncing iterators",__LINE__,error)
        END SELECT
     END DO
     CALL dbcsr_iterator_stop (src_iter)
@@ -3784,12 +3786,12 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_get_data_type(matrix_b)&
-         .EQ. dbcsr_get_data_type(matrix_a), cp_fatal_level,&
-         cp_wrong_args_error, routineN, "Matrices have different data types.")
+         .EQ. dbcsr_get_data_type(matrix_a), dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "Matrices have different data types.",__LINE__,error)
     data_type = dbcsr_get_data_type (matrix_b)
 
-    CALL dbcsr_assert (source_start .EQ. target_start, cp_fatal_level,&
-         cp_unimplemented_error_nr, routineN, "Column shifting not supported")
+    CALL dbcsr_assert (source_start .EQ. target_start, dbcsr_fatal_level,&
+         dbcsr_unimplemented_error_nr, routineN, "Column shifting not supported",__LINE__,error)
 
     src_col_offsets => array_data (matrix_a%m%col_blk_offset)
     dst_col_offsets => array_data (matrix_b%m%col_blk_offset)
@@ -3832,13 +3834,13 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CASE (0) ! Equal block coordinates; block exists in both src and dst
           ! Check if the full block is being copied
           CALL dbcsr_assert (src_col_sizes(src_col) .EQ. dst_col_sizes(dst_col),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Unequal column sizes")
-          !CALL cp_unimplemented_error (routineN, "Partial block copy not tested",&
-          !     error=error, error_level=cp_warning_level)
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Unequal column sizes",__LINE__,error)
+          !CALL dbcsr_unimplemented_error (routineN, "Partial block copy not tested",&
+          !     error=error, error_level=dbcsr_warning_level)
           CALL dbcsr_assert (src_col_offsets(src_col).eq.dst_col_offsets(dst_col),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Block offsets must be equal")
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "Block offsets must be equal",__LINE__,error)
           first_col = 1 + MAX (src_col_offsets(src_col), source_start)&
                - src_col_offsets(src_col)
           last_col = MIN (src_col_offsets(src_col)+ncol-1, source_start+ncol-1) - &
@@ -3857,8 +3859,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
              CALL dbcsr_put_block (matrix_b, src_row, src_col, src_data,&
                   transposed=src_tr)
           ELSE
-             CALL dbcsr_assert (.FALSE., cp_fatal_level,  cp_internal_error, routineN,&
-                  "Partial block addition not yet tested")
+             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,  dbcsr_internal_error, routineN,&
+                  "Partial block addition not yet tested",__LINE__,error)
              CALL dbcsr_data_clear (tmp_buffer)
              CALL dbcsr_block_partial_copy (&
                   tmp_buffer, row_size, col_size, src_tr,&
@@ -3871,8 +3873,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CASE (1)
           ! Ran out of source. Do nothing.
        CASE default
-          CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-               routineN, "Trouble syncing iterators")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+               routineN, "Trouble syncing iterators",__LINE__,error)
        END SELECT
     END DO
     CALL dbcsr_iterator_stop (src_iter)
@@ -4136,14 +4138,14 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
                 nrm = SQRT(DDOT(SIZE(data_d), data_d(1), 1, data_d(1), 1))
                 IF(nrm.LT.eps) CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
              CASE DEFAULT
-                CALL cp_unimplemented_error (routineN,&
-                     "Only Frobenius based filtering")
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+                     routineN,"Only Frobenius based filtering",__LINE__,error)
              END SELECT
              !CASE (dbcsr_type_complex_4)
              !CASE (dbcsr_type_complex_8)
           CASE DEFAULT
-             CALL cp_unimplemented_error (routineN,&
-                  "Only real double precision")
+             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+                  routineN,"Only real double precision",__LINE__,error)
           END SELECT
        ENDDO
        CALL dbcsr_iterator_stop(iter)
@@ -4230,7 +4232,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
              !CASE (dbcsr_type_complex_4)
              !CASE (dbcsr_type_complex_8)
              CASE DEFAULT
-                CALL cp_unimplemented_error (routineN,"Only real double precision")
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+                     routineN,"Only real double precision",__LINE__,error)
              END SELECT
           ENDDO
           CALL dbcsr_iterator_stop(iter)
@@ -4240,7 +4243,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CASE DEFAULT
 
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN, "this norm is NYI")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+            "this norm is NYI",__LINE__,error)
 
     END SELECT
     CALL dbcsr_error_stop(error_handler, error)
@@ -4270,6 +4274,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: buff_d
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
+    TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -4280,8 +4285,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     any_sym = dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
               dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric
 
-    CALL dbcsr_assert (nr.EQ.nc, cp_fatal_level, cp_wrong_args_error, &
-         routineN, "not a square matrix")
+    CALL dbcsr_assert (nr.EQ.nc, dbcsr_fatal_level, dbcsr_wrong_args_error, &
+         routineN, "not a square matrix",__LINE__,error)
 
     dbcsr_gershgorin_norm = 0.0_dp
     ALLOCATE(buff_d(nr))
@@ -4316,7 +4321,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           DO i=1,SIZE(data_c,1)
              buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_c(i,j))
              IF(any_sym.AND.row.NE.col) &
-                  CALL cp_unimplemented_error(routineN,"Only nonsymmetric matrix so far")
+                  CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+                  routineN,"Only nonsymmetric matrix so far",__LINE__,error)
              !     buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_c(i,j))
           ENDDO
           ENDDO
@@ -4327,12 +4333,14 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           DO i=1,SIZE(data_z,1)
              buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_z(i,j))
              IF(any_sym.AND.row.NE.col) &
-                  CALL cp_unimplemented_error(routineN,"Only nonsymmetric matrix so far")
+                  CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+                  routineN,"Only nonsymmetric matrix so far",__LINE__,error)
              !     buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_z(i,j))
           ENDDO
           ENDDO
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Wrong data type")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Wrong data type",__LINE__,error)
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -4363,6 +4371,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
+    TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -4384,7 +4393,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
           dbcsr_maxabs_norm = MAX(dbcsr_maxabs_norm,MAXVAL(ABS(data_z)))
        CASE DEFAULT
-          CALL cp_unimplemented_error (routineN,"Wrong data type")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Wrong data type",__LINE__,error)
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -4420,6 +4430,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     REAL(dp)                                 :: fac
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_d
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: data_r
+    TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
@@ -4445,16 +4456,19 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk)
           fac = 1.0_dp
           IF(any_sym.AND.row.NE.col) &
-               CALL cp_unimplemented_error(routineN,"Only nonsymmetric matrix so far")
+               CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Only nonsymmetric matrix so far",__LINE__,error)
           dbcsr_frobenius_norm = dbcsr_frobenius_norm + fac * SUM(CONJG(data_c)*data_c)
        CASE (dbcsr_type_complex_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
           fac = 1.0_dp
           IF(any_sym.AND.row.NE.col) &
-               CALL cp_unimplemented_error(routineN,"Only nonsymmetric matrix so far")
+               CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Only nonsymmetric matrix so far",__LINE__,error)
           dbcsr_frobenius_norm = dbcsr_frobenius_norm + fac * SUM(CONJG(data_z)*data_z)
        CASE DEFAULT
-          CALL cp_unimplemented_error(routineN,"Wrong data type")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+               routineN,"Wrong data type",__LINE__,error)
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -4508,23 +4522,26 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_error_set(routineN, error_handler, error)
     tstart = m_walltime ()
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix not initialized.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Matrix not initialized.",__LINE__,error)
     CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Replicating a non-distributed matrix makes no sense.")
+         dbcsr_warning_level, dbcsr_caller_error, routineN,&
+         "Replicating a non-distributed matrix makes no sense.",__LINE__,error)
     SELECT CASE (matrix%m%data_type)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_get_data (matrix%m%data_area, r_dp)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix%m%data_area, r_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix%m%data_area, c_dp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix%m%data_area, c_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     END SELECT
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
@@ -4541,21 +4558,21 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DBG 'blacs2mpi',blacs2mpi
     DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
     DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
-    CALL dbcsr_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows')
+    CALL dbcsr_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Row distribution references unexistent processor rows',__LINE__,error)
     IF (dbg) THEN
        CALL dbcsr_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1),&
-            cp_warning_level, cp_wrong_args_error, routineN,&
-            'Range of row distribution not equal to processor rows')
+            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
+            'Range of row distribution not equal to processor rows',__LINE__,error)
     ENDIF
-    CALL dbcsr_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols')
+    CALL dbcsr_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Col distribution references unexistent processor cols',__LINE__,error)
     IF (dbg) THEN
        CALL dbcsr_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2),&
-            cp_warning_level, cp_wrong_args_error, routineN,&
-            'Range of col distribution not equal to processor cols')
+            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
+            'Range of col distribution not equal to processor cols',__LINE__,error)
     ENDIF
     ALLOCATE (send_count(2, 0:numnodes-1))
     ALLOCATE (recv_count(2, 0:numnodes-1))
@@ -4740,13 +4757,14 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 !> \param[in] hint            where to start looking; ignored if 0
 ! *****************************************************************************
   SUBROUTINE find_block_of_element(full, block, nblocks,&
-       block_start, block_end, hint)
+       block_start, block_end, hint, error)
     INTEGER, INTENT(in)                      :: full
     INTEGER, INTENT(out)                     :: block
     INTEGER, INTENT(in)                      :: nblocks
     INTEGER, DIMENSION(1:nblocks), &
       INTENT(in)                             :: block_start, block_end
     INTEGER, INTENT(in)                      :: hint
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     INTEGER                                  :: count
 
@@ -4769,9 +4787,9 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           !WRITE(*,'(10(1X,I7))')block_start
           !WRITE(*,'(10(1X,I7))')block_end
           !WRITE(*,*)"full, nblocks, count, hint", full, nblocks, count, hint
-          CALL dbcsr_assert (count .LE. nblocks, cp_failure_level,&
-               cp_internal_error, "find_block_of_element",&
-               "Too many searches")
+          CALL dbcsr_assert (count .LE. nblocks, dbcsr_failure_level,&
+               dbcsr_internal_error, "find_block_of_element",&
+               "Too many searches",__LINE__,error)
        ENDIF
     ENDDO
   END SUBROUTINE find_block_of_element
@@ -4833,14 +4851,14 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     t_all = m_walltime()
     t_prolog = t_all
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Input not valid.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Input not valid.",__LINE__,error)
     CALL dbcsr_assert (dbcsr_is_initialized(redist%m),&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Output matrix not initialized.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Output matrix not initialized.",__LINE__,error)
     CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Can not redistribute replicated matrix.")
+         dbcsr_warning_level, dbcsr_caller_error, routineN,&
+         "Can not redistribute replicated matrix.",__LINE__,error)
     !
     my_keep_sparsity = .FALSE.
     IF (PRESENT (keep_sparsity)) my_keep_sparsity = keep_sparsity
@@ -4894,21 +4912,21 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     numnodes = dbcsr_mp_numnodes (mp_obj_new)
     mp_group = dbcsr_mp_group (mp_obj_new)
     !
-    CALL dbcsr_assert(MAXVAL(row_dist_new).LE.UBOUND(pgrid,1), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows')
+    CALL dbcsr_assert(MAXVAL(row_dist_new).LE.UBOUND(pgrid,1), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Row distribution references unexistent processor rows',__LINE__,error)
     IF (dbg) THEN
        CALL dbcsr_assert(MAXVAL(row_dist_new).EQ.UBOUND(pgrid,1),&
-            cp_warning_level, cp_wrong_args_error, routineN,&
-            'Range of row distribution not equal to processor rows')
+            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
+            'Range of row distribution not equal to processor rows',__LINE__,error)
     ENDIF
-    CALL dbcsr_assert(MAXVAL(col_dist_new).LE.UBOUND(pgrid,2), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols')
+    CALL dbcsr_assert(MAXVAL(col_dist_new).LE.UBOUND(pgrid,2), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Col distribution references unexistent processor cols',__LINE__,error)
     IF (dbg) THEN
        CALL dbcsr_assert(MAXVAL(col_dist_new).EQ.UBOUND(pgrid,2),&
-            cp_warning_level, cp_wrong_args_error, routineN,&
-            'Range of col distribution not equal to processor cols')
+            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
+            'Range of col distribution not equal to processor cols',__LINE__,error)
     ENDIF
     ALLOCATE (send_count(2, 0:numnodes-1))
     ALLOCATE (recv_count(2, 0:numnodes-1))
@@ -5121,8 +5139,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
             recv_data%d%c_dp(:), SUM(total_recv_count(2,:)), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE default
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            routineN, "Invalid matrix type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid matrix type",__LINE__,error)
     END SELECT
     DBG 'F'
     DBG 'send_data'
@@ -5288,7 +5306,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     !call dbcsr_print(redist)
     !cs2 = dbcsr_checksum (redist)
     !WRITE(*,*)routineN//" Checksums=",cs1, cs2, cs1-cs2
-    !CALL dbcsr_assert (cs1-cs2 .LT. 0.00001, cp_fatal_level, cp_internal_error,&
+    !CALL dbcsr_assert (cs1-cs2 .LT. 0.00001, dbcsr_fatal_level, dbcsr_internal_error,&
     !     routineN, "Mangled data!")
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_complete_redistribute
@@ -5340,14 +5358,14 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     !call dbcsr_print_dist (matrix%m%dist)
     !call dbcsr_print_dist (redist%m%dist)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Input not valid.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Input not valid.",__LINE__,error)
     CALL dbcsr_assert (dbcsr_is_initialized(redist%m),&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Output matrix not initialized.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Output matrix not initialized.",__LINE__,error)
     CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Can not redistribute replicated matrix.")
+         dbcsr_warning_level, dbcsr_caller_error, routineN,&
+         "Can not redistribute replicated matrix.",__LINE__,error)
     data_type = matrix%m%data_type
     ! Get row and column start and end positions
     ! Old matrix
@@ -5364,21 +5382,21 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     numnodes = dbcsr_mp_numnodes (mp_obj_new)
     mp_group = dbcsr_mp_group (mp_obj_new)
     !
-    CALL dbcsr_assert(MAXVAL(row_dist_new).LE.UBOUND(pgrid,1), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows')
+    CALL dbcsr_assert(MAXVAL(row_dist_new).LE.UBOUND(pgrid,1), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Row distribution references unexistent processor rows',__LINE__,error)
     IF (dbg) THEN
        CALL dbcsr_assert(MAXVAL(row_dist_new).EQ.UBOUND(pgrid,1),&
-            cp_warning_level, cp_wrong_args_error, routineN,&
-            'Range of row distribution not equal to processor rows')
+            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
+            'Range of row distribution not equal to processor rows',__LINE__,error)
     ENDIF
-    CALL dbcsr_assert(MAXVAL(col_dist_new).LE.UBOUND(pgrid,2), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols')
+    CALL dbcsr_assert(MAXVAL(col_dist_new).LE.UBOUND(pgrid,2), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Col distribution references unexistent processor cols',__LINE__,error)
     IF (dbg) THEN
        CALL dbcsr_assert(MAXVAL(col_dist_new).EQ.UBOUND(pgrid,2),&
-            cp_warning_level, cp_wrong_args_error, routineN,&
-            'Range of col distribution not equal to processor cols')
+            dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
+            'Range of col distribution not equal to processor cols',__LINE__,error)
     ENDIF
     ALLOCATE (send_count(2, 0:numnodes-1))
     ALLOCATE (recv_count(2, 0:numnodes-1))
@@ -5621,8 +5639,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
 
-    CALL dbcsr_assert (dbcsr_valid_index(normal), cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix does not exist.")
+    CALL dbcsr_assert (dbcsr_valid_index(normal), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Matrix does not exist.",__LINE__,error)
     ! Internalize options
     shallow = .FALSE.
     IF (PRESENT (shallow_data_copy)) shallow = shallow_data_copy
@@ -5633,15 +5651,15 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     ! Prepare the distribution for the transposed matrix
     IF (PRESENT (use_distribution)) THEN
        CALL dbcsr_assert (dbcsr_distribution_nrows (use_distribution),&
-            "EQ", dbcsr_distribution_ncols (normal%m%dist), cp_fatal_level,&
-            cp_wrong_args_error, routineN,&
+            "EQ", dbcsr_distribution_ncols (normal%m%dist), dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
             "Given distribution must be compatible"&
-            //" with the current distribution")
+            //" with the current distribution",__LINE__,error)
        CALL dbcsr_assert (dbcsr_distribution_ncols (use_distribution),&
-            "EQ", dbcsr_distribution_nrows (normal%m%dist), cp_fatal_level,&
-            cp_wrong_args_error, routineN,&
+            "EQ", dbcsr_distribution_nrows (normal%m%dist), dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
             "Given distribution must be compatible"&
-            //" with the current distribution")
+            //" with the current distribution",__LINE__,error)
        new_dist = use_distribution
        CALL dbcsr_distribution_hold (new_dist)
     ELSE
@@ -5789,8 +5807,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     CALL dbcsr_error_set(routineN, error_handler, error)
     tstart = m_walltime ()
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "Matrix not initialized.")
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "Matrix not initialized.",__LINE__,error)
     nsymmetries = 1
     IF (sm%m%matrix_type .EQ. 'S' .OR. sm%m%matrix_type .EQ. 'A') THEN
        nsymmetries = 2
@@ -5800,13 +5818,16 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CALL dbcsr_get_data (sm%m%data_area, r_dp)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (sm%m%data_area, r_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (sm%m%data_area, c_dp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (sm%m%data_area, c_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     END SELECT
     row_blk_size => array_data (sm%m%row_blk_size)
     col_blk_size => array_data (sm%m%col_blk_size)
@@ -5824,24 +5845,24 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
     DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
     IF (sm%m%matrix_type .EQ. 'S' .OR. sm%m%matrix_type .EQ. 'A') THEN
-       CALL dbcsr_assert(SIZE(row_dist) .EQ. SIZE(col_dist), cp_warning_level,&
-            cp_wrong_args_error, routineN,&
-            'Unequal row and column distributions for symmetric matrix.')
+       CALL dbcsr_assert(SIZE(row_dist) .EQ. SIZE(col_dist), dbcsr_warning_level,&
+            dbcsr_wrong_args_error, routineN,&
+            'Unequal row and column distributions for symmetric matrix.',__LINE__,error)
     ENDIF
-    CALL dbcsr_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows')
+    CALL dbcsr_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Row distribution references unexistent processor rows',__LINE__,error)
     IF (dbg) &
-         CALL dbcsr_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         'Range of row distribution not equal to processor rows')
-    CALL dbcsr_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols')
+         CALL dbcsr_assert(MAXVAL(row_dist).EQ.UBOUND(blacs2mpi,1), dbcsr_warning_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Range of row distribution not equal to processor rows',__LINE__,error)
+    CALL dbcsr_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Col distribution references unexistent processor cols',__LINE__,error)
     IF (dbg) &
-         CALL dbcsr_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         'Range of col distribution not equal to processor cols')
+         CALL dbcsr_assert(MAXVAL(col_dist).EQ.UBOUND(blacs2mpi,2), dbcsr_warning_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Range of col distribution not equal to processor cols',__LINE__,error)
     ALLOCATE (send_count(2, 0:numproc-1))
     ALLOCATE (recv_count(2, 0:numproc-1))
     ALLOCATE (total_send_count(2, 0:numproc-1))
@@ -6077,11 +6098,11 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Matrix not initialized.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Matrix not initialized.",__LINE__,error)
     CALL dbcsr_assert (matrix%m%replication_type .NE. dbcsr_repl_none,&
-         cp_warning_level, cp_caller_error, routineN,&
-         "Distributing a non-replicated matrix makes no sense.")
+         dbcsr_warning_level, dbcsr_caller_error, routineN,&
+         "Distributing a non-replicated matrix makes no sense.",__LINE__,error)
     IF (PRESENT (fast)) THEN
        mini=fast
     ELSE
@@ -6092,13 +6113,16 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CALL dbcsr_get_data (matrix%m%data_area, r_dp)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix%m%data_area, r_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix%m%data_area, c_dp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix%m%data_area, c_sp)
-       CALL cp_unimplemented_error(routineN, "Only double precision real.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+            routineN,"Only real double precision",__LINE__,error)
     END SELECT
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
@@ -6242,7 +6266,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
           CALL dbcsr_add (matrix, recv_matrix, 1.0_dp, 1.0_dp, error=error)
         ENDIF
     ENDDO
-    CALL dbcsr_destroy (recv_matrix, force=.TRUE.)
+    CALL dbcsr_destroy (recv_matrix, error=error,force=.TRUE.)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_sum_replicated
 
@@ -6290,6 +6314,7 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     TYPE(btree_2d_data_d)                    :: data_block_d
     TYPE(btree_2d_data_s)                    :: data_block_s
     TYPE(btree_2d_data_z)                    :: data_block_z
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -6315,9 +6340,9 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        iw = 1
 !$     iw = omp_get_thread_num()+1
-       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), cp_failure_level,&
-            cp_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.")
+       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
+            dbcsr_caller_error, routineN,&
+            "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
        IF (dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
           SELECT CASE (block%d%data_type)
           CASE (dbcsr_type_real_4_2d)
@@ -6353,8 +6378,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
                 CALL dbcsr_data_set_pointer (block, data_block_z%p)
              ENDIF
           CASE default
-             CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-                  routineN, "Invalid data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+                  routineN, "Invalid data type",__LINE__,error)
           END SELECT
        ENDIF
     ENDIF
@@ -6385,18 +6410,19 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
 
     CHARACTER                                :: data_type_m
     LOGICAL                                  :: do_scale
+    TYPE(dbcsr_error_type)                   :: error
 
     data_type_m = dbcsr_get_data_type (matrix)
     do_scale = PRESENT (scale)
     IF (do_scale) THEN
-       !CALL dbcsr_assert (data_type_m .EQ. scale%data_type, cp_fatal_level,&
-       !     cp_wrong_args_error, routineN, "Incompatible data types matrix="//&
+       !CALL dbcsr_assert (data_type_m .EQ. scale%data_type, dbcsr_fatal_level,&
+       !     dbcsr_wrong_args_error, routineN, "Incompatible data types matrix="//&
        !     data_type_m//" scale="//scale%data_type)
     ENDIF
-    CALL dbcsr_assert (ASSOCIATED (block%d), cp_fatal_level, cp_wrong_args_error,&
-         routineN, "Can only add valid data block!")
+    CALL dbcsr_assert (ASSOCIATED (block%d), dbcsr_fatal_level, dbcsr_wrong_args_error,&
+         routineN, "Can only add valid data block!",__LINE__,error)
     !CALL dbcsr_assert (data_type_m .EQ. dbcsr_type_2d_to_1d(block%d%data_type),&
-    !     cp_fatal_level, cp_wrong_args_error, routineN,&
+    !     dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
     !     "Incompatible data types matrix="//&
     !        data_type_m//" block="//block%d%data_type)
     SELECT CASE(block%d%data_type)
@@ -6475,8 +6501,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
                summation)
        ENDIF
     CASE default
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_put_block_area
 
@@ -6549,8 +6575,8 @@ SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
        CALL dbcsr_trace_ab_s(matrix_a, matrix_b, trace_4, trans_a, trans_b, local_sum, error)
        trace = REAL(trace_4,real_8)
     ELSE
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid combination of data type, NYI",__LINE__,error)
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_trace_a_b_d

@@ -1,5 +1,9 @@
 MODULE dbcsr_machine
 
+#if defined ( __NAG )
+  USE f90_unix
+#endif
+
   USE dbcsr_kinds,                     ONLY: dp
 
   IMPLICIT NONE
@@ -8,9 +12,43 @@ MODULE dbcsr_machine
 
   INTEGER, PARAMETER, PUBLIC :: default_output_unit=6
 
-  PUBLIC :: m_walltime
+  PUBLIC :: m_walltime, m_flush, m_abort
 
 CONTAINS
+
+  SUBROUTINE m_flush(lunit)
+    INTEGER, INTENT(IN)                      :: lunit
+
+#if defined ( __G95 )
+    CALL flush(lunit)
+#elif defined ( __GFORTRAN )
+    CALL flush(lunit)
+#elif defined ( __INTEL )
+    CALL flush(lunit)
+#elif defined ( __XT5 )
+    CALL flush(lunit)
+#elif defined ( __PGI )
+#elif defined ( __NAG )
+    CALL flush(lunit)
+
+#endif
+  END SUBROUTINE m_flush
+
+  SUBROUTINE m_abort()
+#if defined ( __G95 )
+    CALL abort()
+#elif defined ( __GFORTRAN )
+    CALL abort()
+#elif defined ( __INTEL )
+    CALL abort()
+#elif defined ( __XT5 )
+    CALL abort()
+#elif defined ( __PGI )
+    CALL abort()
+#elif defined ( __NAG )
+    CALL abort()
+#endif
+  END SUBROUTINE m_abort
 
   FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                            :: wt

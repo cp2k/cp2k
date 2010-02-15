@@ -21,9 +21,7 @@ MODULE dbcsr_util
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
+  USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -89,7 +87,6 @@ MODULE dbcsr_util
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 
@@ -204,11 +201,6 @@ MODULE dbcsr_util
           dbcsr_set_diagonal_z, dbcsr_set_diagonal_c
   END INTERFACE
 
-  INTERFACE dbcsr_assert
-     MODULE PROCEDURE bcsr_assert, dbcsr_int_assert, dbcsr_logical_assert,&
-                      dbcsr_not_assert, dbcsr_char_assert, dbcsr_true_assert
-  END INTERFACE
-
   INTERFACE create_bl_distribution
      MODULE PROCEDURE create_bl_distribution_new
   END INTERFACE
@@ -241,7 +233,7 @@ MODULE dbcsr_util
   PUBLIC :: dbcsr_addto_index_array, dbcsr_clearfrom_index_array,&
        addto_array, swap, ensure_array_size,&
        dbcsr_set_debug, dbcsr_sleep,&
-       checker_tr, bcsr_assert, dbcsr_assert,&
+       checker_tr, &
        dbcsr_get_stored_coordinates, dbcsr_get_stored_block_info,&
        dbcsr_find_column,&
        add_work_coordinate,&
@@ -407,11 +399,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_stored_coordinates_obj', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_assert (matrix%m%initialized,'EQ',dbcsr_magic_number,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "matrix%m not associated")
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "matrix%m not associated",__LINE__,error)
     IF (PRESENT (processor)) THEN
        CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose, processor)
     ELSE
@@ -763,8 +757,8 @@ CONTAINS
           ENDIF
        ELSE
           CALL dbcsr_assert (matrix%m%initialized, 'EQ', 0,&
-               cp_fatal_level, cp_caller_error, routineN,&
-               "Matrix may not have been initialized with dbcsr_init")
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+               "Matrix may not have been initialized with dbcsr_init",__LINE__,error)
           hijack = .FALSE.
        ENDIF
     ENDIF
@@ -793,8 +787,8 @@ CONTAINS
        CASE (dbcsr_type_complex_8)
           matrix%m%data_type = dbcsr_type_complex_8
        CASE DEFAULT
-         CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-              routineN, "Invalid matrix type")
+         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+              routineN, "Invalid matrix type",__LINE__,error)
       END SELECT
     ELSE
        matrix%m%data_type = dbcsr_type_real_default
@@ -868,12 +862,12 @@ CONTAINS
             .OR. replication_type .EQ. dbcsr_repl_full&
             .OR. replication_type .EQ. dbcsr_repl_row&
             .OR. replication_type .EQ. dbcsr_repl_col,&
-            cp_failure_level, cp_wrong_args_error, routineN,&
-            "Invalid replication type '"//replication_type//"'")
+            dbcsr_failure_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid replication type '"//replication_type//"'",__LINE__,error)
        CALL dbcsr_assert (replication_type .NE. dbcsr_repl_row&
             .AND. replication_type .NE. dbcsr_repl_col,&
-            cp_warning_level, cp_unimplemented_error_nr, routineN,&
-            "Row and column replication not fully supported")
+            dbcsr_warning_level, dbcsr_unimplemented_error_nr, routineN,&
+            "Row and column replication not fully supported",__LINE__,error)
        matrix%m%replication_type = replication_type
     ELSE
        matrix%m%replication_type = dbcsr_repl_none
@@ -893,8 +887,8 @@ CONTAINS
     ENDIF
     CALL dbcsr_assert (LBOUND (matrix%m%index, 1) .LE. 1&
          .AND. UBOUND (matrix%m%index, 1) .GE. dbcsr_num_slots,&
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Index is not large enough")
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Index is not large enough",__LINE__,error)
     matrix%m%index(1:dbcsr_num_slots) = 0
     matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
     !
@@ -910,8 +904,8 @@ CONTAINS
        mt = dbcsr_type_antisymmetric
        matrix%m%sym_negation = .TRUE.
     CASE DEFAULT
-       CALL dbcsr_assert(.FALSE., cp_failure_level,&
-            cp_wrong_args_error, routineP, "Invalid matrix type.")
+       CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
+            dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__,error)
     END SELECT
     matrix%m%matrix_type = mt
     NULLIFY (matrix%m%predistributed)
@@ -996,8 +990,8 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (matrix%m%initialized,'EQ',dbcsr_magic_number,&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Can not create work matrix for nonexisting matrix object.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not create work matrix for nonexisting matrix object.",__LINE__,error)
     IF (PRESENT (n)) THEN
        nw = n
     ELSE
@@ -1011,9 +1005,9 @@ CONTAINS
 !$    nw = omp_get_max_threads()
     IF (ASSOCIATED (matrix%m%wms)) THEN
        ow = SIZE(matrix%m%wms)
-       CALL dbcsr_assert (ow, 'GE', nw, cp_warning_level,&
-            cp_internal_error, routineN,&
-            "Number of work matrices less than threads.")
+       CALL dbcsr_assert (ow, 'GE', nw, dbcsr_warning_level,&
+            dbcsr_internal_error, routineN,&
+            "Number of work matrices less than threads.",__LINE__,error)
        IF (ow .LT. nw) wms_realloc = .TRUE.
     ENDIF
     IF (PRESENT (work_mutable)) THEN
@@ -1079,22 +1073,22 @@ CONTAINS
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%predistributed),&
-         cp_warning_level,&
-         cp_internal_error, routineN, "Submatrices exist")
+         dbcsr_warning_level,&
+         dbcsr_internal_error, routineN, "Submatrices exist",__LINE__,error)
     IF (ASSOCIATED (matrix%m%predistributed)) THEN
-          CALL dbcsr_destroy_array (matrix%m%predistributed)
+          CALL dbcsr_destroy_array (matrix%m%predistributed,error)
           CALL dbcsr_destroy_image_dist (matrix%m%predistributed%image_dist)
           DEALLOCATE (matrix%m%predistributed)
     ENDIF
     NULLIFY (matrix%m%predistributed)
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Can not finalize uninitialized matrix.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not finalize uninitialized matrix.",__LINE__,error)
     IF (dbcsr_valid_index(matrix)) THEN
        IF (dbg) WRITE(*,'(2(1X,A))')&
             "No need to finalize a valid matrix, skipping."
-!vw       CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%wms), cp_warning_level,&
-!vw            cp_internal_error, routineN,&
+!vw       CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%wms), dbcsr_warning_level,&
+!vw            dbcsr_internal_error, routineN,&
 !vw            "Valid matrix should not contain work data")
        IF (ASSOCIATED (matrix%m%wms)) &
             CALL dbcsr_work_destroy_all(matrix%m)
@@ -1104,7 +1098,7 @@ CONTAINS
     IF (dbg) WRITE(*,'(A,1X,A,2(1X,I9))')routineN//' finalizing matrix ',&
          matrix%m%name, matrix%m%nze, matrix%m%nblks
     !CALL dbcsr_assert (matrix%m%nze.EQ.0 .EQV. matrix%m%nblks.EQ.0,&
-    !     cp_warning_level, cp_unimplemented_error_nr, routineN,&
+    !     dbcsr_warning_level, dbcsr_unimplemented_error_nr, routineN,&
     !     "Matrix data size not consistent with number of blocks.")
     ! If there is data in the matrix proper, create a work matrix from it.
     IF (matrix%m%nze .GT. 0) THEN
@@ -1125,17 +1119,17 @@ CONTAINS
     IF (.NOT. (matrix%m%nze .GT. 0 .OR. ASSOCIATED (matrix%m%wms))) THEN
        IF (dbg) THEN
           CALL dbcsr_assert (matrix%m%nze .GT. 0 .OR. ASSOCIATED (matrix%m%wms),&
-               cp_warning_level, cp_caller_error, routineN,&
-               "Nothing to be done.")
+               dbcsr_warning_level, dbcsr_caller_error, routineN,&
+               "Nothing to be done.",__LINE__,error)
        ENDIF
        ! Should short-circut and just create an empty index.
        CALL dbcsr_work_create (matrix, error=error)
     ENDIF
-    CALL dbcsr_assert (ASSOCIATED (matrix%m%wms), cp_fatal_level, cp_caller_error,&
-         routineN, "Can not finalize matrix containing no work matrices.")
-    CALL dbcsr_assert (SIZE (matrix%m%wms),'GT', 0, cp_failure_level,&
-         cp_caller_error, routineN,&
-         "Can not finalize matrix containing no work matrices.")
+    CALL dbcsr_assert (ASSOCIATED (matrix%m%wms), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not finalize matrix containing no work matrices.",__LINE__,error)
+    CALL dbcsr_assert (SIZE (matrix%m%wms),'GT', 0, dbcsr_failure_level,&
+         dbcsr_caller_error, routineN,&
+         "Can not finalize matrix containing no work matrices.",__LINE__,error)
     ! If there are multiple work matrices, the indices have to be sorted to
     ! enable merging the index.
     IF (sort_index .OR. multidata) THEN
@@ -1285,8 +1279,8 @@ CONTAINS
     m%m = matrix
     IF (nwms .GT. 1) THEN
        tdist => array_data (matrix%dist%d%thread_dist)
-       CALL dbcsr_assert (ASSOCIATED (tdist), cp_fatal_level, cp_internal_error,&
-            routineN, "thread distribution must be defined in threaded env.")
+       CALL dbcsr_assert (ASSOCIATED (tdist), dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "thread distribution must be defined in threaded env.",__LINE__,error)
        WRITE(*,*)routineN//" Threading fill", tdist
     ENDIF
     CALL dbcsr_iterator_start (iter, m)
@@ -1364,11 +1358,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (ASSOCIATED (m%wms), cp_warning_level, cp_caller_error,&
-         routineN, "Want to destroy nonexisting work matrices.")
+    CALL dbcsr_assert (ASSOCIATED (m%wms), dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Want to destroy nonexisting work matrices.",__LINE__,error)
     IF (ASSOCIATED (m%wms)) THEN
        DO i = 1, SIZE (m%wms)
           CALL dbcsr_work_destroy (m%wms(i))
@@ -1403,15 +1398,15 @@ CONTAINS
 
     n = SIZE (sizes)
     !IF (bcsr_debug) THEN
-    !   CALL dbcsr_assert (SIZE (offsets_start) .GE. n, cp_failure_level,&
-    !        cp_caller_error, routineN, "Start offset array too small")
-    !   CALL dbcsr_assert (SIZE (offsets_start) .EQ. n, cp_warning_level,&
-    !        cp_caller_error, routineN, "Start offset array too big")
+    !   CALL dbcsr_assert (SIZE (offsets_start) .GE. n, dbcsr_failure_level,&
+    !        dbcsr_caller_error, routineN, "Start offset array too small")
+    !   CALL dbcsr_assert (SIZE (offsets_start) .EQ. n, dbcsr_warning_level,&
+    !        dbcsr_caller_error, routineN, "Start offset array too big")
     !   IF (PRESENT (offsests_stop)) THEN
-    !      CALL dbcsr_assert (SIZE (offsets_stop) .GE. n, cp_failure_level,&
-    !           cp_caller_error, routineN, "Stop offset array too small")
-    !      CALL dbcsr_assert (SIZE (offsets_stop) .EQ. n, cp_warning_level,&
-    !           cp_caller_error, routineN, "Stop offset array too big")
+    !      CALL dbcsr_assert (SIZE (offsets_stop) .GE. n, dbcsr_failure_level,&
+    !           dbcsr_caller_error, routineN, "Stop offset array too small")
+    !      CALL dbcsr_assert (SIZE (offsets_stop) .EQ. n, dbcsr_warning_level,&
+    !           dbcsr_caller_error, routineN, "Stop offset array too big")
     !   ENDIF
     !ENDIF
     IF (n .GT. 0) THEN
@@ -1810,9 +1805,9 @@ CONTAINS
                old_image_dist=images%image_dist)
           nlocal_blocks = MIN (nfullrows*nfullcols, 1)
           CALL dbcsr_assert (nlocal_blocks, "LE", 1,&
-               cp_warning_level,&
-               cp_internal_error, routineN,&
-               "Too many local dense blocks.")
+               dbcsr_warning_level,&
+               dbcsr_internal_error, routineN,&
+               "Too many local dense blocks.",__LINE__,error)
           ! New index structure
           CALL dbcsr_addto_index_array (images%mats(mat_row,mat_col)%m,&
                dbcsr_slot_row_p,&
@@ -1951,9 +1946,9 @@ CONTAINS
     CALL array_release (new_row_dist)
     CALL array_release (new_col_dist)
     nlocal_blocks = dbcsr_distribution_nlocal_rows(distribution)
-    CALL dbcsr_assert (nlocal_blocks, "LE", 1, cp_warning_level,&
-         cp_internal_error, routineN,&
-         "There should be 0 or 1 local dense blocks.")
+    CALL dbcsr_assert (nlocal_blocks, "LE", 1, dbcsr_warning_level,&
+         dbcsr_internal_error, routineN,&
+         "There should be 0 or 1 local dense blocks.",__LINE__,error)
     matrix%m%dist = distribution
     ! New sizes
     CALL match_sizes_to_dist (matrix%m%dist, old_distribution,&
@@ -2310,18 +2305,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_col, blk_row, col_offset, &
-                                                col_size, row_offset, &
-                                                row_size, timing_handle
+                                                col_size, row_offset, row_size
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: block, dense2d
+    TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, timing_handle)
     CALL dbcsr_assert (dbcsr_get_data_size (dense_data), 'GE', nfullrows*nfullcols,&
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Dense data too small")
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Dense data too small",__LINE__,error)
     CALL dbcsr_data_clear (dense_data)
     IF (dbcsr_get_data_size(matrix%m%data_area) .GT. 0&
          .AND. nfullrows .GT. 0 .AND. nfullcols .GT. 0) THEN
@@ -2356,7 +2350,6 @@ CONTAINS
        CALL dbcsr_data_clear_pointer (dense2d)
        CALL dbcsr_data_release (dense2d)
     ENDIF
-    CALL timestop (timing_handle)
   END SUBROUTINE make_dense_data
 
 ! *****************************************************************************
@@ -2377,18 +2370,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_col, blk_row, col_offset, &
-                                                col_size, row_offset, &
-                                                row_size, timing_handle
+                                                col_size, row_offset, row_size
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: block, dense2d
+    TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, timing_handle)
     CALL dbcsr_assert (dbcsr_get_data_size (dense_data), 'GE', nfullrows*nfullcols,&
-         cp_fatal_level, cp_internal_error, routineN,&
-         "Dense data too small")
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Dense data too small",__LINE__,error)
     IF (dbcsr_get_data_size(matrix%m%data_area) .GT. 0) THEN
        CALL dbcsr_data_clear (matrix%m%data_area)
        CALL dbcsr_data_init (block)
@@ -2423,7 +2415,6 @@ CONTAINS
        CALL dbcsr_data_clear_pointer (dense2d)
        CALL dbcsr_data_release (dense2d)
     ENDIF
-    CALL timestop (timing_handle)
   END SUBROUTINE make_undense_data
 
 ! *****************************************************************************
@@ -2659,6 +2650,7 @@ CONTAINS
     INTEGER                                  :: acc, el, lel, nglobal, nlo, &
                                                 nlocal, prev_el, sz
     LOGICAL                                  :: local
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -2668,8 +2660,8 @@ CONTAINS
     local = .NOT. (nglobal .EQ. nlo)
     IF (local) THEN
        CALL dbcsr_assert (nlocal, "EQ", nlo,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid size for local offsets")
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Invalid size for local offsets",__LINE__,error)
     ENDIF
     IF (local) THEN
        acc = 1
@@ -3263,15 +3255,15 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
-    CALL dbcsr_assert (ASSOCIATED (matrix%index), cp_fatal_level,&
-         cp_internal_error, routineP,&
-         "Index must be preallocated.")
+    CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
+         dbcsr_internal_error, routineP,&
+         "Index must be preallocated.",__LINE__,error)
     CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
-         cp_failure_level, cp_internal_error, routineP,&
-         "Actual index size less than declared size")
-    CALL dbcsr_assert(PRESENT(DATA), 'OR', PRESENT(reservation), cp_fatal_level,&
-         cp_caller_error, routineP,&
-         'Either an array or its size must be specified.')
+         dbcsr_failure_level, dbcsr_internal_error, routineP,&
+         "Actual index size less than declared size",__LINE__,error)
+    CALL dbcsr_assert(PRESENT(DATA), 'OR', PRESENT(reservation), dbcsr_fatal_level,&
+         dbcsr_caller_error, routineP,&
+         'Either an array or its size must be specified.',__LINE__,error)
     IF(dbg) WRITE(*,*)routineP//' index',&
          matrix%index(:dbcsr_num_slots)
     IF (PRESENT (reservation)) THEN
@@ -3333,15 +3325,16 @@ CONTAINS
 
     INTEGER                                  :: space
     INTEGER, DIMENSION(3)                    :: max_extents
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (ASSOCIATED (matrix%index), cp_fatal_level,&
-         cp_internal_error, routineP,&
-         "Index must be preallocated.")
+    CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
+         dbcsr_internal_error, routineP,&
+         "Index must be preallocated.",__LINE__,error)
     CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
-         cp_failure_level, cp_internal_error, routineP,&
-         "Actual index size less than declared size")
+         dbcsr_failure_level, dbcsr_internal_error, routineP,&
+         "Actual index size less than declared size",__LINE__,error)
     IF(dbg) WRITE(*,*)routineP//' index',&
          matrix%index(:dbcsr_num_slots)
     ! Clear index entry pointer
@@ -3458,8 +3451,8 @@ CONTAINS
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_valid_index(matrix),&
-         cp_warning_level, cp_caller_error,&
-         routineN, "Invalid matrix.")
+         dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Invalid matrix.",__LINE__,error)
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
     row_blk_size => array_data (matrix%m%row_blk_size)
@@ -3546,8 +3539,8 @@ CONTAINS
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
-         cp_warning_level, cp_caller_error,&
-         routineN, "Can not print invalid matrix.")
+         dbcsr_warning_level, dbcsr_caller_error,&
+         routineN, "Can not print invalid matrix.",__LINE__,error)
     my_matlab_format = .FALSE.
     IF(PRESENT(matlab_format)) my_matlab_format = matlab_format
     yesprint = .TRUE.
@@ -3755,10 +3748,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-
     CALL dbcsr_assert (m%m%initialized, 'EQ', dbcsr_magic_number,&
-         cp_fatal_level, cp_caller_error,&
-         routineN, "Can not verify non-existing matrix object.")
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Can not verify non-existing matrix object.",__LINE__,error)
     dbg = 2
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
@@ -3777,8 +3769,8 @@ CONTAINS
        n_full_blocks_total = m%m%nblkrows_total * m%m%nblkcols_total
     ELSE
        CALL dbcsr_assert(m%m%nblkrows_total, "EQ", m%m%nblkcols_total,&
-            cp_warning_level, cp_internal_error, r,&
-            'Symmetric matrix is not square')
+            dbcsr_warning_level, dbcsr_internal_error, r,&
+            'Symmetric matrix is not square',__LINE__,error)
        n_full_blocks_total = m%m%nblkrows_total * (m%m%nblkrows_total+1)/2
     ENDIF
     n_have_blocks_local = m%m%nblks
@@ -3789,16 +3781,16 @@ CONTAINS
        WRITE(*,2045)m%m%index(:dbcsr_num_slots)
     ENDIF
     CALL dbcsr_assert(m%m%index(1), "GT", 0,&
-         cp_warning_level, cp_internal_error, r,&
-         'Index size 0')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Index size 0',__LINE__,error)
     DO i = dbcsr_slot_row_p, dbcsr_num_slots
        CALL dbcsr_assert(m%m%index(i), "GT", 0,&
-            cp_warning_level, cp_internal_error, r,&
-            'Index member is 0')
+            dbcsr_warning_level, dbcsr_internal_error, r,&
+            'Index member is 0',__LINE__,error)
        IF (.NOT. (i.EQ.dbcsr_slot_col_i.OR.i.EQ.dbcsr_slot_blk_p)) THEN
             CALL dbcsr_assert(m%m%index(i), "LE", m%m%index(1),&
-                 cp_warning_level, cp_internal_error, r,&
-                 'Index member is greater than size')
+                 dbcsr_warning_level, dbcsr_internal_error, r,&
+                 'Index member is greater than size',__LINE__,error)
          ENDIF
     ENDDO
     !
@@ -3806,46 +3798,46 @@ CONTAINS
          m%m%index(dbcsr_slot_row_p), SIZE(m%m%row_p)
     CALL dbcsr_assert(m%m%index(dbcsr_slot_row_p+1)-m%m%index(dbcsr_slot_row_p)+1,&
          "EQ", m%m%nblkrows_total+1,&
-         cp_warning_level, cp_internal_error, r,&
-         'Size of row_p index inconsistent with number of rows')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Size of row_p index inconsistent with number of rows',__LINE__,error)
     CALL dbcsr_assert(SIZE(m%m%row_p), "EQ", m%m%nblkrows_total+1,&
-         cp_warning_level, cp_internal_error, r,&
-         'Size of row_p inconsistent with number of rows')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Size of row_p inconsistent with number of rows',__LINE__,error)
     !
     IF(dbg.GE.4) WRITE(*,*)r//' col_i extents',m%m%index(dbcsr_slot_col_i+1),&
          m%m%index(dbcsr_slot_col_i), SIZE(m%m%col_i)
     CALL dbcsr_assert(m%m%index(dbcsr_slot_col_i+1)-m%m%index(dbcsr_slot_col_i)+1,&
          "EQ", m%m%nblks,&
-         cp_warning_level, cp_internal_error, r,&
-         'Size of col_i index inconsistent with number of blocks')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Size of col_i index inconsistent with number of blocks',__LINE__,error)
     CALL dbcsr_assert(SIZE(m%m%col_i), "EQ", m%m%nblks,&
-         cp_warning_level, cp_internal_error, r,&
-         'Size of col inconsistent with number of blocks')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Size of col inconsistent with number of blocks',__LINE__,error)
     !
     IF(dbg.GE.4) WRITE(*,*)r//' blk_p extents',m%m%index(dbcsr_slot_blk_p+1),&
          m%m%index(dbcsr_slot_blk_p), SIZE(m%m%blk_p)
     CALL dbcsr_assert(m%m%index(dbcsr_slot_blk_p+1)-m%m%index(dbcsr_slot_blk_p)+1,&
          "EQ", m%m%nblks,&
-         cp_warning_level, cp_internal_error, r,&
-         'Size of blk_p index inconsistent with number of blocks')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Size of blk_p index inconsistent with number of blocks',__LINE__,error)
     CALL dbcsr_assert(SIZE(m%m%col_i), "EQ", m%m%nblks,&
-         cp_warning_level, cp_internal_error, r,&
-         'Size of blk_p inconsistent with number of blocks')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Size of blk_p inconsistent with number of blocks',__LINE__,error)
     !
     CALL dbcsr_assert(SIZE(row_blk_size), "EQ", m%m%nblkrows_total,&
-         cp_warning_level, cp_internal_error, r,&
-         'Row block size array inconsistent with number of blocked rows')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Row block size array inconsistent with number of blocked rows',__LINE__,error)
     CALL dbcsr_assert(SIZE(col_blk_size), "EQ", m%m%nblkcols_total,&
-         cp_warning_level, cp_internal_error, r,&
-         'Column block size array inconsistent with number of blocked columns')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Column block size array inconsistent with number of blocked columns',__LINE__,error)
     !
     IF(dbg.GE.4) THEN
        WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%m%nze,'data size',&
             dbcsr_get_data_size(m%m%data_area)
     ENDIF
     CALL dbcsr_assert(dbcsr_get_data_size(m%m%data_area), "GE", m%m%nze,&
-         cp_warning_level, cp_internal_error, r,&
-         'Data storage may be too small.')
+         dbcsr_warning_level, dbcsr_internal_error, r,&
+         'Data storage may be too small.',__LINE__,error)
     IF (dbg.GE.5) THEN
        WRITE (*,'(1X,A,I7,A)') r//' size=',SIZE(m%m%row_p),' row_p='
        WRITE (*,2047) m%m%row_p(1:m%m%nblkrows_total+1)
@@ -3857,45 +3849,45 @@ CONTAINS
     prev_br = 0
     DO br = 1, m%m%nblkrows_total
        CALL dbcsr_assert(m%m%row_p(br), "GE", 0,&
-            cp_warning_level, cp_internal_error, r,&
-            'row_p less than zero')
+            dbcsr_warning_level, dbcsr_internal_error, r,&
+            'row_p less than zero',__LINE__,error)
        IF(br.GT.1) CALL dbcsr_assert(m%m%row_p(br), "GE", m%m%row_p(prev_br),&
-            cp_warning_level, cp_internal_error, r,&
-            'row_p decreases')
+            dbcsr_warning_level, dbcsr_internal_error, r,&
+            'row_p decreases',__LINE__,error)
        mb = row_blk_size(br)
        CALL dbcsr_assert(mb, "GE", 0,&
-            cp_warning_level, cp_internal_error, r,&
-            'Row blocked size is negative')
+            dbcsr_warning_level, dbcsr_internal_error, r,&
+            'Row blocked size is negative',__LINE__,error)
        DO blk = m%m%row_p(br)+1, m%m%row_p(br+1)
           CALL dbcsr_assert(blk, "GT", 0,&
-               cp_warning_level, cp_internal_error, r,&
-               'Block number is zero')
+               dbcsr_warning_level, dbcsr_internal_error, r,&
+               'Block number is zero',__LINE__,error)
           CALL dbcsr_assert(blk, "LE", m%m%nblks,&
-               cp_warning_level, cp_internal_error, r,&
-               'Block number too high')
+               dbcsr_warning_level, dbcsr_internal_error, r,&
+               'Block number too high',__LINE__,error)
           bc = m%m%col_i(blk)
           IF (dbg.GE.5) THEN
              WRITE(*,'(1X,A,I7,"(",I5,",",I5,")")')r//' block',blk,br,bc
           ENDIF
           CALL dbcsr_assert(bc, "GT", 0,&
-               cp_warning_level, cp_internal_error, r,&
-               'col_i is zero')
+               dbcsr_warning_level, dbcsr_internal_error, r,&
+               'col_i is zero',__LINE__,error)
           CALL dbcsr_assert(bc, "LE", m%m%nblkcols_total,&
-               cp_warning_level, cp_internal_error, r,&
-               'col_i too high')
+               dbcsr_warning_level, dbcsr_internal_error, r,&
+               'col_i too high',__LINE__,error)
           n = col_blk_size(bc)
           CALL dbcsr_assert(n, "GE", 0,&
-               cp_warning_level, cp_internal_error, r,&
-               'Column blocked size is negative')
+               dbcsr_warning_level, dbcsr_internal_error, r,&
+               'Column blocked size is negative',__LINE__,error)
           blk_p = m%m%blk_p(blk)
           mn = mb*n
           !CALL dbcsr_assert(dbg,blk_p.GT.0, r, 'Block pointer is negative')
           CALL dbcsr_assert(blk_p, "LE", m%m%nze,&
-               cp_warning_level, cp_internal_error, r,&
-               'Block pointer too large')
+               dbcsr_warning_level, dbcsr_internal_error, r,&
+               'Block pointer too large',__LINE__,error)
           CALL dbcsr_assert(blk_p+mn-1, "LE", m%m%nze,&
-               cp_warning_level, cp_internal_error, r,&
-               'Block extends too far')
+               dbcsr_warning_level, dbcsr_internal_error, r,&
+               'Block extends too far',__LINE__,error)
        ENDDO
        prev_br = br
     ENDDO
@@ -3913,208 +3905,6 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_verify_matrix
 
-
-! *****************************************************************************
-!> \brief Glue for the real assert code
-!> \param[in] l     Assertion
-!> \param[in] routine         Routine name
-!> \param[in] msg   Message to display if the assertion fails
-! *****************************************************************************
-  SUBROUTINE bcsr_assert(level, l, routine, msg)
-    INTEGER, INTENT(IN)                      :: level
-    LOGICAL, INTENT(IN)                      :: l
-    CHARACTER(len=*), INTENT(IN)             :: routine, msg
-
-!   ---------------------------------------------------------------------------
-
-    IF (level .GE. 2) THEN
-       CALL cp_assert(l, cp_warning_level, cp_internal_error, routine, msg)
-    ENDIF
-  END SUBROUTINE bcsr_assert
-
-! *****************************************************************************
-!> \brief Assertion
-!> \param[in] left            left value
-!> \param[in] rel             relation
-!> \param[in] right           right value
-!> \param[in] level           error level
-!> \param[in] etype           error type
-!> \param[in] routine         Routine name
-!> \param[in] msg   Message to display if the assertion fails
-! *****************************************************************************
-  SUBROUTINE dbcsr_int_assert(left, rel, right, level, etype, routine, msg)
-    INTEGER, INTENT(IN)                      :: left
-    CHARACTER(len=2), INTENT(IN)             :: rel
-    INTEGER, INTENT(IN)                      :: right, level, etype
-    CHARACTER(len=*), INTENT(IN)             :: routine, msg
-
-    LOGICAL                                  :: l
-
-!   ---------------------------------------------------------------------------
-
-    SELECT CASE (rel)
-    CASE ("EQ")
-       l = left .EQ. right
-    CASE ("LT")
-       l = left .LT. right
-    CASE ("LE")
-       l = left .LE. right
-    CASE ("GT")
-       l = left .GT. right
-    CASE ("GE")
-       l = left .GE. right
-    CASE ("NE")
-       l = left .NE. right
-    CASE default
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel)
-    END SELECT
-    IF (.NOT. l) THEN
-       WRITE(*,'(1X,A,1X,I9,A4,I9)')"ASSERTION FAILED:",&
-            left, "."//rel//".", right
-    ENDIF
-    CALL cp_assert(l, level, etype, routine, msg)
-  END SUBROUTINE dbcsr_int_assert
-
-! *****************************************************************************
-!> \brief Assertion
-!> \param[in] left            left value
-!> \param[in] rel             relation
-!> \param[in] right           right value
-!> \param[in] level           error level
-!> \param[in] etype           error type
-!> \param[in] routine         Routine name
-!> \param[in] msg   Message to display if the assertion fails
-! *****************************************************************************
-  SUBROUTINE dbcsr_logical_assert(left, rel, right, level, etype, routine, msg)
-    LOGICAL, INTENT(IN)                      :: left
-    CHARACTER(len=*), INTENT(IN)             :: rel
-    LOGICAL, INTENT(IN)                      :: right
-    INTEGER, INTENT(IN)                      :: level, etype
-    CHARACTER(len=*), INTENT(IN)             :: routine, msg
-
-    LOGICAL                                  :: l
-
-!   ---------------------------------------------------------------------------
-
-    SELECT CASE (rel)
-    CASE ("EQV")
-       l = left .EQV. right
-    CASE ("NEQV")
-       l = left .NEQV. right
-    CASE ("OR")
-       l = left .OR. right
-    CASE ("AND")
-       l = left .AND. right
-    CASE default
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel)
-    END SELECT
-    IF (.NOT. l) THEN
-       WRITE(*,'(1X,A,1X,L1,A,L1)')"ASSERTION FAILED:",&
-            left, "."//rel//".", right
-    ENDIF
-    CALL cp_assert(l, level, etype, routine, msg)
-    END SUBROUTINE dbcsr_logical_assert
-
-! *****************************************************************************
-!> \brief Assertion
-!> \param[in] left            left value
-!> \param[in] rel             relation
-!> \param[in] right           right value
-!> \param[in] level           error level
-!> \param[in] etype           error type
-!> \param[in] routine         Routine name
-!> \param[in] msg   Message to display if the assertion fails
-! *****************************************************************************
-  SUBROUTINE dbcsr_char_assert(left, rel, right, level, etype, routine, msg)
-    CHARACTER, INTENT(IN)                    :: left
-    CHARACTER(len=2), INTENT(IN)             :: rel
-    CHARACTER, INTENT(IN)                    :: right
-    INTEGER, INTENT(IN)                      :: level, etype
-    CHARACTER(len=*), INTENT(IN)             :: routine, msg
-
-    LOGICAL                                  :: l
-
-!   ---------------------------------------------------------------------------
-
-    SELECT CASE (rel)
-    CASE ("EQ")
-       l = left .EQ. right
-    CASE ("NE")
-       l = left .NE. right
-    CASE default
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            "dbcsr_char_assert", "Invalid relation specified: "//rel)
-    END SELECT
-    IF (.NOT. l) THEN
-       WRITE(*,'(1X,A,1X,A1,1X,A4,1X,A1)')"ASSERTION FAILED:",&
-            left, "."//rel//".", right
-    ENDIF
-    CALL cp_assert(l, level, etype, routine, msg)
-  END SUBROUTINE dbcsr_char_assert
-
-
-! *****************************************************************************
-!> \brief Assertion
-!> \param[in] right           right value
-!> \param[in] level           error level
-!> \param[in] etype           error type
-!> \param[in] routine         Routine name
-!> \param[in] msg   Message to display if the assertion fails
-! *****************************************************************************
-  SUBROUTINE dbcsr_true_assert(right, level, etype, routine, msg)
-    LOGICAL, INTENT(IN)                      :: right
-    INTEGER, INTENT(IN)                      :: level, etype
-    CHARACTER(len=*), INTENT(IN)             :: routine, msg
-
-    LOGICAL                                  :: l
-
-!   ---------------------------------------------------------------------------
-
-    l = right
-    IF (.NOT.l) THEN
-       WRITE(*,'(1X,A,1X,L1)')"ASSERTION FAILED:",&
-            right
-    ENDIF
-    CALL cp_assert(l, level, etype, routine, msg)
-  END SUBROUTINE dbcsr_true_assert
-
-
-! *****************************************************************************
-!> \brief Assertion
-!> \param[in] rel             relation
-!> \param[in] right           right value
-!> \param[in] level           error level
-!> \param[in] etype           error type
-!> \param[in] routine         Routine name
-!> \param[in] msg   Message to display if the assertion fails
-! *****************************************************************************
-  SUBROUTINE dbcsr_not_assert(rel, right, level, etype, routine, msg)
-    CHARACTER(len=3), INTENT(IN)             :: rel
-    LOGICAL, INTENT(IN)                      :: right
-    INTEGER, INTENT(IN)                      :: level, etype
-    CHARACTER(len=*), INTENT(IN)             :: routine, msg
-
-    LOGICAL                                  :: l
-
-!   ---------------------------------------------------------------------------
-
-    SELECT CASE (rel)
-    CASE ("NOT")
-       l = .NOT. right
-    CASE default
-       CALL cp_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel)
-    END SELECT
-    IF (.NOT. l) THEN
-       WRITE(*,'(1X,A,1X,A,L1)')"ASSERTION FAILED:",&
-            "."//rel//".", right
-    ENDIF
-    CALL cp_assert(l, level, etype, routine, msg)
-  END SUBROUTINE dbcsr_not_assert
-
-
 !! *****************************************************************************
 !!> \brief Makes a matrix canonical: sorts the indices and makes the data
 !!>        sequential.
@@ -4124,7 +3914,7 @@ CONTAINS
 !! *****************************************************************************
 !  SUBROUTINE dbcsr_order(matrix, error, onlydata)
 !    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+!    TYPE(dbcsr_error_type), INTENT(INOUT)       :: error
 !    LOGICAL, INTENT(IN), OPTIONAL            :: onlydata
 !
 !    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_order', &
@@ -4141,7 +3931,7 @@ CONTAINS
 !    DEBUG_BODY
 !    CALL timeset(routineN, timing_handle)
 !    ! We should also check that the indices actually exist.
-!    CALL dbcsr_assert(ASSOCIATED(matrix%data), cp_failure_level, cp_caller_error,&
+!    CALL dbcsr_assert(ASSOCIATED(matrix%data), dbcsr_failure_level, dbcsr_caller_error,&
 !         routineN, "Matrix has no data.", error)
 !    row_blk_size => array_data (matrix%row_blk_size)
 !    col_blk_size => array_data (matrix%col_blk_size)
@@ -4205,20 +3995,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_indices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat, timing_handle
+    INTEGER                                  :: i, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buf, buf_d
+    TYPE(dbcsr_error_type)                   :: error
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     IF (SIZE (row_i) .EQ. 0) RETURN
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_assert(SIZE(row_i),'GE',n, cp_failure_level,&
-         cp_caller_error, routineP, 'row_i too small')
-    CALL dbcsr_assert(SIZE(col_i),'GE',n, cp_failure_level,&
-         cp_caller_error, routineP, 'col_i too small')
-    IF (PRESENT (blk_p)) CALL dbcsr_assert(SIZE(blk_p),'GE',n, cp_failure_level,&
-         cp_caller_error, routineP, 'blk_p too small')
+    CALL dbcsr_assert(SIZE(row_i),'GE',n, dbcsr_failure_level,&
+         dbcsr_caller_error, routineP, 'row_i too small',__LINE__,error)
+    CALL dbcsr_assert(SIZE(col_i),'GE',n, dbcsr_failure_level,&
+         dbcsr_caller_error, routineP, 'col_i too small',__LINE__,error)
+    IF (PRESENT (blk_p)) CALL dbcsr_assert(SIZE(blk_p),'GE',n, dbcsr_failure_level,&
+         dbcsr_caller_error, routineP, 'blk_p too small',__LINE__,error)
     IF (PRESENT (blk_p)) THEN
        ALLOCATE(buf(n), stat=stat)
        IF (stat /= 0) CALL stop_memory(routineP, 'buf', n)
@@ -4251,7 +4041,6 @@ CONTAINS
     DBG ' sort, col_i=',col_i
     IF(dbg.AND.bcsr_verbose.AND.PRESENT(blk_p))&
          WRITE(*,*)routineP//' sort, blk_p =',blk_p
-    CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_sort_indices
 
 ! *****************************************************************************
@@ -4332,24 +4121,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, nblks, &
-                                                timing_handle
+    INTEGER                                  :: error_handler, i, nblks
     LOGICAL                                  :: multidata
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL timeset(routineN, timing_handle)
     multidata = PRESENT (srcs) .AND. PRESENT (old_blk_d)
     nblks = SIZE(old_blk_p)
     DBG 'blk sizes', SIZE(blk_p), nblks
     DBG 'dst data sizes', dbcsr_get_data_size(dsts)
-    CALL dbcsr_assert(SIZE(blk_p),'GE',nblks, cp_failure_level,&
-         cp_wrong_args_error, routineN, 'Destination blk_p too small.')
+    CALL dbcsr_assert(SIZE(blk_p),'GE',nblks, dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN, 'Destination blk_p too small.',__LINE__,error)
     ! If the source is deliberately bigger, we don't want any warnings.
-    !CALL dbcsr_assert(SIZE(dst).GE.SIZE(src), cp_warning_level,&
-    !     cp_wrong_args_error, routineN,&
+    !CALL dbcsr_assert(SIZE(dst).GE.SIZE(src), dbcsr_warning_level,&
+    !     dbcsr_wrong_args_error, routineN,&
     !     'Destination data space may be too small.',&
     !     error)
     DBGV 'old_blk_p',old_blk_p
@@ -4379,7 +4166,6 @@ CONTAINS
        !$OMP END PARALLEL DO
     ENDIF
     DBGV 'new blk_p =',blk_p
-    CALL timestop(timing_handle)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_sort_data
 
@@ -4435,6 +4221,7 @@ CONTAINS
     INTEGER                                  :: blk, col_size, nblks, nrows, &
                                                 nze, nze_prev, row, row_size
     LOGICAL                                  :: mark, trb
+    TYPE(dbcsr_error_type)                   :: error
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -4447,8 +4234,8 @@ CONTAINS
     !
     nblks = SIZE (old_blk_p)
     nrows = SIZE (row_p)-1
-    CALL dbcsr_assert(SIZE(blk_p),'GE',nblks, cp_failure_level,&
-         cp_wrong_args_error, routineN, 'Destination blk_p too small.')
+    CALL dbcsr_assert(SIZE(blk_p),'GE',nblks, dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN, 'Destination blk_p too small.',__LINE__,error)
     IF (nblks .GE. 1) &
          blk_p(1) = SGN(1, old_blk_p(1), mark)
     nze_prev = 0
@@ -4464,8 +4251,8 @@ CONTAINS
              ENDIF
              CALL dbcsr_assert(&
                   ABS(blk_p(blk))+nze-1,'LE', dbcsr_get_data_size(dst),&
-                  cp_fatal_level, cp_internal_error, routineN,&
-                  'Destination data space is too small.')
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  'Destination data space is too small.',__LINE__,error)
              IF (.NOT. trb) THEN
                 CALL dbcsr_data_set (dst, ABS(blk_p(blk)), nze,&
                      src, source_lb=ABS(old_blk_p(blk)))
@@ -4529,8 +4316,8 @@ CONTAINS
           CASE (dbcsr_type_complex_8)
              CALL tree_to_linear_z (matrix%wms(i), error=error)
           CASE default
-             CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-                  routineN, "Invalid data type")
+             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+                  routineN, "Invalid data type",__LINE__,error)
           END SELECT
        ENDIF
     ENDDO
@@ -4669,8 +4456,8 @@ CONTAINS
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert (dbcsr_valid_index (source),&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "Matrix not initialized.")
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "Matrix not initialized.",__LINE__,error)
     DBG 'Make images for matrix', source%m%matrix_type, source%m%name
     normalized%image_dist = target_image_dist
     SELECT CASE (source%m%matrix_type)
@@ -4681,13 +4468,13 @@ CONTAINS
             no_copy_data=no_copy_data,&
             error=error)
     CASE ('T')
-       CALL dbcsr_assert(.FALSE., cp_failure_level,&
-            cp_unimplemented_error_nr, routineP,&
+       CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
+            dbcsr_unimplemented_error_nr, routineP,&
             "Making images of transposed matrices not "//&
-            "supported yet.")
+            "supported yet.",__LINE__,error)
     CASE DEFAULT
-       CALL dbcsr_assert(.FALSE., cp_failure_level,&
-            cp_wrong_args_error, routineP, "Invalid matrix type.")
+       CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
+            dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__,error)
     END SELECT
     normalized%image_dist = target_image_dist
     DBG 'parent ums(1) name', normalized%mats(1,1)%m%name
@@ -4778,8 +4565,8 @@ CONTAINS
     CALL dbcsr_assert (data_type .EQ. dbcsr_type_real_8&
          .or.data_type .EQ. dbcsr_type_real_4&
          .or.data_type .EQ. dbcsr_type_complex_8&
-         .or.data_type .EQ. dbcsr_type_complex_4, cp_fatal_level,&
-         cp_internal_error, routineN, "Invalid data type.")
+         .or.data_type .EQ. dbcsr_type_complex_4, dbcsr_fatal_level,&
+         dbcsr_internal_error, routineN, "Invalid data type.",__LINE__,error)
     row_blk_size => array_data (sm%row_blk_size)
     col_blk_size => array_data (sm%col_blk_size)
     target_dist = target_imgdist%main
@@ -4811,24 +4598,24 @@ CONTAINS
     DBG 'row,col images',nrow_images,ncol_images
     ALLOCATE (ums%mats(nrow_images,ncol_images))
     IF (sm%matrix_type .EQ. 'S' .OR. sm%matrix_type .EQ. 'A') THEN
-       CALL dbcsr_assert(SIZE(row_dist),'EQ', SIZE(col_dist), cp_warning_level,&
-            cp_wrong_args_error, routineN,&
-            'Unequal row and column distributions for symmetric matrix.')
+       CALL dbcsr_assert(SIZE(row_dist),'EQ', SIZE(col_dist), dbcsr_warning_level,&
+            dbcsr_wrong_args_error, routineN,&
+            'Unequal row and column distributions for symmetric matrix.',__LINE__,error)
     ENDIF
-    CALL dbcsr_assert(MAXVAL(row_dist),'LE',UBOUND(blacs2mpi,1), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows')
+    CALL dbcsr_assert(MAXVAL(row_dist),'LE',UBOUND(blacs2mpi,1), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Row distribution references unexistent processor rows',__LINE__,error)
     IF (dbg) &
-         CALL dbcsr_assert(MAXVAL(row_dist),'EQ',UBOUND(blacs2mpi,1), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         'Range of row distribution not equal to processor rows')
-    CALL dbcsr_assert(MAXVAL(col_dist),'LE',UBOUND(blacs2mpi,2), cp_failure_level,&
-         cp_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols')
+         CALL dbcsr_assert(MAXVAL(row_dist),'EQ',UBOUND(blacs2mpi,1), dbcsr_warning_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Range of row distribution not equal to processor rows',__LINE__,error)
+    CALL dbcsr_assert(MAXVAL(col_dist),'LE',UBOUND(blacs2mpi,2), dbcsr_failure_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Col distribution references unexistent processor cols',__LINE__,error)
     IF (dbg) &
-         CALL dbcsr_assert(MAXVAL(col_dist),'EQ',UBOUND(blacs2mpi,2), cp_warning_level,&
-         cp_wrong_args_error, routineN,&
-         'Range of col distribution not equal to processor cols')
+         CALL dbcsr_assert(MAXVAL(col_dist),'EQ',UBOUND(blacs2mpi,2), dbcsr_warning_level,&
+         dbcsr_wrong_args_error, routineN,&
+         'Range of col distribution not equal to processor cols',__LINE__,error)
     ALLOCATE (send_count(2, nrow_images, ncol_images, 0:numproc-1))
     ALLOCATE (recv_count(2, nrow_images, ncol_images, 0:numproc-1))
     ALLOCATE (total_send_count(2, 0:numproc-1))
@@ -5311,12 +5098,12 @@ CONTAINS
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
        failure = .FALSE.
-       !CPPrecondition(.NOT.docopy, cp_warning_level, routineP, error, failure)
+       !CPPrecondition(.NOT.docopy, dbcsr_warning_level, routineP, error, failure)
        failure = .TRUE.
        IF (spec) THEN
-          CALL dbcsr_assert (lb_new,'EQ',1, cp_warning_level,&
-               cp_internal_error,&
-               routineN, "Special memory can only start at 1.")
+          CALL dbcsr_assert (lb_new,'EQ',1, dbcsr_warning_level,&
+               dbcsr_internal_error,&
+               routineN, "Special memory can only start at 1.",__LINE__,error)
           CALL mp_allocate(array, ub-lb_new+1, stat=stat)
        ELSE
           ALLOCATE(array(lb_new:ub), stat=stat)
@@ -5366,8 +5153,8 @@ CONTAINS
        ENDIF
     ENDIF
     IF (spec) THEN
-       CALL dbcsr_assert (lb_new,'EQ',1, cp_warning_level, cp_internal_error,&
-            routineN, "Special memory can only start at 1.")
+       CALL dbcsr_assert (lb_new,'EQ',1, dbcsr_warning_level, dbcsr_internal_error,&
+            routineN, "Special memory can only start at 1.",__LINE__,error)
        CALL mp_allocate(newarray, ub_new-lb_new+1, stat=stat)
     ELSE
        ALLOCATE(newarray(lb_new:ub_new), stat=stat)
@@ -5375,8 +5162,8 @@ CONTAINS
     IF(stat /= 0) CALL stop_memory(routineP, 'newarray', ub_new-lb_new+1)
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
-            cp_failure_level, cp_internal_error, routineP,&
-            "Old extent exceeds the new one.")
+            dbcsr_failure_level, dbcsr_internal_error, routineP,&
+            "Old extent exceeds the new one.",__LINE__,error)
        newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
        IF (spec) THEN
           CALL mp_deallocate(array)
@@ -5436,8 +5223,8 @@ CONTAINS
     lb_new = 1
     IF (PRESENT (lb)) lb_new = lb
     !> Creates a new array if it doesn't yet exist.
-    CALL dbcsr_assert(ASSOCIATED(array), cp_failure_level, cp_internal_error, routineP,&
-         'cannot resize empty multi-dimensional array')
+    CALL dbcsr_assert(ASSOCIATED(array), dbcsr_failure_level, dbcsr_internal_error, routineP,&
+         'cannot resize empty multi-dimensional array',__LINE__,error)
     lb_orig = LBOUND(array,dim)
     ub_orig = UBOUND(array,dim)
     IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig
@@ -5463,15 +5250,15 @@ CONTAINS
     ENDIF
     IF(dbg) WRITE(*,*)routineP//' Resizing to bounds',lb_new,':',ub_new
     IF(.NOT.docopy) DEALLOCATE(array)
-    CALL dbcsr_assert(dim,'EQ',1, cp_failure_level, cp_unimplemented_error_nr,&
-         routineP, 'Only dimension 1 can be specified.')
+    CALL dbcsr_assert(dim,'EQ',1, dbcsr_failure_level, dbcsr_unimplemented_error_nr,&
+         routineP, 'Only dimension 1 can be specified.',__LINE__,error)
     osize = SIZE(array,2)
     ALLOCATE(newarray(lb_new:ub_new,osize), stat=stat)
     IF(stat /= 0) CALL stop_memory(routineP, 'new', ub_new-lb_new+1)
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
-            cp_failure_level, cp_internal_error, routineP,&
-            "Old extent exceeds the new one.")
+            dbcsr_failure_level, dbcsr_internal_error, routineP,&
+            "Old extent exceeds the new one.",__LINE__,error)
        newarray(lb_orig:ub_orig,:) = array(lb_orig:ub_orig,:)
        DEALLOCATE(array)
     END IF
@@ -5558,8 +5345,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_assert(ASSOCIATED (area%d), cp_fatal_level, cp_caller_error,&
-         routineN, "Data area must be setup.")
+    CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Data area must be setup.",__LINE__,error)
     current_size = dbcsr_get_data_size (area)
     IF (current_size .GT. 1 .AND. current_size .GE. data_size) THEN
        CALL dbcsr_error_stop(error_handler, error)
@@ -5625,8 +5412,9 @@ CONTAINS
                factor=factor,error=error)
        ENDIF
     CASE default
-       CALL cp_unimplemented_error (routineN,&
-            "Invalid data type are supported")
+       CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
+            dbcsr_unimplemented_error_nr, routineN,&
+            "Invalid data type are supported",__LINE__,error)
     END SELECT
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_data_ensure_size
@@ -5857,30 +5645,31 @@ CONTAINS
 
     INTEGER                                  :: data_size, lb2_s, lb2_t, &
                                                 lb_s, lb_t, ub_s, ub_t
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     IF (bcsr_debug) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d), 'AND', ASSOCIATED(src%d),&
-            cp_fatal_level, cp_caller_error, routineN,&
-            "Data areas must be setup.")
-       CALL dbcsr_assert (dst%d%data_type, 'EQ', src%d%data_type, cp_fatal_level,&
-            cp_caller_error, routineN, "Data type must be the same.")
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "Data areas must be setup.",__LINE__,error)
+       CALL dbcsr_assert (dst%d%data_type, 'EQ', src%d%data_type, dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "Data type must be the same.",__LINE__,error)
        CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
             .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
             .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
             .OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
-            cp_warning_level, cp_caller_error, routineN, "Incorrect data type.")
+            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
     ENDIF
     IF (PRESENT (scale)) THEN
        IF (dbcsr_type_is_2d (src%d%data_type)) THEN
           CALL dbcsr_assert (scale%data_type, &
                'EQ', dbcsr_type_2d_to_1d (src%d%data_type),&
-               cp_fatal_level, cp_wrong_args_error, routineN,&
-               "Incompatible data types")
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Incompatible data types",__LINE__,error)
        ELSE
-          CALL dbcsr_assert (scale%data_type, 'EQ', src%d%data_type, cp_fatal_level,&
-               cp_wrong_args_error, routineN, "Incompatible data types")
+          CALL dbcsr_assert (scale%data_type, 'EQ', src%d%data_type, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN, "Incompatible data types",__LINE__,error)
        ENDIF
     ENDIF
     data_size = row_size*col_size
@@ -5988,7 +5777,7 @@ CONTAINS
        ENDIF
     CASE default
        CALL dbcsr_assert (.FALSE.,&
-            cp_fatal_level, cp_caller_error, routineN, "Incorrect data type.")
+            dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_block_transpose_aa
 
@@ -6007,6 +5796,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_a', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
     SELECT CASE (area%d%data_type)
@@ -6023,8 +5814,8 @@ CONTAINS
        CALL dbcsr_block_transpose (area%d%c_sp,&
             row_size, col_size)
     CASE default
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_internal_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_block_transpose_a
 
@@ -6060,32 +5851,33 @@ CONTAINS
 
     INTEGER                                  :: lb2_s, lb_s, ub, ub2, ub2_s, &
                                                 ub_s
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     IF (bcsr_debug) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d) .AND. ASSOCIATED(src%d),&
-            cp_fatal_level, cp_caller_error, routineN,&
-            "Data areas must be setup.")
-       CALL dbcsr_assert (dst%d%data_type .EQ. src%d%data_type, cp_fatal_level,&
-            cp_caller_error, routineN,&
-            "Data type must be the same: "//dst%d%data_type//src%d%data_type)
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "Data areas must be setup.",__LINE__,error)
+       CALL dbcsr_assert (dst%d%data_type .EQ. src%d%data_type, dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN,&
+            "Data type must be the same: "//dst%d%data_type//src%d%data_type,__LINE__,error)
        !CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
        !     .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
        !     .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
        !     .OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
-       !     cp_warning_level, cp_caller_error, routineN,&
+       !     dbcsr_warning_level, dbcsr_caller_error, routineN,&
        !     "Incorrect data types: "//dst%d%data_type//", "//src%d%data_type)
     ENDIF
     IF (PRESENT (scale)) THEN
        IF (dbcsr_type_is_2d(src%d%data_type)) THEN
           CALL dbcsr_assert (scale%data_type&
                .EQ. dbcsr_type_2d_to_1d (src%d%data_type),&
-               cp_fatal_level, cp_wrong_args_error, routineN,&
-               "Incomptable data types")
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Incomptable data types",__LINE__,error)
        ELSE
-          CALL dbcsr_assert (scale%data_type .EQ. src%d%data_type, cp_fatal_level,&
-               cp_wrong_args_error, routineN, "Incomptable data types")
+          CALL dbcsr_assert (scale%data_type .EQ. src%d%data_type, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN, "Incomptable data types",__LINE__,error)
        ENDIF
     ENDIF
     ub = lb + data_size - 1
@@ -6098,17 +5890,17 @@ CONTAINS
     ENDIF
     CALL dbcsr_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
          .OR. PRESENT (lb2),&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "Must specify lb2 for 2-D data area")
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "Must specify lb2 for 2-D data area",__LINE__,error)
     CALL dbcsr_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
          .OR. PRESENT (data_size2),&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "Must specify data_size2 for 2-D data area")
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "Must specify data_size2 for 2-D data area",__LINE__,error)
     !write(*,*)routineN//" lb,ub D <- S",lb, ub, lb_s, ub_s
     IF (PRESENT (lb2)) THEN
        CALL dbcsr_assert (dbcsr_type_is_2d (src%d%data_type),&
-            cp_warning_level, cp_caller_error, routineN,&
-            "Should not specify lb2 for 1-D data")
+            dbcsr_warning_level, dbcsr_caller_error, routineN,&
+            "Should not specify lb2 for 1-D data",__LINE__,error)
        ub2 = lb2 + data_size2 - 1
        IF (PRESENT (source_lb2)) THEN
           lb2_s = source_lb2
@@ -6122,18 +5914,18 @@ CONTAINS
     SELECT CASE (src%d%data_type)
     CASE (dbcsr_type_real_4)
        IF (dbg) THEN
-          CALL dbcsr_assert(ASSOCIATED(dst%d%r_sp),cp_fatal_level,&
-               cp_caller_error, routineN, "associated(dst%d%r_sp)")
-          CALL dbcsr_assert(ASSOCIATED(src%d%r_sp),cp_fatal_level,&
-               cp_caller_error, routineN, "associated(src%d%r_sp)")
-          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%r_sp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "lb dst%d%r_sp")
-          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%r_sp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "ub dst%d%r_sp")
-          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%r_sp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "lb src%d%r_sp")
-          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%r_sp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "ub src%d%r_sp")
+          CALL dbcsr_assert(ASSOCIATED(dst%d%r_sp),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "associated(dst%d%r_sp)",__LINE__,error)
+          CALL dbcsr_assert(ASSOCIATED(src%d%r_sp),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "associated(src%d%r_sp)",__LINE__,error)
+          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%r_sp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lb dst%d%r_sp",__LINE__,error)
+          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%r_sp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "ub dst%d%r_sp",__LINE__,error)
+          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%r_sp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lb src%d%r_sp",__LINE__,error)
+          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%r_sp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "ub src%d%r_sp",__LINE__,error)
        ENDIF
        IF (PRESENT (scale)) THEN
           dst%d%r_sp(lb:ub) = scale%r_sp * src%d%r_sp(lb_s:ub_s)
@@ -6142,18 +5934,18 @@ CONTAINS
        ENDIF
     CASE (dbcsr_type_real_8)
        IF (dbg) THEN
-          CALL dbcsr_assert(ASSOCIATED(dst%d%r_dp),cp_fatal_level,&
-               cp_caller_error, routineN, "associated(dst%d%r_dp)")
-          CALL dbcsr_assert(ASSOCIATED(src%d%r_dp),cp_fatal_level,&
-               cp_caller_error, routineN, "associated(src%d%r_dp)")
-          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%r_dp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "lb dst%d%r_dp")
-          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%r_dp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "ub dst%d%r_dp")
-          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%r_dp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "lb src%d%r_dp")
-          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%r_dp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "ub src%d%r_dp")
+          CALL dbcsr_assert(ASSOCIATED(dst%d%r_dp),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "associated(dst%d%r_dp)",__LINE__,error)
+          CALL dbcsr_assert(ASSOCIATED(src%d%r_dp),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "associated(src%d%r_dp)",__LINE__,error)
+          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%r_dp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lb dst%d%r_dp",__LINE__,error)
+          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%r_dp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "ub dst%d%r_dp",__LINE__,error)
+          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%r_dp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lb src%d%r_dp",__LINE__,error)
+          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%r_dp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "ub src%d%r_dp",__LINE__,error)
        ENDIF
        IF (PRESENT (scale)) THEN
           dst%d%r_dp(lb:ub) = scale%r_dp * src%d%r_dp(lb_s:ub_s)
@@ -6162,18 +5954,18 @@ CONTAINS
        ENDIF
     CASE (dbcsr_type_complex_4)
        IF (dbg) THEN
-          CALL dbcsr_assert(ASSOCIATED(dst%d%c_sp),cp_fatal_level,&
-               cp_caller_error, routineN, "associated(dst%d%c_sp)")
-          CALL dbcsr_assert(ASSOCIATED(src%d%c_sp),cp_fatal_level,&
-               cp_caller_error, routineN, "associated(src%d%c_sp)")
-          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%c_sp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "lb dst%d%c_sp")
-          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%c_sp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "ub dst%d%c_sp")
-          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%c_sp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "lb src%d%c_sp")
-          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%c_sp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "ub src%d%c_sp")
+          CALL dbcsr_assert(ASSOCIATED(dst%d%c_sp),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "associated(dst%d%c_sp)",__LINE__,error)
+          CALL dbcsr_assert(ASSOCIATED(src%d%c_sp),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "associated(src%d%c_sp)",__LINE__,error)
+          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%c_sp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lb dst%d%c_sp",__LINE__,error)
+          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%c_sp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "ub dst%d%c_sp",__LINE__,error)
+          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%c_sp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lb src%d%c_sp",__LINE__,error)
+          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%c_sp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "ub src%d%c_sp",__LINE__,error)
        ENDIF
        IF (PRESENT (scale)) THEN
           dst%d%c_sp(lb:ub) = scale%c_sp * src%d%c_sp(lb_s:ub_s)
@@ -6182,18 +5974,18 @@ CONTAINS
        ENDIF
     CASE (dbcsr_type_complex_8)
        IF (dbg) THEN
-          CALL dbcsr_assert(ASSOCIATED(dst%d%c_dp),cp_fatal_level,&
-               cp_caller_error, routineN, "associated(dst%d%c_dp)")
-          CALL dbcsr_assert(ASSOCIATED(src%d%c_dp),cp_fatal_level,&
-               cp_caller_error, routineN, "associated(src%d%c_dp)")
-          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%c_dp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "lb dst%d%c_dp")
-          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%c_dp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "ub dst%d%c_dp")
-          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%c_dp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "lb src%d%c_dp")
-          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%c_dp,1),cp_fatal_level,&
-               cp_caller_error, routineN, "ub src%d%c_dp")
+          CALL dbcsr_assert(ASSOCIATED(dst%d%c_dp),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "associated(dst%d%c_dp)",__LINE__,error)
+          CALL dbcsr_assert(ASSOCIATED(src%d%c_dp),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "associated(src%d%c_dp)",__LINE__,error)
+          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%c_dp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lb dst%d%c_dp",__LINE__,error)
+          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%c_dp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "ub dst%d%c_dp",__LINE__,error)
+          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%c_dp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lb src%d%c_dp",__LINE__,error)
+          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%c_dp,1),dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "ub src%d%c_dp",__LINE__,error)
        ENDIF
        IF (PRESENT (scale)) THEN
           dst%d%c_dp(lb:ub) = scale%c_dp * src%d%c_dp(lb_s:ub_s)
@@ -6229,8 +6021,8 @@ CONTAINS
           dst%d%c2_dp(lb:ub, lb2:ub2) = src%d%c2_dp(lb_s:ub_s, lb2_s:ub2_s)
        ENDIF
     CASE default
-       CALL dbcsr_assert(.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_data_copy_aa
 
@@ -6253,29 +6045,30 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l, l2, u, u2
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_assert (ASSOCIATED(area%d),&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "Data area must be setup.")
+         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "Data area must be setup.",__LINE__,error)
     IF (PRESENT (value)) THEN
        CALL dbcsr_assert (area%d%data_type .EQ. value%data_type,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Incompatible data types")
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Incompatible data types",__LINE__,error)
     ENDIF
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_4)
        l = LBOUND(area%d%r_sp, 1)
        u = UBOUND(area%d%r_sp, 1)
        IF (PRESENT (lb)) THEN
-          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
-               cp_caller_error, routineN, "lower bound too low")
+          CALL dbcsr_assert(lb, "GE", l, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower bound too low",__LINE__,error)
           l = lb
        ENDIF
        IF (PRESENT (ub)) THEN
-          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
-               cp_caller_error, routineN, "upper bound too high")
+          CALL dbcsr_assert(ub, "LE", u, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper bound too high",__LINE__,error)
           u = ub
        ENDIF
        IF (PRESENT (value)) THEN
@@ -6287,13 +6080,13 @@ CONTAINS
        l = LBOUND(area%d%r_dp, 1)
        u = UBOUND(area%d%r_dp, 1)
        IF (PRESENT (lb)) THEN
-          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
-               cp_caller_error, routineN, "lower bound too low")
+          CALL dbcsr_assert(lb, "GE", l, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower bound too low",__LINE__,error)
           l = lb
        ENDIF
        IF (PRESENT (ub)) THEN
-          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
-               cp_caller_error, routineN, "upper bound too high")
+          CALL dbcsr_assert(ub, "LE", u, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper bound too high",__LINE__,error)
           u = ub
        ENDIF
        IF (PRESENT (value)) THEN
@@ -6305,13 +6098,13 @@ CONTAINS
        l = LBOUND(area%d%c_sp, 1)
        u = UBOUND(area%d%c_sp, 1)
        IF (PRESENT (lb)) THEN
-          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
-               cp_caller_error, routineN, "lower bound too low")
+          CALL dbcsr_assert(lb, "GE", l, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower bound too low",__LINE__,error)
           l = lb
        ENDIF
        IF (PRESENT (ub)) THEN
-          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
-               cp_caller_error, routineN, "upper bound too high")
+          CALL dbcsr_assert(ub, "LE", u, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper bound too high",__LINE__,error)
           u = ub
        ENDIF
        IF (PRESENT (value)) THEN
@@ -6323,13 +6116,13 @@ CONTAINS
        l = LBOUND(area%d%c_dp, 1)
        u = UBOUND(area%d%c_dp, 1)
        IF (PRESENT (lb)) THEN
-          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
-               cp_caller_error, routineN, "lower bound too low")
+          CALL dbcsr_assert(lb, "GE", l, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower bound too low",__LINE__,error)
           l = lb
        ENDIF
        IF (PRESENT (ub)) THEN
-          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
-               cp_caller_error, routineN, "upper bound too high")
+          CALL dbcsr_assert(ub, "LE", u, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper bound too high",__LINE__,error)
           u = ub
        ENDIF
        IF (PRESENT (value)) THEN
@@ -6343,23 +6136,23 @@ CONTAINS
        l2 = LBOUND(area%d%r2_sp, 2)
        u2 = UBOUND(area%d%r2_sp, 2)
        IF (PRESENT (lb)) THEN
-          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
-               cp_caller_error, routineN, "lower bound too low")
+          CALL dbcsr_assert(lb, "GE", l, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower bound too low",__LINE__,error)
           l = lb
        ENDIF
        IF (PRESENT (ub)) THEN
-          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
-               cp_caller_error, routineN, "upper bound too high")
+          CALL dbcsr_assert(ub, "LE", u, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper bound too high",__LINE__,error)
           u = ub
        ENDIF
        IF (PRESENT (lb2)) THEN
-          CALL dbcsr_assert(lb2, "GE", l2, cp_fatal_level,&
-               cp_caller_error, routineN, "lower2 bound too low")
+          CALL dbcsr_assert(lb2, "GE", l2, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower2 bound too low",__LINE__,error)
           l2 = lb2
        ENDIF
        IF (PRESENT (ub2)) THEN
-          CALL dbcsr_assert(ub2, "LE", u2, cp_fatal_level,&
-               cp_caller_error, routineN, "upper2 bound too high")
+          CALL dbcsr_assert(ub2, "LE", u2, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper2 bound too high",__LINE__,error)
           u2 = ub2
        ENDIF
        IF (PRESENT (value)) THEN
@@ -6373,23 +6166,23 @@ CONTAINS
        l2 = LBOUND(area%d%r2_dp, 2)
        u2 = UBOUND(area%d%r2_dp, 2)
        IF (PRESENT (lb)) THEN
-          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
-               cp_caller_error, routineN, "lower bound too low")
+          CALL dbcsr_assert(lb, "GE", l, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower bound too low",__LINE__,error)
           l = lb
        ENDIF
        IF (PRESENT (ub)) THEN
-          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
-               cp_caller_error, routineN, "upper bound too high")
+          CALL dbcsr_assert(ub, "LE", u, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper bound too high",__LINE__,error)
           u = ub
        ENDIF
        IF (PRESENT (lb2)) THEN
-          CALL dbcsr_assert(lb2, "GE", l2, cp_fatal_level,&
-               cp_caller_error, routineN, "lower2 bound too low")
+          CALL dbcsr_assert(lb2, "GE", l2, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower2 bound too low",__LINE__,error)
           l2 = lb2
        ENDIF
        IF (PRESENT (ub2)) THEN
-          CALL dbcsr_assert(ub2, "LE", u2, cp_fatal_level,&
-               cp_caller_error, routineN, "upper2 bound too high")
+          CALL dbcsr_assert(ub2, "LE", u2, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper2 bound too high",__LINE__,error)
           u2 = ub2
        ENDIF
        IF (PRESENT (value)) THEN
@@ -6403,23 +6196,23 @@ CONTAINS
        l2 = LBOUND(area%d%c2_sp, 2)
        u2 = UBOUND(area%d%c2_sp, 2)
        IF (PRESENT (lb)) THEN
-          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
-               cp_caller_error, routineN, "lower bound too low")
+          CALL dbcsr_assert(lb, "GE", l, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower bound too low",__LINE__,error)
           l = lb
        ENDIF
        IF (PRESENT (ub)) THEN
-          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
-               cp_caller_error, routineN, "upper bound too high")
+          CALL dbcsr_assert(ub, "LE", u, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper bound too high",__LINE__,error)
           u = ub
        ENDIF
        IF (PRESENT (lb2)) THEN
-          CALL dbcsr_assert(lb2, "GE", l2, cp_fatal_level,&
-               cp_caller_error, routineN, "lower2 bound too low")
+          CALL dbcsr_assert(lb2, "GE", l2, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower2 bound too low",__LINE__,error)
           l2 = lb2
        ENDIF
        IF (PRESENT (ub2)) THEN
-          CALL dbcsr_assert(ub2, "LE", u2, cp_fatal_level,&
-               cp_caller_error, routineN, "upper2 bound too high")
+          CALL dbcsr_assert(ub2, "LE", u2, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper2 bound too high",__LINE__,error)
           u2 = ub2
        ENDIF
        IF (PRESENT (value)) THEN
@@ -6433,23 +6226,23 @@ CONTAINS
        l2 = LBOUND(area%d%c2_dp, 2)
        u2 = UBOUND(area%d%c2_dp, 2)
        IF (PRESENT (lb)) THEN
-          CALL dbcsr_assert(lb, "GE", l, cp_fatal_level,&
-               cp_caller_error, routineN, "lower bound too low")
+          CALL dbcsr_assert(lb, "GE", l, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower bound too low",__LINE__,error)
           l = lb
        ENDIF
        IF (PRESENT (ub)) THEN
-          CALL dbcsr_assert(ub, "LE", u, cp_fatal_level,&
-               cp_caller_error, routineN, "upper bound too high")
+          CALL dbcsr_assert(ub, "LE", u, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper bound too high",__LINE__,error)
           u = ub
        ENDIF
        IF (PRESENT (lb2)) THEN
-          CALL dbcsr_assert(lb2, "GE", l2, cp_fatal_level,&
-               cp_caller_error, routineN, "lower2 bound too low")
+          CALL dbcsr_assert(lb2, "GE", l2, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "lower2 bound too low",__LINE__,error)
           l2 = lb2
        ENDIF
        IF (PRESENT (ub2)) THEN
-          CALL dbcsr_assert(ub2, "LE", u2, cp_fatal_level,&
-               cp_caller_error, routineN, "upper2 bound too high")
+          CALL dbcsr_assert(ub2, "LE", u2, dbcsr_fatal_level,&
+               dbcsr_caller_error, routineN, "upper2 bound too high",__LINE__,error)
           u2 = ub2
        ENDIF
        IF (PRESENT (value)) THEN
@@ -6458,8 +6251,8 @@ CONTAINS
           area%d%c2_dp(l:u, l2:u2) = 0.0_real_8
        ENDIF
     CASE default
-       CALL dbcsr_assert(.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            routineN, "Invalid or unsupported data type.")
+       CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid or unsupported data type.",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_data_clear
 
@@ -6502,24 +6295,25 @@ CONTAINS
     LOGICAL, PARAMETER                       :: verification = .TRUE.
 
     INTEGER                                  :: dst_o, src_o
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_assert (dbcsr_get_data_type (dst) .EQ. dbcsr_get_data_type(src),&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types.")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Incompatible data types.",__LINE__,error)
     dst_o = 0 ; src_o = 0
     IF (PRESENT (dst_offset)) dst_o = dst_offset
     IF (PRESENT (src_offset)) src_o = src_offset
     IF (verification) THEN
-       CALL dbcsr_assert (dst_r_lb+nrow-1 .LE. dst_rs, cp_fatal_level,&
-            cp_wrong_args_error, routineN, "Incompatible dst row sizes")
-       CALL dbcsr_assert (dst_c_lb+ncol-1 .LE. dst_cs, cp_fatal_level,&
-            cp_wrong_args_error, routineN, "Incompatible dst col sizes")
-       CALL dbcsr_assert (src_r_lb+nrow-1 .LE. src_rs, cp_fatal_level,&
-            cp_wrong_args_error, routineN, "Incompatible src row sizes")
-       CALL dbcsr_assert (src_c_lb+ncol-1 .LE. src_cs, cp_fatal_level,&
-            cp_wrong_args_error, routineN, "Incompatible src col sizes")
+       CALL dbcsr_assert (dst_r_lb+nrow-1 .LE. dst_rs, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN, "Incompatible dst row sizes",__LINE__,error)
+       CALL dbcsr_assert (dst_c_lb+ncol-1 .LE. dst_cs, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN, "Incompatible dst col sizes",__LINE__,error)
+       CALL dbcsr_assert (src_r_lb+nrow-1 .LE. src_rs, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN, "Incompatible src row sizes",__LINE__,error)
+       CALL dbcsr_assert (src_c_lb+ncol-1 .LE. src_cs, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN, "Incompatible src col sizes",__LINE__,error)
     ENDIF
     SELECT CASE (dbcsr_get_data_type (dst))
     CASE (dbcsr_type_real_4)
@@ -6543,8 +6337,8 @@ CONTAINS
             dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
             dst_offset=dst_o, src_offset=src_o)
     CASE default
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            routineN, "Invalid data type or 2-d not supported")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type or 2-d not supported",__LINE__,error)
     END SELECT
   END SUBROUTINE block_partial_copy_a
 
@@ -6561,6 +6355,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_pack_meta', &
       routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -6586,7 +6382,8 @@ CONTAINS
        meta(dbcsr_slot_type) = 3
     CASE DEFAULT
        meta(dbcsr_slot_type) = -1
-       CALL bcsr_assert(5, .FALSE., routineP, "Invalid matrix type.")
+       CALL dbcsr_assert(.FALSE.,  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
+            "Invalid matrix type.",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_pack_meta
 
@@ -6602,6 +6399,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_unpack_meta', &
       routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -6627,7 +6426,8 @@ CONTAINS
        matrix%matrix_type = 'A'
     CASE DEFAULT
        matrix%matrix_type = '0'
-       CALL bcsr_assert(5, .FALSE., routineP, "Invalid matrix type.")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid matrix type.",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_unpack_meta
 
@@ -6733,9 +6533,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pointer_view_a', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
     CALL dbcsr_assert (area%d%data_type, "EQ", new_area%d%data_type,&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types.")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Incompatible data types.",__LINE__,error)
     IF (PRESENT (len)) THEN
        SELECT CASE (area%d%data_type)
        CASE (dbcsr_type_real_4)
@@ -6747,8 +6549,8 @@ CONTAINS
        CASE (dbcsr_type_complex_8)
           new_area%d%c_dp => area%d%c_dp(offset:offset+len-1)
        CASE default
-          CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-               routineN, "Invalid data type.")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+               routineN, "Invalid data type.",__LINE__,error)
        END SELECT
     ELSE
        SELECT CASE (area%d%data_type)
@@ -6761,8 +6563,8 @@ CONTAINS
        CASE (dbcsr_type_complex_8)
           new_area%d%c_dp => area%d%c_dp(offset:)
        CASE default
-          CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-               routineN, "Invalid data type.")
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+               routineN, "Invalid data type.",__LINE__,error)
        END SELECT
     ENDIF
     narea2 = new_area
@@ -6915,18 +6717,19 @@ CONTAINS
 
     INTEGER                                  :: bin, i, old_nbins, virtual_bin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(new_bins),&
-         cp_warning_level, cp_internal_error,&
-         routineN, "source/new bin array sizes not equal")
+         dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "source/new bin array sizes not equal",__LINE__,error)
     CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(images),&
-         cp_warning_level, cp_internal_error,&
-         routineN, "source/image array sizes not equal")
+         dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "source/image array sizes not equal",__LINE__,error)
     CALL dbcsr_assert (MOD (nbins, multiplicity), "EQ", 0,&
-         cp_warning_level, cp_internal_error,&
-         routineN, "mulitplicity is not divisor of new process grid coordinate")
+         dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "mulitplicity is not divisor of new process grid coordinate",__LINE__,error)
     old_nbins = nbins * nimages / multiplicity
     ALLOCATE (bin_multiplier(0:old_nbins-1))
     bin_multiplier(:) = 0
@@ -6986,9 +6789,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
 
 !   ---------------------------------------------------------------------------
+!CALL bcsr_assert (debug_level, SIZE(my_bins).EQ.SIZE(images),&
+!     routineN, "array sizes not equal")
 
-    CALL bcsr_assert (debug_level, SIZE(my_bins).EQ.SIZE(images),&
-         routineN, "array sizes not equal")
     ALLOCATE (bin_multiplier(0:nbins-1))
     bin_multiplier(:) = 0
     DO i = 1, SIZE (my_bins)
@@ -7045,26 +6848,27 @@ CONTAINS
     INTEGER, PARAMETER                       :: debug_level = 2
 
     INTEGER                                  :: bin, i, virtual_bin
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(new_bins),&
-         cp_warning_level, cp_internal_error,&
-         routineN, "source/new array sizes not equal")
+         dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "source/new array sizes not equal",__LINE__,error)
     CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(images),&
-         cp_warning_level, cp_internal_error,&
-         routineN, "source/image array sizes not equal")
+         dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "source/image array sizes not equal",__LINE__,error)
     CALL dbcsr_assert (MOD (nbins, multiplicity), "EQ", 0,&
-         cp_warning_level, cp_internal_error,&
-         routineN, "mulitplicity is not divisor of new process grid coordinate")
+         dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "mulitplicity is not divisor of new process grid coordinate",__LINE__,error)
     DO i = 1, SIZE (source_bins)
        virtual_bin = source_bins(i)*multiplicity + source_images(i)-1
        new_bins(i) = virtual_bin / nimages
        images(i) = 1 + MOD (virtual_bin, nimages)
-       CALL dbcsr_assert (new_bins(i).lt.nbins, cp_fatal_level, cp_internal_error,&
-            routineN, "Wrong bin calculation")
-       CALL dbcsr_assert (images(i).le.nimages, cp_fatal_level, cp_internal_error,&
-            routineN, "Wrong image calculation")
+       CALL dbcsr_assert (new_bins(i).lt.nbins, dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Wrong bin calculation",__LINE__,error)
+       CALL dbcsr_assert (images(i).le.nimages, dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Wrong image calculation",__LINE__,error)
     ENDDO
   END SUBROUTINE rebin_imaged_distribution
 
@@ -7336,7 +7140,7 @@ CONTAINS
 !    TYPE(dbcsr_type), INTENT(INOUT)          :: vector_m
 !    TYPE(dbcsr_type), INTENT(IN)             :: matrix
 !    INTEGER, INTENT(IN)                      :: column
-!    TYPE(cp_error_type), INTENT(INOUT)       :: error
+!    TYPE(dbcsr_error_type), INTENT(INOUT)       :: error
 !
 !    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_extract_column', &
 !      routineP = moduleN//':'//routineN
@@ -7363,8 +7167,8 @@ CONTAINS
 !    vector_m%nze = 0
 !    nblks = 0
 !    next_data_p = 1
-!    CALL dbcsr_assert(dbcsr_valid_index (vector_m), cp_warning_level,&
-!         cp_wrong_args_error, routineP, "Vector matrix must be valid.",&
+!    CALL dbcsr_assert(dbcsr_valid_index (vector_m), dbcsr_warning_level,&
+!         dbcsr_wrong_args_error, routineP, "Vector matrix must be valid.",&
 !         error=error)
 !    vector_m%row_p(1) = 0
 !    DO row = 1, src_nblk_rows_total
@@ -7551,9 +7355,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_blas_scal', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
     CALL dbcsr_assert (alpha%data_type, "EQ", x%d%data_type,&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Incompatible data types",__LINE__,error)
     SELECT CASE (alpha%data_type)
     CASE (dbcsr_type_real_4)
        CALL BL_SCAL (n, alpha%r_sp, x%d%r_sp, incx)
@@ -7564,8 +7370,8 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL BL_SCAL (n, alpha%c_dp, x%d%c_dp, incx)
     CASE default
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_blas_scal
 
@@ -7588,20 +7394,21 @@ CONTAINS
     LOGICAL, PARAMETER                       :: assertions = .FALSE.
 
     TYPE(dbcsr_data_obj)                     :: a_tmp, b_tmp
+    TYPE(dbcsr_error_type)                   :: error
 
     IF (assertions) THEN
        CALL dbcsr_assert (alpha%data_type, "EQ", beta%data_type,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Incompatible data types, alpha/beta")
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Incompatible data types, alpha/beta",__LINE__,error)
        CALL dbcsr_assert (alpha%data_type, "EQ", a%d%data_type,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Incompatible data types, alpha, a")
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Incompatible data types, alpha, a",__LINE__,error)
        CALL dbcsr_assert (alpha%data_type, "EQ", b%d%data_type,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Incompatible data types, alpha, b")
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Incompatible data types, alpha, b",__LINE__,error)
        CALL dbcsr_assert (alpha%data_type, "EQ", c%d%data_type,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Incompatible data types, alpha, c")
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Incompatible data types, alpha, c",__LINE__,error)
     ENDIF
     a_tmp = a
     CALL dbcsr_data_set_2d_pointer (a_tmp, lda)
@@ -7622,8 +7429,8 @@ CONTAINS
        CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%c_dp,&
             a%d%c2_dp, LDA, b%d%c2_dp, LDB, beta%c_dp, c%d%c2_dp, LDC)
     CASE default
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
     CALL dbcsr_data_clear_2d_pointer (a_tmp)
     CALL dbcsr_data_clear_2d_pointer (b_tmp)
@@ -7640,9 +7447,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_blas_copy', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_error_type)                   :: error
+
     CALL dbcsr_assert (x%d%data_type, "EQ", y%d%data_type,&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Incompatible data types")
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Incompatible data types",__LINE__,error)
     SELECT CASE (x%d%data_type)
     CASE (dbcsr_type_real_4)
        CALL BL_COPY (n, x%d%r_sp, incx, y%d%r_sp, incy)
@@ -7653,8 +7462,8 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL BL_COPY (n, x%d%c_dp, incx, y%d%c_dp, incy)
     CASE default
-       CALL dbcsr_assert (.FALSE., cp_fatal_level, cp_wrong_args_error,&
-            routineN, "Invalid data type")
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE dbcsr_blas_copy
 
@@ -7704,8 +7513,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: send_data_p, recv_data_p
     TYPE(dbcsr_mp_obj)                       :: mpe
 
-    !CALL dbcsr_assert (mp_env%mp%subgroups_defined, cp_warning_level,&
-    !     cp_caller_error, routineN, "Row/col communicators undefined.")
+    !CALL dbcsr_assert (mp_env%mp%subgroups_defined, dbcsr_warning_level,&
+    !     dbcsr_caller_error, routineN, "Row/col communicators undefined.")
     IF (.NOT. dbcsr_mp_has_subgroups (mp_env)) THEN
        mpe = mp_env
        CALL dbcsr_mp_grid_setup (mpe)
