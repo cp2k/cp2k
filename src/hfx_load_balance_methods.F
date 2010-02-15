@@ -1314,8 +1314,8 @@ MODULE hfx_load_balance_methods
       kind_kind_idx, kkind, kset, latom, lkind, lset, swap_id
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, npgfc, npgfd, &
                                                 nsgfa, nsgfb, nsgfc, nsgfd
-    REAL(dp) :: actual_pmax_atom, max_val1, max_val2, pmax_entry, rab2, rcd2, &
-      screen_kind_ij, screen_kind_kl
+    REAL(dp) :: actual_pmax_atom, cost_tmp, max_val1, max_val2, pmax_entry, &
+      rab2, rcd2, screen_kind_ij, screen_kind_kl
     REAL(dp), DIMENSION(:, :), POINTER       :: ptr_p_1, ptr_p_2, ptr_p_3, &
                                                 ptr_p_4
 
@@ -1514,16 +1514,17 @@ MODULE hfx_load_balance_methods
             IF( max_val2< log10_eps_schwarz) CYCLE
             SELECT CASE (eval_type)
             CASE (hfx_do_eval_energy)
-              estimate_block_cost = estimate_block_cost + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
+              cost_tmp = cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
                                                           max_val2/log10_eps_schwarz,&
                                                           p1_energy,p2_energy,p3_energy)
+              estimate_block_cost = estimate_block_cost + cost_tmp
             CASE (hfx_do_eval_forces)
-              estimate_block_cost = estimate_block_cost + cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
+              cost_tmp = cost_model(nsgfa(iset),nsgfb(jset),nsgfc(kset),nsgfd(lset), &
                                                           npgfa(iset),npgfb(jset),npgfc(kset),npgfd(lset), &
                                                           max_val2/log10_eps_schwarz,&
                                                           p1_forces,p2_forces,p3_forces)
-!              estimate_block_cost = estimate_block_cost + nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
+              estimate_block_cost = estimate_block_cost + cost_tmp
             END SELECT
           ENDDO ! i_set_list_kl
         ENDDO ! i_set_list_ij
