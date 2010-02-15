@@ -75,6 +75,9 @@ MODULE dbcsr_message_passing
   ! Memory management
   PUBLIC :: mp_allocate, mp_deallocate
 
+  ! Advanced Types
+  PUBLIC :: mp_indexing_meta_type, mp_type_descriptor_type
+  PUBLIC :: mp_type_make, mp_type_free
 
   ! default communicators
   PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD, MPI_COMM_NULL
@@ -296,6 +299,7 @@ MODULE dbcsr_message_passing
                       mp_isend_dv, mp_isend_dm2, mp_isend_dm3,&
                       mp_isend_cv, mp_isend_cm2, mp_isend_cm3,&
                       mp_isend_zv, mp_isend_zm2, mp_isend_zm3
+     MODULE PROCEDURE mp_isend_custom
   END INTERFACE
 
   INTERFACE mp_irecv
@@ -305,6 +309,7 @@ MODULE dbcsr_message_passing
                       mp_irecv_dv, mp_irecv_dm2, mp_irecv_dm3,&
                       mp_irecv_cv, mp_irecv_cm2, mp_irecv_cm3,&
                       mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3
+     MODULE PROCEDURE mp_irecv_custom
   END INTERFACE
 
   INTERFACE mp_window_create
@@ -352,6 +357,13 @@ MODULE dbcsr_message_passing
                       mp_deallocate_z
   END INTERFACE
 
+  INTERFACE mp_type_make
+     MODULE PROCEDURE mp_type_make_struct
+     MODULE PROCEDURE mp_type_make_i, mp_type_make_l,&
+                      mp_type_make_r, mp_type_make_d,&
+                      mp_type_make_c, mp_type_make_z
+  END INTERFACE
+
 ! Type declarations
 
 ! *****************************************************************************
@@ -371,6 +383,31 @@ MODULE dbcsr_message_passing
      COMPLEX(KIND=real_8), DIMENSION(:), POINTER      :: src_z
 #endif
   END TYPE mp_window_type
+
+
+  TYPE mp_indexing_meta_type
+     INTEGER, DIMENSION(:), POINTER :: index, chunks
+  END TYPE mp_indexing_meta_type
+
+  TYPE mp_type_descriptor_type
+     INTEGER :: type_handle
+     INTEGER :: length
+#if defined(__parallel)
+     INTEGER(kind=mpi_address_kind) :: base
+#endif
+     INTEGER(kind=int_4),  DIMENSION(:), POINTER :: data_i
+     INTEGER(kind=int_8),  DIMENSION(:), POINTER :: data_l
+     REAL(kind=real_4),    DIMENSION(:), POINTER :: data_r
+     REAL(kind=real_8),    DIMENSION(:), POINTER :: data_d
+     COMPLEX(kind=real_4), DIMENSION(:), POINTER :: data_c
+     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: data_z
+     TYPE(mp_type_descriptor_type), DIMENSION(:), POINTER :: subtype
+     INTEGER :: vector_descriptor(2)
+     LOGICAL :: has_indexing
+     TYPE(mp_indexing_meta_type) :: index_descriptor
+  END TYPE mp_type_descriptor_type
+
+
 
 CONTAINS
 
@@ -1265,8 +1302,160 @@ CONTAINS
 #endif
   END SUBROUTINE mp_window_fence
 
+
+  FUNCTION mp_type_make_struct (subtypes,&
+       vector_descriptor, index_descriptor) &
+       RESULT (type_descriptor)
+    TYPE(mp_type_descriptor_type), &
+      DIMENSION(:), INTENT(IN)               :: subtypes
+    INTEGER, DIMENSION(2), INTENT(IN), &
+      OPTIONAL                               :: vector_descriptor
+    TYPE(mp_indexing_meta_type), &
+      INTENT(IN), OPTIONAL                   :: index_descriptor
+    TYPE(mp_type_descriptor_type)            :: type_descriptor
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_make_struct', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr, n
+#if defined(__parallel)
+    INTEGER(kind=mpi_address_kind), &
+      ALLOCATABLE, DIMENSION(:)              :: displacements
+#endif
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: lengths, old_types
+
+!   ---------------------------------------------------------------------------
+
+    n = SIZE (subtypes)
+    !type_descriptor%mpi_type_handle = MPI_DATATYPE_NULL
+    type_descriptor%length = 1
+#if defined(__parallel)
+    type_descriptor%base = MPI_BOTTOM
+    ALLOCATE (displacements(n))
+#endif
+    type_descriptor%vector_descriptor(1:2) = 1
+    type_descriptor%has_indexing = .FALSE.
+    ALLOCATE (type_descriptor%subtype(n))
+    type_descriptor%subtype(:) = subtypes(:)
+    ALLOCATE (lengths(n), old_types(n))
+    DO i = 1, SIZE (subtypes)
+#if defined(__parallel)
+       displacements(i) = subtypes(i)%base
+#endif
+       old_types(i) = subtypes(i)%type_handle
+       lengths(i) = subtypes(i)%length
+    ENDDO
+#if defined(__parallel)
+    CALL MPI_Type_create_struct(n,&
+         lengths, displacements, old_types,&
+         type_descriptor%type_handle, ierr)
+    IF (ierr /= 0) CALL mp_abort("MPI_Type_create_struct @ "//routineN)
+    CALL MPI_Type_commit (type_descriptor%type_handle, ierr)
+    IF (ierr /= 0) CALL mp_abort("MPI_Type_commit @ "//routineN)
+#endif
+    IF (PRESENT (vector_descriptor) .OR. PRESENT (index_descriptor)) THEN
+       CALL mp_abort (routineN//" Vectors and indices NYI")
+    ENDIF
+  END FUNCTION mp_type_make_struct
+
+
+  RECURSIVE SUBROUTINE mp_type_free (type_descriptor)
+    TYPE(mp_type_descriptor_type), &
+      INTENT(inout)                          :: type_descriptor
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_free', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ierr
+
+!   ---------------------------------------------------------------------------
+! If the subtype is associated, then it's a user-defined data type.
+
+    IF (ASSOCIATED (type_descriptor%subtype)) THEN
+        DO i = 1, SIZE(type_descriptor%subtype)
+          CALL mp_type_free (type_descriptor%subtype(i))
+       ENDDO
+       DEALLOCATE (type_descriptor%subtype)
+#if defined(__parallel)
+       CALL MPI_Type_free (type_descriptor%type_handle, ierr)
+       IF (ierr /= 0) CALL mp_abort("MPI_Type_free @ "//routineN)
+#endif
+    ENDIF
+  END SUBROUTINE mp_type_free
+
+
+
+
 ! *****************************************************************************
-! Here are the includes for the templates.
+!> \brief Non-blocking send of custom type
+!> \sa mp_isendrecv_iv
+! *****************************************************************************
+  SUBROUTINE mp_isend_custom(msgin,dest,comm,request,tag)
+    TYPE(mp_type_descriptor_type), &
+      INTENT(IN)                             :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isend_custom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, my_tag
+
+    ierr = 0
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    CALL mpi_isend(MPI_BOTTOM,1,msgin%type_handle,dest,my_tag,&
+            comm,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
+    t_end = m_walltime ( )
+#else
+    ierr=1
+    CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+#endif
+  END SUBROUTINE mp_isend_custom
+
+
+! *****************************************************************************
+!> \brief Non-blocking receive of vector data
+!> \sa mp_isendrecv_iv
+! *****************************************************************************
+  SUBROUTINE mp_irecv_custom(msgout,source,comm,request,tag)
+    TYPE(mp_type_descriptor_type), &
+      INTENT(INOUT)                          :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_irecv_custom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, my_tag
+
+    ierr = 0
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    CALL mpi_irecv(MPI_BOTTOM,1,msgout%type_handle,source, my_tag,&
+         comm,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_irecv @ "//routineN )
+    t_end = m_walltime ( )
+#else
+    ierr=1
+    CALL mp_abort( "mp_irecv called in non parallel case" )
+#endif
+  END SUBROUTINE mp_irecv_custom
+
+
+! *****************************************************************************
+! HERE ARE the includes for the templates.
 ! *****************************************************************************
 
   SUBROUTINE prettify_fooler(a, i4, i8, r4, r8, c4, c8)

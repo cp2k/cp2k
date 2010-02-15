@@ -40,14 +40,9 @@ MODULE dbcsr_operations
                                              real_8,&
                                              sp
   USE dbcsr_machine,                   ONLY: m_walltime
-  USE dbcsr_message_passing,           ONLY: dmp_max,&
-                                             mp_allgather,&
-                                             mp_alltoall,&
-                                             mp_bcast,&
-                                             mp_irecv,&
-                                             mp_isend,&
-                                             mp_sum,&
-                                             mp_waitall
+  USE dbcsr_message_passing,           ONLY: &
+       dmp_max, mp_allgather, mp_alltoall, mp_bcast, mp_irecv, mp_isend, &
+       mp_sum, mp_type_descriptor_type, mp_type_free, mp_type_make, mp_waitall
 !dmp_max, this fixes a bug in g95
 ! -> ambigous interface for mp_max
 !    in module dbcsr_message_passing and wrongly
@@ -252,6 +247,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: idata = 1, imeta = 2, &
                                                 M_L = 2, M_P = 1, M_R = 3, &
                                                 RC_C = 2, RC_R = 1
+    LOGICAL, PARAMETER                       :: use_combined_types = .FALSE.
 
     CHARACTER                                :: data_type
     INTEGER :: debug_level, error_handler, grp, i, ithread, left_col_image, &
@@ -304,6 +300,16 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
                                                 right_mp_obj
+    TYPE(mp_type_descriptor_type), &
+      ALLOCATABLE, DIMENSION(:, :)           :: left_recv_type, &
+                                                left_send_type, &
+                                                right_recv_type, &
+                                                right_send_type
+    TYPE(mp_type_descriptor_type), &
+      DIMENSION(2)                           :: left_recv_subtypes, &
+                                                left_send_subtypes, &
+                                                right_recv_subtypes, &
+                                                right_send_subtypes
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -507,6 +513,8 @@ CONTAINS
     ALLOCATE (left_index_sr (left_row_nimages, left_col_nimages))
     ALLOCATE (left_data_rr  (left_row_mult, left_col_nimages))
     ALLOCATE (left_index_rr (left_row_mult, left_col_nimages))
+    ALLOCATE (left_send_type (left_row_nimages, left_col_nimages))
+    ALLOCATE (left_recv_type (left_row_nimages, left_col_nimages))
     ! Setup buffers for right matrix
     max_nblks = MAXVAL (all_sizes (imeta+2, :,:,:))
     max_nze = MAXVAL (all_sizes(idata+2, :,:,:))
@@ -523,6 +531,8 @@ CONTAINS
     ALLOCATE (right_index_sr (right_row_nimages, right_col_nimages))
     ALLOCATE (right_data_rr  (right_row_nimages, right_col_mult))
     ALLOCATE (right_index_rr (right_row_nimages, right_col_mult))
+    ALLOCATE (right_send_type (right_row_nimages, right_col_nimages))
+    ALLOCATE (right_recv_type (right_row_nimages, right_col_nimages))
     !
     ! Setup the send/receive data pointers
     CALL dbcsr_data_init(left_data_sp)
@@ -550,8 +560,15 @@ CONTAINS
           IF (dbg) WRITE (*,'(1X,A)')routineN//" waiting for right"
           CALL mp_waitall (right_data_sr)
           CALL mp_waitall (right_data_rr)
-          CALL mp_waitall (right_index_sr)
-          CALL mp_waitall (right_index_rr)
+          IF (use_combined_types) THEN
+             DO v_ki = 1, right_row_nimages
+                CALL mp_type_free (right_recv_type(v_ki, 1))
+                CALL mp_type_free (right_send_type(v_ki, 1))
+             ENDDO
+          ELSE
+             CALL mp_waitall (right_index_sr)
+             CALL mp_waitall (right_index_rr)
+          ENDIF
        ENDIF wait_right
        ! Right matrix transfer. Transfer in all but the last loop
        ! iteration.
@@ -690,32 +707,46 @@ CONTAINS
              right_send_p = right_send_prow
              right_recv_p = right_recv_prow
              grp = mp_rc_groups(M_R, RC_C)
-             SELECT CASE (data_type)
-             CASE (dbcsr_type_real_4)
-                CALL mp_isend (right_data_sp%d%r_sp, right_send_p,&
+             !
+             IF (use_combined_types) THEN
+                right_send_subtypes(1) = dbcsr_mp_type_from_anytype (right_data_sp)
+                right_send_subtypes(2) = mp_type_make (right_index_sp)
+                right_recv_subtypes(1) = dbcsr_mp_type_from_anytype (right_data_rp)
+                right_recv_subtypes(2) = mp_type_make (right_index_rp)
+                right_send_type(v_ki+1, 1) = mp_type_make (right_send_subtypes)
+                right_recv_type(v_ki+1, 1) = mp_type_make (right_recv_subtypes)
+                CALL mp_isend (right_send_type(v_ki+1, 1), right_send_p,&
                      grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-                CALL mp_irecv (right_data_rp%d%r_sp, right_recv_p,&
+                CALL mp_irecv (right_recv_type(v_ki+1, 1), right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
-             CASE (dbcsr_type_real_8)
-                CALL mp_isend (right_data_sp%d%r_dp, right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-                CALL mp_irecv (right_data_rp%d%r_dp, right_recv_p,&
-                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
-             CASE (dbcsr_type_complex_4)
-                CALL mp_isend (right_data_sp%d%c_sp, right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-                CALL mp_irecv (right_data_rp%d%c_sp, right_recv_p,&
-                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
-             CASE (dbcsr_type_complex_8)
-                CALL mp_isend (right_data_sp%d%c_dp, right_send_p,&
-                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-                CALL mp_irecv (right_data_rp%d%c_dp, right_recv_p,&
-                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
-             END SELECT
-             CALL mp_isend (right_index_sp, right_send_p,&
-                  grp, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
-             CALL mp_irecv (right_index_rp, right_recv_p,&
-                  grp, right_index_rr(v_ki+1, 1), tag=right_src_v_row)
+             ELSE
+                SELECT CASE (data_type)
+                CASE (dbcsr_type_real_4)
+                   CALL mp_isend (right_data_sp%d%r_sp, right_send_p,&
+                        grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                   CALL mp_irecv (right_data_rp%d%r_sp, right_recv_p,&
+                        grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                CASE (dbcsr_type_real_8)
+                   CALL mp_isend (right_data_sp%d%r_dp, right_send_p,&
+                        grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                   CALL mp_irecv (right_data_rp%d%r_dp, right_recv_p,&
+                        grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                CASE (dbcsr_type_complex_4)
+                   CALL mp_isend (right_data_sp%d%c_sp, right_send_p,&
+                        grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                   CALL mp_irecv (right_data_rp%d%c_sp, right_recv_p,&
+                        grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                CASE (dbcsr_type_complex_8)
+                   CALL mp_isend (right_data_sp%d%c_dp, right_send_p,&
+                        grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
+                   CALL mp_irecv (right_data_rp%d%c_dp, right_recv_p,&
+                        grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
+                END SELECT
+                CALL mp_isend (right_index_sp, right_send_p,&
+                     grp, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
+                CALL mp_irecv (right_index_rp, right_recv_p,&
+                     grp, right_index_rr(v_ki+1, 1), tag=right_src_v_row)
+             ENDIF
           ENDDO
        ENDIF xfer_right
        !
@@ -733,8 +764,15 @@ CONTAINS
           IF (dbg) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
           CALL mp_waitall (left_data_rr)
-          CALL mp_waitall (left_index_sr)
-          CALL mp_waitall (left_index_rr)
+          IF (use_combined_types) THEN
+             DO v_ki = 1, left_col_nimages
+                CALL mp_type_free (left_send_type(1, v_ki))
+                CALL mp_type_free (left_recv_type(1, v_ki))
+             ENDDO
+          ELSE
+             CALL mp_waitall (left_index_sr)
+             CALL mp_waitall (left_index_rr)
+          ENDIF
        ENDIF wait_left
        ! Left matrix transfer. Transfer in all but the last loop
        ! iteration.
@@ -875,32 +913,46 @@ CONTAINS
              left_send_p = left_send_pcol
              left_recv_p = left_recv_pcol
              grp = mp_rc_groups(M_L, RC_R)
-             SELECT CASE (data_type)
-             CASE (dbcsr_type_real_4)
-                CALL mp_isend (left_data_sp%d%r_sp, left_send_p,&
+             !
+             IF (use_combined_types) THEN
+                left_send_subtypes(1) = dbcsr_mp_type_from_anytype (left_data_sp)
+                left_send_subtypes(2) = mp_type_make (left_index_sp)
+                left_recv_subtypes(1) = dbcsr_mp_type_from_anytype (left_data_rp)
+                left_recv_subtypes(2) = mp_type_make (left_index_rp)
+                left_send_type(1, v_ki+1) = mp_type_make (left_send_subtypes)
+                left_recv_type(1, v_ki+1) = mp_type_make (left_recv_subtypes)
+                CALL mp_isend (left_send_type(1, v_ki+1), left_send_p,&
                      grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-                CALL mp_irecv (left_data_rp%d%r_sp, left_recv_p,&
+                CALL mp_irecv (left_recv_type(1, v_ki+1), left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
-             CASE (dbcsr_type_real_8)
-                CALL mp_isend (left_data_sp%d%r_dp, left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-                CALL mp_irecv (left_data_rp%d%r_dp, left_recv_p,&
-                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
-             CASE (dbcsr_type_complex_4)
-                CALL mp_isend (left_data_sp%d%c_sp, left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-                CALL mp_irecv (left_data_rp%d%c_sp, left_recv_p,&
-                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
-             CASE (dbcsr_type_complex_8)
-                CALL mp_isend (left_data_sp%d%c_dp, left_send_p,&
-                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-                CALL mp_irecv (left_data_rp%d%c_dp, left_recv_p,&
-                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
-             END SELECT
-             CALL mp_isend (left_index_sp, left_send_p,&
-                  grp, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
-             CALL mp_irecv (left_index_rp, left_recv_p,&
-                  grp, left_index_rr(1, v_ki+1), tag=left_src_v_col)
+             ELSE
+                SELECT CASE (data_type)
+                CASE (dbcsr_type_real_4)
+                   CALL mp_isend (left_data_sp%d%r_sp, left_send_p,&
+                        grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                   CALL mp_irecv (left_data_rp%d%r_sp, left_recv_p,&
+                        grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                CASE (dbcsr_type_real_8)
+                   CALL mp_isend (left_data_sp%d%r_dp, left_send_p,&
+                        grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                   CALL mp_irecv (left_data_rp%d%r_dp, left_recv_p,&
+                        grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                CASE (dbcsr_type_complex_4)
+                   CALL mp_isend (left_data_sp%d%c_sp, left_send_p,&
+                        grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                   CALL mp_irecv (left_data_rp%d%c_sp, left_recv_p,&
+                        grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                CASE (dbcsr_type_complex_8)
+                   CALL mp_isend (left_data_sp%d%c_dp, left_send_p,&
+                        grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
+                   CALL mp_irecv (left_data_rp%d%c_dp, left_recv_p,&
+                        grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
+                END SELECT
+                CALL mp_isend (left_index_sp, left_send_p,&
+                     grp, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
+                CALL mp_irecv (left_index_rp, left_recv_p,&
+                     grp, left_index_rr(1, v_ki+1), tag=left_src_v_col)
+             ENDIF
           ENDDO
        ENDIF xfer_left
        !
@@ -1033,6 +1085,24 @@ CONTAINS
     ENDDO
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE setup_buffer_matrices
+
+
+  FUNCTION dbcsr_mp_type_from_anytype(data_area) RESULT (mp_type)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: data_area
+    TYPE(mp_type_descriptor_type)            :: mp_type
+
+    SELECT CASE (data_area%d%data_type)
+    CASE (dbcsr_type_real_4)
+       mp_type = mp_type_make (data_area%d%r_sp)
+    CASE (dbcsr_type_real_8)
+       mp_type = mp_type_make (data_area%d%r_dp)
+    CASE (dbcsr_type_complex_4)
+       mp_type = mp_type_make (data_area%d%c_sp)
+    CASE (dbcsr_type_complex_8)
+       mp_type = mp_type_make (data_area%d%c_dp)
+    END SELECT
+  END FUNCTION dbcsr_mp_type_from_anytype
+
 
   SUBROUTINE all_print (val, desc, mp)
     INTEGER, INTENT(IN)                      :: val

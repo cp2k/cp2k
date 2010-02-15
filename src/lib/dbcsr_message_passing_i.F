@@ -2153,3 +2153,34 @@
     NULLIFY(DATA)
 #endif
   END SUBROUTINE mp_deallocate_i
+
+  FUNCTION mp_type_make_i (ptr,&
+       vector_descriptor, index_descriptor) &
+       RESULT (type_descriptor)
+    INTEGER(KIND=int_4), DIMENSION(:), POINTER                    :: ptr
+    INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL       :: vector_descriptor
+    TYPE(mp_indexing_meta_type), INTENT(IN), OPTIONAL :: index_descriptor
+    TYPE(mp_type_descriptor_type)                     :: type_descriptor
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_make_type_i', &
+         routineP = moduleN//':'//routineN
+    INTEGER :: ierr
+!   ---------------------------------------------------------------------------
+    NULLIFY (type_descriptor%subtype)
+    type_descriptor%length = SIZE (ptr)
+#if defined(__parallel)
+    type_descriptor%type_handle = MPI_INTEGER
+    CALL MPI_Get_address (ptr, type_descriptor%base, ierr)
+    IF (ierr /= 0) CALL mp_abort("MPI_Get_address @ "//routineN)
+#else
+    type_descriptor%type_handle = 0
+#endif
+    type_descriptor%vector_descriptor(1:2) = 1
+    type_descriptor%has_indexing = .FALSE.
+    type_descriptor%data_i => ptr
+    IF (PRESENT (vector_descriptor) .OR. PRESENT (index_descriptor)) THEN
+       CALL mp_abort (routineN//": Vectors and indices NYI")
+    ENDIF
+  END FUNCTION mp_type_make_i
+
+
