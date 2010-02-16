@@ -17,3 +17,9 @@ CH4-BP-CAUCHY_SUBSPACE.inp              1
 CH4-BP-CAUCHY_SUBSPACE_OT_OFF.inp       1
 CH4-BP-CAUCHY.inp                       1
 CH4-BP-CAUCHY_OT_OFF.inp                1
+H2+-BLOCKED-PURIFY-OFF.inp              1
+H2+-BLOCKED-PURIFY-FULL.inp             1
+H2+-BLOCKED-PURIFY-BLOCKED.inp          1
+2H2O-BLOCKED-PURIFY-OFF.inp             1
+2H2O-BLOCKED-PURIFY-FULL.inp            1
+2H2O-BLOCKED-PURIFY-BLOCKED.inp         1
