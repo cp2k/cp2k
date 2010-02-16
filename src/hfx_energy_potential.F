@@ -677,7 +677,7 @@ MODULE hfx_energy_potential
    
     !! Get screening parameter
     eps_schwarz = screening_parameter%eps_schwarz
-    IF( eps_schwarz < 0.0_dp) THEN
+    IF( eps_schwarz <= 0.0_dp) THEN
       log10_eps_schwarz = log_zero
     ELSE
       log10_eps_schwarz = LOG10(eps_schwarz) 

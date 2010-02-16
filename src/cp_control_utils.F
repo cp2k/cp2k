@@ -80,7 +80,8 @@ CONTAINS
                                                 l_param, not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
-    TYPE(section_vals_type), POINTER         :: scf_section, scp_section, &
+    TYPE(section_vals_type), POINTER         :: admm_block_section, &
+                                                scf_section, scp_section, &
                                                 tmp_section, xc_fun_section, &
                                                 xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
@@ -172,11 +173,24 @@ CPSourceFileRef,&
       dft_control%admm_control%method_id = method_id
       CALL section_vals_val_get(dft_section,"AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_PURIFICATION_METHOD",i_val=method_id,error=error)
       dft_control%admm_control%purification_method = method_id
+      NULLIFY(admm_block_section)
+      admm_block_section => section_vals_get_subs_vals(dft_section,&
+                           "AUXILIARY_DENSITY_MATRIX_METHOD%BLOCK_DENSITY_MATRIX_METHOD",error=error)
+      CALL section_vals_get(admm_block_section,explicit=is_present, error=error)
+
+      IF( is_present) THEN
+        CALL section_vals_val_get(admm_block_section,"BASIS_PROJECTION",i_val=method_id,error=error)
+        dft_control%admm_control%block_projection_method = method_id
+        CALL section_vals_val_get(admm_block_section,"PURIFICATION",i_val=method_id,error=error)
+        dft_control%admm_control%block_purification_method = method_id
+      END IF
       ! ** Some algorithms are not implemented yet
-      IF( dft_control%admm_control%method_id == do_admm_blocked_density_matrix ) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-                                    message="ADMM: Blocked density matrix method not implemented", &
-                                    error=error, error_level=cp_failure_level)
+      IF( dft_control%admm_control%method_id == do_admm_block_density_matrix ) THEN
+        IF( dft_control%admm_control%block_projection_method == do_admm_block_aux_basis_on ) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+                                      message="ADMM: Block density matrix method with basis projection not implemented", &
+                                      error=error, error_level=cp_failure_level)
+        END IF
       ELSE
         SELECT CASE (dft_control%admm_control%purification_method)
         CASE (do_admm_purify_none)

@@ -20,8 +20,12 @@ MODULE admm_types
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_release,&
-                                             section_vals_type
+  USE input_constants,                 ONLY: do_admm_block_density_matrix
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -30,7 +34,9 @@ MODULE admm_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  admm_env_create, admm_env_release, admm_type, eigvals_p_type, eigvals_type
+  PUBLIC  admm_env_create, admm_env_release, admm_type, eigvals_p_type, eigvals_type,&
+          admm_create_block_list, admm_block
+        
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
 
@@ -42,6 +48,9 @@ MODULE admm_types
     TYPE(eigvals_type), POINTER              :: eigvals
   END TYPE
 
+  TYPE admm_block
+    INTEGER, DIMENSION(:), POINTER            :: list
+  END TYPE
 
 
 ! *****************************************************************************
@@ -115,7 +124,13 @@ MODULE admm_types
       POINTER                                :: ks_to_be_merged
     INTEGER                                  :: method_id
     INTEGER                                  :: purification_method
+    INTEGER                                  :: block_purification_method
+    INTEGER                                  :: block_projection_method
+    TYPE(admm_block), DIMENSION(:), &
+      POINTER                                :: blocks
+    INTEGER, DIMENSION(:,:), POINTER         :: block_map
   END TYPE
+
 
   
   CONTAINS
@@ -432,6 +447,10 @@ MODULE admm_types
     DEALLOCATE(admm_env%P_tilde,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    IF( admm_env%method_id == do_admm_block_density_matrix) THEN
+      DEALLOCATE(admm_env%block_map, STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     CALL section_vals_release(admm_env%xc_section_primary,error)
     CALL section_vals_release(admm_env%xc_section_aux,error)
@@ -440,6 +459,62 @@ MODULE admm_types
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE admm_env_release
+
+
+  SUBROUTINE admm_create_block_list(admm_block_section, admm_env, natom, error)
+    TYPE(section_vals_type), POINTER         :: admm_block_section
+    TYPE(admm_type), POINTER                 :: admm_env
+    INTEGER                                  :: natom
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_create_block_list', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iatom, irep, j, jatom, &
+                                                list_size, n_rep, stat
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
+    LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: list_section
+
+    NULLIFY(list_section)
+    list_section => section_vals_get_subs_vals(admm_block_section,"BLOCK",error=error) 
+    CALL section_vals_get(list_section,n_repetition=n_rep,error=error)
+
+    ALLOCATE(admm_env%blocks(n_rep), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO irep = 1, n_rep
+      CALL section_vals_val_get(list_section,"LIST", i_rep_section=irep, &
+                   i_vals=tmplist, error=error)
+      list_size = SIZE(tmplist)
+      ALLOCATE(admm_env%blocks(irep)%list(list_size), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      admm_env%blocks(irep)%list = tmplist
+    END DO
+
+    ALLOCATE(admm_env%block_map(natom,natom), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    admm_env%block_map = 0
+    DO irep = 1,n_rep
+      DO i = 1,SIZE(admm_env%blocks(irep)%list)
+        iatom = admm_env%blocks(irep)%list(i)
+        DO j = 1,SIZE(admm_env%blocks(irep)%list)
+          jatom = admm_env%blocks(irep)%list(j)
+          admm_env%block_map(iatom,jatom) = 1
+        END DO
+      END DO
+    END DO
+
+    DO irep = 1, n_rep
+      DEALLOCATE(admm_env%blocks(irep)%list, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(admm_env%blocks, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+
+  END SUBROUTINE admm_create_block_list
 
 END MODULE admm_types
 

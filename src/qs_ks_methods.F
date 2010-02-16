@@ -639,8 +639,9 @@ CONTAINS
           
          DO ispin=1,nspins
             matrix_p_aux_fit =>qs_env%rho_aux_fit%rho_ao
-            CALL admm_calculate_density_matrix(admm_env, mos_aux_fit(ispin)%mo_set, &
-                                               matrix_p_aux_fit(ispin)%matrix,ispin,error=error)
+            matrix_p => qs_env%rho%rho_ao
+            CALL admm_calculate_density_matrix(admm_env, mos_aux_fit(ispin)%mo_set, matrix_p(ispin)%matrix, &
+                                               matrix_p_aux_fit(ispin)%matrix,ispin,nspins,error=error)
             CALL calculate_rho_elec(matrix_p=qs_env%rho_aux_fit%rho_ao(ispin)%matrix,&
                  rho=qs_env%rho_aux_fit%rho_r(ispin),&
                  rho_gspace=qs_env%rho_aux_fit%rho_g(ispin),&

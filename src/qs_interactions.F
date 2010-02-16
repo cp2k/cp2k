@@ -357,8 +357,8 @@ CONTAINS
               zeta = zet(ipgf,iset)
               pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
                                           exp_radius(l,zeta,&
-                                                     qs_control%eps_pgf_orb,&
-                                                     gcca))
+                                          qs_control%eps_pgf_orb,&
+                                          gcca))
               short_radius = MAX(short_radius,&
                              exp_radius(l,zeta,&
                              qs_control%eps_pgf_orb*eps_reduce,&
