@@ -400,7 +400,7 @@ CONTAINS
        CALL keyword_create(keyword, name="COMPONENTS_TO_FIX",&
             description="Specify which components (X,Y,Z or combinations) of the atoms specified in the section"//&
             "will be constrained/restrained.",&
-            usage="FIXED_ATOMS (x|y|z|xy|xz|yz|xyz)",&
+            usage="COMPONENTS_TO_FIX (x|y|z|xy|xz|yz|xyz)",&
             default_i_val=use_perd_xyz,&
             enum_c_vals=s2a("x","y","z","xy","xz","yz","xyz"),&
             enum_i_vals=(/ use_perd_x,  use_perd_y,  use_perd_z,&
