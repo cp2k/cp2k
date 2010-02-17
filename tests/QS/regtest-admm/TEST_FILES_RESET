@@ -1,4 +1,5 @@
 #
 # add files to be reset here
 #
-#  
+# bug in ADDM blocking
+H2+-BLOCKED-PURIFY-BLOCKED.inp
