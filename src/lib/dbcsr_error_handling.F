@@ -125,6 +125,7 @@ CONTAINS
 
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
        error%stack%level.LT.1) THEN
+       WRITE(*,*) 'dbcsr_error_stop'
        WRITE(*,*) 'level=',error%stack%level
        WRITE(*,*) 'dbcsr_error_stack_size=',dbcsr_error_stack_size
        STOP
@@ -154,7 +155,13 @@ CONTAINS
 
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
        error%stack%level.LT.1) THEN
-       WRITE(*,*) 'level=',error%stack%level
+       WRITE(*,*) 'dbcsr_error_print_stack'
+       WRITE(*,*) 'error%msg=',error%msg
+       WRITE(*,*) 'error%routine=',error%routine
+       WRITE(*,*) 'error%etype=',error%etype
+       WRITE(*,*) 'error%level=',error%level
+       WRITE(*,*) 'error%line=',error%line
+       WRITE(*,*) 'error%stack%level=',error%stack%level
        WRITE(*,*) 'dbcsr_error_stack_size=',dbcsr_error_stack_size
        STOP
     ENDIF

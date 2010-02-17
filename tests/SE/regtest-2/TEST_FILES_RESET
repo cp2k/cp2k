@@ -311,3 +311,11 @@ ZrF2-PM6.inp
 zn_1w_debug.inp
 # fm to dbcsr
 H2O-32.inp
+# convert mo_derivs to dbcsr
+ch4-ot.inp
+# convert mo_derivs to dbcsr
+hcl_ot.inp
+# convert mo_derivs to dbcsr
+ZrF2-PM6.inp
+# convert mo_derivs to dbcsr
+zn_1w_debug.inp

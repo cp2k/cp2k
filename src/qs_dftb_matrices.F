@@ -8,7 +8,6 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE qs_dftb_matrices
-
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_new,&
                                              array_nullify,&
@@ -21,13 +20,12 @@ MODULE qs_dftb_matrices
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, &
-       cp_dbcsr_init, dbcsr_add_block_node, dbcsr_allocate_matrix_set, &
-       dbcsr_dist2d_to_dist, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
+       copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_finalize, cp_dbcsr_init, cp_dbcsr_multiply, &
+       dbcsr_add_block_node, dbcsr_allocate_matrix_set, dbcsr_dist2d_to_dist, &
+       dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -35,9 +33,11 @@ MODULE qs_dftb_matrices
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
-                                             dbcsr_distribution_release
+                                             dbcsr_distribution_release,&
+                                             dbcsr_get_info
   USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
@@ -669,13 +669,13 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s
+      POINTER                                :: matrix_h, matrix_p, matrix_s, &
+                                                mo_derivs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -774,11 +774,12 @@ CONTAINS
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
           DO ispin=1,SIZE(mo_derivs)
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
-                             occupation_numbers=occupation_numbers )
-             CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
-             CALL dbcsr_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                        mo_derivs(ispin)%matrix, ncol_global,error=error)
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,&
+                  mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers )
+             CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!fm->dbcsr for anycase
+             CALL dbcsr_get_info(mo_coeff_b,nfullcols_total=ncol_global)
+             CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
+                  0.0_dp,mo_derivs(ispin)%matrix, last_column=ncol_global,error=error)
           ENDDO
        ENDIF
 

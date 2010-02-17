@@ -83,6 +83,8 @@ MODULE preconditioner
                                              mp_max
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -124,13 +126,13 @@ CONTAINS
 
 ! *****************************************************************************
 SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, matrix_h, matrix_s, &
-     matrix_t, mo_coeff, energy_gap, mixed_precision, convert_precond_to_dbcsr, error)
+     matrix_t, mo_set, energy_gap, mixed_precision, convert_precond_to_dbcsr, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
     INTEGER, INTENT(IN)                      :: precon_type, solver_type
     TYPE(dbcsr_obj), POINTER                 :: matrix_h
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: matrix_s, matrix_t
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp)                            :: energy_gap
     LOGICAL, INTENT(IN), OPTIONAL            :: mixed_precision, &
                                                 convert_precond_to_dbcsr
@@ -145,10 +147,13 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
       needs_full_spectrum, needs_homo
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     failure=.FALSE.
 
-  CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
+
+    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff)
 
     CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 

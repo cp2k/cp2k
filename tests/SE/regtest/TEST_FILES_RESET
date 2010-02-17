@@ -461,3 +461,13 @@ dimer4.inp
 h2o_gks_p.inp
 # numerics
 ice-scp-ewald_gks.inp
+# convert mo_derivs to dbcsr
+ch4-ot.inp
+# convert mo_derivs to dbcsr
+h2po4.inp
+# convert mo_derivs to dbcsr
+dimer3.inp
+# convert mo_derivs to dbcsr
+h2o_gks_p.inp
+# convert mo_derivs to dbcsr
+ice-scp-ewald_gks.inp

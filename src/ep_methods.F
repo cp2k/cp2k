@@ -35,10 +35,14 @@ MODULE ep_methods
                                              fm_pool_give_back_fm,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_types,                     ONLY: &
-       cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
-       cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_type, &
-       cp_fm_write
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_p_type,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_element,&
+                                             cp_fm_set_submatrix,&
+                                             cp_fm_type,&
+                                             cp_fm_write
   USE cp_fm_vect,                      ONLY: cp_fm_vect_set_all,&
                                              cp_fm_vect_write
   USE cp_output_handling,              ONLY: &
@@ -1351,8 +1355,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1370,7 +1372,7 @@ CONTAINS
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s,&
          dft_control, mos, occupation_numbers, S_sm_pools, ks_env)
-    NULLIFY(atomic_kind_set, mo_derivs, mo_coeff)
+    NULLIFY(atomic_kind_set, mo_coeff)
     logger => cp_error_get_logger(error)
     failure=.FALSE.
 
@@ -1419,21 +1421,22 @@ CONTAINS
 
     !   *** get the mo_derivs OK if needed ***
     IF (qs_env%requires_mo_derivs) THEN
-       CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
-       IF (.NOT.ASSOCIATED(mo_derivs)) THEN
-          IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
-             ALLOCATE(mo_derivs(1))
-             CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
-             CALL cp_fm_create(mo_derivs(1)%matrix,mo_coeff%matrix_struct,error=error)
-          ELSE
-             ALLOCATE(mo_derivs(dft_control%nspins))
-             DO ispin=1,dft_control%nspins
-                CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-                CALL cp_fm_create(mo_derivs(ispin)%matrix,mo_coeff%matrix_struct,error=error)
-             ENDDO
-          ENDIF
-          CALL set_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
-       ENDIF
+       ! this is never used ...
+       !CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
+       !IF (.NOT.ASSOCIATED(mo_derivs)) THEN
+       !   IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
+       !      ALLOCATE(mo_derivs(1))
+       !      CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
+       !      CALL cp_fm_create(mo_derivs(1)%matrix,mo_coeff%matrix_struct,error=error)
+       !   ELSE
+       !      ALLOCATE(mo_derivs(dft_control%nspins))
+       !      DO ispin=1,dft_control%nspins
+       !         CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+       !         CALL cp_fm_create(mo_derivs(ispin)%matrix,mo_coeff%matrix_struct,error=error)
+       !      ENDDO
+       !   ENDIF
+       !   CALL set_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
+       !ENDIF
     ELSE
        ! nothing should be done
     ENDIF
@@ -1493,8 +1496,6 @@ CONTAINS
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi0
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: orbitals
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1764,7 +1765,7 @@ CONTAINS
             ep_env%main_qs_env%matrix_ks(ispin)%matrix,&
             ep_env%main_qs_env%matrix_s(1)%matrix,&
             ep_env%main_qs_env%kinetic(1)%matrix,&
-            psi0(ispin)%matrix,0.2_dp,error=error)
+            ep_env%main_qs_env%mos(ispin)%mo_set,0.2_dp,error=error)
        ! same precond for both spins
        DO ispin=2,dft_control%nspins
           ep_env%precond(ispin)%preconditioner => &
@@ -1878,7 +1879,6 @@ CONTAINS
          ks_env=ks_env,&
          matrix_ks=matrix_ks,&
          matrix_s=matrix_s,&
-         mo_derivs=mo_derivs,&
          mos=mos,&
          rho=rho,error=error)
 

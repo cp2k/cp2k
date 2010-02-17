@@ -795,7 +795,7 @@ CONTAINS
             matrix_s=matrix_s(1)%matrix,&
             matrix_t=qs_env%kinetic(1)%matrix, &
             convert_precond_to_dbcsr=.TRUE.,&
-            mo_coeff=mo_coeff,energy_gap=0.2_dp,error=error)
+            mo_set=mos(1)%mo_set,energy_gap=0.2_dp,error=error)
 
        CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
             unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter,error=error)

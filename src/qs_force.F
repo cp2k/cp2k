@@ -21,8 +21,7 @@ MODULE qs_force
                                              dbcsr_deallocate_matrix_set,&
                                              dbcsr_obj_p_type
   USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
-  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -61,6 +60,7 @@ MODULE qs_force
                                              qs_force_type,&
                                              zero_qs_force
   USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
+                                             calculate_w_matrix_ot,&
                                              qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -121,8 +121,6 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -130,7 +128,7 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s, &
                                                 matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb, &
-                                                matrix_w
+                                                matrix_w, mo_derivs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -262,7 +260,7 @@ CONTAINS
                       ! not very elegant, indeed ...
                       CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
                    ELSE
-                      CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
+                      CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
                            matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
                    END IF
                 ELSE
@@ -274,7 +272,7 @@ CONTAINS
                 END IF
              ELSE
                 IF (scf_control%use_ot) THEN
-                   CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
+                   CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
                         matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
                 ELSE
                    CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)

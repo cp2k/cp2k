@@ -30,7 +30,8 @@ MODULE qs_ks_methods
                                              dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
        copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_copy, &
-       cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_set, &
+       cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
+       cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
        dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
        dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, &
        dbcsr_sm_fm_multiply
@@ -58,7 +59,8 @@ MODULE qs_ks_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_occupation
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
+                                             dbcsr_get_occupation
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential
@@ -163,7 +165,7 @@ MODULE qs_ks_methods
 
   INTERFACE calculate_w_matrix
     MODULE PROCEDURE calculate_w_matrix_1,&
-                     calculate_w_matrix_2,&
+!                     calculate_w_matrix_2,&
                      calculate_w_matrix_roks
                      
   END INTERFACE
@@ -173,7 +175,7 @@ MODULE qs_ks_methods
   INTEGER, SAVE, PRIVATE :: last_ks_id_nr=0
 
   PUBLIC :: qs_ks_create, qs_ks_did_change, qs_vxc_create, calc_rho_tot_gspace, &
-       qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, calculate_w_matrix
+       qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, calculate_w_matrix, calculate_w_matrix_ot
 !***
 
 CONTAINS
@@ -301,7 +303,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: adiabatic_functional, adiabatic_model, handle, ikind, irep, &
-      ispin, k, k2, n, n_rep_hf, nspins, output_unit, stat
+      ispin, k, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, do_hfx_ri, do_ppl, explicit_potential, failure, gapw, &
       gapw_xc, hfx_treat_lsd_in_core, ionode, my_kg_gpw, my_print, scp_dft, &
@@ -318,15 +320,16 @@ CONTAINS
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs, mo_derivs_aux_fit
-    TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff, &
-                                                mo_coeff_aux_fit
+      POINTER                                :: mo_derivs_aux_fit, &
+                                                mo_derivs_tmp
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_p, matrix_p_aux_fit, &
-                                                matrix_s, my_rho
+                                                matrix_s, mo_derivs, my_rho
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1242,21 +1245,26 @@ CONTAINS
 
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
 
-          !vwCALL get_qs_env(qs_env,mo_derivs_dbcsr=mo_derivs_dbcsr,mos=mo_array,error=error)
+          IF(dft_control%do_admm) THEN !fm->dbcsr
+             NULLIFY(mo_derivs_tmp)!fm->dbcsr
+             ALLOCATE(mo_derivs_tmp(SIZE(mo_derivs)))
+             DO ispin=1,SIZE(mo_derivs)!fm->dbcsr
+                CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)!fm->dbcsr
+                NULLIFY(mo_derivs_tmp(ispin)%matrix)
+                CALL cp_fm_create(mo_derivs_tmp(ispin)%matrix,mo_coeff%matrix_struct,error=error)!fm->dbcsr
+             ENDDO!fm->dbcsr
+          ENDIF!fm->dbcsr
+
 
           DO ispin=1,SIZE(mo_derivs)
 
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
-                             occupation_numbers=occupation_numbers )
-             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k,error=error)
-             CALL dbcsr_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                          mo_derivs(ispin)%matrix, k,error=error)
-
-             !vwCALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff_b=mo_coeff_b, &
-             !vw      occupation_numbers=occupation_numbers )
-             !vwCALL dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
-             !vwCALL cp_dbcsr_multiply(ks_matrix(ispin)%matrix,mo_coeff_b,&
-             !vw      mo_derivs_dbcsr(ispin)%matrix, last_column=k, error=error)
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,&
+                  mo_coeff_b=mo_coeff_b, &
+                  occupation_numbers=occupation_numbers )
+             CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!for anycase!fm->dbcsr
+             CALL dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
+             CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
+                   0.0_dp,mo_derivs(ispin)%matrix, last_column=k, error=error)
 
              IF( dft_control%do_admm) THEN
                CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mos,error=error)
@@ -1264,8 +1272,11 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
                CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
                CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
+
+               CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix,mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
                CALL admm_merge_mo_derivs(ispin, qs_env%admm_env, mos(ispin)%mo_set, mo_coeff,&
-                    mo_coeff_aux_fit, mo_derivs,mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error)
+                    mo_coeff_aux_fit, mo_derivs_tmp,mo_derivs_aux_fit, qs_env%matrix_ks_aux_fit, error)
+               CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix,mo_derivs(ispin)%matrix,error=error)!fm->dbcsr
              END IF
 
              IF (dft_control%restricted) THEN
@@ -1273,9 +1284,6 @@ CONTAINS
                  CPPrecondition(ispin==1, cp_failure_level, routineP, error, failure)
                  CPPrecondition(SIZE(mo_array)==2, cp_failure_level, routineP, error, failure)
                  ! use a temporary array with the same size as the first spin for the second spin
-                 CALL cp_fm_create(hc_tmp,mo_derivs(1)%matrix%matrix_struct,error=error)
-                 CALL cp_fm_set_all(hc_tmp,0.0_dp,error=error)
-                 CALL cp_fm_get_info(hc_tmp,ncol_global=k2,error=error)
 
                  ! uniform_occupation is needed for this case, otherwise we can no
                  ! reconstruct things in ot, since we irreversibly sum 
@@ -1285,16 +1293,22 @@ CONTAINS
                       uniform_occupation=uniform_occupation)
                  CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
-                 CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
-                 CALL dbcsr_sm_fm_multiply(ks_matrix(2)%matrix,mo_coeff,&
-                                        hc_tmp, k,error=error)
-
-                 ! sum the corresponding columns (relies on the final columns of hc_tmp being zero)
-                 CALL cp_fm_scale_and_add(1.0_dp, mo_derivs(1)%matrix, 1.0_dp, hc_tmp,error=error)
-                 CALL cp_fm_release(hc_tmp,error=error)
+                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
+                 CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!for anycase!fm->dbcsr
+                 CALL dbcsr_get_info(mo_coeff_b,nfullcols_total=k)
+                 CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
+                            1.0_dp, mo_derivs(1)%matrix, last_column=k,error=error)
              ENDIF
 
           ENDDO
+
+          IF(dft_control%do_admm) THEN !fm->dbcsr
+             DO ispin=1,SIZE(mo_derivs)!fm->dbcsr
+                CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix,error=error)!fm->dbcsr
+             ENDDO!fm->dbcsr
+             DEALLOCATE(mo_derivs_tmp)!fm->dbcsr
+          ENDIF!fm->dbcsr
+
        ENDIF
 
        ! deal with low spin roks
@@ -1308,6 +1322,7 @@ CONTAINS
        ! adds s2_restraint energy and orbital derivatives
        CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
             mo_array,energy,calculate_forces, just_energy,error)
+
 
        IF ( do_ppl ) THEN
          ! update core energy for grid based local pseudopotential
@@ -1613,11 +1628,10 @@ CONTAINS
     REAL(KIND=dp)                            :: exc, total_rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: fm_deriv, fm_scaled, mo_coeff
+    TYPE(dbcsr_obj), POINTER                 :: dbcsr_deriv, mo_coeff_b
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p
+      POINTER                                :: matrix_h, matrix_p, mo_derivs
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1647,6 +1661,14 @@ CONTAINS
     CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
     CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
     CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+
+    NULLIFY(dbcsr_deriv,mo_coeff_b)
+    CALL cp_dbcsr_init_p(dbcsr_deriv,error)
+    CALL cp_dbcsr_copy(dbcsr_deriv,mo_derivs(1)%matrix,error=error)
+    CALL cp_dbcsr_set(dbcsr_deriv,0.0_dp,error)
+    CALL cp_dbcsr_init_p(mo_coeff_b,error)!fm->dbcsr should use the dbcsr in mo_array when possible
+    CALL cp_dbcsr_copy(mo_coeff_b,mo_derivs(1)%matrix,error=error)!fm->dbcsr
+    CALL cp_dbcsr_set(mo_coeff_b,0.0_dp,error)!fm->dbcsr
 
     ! basic info
     CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
@@ -1726,6 +1748,7 @@ CONTAINS
     ! get mo matrices needed to construct the density matrices
     ! we will base all on the alpha spin matrix, obviously possible in ROKS
     CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
+    CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!fm->dbcsr
     CALL cp_fm_create(fm_scaled,mo_coeff%matrix_struct,error=error)
     CALL cp_fm_create(fm_deriv,mo_coeff%matrix_struct,error=error)
     ALLOCATE(scaling(k_alpha),STAT=stat)
@@ -1779,12 +1802,13 @@ CONTAINS
 
            ! add this to the mo_derivs, again based on the alpha mo_coeff
            DO ispin=1,Nspin
-              CALL dbcsr_sm_fm_multiply(matrix_h(ispin)%matrix,mo_coeff,fm_deriv, k_alpha, error=error)
+              CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_h(ispin)%matrix,mo_coeff_b,&
+               0.0_dp,dbcsr_deriv,last_column=k_alpha, error=error)
+
               scaling=1.0_dp
               scaling(k_alpha-Nelectron+1:k_alpha)=occupations(ispin,:,iterm)
-              CALL cp_fm_column_scale(fm_deriv,scaling)
-              CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(1)%matrix, &
-                                       1.0_dp,fm_deriv,error=error)
+              CALL cp_dbcsr_scale_by_vector(dbcsr_deriv,scaling,side='right',error=error)
+              CALL cp_dbcsr_add(mo_derivs(1)%matrix, dbcsr_deriv,1.0_dp,1.0_dp,error=error)
            ENDDO
 
        ENDIF
@@ -1808,6 +1832,9 @@ CONTAINS
     DEALLOCATE(occupations)
     DEALLOCATE(energy_scaling)
     DEALLOCATE(scaling)
+
+    CALL cp_dbcsr_release_p(dbcsr_deriv,error=error)!fm->dbcsr
+    CALL cp_dbcsr_release_p(mo_coeff_b,error=error)!fm->dbcsr
 
     CALL timestop(handle)
 
@@ -1836,11 +1863,13 @@ CONTAINS
     REAL(KIND=dp)                            :: ener, exc, total_rho
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs, mo_derivs_local
+      POINTER                                :: mo_derivs_local
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_hv, matrix_v, mo_coeff
     TYPE(dbcsr_obj), POINTER                 :: orb_density_matrix, orb_h
     TYPE(dbcsr_obj_p_type)                   :: orb_density_matrix_p, orb_h_p
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs, tmp_dbcsr
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1859,7 +1888,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    NULLIFY(tau,vxc_tau)
+    NULLIFY(tau,vxc_tau, mo_derivs)
 
     ! generate the lists of orbitals that need sic treatment
     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
@@ -1875,6 +1904,17 @@ CONTAINS
     CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
     CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
     CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
+
+
+    CALL dbcsr_allocate_matrix_set(tmp_dbcsr,SIZE(mo_derivs,1),error=error)
+    DO i=1,SIZE(mo_derivs,1)!fm->dbcsr
+       !
+       NULLIFY(tmp_dbcsr(i)%matrix)
+       CALL cp_dbcsr_init_p(tmp_dbcsr(i)%matrix,error)
+       CALL cp_dbcsr_copy(tmp_dbcsr(i)%matrix,mo_derivs(i)%matrix,error=error)
+       CALL cp_dbcsr_set(tmp_dbcsr(i)%matrix,0.0_dp,error)
+    ENDDO!fm->dbcsr
+
 
     k_alpha=0 ; k_beta=0
     SELECT CASE(dft_control%sic_list_id)
@@ -1982,10 +2022,13 @@ CONTAINS
     CALL cp_fm_create(matrix_hv,fm_struct_tmp, name="matrix_hv",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
-    ALLOCATE(mo_derivs_local(SIZE(mo_derivs,1)),stat=stat)
+
+
+    ALLOCATE(mo_derivs_local(SIZE(mo_array,1)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO I=1,SIZE(mo_derivs,1)
-       CALL cp_fm_create(mo_derivs_local(I)%matrix,mo_derivs(I)%matrix%matrix_struct,error=error)
+    DO I=1,SIZE(mo_array,1)
+       CALL get_mo_set(mo_set=mo_array(i)%mo_set,mo_coeff=mo_coeff)
+       CALL cp_fm_create(mo_derivs_local(I)%matrix,mo_coeff%matrix_struct,error=error)
     ENDDO
 
     ALLOCATE(rho_r(2),stat=stat)
@@ -2060,9 +2103,11 @@ CONTAINS
            ! silly trick, copy to an array of the right size and add to mo_derivs
            CALL cp_fm_set_all(mo_derivs_local(sic_orbital_list(3,iorb))%matrix,0.0_dp,error=error)
            CALL cp_fm_to_fm(matrix_hv,mo_derivs_local(sic_orbital_list(3,iorb))%matrix,1,1,sic_orbital_list(2,iorb))
-           CALL cp_fm_scale_and_add(1.0_dp,mo_derivs(sic_orbital_list(3,iorb))%matrix, &
-                                    1.0_dp,mo_derivs_local(sic_orbital_list(3,iorb))%matrix,error=error)
-
+           CALL copy_fm_to_dbcsr(mo_derivs_local(sic_orbital_list(3,iorb))%matrix,&
+                tmp_dbcsr(sic_orbital_list(3,iorb))%matrix,error=error)
+           CALL cp_dbcsr_add(mo_derivs(sic_orbital_list(3,iorb))%matrix, &
+                tmp_dbcsr(sic_orbital_list(3,iorb))%matrix,1.0_dp,1.0_dp,error=error)
+           !
            ! need to deallocate vxc
            CALL pw_pool_give_back_pw(xc_pw_pool,vxc(1)%pw,error=error)
            CALL pw_pool_give_back_pw(xc_pw_pool,vxc(2)%pw,error=error)
@@ -2083,12 +2128,14 @@ CONTAINS
     CALL dbcsr_deallocate_matrix(orb_h,error=error)
     CALL cp_fm_release(matrix_v,error)
     CALL cp_fm_release(matrix_hv,error)
-    DO I=1,SIZE(mo_derivs,1)
+    DO I=1,SIZE(mo_derivs_local,1)
        CALL cp_fm_release(mo_derivs_local(I)%matrix,error=error)
     ENDDO
     DEALLOCATE(mo_derivs_local)
     DEALLOCATE(rho_r)
     DEALLOCATE(rho_g)
+
+    CALL dbcsr_deallocate_matrix_set(tmp_dbcsr,error=error)!fm->dbcsr                                                           
 
     CALL timestop(handle)
 
@@ -3193,14 +3240,13 @@ CONTAINS
 !>         Creation (JV)
 !> \author MK
 ! *****************************************************************************
-  SUBROUTINE calculate_w_matrix_2(mo_set,mo_deriv,w_matrix,s_matrix,error)
+  SUBROUTINE calculate_w_matrix_ot(mo_set,mo_deriv,w_matrix,s_matrix,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(cp_fm_type), POINTER                :: mo_deriv
-    TYPE(dbcsr_obj), POINTER                 :: w_matrix, s_matrix
+    TYPE(dbcsr_obj), POINTER                 :: mo_deriv, w_matrix, s_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot', &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: check_gradient = .FALSE., &
                                                 do_symm = .FALSE.
@@ -3237,7 +3283,7 @@ CONTAINS
     ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     scaling_factor=2.0_dp*occupation_numbers
-    CALL cp_fm_to_fm(mo_deriv,weighted_vectors,error)
+    CALL copy_dbcsr_to_fm(mo_deriv,weighted_vectors,error=error)
     CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
     DEALLOCATE(scaling_factor,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -3272,7 +3318,7 @@ CONTAINS
        ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        scaling_factor=2.0_dp*occupation_numbers
-       CALL cp_fm_to_fm(mo_deriv,weighted_vectors,error)
+       CALL copy_dbcsr_to_fm(mo_deriv,weighted_vectors,error=error)
        CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
        DEALLOCATE(scaling_factor,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -3287,7 +3333,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE calculate_w_matrix_2
+  END SUBROUTINE calculate_w_matrix_ot
 
 ! *****************************************************************************
 !> \brief Calculate the energy-weighted density matrix W if ROKS is active.

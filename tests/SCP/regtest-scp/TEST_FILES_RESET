@@ -191,3 +191,9 @@ w2.inp
 w2-r1.inp
 # atomic code: unrestricted calculations 
 w2-r2.inp
+# convert mo_derivs to dbcsr
+w2.inp
+# convert mo_derivs to dbcsr
+w2-r1.inp
+# convert mo_derivs to dbcsr
+w2-r2.inp

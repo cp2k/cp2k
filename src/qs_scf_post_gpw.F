@@ -49,6 +49,7 @@ MODULE qs_scf_post_gpw
                                              put_results
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE f77_blas
   USE hfx_ri_gemopt,                   ONLY: geminal_optimize
@@ -775,8 +776,9 @@ CONTAINS
                                                 output_unit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_deriv
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_deriv
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, ks_rmpv_aux_fit
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -831,7 +833,7 @@ CONTAINS
 
           CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                scr=output_unit, ionode=output_unit>0, do_rotation=.TRUE.,&
-               co_rotate=mo_coeff_deriv,error=error)
+               co_rotate_dbcsr=mo_coeff_deriv,error=error)
 
           
           ! ** If we do ADMM, we restore the original kohn-sham matrix
@@ -2020,10 +2022,11 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_deriv
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_deriv
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -2091,7 +2094,7 @@ CONTAINS
                    
                    CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                         do_rotation=.TRUE.,&
-                        co_rotate=mo_coeff_deriv,error=error)
+                        co_rotate_dbcsr=mo_coeff_deriv,error=error)
                    CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,error=error)
                    
                 END IF

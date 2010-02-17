@@ -859,3 +859,5 @@ N3-9.inp
 N3-10.inp
 # atomic code: unrestricted calculations 
 H2O.inp
+# convert mo_derivs to dbcsr
+H2O.inp

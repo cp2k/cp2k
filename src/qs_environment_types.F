@@ -312,8 +312,8 @@ MODULE qs_environment_types
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs, mo_derivs_aux_fit
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER         :: mo_derivs_dbcsr
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER         :: mo_derivs
     INTEGER                                               :: neighbor_list_id
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ae,&
                                                              sac_ppl,sap_ppnl,&
@@ -420,7 +420,7 @@ CONTAINS
        vppl, rho_core, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
        local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
-       VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,mo_derivs_dbcsr,&
+       VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit,tddfpt_control,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
@@ -514,10 +514,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: VH_3c_list
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rho0_s_rs, rho0_s_gs
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mo_derivs
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mo_derivs_dbcsr
+      OPTIONAL, POINTER                      :: mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs_aux_fit
     TYPE(tddfpt_control_type), OPTIONAL, &
@@ -643,7 +641,6 @@ CONTAINS
     IF (PRESENT(oce)) oce =>  qs_env%oce
     IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
     IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
-    IF (PRESENT(mo_derivs_dbcsr)) mo_derivs_dbcsr => qs_env%mo_derivs_dbcsr
     IF (PRESENT(mo_derivs_aux_fit)) mo_derivs_aux_fit => qs_env%mo_derivs_aux_fit
     IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
@@ -840,7 +837,6 @@ CONTAINS
     ! Zero all variables containing results
     CALL cp_result_create(qs_env%results, error)
     NULLIFY(qs_env%mo_derivs)
-    NULLIFY(qs_env%mo_derivs_dbcsr)
     NULLIFY(qs_env%mo_derivs_aux_fit)
 
   END SUBROUTINE init_qs_env
@@ -861,7 +857,7 @@ CONTAINS
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,&
-       mo_derivs_dbcsr,mo_derivs_aux_fit,&
+       mo_derivs_aux_fit,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
@@ -934,10 +930,8 @@ CONTAINS
     TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: VH_3c_list
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mo_derivs
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mo_derivs_dbcsr
+      OPTIONAL, POINTER                      :: mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs_aux_fit
     INTEGER, OPTIONAL                        :: neighbor_list_id
@@ -1045,7 +1039,6 @@ CONTAINS
     IF (PRESENT(outer_scf_ihistory)) qs_env%outer_scf_ihistory=outer_scf_ihistory
     IF (PRESENT(requires_mo_derivs)) qs_env%requires_mo_derivs=requires_mo_derivs
     IF (PRESENT(mo_derivs)) qs_env%mo_derivs=>mo_derivs
-    IF (PRESENT(mo_derivs_dbcsr)) qs_env%mo_derivs_dbcsr=>mo_derivs_dbcsr
     IF (PRESENT(mo_derivs_aux_fit)) qs_env%mo_derivs_aux_fit=>mo_derivs_aux_fit
     IF (PRESENT(task_list)) qs_env%task_list=>task_list
     IF (PRESENT(task_list_aux_fit)) qs_env%task_list_aux_fit=>task_list_aux_fit
@@ -1343,17 +1336,9 @@ CONTAINS
 
           IF (ASSOCIATED(qs_env%mo_derivs)) THEN
              DO I=1,SIZE(qs_env%mo_derivs)
-                CALL cp_fm_release(qs_env%mo_derivs(I)%matrix,error=error)
+                CALL cp_dbcsr_release_p(qs_env%mo_derivs(I)%matrix, error=error)
              ENDDO
              DEALLOCATE(qs_env%mo_derivs, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          ENDIF
-
-          IF (ASSOCIATED(qs_env%mo_derivs_dbcsr)) THEN
-             DO I=1,SIZE(qs_env%mo_derivs_dbcsr)
-                CALL cp_dbcsr_release_p(qs_env%mo_derivs_dbcsr(I)%matrix, error=error)
-             ENDDO
-             DEALLOCATE(qs_env%mo_derivs_dbcsr, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           ENDIF
 

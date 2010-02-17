@@ -10,9 +10,14 @@
 !> \author Joost VandeVondele (2003-08)
 ! *****************************************************************************
 MODULE qs_mo_methods
+  USE array_types,                     ONLY: array_i1d_obj,&
+                                             array_release
+  USE cp_dbcsr_diag,                   ONLY: dbcsr_syevd,&
+                                             dbcsr_syevx
   USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale_by_vector, &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_finalize, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
+       cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, &
        cp_dbcsr_set, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -32,8 +37,18 @@ MODULE qs_mo_methods
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_get_info,&
+                                             dbcsr_mp_npcols,&
+                                             dbcsr_mp_nprows
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj,&
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_real_default
+  USE dbcsr_util,                      ONLY: create_bl_distribution
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
@@ -58,7 +73,8 @@ MODULE qs_mo_methods
   END INTERFACE
 
   INTERFACE calculate_subspace_eigenvalues
-    MODULE PROCEDURE subspace_eigenvalues_ks
+    MODULE PROCEDURE subspace_eigenvalues_ks_fm
+    MODULE PROCEDURE subspace_eigenvalues_ks_dbcsr
   END INTERFACE
 
   INTERFACE make_basis_sv
@@ -502,8 +518,8 @@ CONTAINS
 !>      08.2004 documented and added do_rotation [Joost VandeVondele]
 !>      09.2008 only compute eigenvalues if rotation is not needed
 ! *****************************************************************************
-  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,ionode,scr,&
-       do_rotation,co_rotate,error)
+  SUBROUTINE subspace_eigenvalues_ks_fm(orbitals,ks_matrix,evals_arg,ionode,scr,&
+       do_rotation,co_rotate,co_rotate_dbcsr,error)
 
     TYPE(cp_fm_type), POINTER                :: orbitals
     TYPE(dbcsr_obj), POINTER                 :: ks_matrix
@@ -513,9 +529,10 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: scr
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rotation
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: co_rotate
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: co_rotate_dbcsr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, ncol_global, &
@@ -525,14 +542,15 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: e_vectors, h_block, &
-                                                weighted_vectors
+                                                weighted_vectors, &
+                                                weighted_vectors2
 
     CALL timeset(routineN,handle)
 
     do_rotation_local=.TRUE.
     IF (PRESENT(do_rotation)) do_rotation_local=do_rotation
 
-    NULLIFY(weighted_vectors,h_block,e_vectors,fm_struct_tmp)
+    NULLIFY(weighted_vectors,weighted_vectors2,h_block,e_vectors,fm_struct_tmp)
     CALL cp_fm_get_info(matrix=orbitals, &
                                  ncol_global=ncol_global, &
                                  nrow_global=nrow_global,error=error)
@@ -585,6 +603,16 @@ CONTAINS
                 CALL cp_fm_to_fm(weighted_vectors,co_rotate,error=error)
               ENDIF
             ENDIF
+            IF(PRESENT(co_rotate_dbcsr)) THEN
+               IF(ASSOCIATED(co_rotate_dbcsr)) THEN
+                  CALL cp_fm_create(weighted_vectors2,orbitals%matrix_struct,"weighted_vectors",error=error)
+                  CALL copy_dbcsr_to_fm(co_rotate_dbcsr,weighted_vectors2,error)
+                  CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                       weighted_vectors2,e_vectors,0.0_dp,weighted_vectors,error=error)
+                  CALL copy_fm_to_dbcsr(weighted_vectors,co_rotate_dbcsr,error=error)
+                  CALL cp_fm_release(weighted_vectors2,error=error)
+               ENDIF
+            ENDIF
         ENDIF
 
         ! give output
@@ -624,7 +652,171 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE subspace_eigenvalues_ks
+  END SUBROUTINE subspace_eigenvalues_ks_fm
+
+
+  SUBROUTINE subspace_eigenvalues_ks_dbcsr(orbitals,ks_matrix,evals_arg,ionode,scr,&
+       do_rotation,co_rotate,para_env,blacs_env,error)
+
+    TYPE(dbcsr_obj), POINTER                 :: orbitals, ks_matrix
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: evals_arg
+    LOGICAL, INTENT(IN), OPTIONAL            :: ionode
+    INTEGER, INTENT(IN), OPTIONAL            :: scr
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_rotation
+    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: co_rotate
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'subspace_eigenvalues_ks_dbcsr', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, ncol_global, &
+                                                nrow_global
+    LOGICAL                                  :: compute_evecs, &
+                                                do_rotation_local
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
+    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
+                                                row_blk_size, row_dist
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_obj), POINTER                 :: e_vectors, h_block, &
+                                                weighted_vectors
+
+    CALL timeset(routineN,handle)
+
+    do_rotation_local=.TRUE.
+    IF (PRESENT(do_rotation)) do_rotation_local=do_rotation
+
+    NULLIFY(e_vectors, h_block, weighted_vectors)
+
+    CALL dbcsr_get_info(matrix=orbitals, &
+         nfullcols_total=ncol_global, &
+         nfullrows_total=nrow_global)
+
+    IF (do_rotation_local) THEN
+       compute_evecs=.TRUE.
+    ELSE
+       ! this would be the logical choice if syevx computing only evals were faster than syevd computing evecs and evals.
+       compute_evecs=.FALSE.
+       ! this is not the case, so lets compute evecs always
+       compute_evecs=.TRUE.
+    ENDIF
+
+    IF (ncol_global.GT.0) THEN
+
+        ALLOCATE(evals(ncol_global))
+
+        CALL cp_dbcsr_init_p(weighted_vectors,error=error)
+        CALL cp_dbcsr_copy(weighted_vectors,orbitals,name="weighted_vectors",error=error)
+
+        CALL create_bl_distribution (col_dist, col_blk_size, ncol_global, &
+             dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(orbitals))))
+        CALL create_bl_distribution (row_dist, row_blk_size, ncol_global, &
+             dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(orbitals))))
+        CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(orbitals)),&
+             row_dist, col_dist)
+        CALL array_release (row_dist); CALL array_release (col_dist)
+
+        !CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors",error=error)
+        !CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
+        !                                        para_env=orbitals%matrix_struct%para_env, &
+        !                                        context=orbitals%matrix_struct%context,error=error)
+        CALL cp_dbcsr_init_p(h_block,error=error)
+        CALL cp_dbcsr_create(h_block, "h_block", dist, dbcsr_type_normal,&
+             row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+             error=error)
+        CALL cp_dbcsr_finalize(h_block, error=error)
+        !CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
+        IF (compute_evecs) THEN
+           CALL cp_dbcsr_init_p(e_vectors,error=error)
+           CALL cp_dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_normal,&
+                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+                error=error)
+           CALL cp_dbcsr_finalize(e_vectors, error=error)
+           !CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)
+        ENDIF
+        CALL dbcsr_distribution_release (dist)
+        CALL array_release (row_blk_size);CALL array_release (col_blk_size)
+        !CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+        ! h subblock and diag
+        CALL cp_dbcsr_multiply('N','N',1.0_dp,ks_matrix,orbitals,&
+             0.0_dp,weighted_vectors,last_column=ncol_global,error=error)
+        !CALL dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
+
+        CALL cp_dbcsr_multiply('T','N',1.0_dp,orbitals,weighted_vectors,0.0_dp,h_block,error=error)
+        !CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
+        !                orbitals,weighted_vectors,0.0_dp,h_block,error=error)
+
+        ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
+        IF (compute_evecs) THEN
+           CALL dbcsr_syevd(h_block,e_vectors,evals,para_env=para_env,blacs_env=blacs_env,error=error)
+        ELSE
+           CALL dbcsr_syevx(h_block,eigenvalues=evals,para_env=para_env,blacs_env=blacs_env,error=error)
+        ENDIF
+
+        ! rotate the orbitals
+        IF (do_rotation_local) THEN
+           CALL cp_dbcsr_multiply('N','N',1.0_dp,orbitals,e_vectors,0.0_dp,weighted_vectors,error=error)
+           !CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+           !             orbitals,e_vectors,0.0_dp,weighted_vectors,error=error)
+           CALL cp_dbcsr_copy(orbitals,weighted_vectors,error=error)
+           !CALL cp_fm_to_fm(weighted_vectors,orbitals,error=error)
+           IF (PRESENT(co_rotate)) THEN
+              IF (ASSOCIATED(co_rotate)) THEN
+                 CALL cp_dbcsr_multiply('N','N',1.0_dp,co_rotate,e_vectors,0.0_dp,weighted_vectors,error=error)
+                 !CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                 !     co_rotate,e_vectors,0.0_dp,weighted_vectors,error=error)
+                 CALL cp_dbcsr_copy(co_rotate,weighted_vectors,error=error)
+                 !CALL cp_fm_to_fm(weighted_vectors,co_rotate,error=error)
+              ENDIF
+           ENDIF
+        ENDIF
+
+        ! give output
+        IF (PRESENT(evals_arg)) THEN
+          evals_arg(:)=evals(:)
+        ENDIF
+
+        IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
+          IF (.NOT. PRESENT(ionode)) CALL stop_program("subspace evals","IONODE?")
+          IF (.NOT. PRESENT(scr)) CALL stop_program("subspace evals","SCR?")
+          IF (ionode) THEN
+             DO i=1,ncol_global,4
+                j=MIN(3,ncol_global-i)
+                SELECT CASE (j)
+                CASE(3)
+                 WRITE(scr,'(1X,4F16.8)') evals(i:i+j)
+                CASE(2)
+                 WRITE(scr,'(1X,3F16.8)') evals(i:i+j)
+                CASE(1)
+                 WRITE(scr,'(1X,2F16.8)') evals(i:i+j)
+                CASE(0)
+                 WRITE(scr,'(1X,1F16.8)') evals(i:i+j)
+                END SELECT
+             ENDDO
+          ENDIF
+        ENDIF
+
+        CALL cp_dbcsr_release_p(weighted_vectors,error=error)
+        CALL cp_dbcsr_release_p(h_block,error=error)
+        !CALL cp_fm_release(weighted_vectors,error=error)
+        !CALL cp_fm_release(h_block,error=error)
+        IF (compute_evecs) THEN
+           CALL cp_dbcsr_release_p(e_vectors,error=error)
+           !CALL cp_fm_release(e_vectors,error=error)
+        ENDIF
+
+        DEALLOCATE(evals)
+
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE subspace_eigenvalues_ks_dbcsr
+
 
 ! computes the effective orthonormality of a set of mos given an s-matrix
 ! orthonormality is the max deviation from unity of the C^T S C

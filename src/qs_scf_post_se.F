@@ -35,6 +35,7 @@ MODULE qs_scf_post_se
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE input_constants,                 ONLY: ot_precond_full_all,&
                                              state_loc_all
@@ -144,11 +145,11 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_deriv, &
-                                                mo_localized
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_localized
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_deriv
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -273,7 +274,7 @@ CONTAINS
                 ENDIF
                 CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                   scr=output_unit, ionode=output_unit>0, do_rotation=.TRUE.,&
-                  co_rotate=mo_coeff_deriv,error=error)
+                  co_rotate_dbcsr=mo_coeff_deriv,error=error)
 
                 CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
                 IF (output_unit>0) WRITE(output_unit,'(T2,A,F12.6)') "Fermi Energy [eV] :",mos(ispin)%mo_set%mu*evolt

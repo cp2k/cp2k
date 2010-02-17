@@ -394,3 +394,5 @@ CH3-PBE0_TC.inp
 CH3-PBE0_TC_LRC.inp
 # atomic code: unrestricted calculations 
 Li-hybrid-rcam-b3lyp.inp
+# convert mo_derivs to dbcsr
+CH3-PBE0_TC_LRC.inp

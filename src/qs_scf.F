@@ -970,7 +970,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(cp_fm_p_type), DIMENSION(:), &
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     REAL(KIND=dp), INTENT(IN)                :: total_energy
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
@@ -988,14 +988,10 @@ CONTAINS
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
     TYPE(dbcsr_obj), POINTER                 :: orthogonality_metric
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs_dbcsr
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-
-    NULLIFY(mo_derivs_dbcsr)
 
     IF (has_unit_metric) THEN
       NULLIFY(orthogonality_metric)
@@ -1013,20 +1009,10 @@ CONTAINS
             error=error)!fm -> dbcsr
     ENDDO!fm -> dbcsr
 
-    CALL get_qs_env(qs_env=qs_env,mo_derivs_dbcsr=mo_derivs_dbcsr,error=error)!fm -> dbcsr
-    IF(.NOT.energy_only) THEN!fm -> dbcsr
-       DO ispin=1,SIZE(mo_derivs)!fm -> dbcsr
-          IF(.NOT.ASSOCIATED(mo_derivs_dbcsr(ispin)%matrix)) &
-               CALL stop_program(routineN, "mo_derivs_dbcsr is not allocated")
-          CALL copy_fm_to_dbcsr(mo_derivs(ispin)%matrix,mo_derivs_dbcsr(ispin)%matrix, &
-               error=error)!fm -> dbcsr
-       ENDDO!fm -> dbcsr
-    ENDIF
-
     ! in case of LSD the first spin qs_ot_env will drive the minimization
     ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
 
-    CALL ot_scf_mini(mos,mo_derivs_dbcsr,smear,orthogonality_metric, &
+    CALL ot_scf_mini(mos,mo_derivs,smear,orthogonality_metric, &
                     total_energy, aux_coeff_set,    &
                     pscp,fscp,energy_only,scf_env%iter_delta, & 
                     scf_env%qs_ot_env,error=error)
@@ -1485,26 +1471,27 @@ END SUBROUTINE qs_scf_print_summary
            DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
              CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-                        do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
+                  do_rotation = .TRUE., &
+                  co_rotate_dbcsr=qs_env%mo_derivs(ispin)%matrix,error=error)
              CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                         scf_control%diagonalization%ot_settings%preconditioner_type, &
                         scf_control%diagonalization%ot_settings%precond_solver_type, &
                         matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
                         qs_env%kinetic(1)%matrix, &
-                        mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,&
+                        mos(ispin)%mo_set,scf_control%diagonalization%ot_settings%energy_gap,&
                         convert_precond_to_dbcsr=.TRUE.,&
                         error=error)
            ENDDO
          CASE DEFAULT
            ! constuct the preconditioner based on the first spin set.
            ! this might or might not be reasonable. Presumably it is.
-           CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+           !CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
            CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
                      scf_control%diagonalization%ot_settings%preconditioner_type, &
                      scf_control%diagonalization%ot_settings%precond_solver_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                      qs_env%kinetic(1)%matrix, &
-                     mo_coeff,scf_control%diagonalization%ot_settings%energy_gap,&
+                     mos(1)%mo_set,scf_control%diagonalization%ot_settings%energy_gap,&
                      convert_precond_to_dbcsr=.TRUE.,&
                      error=error)
        END SELECT
@@ -1646,13 +1633,14 @@ CPSourceFileRef)
                 DO ispin=1,dft_control%nspins
                    CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
                    CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-                        do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
+                        do_rotation = .TRUE., &
+                        co_rotate_dbcsr=qs_env%mo_derivs(ispin)%matrix,error=error)
                    IF (has_unit_metric) THEN
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                           scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                           matrix_h=matrix_ks(ispin)%matrix, &
-                          mo_coeff=mo_coeff, &
+                          mo_set=mos(ispin)%mo_set, &
                           energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
                           convert_precond_to_dbcsr=.TRUE.,&
                           error=error)
@@ -1663,7 +1651,7 @@ CPSourceFileRef)
                           matrix_h=matrix_ks(ispin)%matrix, &
                           matrix_s=matrix_s(1)%matrix, &
                           matrix_t=matrix_s(1)%matrix, &
-                          mo_coeff=mo_coeff,&
+                          mo_set=mos(ispin)%mo_set,&
                           energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap, &
                           convert_precond_to_dbcsr=.TRUE.,&
                           error=error)
@@ -1705,7 +1693,7 @@ CPSourceFileRef)
                   CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
                      scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                      scf_env%qs_ot_env(1)%settings%precond_solver_type, &
-                     matrix_ks(1)%matrix,mo_coeff=mo_coeff,&
+                     matrix_ks(1)%matrix,mo_set=mos(1)%mo_set,&
                      energy_gap=scf_env%qs_ot_env(1)%settings%energy_gap,&
                      convert_precond_to_dbcsr=.TRUE.,&
                      error=error)
@@ -1714,7 +1702,7 @@ CPSourceFileRef)
                      scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                      scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
-                     mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,&
+                     mos(1)%mo_set,scf_env%qs_ot_env(1)%settings%energy_gap,&
                      convert_precond_to_dbcsr=.TRUE.,&
                      error=error)
                 END IF
@@ -1772,13 +1760,14 @@ CPSourceFileRef)
                 DO ispin=1,dft_control%nspins
                    CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
                    CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-                        do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
+                        do_rotation = .TRUE., &
+                        co_rotate_dbcsr=qs_env%mo_derivs(ispin)%matrix,error=error)
                    CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                         scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                         matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
                         qs_env%kinetic(1)%matrix, &
-                        mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap, &
+                        mos(ispin)%mo_set,scf_env%qs_ot_env(1)%settings%energy_gap, &
                         scf_env%qs_ot_env(1)%settings%mixed_precision, &
                         convert_precond_to_dbcsr=.TRUE.,&
                         error=error)
@@ -1810,7 +1799,7 @@ CPSourceFileRef)
                      scf_env%qs_ot_env(1)%settings%precond_solver_type, &
                      matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                      qs_env%kinetic(1)%matrix, &
-                     mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap, &
+                     mos(1)%mo_set,scf_env%qs_ot_env(1)%settings%energy_gap, &
                      scf_env%qs_ot_env(1)%settings%mixed_precision, &
                      convert_precond_to_dbcsr=.TRUE.,&
                      error=error)
@@ -2074,7 +2063,7 @@ CPSourceFileRef)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs, mo_derivs_aux_fit
+      POINTER                                :: mo_derivs_aux_fit
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, &
                                                 ao_mo_fm_pools_aux_fit
@@ -2087,7 +2076,7 @@ CPSourceFileRef)
     TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
-                                                matrix_s, mo_derivs_dbcsr
+                                                matrix_s, mo_derivs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -2206,48 +2195,33 @@ CPSourceFileRef)
 
 !   *** get the mo_derivs OK if needed ***
     IF (qs_env%requires_mo_derivs) THEN
-     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mo_derivs_dbcsr=mo_derivs_dbcsr,error=error)
-     IF (.NOT.ASSOCIATED(mo_derivs)) THEN
-       IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
-          ALLOCATE(mo_derivs(1))
-          CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
-          CALL cp_fm_create(mo_derivs(1)%matrix,mo_coeff%matrix_struct,error=error)
-       ELSE
-          ALLOCATE(mo_derivs(dft_control%nspins))
-          DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-             CALL cp_fm_create(mo_derivs(ispin)%matrix,mo_coeff%matrix_struct,error=error)
-          ENDDO
+       CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
+       IF (.NOT.ASSOCIATED(mo_derivs)) THEN
+          IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
+             ALLOCATE(mo_derivs(1))
+             CALL get_mo_set(mos(1)%mo_set,mo_coeff_b=mo_coeff_b)
+             NULLIFY(mo_derivs(1)%matrix)
+             CALL cp_dbcsr_init_p(mo_derivs(1)%matrix,error=error)
+             CALL cp_dbcsr_create(mo_derivs(1)%matrix, "mo_derivs",&
+                  dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
+                  dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
+                  0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
+             CALL cp_dbcsr_finalize(mo_derivs(1)%matrix, error=error)
+          ELSE
+             ALLOCATE(mo_derivs(dft_control%nspins))
+             DO ispin=1,dft_control%nspins
+                CALL get_mo_set(mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b)
+                NULLIFY(mo_derivs(ispin)%matrix)
+                CALL cp_dbcsr_init_p(mo_derivs(ispin)%matrix,error=error)
+                CALL cp_dbcsr_create(mo_derivs(ispin)%matrix, "mo_derivs",&
+                     dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
+                     dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
+                     0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
+                CALL cp_dbcsr_finalize(mo_derivs(ispin)%matrix, error=error)
+             ENDDO
+          ENDIF
+          CALL set_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
        ENDIF
-       CALL set_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
-     ENDIF
-
-     IF (.NOT.ASSOCIATED(mo_derivs_dbcsr)) THEN! fm->dbcsr
-        IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
-           ALLOCATE(mo_derivs_dbcsr(1))
-           CALL get_mo_set(mos(1)%mo_set,mo_coeff_b=mo_coeff_b)
-           NULLIFY(mo_derivs_dbcsr(1)%matrix)
-           CALL cp_dbcsr_init_p(mo_derivs_dbcsr(1)%matrix,error=error)
-           CALL cp_dbcsr_create(mo_derivs_dbcsr(1)%matrix, "mo_derivs_dbcsr",&
-                dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
-                dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
-                0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
-           CALL cp_dbcsr_finalize(mo_derivs_dbcsr(1)%matrix, error=error)
-        ELSE
-           ALLOCATE(mo_derivs_dbcsr(dft_control%nspins))
-           DO ispin=1,dft_control%nspins
-              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b)
-              NULLIFY(mo_derivs_dbcsr(ispin)%matrix)
-              CALL cp_dbcsr_init_p(mo_derivs_dbcsr(ispin)%matrix,error=error)
-              CALL cp_dbcsr_create(mo_derivs_dbcsr(ispin)%matrix, "mo_derivs_dbcsr",&
-                   dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
-                   dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
-                   0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
-              CALL cp_dbcsr_finalize(mo_derivs_dbcsr(ispin)%matrix, error=error)
-           ENDDO
-        ENDIF
-        CALL set_qs_env(qs_env,mo_derivs_dbcsr=mo_derivs_dbcsr,error=error)
-     ENDIF! fm->dbcsr
 
     ELSE
        ! nothing should be done

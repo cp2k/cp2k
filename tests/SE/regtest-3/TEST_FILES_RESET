@@ -102,3 +102,11 @@ SiO2_lr_quad.inp
 Co_complex.inp
 # numerics
 N3-rp_colvar.inp
+# convert mo_derivs to dbcsr
+Periclase.inp
+# convert mo_derivs to dbcsr
+SiO2.inp
+# convert mo_derivs to dbcsr
+SiO2_lr_quad.inp
+# convert mo_derivs to dbcsr
+Co_complex.inp

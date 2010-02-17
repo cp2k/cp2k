@@ -371,11 +371,10 @@ CONTAINS
        IF(p_env%new_preconditioner) THEN
           p_env%os_valid = .FALSE.
           DO ispin = 1,nspins
-             CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
              CALL make_preconditioner(p_env%preconditioner(ispin),&
                   linres_control%preconditioner_type,ot_precond_solver_default,&
                   matrix_ks(ispin)%matrix,matrix_s(1)%matrix,matrix_t(1)%matrix,&
-                  mo_coeff,linres_control%energy_gap,error=error)
+                  mos(ispin)%mo_set,linres_control%energy_gap,error=error)
           ENDDO
           p_env%new_preconditioner = .FALSE.
        ENDIF

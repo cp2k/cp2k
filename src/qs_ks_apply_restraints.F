@@ -7,14 +7,17 @@
 !> \brief Set of routines to apply restraints to the KS hamiltonian
 ! *****************************************************************************
 MODULE qs_ks_apply_restraints
-
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              dbcsr_obj_p_type
-  USE cp_fm_types,                     ONLY: cp_fm_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE et_coupling,                     ONLY: becke_restraint
   USE f77_blas
@@ -29,7 +32,8 @@ MODULE qs_ks_apply_restraints
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
-  USE qs_mo_types,                     ONLY: mo_set_p_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE s_square_methods,                ONLY: s2_restraint
 #include "cp_common_uses.h"
@@ -174,8 +178,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_s2_restraint', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
     TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: fm_mo_derivs
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
 
     IF (dft_control%qs_control%s2_restraint) THEN
@@ -185,8 +193,22 @@ CONTAINS
        ! forces are not implemented (not difficult, but ... )
        CPPrecondition(.NOT. calculate_forces, cp_failure_level,routineP,error,failure)
        CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
-       CALL s2_restraint(mo_array, matrix_s, mo_derivs, energy%s2_restraint, &
+
+       ALLOCATE(fm_mo_derivs(SIZE(mo_derivs,1)))!fm->dbcsr
+       DO i=1,SIZE(mo_derivs,1)!fm->dbcsr
+          CALL get_mo_set(mo_set=mo_array(i)%mo_set,mo_coeff=mo_coeff)!fm->dbcsr
+          CALL cp_fm_create(fm_mo_derivs(i)%matrix,mo_coeff%matrix_struct,error=error)!fm->dbcsr
+          CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix,fm_mo_derivs(i)%matrix,error=error)!fm->dbcsr
+       ENDDO!fm->dbcsr
+
+       CALL s2_restraint(mo_array, matrix_s, fm_mo_derivs, energy%s2_restraint, &
             dft_control%qs_control%s2_restraint_control, just_energy, error)
+
+       DO i=1,SIZE(mo_derivs,1)!fm->dbcsr
+          CALL copy_fm_to_dbcsr(fm_mo_derivs(i)%matrix,mo_derivs(i)%matrix,error=error)!fm->dbcsr
+       ENDDO!fm->dbcsr
+       DEALLOCATE(fm_mo_derivs)!fm->dbcsr
+
     ELSE
        energy%s2_restraint = 0.0_dp
     ENDIF

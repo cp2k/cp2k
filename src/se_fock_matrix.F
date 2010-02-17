@@ -16,18 +16,18 @@ MODULE se_fock_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                             cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
+                                             cp_dbcsr_multiply,&
                                              cp_dbcsr_set,&
                                              cp_dbcsr_trace,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_type
+                                             dbcsr_obj_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -105,14 +105,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, mo_coeff_b, pscp
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p
+      POINTER                                :: matrix_h, matrix_p, mo_derivs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -281,10 +279,11 @@ CONTAINS
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
           DO ispin=1,SIZE(mo_derivs)
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
-                             occupation_numbers=occupation_numbers )
-             CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
-             CALL dbcsr_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                    mo_derivs(ispin)%matrix, ncol_global,error=error)
+                  mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers )
+             CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!fm->dbcsr for anycase
+             CALL dbcsr_get_info(mo_coeff_b,nfullcols_total=ncol_global)
+             CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
+                  0.0_dp,mo_derivs(ispin)%matrix, last_column=ncol_global,error=error)
           ENDDO
        ENDIF
 
