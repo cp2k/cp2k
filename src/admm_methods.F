@@ -170,6 +170,13 @@ MODULE admm_methods
           CALL blockify_density_matrix(admm_env, density_matrix, density_matrix_aux, ispin, nspins, error)
         CASE (do_admm_block_aux_basis_on)
         END SELECT
+      CASE(do_admm_block_purify_blocked)
+        SELECT CASE(admm_env%block_projection_method)
+        CASE (do_admm_block_aux_basis_off)
+          CALL blockify_density_matrix(admm_env, density_matrix, density_matrix_aux, ispin, nspins, error)
+          CALL purify_dm_cauchy_blocked(admm_env, mo_set, density_matrix_aux, ispin, error)
+        CASE (do_admm_block_aux_basis_on)
+        END SELECT
       END SELECT
     END SELECT
 
@@ -289,8 +296,15 @@ MODULE admm_methods
             END IF
           END DO
           CALL dbcsr_iterator_stop(iter)
-
           CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, 1.0_dp, error)   
+        CASE (do_admm_block_aux_basis_on)
+        END SELECT
+      CASE(do_admm_block_purify_blocked)
+        SELECT CASE(admm_env%block_projection_method)
+        CASE (do_admm_block_aux_basis_off)
+          CALL merge_ks_matrix_cauchy_blocked(ispin, admm_env, mo_set, mo_coeff,&
+                                              mo_coeff_aux_fit, matrix_ks, matrix_ks_aux_fit, &
+                                              matrix_s, matrix_p_aux_fit, matrix_p, error)
         CASE (do_admm_block_aux_basis_on)
         END SELECT
       END SELECT
