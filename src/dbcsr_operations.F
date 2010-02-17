@@ -195,13 +195,19 @@ MODULE dbcsr_operations
 
   LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
 
-  TYPE dgemm_parameters
-     CHARACTER     :: type_a, type_b, type_c
-     INTEGER       :: lrows_a, lcols_a, lrows_b, lcols_b, lrows_c, lcols_c
-     INTEGER       :: last_k, last_n
+  INTEGER, PARAMETER :: dgemm_stack_size = 32
+
+  TYPE block_parameters
+     LOGICAL :: tr
+     INTEGER :: logical_rows, logical_cols
+     INTEGER :: offset, nze
+  END TYPE block_parameters
+
+  TYPE dgemm_join
+     INTEGER :: p_a, p_b, p_c
+     INTEGER :: last_k, last_n
      TYPE(dbcsr_scalar_type) :: alpha, beta
-     INTEGER       :: offset_a, nze_a, offset_b, nze_b, offset_c, nze_c
-  END TYPE dgemm_parameters
+  END TYPE dgemm_join
 
 CONTAINS
 
@@ -1211,33 +1217,37 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult_lin', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: a_type, b_type, data_type
-    INTEGER :: a_blk, a_col, a_col_logical, a_col_size, a_col_size_logical, &
-      a_nze, a_offset, a_row, a_row_l, a_row_logical, a_row_size, &
-      a_row_size_logical, b_blk, b_col, b_col_logical, b_col_size, &
-      b_col_size_logical, b_nze, b_offset, b_row, b_row_logical, b_row_size, &
-      b_row_size_logical, blk_end, blk_size, blk_start, c_blk_p, c_blk_pt, &
-      c_col, c_col_logical, c_col_size, c_col_size_logical, c_nze, c_offset, &
-      c_row_logical, c_row_size, c_row_size_logical, clamp_k_len, datasize, &
-      error_handler, first_k, first_row, first_working_sp, i, ithread, j, &
-      last_k, last_row, lastblk, new_blk, new_row_blks, nthreads, old_blk, &
-      old_row_begin_blk
-    INTEGER :: old_size, row_begin_blk, row_blk, rpt, size_c_blk_ps, &
-      stack_pointer, stat, submat_f_col, submat_f_row, submat_l_col, &
-      submat_l_row, this_right_limit
+    CHARACTER                                :: data_type
+    INTEGER :: a_blk, a_col_logical, a_col_size_logical, a_row_l, &
+      a_row_logical, a_row_size_logical, b_blk, b_col_logical, &
+      b_col_size_logical, b_row_logical, b_row_size_logical, blk_end, &
+      blk_size, blk_start, c_blk_p, c_blk_pt, c_col_logical, &
+      c_col_size_logical, c_nze, c_row_logical, c_row_size_logical, &
+      clamp_k_len, datasize, error_handler, first_k, first_mergeable, &
+      first_row, i, ithread, j, last_k, last_row, lastblk, new_blk, &
+      new_row_blks, nthreads, old_blk, old_row_begin_blk, old_size, &
+      row_begin_blk, row_blk, rpt, size_c_blk_ps, stack_p, stack_p_a, &
+      stack_p_b, stack_p_c, stat, submat_f_col, submat_f_row, submat_l_col
+    INTEGER :: submat_l_row, this_right_limit
     INTEGER(KIND=int_4)                      :: offset
-    INTEGER(KIND=int_8)                      :: coordinate, lflop, one_flop
+    INTEGER(KIND=int_8)                      :: lflop, one_flop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: new_index
     INTEGER, DIMENSION(:), POINTER :: left_col_blk_offset, left_local_rows, &
       left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
       product_col_blk_offset, right_col_blk_offset
-    LOGICAL :: block_exists, found, keep_sparsity, left_limit_rows, limit_k, &
-      negate_alpha, product_is_symmetric, right_limit_cols, tr_a, tr_b, tr_p
+    LOGICAL :: block_exists, flush_stack, found, keep_sparsity, &
+      left_limit_rows, limit_k, negate_alpha, product_is_symmetric, &
+      right_limit_cols, tr_p
     REAL(KIND=dp)                            :: epoch, mt_t_dgemm
+    REAL(KIND=real_8)                        :: one_time
+    TYPE(block_parameters), &
+      DIMENSION(dgemm_stack_size)            :: parameters_a, parameters_b, &
+                                                parameters_c
     TYPE(dbcsr_scalar_type)                  :: beta_add, beta_new, my_alpha, &
                                                 my_beta, which_beta
-    TYPE(dgemm_parameters), DIMENSION(16)    :: dgemm_parameter_stack
+    TYPE(dgemm_join), &
+      DIMENSION(dgemm_stack_size)            :: dgemm_joins
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -1327,9 +1337,10 @@ CONTAINS
     !
     mt_t_dgemm = 0.0_dp
     lflop = 0
+    one_time = 0.0_dp
     old_blk = 1
-    first_working_sp = 1
-    stack_pointer = 0
+    first_mergeable = 1
+    stack_p = 0 ; stack_p_a = 0 ; stack_p_b = 0 ; stack_p_c = 0
     new_blk = 0
     !write(*,*)ithread,':',left_thread_dist
     rpt = CEILING (REAL(left%nblkrows_local) / REAL(nthreads))
@@ -1337,16 +1348,14 @@ CONTAINS
     last_row = MIN ((ithread+1)*rpt, left%nblkrows_local)
     !write(*,*)ithread,'Doing rows', first_row, last_row
     DO a_row_l = 1, left%nblkrows_local
-       a_row = left_local_rows (a_row_l)
-       a_row_logical = a_row
-       IF (dbg) WRITE(*,*)routineN//" A row", a_row
+       a_row_logical = left_local_rows (a_row_l)
+       IF (dbg) WRITE(*,*)routineN//" A row", a_row_logical
        blk_start = left_row_blk_offset(a_row_logical)
        blk_end = left_row_blk_offset(a_row_logical+1)-1
        blk_size = left_row_blk_offset(a_row_logical+1) - blk_start
        IF (left_limit_rows) THEN
-          IF (left_row_blk_offset (a_row) .GT. submat_l_row .OR.&
-              left_row_blk_offset (a_row+1)-1 .LT. submat_f_row) THEN
-             !write(*,*)"Skipping row", a_row
+          IF (left_row_blk_offset (a_row_logical) .GT. submat_l_row .OR.&
+              left_row_blk_offset (a_row_logical+1)-1 .LT. submat_f_row) THEN
              CYCLE
           ELSE
              CALL dbcsr_assert(&
@@ -1361,7 +1370,7 @@ CONTAINS
        c_row_size_logical = blk_size
        row_begin_blk = new_blk+1
        IF (old_blk .LE. old_size) THEN
-          DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LT. a_row)
+          DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LT. a_row_logical)
              old_blk = old_blk+1
              IF (old_blk .GT. old_size) THEN
                 !old_blk = old_blk-1
@@ -1371,22 +1380,22 @@ CONTAINS
        ENDIF
        old_row_begin_blk = old_blk
        ! Clear the c_blk_ps array
-       FORALL (i = 1 : size_c_blk_ps)
+       DO i = 1, size_c_blk_ps
           c_blk_ps(c_blk_ps_p(i)) = 0
-       END FORALL
+       ENDDO
        size_c_blk_ps = 0
        ! Fill in the c_blk_ps array
        IF (dbg) WRITE(*,*)routineN//" old_blk, old_size, old_row_begin_blk",&
             old_blk,old_size,old_row_begin_blk
        IF (old_blk .LE. old_size) THEN
           ! Old index
-          DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LE. a_row) ! EQ
+          DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LE. a_row_logical) ! EQ
              DBG "Adding c_blk_ps column",&
                   product%wms(ithread+1)%col_i(old_blk),&
                   product%wms(ithread+1)%blk_p(old_blk)
-             c_col = product%wms(ithread+1)%col_i(old_blk)
+             c_col_logical = product%wms(ithread+1)%col_i(old_blk)
              found = .FALSE.
-             c_blk_ps(c_col)&
+             c_blk_ps(c_col_logical)&
                   = product%wms(ithread+1)%blk_p(old_blk)
              size_c_blk_ps = size_c_blk_ps + 1
              c_blk_ps_p(size_c_blk_ps) = product%wms(ithread+1)%col_i(old_blk)
@@ -1401,28 +1410,21 @@ CONTAINS
           WRITE(*,*)routineN//" c_blk_ps="
           WRITE(*,'(10(1X,I7))')c_blk_ps
        ENDIF
+       c_row_logical = a_row_logical
        new_row_blks = 0
-       DO a_blk = left%row_p(a_row)+1, left%row_p(a_row+1)
+       DO a_blk = left%row_p(a_row_logical)+1, left%row_p(a_row_logical+1)
           IF (left%blk_p(a_blk) .EQ. 0) THEN
-             !write(*,*)"Skipping deleted block"
              CYCLE
           ENDIF
+          stack_p_a = stack_p_a + 1
+          parameters_a(stack_p_a)%offset = ABS(left%blk_p(a_blk))
+          parameters_a(stack_p_a)%tr = left%blk_p(a_blk) .LT. 0
           row_blk = row_begin_blk
           old_blk = old_row_begin_blk
-          a_offset = ABS (left%blk_p(a_blk))
-          a_col = left%col_i(a_blk)
-          IF (dbg) WRITE(*,*)routineN//" A col", a_col,";",a_row
-          a_row_logical = a_row
-          a_col_logical = a_col
+          a_col_logical = left%col_i(a_blk)
+          IF (dbg) WRITE(*,*)routineN//" A col", a_col_logical,";",a_row_logical
           blk_start = left_col_blk_offset (a_col_logical)
           blk_end = left_col_blk_offset (a_col_logical+1)-1
-          blk_size = left_col_blk_offset (a_col_logical+1) - blk_start
-          a_col_size_logical = blk_size
-          a_row_size = a_row_size_logical
-          a_col_size = a_col_size_logical
-          tr_a = left%blk_p(a_blk) .LT. 0
-          a_type = blas_mat_type (tr_a)
-          IF (tr_a) CALL swap (a_row_size, a_col_size)
           IF (limit_k) THEN
              IF (blk_start .GT. last_k .OR.&
                  blk_end .LT. first_k) THEN
@@ -1444,19 +1446,24 @@ CONTAINS
                 !write(*,*)routineN//" Clamping", clamp_k_offset, clamp_k_len
              ENDIF
           ENDIF
+          a_col_size_logical = left_col_blk_offset (a_col_logical+1) - blk_start
+          parameters_a(stack_p_a)%logical_rows = a_row_size_logical
+          parameters_a(stack_p_a)%logical_cols = a_col_size_logical
+          parameters_a(stack_p_a)%nze = a_row_size_logical*a_col_size_logical
+          !
           b_row_logical = a_col_logical
-          b_row = b_row_logical
-          c_row_logical = a_row_logical
-          a_nze = a_row_size_logical * a_col_size_logical
           b_row_size_logical = a_col_size_logical
-          c_row_size_logical = a_row_size_logical
           DO b_blk = right%row_p(b_row_logical)+1, right%row_p(b_row_logical+1)
              IF (right%blk_p(b_blk) .EQ. 0) THEN
-                !write(*,*)"Skipping deleted block"
                 CYCLE
              ENDIF
-             b_col = right%col_i(b_blk)
-             c_col_logical = b_col
+             b_col_logical = right%col_i(b_blk)
+             c_col_logical = b_col_logical
+             block_exists = c_blk_ps(c_col_logical) .NE. 0
+             sparsity_enforcement: IF &
+                  (keep_sparsity .AND. .NOT. block_exists) THEN
+                CYCLE
+             ENDIF sparsity_enforcement
              ! Don't calculate symmetric blocks.
              IF (product_is_symmetric) THEN
                 IF (c_row_logical .NE. c_col_logical&
@@ -1466,12 +1473,9 @@ CONTAINS
                    CYCLE
                 ENDIF
              ENDIF
-             !IF (dbg) WRITE(*,*)routineN//" B col", b_col, ";",a_row, a_col
-             b_col_logical = b_col
-             b_offset = ABS (right%blk_p(b_blk))
+             !IF (dbg) WRITE(*,*)routineN//" B col", b_col_logical, ";",a_row_logical, a_col_logical
              blk_start = right_col_blk_offset (b_col_logical)
              blk_end = right_col_blk_offset (b_col_logical+1)-1
-             blk_size = blk_end - blk_start + 1
              IF (right_limit_cols) THEN
                 !IF (right_col_blk_start (b_col_logical) .GT. submat_l_col .OR.&
                 !    right_col_blk_end (b_col_logical) .LT. submat_f_col) THEN
@@ -1487,33 +1491,23 @@ CONTAINS
              ELSE
                 this_right_limit = 0
              ENDIF
-             c_col_logical = b_col_logical
-             b_col_size_logical = blk_size
+             b_col_size_logical = right_col_blk_offset(b_col_logical+1) - blk_start
+             offset = ABS(c_blk_ps(c_col_logical))
+             tr_p = c_blk_ps(c_col_logical) .LT. 0
+             stack_p_b = stack_p_b + 1
+             parameters_b(stack_p_b)%offset = ABS(right%blk_p(b_blk))
+             parameters_b(stack_p_b)%tr = right%blk_p(b_blk) .LT. 0
+
+             parameters_b(stack_p_b)%logical_rows = b_row_size_logical
+             parameters_b(stack_p_b)%logical_cols = b_col_size_logical
+             parameters_b(stack_p_b)%nze = b_row_size_logical * b_col_size_logical
+             !
              c_col_size_logical = &
                   product_col_blk_offset (c_col_logical+1) -&
                   product_col_blk_offset (c_col_logical)
-             c_row_size = c_row_size_logical
-             c_col_size = c_col_size_logical
-             !
-             b_col_size = b_col_size_logical
-             b_nze = b_row_size_logical * b_col_size_logical
-             tr_b = right%blk_p(b_blk) .LT. 0
-             b_row_size = b_row_size_logical
-             b_type = blas_mat_type (tr_b)
-             IF (tr_b) CALL swap (b_col_size, b_row_size)
-             !
              c_nze = c_row_size_logical * c_col_size_logical
-             offset = ABS(c_blk_ps(c_col_logical))
-             tr_p = c_blk_ps(c_col_logical) .LT. 0
-             block_exists = c_blk_ps(c_col_logical) .NE. 0
-             IF (tr_p) CALL swap (c_row_size, c_col_size)
-             !DBG "Found old?", block_exists, c_blk_ps(c_col_logical), offset
-             ! Try to find the current coordinate in the current row index
-             sparsity_enforcement: IF &
-                  (keep_sparsity .AND. .NOT. block_exists) THEN
-                !use_accumulated_data = .TRUE.
-                CYCLE
-             ENDIF sparsity_enforcement
+             !
+             !
              IF (.NOT. block_exists) THEN
                 offset = c_blk_pt
                 ! CP2K can't handle transposed blocks. Blocks that are
@@ -1529,6 +1523,7 @@ CONTAINS
                 new_index(3, new_blk) = offset
                 new_row_blks = new_row_blks + 1
                 !DBG 'Adding coordinate', c_row_logical, c_col_logical, c_blk_pt
+                !write(*,*)'Adding coordinate', c_row_logical, c_col_logical, c_blk_pt
                 c_blk_pt = c_blk_pt + c_nze
                 datasize = datasize + c_nze
                 lastblk = lastblk + 1
@@ -1538,89 +1533,135 @@ CONTAINS
                 which_beta = beta_new
                 tr_p = offset .LT. 0
              ELSE
-                DBG 'Using existing coordinate for', c_row_logical, c_col_logical, offset, tr_p
+                !DBG 'Using existing coordinate for', c_row_logical, c_col_logical, offset, tr_p
+                !write(*,*) 'Using existing coordinate for', c_row_logical, c_col_logical, offset, tr_p
                 which_beta = beta_add
              ENDIF
-             c_offset = ABS(offset)
-             stack_pointer = stack_pointer + 1
-             dgemm_parameter_stack(stack_pointer)%type_a = a_type
-             dgemm_parameter_stack(stack_pointer)%type_b = b_type
-             dgemm_parameter_stack(stack_pointer)%type_c = blas_mat_type(tr_p)
-             dgemm_parameter_stack(stack_pointer)%lrows_a = a_row_size_logical
-             dgemm_parameter_stack(stack_pointer)%lcols_a = a_col_size_logical
-             dgemm_parameter_stack(stack_pointer)%lrows_b = b_row_size_logical
-             dgemm_parameter_stack(stack_pointer)%lcols_b = b_col_size_logical
-             dgemm_parameter_stack(stack_pointer)%lrows_c = c_row_size_logical
-             dgemm_parameter_stack(stack_pointer)%lcols_c = c_col_size_logical
-             dgemm_parameter_stack(stack_pointer)%offset_a = a_offset
-             dgemm_parameter_stack(stack_pointer)%nze_a = a_nze
-             dgemm_parameter_stack(stack_pointer)%offset_b = b_offset
-             dgemm_parameter_stack(stack_pointer)%nze_b = b_nze
-             dgemm_parameter_stack(stack_pointer)%offset_c = ABS(c_offset)
-             dgemm_parameter_stack(stack_pointer)%nze_c = c_nze
-             dgemm_parameter_stack(stack_pointer)%beta = which_beta
+             stack_p_c = stack_p_c + 1
+             parameters_c(stack_p_c)%logical_rows = c_row_size_logical
+             parameters_c(stack_p_c)%logical_cols = c_col_size_logical
+             parameters_c(stack_p_c)%nze = c_nze
+             parameters_c(stack_p_c)%tr = tr_p
+             parameters_c(stack_p_c)%offset = ABS(offset)
+             !write(*,*)'@@@',stack_p_c, parameters_c(stack_p_c)%offset
+             !write(*,*)'@@@',stack_p_c, c_row_size_logical, c_col_size_logical, c_nze
+             !
+             stack_p = stack_p + 1
+             dgemm_joins(stack_p)%p_a = stack_p_a
+             dgemm_joins(stack_p)%p_b = stack_p_b
+             dgemm_joins(stack_p)%p_c = stack_p_c
+             dgemm_joins(stack_p)%beta = which_beta
              IF (.NOT. limit_k) THEN
-                dgemm_parameter_stack(stack_pointer)%last_k = a_col_size_logical
+                dgemm_joins(stack_p)%last_k = b_row_size_logical
              ELSE
-                dgemm_parameter_stack(stack_pointer)%last_k = clamp_k_len
+                dgemm_joins(stack_p)%last_k = clamp_k_len
              ENDIF
              IF (right_limit_cols .AND. this_right_limit.gt.0) THEN
-                dgemm_parameter_stack(stack_pointer)%last_n = this_right_limit
+                dgemm_joins(stack_p)%last_n = this_right_limit
              ELSE
-                dgemm_parameter_stack(stack_pointer)%last_n = b_col_size_logical
+                dgemm_joins(stack_p)%last_n = b_col_size_logical
                 ! assert b_col_size_logical .eq. c_col_size_logical
              ENDIF
-             negate_alpha = a_type .EQ. 'T' .AND. left%sym_negation
-             negate_alpha = negate_alpha .NEQV. (b_type .EQ. 'T' .AND. right%sym_negation)
+             negate_alpha = parameters_a(stack_p_a)%tr .AND. left%sym_negation
+             negate_alpha = negate_alpha .NEQV. (parameters_b(stack_p_b)%tr .AND. right%sym_negation)
+             !write(*,*)routineN//" tr_p:", tr_p
+             !write(*,*)routineN//" p.s.n", product%sym_negation
              negate_alpha = negate_alpha .NEQV. (tr_p .AND. product%sym_negation)
              IF (negate_alpha) THEN
-                dgemm_parameter_stack(stack_pointer)%alpha &
+                dgemm_joins(stack_p)%alpha &
                      = dbcsr_scalar_negative (my_alpha)
              ELSE
-                dgemm_parameter_stack(stack_pointer)%alpha = my_alpha
+                dgemm_joins(stack_p)%alpha = my_alpha
              ENDIF
-             i = UBOUND (dgemm_parameter_stack,1)
-             i = MIN (i, 3*i/4)
-             IF (dbg) WRITE(*,*)routineN//" Before merge, stack pointer is at",stack_pointer
-             IF (stack_pointer .GE. i) THEN
-                CALL merge_dgemm_stack(dgemm_parameter_stack,&
-                     first_working_sp, stack_pointer)
+             !i = SIZE (dgemm_joins,1) / 4
+             i = dgemm_stack_size / 8
+             !IF (dbg) WRITE(*,*)routineN//" Before merge, stack pointer is at",stack_p
+             !IF (stack_p .GE. i .and. stack_p .gt. first_mergeable) THEN
+             IF (stack_p .GE. i + first_mergeable .OR. stack_p .GE. dgemm_stack_size) THEN
+                CALL merge_dgemm_stack(dgemm_joins,&
+                     parameters_a, parameters_b, parameters_c,&
+                     first_mergeable,&
+                     stack_p,&
+                     stack_p_a, stack_p_b, stack_p_c)
              ENDIF
-             IF (dbg) WRITE(*,*)routineN//"  After merge, stack pointer is at",stack_pointer
-             IF (stack_pointer .GE. i) THEN
-                IF (dbg) WRITE(*,*)routineN//" Processing stack at", stack_pointer
-                mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
-                CALL process_dgemm_stack(dgemm_parameter_stack(1:stack_pointer),&
-                     stack_pointer,&
+             IF (dbg) WRITE(*,*)routineN//"  After merge, stack pointer is at",stack_p
+             flush_stack = (stack_p .GE. dgemm_stack_size-1)
+             IF (flush_stack) THEN
+                !IF (dbg) WRITE(*,*)routineN//" Processing stack at", stack_p
+                !mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
+                CALL process_dgemm_stack(dgemm_joins,&
+                     parameters_a, parameters_b, parameters_c,&
+                     stack_p,&
+                     stack_p_a, stack_p_b, stack_p_c,&
                      left%data_area, right%data_area,&
                      product%wms(ithread+1)%data_area,&
-                     one_flop,error=error)
-                mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
+                     !lflop=one_flop,ltime=one_time,error=error)
+                     lflop=one_flop,error=error)
+                !mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
+                mt_t_dgemm = mt_t_dgemm + one_time
                 lflop = lflop + one_flop
-                stack_pointer = 0
-                first_working_sp = 1
+                first_mergeable = 1
+                stack_p = 0
+                stack_p_b = 0
+                stack_p_c = 0
+                !parameters_a(1) = parameters_a(stack_p_a)
+                !stack_p_a = 1
              ELSE
                 !WRITE(*,*)routineN//" Skipping DGEMM"
+                !stack_p = stack_p+1
+                !stack_p_b = stack_p_b+1
+                !stack_p_c = stack_p_c+1
              ENDIF
           ENDDO ! b
+          !@@@
+          !write(*,*)routineN//" End of ROW"
           ! Conclude the row, merge everything, and prepare for the new row.
-          CALL merge_dgemm_stack(dgemm_parameter_stack,&
-               first_working_sp, stack_pointer)
-          first_working_sp = stack_pointer+1
+          IF (stack_p_a .GE. SIZE (parameters_a)) THEN
+             !stack_p = stack_p - 1
+             !stack_p_b = stack_p_b - 1
+             !stack_p_c = stack_p_c - 1
+             CALL merge_dgemm_stack(dgemm_joins,&
+                  parameters_a, parameters_b, parameters_c,&
+                  first_mergeable,&
+                  stack_p,&
+                  stack_p_a, stack_p_b, stack_p_c)
+             CALL process_dgemm_stack(dgemm_joins,&
+                  parameters_a, parameters_b, parameters_c,&
+                  stack_p,&
+                  stack_p_a, stack_p_b, stack_p_c,&
+                  left%data_area, right%data_area,&
+                  product%wms(ithread+1)%data_area,&
+                  !lflop=one_flop,ltime=one_time,error=error)
+                  lflop=one_flop,error=error)
+             mt_t_dgemm = mt_t_dgemm + one_time
+             stack_p = 0
+             stack_p_a = 0
+             stack_p_b = 0
+             stack_p_c = 0
+             first_mergeable = 1
+          ENDIF
+          first_mergeable = MAX (stack_p, 1)
        ENDDO ! a_col
     ENDDO ! a_row
-    IF (stack_pointer .GT. 0) THEN
-       IF (dbg) WRITE(*,*)routineN//" Final processing at", stack_pointer
-       mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
-       CALL process_dgemm_stack(dgemm_parameter_stack(1:stack_pointer),&
-            stack_pointer,&
+    IF (stack_p .GE. 1) THEN
+       IF (dbg) WRITE(*,*)routineN//" Final processing at", stack_p
+       CALL merge_dgemm_stack(dgemm_joins,&
+            parameters_a, parameters_b, parameters_c,&
+            first_mergeable,&
+            stack_p,&
+            stack_p_a, stack_p_b, stack_p_c)
+       !mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
+       CALL process_dgemm_stack(dgemm_joins,&
+            parameters_a, parameters_b, parameters_c,&
+            stack_p,&
+            stack_p_a, stack_p_b, stack_p_c,&
             left%data_area, right%data_area,&
             product%wms(ithread+1)%data_area,&
-            one_flop,error=error)
-       mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
+            !lflop=one_flop,ltime=one_time,error=error)
+            lflop=one_flop,error=error)
+       !mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
+       mt_t_dgemm = mt_t_dgemm + one_time
        lflop = lflop + one_flop
-       stack_pointer = 0
-       first_working_sp = 1
     ENDIF
     !
     DEALLOCATE (c_blk_ps, c_blk_ps_p)
@@ -1670,71 +1711,109 @@ CONTAINS
 !>      non-joinable.
 !> \par[in,out] n             Number of elements (stack size)
 ! *****************************************************************************
-  PURE SUBROUTINE merge_dgemm_stack(params, first, n)
-    INTEGER, INTENT(INOUT)                   :: n, first
-    TYPE(dgemm_parameters), DIMENSION(1:n), &
-      INTENT(INOUT)                          :: params
+  PURE SUBROUTINE merge_dgemm_stack(params, params_a, params_b, params_c,&
+       first_mergeable,&
+       stack_size,&
+       stack_size_a, stack_size_b, stack_size_c)
+    INTEGER, INTENT(INOUT)                   :: stack_size, first_mergeable, &
+                                                stack_size_c, stack_size_b, &
+                                                stack_size_a
+    TYPE(dgemm_join), &
+      DIMENSION(1:stack_size), INTENT(INOUT) :: params
+    TYPE(block_parameters), &
+      DIMENSION(1:stack_size_a), &
+      INTENT(INOUT)                          :: params_a
+    TYPE(block_parameters), &
+      DIMENSION(1:stack_size_b), &
+      INTENT(INOUT)                          :: params_b
+    TYPE(block_parameters), &
+      DIMENSION(1:stack_size_c), &
+      INTENT(INOUT)                          :: params_c
 
     CHARACTER(len=*), PARAMETER :: routineN = 'merge_dgemm_stack', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: f, last, sp
-    LOGICAL                                  :: merge_this
+    INTEGER                                  :: f, last, sp, sp_a, sp_b, sp_c
+    LOGICAL                                  :: merge_this, remainder
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
 
-    last = n
-    f = first
-    !IF (dbg) WRITE(*,*)routineN//" merge attempt",first,"to",last
+    last = stack_size
+    f = first_mergeable
+    !IF (dbg) THEN
+    !   WRITE(*,*)routineN//" merge attempt",f,"to",last,";",&
+    !        stack_size_a, stack_size_b, stack_size_c
+    !ENDIF
+    !call dbcsr_assert (last, "LE", size(params), cp_fatal_level,&
+    !     cp_internal_error, routineN, "sp too large")
+    ! This is used to flag merging of blocks prior to stack.
+    remainder = .FALSE.
     DO sp = last, f+1, -1
        !IF (dbg) THEN
-       !   WRITE(*,*)routineN//" testing merge of", sp, sp-1
-       !   CALL print_dgemm_parameters(params(sp))
-       !   CALL print_dgemm_parameters(params(sp-1))
+       !   WRITE(*,*)routineN//" testing merge of", sp-1, sp
+       !   CALL print_dgemm_parameters(params(sp-1:sp),&
+       !        params_a, params_b, params_c)
        !ENDIF
-       merge_this = .FALSE.
-       merge_this = merge_this &
-            .AND. params(sp-1)%type_b .EQ. 'N'.AND. params(sp)%type_b .EQ. 'N'&
-            .AND. params(sp-1)%type_c .EQ. 'N' .AND. params(sp)%type_c .EQ. 'N'
-
-       merge_this = merge_this&
-            .AND. params(sp-1)%lcols_b .EQ. params(sp-1)%last_n &
-            .AND. params(sp-1)%lcols_c .EQ. params(sp-1)%last_n &
-            .AND. params(sp-1)%offset_a .EQ. params(sp)%offset_a
+       sp_a = params(sp)%p_a
+       sp_b = params(sp)%p_b
+       sp_c = params(sp)%p_c
+       merge_this = sp_b .GT. 1 .AND. sp_c .GT. 1
+       !call dbcsr_assert (sp_b, "LE", stack_size_b, cp_fatal_level,&
+       !     cp_internal_error, routineN, "spb too large")
+       !call dbcsr_assert (sp_c, "LE", stack_size_c, cp_fatal_level,&
+       !     cp_internal_error, routineN, "spc too large")
        IF (merge_this) THEN
-            merge_this = merge_this &
-            .AND. dbcsr_scalar_are_equal(params(sp-1)%beta, params(sp)%beta) &
-            .AND. dbcsr_scalar_are_equal(params(sp-1)%alpha, params(sp)%alpha)
+          merge_this = &
+                  (.NOT. params_b(sp_b-1)%tr) .AND. (.NOT. params_b(sp_b)%tr) &
+            .AND. (.NOT. params_c(sp_c-1)%tr) .AND. (.NOT. params_c(sp_c)%tr)
        ENDIF
-!       IF (params(sp-1)%type_b .EQ. 'N'.AND. params(sp)%type_b .EQ. 'N' &
-!            .AND. params(sp-1)%type_c .EQ. 'N' .AND. params(sp)%type_c .EQ. 'N'&
-!            .AND. dbcsr_scalar_are_equal(params(sp-1)%beta, params(sp)%beta) &
-!            .AND. dbcsr_scalar_are_equal(params(sp-1)%alpha, params(sp)%alpha) &
-!            .AND. params(sp-1)%lcols_b .EQ. params(sp-1)%last_n &
-!            .AND. params(sp-1)%lcols_c .EQ. params(sp-1)%last_n &
-!            .AND. params(sp-1)%offset_a .EQ. params(sp)%offset_a &
-!            .AND. params(sp-1)%offset_b + params(sp-1)%nze_b .EQ. params(sp)%offset_b &
-!            .AND. params(sp-1)%offset_c + params(sp-1)%nze_c .EQ. params(sp)%offset_c) THEN
+       IF (merge_this) THEN
+          merge_this = &
+                        params_b(sp_b-1)%logical_cols .EQ. params(sp-1)%last_n &
+                  .AND. params_c(sp_c-1)%logical_cols .EQ. params(sp-1)%last_n &
+                  .AND. params(sp-1)%p_a .EQ. sp_a &
+                  .AND. params_b(sp_b-1)%offset + params_b(sp_b-1)%nze .EQ.&
+                        params_b(sp_b)%offset &
+                  .AND. params_c(sp_c-1)%offset + params_c(sp_c-1)%nze .EQ.&
+                        params_c(sp_c)%offset
+       ENDIF
+       IF (merge_this) THEN
+          merge_this = &
+               dbcsr_scalar_are_equal(params(sp-1)%beta, params(sp)%beta) &
+               .AND. dbcsr_scalar_are_equal(params(sp-1)%alpha, params(sp)%alpha)
+       ENDIF
        IF (merge_this) THEN
           !IF (dbg) WRITE(*,*)routineN//" Merging into:"
           params(sp-1)%last_n = params(sp-1)%last_n + params(sp)%last_n
-          params(sp-1)%lcols_b = params(sp-1)%lcols_b + params(sp)%lcols_b
-          params(sp-1)%lcols_c = params(sp-1)%lcols_c + params(sp)%lcols_c
-          params(sp-1)%nze_b = params(sp-1)%nze_b + params(sp)%nze_b
-          params(sp-1)%nze_c = params(sp-1)%nze_c + params(sp)%nze_c
-          params(sp)%type_c = '0'
-          !IF (dbg) CALL print_dgemm_parameters(params(sp-1))
-          IF (n .GT. first) THEN
-             n = n - 1
+          params(sp)%last_k = 0
+          params_b(sp_b-1)%logical_cols =&
+               params_b(sp_b-1)%logical_cols + params_b(sp_b)%logical_cols
+          params_b(sp_b-1)%nze = params_b(sp_b-1)%nze + params_b(sp_b)%nze
+          params_c(sp_c-1)%logical_cols =&
+               params_c(sp_c-1)%logical_cols + params_c(sp_c)%logical_cols
+          params_c(sp_c-1)%nze = params_c(sp_c-1)%nze + params_c(sp_c)%nze
+          !IF (dbg) CALL print_dgemm_parameters(params(sp-1:sp-1),&
+          !     params_a, params_b, params_c)
+          IF (.not.remainder) THEN
+             stack_size = stack_size - 1
+             stack_size_b = stack_size_b - 1
+             stack_size_c = stack_size_c - 1
           ENDIF
        ELSE
-          first = MAX(first, sp)
-          !IF (dbg) WRITE(*,*)routineN//" New first is ",first
+          remainder = .TRUE.
+          IF (sp .GE. first_mergeable) THEN
+             first_mergeable = sp
+          ENDIF
+          !IF (dbg) WRITE(*,*)routineN//" New first is ",first_mergeable
        ENDIF
     ENDDO
-    !IF (dbg) WRITE(*,*)routineN//" The new first and n are ",first, n
+    !IF (dbg) THEN
+    !   WRITE(*,*)routineN//" The new first and n are ",&
+    !        first_mergeable, stack_size,";",&
+    !        stack_size_a, stack_size_b, stack_size_c
+    !ENDIF
   END SUBROUTINE merge_dgemm_stack
 
 
@@ -1747,331 +1826,142 @@ CONTAINS
 !> \param[in] right_data_area  Right-matrix data
 !> \param[in,out] product_data_area  Data for results
 !> \param[out] lflop           (optional) Number of FLOPs used by DGEMM
+!> \param[out] ltime           (optional) Time used by DGEMM
 ! *****************************************************************************
-  SUBROUTINE process_dgemm_stack(params, n,&
-       left_data_area, right_data_area, product_data_area, lflop, error)
-    INTEGER, INTENT(IN)                      :: n
-    TYPE(dgemm_parameters), DIMENSION(1:n), &
-      INTENT(IN)                             :: params
+  SUBROUTINE process_dgemm_stack(params, params_a, params_b, params_c,&
+       stack_size, stack_size_a, stack_size_b, stack_size_c,&
+       left_data_area, right_data_area, product_data_area, lflop, ltime, error)
+    INTEGER, INTENT(INOUT)                   :: stack_size, stack_size_c, &
+                                                stack_size_b, stack_size_a
+    TYPE(dgemm_join), &
+      DIMENSION(1:stack_size), INTENT(IN)    :: params
+    TYPE(block_parameters), &
+      DIMENSION(1:stack_size_a), INTENT(IN)  :: params_a
+    TYPE(block_parameters), &
+      DIMENSION(1:stack_size_b), INTENT(IN)  :: params_b
+    TYPE(block_parameters), &
+      DIMENSION(1:stack_size_c), INTENT(IN)  :: params_c
     TYPE(dbcsr_data_obj), INTENT(IN)         :: left_data_area, &
                                                 right_data_area
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: product_data_area
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: lflop
+    REAL(KIND=real_8), INTENT(OUT), OPTIONAL :: ltime
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'process_dgemm_stack', &
       routineP = moduleN//':'//routineN
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
-    INTEGER                                  :: c, error_handler, lda, ldb, &
-                                                ldc, maxs, r, sp
-    LOGICAL                                  :: do_resize
-    TYPE(dbcsr_data_obj)                     :: left_data, product_data, &
-                                                right_data
-    TYPE(dbcsr_scalar_type)                  :: any_zero
+    INTEGER                                  :: error_handler
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
+    !WRITE(*,*)routineN//"========== Mulitplying"
+    !CALL print_dgemm_parameters (params(1:stack_size),&
+    !     params_a, params_b, params_c)
+    !WRITE(*,*)routineN//"========== END of multiplies"
     SELECT CASE (product_data_area%d%data_type)
     CASE (dbcsr_type_real_4)
-       CALL process_dgemm_stack_s (params, n,&
+       CALL process_dgemm_stack_s (params, params_a, params_b, params_c,&
+       stack_size, stack_size_a, stack_size_b, stack_size_c,&
        left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area,&
-       lflop=lflop, error=error)
+       lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_real_8)
-       CALL process_dgemm_stack_d (params, n,&
+       CALL process_dgemm_stack_d (params, params_a, params_b, params_c,&
+       stack_size, stack_size_a, stack_size_b, stack_size_c,&
        left_data_area%d%r_dp, right_data_area%d%r_dp, product_data_area,&
-       lflop=lflop, error=error)
+       lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_complex_4)
-       CALL process_dgemm_stack_c (params, n,&
+       CALL process_dgemm_stack_c (params, params_a, params_b, params_c,&
+       stack_size, stack_size_a, stack_size_b, stack_size_c,&
        left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area,&
-       lflop=lflop, error=error)
+       lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_complex_8)
-       CALL process_dgemm_stack_z (params, n,&
+       CALL process_dgemm_stack_z (params, params_a, params_b, params_c,&
+       stack_size, stack_size_a, stack_size_b, stack_size_c,&
        left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area,&
-       lflop=lflop, error=error)
+       lflop=lflop, ltime=ltime, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
-    
+    stack_size = 0
     CALL dbcsr_error_stop(error_handler, error)
     RETURN
-
-    IF (PRESENT (lflop)) lflop = INT(0, int_8)
-    ! Increase product data area size if necessary.
-    do_resize = .FALSE.
-    maxs = dbcsr_get_data_size(product_data_area)
-    DO sp = 1, n
-       IF (params(sp)%offset_c+params(sp)%nze_c-1 .GT. maxs) THEN
-          maxs = params(sp)%offset_c+params(sp)%nze_c-1
-          do_resize = .TRUE.
-       ENDIF
-    ENDDO
-    IF (do_resize) THEN
-       IF (dbg) &
-            WRITE(*,*)routineN//" Data area too small, increasing!", &
-            maxs, dbcsr_get_data_size(product_data_area)
-       CALL dbcsr_data_ensure_size (product_data_area,&
-            maxs, factor=resize_factor, error=error)
-    ENDIF
-    ! Setup encapsulated data area
-    CALL dbcsr_data_init (left_data)
-    CALL dbcsr_data_init (right_data)
-    CALL dbcsr_data_init (product_data)
-    CALL dbcsr_data_new (left_data, left_data_area%d%data_type)
-    CALL dbcsr_data_new (right_data, right_data_area%d%data_type)
-    CALL dbcsr_data_new (product_data, product_data_area%d%data_type)
-    any_zero = dbcsr_scalar_zero(product_data%d%data_type)
-    DO sp = 1, n
-       IF (dbg) WRITE(*,*)routineN//" Stack pointer", sp
-       IF (dbg) CALL print_dgemm_parameters(params(sp))
-       IF (params(sp)%type_c .EQ. '0') THEN
-          IF (dbg) WRITE(*,*)routineN//" Skipping", sp
-          CYCLE
-       ENDIF
-       IF (params(sp)%nze_c .EQ. 0&
-            .or.params(sp)%nze_a .EQ. 0&
-            .or.params(sp)%nze_b .EQ. 0) THEN
-          IF (dbg) WRITE(*,*)routineN//" Skipping empty blocks"
-          CYCLE
-       ENDIF
-
-       !IF(params(sp)%offset_c+params(sp)%nze_c-1.GT.&
-       !     SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
-          !WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
-          !     SIZE(dbcsr_get_data_p_d(product_data_area))
-          !WRITE(*,*) 'params(sp)%offset_c+params(sp)%nze_c-1',&
-          !     params(sp)%offset_c+params(sp)%nze_c-1
-          !stop
-       !ENDIF
-       !IF(params(sp)%offset_c.GT.&
-       !     SIZE(dbcsr_get_data_p_d(product_data_area))) THEN
-          !WRITE(*,*) 'SIZE(dbcsr_get_data_p_d(product_data_area))',&
-          !     SIZE(dbcsr_get_data_p_d(product_data_area))
-          !WRITE(*,*) 'params(sp)%offset_c',&
-          !     params(sp)%offset_c
-          !stop
-       !ENDIF
-       CALL dbcsr_data_set_pointer (product_data,&
-            rsize=params(sp)%nze_c, csize=1,&
-            source_lb=params(sp)%offset_c,&
-            pointee=product_data_area)
-       CALL dbcsr_data_set_pointer (left_data,&
-            rsize=params(sp)%nze_a, csize=1,&
-            source_lb=params(sp)%offset_a,&
-            pointee=left_data_area)
-       CALL dbcsr_data_set_pointer (right_data,&
-            rsize=params(sp)%nze_b, csize=1,&
-            source_lb=params(sp)%offset_b,&
-            pointee=right_data_area)
-       ! Keep the commented template below if needed for speed
-       !product_data_d => pointer_view (dbcsr_get_data_p_d (&
-       !     product_data_area),&
-       !     params(sp)%offset_c,&
-       !     params(sp)%offset_c+params(sp)%nze_c-1)
-       !left_data_d => pointer_view (dbcsr_get_data_p_d (&
-       !     left_data_area),&
-       !     params(sp)%offset_a,&
-       !     params(sp)%offset_a+params(sp)%nze_a-1)
-       !right_data_d => pointer_view (dbcsr_get_data_p_d (&
-       !     right_data_area),&
-       !     params(sp)%offset_b,&
-       !     params(sp)%offset_b+params(sp)%nze_b-1)
-       !IF (dbg) THEN
-       !   WRITE(*,*)'A'
-       !   CALL dbcsr_printmat (left_data_d,&
-       !        params(sp)%lrows_a, params(sp)%lcols_a,&
-       !        tr=params(sp)%type_a.eq.'T')
-       !   WRITE(*,*)'B'
-       !   CALL dbcsr_printmat (right_data_d,&
-       !        params(sp)%lrows_b, params(sp)%lcols_b,&
-       !        tr=params(sp)%type_b.eq.'T')
-       !   WRITE(*,*)'Cin'
-       !   CALL dbcsr_printmat (product_data_d,&
-       !        params(sp)%lrows_c, params(sp)%lcols_c,&
-       !        tr=params(sp)%type_c.eq.'T')
-       !ENDIF
-       ! Avoid nagging compilers
-       IF (dbcsr_scalar_are_equal(params(sp)%beta, any_zero)) THEN
-          IF (params(sp)%type_c .EQ. 'N'&
-               .OR. params(sp)%last_n .EQ. params(sp)%lcols_c) THEN
-             CALL dbcsr_data_clear (product_data,&
-                  ub=params(sp)%lrows_c*params(sp)%last_n)
-             !product_data_d(1&
-             !     :params(sp)%lrows_c*params(sp)%last_n) = 0.0_dp
-          ELSE
-             ! It must be transposed.
-             !### optimize out the inner loop (turn into a range)
-             DO r = 1, params(sp)%lrows_c
-                DO c = 1, params(sp)%last_n
-                   CALL dbcsr_data_clear(product_data,&
-                        lb=(r-1)*params(sp)%lcols_c+c,&
-                        ub=(r-1)*params(sp)%lcols_c+c)
-                ENDDO
-             ENDDO
-             !FORALL (r = 1:params(sp)%lrows_c, c = 1:params(sp)%last_n)
-             !   product_data_d((r-1)*params(sp)%lcols_c+c) = 0.0_dp
-             !END FORALL
-          ENDIF
-       ENDIF
-       IF (params(sp)%type_c .EQ. 'N') THEN
-          IF (dbg) &
-               WRITE(*,'("DGN",A,1X,A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
-               params(sp)%type_c,&
-               params(sp)%type_a, params(sp)%type_b,&
-               params(sp)%lrows_c, params(sp)%last_n,& !m, n
-               params(sp)%last_k,& ! k
-               params(sp)%alpha,&
-               params(sp)%offset_a, params(sp)%nze_a,&
-               params(sp)%offset_b, params(sp)%nze_b,&
-               params(sp)%beta,&
-               params(sp)%offset_c, params(sp)%nze_c
-          lda = select_n_or_t (params(sp)%type_a,&
-               params(sp)%lrows_a, params(sp)%lcols_a)
-          ldb = select_n_or_t (params(sp)%type_b,&
-               params(sp)%lrows_b, params(sp)%lcols_b)
-          ldc = select_n_or_t (params(sp)%type_c,&
-               params(sp)%lrows_c, params(sp)%lcols_c)
-          CALL dbcsr_blas_gemm(&
-               params(sp)%type_a, params(sp)%type_b,&
-               params(sp)%lrows_c, params(sp)%last_n,& !m, n
-               params(sp)%last_k,& ! k
-               params(sp)%alpha,&
-               left_data, lda,&
-               right_data, ldb,&
-               params(sp)%beta,&
-               product_data, ldc)
-          !CALL DGEMM(params(sp)%type_a, params(sp)%type_b,&
-          !     params(sp)%lrows_c, params(sp)%last_n,& !m, n
-          !     params(sp)%last_k,& ! k
-          !     params(sp)%alpha,&
-          !     left_data_d, lda,&
-          !     right_data_d, ldb,&
-          !     params(sp)%beta,&
-          !     product_data_d, ldc)
-          IF (PRESENT (lflop)) &
-               lflop = lflop + INT(2, int_8) * &
-               INT(params(sp)%lrows_c &
-               * params(sp)%last_n * params(sp)%last_k, int_8)
-       ELSE
-          IF (dbg) &
-               WRITE(*,'("DGT",A,1X,A,A,2X,3(I5,1X),F5.1,1X,2(I9,1X,I5,1X),F5.1,1X,I9,1X,I5)')&
-               params(sp)%type_c,&
-               flip_type(params(sp)%type_a),&
-               flip_type(params(sp)%type_b),&
-               params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
-               params(sp)%last_k,& ! k
-               params(sp)%alpha,&
-               params(sp)%offset_a, params(sp)%nze_a,&
-               params(sp)%offset_b, params(sp)%nze_b,&
-               params(sp)%beta,&
-               params(sp)%offset_c, params(sp)%nze_c
-          lda = select_n_or_t (params(sp)%type_a,&
-               params(sp)%lrows_a, params(sp)%lcols_a)
-          ldb = select_n_or_t (params(sp)%type_b,&
-               params(sp)%lrows_b, params(sp)%lcols_b)
-          ldc = select_n_or_t (params(sp)%type_c,&
-               params(sp)%lrows_c, params(sp)%lcols_c)
-          CALL dbcsr_blas_GEMM(flip_type(params(sp)%type_b),&
-               flip_type(params(sp)%type_a),&
-               params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
-               params(sp)%last_k,& ! k
-               params(sp)%alpha,&
-               right_data, ldb,&
-               left_data, lda,&
-               params(sp)%beta,&
-               product_data, ldc)
-          !CALL DGEMM(flip_type(params(sp)%type_b),&
-          !     flip_type(params(sp)%type_a),&
-          !     params(sp)%lcols_c, params(sp)%lrows_c,& !m, n (switched)
-          !     params(sp)%last_k,& ! k
-          !     params(sp)%alpha,&
-          !     right_data_d, ldb,&
-          !     left_data_d, lda,&
-          !     params(sp)%beta,&
-          !     product_data_d, ldc)
-          IF (PRESENT (lflop)) &
-               lflop = lflop + INT(2, int_8) * &
-               INT(params(sp)%last_n &
-               * params(sp)%lcols_c * params(sp)%last_k, int_8)
-       ENDIF
-       !IF (dbg) THEN
-       !   WRITE(*,*)'Cout'
-       !   CALL dbcsr_printmat (product_data_d,&
-       !        params(sp)%lrows_c, params(sp)%lcols_c,&
-       !        tr=params(sp)%type_c.eq.'T')
-       !ENDIF
-    ENDDO
-    CALL dbcsr_data_clear_pointer (product_data)
-    CALL dbcsr_data_clear_pointer (left_data)
-    CALL dbcsr_data_clear_pointer (right_data)
-    CALL dbcsr_data_release (product_data)
-    CALL dbcsr_data_release (left_data)
-    CALL dbcsr_data_release (right_data)
-    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE process_dgemm_stack
 
-  SUBROUTINE print_dgemm_parameters(params)
-    TYPE(dgemm_parameters), INTENT(in)       :: params
+  SUBROUTINE print_dgemm_parameters(params, params_a, params_b, params_c)
+    TYPE(dgemm_join), DIMENSION(:), &
+      INTENT(in)                             :: params
+    TYPE(block_parameters), DIMENSION(:), &
+      INTENT(IN)                             :: params_a, params_b, params_c
 
-    SELECT CASE (params%alpha%data_type)
-    CASE (dbcsr_type_real_4)
-       WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
-            "DGEMM PARAMETERS",&
-            params%type_c,&
-            params%type_a, params%type_b,&
-            params%lrows_a, params%lcols_a,&
-            params%lrows_b, params%lcols_b,&
-            params%lrows_c, params%lcols_c,&
-            params%last_k, params%last_n,&
-            params%alpha%r_sp, params%beta%r_sp,&
-            params%offset_a, params%nze_a,&
-            params%offset_b, params%nze_b,&
-            params%offset_c, params%nze_c
-    CASE (dbcsr_type_real_8)
-       WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
-            "DGEMM PARAMETERS",&
-            params%type_c,&
-            params%type_a, params%type_b,&
-            params%lrows_a, params%lcols_a,&
-            params%lrows_b, params%lcols_b,&
-            params%lrows_c, params%lcols_c,&
-            params%last_k, params%last_n,&
-            params%alpha%r_dp, params%beta%r_dp,&
-            params%offset_a, params%nze_a,&
-            params%offset_b, params%nze_b,&
-            params%offset_c, params%nze_c
-    CASE (dbcsr_type_complex_4)
-       WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
-            "DGEMM PARAMETERS",&
-            params%type_c,&
-            params%type_a, params%type_b,&
-            params%lrows_a, params%lcols_a,&
-            params%lrows_b, params%lcols_b,&
-            params%lrows_c, params%lcols_c,&
-            params%last_k, params%last_n,&
-            REAL(params%alpha%c_sp), REAL(params%beta%c_sp),&
-            params%offset_a, params%nze_a,&
-            params%offset_b, params%nze_b,&
-            params%offset_c, params%nze_c
-    CASE (dbcsr_type_complex_8)
-       WRITE(*,'(1X,A,1X,A,1X,A,A,3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
-            "DGEMM PARAMETERS",&
-            params%type_c,&
-            params%type_a, params%type_b,&
-            params%lrows_a, params%lcols_a,&
-            params%lrows_b, params%lcols_b,&
-            params%lrows_c, params%lcols_c,&
-            params%last_k, params%last_n,&
-            REAL(params%alpha%c_dp), REAL(params%beta%c_dp),&
-            params%offset_a, params%nze_a,&
-            params%offset_b, params%nze_b,&
-            params%offset_c, params%nze_c
-    END SELECT
-   END SUBROUTINE print_dgemm_parameters
+    INTEGER                                  :: sp, sp_a, sp_b, sp_c
+
+    DO sp = 1, SIZE(params)
+       sp_a = params(sp)%p_a
+       sp_b = params(sp)%p_b
+       sp_c = params(sp)%p_c
+       WRITE(*,*)"SP",sp, sp_a, sp_b, sp_c
+       SELECT CASE (params(sp)%alpha%data_type)
+       CASE (dbcsr_type_real_4)
+          WRITE(*,'(1X,A,1X,L1,1X,2(L1),3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+               "DGEMM PARAMETERS",&
+               params_c(sp_c)%tr,&
+               params_a(sp_a)%tr, params_b(sp_b)%tr,&
+               params_a(sp_a)%logical_rows, params_a(sp_a)%logical_cols,&
+               params_b(sp_b)%logical_rows, params_b(sp_b)%logical_cols,&
+               params_c(sp_c)%logical_rows, params_c(sp_c)%logical_cols,&
+               params(sp)%last_k, params(sp)%last_n,&
+               params(sp)%alpha%r_sp, params(sp)%beta%r_sp,&
+               params_a(sp_a)%offset, params_a(sp_a)%nze,&
+               params_b(sp_b)%offset, params_b(sp_b)%nze,&
+               params_c(sp_c)%offset, params_c(sp_c)%nze
+       CASE (dbcsr_type_real_8)
+          WRITE(*,'(1X,A,1X,L1,1X,2(L1),3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+               "DGEMM PARAMETERS",&
+               params_c(sp_c)%tr,&
+               params_a(sp_a)%tr, params_b(sp_b)%tr,&
+               params_a(sp_a)%logical_rows, params_a(sp_a)%logical_cols,&
+               params_b(sp_b)%logical_rows, params_b(sp_b)%logical_cols,&
+               params_c(sp_c)%logical_rows, params_c(sp_c)%logical_cols,&
+               params(sp)%last_k, params(sp)%last_n,&
+               params(sp)%alpha%r_dp, params(sp)%beta%r_dp,&
+               params_a(sp_a)%offset, params_a(sp_a)%nze,&
+               params_b(sp_b)%offset, params_b(sp_b)%nze,&
+               params_c(sp_c)%offset, params_c(sp_c)%nze
+       CASE (dbcsr_type_complex_4)
+          WRITE(*,'(1X,A,1X,L1,1X,2(L1),3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+               "DGEMM PARAMETERS",&
+               params_c(sp_c)%tr,&
+               params_a(sp_a)%tr, params_b(sp_b)%tr,&
+               params_a(sp_a)%logical_rows, params_a(sp_a)%logical_cols,&
+               params_b(sp_b)%logical_rows, params_b(sp_b)%logical_cols,&
+               params_c(sp_c)%logical_rows, params_c(sp_c)%logical_cols,&
+               params(sp)%last_k, params(sp)%last_n,&
+               REAL(params(sp)%alpha%c_sp), REAL(params(sp)%beta%c_sp),&
+               params_a(sp_a)%offset, params_a(sp_a)%nze,&
+               params_b(sp_b)%offset, params_b(sp_b)%nze,&
+               params_c(sp_c)%offset, params_c(sp_c)%nze
+       CASE (dbcsr_type_complex_8)
+          WRITE(*,'(1X,A,1X,L1,1X,2(L1),3(1X,2(1X,I4),";"),".",2(1X,I4),2(1X,F5.1),/,10X,"@",3(1X,2(1X,I7),";"))')&
+               "DGEMM PARAMETERS",&
+               params_c(sp_c)%tr,&
+               params_a(sp_a)%tr, params_b(sp_b)%tr,&
+               params_a(sp_a)%logical_rows, params_a(sp_a)%logical_cols,&
+               params_b(sp_b)%logical_rows, params_b(sp_b)%logical_cols,&
+               params_c(sp_c)%logical_rows, params_c(sp_c)%logical_cols,&
+               params(sp)%last_k, params(sp)%last_n,&
+               REAL(params(sp)%alpha%c_dp), REAL(params(sp)%beta%c_dp),&
+               params_a(sp_a)%offset, params_a(sp_a)%nze,&
+               params_b(sp_b)%offset, params_b(sp_b)%nze,&
+               params_c(sp_c)%offset, params_c(sp_c)%nze
+       END SELECT
+    ENDDO
+  END SUBROUTINE print_dgemm_parameters
 
 
 
@@ -2102,11 +1992,11 @@ CONTAINS
   END FUNCTION flip_type
 
   ELEMENTAL FUNCTION select_n_or_t (t, n1, n2) RESULT (val)
-    CHARACTER, INTENT(in)                    :: t
+    LOGICAL, INTENT(in)                      :: t
     INTEGER, INTENT(in)                      :: n1, n2
     INTEGER                                  :: val
 
-    IF (t .EQ. 'N') THEN
+    IF (.NOT. t) THEN
        val = n1
     ELSE
        val = n2
