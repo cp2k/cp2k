@@ -1416,9 +1416,6 @@ CONTAINS
           IF (left%blk_p(a_blk) .EQ. 0) THEN
              CYCLE
           ENDIF
-          stack_p_a = stack_p_a + 1
-          parameters_a(stack_p_a)%offset = ABS(left%blk_p(a_blk))
-          parameters_a(stack_p_a)%tr = left%blk_p(a_blk) .LT. 0
           row_blk = row_begin_blk
           old_blk = old_row_begin_blk
           a_col_logical = left%col_i(a_blk)
@@ -1447,6 +1444,9 @@ CONTAINS
              ENDIF
           ENDIF
           a_col_size_logical = left_col_blk_offset (a_col_logical+1) - blk_start
+          stack_p_a = stack_p_a + 1
+          parameters_a(stack_p_a)%offset = ABS(left%blk_p(a_blk))
+          parameters_a(stack_p_a)%tr = left%blk_p(a_blk) .LT. 0
           parameters_a(stack_p_a)%logical_rows = a_row_size_logical
           parameters_a(stack_p_a)%logical_cols = a_col_size_logical
           parameters_a(stack_p_a)%nze = a_row_size_logical*a_col_size_logical
