@@ -741,12 +741,14 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_coordinates', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: my_middle_name, fmt_string, stmp
-    INTEGER                                  :: handle, ia, ib, ic, irank, &
-                                                unit_nr, icycle, tmp1, tmp2, &
-                                                ib1, ib2, offset, msglen
+    CHARACTER(len=default_string_length)     :: fmt_string, my_middle_name, &
+                                                stmp
+    INTEGER                                  :: handle, ia, ib, ib1, ib2, ic, &
+                                                icycle, irank, msglen, &
+                                                offset, tmp1, tmp2, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: my_perm
-    LOGICAL                                  :: failure, should_output, ltmp, are_connected
+    LOGICAL                                  :: are_connected, failure, ltmp, &
+                                                should_output
     REAL(kind=dp)                            :: xtmp, ytmp, ztmp
     REAL(kind=dp), DIMENSION(3)              :: r1, r2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -969,8 +971,8 @@ MODULE helium_io
 
     CHARACTER(len=default_string_length)     :: fmt_string, my_middle_name, &
                                                 stmp
-    INTEGER                                  :: ia, ib, ib1, ib2, ic, icycle, &
-                                                tmp1, tmp2, unit_nr, handle
+    INTEGER                                  :: handle, ia, ib, ib1, ib2, ic, &
+                                                icycle, tmp1, tmp2, unit_nr
     LOGICAL                                  :: are_connected, failure, ltmp, &
                                                 should_output
     REAL(kind=dp)                            :: xtmp, ytmp, ztmp
@@ -1182,7 +1184,7 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_rdf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, unit_nr, handle
+    INTEGER                                  :: handle, i, unit_nr
     LOGICAL                                  :: failure, is_new, should_output
     REAL(kind=dp)                            :: rtmp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1238,8 +1240,9 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr, ia, ib, ic, idim, handle
     CHARACTER(len=default_string_length)     :: msgstr
+    INTEGER                                  :: handle, ia, ib, ic, idim, &
+                                                unit_nr
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -1316,8 +1319,9 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_force_inst', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: stmp, my_middle_name
-    INTEGER                                  :: irank, unit_nr, ia, ib, ic, idim, offset, irot, handle
+    CHARACTER(len=default_string_length)     :: my_middle_name, stmp
+    INTEGER                                  :: handle, ia, ib, ic, idim, &
+                                                irank, offset, unit_nr
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key

@@ -25,18 +25,12 @@ MODULE helium_sampling
   USE helium_interactions,             ONLY: helium_bead_solute_e,&
                                              helium_calc_energy,&
                                              helium_solute_e_f
-  USE helium_io,                       ONLY: helium_update,&
-                                             helium_write_coordinates,&
-                                             helium_write_energy,&
-                                             helium_write_force,&
-                                             helium_write_force_inst,&
-                                             helium_write_line,&
-                                             helium_write_rdf,&
-                                             helium_write_restart,&
-                                             helium_write_wnumber
+  USE helium_io,                       ONLY: &
+       helium_update, helium_write_coordinates, helium_write_energy, &
+       helium_write_force, helium_write_force_inst, helium_write_line, &
+       helium_write_rdf, helium_write_restart, helium_write_wnumber
   USE helium_types,                    ONLY: e_id_total,&
                                              helium_solvent_type
-  USE input_constants,                 ONLY: fmt_id_pdb
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime

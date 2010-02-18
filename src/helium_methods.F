@@ -96,11 +96,9 @@ MODULE helium_methods
     INTEGER                                  :: handle, i, input_unit, isize, &
                                                 itmp, j, nlines, ntab, stat
     LOGICAL                                  :: cell_shape_supported, &
-                                                explicit, failure, &
-                                                expl_dens, &
-                                                expl_nats, &
-                                                expl_cell, overdef
-    REAL(KIND=dp)                            :: dx, tcheck, x1, rtmp, cgeof
+                                                expl_cell, expl_dens, &
+                                                expl_nats, explicit, failure
+    REAL(KIND=dp)                            :: cgeof, dx, rtmp, tcheck, x1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_transfer
     TYPE(cp_logger_type), POINTER            :: logger

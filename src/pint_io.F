@@ -317,7 +317,7 @@ MODULE pint_io
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: stmp1, stmp2
-    INTEGER                                  :: unit_nr, ic
+    INTEGER                                  :: ic, unit_nr
     LOGICAL                                  :: failure, should_output
     REAL(kind=dp), DIMENSION(3)              :: com_r
     TYPE(cp_logger_type), POINTER            :: logger
