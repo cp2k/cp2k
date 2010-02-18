@@ -680,3 +680,5 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 # convert mo_derivs to dbcsr
 He2_ddapc_constraint-4.inp
+#
+He2_none_full_single.inp

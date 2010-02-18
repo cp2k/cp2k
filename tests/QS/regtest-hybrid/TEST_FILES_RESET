@@ -396,3 +396,5 @@ CH3-PBE0_TC_LRC.inp
 Li-hybrid-rcam-b3lyp.inp
 # convert mo_derivs to dbcsr
 CH3-PBE0_TC_LRC.inp
+#
+CH3-PBE0_TC.inp
