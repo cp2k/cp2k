@@ -901,10 +901,11 @@ END SUBROUTINE helium_update_transition_matrix
 !>         if (num_cycles .EQ. helium%atoms) then there are no cycles of
 !>         length greater than 1 (i.e. no atoms are connected)
 ! *****************************************************************************
-  FUNCTION helium_cycle_number(helium, atom_number) RESULT(cycle_number)
+  FUNCTION helium_cycle_number(helium, atom_number, permutation) RESULT(cycle_number)
 
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: atom_number
+    INTEGER, DIMENSION(:), POINTER           :: permutation
     INTEGER                                  :: cycle_number
 
     INTEGER                                  :: atom_idx, cycle_idx, &
@@ -914,7 +915,7 @@ END SUBROUTINE helium_update_transition_matrix
     LOGICAL                                  :: break, new_cycle
 
     NULLIFY(cycle_index)
-    cycle_index => helium%itmp_atoms
+    cycle_index => helium%itmp_atoms_1d
     cycle_index(:) = 0
 
     num_cycles = 0
@@ -937,7 +938,7 @@ END SUBROUTINE helium_update_transition_matrix
         ! form one cycle (i.e. all beads belong to one path)
 
         ! proceed along the path
-        atom_idx = helium%permutation(atom_idx)
+        atom_idx = permutation(atom_idx)
 
         IF (atom_idx .EQ. ia) THEN
           ! end of cycle detected (looped back to the first atom)
@@ -1001,10 +1002,11 @@ END SUBROUTINE helium_update_transition_matrix
 !> \author Lukasz Walewski
 !> \date   2009-10-07
 ! *****************************************************************************
-  FUNCTION helium_path_length(helium, atom_number) RESULT(path_length)
+  FUNCTION helium_path_length(helium, atom_number, permutation) RESULT(path_length)
 
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: atom_number
+    INTEGER, DIMENSION(:), POINTER           :: permutation
     INTEGER                                  :: path_length
 
     INTEGER                                  :: atom_idx, ia
@@ -1015,7 +1017,7 @@ END SUBROUTINE helium_update_transition_matrix
     path_end_reached = .FALSE.
     DO ia = 1, helium%atoms
       path_length = path_length + 1
-      atom_idx = helium%permutation(atom_idx)
+      atom_idx = permutation(atom_idx)
       IF ( atom_idx .EQ. atom_number ) THEN
         path_end_reached = .TRUE.
         EXIT
@@ -1027,6 +1029,6 @@ END SUBROUTINE helium_update_transition_matrix
     END IF
 
     RETURN
-  END FUNCTION
+  END FUNCTION helium_path_length
 
 END MODULE helium_common

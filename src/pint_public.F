@@ -67,7 +67,7 @@ MODULE pint_public
     tmass = tmass / 3.0_dp
     com_r(:) = com_r(:) / tmass
     RETURN
-  END FUNCTION
+  END FUNCTION pint_com_pos
 
   ! ***************************************************************************
   !> \brief  Return the center of geometry of the PI system

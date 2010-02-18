@@ -13,6 +13,8 @@ MODULE pint_types
 
   IMPLICIT NONE
 
+  PRIVATE
+
   ! Energy contributions - symbolic names for indexing energy arrays
   INTEGER, PARAMETER, PUBLIC :: e_conserved_id  = 1, &
                                 e_potential_id  = 2, &

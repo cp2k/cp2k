@@ -320,11 +320,11 @@ vkin = 0.0_dp
     DO ipart = 1, helium%atoms
       DO ibead = 1, helium%beads
         CALL helium_bead_solute_e_f(pint_env, helium, ipart, &
-          ibead, energy=my_energy, force=helium%rtmp_p_ndim)
+          ibead, energy=my_energy, force=helium%rtmp_p_ndim_2d)
         energy = energy + my_energy
         DO i = 1, pint_env%p
           DO j = 1, pint_env%ndim
-            force(i,j) = force(i,j) + helium%rtmp_p_ndim(i,j)
+            force(i,j) = force(i,j) + helium%rtmp_p_ndim_2d(i,j)
           END DO
         END DO
       END DO

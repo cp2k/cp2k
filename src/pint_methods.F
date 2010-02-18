@@ -53,6 +53,7 @@ MODULE pint_methods
                                              next_rng_seed
   USE particle_list_types,             ONLY: particle_list_type
   USE pint_io,                         ONLY: pint_write_centroids,&
+                                             pint_write_com,&
                                              pint_write_ener,&
                                              pint_write_restart,&
                                              pint_write_step_info,&
@@ -567,13 +568,13 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,error,failure)
-  CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(input%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,error,failure)
+    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(input%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
 
       NULLIFY(helium_section)
       helium_section => section_vals_get_subs_vals(input,&
@@ -624,9 +625,9 @@ CONTAINS
 
       CASE (solute_only_mid)
         CALL pint_create(pint_env,input,para_env,error=error)
-     CALL pint_start(pint_env,error=error)
+        CALL pint_start(pint_env,error=error)
         CALL pint_do_run(pint_env,globenv,error=error)
-     CALL pint_release(pint_env,error=error)
+        CALL pint_release(pint_env,error=error)
 
       CASE (solute_with_helium_mid)
         CALL pint_create(pint_env,input,para_env,error=error)
@@ -881,6 +882,7 @@ CONTAINS
       CALL pint_write_ener(pint_env,error=error)
       CALL pint_write_centroids(pint_env,error=error)
       CALL pint_write_trajectory(pint_env,error=error)
+      CALL pint_write_com(pint_env,error=error)
       IF (PRESENT(helium)) THEN
         IF (ASSOCIATED(helium)) THEN
           CALL helium_update(helium,error)

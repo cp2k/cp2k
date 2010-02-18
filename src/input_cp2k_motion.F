@@ -2652,6 +2652,12 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"COM",&
+            description="Controls the output of the center of mass",&
+            print_level=high_print_level,common_iter_levels=1,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls how often the restart file is written", &
             print_level=low_print_level,add_last=add_last_numeric,&
@@ -2671,13 +2677,10 @@ CONTAINS
     END IF
   END SUBROUTINE create_pint_section
 
-! *****************************************************************************
-!> \brief creates the section for superfluid helium solvent
-!> \param section - the helium section created
-!> \param error - variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author lwalewsk
-! *****************************************************************************
+  ! ***************************************************************************
+  !> \brief  Create the input section for superfluid helium solvent.
+  !> \author Lukasz Walewski
+  ! ***************************************************************************
   SUBROUTINE create_helium_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2770,6 +2773,14 @@ CONTAINS
     CALL keyword_create(keyword, name="PERIODIC", &
          description="Use periodic boundary conditions for helium",&
          repeats=.FALSE., default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="CELL_SIZE", &
+         description="PBC unit cell size (NOTE 1: density, number of atoms"//&
+         " and volume are interdependent - give only two of them; "//&
+         "NOTE 2: for small cell sizes specify NATOMS instead)",&
+         repeats=.FALSE.,type_of_var=real_t,unit_str="angstrom",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -2892,6 +2903,18 @@ CONTAINS
             error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"FORCES",&
+         description="Controls the output of the helium forces on the solute",&
+         print_level=high_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"FORCES_INST",&
+         description="Controls the output of the instantaneous helium forces on the solute",&
+         print_level=debug_print_level,common_iter_levels=1,error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 

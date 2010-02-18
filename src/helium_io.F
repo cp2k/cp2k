@@ -38,8 +38,7 @@ MODULE helium_io
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8
-  USE machine,                         ONLY: m_flush,&
-                                             m_walltime
+  USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_gather
   USE parallel_rng_types,              ONLY: get_rng_stream
   USE timings,                         ONLY: timeset,&
@@ -48,12 +47,10 @@ MODULE helium_io
 
   IMPLICIT NONE
 
+  PRIVATE
+
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_io'
-
-  INTEGER, PUBLIC, PARAMETER :: wrt_mode_current = 1, &
-                                wrt_mode_average = 2, &
-                                wrt_mode_sampling = 3
 
   PUBLIC :: helium_update
   PUBLIC :: helium_write_restart
@@ -62,6 +59,9 @@ MODULE helium_io
   PUBLIC :: helium_write_setup
   PUBLIC :: helium_write_energy
   PUBLIC :: helium_write_wnumber
+  PUBLIC :: helium_write_coordinates
+  PUBLIC :: helium_write_force
+  PUBLIC :: helium_write_force_inst
 
   CONTAINS
 
@@ -80,16 +80,12 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_update', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: msgstr, stmp, time_unit
     INTEGER                                  :: handle, itmp
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: time_start, time_stop, &
-                                                time_used
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
-    time_start = m_walltime()
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
@@ -123,40 +119,22 @@ MODULE helium_io
       END IF
 
       ! save coordinates
-      CALL helium_coord_save( helium, error )
+      CALL helium_update_coord( helium, error )
 
       ! save permutation state
-      CALL helium_perm_save( helium, error )
+      CALL helium_update_perm( helium, error )
 
       ! save RNG state
-      CALL helium_rng_state_save( helium, error )
+      CALL helium_update_rngstate( helium, error )
 
       IF (helium%solute_present) THEN
         ! save forces on the solute
-        CALL helium_force_save( helium, error )
+        CALL helium_update_force( helium, error )
       END IF
-
-      time_stop = m_walltime()
-      time_used = time_stop - time_start
-      time_unit = "sec"
-      IF ( time_used .GT. 60 ) THEN
-        time_used = time_used / 60.0_dp
-        time_unit = "min"
-      END IF
-      IF ( time_used .GT. 60 ) THEN
-        time_used = time_used / 60.0_dp
-        time_unit = "hours"
-      END IF
-      stmp = ""
-      WRITE(stmp, '(F20.1)') time_used
-      msgstr = "Runtime data updated in " // TRIM(ADJUSTL(stmp))
-      msgstr = TRIM(ADJUSTL(msgstr)) // " " // TRIM(ADJUSTL(time_unit)) // "."
-      CALL helium_write_line(msgstr,error)
 
     END IF
 
     CALL timestop(handle)
-
     RETURN
   END SUBROUTINE helium_update
 
@@ -165,11 +143,11 @@ MODULE helium_io
   !> \author Lukasz Walewski
   !> \date   2009-11-09
   ! ***************************************************************************
-  SUBROUTINE helium_coord_save( helium, error )
+  SUBROUTINE helium_update_coord( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'helium_coord_save', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_update_coord', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: msglen, status
@@ -220,7 +198,7 @@ MODULE helium_io
     CALL helium_rotate(helium, helium%relrot, error)
 
     RETURN
-  END SUBROUTINE helium_coord_save
+  END SUBROUTINE helium_update_coord
 
   ! ***************************************************************************
   !> \brief  Save forces from the runtime environment to the input tree.
@@ -230,11 +208,11 @@ MODULE helium_io
   !>         are equal on all processors, since we average them over
   !>         replicated helium environments.
   ! ***************************************************************************
-  SUBROUTINE helium_force_save( helium, error )
+  SUBROUTINE helium_update_force( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'helium_force_save', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_update_force', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
@@ -281,7 +259,7 @@ MODULE helium_io
     NULLIFY(msg)
 
     RETURN
-  END SUBROUTINE helium_force_save
+  END SUBROUTINE helium_update_force
 
   ! ***************************************************************************
   !> \brief  Save the current permutation state in the input structure.
@@ -292,11 +270,11 @@ MODULE helium_io
   !>         array is not saved since it can be easily recalculated given the
   !>         permutation state.
   ! ***************************************************************************
-  SUBROUTINE helium_perm_save( helium, error )
+  SUBROUTINE helium_update_perm( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'helium_perm_save', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_update_perm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: msglen, status
@@ -332,18 +310,18 @@ MODULE helium_io
     NULLIFY(msg_gather)
 
     RETURN
-  END SUBROUTINE helium_perm_save
+  END SUBROUTINE helium_update_perm
 
   ! ***************************************************************************
   !> \brief  Save RNG state to the input structure.
   !> \author Lukasz Walewski
   !> \date   2009-11-04
   ! ***************************************************************************
-  SUBROUTINE helium_rng_state_save( helium, error )
+  SUBROUTINE helium_update_rngstate( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'helium_rng_state_save', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_update_rngstate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: msglen, offset, status
@@ -408,7 +386,7 @@ MODULE helium_io
     NULLIFY(msg_gather)
 
     RETURN
-  END SUBROUTINE helium_rng_state_save
+  END SUBROUTINE helium_update_rngstate
 
   ! ***************************************************************************
   !> \brief  Update and write out the helium restart data
@@ -424,22 +402,27 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_restart', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr
+    INTEGER                                  :: handle, unit_nr
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,error,failure)
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-
     ! If we are simulating helium only - actually write the restart file,
     ! otherwise the helium data will be written to the main restart file,
     ! created higher up the call tree (i.e. in pint_write_restart)
-    IF ( helium%solute_present ) RETURN
+    IF ( helium%solute_present ) THEN
+      CALL timestop(handle)
+      RETURN
+    END IF
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     NULLIFY(print_key)
     print_key => section_vals_get_subs_vals( helium%input, &
@@ -459,6 +442,7 @@ MODULE helium_io
       CALL helium_write_line("Restart data written to file.",error)
     END IF
 
+    CALL timestop(handle)
     RETURN
   END SUBROUTINE helium_write_restart
 
@@ -648,11 +632,13 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iteration, unit_nr
+    INTEGER                                  :: handle, iteration, unit_nr
     LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:), POINTER     :: my_energy
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
@@ -685,6 +671,7 @@ MODULE helium_io
       CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
     END IF
 
+    CALL timestop(handle)
     RETURN
   END SUBROUTINE helium_write_energy
 
@@ -701,12 +688,14 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_wnumber', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iteration, unit_nr
+    INTEGER                                  :: handle, iteration, unit_nr
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: wsquared
     REAL(kind=dp), DIMENSION(3)              :: my_wnumber
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
@@ -732,8 +721,231 @@ MODULE helium_io
       CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
     END IF
 
+    CALL timestop(handle)
     RETURN
   END SUBROUTINE helium_write_wnumber
+
+  ! ***************************************************************************
+  !> \brief  Writes helium configuration according to HELIUM%PRINT%COORDINATES
+  !> \author Lukasz Walewski
+  !> \date   2009-07-16
+  !> \par    History
+  !>         2010-02-15 output from all processors added [lwalewski]
+  ! ***************************************************************************
+  SUBROUTINE helium_write_coordinates( helium, r0, error )
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    REAL(kind=dp), DIMENSION(3), INTENT(IN)  :: r0
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_coordinates', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: my_middle_name, fmt_string, stmp
+    INTEGER                                  :: handle, ia, ib, ic, irank, &
+                                                unit_nr, icycle, tmp1, tmp2, &
+                                                ib1, ib2, offset, msglen
+    INTEGER, DIMENSION(:), POINTER           :: my_perm
+    LOGICAL                                  :: failure, should_output, ltmp, are_connected
+    REAL(kind=dp)                            :: xtmp, ytmp, ztmp
+    REAL(kind=dp), DIMENSION(3)              :: r1, r2
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(logger,print_key)
+    logger => cp_error_get_logger(error)
+
+    ! decide whether to write anything or not
+    print_key => section_vals_get_subs_vals(helium%input, &
+      "MOTION%PINT%HELIUM%PRINT%COORDINATES", error=error)
+    should_output = BTEST(cp_print_key_should_output( &
+      iteration_info=logger%iter_info,&
+      basis_section=print_key,error=error),cp_p_file)
+    IF ( .NOT. should_output ) THEN
+      CALL timestop(handle)
+      RETURN
+    END IF
+
+    ! prepare the coordinates for output (print one image of the periodic
+    ! space that is centered around r0)
+    DO ia = 1, helium%atoms
+      DO ib = 1, helium%beads
+        r1(:) = helium%pos(:,ia,ib) - r0(:)
+        r2(:) = helium%pos(:,ia,ib) - r0(:)
+        CALL helium_pbc( helium, r2 )
+        ltmp = .FALSE.
+        DO ic = 1, 3
+          IF ( ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp) ) THEN
+            ltmp = .TRUE.
+            CYCLE
+          END IF
+        END DO
+        IF ( ltmp ) THEN
+          helium%work(:,ia,ib) = r0(:) + r2(:)
+        ELSE
+          helium%work(:,ia,ib) = helium%pos(:,ia,ib)
+        END IF
+      END DO
+    END DO
+
+    ! gather positions from all processors to logger%para_env%source
+    helium%rtmp_3_atoms_beads_1d(:) = PACK( helium%work, .TRUE. )
+    CALL mp_gather( helium%rtmp_3_atoms_beads_1d, &
+                    helium%rtmp_3_atoms_beads_np_1d, &
+                    logger%para_env%source, logger%para_env%group )
+
+    ! gather permutation state from all processors to logger%para_env%source
+    CALL mp_gather( helium%permutation, &
+                    helium%itmp_atoms_np_1d, &
+                    logger%para_env%source, logger%para_env%group )
+
+    ! set logical mask for unpacking coordinates gathered from other ranks
+    helium%ltmp_3_atoms_beads_3d(:,:,:) = .TRUE.
+
+    ! I/O only on the ionode
+    IF (logger%para_env%ionode) THEN
+
+      ! iterate over processors/helium environments
+      DO irank = 1, helium%num_proc
+
+        ! generate one file per processor
+        stmp = ""
+        WRITE(stmp,*) irank
+        my_middle_name = "helium-pos-" // TRIM(ADJUSTL(stmp))
+        unit_nr=cp_print_key_unit_nr( logger, print_key, &
+          middle_name=TRIM(my_middle_name), extension=".pdb", error=error )
+
+        ! write out the unit cell parameters
+        fmt_string = "(A6,3F9.3,3F7.2,1X,A11,1X,I3)"
+        xtmp = helium%cell_size
+        xtmp = cp_unit_from_cp2k(xtmp, "angstrom", error=error)
+        IF ( helium%cell_shape .EQ. helium_cell_shape_octahedron ) THEN
+          stmp = "O          "
+        ELSE
+          stmp = "C          "
+        END IF
+        WRITE(unit_nr,fmt_string) "CRYST1", &
+          xtmp, xtmp, xtmp, &
+          90.0_dp, 90.0_dp, 90.0_dp, &
+          stmp, helium%beads
+
+        ! unpack coordinates
+        msglen = SIZE(helium%rtmp_3_atoms_beads_1d)
+        offset = (irank-1) * msglen
+        helium%work(:,:,:) = &
+          UNPACK(helium%rtmp_3_atoms_beads_np_1d(offset+1:offset+msglen), &
+          MASK=helium%ltmp_3_atoms_beads_3d, FIELD=0.0_dp )
+
+        ! unpack permutation state (actually point to the right section only)
+        msglen = SIZE(helium%permutation)
+        offset = (irank-1) * msglen
+        my_perm => helium%itmp_atoms_np_1d(offset+1:offset+msglen)
+
+        ! write out coordinates
+        fmt_string = &
+          "(A6,I5,1X,A4,A1,A3,1X,A1,I4,A1,3X,3F8.3,2F6.2,10X,A2,A2)"
+        DO ia = 1, helium%atoms
+          icycle = helium_cycle_number(helium, ia, my_perm)
+          DO ib = 1, helium%beads
+            xtmp = helium%work(1,ia,ib)
+            xtmp = cp_unit_from_cp2k(xtmp, "angstrom", error=error)
+            ytmp = helium%work(2,ia,ib)
+            ytmp = cp_unit_from_cp2k(ytmp, "angstrom", error=error)
+            ztmp = helium%work(3,ia,ib)
+            ztmp = cp_unit_from_cp2k(ztmp, "angstrom", error=error)
+            WRITE(unit_nr,fmt_string) "ATOM  ", &
+              (ia-1)*helium%beads+ib, &
+              " He ", " ", "   ", "X", &
+              icycle, &
+              " ", &
+              xtmp, ytmp, ztmp, &
+              1.0_dp, 0.0_dp, "HE", "  "
+          END DO
+        END DO
+
+        ! write out the bead connectivity information
+        DO ia = 1, helium%atoms
+
+          ! write connectivity records for this atom only if the path
+          ! it belongs to is longer than 1.
+          IF ( helium_path_length(helium, ia, my_perm) .LE. 1 ) THEN
+            CYCLE
+          END IF
+
+          DO ib = 1, helium%beads-1
+            ! check wheather the consecutive beads belong to the same box
+            r1(:) = helium%work(:,ia,ib) - helium%work(:,ia,ib+1)
+            r2(:) = r1(:)
+            CALL helium_pbc( helium, r2 )
+            are_connected = .TRUE.
+            DO ic = 1, 3
+              IF ( ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp) ) THEN
+                ! if the distance betw ib and ib+1 changes upon applying
+                ! PBC do not connect them
+                are_connected = .FALSE.
+                CYCLE
+              END IF
+            END DO
+            IF ( are_connected ) THEN
+              tmp1 = (ia-1)*helium%beads+ib
+              tmp2 = (ia-1)*helium%beads+ib+1
+              ! smaller value has to go first
+              IF (tmp1 .LT. tmp2) THEN
+                ib1 = tmp1
+                ib2 = tmp2
+              ELSE
+                ib1 = tmp2
+                ib2 = tmp1
+              END IF
+              WRITE(unit_nr,'(A6,2I5)') "CONECT", ib1, ib2
+            END IF
+          END DO
+
+          ! last bead of atom <ia> connects to the first bead
+          ! of the next atom in the permutation cycle
+          r1(:) = helium%work(:,ia,helium%beads) - helium%work(:,my_perm(ia),1)
+          r2(:) = r1(:)
+          CALL helium_pbc( helium, r2 )
+          are_connected = .TRUE.
+          DO ic = 1, 3
+            IF ( ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp) ) THEN
+              ! if the distance betw ib and ib+1 changes upon applying
+              ! PBC do not connect them
+              are_connected = .FALSE.
+              CYCLE
+            END IF
+          END DO
+          IF ( are_connected ) THEN
+            tmp1 = ia*helium%beads
+            tmp2 = (my_perm(ia)-1)*helium%beads+1
+            IF (tmp1 .LT. tmp2) THEN
+              ib1 = tmp1
+              ib2 = tmp2
+            ELSE
+              ib1 = tmp2
+              ib2 = tmp1
+            END IF
+            WRITE(unit_nr,'(A6,2I5)') "CONECT", ib1, ib2
+          END IF
+        END DO
+        WRITE(unit_nr,'(A)') "END"
+
+        CALL m_flush(unit_nr)
+        CALL cp_print_key_finished_output(unit_nr,logger,print_key,&
+          error=error)
+
+      END DO
+
+    END IF
+
+    CALL timestop(handle)
+    RETURN
+  END SUBROUTINE helium_write_coordinates
 
   ! ***************************************************************************
   !> \brief  Writes helium configuration according to HELIUM%PRINT%COORDINATES
@@ -742,8 +954,9 @@ MODULE helium_io
   !> \note   particle_types->write_particle_coordinates is of no use here,
   !>         since it does not support atom connectivity information needed
   !>         for helium paths
+  !> \note   Old scalar subroutine, to be removed soon.
   ! ***************************************************************************
-  SUBROUTINE helium_write_coordinates( helium, r0, fmt_id, middle_name, error )
+  SUBROUTINE helium_write_coordinates2( helium, r0, fmt_id, middle_name, error )
 
     TYPE(helium_solvent_type), POINTER       :: helium
     REAL(kind=dp), DIMENSION(3), INTENT(IN)  :: r0
@@ -751,19 +964,21 @@ MODULE helium_io
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: middle_name
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_coordinates', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_coordinates2', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: fmt_string, my_middle_name, &
                                                 stmp
     INTEGER                                  :: ia, ib, ib1, ib2, ic, icycle, &
-                                                tmp1, tmp2, unit_nr
+                                                tmp1, tmp2, unit_nr, handle
     LOGICAL                                  :: are_connected, failure, ltmp, &
                                                 should_output
     REAL(kind=dp)                            :: xtmp, ytmp, ztmp
     REAL(kind=dp), DIMENSION(3)              :: r1, r2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
@@ -797,7 +1012,7 @@ MODULE helium_io
             IF ( ABS(r1(ic)-r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp) ) THEN
               ltmp = .TRUE.
               CYCLE
-                END IF
+            END IF
           END DO
           IF ( ltmp ) THEN
             helium%work(:,ia,ib) = r0(:) + r2(:)
@@ -853,7 +1068,7 @@ MODULE helium_io
             fmt_string = &
               "(A6,I5,1X,A4,A1,A3,1X,A1,I4,A1,3X,3F8.3,2F6.2,10X,A2,A2)"
             DO ia = 1, helium%atoms
-              icycle = helium_cycle_number(helium,ia)
+              icycle = helium_cycle_number(helium,ia,helium%permutation)
               DO ib = 1, helium%beads
                 xtmp = helium%work(1,ia,ib)
                 xtmp = cp_unit_from_cp2k(xtmp, "angstrom", error=error)
@@ -876,7 +1091,7 @@ MODULE helium_io
 
               ! write connectivity records for this atom only if the path
               ! it belongs to is longer than 1.
-              IF ( helium_path_length(helium,ia) .LE. 1 ) THEN
+              IF ( helium_path_length(helium,ia,helium%permutation) .LE. 1 ) THEN
                 CYCLE
               END IF
 
@@ -950,8 +1165,9 @@ MODULE helium_io
       END IF
     END IF
 
+    CALL timestop(handle)
     RETURN
-  END SUBROUTINE helium_write_coordinates
+  END SUBROUTINE helium_write_coordinates2
 
   ! ***************************************************************************
   !> \brief  Write helium RDF according to HELIUM%PRINT%RDF
@@ -966,11 +1182,13 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_rdf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, unit_nr
+    INTEGER                                  :: i, unit_nr, handle
     LOGICAL                                  :: failure, is_new, should_output
     REAL(kind=dp)                            :: rtmp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
@@ -1003,7 +1221,177 @@ MODULE helium_io
       END IF
     END IF
 
+    CALL timestop(handle)
     RETURN
   END SUBROUTINE helium_write_rdf
+
+  ! ***************************************************************************
+  !> \brief  Write helium force according to HELIUM%PRINT%FORCE
+  !> \author Lukasz Walewski
+  !> \date   2010-01-27
+  ! ***************************************************************************
+  SUBROUTINE helium_write_force( helium, error )
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_force', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_nr, ia, ib, ic, idim, handle
+    CHARACTER(len=default_string_length)     :: msgstr
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
+    ! decide whether to write anything or not
+    NULLIFY(print_key)
+    print_key => section_vals_get_subs_vals( helium%input, &
+      "MOTION%PINT%HELIUM%PRINT%FORCES", error=error)
+    IF ( .NOT. BTEST(cp_print_key_should_output(logger%iter_info, &
+        basis_section=print_key,error=error),cp_p_file) ) THEN
+      CALL timestop(handle)
+      RETURN
+    END IF
+
+    ! check if there is anything to be printed out
+    IF ( .NOT. helium%solute_present ) THEN
+      msgstr = "Warning: force printout requested but there is no solute!"
+      CALL helium_write_line( msgstr, error )
+      CALL timestop(handle)
+      RETURN
+    END IF
+
+    ! I/O only on the ionode
+    IF (logger%para_env%ionode) THEN
+
+      unit_nr=cp_print_key_unit_nr(logger, print_key, &
+              middle_name="helium-force",extension=".dat",error=error)
+
+      ! print all force components in one line
+      DO ib = 1, helium%solute_beads
+        idim = 0
+        DO ia = 1, helium%solute_atoms
+          DO ic = 1, 3
+            idim = idim + 1
+            WRITE(unit_nr,'(F20.10)',ADVANCE='NO') helium%force_avrg(ib,idim)
+          END DO
+        END DO
+      END DO
+      WRITE(unit_nr,*)
+
+      ! finalize the printout
+      CALL m_flush(unit_nr)
+      CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+
+    END IF
+
+    CALL timestop(handle)
+    RETURN
+  END SUBROUTINE helium_write_force
+
+  ! ***************************************************************************
+  !> \brief  Write instantaneous helium forces
+  !> \author Lukasz Walewski
+  !> \date   2010-01-29
+  !>
+  !> Collects instantaneous helium forces from all processors on
+  !> logger%para_env%source and writes them to files - one file per processor.
+  !> This subroutine does message passing, frequent calls can slow down your
+  !> code significantly.
+  ! ***************************************************************************
+  SUBROUTINE helium_write_force_inst( helium, error )
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_force_inst', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: stmp, my_middle_name
+    INTEGER                                  :: irank, unit_nr, ia, ib, ic, idim, offset, irot, handle
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
+    ! decide whether to write anything or not
+    NULLIFY(print_key)
+    print_key => section_vals_get_subs_vals( helium%input, &
+      "MOTION%PINT%HELIUM%PRINT%FORCES_INST", error=error)
+    IF ( .NOT. BTEST(cp_print_key_should_output(logger%iter_info, &
+        basis_section=print_key,error=error),cp_p_file) ) THEN
+      CALL timestop(handle)
+      RETURN
+    END IF
+
+    ! check if there is anything to be printed out
+    IF ( .NOT. helium%solute_present ) THEN
+      stmp = "Warning: force printout requested but there is no solute!"
+      CALL helium_write_line( stmp, error )
+      CALL timestop(handle)
+      RETURN
+    END IF
+
+    ! fill the tmp buffer with instantaneous helium forces at each proc
+    helium%rtmp_p_ndim_1d(:) = PACK( helium%force_inst, .TRUE. )
+
+    ! pass the message from all processors to logger%para_env%source
+    helium%rtmp_p_ndim_np_1d(:) = 0.0_dp
+    CALL mp_gather( helium%rtmp_p_ndim_1d, helium%rtmp_p_ndim_np_1d, &
+         logger%para_env%source, logger%para_env%group )
+
+    ! I/O only on the ionode
+    IF (logger%para_env%ionode) THEN
+
+      ! iterate over processors/helium environments
+      DO irank = 1, helium%num_proc
+
+        ! generate one file per processor
+        stmp = ""
+        WRITE(stmp,*) irank
+        my_middle_name = "helium-force-inst-" // TRIM(ADJUSTL(stmp))
+        unit_nr=cp_print_key_unit_nr( logger, print_key, &
+          middle_name=TRIM(my_middle_name), extension=".dat", error=error )
+
+        ! unpack and actually print the forces - all components in one line
+        offset = (irank-1) * SIZE(helium%rtmp_p_ndim_1d)
+        idim = 0
+        DO ib = 1, helium%solute_beads
+          DO ia = 1, helium%solute_atoms
+            DO ic = 1, 3
+              idim = idim + 1
+              WRITE(unit_nr,'(F20.10)',ADVANCE='NO') helium%rtmp_p_ndim_np_1d(offset+idim)
+            END DO
+          END DO
+        END DO
+        WRITE(unit_nr,*)
+
+        ! finalize the printout
+        CALL m_flush(unit_nr)
+        CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+
+      END DO
+
+    END IF
+
+    CALL timestop(handle)
+    RETURN
+  END SUBROUTINE helium_write_force_inst
 
 END MODULE helium_io

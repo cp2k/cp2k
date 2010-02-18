@@ -1351,6 +1351,45 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       ! PIMD
+       CALL keyword_create(keyword, name="RESTART_PINT_POS",&
+            description="Restart bead positions from PINT%BEADS%COORD.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_PINT_VEL",&
+            description="Restart bead velocities from PINT%BEADS%VELOCITY.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_PINT_THERMOSTAT",&
+            description="Restart Nose thermostat for beads from PINT%NOSE.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! PIMC
+       CALL keyword_create(keyword, name="RESTART_HELIUM_POS",&
+            description="Restart helium positions from PINT%HELIUM%COORD.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_HELIUM_PERMUTATION",&
+            description="Restart helium permutation state from PINT%HELIUM%PERM.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_HELIUM_FORCE",&
+            description="Restart helium forces exerted on the solute from PINT%HELIUM%FORCE.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_HELIUM_RNG",&
+            description="Restarts helium random number generators from PINT%HELIUM%RNG_STATE.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
   END SUBROUTINE create_ext_restart_section
 

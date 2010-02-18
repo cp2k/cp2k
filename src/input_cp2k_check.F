@@ -484,6 +484,13 @@ CONTAINS
                 CALL set_restart_info("CELL_OPT COUNTERS",restarted_infos,error)
              END IF
              !
+             IF (check_restart(input_file, restart_file, "MOTION%PINT",error)) THEN
+                ! PINT
+                CALL section_vals_val_get(restart_file,"MOTION%PINT%ITERATION",i_val=myi,error=error)
+                CALL section_vals_val_set(input_file,"MOTION%PINT%ITERATION",i_val=myi,error=error)
+                CALL set_restart_info("PINT ITERATION NUMBER",restarted_infos,error)
+             END IF
+             !
              CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,error=error)
              IF (flag2.AND.check_restart(input_file, restart_file, "MOTION%FREE_ENERGY%METADYN",error)) THEN
                 CALL section_vals_val_get(restart_file,&
@@ -662,6 +669,54 @@ CONTAINS
                CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",&
                     section,error=error)
                CALL set_restart_info("REAL TIME PROPAGATION",restarted_infos,error)
+          END IF
+
+          ! PIMD
+          CALL section_vals_val_get(r_section,"RESTART_PINT_POS",l_val=flag,error=error)
+          IF(flag) THEN
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%BEADS%COORD",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%BEADS%COORD",section,error=error)
+               CALL set_restart_info("PINT BEAD POSITIONS",restarted_infos,error)
+          END IF
+          CALL section_vals_val_get(r_section,"RESTART_PINT_VEL",l_val=flag,error=error)
+          IF(flag) THEN
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%BEADS%VELOCITY",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%BEADS%VELOCITY",section,error=error)
+               CALL set_restart_info("PINT BEAD VELOCITIES",restarted_infos,error)
+          END IF
+          CALL section_vals_val_get(r_section,"RESTART_PINT_THERMOSTAT",l_val=flag,error=error)
+          IF(flag) THEN
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%NOSE%COORD",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%NOSE%COORD",section,error=error)
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%NOSE%VELOCITY",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%NOSE%VELOCITY",section,error=error)
+               CALL set_restart_info("PINT NOSE THERMOSTAT",restarted_infos,error)
+          END IF
+
+          ! PIMC
+          CALL section_vals_val_get(r_section,"RESTART_HELIUM_POS",l_val=flag,error=error)
+          IF(flag) THEN
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%COORD",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%COORD",section,error=error)
+               CALL set_restart_info("HELIUM BEAD POSITIONS",restarted_infos,error)
+          END IF
+          CALL section_vals_val_get(r_section,"RESTART_HELIUM_PERMUTATION",l_val=flag,error=error)
+          IF(flag) THEN
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%PERM",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%PERM",section,error=error)
+               CALL set_restart_info("HELIUM PERMUTATION STATE",restarted_infos,error)
+          END IF
+          CALL section_vals_val_get(r_section,"RESTART_HELIUM_FORCE",l_val=flag,error=error)
+          IF(flag) THEN
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%FORCE",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%FORCE",section,error=error)
+               CALL set_restart_info("HELIUM FORCES ON SOLUTE",restarted_infos,error)
+          END IF
+          CALL section_vals_val_get(r_section,"RESTART_HELIUM_RNG",l_val=flag,error=error)
+          IF(flag) THEN
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%RNG_STATE",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%RNG_STATE",section,error=error)
+               CALL set_restart_info("HELIUM RNG STATE",restarted_infos,error)
           END IF
 
           CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)

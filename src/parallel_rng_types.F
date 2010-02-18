@@ -6,7 +6,7 @@
 ! *****************************************************************************
 !> \brief Parallel (pseudo)random number generator (RNG) for multiple streams
 !>      and substreams of random numbers.
-!> 
+!>
 !>      In detail, this RNG provides 2**64 random number streams each with a
 !>      length of 2**127 resulting in a length of 2**191 for the total RNG.
 !>      Moreover, each stream is divided in 2**51 substream of length 2**76.
@@ -15,34 +15,34 @@
 !>      can be requested. In this case, two 32 bit random numbers are used
 !>      to generate a 53 bit random number and therefore the stream length
 !>      is halved when extended precision are requested.
-!> 
+!>
 !>      Usage hint:
-!> 
+!>
 !>      CALL create_rng_stream(rng_stream,name,...,error=error)
-!> 
+!>
 !>      to generate the first stream. Optionally, you may define a different
 !>      seed or create a stream of extended precision (53 bits). Then
-!> 
+!>
 !>      CALL create_rng_stream(next_rng_stream,name,last_rng_stream=rng_stream)
-!> 
+!>
 !>      to create all the following RNG streams w.r.t. the previous stream.
 !>      The command line
-!> 
+!>
 !>      x = next_random_number(rng_stream,error=error)
-!> 
+!>
 !>      will provide the next real random number x between 0 and 1 and
-!> 
+!>
 !>      ix = next_random_number(rng_stream,low,high,error=error)
-!> 
+!>
 !>      the next integer random number ix between low and high from stream
 !>      rng_stream. The default distribution type is a uniform distribution
 !>      [0,1], but also other distribution types are available (see below).
-!> 
+!>
 !>      Finally, do not forget to delete each created RNG stream when it is
 !>      no longer needed by
-!> 
+!>
 !>      CALL delete_rng_stream(rng_stream,error=error)
-!> 
+!>
 !>      to avoid memory leaks!
 !> \par Literature
 !>      P. L'Ecuyer, R. Simard, E. J. Chen, and W. D. Kelton,
@@ -656,10 +656,13 @@ CONTAINS
 
   END SUBROUTINE dump_rng_stream
 
-! 2009-11-04 lwalewsk: changed type of bg, cg and ig
-!            from INTEGER, DIMENSION(3, 2) to REAL(KIND=dp), DIMENSION(3, 2)
-! 2009-11-09 lwalewsk: getting of buffer and buffer_filled components added
-! *****************************************************************************
+  ! ***************************************************************************
+  !> \par History
+  !>      2009-11-04 changed bg, cg and ig type from INTEGER, DIMENSION(3, 2)
+  !>      to REAL(KIND=dp), DIMENSION(3, 2) [lwalewski]
+  !>      2009-11-09 getting the buffer and buffer_filled components
+  !>      added [lwalewski]
+  ! ***************************************************************************
   SUBROUTINE get_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
                             antithetic,extended_precision,&
                             buffer,buffer_filled,error)
@@ -1345,8 +1348,11 @@ CONTAINS
 
   END FUNCTION rn53
 
-! 2009-11-09 lwalewsk: setting of buffer and buffer_filled components added
-! *****************************************************************************
+  ! ***************************************************************************
+  !> \par History
+  !>      2009-11-09 setting the buffer and buffer_filled components
+  !>      added [lwalewski]
+  ! *****************************************************************************
   SUBROUTINE set_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
                             seed,antithetic,extended_precision,&
                             buffer,buffer_filled,error)

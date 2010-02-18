@@ -28,6 +28,8 @@ MODULE helium_sampling
   USE helium_io,                       ONLY: helium_update,&
                                              helium_write_coordinates,&
                                              helium_write_energy,&
+                                             helium_write_force,&
+                                             helium_write_force_inst,&
                                              helium_write_line,&
                                              helium_write_rdf,&
                                              helium_write_restart,&
@@ -179,6 +181,10 @@ MODULE helium_sampling
       CALL helium_calc_wnumber( helium )
       CALL helium_calc_rdf( helium, pint_env, error )
 
+      ! instantaneous force output according to HELIUM%PRINT%FORCES_INST
+      ! Warning: file I/O here may cost A LOT of cpu time!
+      CALL helium_write_force_inst( helium, error )
+
       ! collect instantaneous values for averaging
       helium%force_avrg(:,:) = &
         helium%force_avrg(:,:) + helium%force_inst(:,:)
@@ -255,7 +261,9 @@ MODULE helium_sampling
     ELSE
       r0 = (/0.0_dp, 0.0_dp, 0.0_dp/)
     END IF
-    CALL helium_write_coordinates( helium, r0, fmt_id_pdb, error=error )
+    CALL helium_write_coordinates( helium, r0, error=error )
+
+    CALL helium_write_force( helium, error )
 
     time_stop = m_walltime()
     time_used = time_stop - time_start

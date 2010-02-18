@@ -37,6 +37,7 @@ MODULE pint_io
   USE machine,                         ONLY: m_flush
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
+  USE pint_public,                     ONLY: pint_com_pos
   USE pint_transformations,            ONLY: pint_u2x
   USE pint_types,                      ONLY: e_conserved_id,&
                                              e_kin_thermo_id,&
@@ -54,6 +55,7 @@ MODULE pint_io
 
   PUBLIC :: pint_write_centroids
   PUBLIC :: pint_write_trajectory
+  PUBLIC :: pint_write_com
   PUBLIC :: pint_write_ener
   PUBLIC :: pint_write_restart
   PUBLIC :: pint_write_step_info
@@ -302,6 +304,69 @@ MODULE pint_io
   END SUBROUTINE pint_write_trajectory
 
   ! ***************************************************************************
+  !> \brief  Write center of mass (COM) position according to PINT%PRINT%COM
+  !> \author Lukasz Walewski
+  !> \date   2010-02-17
+  ! ***************************************************************************
+  SUBROUTINE pint_write_com( pint_env, error )
+
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_com', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: stmp1, stmp2
+    INTEGER                                  :: unit_nr, ic
+    LOGICAL                                  :: failure, should_output
+    REAL(kind=dp), DIMENSION(3)              :: com_r
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
+    ! decide whether to write anything or not
+    NULLIFY(print_key)
+    print_key => section_vals_get_subs_vals(pint_env%input, &
+      "MOTION%PINT%PRINT%COM", error=error)
+    should_output = BTEST(cp_print_key_should_output( &
+      iteration_info=logger%iter_info,&
+      basis_section=print_key,error=error),cp_p_file)
+    IF ( .NOT. should_output ) THEN
+      RETURN
+    END IF
+
+    com_r = pint_com_pos( pint_env, error )
+    DO ic = 1, 3
+      com_r(ic) = cp_unit_from_cp2k(com_r(ic), "angstrom", error=error)
+    END DO
+
+    ! I/O only on the ionode
+    IF (logger%para_env%ionode) THEN
+
+      unit_nr=cp_print_key_unit_nr(logger, print_key, &
+              middle_name="com-pos",extension=".xyz",error=error)
+
+      WRITE(unit_nr,'(I2)') 1
+      WRITE(stmp1,*) pint_env%iter
+      WRITE(stmp2,'(F20.10)') pint_env%energy(e_conserved_id)
+      WRITE(unit_nr,'(4A)') " Iteration = ", TRIM(ADJUSTL(stmp1)), &
+                            ", E_conserved = ", TRIM(ADJUSTL(stmp2))
+      WRITE(unit_nr,'(A2,3(1X,F20.10))') "X ", (com_r(ic),ic=1,3)
+
+      CALL m_flush(unit_nr)
+      CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+
+    END IF
+
+    RETURN
+  END SUBROUTINE pint_write_com
+
+  ! ***************************************************************************
   !> \brief  Writes out the energies according to PINT%PRINT%ENER_INFO
   !> \author fawzi
   !> \param  pint_env path integral environment
@@ -536,6 +601,8 @@ MODULE pint_io
   !> \brief  Write step info to the output file.
   !> \date   2009-11-16
   !> \author Lukasz Walewski
+  !> \par History
+  !>      2010-01-27 getting default unit nr now only on ionode [lwalewski]
   ! ***************************************************************************
   SUBROUTINE pint_write_step_info( pint_env, error )
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -555,7 +622,6 @@ MODULE pint_io
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    unit_nr = cp_logger_get_default_unit_nr(logger)
 
     time_used = pint_env%time_per_step
     time_unit = "sec"
@@ -580,6 +646,7 @@ MODULE pint_io
     msgstr = TRIM(ADJUSTL(msgstr)) // " " // TRIM(ADJUSTL(time_unit)) // "."
 
     IF (logger%para_env%ionode) THEN
+      unit_nr = cp_logger_get_default_unit_nr(logger)
       WRITE(unit_nr,'(T2,A)') "PINT| " // TRIM(ADJUSTL(msgstr))
     END IF
 

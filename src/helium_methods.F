@@ -96,8 +96,11 @@ MODULE helium_methods
     INTEGER                                  :: handle, i, input_unit, isize, &
                                                 itmp, j, nlines, ntab, stat
     LOGICAL                                  :: cell_shape_supported, &
-                                                explicit, failure
-    REAL(KIND=dp)                            :: dx, tcheck, x1
+                                                explicit, failure, &
+                                                expl_dens, &
+                                                expl_nats, &
+                                                expl_cell, overdef
+    REAL(KIND=dp)                            :: dx, tcheck, x1, rtmp, cgeof
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_transfer
     TYPE(cp_logger_type), POINTER            :: logger
@@ -124,9 +127,19 @@ MODULE helium_methods
     IF (.NOT. failure) THEN
        NULLIFY ( helium%input, &
                  helium%ptable,  helium%permutation, &
-                 helium%iperm,   helium%itmp_atoms, helium%pos, &
-                 helium%work,    helium%force_avrg, &
-                 helium%force_inst, helium%rtmp_p_ndim,&
+                 helium%iperm,   &
+                 helium%itmp_atoms_1d, &
+                 helium%ltmp_atoms_1d, &
+                 helium%itmp_atoms_np_1d, &
+                 helium%pos, helium%work, &
+                 helium%force_avrg, &
+                 helium%force_inst, &
+                 helium%rtmp_p_ndim_1d, &
+                 helium%rtmp_p_ndim_np_1d, &
+                 helium%rtmp_3_atoms_beads_1d, &
+                 helium%rtmp_3_atoms_beads_np_1d, &
+                 helium%rtmp_p_ndim_2d, &
+                 helium%ltmp_3_atoms_beads_3d,&
                  helium%tmatrix, helium%pmatrix,     &
                  helium%nmatrix, helium%ipmatrix,    &
                  helium%uij,     helium%eij, &
@@ -172,8 +185,6 @@ MODULE helium_methods
               i_val=helium%num_proc, error=error)
        END IF
 
-       CALL section_vals_val_get(helium_section,"NATOMS",&
-              i_val=helium%atoms, error=error)
        CALL section_vals_val_get(helium_section,"NBEADS",&
               i_val=helium%beads, error=error)
        CALL section_vals_val_get(helium_section,"INOROT",&
@@ -199,30 +210,10 @@ MODULE helium_methods
          helium%last_step = helium%first_step + helium%num_steps
        END IF
 
-       ! check value of maxcycle
-       CALL section_vals_val_get(helium_section,"MAX_PERM_CYCLE",&
-              i_val=helium%maxcycle, error=error)
-       i = helium%maxcycle
-       CPPostcondition(i>=0,cp_failure_level,routineP,error,failure)
-       i = helium%atoms - helium%maxcycle
-       CPPostcondition(i>=0,cp_failure_level,routineP,error,failure)
-       !
-       CALL section_vals_val_get(helium_section,"BISECTION",&
-              i_val=helium%bisection, error=error)
-       ! precheck bisection value (not all invalids are filtered out here yet)
-       i = helium%bisection
-       CPPostcondition(i>1,cp_failure_level,routineP,error,failure)
-       i = helium%beads - helium%bisection
-       CPPostcondition(i>0,cp_failure_level,routineP,error,failure)
-
-       ! get density and periodicity info
-       CALL section_vals_val_get(helium_section,"DENSITY",&
-              r_val=helium%density, error=error)
-       CALL section_vals_val_get(helium_section,"PERIODIC",&
-              l_val=helium%periodic, error=error)
-
        ! If we should apply periodicity, check wheather we support the cell
        ! shape or not, and refuse to proceed if not. Otherwise just go on.
+       CALL section_vals_val_get(helium_section,"PERIODIC",&
+            l_val=helium%periodic, error=error)
        IF ( helium%periodic ) THEN
          CALL section_vals_val_get(helium_section,"CELL_SHAPE",&
               i_val=helium%cell_shape, error=error)
@@ -247,9 +238,69 @@ MODULE helium_methods
        END IF
        ! Further PBC code depends on the correct value of helium%cell_shape.
 
+       ! Set density Rho, number of atoms N and volume V ( Rho = N / V ).
+       ! Allow only 2 out of 3 values to be defined at the same time, calculate
+       ! the third.
+       ! Note, that DENSITY and NATOMS keywords have default values, while
+       ! CELL_SIZE does not. Thus if CELL_SIZE is given explicitly then one and
+       ! only one of the two remaining options must be give explicitly as well.
+       ! If CELL_SIZE is not given explicitly then all four combinations of the
+       ! two other options are valid.
+       CALL section_vals_val_get(helium_section,"DENSITY",&
+            explicit=expl_dens, r_val=helium%density, error=error)
+       CALL section_vals_val_get(helium_section,"NATOMS",&
+            explicit=expl_nats, i_val=helium%atoms, error=error)
+       CALL section_vals_val_get(helium_section,"CELL_SIZE",&
+            explicit=expl_cell, error=error)
+       cgeof = 1.0_dp
+       IF ( helium%cell_shape .EQ. helium_cell_shape_octahedron ) cgeof = 2.0_dp
+       rtmp = ( cgeof * helium%atoms / helium%density )**(1.0_dp/3.0_dp)
+       IF ( .NOT. expl_cell ) THEN
+           helium%cell_size = rtmp
+       ELSE
+           CALL section_vals_val_get(helium_section,"CELL_SIZE",&
+                r_val=helium%cell_size, error=error)
+           ! only more work if not all three values are consistent:
+           IF ( ABS(helium%cell_size-rtmp) .GT. 100.0_dp*EPSILON(0.0_dp)* &
+                                          (ABS(helium%cell_size)+rtmp) ) THEN
+              IF ( expl_dens .AND. expl_nats ) THEN
+                 msg_str = "DENSITY, NATOMS and CELL_SIZE options "//&
+                           "contradict each other"
+                 CALL cp_assert( .FALSE., cp_failure_level, &
+                      cp_assertion_failed, routineP, msg_str )
+              END IF
+              !ok we have enough freedom to resolve the conflict:
+              IF ( .NOT. expl_dens ) THEN
+                 helium%density = cgeof*helium%atoms / helium%cell_size**3.0_dp
+                 IF ( .NOT. expl_nats ) THEN
+                    msg_str = "Warning: CELL_SIZE defined but neither "//&
+                              "NATOMS nor DENSITY given, using default NATOMS."
+                    CALL helium_write_line(msg_str, error)
+                 END IF
+              ELSE ! ( expl_dens .AND. .NOT. expl_nats )
+                 ! calculate the nearest number of atoms for given conditions
+                 helium%atoms = ANINT(helium%density * &
+                                helium%cell_size**3.0_dp / cgeof)
+                 ! adjust cell size to maintain correct density
+                 ! (should be a small correction)
+                 rtmp = ( cgeof * helium%atoms / helium%density &
+                        )**(1.0_dp/3.0_dp)
+                 IF ( ABS(helium%cell_size-rtmp) .GT. 100.0_dp*EPSILON(0.0_dp)&
+                      * ( ABS(helium%cell_size)+rtmp ) ) THEN
+                    msg_str = "Warning: Adjusting actual cell size "//&
+                              "to maintain correct density."
+                    CALL helium_write_line(msg_str, error)
+                    helium%cell_size = rtmp
+                 END IF
+              END IF 
+           END IF
+       END IF
+       helium%cell_size_inv = 1.0_dp / helium%cell_size
+       ! From now on helium%density, helium%atoms and helium%cell_size are
+       ! correctly defined.
+
+       ! set the M matrix for winding number calculations
        IF ( helium%cell_shape .EQ. helium_cell_shape_octahedron ) THEN
-         helium%cell_size = ( 2 * helium%atoms / &
-                             helium%density )**(1.0_dp/3.0_dp)
          helium%cell_m_inv(1,1) =  1.0_dp / helium%cell_size;
          helium%cell_m_inv(2,1) =  0.0_dp;
          helium%cell_m_inv(3,1) =  0.0_dp;
@@ -260,8 +311,6 @@ MODULE helium_methods
          helium%cell_m_inv(2,3) = -1.0_dp / helium%cell_size;
          helium%cell_m_inv(3,3) =  2.0_dp / helium%cell_size;
        ELSE
-         helium%cell_size = ( helium%atoms / &
-                             helium%density )**(1.0_dp/3.0_dp)
          helium%cell_m_inv(1,1) =  1.0_dp / helium%cell_size;
          helium%cell_m_inv(2,1) =  0.0_dp;
          helium%cell_m_inv(3,1) =  0.0_dp;
@@ -272,7 +321,22 @@ MODULE helium_methods
          helium%cell_m_inv(2,3) =  0.0_dp;
          helium%cell_m_inv(3,3) =  1.0_dp / helium%cell_size;
        END IF
-       helium%cell_size_inv = 1.0_dp / helium%cell_size
+
+       ! check value of maxcycle
+       CALL section_vals_val_get(helium_section,"MAX_PERM_CYCLE",&
+              i_val=helium%maxcycle, error=error)
+       i = helium%maxcycle
+       CPPostcondition(i>=0,cp_failure_level,routineP,error,failure)
+       i = helium%atoms - helium%maxcycle
+       CPPostcondition(i>=0,cp_failure_level,routineP,error,failure)
+       !
+       CALL section_vals_val_get(helium_section,"BISECTION",&
+              i_val=helium%bisection, error=error)
+       ! precheck bisection value (not all invalids are filtered out here yet)
+       i = helium%bisection
+       CPPostcondition(i>1,cp_failure_level,routineP,error,failure)
+       i = helium%beads - helium%bisection
+       CPPostcondition(i>0,cp_failure_level,routineP,error,failure)
 
        ! hard coded He4 directly (mass so i get my original hb2m value)
        helium%hb2m = 1.0_dp/(4.00263037059764_dp*massunit)
@@ -393,8 +457,6 @@ MODULE helium_methods
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%ipmatrix(i,i),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(helium%itmp_atoms(i),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rdf_inst(helium%rdf_nbin),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rdf_avrg(helium%rdf_nbin),STAT=stat)
@@ -457,8 +519,31 @@ MODULE helium_methods
        ALLOCATE(helium%force_inst(helium%solute_beads,&
          helium%solute_atoms*3),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(helium%rtmp_p_ndim(helium%solute_beads,&
+
+       ! allocate temporary arrays
+       ALLOCATE(helium%itmp_atoms_1d(helium%atoms),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%ltmp_atoms_1d(helium%atoms),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%itmp_atoms_np_1d(helium%atoms*helium%num_proc),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%rtmp_p_ndim_1d(helium%solute_beads*&
          helium%solute_atoms*3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%rtmp_p_ndim_np_1d(helium%solute_beads*&
+         helium%solute_atoms*3*helium%num_proc),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%rtmp_3_atoms_beads_1d(3*helium%atoms*&
+         helium%beads),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%rtmp_3_atoms_beads_np_1d(3*helium%atoms*&
+         helium%beads*helium%num_proc),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%rtmp_p_ndim_2d(helium%solute_beads,&
+         helium%solute_atoms*3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%ltmp_3_atoms_beads_3d(3,helium%atoms,&
+         helium%beads),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        CALL helium_write_setup(helium,error)
@@ -501,8 +586,15 @@ MODULE helium_methods
                        helium%work , &
                        helium%force_avrg, &
                        helium%force_inst, &
-                       helium%rtmp_p_ndim, &
-                       helium%itmp_atoms,&
+                       helium%rtmp_p_ndim_1d, &
+                       helium%rtmp_p_ndim_np_1d, &
+                       helium%rtmp_3_atoms_beads_1d, &
+                       helium%rtmp_3_atoms_beads_np_1d, &
+                       helium%rtmp_p_ndim_2d, &
+                       helium%ltmp_3_atoms_beads_3d, &
+                       helium%itmp_atoms_1d,&
+                       helium%ltmp_atoms_1d,&
+                       helium%itmp_atoms_np_1d,&
                        helium%rdf_inst,&
                        helium%rdf_avrg,&
                        STAT=stat )
@@ -518,8 +610,15 @@ MODULE helium_methods
                   helium%work, &
                   helium%force_avrg, &
                   helium%force_inst, &
-                  helium%rtmp_p_ndim, &
-                  helium%itmp_atoms,&
+                  helium%rtmp_p_ndim_1d, &
+                  helium%rtmp_p_ndim_np_1d, &
+                  helium%rtmp_3_atoms_beads_1d, &
+                  helium%rtmp_3_atoms_beads_np_1d, &
+                  helium%rtmp_p_ndim_2d, &
+                  helium%ltmp_3_atoms_beads_3d, &
+                  helium%itmp_atoms_1d,&
+                  helium%ltmp_atoms_1d,&
+                  helium%itmp_atoms_np_1d,&
                   helium%rdf_inst,&
                   helium%rdf_avrg)
 

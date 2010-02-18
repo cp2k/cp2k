@@ -22,6 +22,8 @@ MODULE helium_types
 
   IMPLICIT NONE
 
+  PRIVATE
+
   ! Energy contributions - symbolic names for indexing energy arrays
   INTEGER, PARAMETER, PUBLIC :: e_id_total = 1, &
                                 e_id_potential = 2, &
@@ -75,8 +77,8 @@ MODULE helium_types
 !>    pweight       - ? permutation probability related
 !>    ptable        - proposed cyclic permutation
 !>                    (dimension max_cycle)
-!>    permutation   - current permutation state INTEGER(NATOMS)
-!>    iperm         - inverse of the current permutation state INTEGER(NATOMS)
+!>    permutation   - current permutation state INTEGER(ATOMS)
+!>    iperm         - inverse of the current permutation state INTEGER(ATOMS)
 !>    uij           - pair density matrix coefficients (action)
 !>    eij           - pair density matrix coefficients (energy)
 !>    bead_ratio    - ratio of helium beads to system beads
@@ -94,8 +96,16 @@ MODULE helium_types
 !>                    (not needed now and should be removed at some point)
 !>    force_avrg    - averaged forces exerted by He solvent on the solute (P,NDIM)
 !>    force_inst    - instantaneous forces exerted by He on the solute (P, NDIM)
-!>    rtmp_p_ndim   - general purpose, real, 2D temp array (P, NDIM)
-!>    itmp_atoms    - general purpose, integer, 1D temp array (ATOMS)
+!>    General purpose temporary arrays
+!>    (performance measure: no allocation in frequently called subroutines)
+!>      rtmp_p_ndim_1d - real, 1D temp array (P * NDIM)
+!>      rtmp_p_ndim_np_1d - real, 1D temp array (P * NDIM * NUM_PROC)
+!>      rtmp_p_ndim_2d - real, 2D temp array (P, NDIM)
+!>      rtmp_3_atoms_beads_1d - real, 1D temp array (3 * ATOMS * BEADS)
+!>      ltmp_3_atoms_beads_3d - logical, 3D temp array (3,ATOMS,BEADS) - same as pos
+!>      itmp_atoms_1d    - integer, 1D temp array (ATOMS) - same as permutation
+!>      itmp_atoms_np_1d - integer, 1D temp array (ATOMS*NUM_PROC)
+!>      ltmp_atoms_1d    - logical, 1D temp array (ATOMS) - for unpacking permutation
 !> \author hforbert
 ! *****************************************************************************
   TYPE helium_solvent_type
@@ -112,7 +122,7 @@ MODULE helium_types
      INTEGER, DIMENSION(:), POINTER :: ptable
      INTEGER, DIMENSION(:), POINTER :: permutation
      INTEGER, DIMENSION(:), POINTER :: iperm
-     INTEGER, DIMENSION(:), POINTER :: itmp_atoms
+     INTEGER, DIMENSION(:), POINTER :: itmp_atoms_1d, itmp_atoms_np_1d
      REAL(kind=dp), DIMENSION(:,:,:), POINTER :: pos
      REAL(kind=dp), DIMENSION(:,:,:), POINTER :: work
      REAL(kind=dp), DIMENSION(:,:), POINTER :: tmatrix
@@ -136,7 +146,11 @@ MODULE helium_types
      INTEGER, DIMENSION(:,:), POINTER :: solute_index
      TYPE(cell_type), POINTER  :: solute_cell
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: force_avrg, force_inst
-     REAL(KIND=dp), DIMENSION(:,:), POINTER :: rtmp_p_ndim
+     REAL(KIND=dp), DIMENSION(:), POINTER   :: rtmp_p_ndim_1d, rtmp_p_ndim_np_1d
+     REAL(KIND=dp), DIMENSION(:), POINTER   :: rtmp_3_atoms_beads_1d, rtmp_3_atoms_beads_np_1d
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: rtmp_p_ndim_2d
+     LOGICAL, DIMENSION(:,:,:), POINTER :: ltmp_3_atoms_beads_3d
+     LOGICAL, DIMENSION(:), POINTER :: ltmp_atoms_1d
   END TYPE helium_solvent_type
 
 END MODULE helium_types
