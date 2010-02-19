@@ -362,7 +362,7 @@ CONTAINS
     IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
        mp_rc_groups(M_L, 1:2) = (/ dbcsr_mp_my_row_group (left_mp_obj),&
             dbcsr_mp_my_col_group (left_mp_obj) /)
-    ENDIf
+    ENDIF
     IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
        mp_rc_groups(M_R, 1:2) = (/ dbcsr_mp_my_row_group (right_mp_obj),&
             dbcsr_mp_my_col_group (right_mp_obj) /)
