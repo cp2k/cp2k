@@ -48,3 +48,8 @@ c8_kerker.inp       1
 c8_pmix.inp         1
 c8_pmix_gapw.inp    1
 c8_kerker_gapw.inp  1
+#
+c8_broy.inp          1
+c8_broy_gop.inp      1
+c8_broy_gapw.inp     1
+c8_broy_gapw_gop.inp 1

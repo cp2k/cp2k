@@ -98,11 +98,14 @@ END TYPE qs_outer_scf_type
      REAL(dp), DIMENSION(:,:), POINTER :: weight
      REAL(KIND = dp) , DIMENSION(:,:), POINTER :: norm_res_buffer,pulay_matrix
      REAL(dp), DIMENSION(:,:,:), POINTER :: fmat, gmat, smat
-     TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: last_res
+     TYPE(cp_1d_z_p_type), DIMENSION(:), POINTER :: last_res, rhoin, rhoin_old
      TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER :: delta_res, u_vec, z_vec
      TYPE(cp_1d_z_p_type), DIMENSION(:,:), POINTER ::drho_buffer, rhoin_buffer, &
       res_buffer
-     TYPE(rho_atom_coeff), DIMENSION(:,:,:), POINTER :: cpc_h_buffer, cpc_s_buffer
+     TYPE(rho_atom_coeff), DIMENSION(:,:), POINTER :: cpc_h_lastres, cpc_s_lastres
+     TYPE(rho_atom_coeff), DIMENSION(:,:), POINTER :: cpc_h_in, cpc_s_in
+     TYPE(rho_atom_coeff), DIMENSION(:,:), POINTER :: cpc_h_old, cpc_s_old
+     TYPE(rho_atom_coeff), DIMENSION(:,:,:), POINTER :: dcpc_h_in, dcpc_s_in
   END TYPE mixing_storage_type
 
   TYPE krylov_space_type
@@ -422,6 +425,8 @@ CONTAINS
         NULLIFY(mixing_store%gmat)
         NULLIFY(mixing_store%smat)
         NULLIFY(mixing_store%last_res)
+        NULLIFY(mixing_store%rhoin)
+        NULLIFY(mixing_store%rhoin_old)
         NULLIFY(mixing_store%delta_res)
         NULLIFY(mixing_store%u_vec)
         NULLIFY(mixing_store%z_vec)
@@ -431,8 +436,14 @@ CONTAINS
         NULLIFY(mixing_store%norm_res_buffer)
         NULLIFY(mixing_store%ig_global_index)
         NULLIFY(mixing_store%paw)
-        NULLIFY(mixing_store%cpc_h_buffer)
-        NULLIFY(mixing_store%cpc_s_buffer)
+        NULLIFY(mixing_store%cpc_h_in)
+        NULLIFY(mixing_store%cpc_s_in)
+        NULLIFY(mixing_store%cpc_h_old)
+        NULLIFY(mixing_store%cpc_s_old)
+        NULLIFY(mixing_store%dcpc_h_in)
+        NULLIFY(mixing_store%dcpc_s_in)
+        NULLIFY(mixing_store%cpc_h_lastres)
+        NULLIFY(mixing_store%cpc_s_lastres)
 
         CALL section_vals_val_get(mixing_section,"ALPHA",r_val=mixing_store%alpha,error=error)
         CALL section_vals_val_get(mixing_section,"BETA",r_val=mixing_store%beta,error=error)
@@ -525,24 +536,72 @@ CONTAINS
           DEALLOCATE(mixing_store%paw,STAT=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        IF (ASSOCIATED(mixing_store%cpc_h_buffer)) THEN
-          DO i = 1,SIZE(mixing_store%cpc_h_buffer,3)
-          DO j = 1,SIZE(mixing_store%cpc_h_buffer,2)
-          DO k = 1,SIZE(mixing_store%cpc_h_buffer,1)
-             IF(ASSOCIATED(mixing_store%cpc_h_buffer(k,j,i)%r_coef)) THEN
-                DEALLOCATE(mixing_store%cpc_h_buffer(k,j,i)%r_coef,STAT=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-                DEALLOCATE(mixing_store%cpc_s_buffer(k,j,i)%r_coef,STAT=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        IF (ASSOCIATED(mixing_store%cpc_h_in)) THEN
+          DO j = 1,SIZE(mixing_store%cpc_h_in,2)
+          DO k = 1,SIZE(mixing_store%cpc_h_in,1)
+            IF(ASSOCIATED(mixing_store%cpc_h_in(k,j)%r_coef)) THEN
+              DEALLOCATE(mixing_store%cpc_h_in(k,j)%r_coef,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              DEALLOCATE(mixing_store%cpc_s_in(k,j)%r_coef,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+          END DO
+          END DO
+          DEALLOCATE(mixing_store%cpc_h_in,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(mixing_store%cpc_s_in,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(mixing_store%cpc_h_old)) THEN
+          DO j = 1,SIZE(mixing_store%cpc_h_old,2)
+          DO k = 1,SIZE(mixing_store%cpc_h_old,1)
+            IF(ASSOCIATED(mixing_store%cpc_h_old(k,j)%r_coef)) THEN
+              DEALLOCATE(mixing_store%cpc_h_old(k,j)%r_coef,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              DEALLOCATE(mixing_store%cpc_s_old(k,j)%r_coef,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+          END DO
+          END DO
+          DEALLOCATE(mixing_store%cpc_h_old,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(mixing_store%cpc_s_old,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(mixing_store%dcpc_h_in)) THEN
+          DO i = 1,SIZE(mixing_store%dcpc_h_in,3)
+          DO j = 1,SIZE(mixing_store%dcpc_h_in,2)
+          DO k = 1,SIZE(mixing_store%dcpc_h_in,1)
+            IF(ASSOCIATED(mixing_store%dcpc_h_in(k,j,i)%r_coef)) THEN
+              DEALLOCATE(mixing_store%dcpc_h_in(k,j,i)%r_coef,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              DEALLOCATE(mixing_store%dcpc_s_in(k,j,i)%r_coef,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+            END IF
+          END DO
+          END DO
+          END DO
+          DEALLOCATE(mixing_store%dcpc_h_in,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(mixing_store%dcpc_s_in,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(mixing_store%cpc_h_lastres)) THEN
+          DO j = 1,SIZE(mixing_store%cpc_h_lastres,2)
+          DO k = 1,SIZE(mixing_store%cpc_h_lastres,1)
+            IF(ASSOCIATED(mixing_store%cpc_h_lastres(k,j)%r_coef)) THEN
+              DEALLOCATE(mixing_store%cpc_h_lastres(k,j)%r_coef,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              DEALLOCATE(mixing_store%cpc_s_lastres(k,j)%r_coef,STAT=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
              END IF
           END DO
           END DO
-          END DO
-          DEALLOCATE(mixing_store%cpc_h_buffer,STAT=stat)
+          DEALLOCATE(mixing_store%cpc_h_lastres,STAT=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          DEALLOCATE(mixing_store%cpc_s_buffer,STAT=stat)
+          DEALLOCATE(mixing_store%cpc_s_lastres,STAT=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
+        ENDIF
 
         IF (ASSOCIATED(mixing_store%res_buffer)) THEN
            DO i = 1,SIZE(mixing_store%res_buffer,2)
@@ -582,6 +641,24 @@ CONTAINS
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            END DO
            DEALLOCATE(mixing_store%last_res,STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+
+        IF (ASSOCIATED(mixing_store%rhoin)) THEN
+           DO i = 1,SIZE(mixing_store%rhoin)
+             DEALLOCATE(mixing_store%rhoin(i)%cc,STAT=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END DO
+           DEALLOCATE(mixing_store%rhoin,STAT=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+
+        IF (ASSOCIATED(mixing_store%rhoin_old)) THEN
+           DO i = 1,SIZE(mixing_store%rhoin_old)
+             DEALLOCATE(mixing_store%rhoin_old(i)%cc,STAT=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END DO
+           DEALLOCATE(mixing_store%rhoin_old,STAT=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
 
