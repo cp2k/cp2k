@@ -1905,7 +1905,7 @@ CONTAINS
     CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
     CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
-
+    NULLIFY (tmp_dbcsr)
     CALL dbcsr_allocate_matrix_set(tmp_dbcsr,SIZE(mo_derivs,1),error=error)
     DO i=1,SIZE(mo_derivs,1)!fm->dbcsr
        !
