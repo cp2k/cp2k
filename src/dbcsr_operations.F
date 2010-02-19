@@ -353,23 +353,38 @@ CONTAINS
     right_pgrid => dbcsr_mp_pgrid (right_mp_obj)
     product_pgrid => dbcsr_mp_pgrid (product_mp_obj)
     CALL dbcsr_mp_grid_setup (product_mp_obj)
-    CALL dbcsr_assert (dbcsr_mp_has_subgroups (product_mp_obj),&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Row/column subgroups must be defined",__LINE__,error)
-    mp_rc_groups(M_P, 1:2) = (/ dbcsr_mp_my_row_group (product_mp_obj),&
-                                dbcsr_mp_my_col_group (product_mp_obj) /)
     CALL dbcsr_mp_grid_setup (left_mp_obj)
-    CALL dbcsr_assert (dbcsr_mp_has_subgroups (left_mp_obj),&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Row/column subgroups must be defined",__LINE__,error)
-    mp_rc_groups(M_L, 1:2) = (/ dbcsr_mp_my_row_group (left_mp_obj),&
-                                dbcsr_mp_my_col_group (left_mp_obj) /)
     CALL dbcsr_mp_grid_setup (right_mp_obj)
-    CALL dbcsr_assert (dbcsr_mp_has_subgroups (right_mp_obj),&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Row/column subgroups must be defined",__LINE__,error)
-    mp_rc_groups(M_R, 1:2) = (/ dbcsr_mp_my_row_group (right_mp_obj),&
-                                dbcsr_mp_my_col_group (right_mp_obj) /)
+    IF (dbcsr_mp_has_subgroups (product_mp_obj)) THEN
+       mp_rc_groups(M_P, 1:2) = (/ dbcsr_mp_my_row_group (product_mp_obj),&
+            dbcsr_mp_my_col_group (product_mp_obj) /)
+    ENDIF
+    IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
+       mp_rc_groups(M_L, 1:2) = (/ dbcsr_mp_my_row_group (left_mp_obj),&
+            dbcsr_mp_my_col_group (left_mp_obj) /)
+    ENDIf
+    IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
+       mp_rc_groups(M_R, 1:2) = (/ dbcsr_mp_my_row_group (right_mp_obj),&
+            dbcsr_mp_my_col_group (right_mp_obj) /)
+    ENDIF
+    !CALL dbcsr_mp_grid_setup (product_mp_obj)
+    !CALL dbcsr_assert (dbcsr_mp_has_subgroups (product_mp_obj),&
+    !     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+    !     "Row/column subgroups must be defined",__LINE__,error)
+    !mp_rc_groups(M_P, 1:2) = (/ dbcsr_mp_my_row_group (product_mp_obj),&
+    !                            dbcsr_mp_my_col_group (product_mp_obj) /)
+    !CALL dbcsr_mp_grid_setup (left_mp_obj)
+    !CALL dbcsr_assert (dbcsr_mp_has_subgroups (left_mp_obj),&
+    !     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+    !     "Row/column subgroups must be defined",__LINE__,error)
+    !mp_rc_groups(M_L, 1:2) = (/ dbcsr_mp_my_row_group (left_mp_obj),&
+    !                            dbcsr_mp_my_col_group (left_mp_obj) /)
+    !CALL dbcsr_mp_grid_setup (right_mp_obj)
+    !CALL dbcsr_assert (dbcsr_mp_has_subgroups (right_mp_obj),&
+    !     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+    !     "Row/column subgroups must be defined",__LINE__,error)
+    !mp_rc_groups(M_R, 1:2) = (/ dbcsr_mp_my_row_group (right_mp_obj),&
+    !                            dbcsr_mp_my_col_group (right_mp_obj) /)
     ! Dummy checks
     ! left/right matching
     CALL dbcsr_assert (left_col_nimages .EQ. right_row_mult&
@@ -705,9 +720,13 @@ CONTAINS
                   right_dst_pcol, right_dst_icol,&
                   right_dst_v_row, right_dst_v_col
              ! These are column-communicator relative
-             right_send_p = right_send_prow
-             right_recv_p = right_recv_prow
-             grp = mp_rc_groups(M_R, RC_C)
+             IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
+                right_send_p = right_send_prow
+                right_recv_p = right_recv_prow
+                grp = dbcsr_mp_my_col_group (right_mp_obj)
+             ELSE
+                grp = dbcsr_mp_group (right_mp_obj)
+             ENDIF
              !
              IF (use_combined_types) THEN
                 right_send_subtypes(1) = dbcsr_mp_type_from_anytype (right_data_sp)
@@ -911,9 +930,13 @@ CONTAINS
                   left_dst_pcol, left_dst_icol,&
                   left_dst_v_row, left_dst_v_col
              ! These are column-communicator relative
-             left_send_p = left_send_pcol
-             left_recv_p = left_recv_pcol
-             grp = mp_rc_groups(M_L, RC_R)
+             IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
+                left_send_p = left_send_pcol
+                left_recv_p = left_recv_pcol
+                grp = dbcsr_mp_my_row_group (left_mp_obj)
+             ELSE
+                grp = dbcsr_mp_group (left_mp_obj)
+             ENDIF
              !
              IF (use_combined_types) THEN
                 left_send_subtypes(1) = dbcsr_mp_type_from_anytype (left_data_sp)

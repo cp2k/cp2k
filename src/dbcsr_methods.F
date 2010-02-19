@@ -119,6 +119,9 @@ MODULE dbcsr_methods
 
   PRIVATE
 
+  ! Workaround for Intel MPI.
+  LOGICAL, PARAMETER, PRIVATE :: use_subcommunicators = .FALSE.
+
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
 #define DBGI IF (info) WRITE(*,*)routineN//" ",
@@ -605,7 +608,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (.NOT. mp_env%mp%subgroups_defined) THEN
+    ! Intel MPI Workaround
+    !CALL dbcsr_assert (..NOT. mp_env%mp%subgroups_defined,&
+    !     dbcsr_fatal_level, dbcsr_internal_error, "mp_grid_setup",&
+    !     "Subcommunicators should be turned off")
+    IF (.NOT. mp_env%mp%subgroups_defined .AND. use_subcommunicators) THEN
        ! KG workaround.
        ! This will be deleted (replaced by code in mp_new).
        ndims = 2
