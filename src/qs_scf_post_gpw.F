@@ -591,7 +591,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(mos,ks_rmpv,dft_control)
+    NULLIFY(mos,ks_rmpv,dft_control,marked_states_spin)
     CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,molecule_set=molecule_set,&
          dft_control=dft_control,matrix_s=matrix_s,error=error)
     logger => cp_error_get_logger(error)
