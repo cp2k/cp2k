@@ -6704,6 +6704,8 @@ CONTAINS
 !> \param[in] nbins          number of bins in the new real distribution
 !> \param[in] multiplicity   multiplicity
 !> \param[in] nimages        number of images in the new distribution
+!> \par <b>Modification history</b>
+!>      - 2010-02-19 Allows different array sizes (old vs. new).
 ! *****************************************************************************
   SUBROUTINE rebin_distribution (new_bins, images, source_bins,&
        nbins, multiplicity, nimages)
@@ -6720,21 +6722,26 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
+!CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(new_bins),&
+!     dbcsr_warning_level, dbcsr_internal_error,&
+!     routineN, "source/new bin array sizes not equal",__LINE__,error)
+!CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(images),&
+!     dbcsr_warning_level, dbcsr_internal_error,&
+!     routineN, "source/image array sizes not equal",__LINE__,error)
 
-    CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(new_bins),&
-         dbcsr_warning_level, dbcsr_internal_error,&
-         routineN, "source/new bin array sizes not equal",__LINE__,error)
-    CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(images),&
-         dbcsr_warning_level, dbcsr_internal_error,&
-         routineN, "source/image array sizes not equal",__LINE__,error)
     CALL dbcsr_assert (MOD (nbins, multiplicity), "EQ", 0,&
          dbcsr_warning_level, dbcsr_internal_error,&
          routineN, "mulitplicity is not divisor of new process grid coordinate",__LINE__,error)
     old_nbins = nbins * nimages / multiplicity
     ALLOCATE (bin_multiplier(0:old_nbins-1))
     bin_multiplier(:) = 0
-    DO i = 1, SIZE (source_bins)
-       bin = source_bins (i)
+    DO i = 1, SIZE (new_bins)
+       IF (i .LE. SIZE (source_bins)) THEN
+          bin = source_bins (i)
+       ELSE
+          ! Fill remainder with a cyclic distribution
+          bin = MOD (i, old_nbins)
+       ENDIF
        bin_multiplier(bin) = bin_multiplier(bin)+1
        IF (bin_multiplier(bin) .GE. multiplicity) THEN
           bin_multiplier(bin) = 0
@@ -6836,6 +6843,8 @@ CONTAINS
 !> \param[in] nbins          number of bins in the new real distribution
 !> \param[in] multiplicity   multiplicity
 !> \param[in] nimages        number of images in the new distribution
+!> \par <b>Modification history</b>
+!>      - 2010-02-19 Allows different array sizes (old vs. new).
 ! *****************************************************************************
   SUBROUTINE rebin_imaged_distribution (new_bins, images,&
        source_bins, source_images, nbins, multiplicity, nimages)
@@ -6851,18 +6860,23 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
+!CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(new_bins),&
+!     dbcsr_warning_level, dbcsr_internal_error,&
+!     routineN, "source/new array sizes not equal",__LINE__,error)
+!CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(images),&
+!     dbcsr_warning_level, dbcsr_internal_error,&
+!     routineN, "source/image array sizes not equal",__LINE__,error)
 
-    CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(new_bins),&
-         dbcsr_warning_level, dbcsr_internal_error,&
-         routineN, "source/new array sizes not equal",__LINE__,error)
-    CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(images),&
-         dbcsr_warning_level, dbcsr_internal_error,&
-         routineN, "source/image array sizes not equal",__LINE__,error)
     CALL dbcsr_assert (MOD (nbins, multiplicity), "EQ", 0,&
          dbcsr_warning_level, dbcsr_internal_error,&
          routineN, "mulitplicity is not divisor of new process grid coordinate",__LINE__,error)
-    DO i = 1, SIZE (source_bins)
-       virtual_bin = source_bins(i)*multiplicity + source_images(i)-1
+    DO i = 1, SIZE (new_bins)
+       IF (i .LE. SIZE (source_bins)) THEN
+          virtual_bin = source_bins(i)*multiplicity + source_images(i)-1
+       ELSE
+          ! Fill remainder with a cyclic distribution
+          virtual_bin = MOD (i, nbins*nimages)
+       ENDIF
        new_bins(i) = virtual_bin / nimages
        images(i) = 1 + MOD (virtual_bin, nimages)
        CALL dbcsr_assert (new_bins(i).lt.nbins, dbcsr_fatal_level, dbcsr_internal_error,&
