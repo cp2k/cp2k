@@ -35,7 +35,9 @@ MODULE input_cp2k_colvar
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_colvar'
 
-PUBLIC :: create_colvar_section
+PUBLIC :: create_colvar_section,&
+          create_colvar_xyz_d_section,&
+          create_colvar_xyz_od_section
 
 CONTAINS
 
@@ -85,9 +87,53 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_clv_info_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
     END IF
 
   END SUBROUTINE create_colvar_section
+
+! *****************************************************************************
+!> \brief Create the restart section for colvar restraints
+!>      This section will be only used for restraint restarts. 
+!>      Constraints are handled automatically
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
+  SUBROUTINE create_clv_info_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_clv_info_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY( keyword)
+       CALL section_create(section,name="COLVAR_FUNC_INFO",&
+            description="Specify further data possibly used by colvars, depending "//&
+            "on the starting geometry, for computing the functions value.",&
+            n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Colvar function data."//&
+            " The order is an internal order. So if you decide to edit/modify/add these values by hand"//&
+            " you should know very well what you are doing.!",repeats=.TRUE.,&
+            usage="<REAL> <REAL> <REAL> ...", type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+    END IF
+
+  END SUBROUTINE create_clv_info_section
 
 ! *****************************************************************************
 !> \brief creates the collective variables for the colvar section
@@ -160,6 +206,14 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_colvar_rmsd_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_xyz_d_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_xyz_od_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -523,8 +577,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PBC",&
-            description="Whether periodic boundary conditions should be applied on the distances or not"//&
-            " be used or if single molecule optimizations generate it",&
+            description="Whether periodic boundary conditions should be applied on the "//&
+            "atomic position before computing the colvar or not.",&
             usage="PBC",&
             default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -755,6 +809,145 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_dist_section
+
+! *****************************************************************************
+!> \brief creates the colvar section regarded to the collective variables dist
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_colvar_xyz_d_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_xyz_d_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="XYZ_DIAG",&
+            description="Section to define the distance of an atom from its starting "//&
+            "position (X-X(0)^2+Y-Y(0)^2+Z-Z(0)^2) or part of its components as a collective variable.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="ATOM",&
+            variants=(/"POINT"/),&
+            description="Specifies the index of the atom/point.",&
+            usage="ATOM {integer}",required=.TRUE.,&
+            n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COMPONENT",&
+            description="Define the component of the position vector which will be used "//&
+            "as a colvar.",&
+            usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)",&
+            enum_c_vals=s2a( "XYZ","X", "Y", "Z", "XY", "XZ", "YZ"),&
+            enum_i_vals=(/ do_clv_xyz, do_clv_x, do_clv_y,do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/),&
+            default_i_val=do_clv_xyz, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PBC",&
+            description="Whether periodic boundary conditions should be applied on the "//&
+            "atomic position before computing the colvar or not.",&
+            usage="PBC",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_xyz_d_section
+
+! *****************************************************************************
+!> \brief creates the colvar section regarded to the collective variables dist
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
+  SUBROUTINE create_colvar_xyz_od_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_xyz_od_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="XYZ_OUTERDIAG",&
+            description="Section to define the cross term (XA-XA(0))*(XB-XB(0))+(XA-XA(0))*(YB-YB(0))"//&
+            " or part of its components as a collective variable. The final term is given by the product "//&
+            " of the components of A with the components of B.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword, subsection)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            variants=(/"POINTS"/),&
+            description="Specifies the index of the atoms/points A and B.",&
+            usage="ATOMS {integer} {integer}",required=.TRUE.,&
+            n_var=2, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COMPONENT_A",&
+            description="Define the component of the position vector which will be used "//&
+            "as a colvar for atom A.",&
+            usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)",&
+            enum_c_vals=s2a( "XYZ","X", "Y", "Z", "XY", "XZ", "YZ"),&
+            enum_i_vals=(/ do_clv_xyz, do_clv_x, do_clv_y,do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/),&
+            default_i_val=do_clv_xyz, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COMPONENT_B",&
+            description="Define the component of the position vector which will be used "//&
+            "as a colvar for atom B.",&
+            usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)",&
+            enum_c_vals=s2a( "XYZ","X", "Y", "Z", "XY", "XZ", "YZ"),&
+            enum_i_vals=(/ do_clv_xyz, do_clv_x, do_clv_y,do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/),&
+            default_i_val=do_clv_xyz, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PBC",&
+            description="Whether periodic boundary conditions should be applied on the "//&
+            "atomic position before computing the colvar or not.",&
+            usage="PBC",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Must be present in each colvar and handled properly
+       CALL create_point_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_xyz_od_section
 
 ! *****************************************************************************
 !> \brief creates the colvar section regarded to the collective variables distance 

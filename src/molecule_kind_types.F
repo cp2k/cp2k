@@ -21,7 +21,8 @@ MODULE molecule_kind_types
        dfunct_colvar_id, dist_colvar_id, gyration_colvar_id, &
        hydronium_colvar_id, plane_distance_colvar_id, &
        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
-       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id
+       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id, &
+       xyz_diag_colvar_id, xyz_outerdiag_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -268,6 +269,8 @@ CONTAINS
     ncolv%nplane_angle   = 0
     ncolv%nrot           = 0
     ncolv%nqparm         = 0
+    ncolv%nxyz_diag      = 0
+    ncolv%nxyz_outerdiag = 0
     ncolv%nhydronium     = 0
     ncolv%nreactionpath  = 0
     ncolv%ncombinecvs    = 0
@@ -301,6 +304,10 @@ CONTAINS
              ncolv%ntorsion = ncolv%ntorsion + 1
           CASE(qparm_colvar_id)
              ncolv%nqparm = ncolv%nqparm + 1
+          CASE(xyz_diag_colvar_id)
+             ncolv%nxyz_diag = ncolv%nxyz_diag + 1
+          CASE(xyz_outerdiag_colvar_id)
+             ncolv%nxyz_outerdiag = ncolv%nxyz_outerdiag + 1
           CASE(hydronium_colvar_id)
              ncolv%nhydronium = ncolv%nhydronium + 1
           CASE(reaction_path_colvar_id)
@@ -312,19 +319,21 @@ CONTAINS
           END SELECT
        END DO
     END IF
-    ncolv%ntot = ncolv%ndist        +&
-                 ncolv%nangle       +&
-                 ncolv%ntorsion     +&
-                 ncolv%ncoord       +&
-                 ncolv%nplane_dist  +&
-                 ncolv%nplane_angle +&
-                 ncolv%ndfunct      +&
-                 ncolv%nrot         +&
-                 ncolv%nqparm       +&
-                 ncolv%nhydronium   +&
-                 ncolv%nreactionpath+&
-                 ncolv%ncombinecvs  +&
-                 ncolv%npopulation  +&
+    ncolv%ntot = ncolv%ndist           +&
+                 ncolv%nangle          +&
+                 ncolv%ntorsion        +&
+                 ncolv%ncoord          +&
+                 ncolv%nplane_dist     +&
+                 ncolv%nplane_angle    +&
+                 ncolv%ndfunct         +&
+                 ncolv%nrot            +&
+                 ncolv%nqparm          +&
+                 ncolv%nxyz_diag       +&
+                 ncolv%nxyz_outerdiag  +&
+                 ncolv%nhydronium      +&
+                 ncolv%nreactionpath   +&
+                 ncolv%ncombinecvs     +&
+                 ncolv%npopulation     +&
                  ncolv%ngyration
 
 

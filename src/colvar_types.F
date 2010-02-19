@@ -68,25 +68,30 @@ MODULE colvar_types
             post_process_colvar,&
             diff_colvar,&
             gyration_colvar_type,&
-            rmsd_colvar_type
+            rmsd_colvar_type,&
+            xyz_diag_colvar_type,&
+            xyz_outerdiag_colvar_type
 
-  INTEGER, PARAMETER, PUBLIC :: no_colvar_id                = -2,&
-                                dist_colvar_id              =  1,&
-                                coord_colvar_id             =  2,&
-                                torsion_colvar_id           =  3,&
-                                angle_colvar_id             =  4,&
-                                plane_distance_colvar_id    =  5,&
-                                rotation_colvar_id          =  6,&
-                                dfunct_colvar_id            =  7,&
-                                qparm_colvar_id             =  8,&
-                                hydronium_colvar_id         =  9,&
-                                reaction_path_colvar_id     = 10,&
-                                combine_colvar_id           = 11,&
-                                population_colvar_id        = 12,&
-                                plane_plane_angle_colvar_id = 13,&
-                                gyration_colvar_id          = 14,&
-                                rmsd_colvar_id              = 15,&
-                                distance_from_path_colvar_id     = 16
+  INTEGER, PARAMETER, PUBLIC :: no_colvar_id                  = -2,&
+                                dist_colvar_id                =  1,&
+                                coord_colvar_id               =  2,&
+                                torsion_colvar_id             =  3,&
+                                angle_colvar_id               =  4,&
+                                plane_distance_colvar_id      =  5,&
+                                rotation_colvar_id            =  6,&
+                                dfunct_colvar_id              =  7,&
+                                qparm_colvar_id               =  8,&
+                                hydronium_colvar_id           =  9,&
+                                reaction_path_colvar_id       = 10,&
+                                combine_colvar_id             = 11,&
+                                population_colvar_id          = 12,&
+                                plane_plane_angle_colvar_id   = 13,&
+                                gyration_colvar_id            = 14,&
+                                rmsd_colvar_id                = 15,&
+                                distance_from_path_colvar_id  = 16,&
+                                xyz_diag_colvar_id            = 17,&
+                                xyz_outerdiag_colvar_id       = 18
+                                
 
 ! *****************************************************************************
 !> \brief parameters for the distance collective variable
@@ -180,7 +185,7 @@ MODULE colvar_types
 ! *****************************************************************************
   TYPE dfunct_colvar_type
      INTEGER, DIMENSION(4)         :: i_at_dfunct
-     LOGICAL                       :: pbc
+     LOGICAL                       :: use_pbc
      REAL(KIND=dp)                 :: coeff
   END TYPE dfunct_colvar_type
 
@@ -247,6 +252,22 @@ MODULE colvar_types
   END TYPE point_type
 
 ! *****************************************************************************
+  TYPE xyz_diag_colvar_type
+     LOGICAL                                  :: use_pbc
+     INTEGER                                  :: i_atom
+     INTEGER                                  :: component
+     REAL(KIND=dp), DIMENSION(3)              :: r0
+  END TYPE xyz_diag_colvar_type
+
+! *****************************************************************************
+  TYPE xyz_outerdiag_colvar_type
+     LOGICAL                                  :: use_pbc
+     INTEGER, DIMENSION(2)                    :: i_atoms
+     INTEGER, DIMENSION(2)                    :: components
+     REAL(KIND=dp), DIMENSION(3,2)            :: r0
+  END TYPE xyz_outerdiag_colvar_type
+
+! *****************************************************************************
 !> \brief parameters for a collective variable
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
@@ -273,6 +294,8 @@ MODULE colvar_types
      TYPE(reaction_path_colvar_type),POINTER     :: reaction_path_param
      TYPE(combine_colvar_type), POINTER          :: combine_cvs_param
      TYPE(rmsd_colvar_type), POINTER             :: rmsd_param
+     TYPE(xyz_diag_colvar_type), POINTER         :: xyz_diag_param
+     TYPE(xyz_outerdiag_colvar_type), POINTER    :: xyz_outerdiag_param
      TYPE(point_type), DIMENSION(:), POINTER     :: points
   END TYPE colvar_type
 
@@ -299,6 +322,8 @@ MODULE colvar_types
      INTEGER :: npopulation
      INTEGER :: ngyration
      INTEGER :: nrmsd
+     INTEGER :: nxyz_diag
+     INTEGER :: nxyz_outerdiag
      INTEGER :: ntot
   END TYPE colvar_counters
 
@@ -338,6 +363,8 @@ CONTAINS
     NULLIFY(colvar%population_param)
     NULLIFY(colvar%gyration_param)
     NULLIFY(colvar%qparm_param)
+    NULLIFY(colvar%xyz_diag_param)
+    NULLIFY(colvar%xyz_outerdiag_param)
     NULLIFY(colvar%hydronium_param)
     NULLIFY(colvar%reaction_path_param)
     NULLIFY(colvar%combine_cvs_param)
@@ -384,6 +411,16 @@ CONTAINS
        CASE(qparm_colvar_id)
           ALLOCATE(colvar%qparm_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CASE(xyz_diag_colvar_id)
+          ALLOCATE(colvar%xyz_diag_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          ! Initialize r0 with dummy..
+          colvar%xyz_diag_param%r0=HUGE(0.0_dp)
+       CASE(xyz_outerdiag_colvar_id)
+          ALLOCATE(colvar%xyz_outerdiag_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          ! Initialize r0 with dummy..
+          colvar%xyz_outerdiag_param%r0=HUGE(0.0_dp)
        CASE(hydronium_colvar_id)
           ALLOCATE(colvar%hydronium_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -850,6 +887,32 @@ CPSourceFileRef)
                END DO
             END DO
           END IF
+       CASE(xyz_diag_colvar_id)
+          np = 1
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          i = colvar%xyz_diag_param%i_atom
+          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          i = colvar%xyz_diag_param%i_atom
+          list(1) = i
+       CASE(xyz_outerdiag_colvar_id)
+          np = 2
+          ! Number of real atoms involved in the colvar
+          colvar%n_atom_s= 0
+          i = colvar%xyz_outerdiag_param%i_atoms(1)
+          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          i = colvar%xyz_outerdiag_param%i_atoms(2)
+          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+          ! Create a List of points...
+          ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          i = colvar%xyz_outerdiag_param%i_atoms(1)
+          list(1) = i
+          i = colvar%xyz_outerdiag_param%i_atoms(2)
+          list(2) = i
        CASE(combine_colvar_id)
           colvar%n_atom_s=0
           DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
@@ -1044,6 +1107,12 @@ CPSourceFileRef)
        DEALLOCATE(colvar%qparm_param%i_at_to,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        DEALLOCATE(colvar%qparm_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (xyz_diag_colvar_id)
+       DEALLOCATE(colvar%xyz_diag_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (xyz_outerdiag_colvar_id)
+       DEALLOCATE(colvar%xyz_outerdiag_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (hydronium_colvar_id)
        DEALLOCATE(colvar%hydronium_param%i_oxygens, stat=stat)
@@ -1275,7 +1344,7 @@ CPSourceFileRef)
     CASE(dfunct_colvar_id)
        colvar_out%dfunct_param%i_at_dfunct   = colvar_in%dfunct_param%i_at_dfunct + my_offset
        colvar_out%dfunct_param%coeff         = colvar_in%dfunct_param%coeff
-       colvar_out%dfunct_param%pbc           = colvar_in%dfunct_param%pbc
+       colvar_out%dfunct_param%use_pbc       = colvar_in%dfunct_param%use_pbc
     CASE(qparm_colvar_id)
        colvar_out%qparm_param%n_atoms_to   = colvar_in%qparm_param%n_atoms_to  
        colvar_out%qparm_param%n_atoms_from = colvar_in%qparm_param%n_atoms_from
@@ -1290,6 +1359,16 @@ CPSourceFileRef)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        colvar_out%qparm_param%i_at_from    = colvar_in%qparm_param%i_at_from + my_offset
        colvar_out%qparm_param%i_at_to      = colvar_in%qparm_param%i_at_from + my_offset
+     CASE(xyz_diag_colvar_id)
+       colvar_out%xyz_diag_param%i_atom       = colvar_in%xyz_diag_param%i_atom+ my_offset
+       colvar_out%xyz_diag_param%component    = colvar_in%xyz_diag_param%component
+       colvar_out%xyz_diag_param%r0           = colvar_in%xyz_diag_param%r0
+       colvar_out%xyz_diag_param%use_pbc      = colvar_in%xyz_diag_param%use_pbc
+     CASE(xyz_outerdiag_colvar_id)
+       colvar_out%xyz_outerdiag_param%i_atoms    = colvar_in%xyz_outerdiag_param%i_atoms+ my_offset
+       colvar_out%xyz_outerdiag_param%components = colvar_in%xyz_outerdiag_param%components
+       colvar_out%xyz_outerdiag_param%r0         = colvar_in%xyz_outerdiag_param%r0
+       colvar_out%xyz_outerdiag_param%use_pbc    = colvar_in%xyz_outerdiag_param%use_pbc
      CASE(hydronium_colvar_id)
        colvar_out%hydronium_param%n_hydrogens = colvar_in%hydronium_param%n_hydrogens  
        colvar_out%hydronium_param%n_oxygens   = colvar_in%hydronium_param%n_oxygens

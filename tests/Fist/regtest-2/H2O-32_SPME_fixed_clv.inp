@@ -1,0 +1,147 @@
+
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K 0.
+        THETA0 1.8
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.
+        R0 1.8
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON 78.198
+          SIGMA 3.166
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms O H
+          EPSILON 0.0
+          SIGMA 3.6705
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H H
+          EPSILON 0.0
+          SIGMA 3.30523
+          RCUT 11.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .5
+        GMAX 20
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &PROGRAM_RUN_INFO OFF
+      &END
+      &DIPOLE OFF
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 9.865 9.865 9.865
+    &END CELL
+    &COORD
+    O                  -4.583   5.333   1.560   FIX 
+    H                  -3.777   5.331   0.943   FIX 
+    H                  -5.081   4.589   1.176   FIX 
+    &END 
+    &COLVAR
+      &XYZ_DIAG
+        ATOM 1
+      &END
+    &END 
+    &COLVAR
+      &XYZ_DIAG
+        ATOM 2
+      &END
+    &END 
+    &COLVAR
+      &XYZ_DIAG
+        ATOM 3
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    SHAKE_TOL 1.0E-7
+    &COLLECTIVE
+      COLVAR 1
+      MOLECULE 1
+      &RESTRAINT
+        K 0.05
+      &END
+    &END
+    &COLLECTIVE
+      COLVAR 2
+      MOLECULE 1
+      &RESTRAINT
+        K 0.05
+      &END
+    &END
+    &COLLECTIVE
+      COLVAR 3
+      MOLECULE 1
+      &RESTRAINT
+        K 0.05
+      &END
+    &END
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVT
+    STEPS 100
+    TIMESTEP 1.0
+    TEMPERATURE 300.0
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON 10
+      &END NOSE
+    &END
+    &PRINT
+      &PROGRAM_RUN_INFO
+         &EACH 
+           MD 100
+         &END
+      &END
+      &CENTER_OF_MASS OFF
+      &END
+    &END
+  &END MD
+  &PRINT
+    &RESTART OFF
+    &END
+    &RESTART_HISTORY OFF
+    &END
+    &TRAJECTORY
+    &END
+    &VELOCITIES OFF
+    &END
+  &END
+&END MOTION

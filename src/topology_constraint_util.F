@@ -16,7 +16,8 @@ MODULE topology_constraint_util
   USE colvar_types,                    ONLY: &
        colvar_clone, colvar_counters, colvar_create, colvar_p_reallocate, &
        colvar_release, colvar_setup, colvar_type, dist_colvar_id, &
-       post_process_colvar, torsion_colvar_id
+       post_process_colvar, torsion_colvar_id, xyz_diag_colvar_id, &
+       xyz_outerdiag_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -91,7 +92,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: molname, name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_typeh, cnds
-    INTEGER :: first, first_atom, gind, handle, i, ii, itype, iw, j, k, &
+    INTEGER :: cind, first, first_atom, gind, handle, i, ii, itype, iw, j, k, &
       k1loc, k2loc, kk, last, last_atom, m, n_start_colv, natom, nbond, &
       ncolv_glob, ncolv_mol, nfixd_list_gci, nfixd_restart, nfixd_restraint, &
       nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, ng4x6_restraint, nhdist, &
@@ -101,7 +102,7 @@ CONTAINS
     LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
       fix_atom_molname, fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, &
       found_molname, is_qm, ishbond, ldummy, restart_restraint_clv, &
-      restart_restraint_pos
+      restart_restraint_pos, use_clv_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist, r
@@ -130,7 +131,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: lg4x6
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(section_vals_type), POINTER         :: colvar_rest, fixd_restr_rest, &
+    TYPE(section_vals_type), POINTER         :: colvar_func_info, &
+                                                colvar_rest, fixd_restr_rest, &
                                                 hbonds_section
     TYPE(vsite_constraint_type), &
       DIMENSION(:), POINTER                  :: vsite_list
@@ -151,6 +153,9 @@ CONTAINS
     colvar_rest => section_vals_get_subs_vals(input_file,&
          "MOTION%CONSTRAINT%COLVAR_RESTART",error=error)
     CALL section_vals_get(colvar_rest,explicit=restart_restraint_clv, error=error)
+    colvar_func_info => section_vals_get_subs_vals(subsys_section,&
+         "COLVAR%COLVAR_FUNC_INFO",error=error)
+    CALL section_vals_get(colvar_func_info,explicit=use_clv_info, error=error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. NULLIFY the molecule_set(imol)%lci via set_molecule_set
@@ -394,6 +399,7 @@ CONTAINS
                                   error)
        ! Intramolecular constraints
        gind = 0
+       cind = 0
        DO ii = 1, SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -418,7 +424,7 @@ CONTAINS
              ALLOCATE(lcolv(ncolv_mol),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              CALL setup_lcolv(lcolv, constr_x_mol(ii)%constr, first_atom, last_atom,&
-                  cons_info, error)
+                  cons_info, particle_set, colvar_func_info, use_clv_info, cind, error)
              CALL set_molecule(molecule=molecule,lcolv=lcolv)
           END DO
        END DO
@@ -440,7 +446,8 @@ CONTAINS
           CALL setup_colvar_counters(colv_list,ncolv,error)
           ALLOCATE(lcolv(ncolv_glob),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL setup_lcolv(lcolv, constr_x_glob, 1, SIZE(particle_set), cons_info, error)
+          CALL setup_lcolv(lcolv, constr_x_glob, 1, SIZE(particle_set), cons_info,&
+                           particle_set, colvar_func_info, use_clv_info, cind, error)
           gci%colv_list => colv_list
           gci%lcolv     => lcolv
           gci%ncolv     = ncolv
@@ -1101,19 +1108,27 @@ CONTAINS
 !>      Updated 2007 for intermolecular constraints
 !> \author Teodoro Laino [2007]
 ! *****************************************************************************
-  SUBROUTINE setup_lcolv(lcolv, ilist, first_atom, last_atom, cons_info, error)
+  SUBROUTINE setup_lcolv(lcolv, ilist, first_atom, last_atom, cons_info,&
+                         particle_set, colvar_func_info, use_clv_info,&
+                         cind, error)
     TYPE(local_colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: lcolv
     INTEGER, DIMENSION(:), POINTER           :: ilist
     INTEGER, INTENT(IN)                      :: first_atom, last_atom
     TYPE(constraint_info_type), POINTER      :: cons_info
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(section_vals_type), POINTER         :: colvar_func_info
+    LOGICAL, INTENT(IN)                      :: use_clv_info
+    INTEGER, INTENT(INOUT)                   :: cind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_lcolv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k, kk
+    INTEGER                                  :: ind, k, kk, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
     failure = .FALSE.
     DO kk=1,SIZE(ilist)
@@ -1121,14 +1136,58 @@ CONTAINS
        lcolv(kk)%init      = .FALSE.
        lcolv(kk)%lambda    = 0.0_dp
        lcolv(kk)%sigma     = 0.0_dp
+
        ! Set Up colvar variable
        NULLIFY(lcolv(kk)%colvar, lcolv(kk)%colvar_old)
        ! Colvar
        CALL colvar_clone(lcolv(kk)%colvar, cons_info%colvar_set(k)%colvar,&
             i_atom_offset=first_atom-1,error=error)
 
-       ! Colvar_old
+       ! Some COLVARS may need additional information for evaluating the 
+       ! functional form: this is the case for COLVARS which depend on the
+       ! initial position of the atoms: This information is stored in a proper
+       ! container in the COLVAR_RESTART section..
+       IF  ((lcolv(kk)%colvar%type_id==xyz_diag_colvar_id).OR.&
+            (lcolv(kk)%colvar%type_id==xyz_outerdiag_colvar_id)) THEN
+          cind = cind + 1
+          IF (use_clv_info) THEN
+             CALL section_vals_val_get(colvar_func_info,"_DEFAULT_KEYWORD_",&
+                  i_rep_val=cind, r_vals=r_vals, error=error)
+             SELECT CASE(lcolv(kk)%colvar%type_id)
+             CASE(xyz_diag_colvar_id)
+                CPPostcondition(SIZE(r_vals)==3,cp_failure_level,routineP,error,failure)
+                lcolv(kk)%colvar%xyz_diag_param%r0=r_vals
+             CASE(xyz_outerdiag_colvar_id)
+                CPPostcondition(SIZE(r_vals)==6,cp_failure_level,routineP,error,failure)
+                lcolv(kk)%colvar%xyz_outerdiag_param%r0(:,1)=r_vals(1:3)
+                lcolv(kk)%colvar%xyz_outerdiag_param%r0(:,2)=r_vals(4:6)
+             END SELECT
+          ELSE
+             SELECT CASE(lcolv(kk)%colvar%type_id)
+             CASE(xyz_diag_colvar_id)
+                ALLOCATE(r_vals(3),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ind=first_atom-1+lcolv(kk)%colvar%xyz_diag_param%i_atom
+                r_vals=particle_set(ind)%r
+                lcolv(kk)%colvar%xyz_diag_param%r0=r_vals
+             CASE(xyz_outerdiag_colvar_id)
+                ALLOCATE(r_vals(6),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ind=first_atom-1+lcolv(kk)%colvar%xyz_outerdiag_param%i_atoms(1)
+                r_vals(1:3)=particle_set(ind)%r
+                ind=first_atom-1+lcolv(kk)%colvar%xyz_outerdiag_param%i_atoms(2)
+                r_vals(4:6)=particle_set(ind)%r
+                lcolv(kk)%colvar%xyz_outerdiag_param%r0(:,1)=r_vals(1:3)
+                lcolv(kk)%colvar%xyz_outerdiag_param%r0(:,2)=r_vals(4:6)
+             END SELECT
+             CALL section_vals_val_set(colvar_func_info,"_DEFAULT_KEYWORD_",&
+                  i_rep_val=cind, r_vals_ptr=r_vals, error=error)
+          END IF
+       END IF
+       
+       ! Setup Colvar_old
        CALL colvar_clone(lcolv(kk)%colvar_old,lcolv(kk)%colvar,error=error)
+
        ! Check for consistency in the constraint definition
        IF  (ANY(lcolv(kk)%colvar%i_atom > last_atom).OR.&
             ANY(lcolv(kk)%colvar%i_atom < first_atom)) THEN
