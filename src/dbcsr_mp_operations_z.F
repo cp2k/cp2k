@@ -55,6 +55,8 @@
     IF (PRESENT (remainder_ptp)) remainder_collective = .NOT. remainder_ptp
     IF (PRESENT (no_hybrid)) no_h = no_hybrid
     all_group = dbcsr_mp_group (mp_env)
+    ! Don't use subcommunicators if they're not defined.
+    no_h = no_h .OR. .NOT. dbcsr_mp_has_subgroups (mp_env)
     subgrouped: IF (mp_env%mp%subgroups_defined .AND. .NOT. no_h) THEN
        mynode = dbcsr_mp_mynode (mp_env)
        numnodes = dbcsr_mp_numnodes (mp_env)
