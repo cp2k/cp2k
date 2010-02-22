@@ -24,7 +24,7 @@ MODULE qs_linres_atom_current
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
                                              current_gauge_r_and_step_func

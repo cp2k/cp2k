@@ -27,14 +27,14 @@ MODULE cp_dbcsr_output
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
-                                             dbcsr_get_info,&
-                                             dbcsr_get_matrix_type,&
-                                             dbcsr_get_num_blocks,&
-                                             dbcsr_iterator_blocks_left,&
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
+  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
+                                             dbcsr_get_info,&
+                                             dbcsr_get_matrix_type,&
+                                             dbcsr_get_num_blocks
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj,&
                                              dbcsr_type_antisymmetric,&

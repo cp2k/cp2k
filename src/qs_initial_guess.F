@@ -31,17 +31,20 @@ MODULE qs_initial_guess
        cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE dbcsr_dist_operations,           ONLY: dbcsr_create_dist_r_unrot
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_get_num_blocks, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_row_block_sizes
+       dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
                                              dbcsr_obj
-  USE dbcsr_util,                      ONLY: dbcsr_create_dist_r_unrot
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
   USE f77_blas

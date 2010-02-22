@@ -37,6 +37,7 @@ MODULE qs_mo_methods
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
@@ -48,7 +49,6 @@ MODULE qs_mo_methods
                                              dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default
-  USE dbcsr_util,                      ONLY: create_bl_distribution
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max

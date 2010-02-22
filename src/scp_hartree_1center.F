@@ -22,7 +22,7 @@ MODULE  scp_hartree_1center
        cp_dbcsr_sum_replicated, dbcsr_allocate_matrix_set, &
        dbcsr_deallocate_matrix_set, dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size

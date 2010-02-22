@@ -42,10 +42,10 @@ MODULE dkh_main
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
                                              dbcsr_distribution_release
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes

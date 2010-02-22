@@ -22,15 +22,15 @@ MODULE qs_ot
        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_release_p, &
        cp_dbcsr_scale, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
        cp_dbcsr_transposed
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_get_info,&
-                                             dbcsr_iterator_blocks_left,&
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_get_info
   USE dbcsr_operations,                ONLY: dbcsr_frobenius_norm,&
-                                             dbcsr_gershgorin_norm,&
-                                             dbcsr_get_block_p
+                                             dbcsr_gershgorin_norm
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE f77_blas

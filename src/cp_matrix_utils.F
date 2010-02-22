@@ -17,7 +17,7 @@ MODULE cp_matrix_utils
   USE cp_array_utils,                  ONLY: cp_2d_r_write
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_add_local_block
-  USE dbcsr_methods,                   ONLY: dbcsr_iterator_blocks_left,&
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop

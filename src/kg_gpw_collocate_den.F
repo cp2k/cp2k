@@ -26,9 +26,9 @@ MODULE kg_gpw_collocate_den
                                              dbcsr_from_sm,&
                                              sm_from_dbcsr
   USE cube_utils,                      ONLY: cube_info_type
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&

@@ -19,7 +19,7 @@ MODULE core_ppnl
                                              gto_basis_set_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
                                              dbcsr_obj_p_type
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE kinds,                           ONLY: dp

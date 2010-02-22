@@ -30,7 +30,7 @@ MODULE kg_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&

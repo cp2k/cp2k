@@ -74,6 +74,7 @@ MODULE qs_scf
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
+  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
   USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
                                              dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
@@ -87,7 +88,6 @@ MODULE qs_scf
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: create_bl_distribution
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE harris_env_types,                ONLY: harris_env_type

@@ -24,11 +24,11 @@ MODULE task_list_methods
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
+                                             dbcsr_put_block
   USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
                                              dbcsr_get_info,&
                                              dbcsr_row_block_sizes
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p,&
-                                             dbcsr_put_block
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE f77_blas

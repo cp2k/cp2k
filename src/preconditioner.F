@@ -44,21 +44,25 @@ MODULE preconditioner
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
+                                             dbcsr_get_block_p,&
+                                             dbcsr_put_block
+  USE dbcsr_dist_operations,           ONLY: dbcsr_create_dist_r_unrot,&
+                                             dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
        dbcsr_distribution_release, dbcsr_get_info, dbcsr_get_occupation, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_nblkcols_local, &
-       dbcsr_nblkrows_local, dbcsr_nblkrows_total, dbcsr_row_block_sizes, &
-       dbcsr_uses_special_memory
+       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_nblkcols_local, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
+       dbcsr_row_block_sizes, dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: block_add_on_diag_d,&
                                              block_chol_inv_d,&
-                                             dbcsr_get_block,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_put_block,&
                                              dbcsr_scale
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
@@ -68,8 +72,6 @@ MODULE preconditioner
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_default
-  USE dbcsr_util,                      ONLY: dbcsr_create_dist_r_unrot,&
-                                             dbcsr_get_stored_coordinates
   USE input_constants,                 ONLY: &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_s_inverse, &

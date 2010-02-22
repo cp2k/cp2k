@@ -13,12 +13,12 @@ MODULE mulliken
   USE cp_control_types,                ONLY: mulliken_restraint_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
-                                             dbcsr_iterator_blocks_left,&
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
+  USE dbcsr_methods,                   ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE f77_blas

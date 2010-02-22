@@ -20,6 +20,7 @@ MODULE dbcsr_tests
                                              array_release,&
                                              array_size
   USE cp_dbcsr_operations,             ONLY: dbcsr_multiply
+  USE dbcsr_block_access
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
@@ -35,8 +36,11 @@ MODULE dbcsr_tests
                                              mp_sync
   USE dbcsr_methods
   USE dbcsr_operations
+  USE dbcsr_ptr_util
+  USE dbcsr_transformations
   USE dbcsr_types
   USE dbcsr_util
+  USE dbcsr_work_operations
   USE kinds,                           ONLY: dp,&
                                              int_8,&
                                              real_8

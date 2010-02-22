@@ -38,10 +38,23 @@ MODULE cp_dbcsr_operations
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
+                                             dbcsr_get_block_p,&
+                                             dbcsr_get_tmp_block2d,&
+                                             dbcsr_put_block,&
+                                             dbcsr_remove_block,&
+                                             dbcsr_reserve_block2d
+  USE dbcsr_dist_operations
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
+  USE dbcsr_index_operations,          ONLY: dbcsr_make_index_canonical
+  USE dbcsr_io
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
        dbcsr_distribution, dbcsr_distribution_col_dist, &
@@ -54,25 +67,16 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_size, dbcsr_get_data_type, &
        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, dbcsr_init_p, &
-       dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_mp_get_coordinates, &
-       dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_mp_release, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_release_p, &
-       dbcsr_row_block_sizes, dbcsr_scalar, dbcsr_scalar_are_equal, &
-       dbcsr_scalar_one, dbcsr_scalar_zero, dbcsr_valid_index
-  USE dbcsr_operations,                ONLY: &
-       block_set_d, dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, &
-       dbcsr_complete_redistribute, dbcsr_conjg, dbcsr_copy, &
-       dbcsr_distribute, dbcsr_filter, dbcsr_get_block, dbcsr_get_block_diag, &
-       dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_tmp_block2d, &
-       dbcsr_hadamard_product, dbcsr_mult_m_e_e, dbcsr_new_transposed, &
-       dbcsr_norm, dbcsr_put_block, dbcsr_remove_block, dbcsr_replace_blocks, &
-       dbcsr_replicate_all, dbcsr_reserve_block2d, dbcsr_scale, &
-       dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, &
-       dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_may_be_dense, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
+       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_scalar, &
+       dbcsr_scalar_are_equal, dbcsr_scalar_one, dbcsr_scalar_zero, &
+       dbcsr_valid_index
+  USE dbcsr_operations
+  USE dbcsr_transformations
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
@@ -80,16 +84,16 @@ MODULE cp_dbcsr_operations
        dbcsr_obj, dbcsr_scalar_type, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: &
-       add_work_coordinate, convert_sizes_to_offsets, create_bl_distribution, &
-       dbcsr_add_wm_from_matrix, dbcsr_checksum, dbcsr_create, &
-       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_elemental, &
-       dbcsr_create_dist_fullest, dbcsr_create_dist_r_rot, &
-       dbcsr_create_dist_r_unrot, dbcsr_create_image_dist, dbcsr_finalize, &
-       dbcsr_get_stored_coordinates, dbcsr_make_dense, dbcsr_make_images, &
-       dbcsr_make_images_dense, dbcsr_make_index_canonical, &
-       dbcsr_make_undense, dbcsr_may_be_dense, dbcsr_print, dbcsr_set_debug, &
-       dbcsr_verify_matrix, dbcsr_work_create, swap
+  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
+                                             dbcsr_checksum,&
+                                             dbcsr_set_debug,&
+                                             dbcsr_verify_matrix,&
+                                             swap
+  USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
+                                             dbcsr_add_wm_from_matrix,&
+                                             dbcsr_create,&
+                                             dbcsr_finalize,&
+                                             dbcsr_work_create
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
   USE kinds,                           ONLY: default_string_length,&

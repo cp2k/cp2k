@@ -28,14 +28,11 @@ MODULE dbcsr_methods
                                              btree_new_s => btree_new
   USE btree_I8_k_zp2d_v,               ONLY: btree_destroy_z => btree_delete,&
                                              btree_new_z => btree_new
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_error_type,&
-                                             dbcsr_failure_level,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
-                                             dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: &
+       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              real_4,&
                                              real_8
@@ -45,25 +42,34 @@ MODULE dbcsr_methods
                                              mp_comm_free,&
                                              mp_deallocate,&
                                              mp_sum
+  USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_obj, dbcsr_2d_array_obj, dbcsr_2d_array_type, &
        dbcsr_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_magic_number, &
-       dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, dbcsr_scalar_type, &
-       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_imagedistribution_type, dbcsr_magic_number, dbcsr_mp_obj, &
+       dbcsr_mutable_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_type, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
-       dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_symmetric
+       dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_symmetric, &
+       dbcsr_work_type
   USE f77_blas
   USE f77_blas_generic
 
   !$ USE OMP_LIB
   IMPLICIT NONE
 
+  PRIVATE
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_methods'
 
-  PUBLIC :: dbcsr_init, dbcsr_init_p, dbcsr_hold, dbcsr_release, dbcsr_release_p, dbcsr_destroy,&
-            dbcsr_valid_index, dbcsr_is_initialized
+  ! Workaround for Intel MPI.
+  LOGICAL, PARAMETER, PRIVATE :: use_subcommunicators = .FALSE.
+
+
+  PUBLIC :: dbcsr_init, dbcsr_init_p
+  PUBLIC :: dbcsr_hold, dbcsr_release, dbcsr_release_p, dbcsr_destroy
+  PUBLIC :: dbcsr_valid_index, dbcsr_is_initialized
   PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release
@@ -91,18 +97,18 @@ MODULE dbcsr_methods
             dbcsr_max_row_size, dbcsr_max_col_size,&
             dbcsr_uses_special_memory, dbcsr_get_occupation,&
             dbcsr_is_real, dbcsr_is_complex,&
-            dbcsr_name
+            dbcsr_name, dbcsr_may_be_dense,&
+            dbcsr_use_mutable, dbcsr_wm_use_mutable
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
-            dbcsr_data_release, dbcsr_data_copyall, dbcsr_get_data_size,&
-            dbcsr_data_set_pointer, dbcsr_data_area, dbcsr_data_convert,&
+            dbcsr_data_release, dbcsr_get_data_size,&
+            dbcsr_data_set_pointer, dbcsr_data_area,&
             dbcsr_data_clear_pointer, dbcsr_data_set_2d_pointer,&
-            dbcsr_data_clear_2d_pointer
+            dbcsr_data_clear_2d_pointer, dbcsr_data_ensure_size
   PUBLIC :: dbcsr_get_num_blocks
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
             dbcsr_get_data_p_d, dbcsr_get_data_p_z
 
-  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_next_block,&
-            dbcsr_iterator_stop, dbcsr_iterator_blocks_left,    iterator_next_2d_block_d
+  PUBLIC :: dbcsr_blk_row_size, dbcsr_blk_column_size
 
   PUBLIC :: dbcsr_allocate_matrix_array, dbcsr_array_new, dbcsr_array_put,&
             dbcsr_array_get, dbcsr_array_destroy, dbcsr_array_hold,&
@@ -117,17 +123,6 @@ MODULE dbcsr_methods
 
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
 
-  PRIVATE
-
-  ! Workaround for Intel MPI.
-  LOGICAL, PARAMETER, PRIVATE :: use_subcommunicators = .FALSE.
-
-#define DBG IF (dbg) WRITE(*,*)routineN//" ",
-#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
-#define DBGI IF (info) WRITE(*,*)routineN//" ",
-#define DEBUG_HEADER        LOGICAL :: dbg, info
-#define DEBUG_BODY        dbg = .FALSE. ; CALL cp_dbcsr_set_debug(dbg, info=info)
-#define DEBUG_BODYY       dbg = .TRUE. ; CALL cp_dbcsr_set_debug(dbg, info=info)
 
 
   INTERFACE dbcsr_init
@@ -190,17 +185,12 @@ MODULE dbcsr_methods
                       dbcsr_get_data_c_d, dbcsr_get_data_c_z
   END INTERFACE
 
-  INTERFACE dbcsr_iterator_next_block
-     MODULE PROCEDURE iterator_next_block_index,&
-                      iterator_next_area_block
-     MODULE PROCEDURE iterator_next_2d_block_d,&
-                      iterator_next_2d_block_s,&
-                      iterator_next_2d_block_c,&
-                      iterator_next_2d_block_z,&
-                      iterator_next_1d_block_d,&
-                      iterator_next_1d_block_s,&
-                      iterator_next_1d_block_c,&
-                      iterator_next_1d_block_z
+  INTERFACE dbcsr_blk_row_size
+     MODULE PROCEDURE dbcsr_blk_row_size_type, dbcsr_blk_row_size_obj
+  END INTERFACE
+
+  INTERFACE dbcsr_blk_column_size
+     MODULE PROCEDURE dbcsr_blk_column_size_type, dbcsr_blk_column_size_obj
   END INTERFACE
 
   INTERFACE pointer_rank_remap
@@ -241,6 +231,15 @@ MODULE dbcsr_methods
   INTERFACE dbcsr_destroy_array
      MODULE PROCEDURE dbcsr_destroy_2d_array, dbcsr_destroy_1d_array
   END INTERFACE
+
+
+#define DBG IF (dbg) WRITE(*,*)routineN//" ",
+#define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
+#define DBGI IF (info) WRITE(*,*)routineN//" ",
+#define DEBUG_HEADER        LOGICAL :: dbg, info
+#define DEBUG_BODY        dbg = .FALSE. ; CALL cp_dbcsr_set_debug(dbg, info=info)
+#define DEBUG_BODYY       dbg = .TRUE. ; CALL cp_dbcsr_set_debug(dbg, info=info)
+
 
 
 CONTAINS
@@ -1200,6 +1199,37 @@ CONTAINS
     name = matrix%m%name
   END FUNCTION dbcsr_name
 
+! *****************************************************************************
+!> \brief Returns whether this work matrix uses the mutable type
+!> \param[in] wm              work matrix
+!> \param[out] use_mutable    use the mutable and not append-only working
+!>                            structures
+! *****************************************************************************
+  PURE FUNCTION dbcsr_wm_use_mutable (wm) RESULT (use_mutable)
+    TYPE(dbcsr_work_type), INTENT(IN)        :: wm
+    LOGICAL                                  :: use_mutable
+
+!   ---------------------------------------------------------------------------
+
+    use_mutable = dbcsr_mutable_instantiated (wm%mutable)
+  END FUNCTION dbcsr_wm_use_mutable
+
+! *****************************************************************************
+!> \brief Returns whether work matrices should use the mutable data type
+!> \param[in] matrix          matrix
+!> \param[out] use_mutable    use the mutable and not append-only working
+!>                            structures
+! *****************************************************************************
+  PURE FUNCTION dbcsr_use_mutable (matrix) RESULT (use_mutable)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    LOGICAL                                  :: use_mutable
+
+!   ---------------------------------------------------------------------------
+
+    use_mutable = matrix%work_mutable
+  END FUNCTION dbcsr_use_mutable
+
+
   FUNCTION dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(array_i1d_obj)                      :: row_blk_sizes
@@ -1321,6 +1351,82 @@ CONTAINS
     IF (PRESENT (my_pcol)) &
        my_pcol = dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%m%dist))
   END SUBROUTINE dbcsr_get_info
+
+! *****************************************************************************
+!> \brief Returns whether the matrix could be represeneted in a dense form
+!> \param[in] matrix          matrix
+!> \result may_be_dense    use the mutable and not append-only working
+!>                            structures
+! *****************************************************************************
+  FUNCTION dbcsr_may_be_dense (matrix) RESULT (may_be_dense)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    LOGICAL                                  :: may_be_dense
+
+    INTEGER                                  :: local_dense
+
+!   ---------------------------------------------------------------------------
+!may_be_dense = matrix%nblks .EQ. &
+!     matrix%nblkrows_local * matrix%nblkcols_local &
+!     .AND. &
+!     matrix%nze .EQ. &
+!     matrix%nfullrows_local * matrix%nfullcols_local &
+!     .AND. &
+!     matrix%matrix_type .EQ. dbcsr_type_normal
+
+    local_dense = matrix%nze
+    CALL mp_sum (local_dense, dbcsr_mp_group (dbcsr_distribution_mp (matrix%dist)))
+    may_be_dense = local_dense .EQ.&
+         matrix%nfullrows_total * matrix%nfullcols_total
+  END FUNCTION dbcsr_may_be_dense
+
+
+
+! *****************************************************************************
+!> \brief Returns the blocked row size of a row
+!>
+!> This routine is optimized for speed and no checks are performed.
+!> \param[in] matrix          DBCSR matrix
+!> \param[in] row             row number  
+!> \retval row_size           blocked row size
+! *****************************************************************************
+  PURE FUNCTION dbcsr_blk_row_size_type (matrix, row) RESULT (row_size)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER, INTENT(IN)                      :: row
+    INTEGER                                  :: row_size
+
+    row_size = matrix%row_blk_size%low%data(row)
+  END FUNCTION dbcsr_blk_row_size_type
+  PURE FUNCTION dbcsr_blk_row_size_obj (matrix, row) RESULT (row_size)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(IN)                      :: row
+    INTEGER                                  :: row_size
+
+    row_size = matrix%m%row_blk_size%low%data(row)
+  END FUNCTION dbcsr_blk_row_size_obj
+
+! *****************************************************************************
+!> \brief Returns the blocked column size of a column
+!>
+!> This routine is optimized for speed and no checks are performed.
+!> \param[in] matrix          DBCSR matrix
+!> \param[in] column          column number  
+!> \retval column_size        blocked row size
+! *****************************************************************************
+  PURE FUNCTION dbcsr_blk_column_size_type (matrix, column) RESULT (column_size)
+    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+    INTEGER, INTENT(IN)                      :: column
+    INTEGER                                  :: column_size
+
+    column_size = matrix%col_blk_size%low%data(column)
+  END FUNCTION dbcsr_blk_column_size_type
+  PURE FUNCTION dbcsr_blk_column_size_obj (matrix, column) RESULT (column_size)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(IN)                      :: column
+    INTEGER                                  :: column_size
+
+    column_size = matrix%m%col_blk_size%low%data(column)
+  END FUNCTION dbcsr_blk_column_size_obj
+
 
 
 ! Data type transformations
@@ -1851,235 +1957,6 @@ CONTAINS
   END FUNCTION get_data_size_matrix
 
 
-! *****************************************************************************
-!> \brief Copies a data area, deep by default.
-!> \param[inout] target_area     target data area
-!> \param[in]    source_area     source data area
-!> \param[in]    shallow      shallow copy (default is deep)
-! *****************************************************************************
-  SUBROUTINE dbcsr_data_copyall (target_area, source_area, shallow)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: target_area
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: source_area
-    LOGICAL, INTENT(IN), OPTIONAL            :: shallow
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copyall', &
-      routineP = moduleN//':'//routineN
-
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: s_data_c, t_data_c
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: s_data_z, t_data_z
-    INTEGER                                  :: n
-    LOGICAL                                  :: shallow_copy
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: s_data_r, t_data_r
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: s_data_d, t_data_d
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_warning_level,&
-         dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__,error)
-    CALL dbcsr_assert (source_area%d%refcount .GT. 0, dbcsr_warning_level,&
-         dbcsr_caller_error, routineN, "Attempt to copy unheld data",__LINE__,error)
-    shallow_copy = .FALSE.
-    IF (PRESENT (shallow)) shallow_copy = shallow
-    IF (shallow_copy) THEN
-       target_area = source_area
-       CALL dbcsr_data_hold (target_area)
-    ELSE
-       IF (.NOT. ASSOCIATED (source_area%d)) THEN
-          RETURN
-       ENDIF
-       SELECT CASE (source_area%d%data_type)
-          CASE (dbcsr_type_real_8)
-             n = dbcsr_get_data_size (source_area)
-             CALL dbcsr_get_data (target_area, t_data_d)
-             CALL dbcsr_get_data (source_area, s_data_d)
-             IF(n.GT.0)t_data_d(1:n) = s_data_d(1:n)
-          CASE (dbcsr_type_real_4)
-             n = dbcsr_get_data_size (source_area)
-             CALL dbcsr_get_data (target_area, t_data_r)
-             CALL dbcsr_get_data (source_area, s_data_r)
-             IF(n.GT.0)t_data_r(1:n) = s_data_r(1:n)
-          CASE (dbcsr_type_complex_8)
-             n = dbcsr_get_data_size (source_area)
-             CALL dbcsr_get_data (target_area, t_data_z)
-             CALL dbcsr_get_data (source_area, s_data_z)
-             IF(n.GT.0)t_data_z(1:n) = s_data_z(1:n)
-          CASE (dbcsr_type_complex_4)
-             n = dbcsr_get_data_size (source_area)
-             CALL dbcsr_get_data (target_area, t_data_c)
-             CALL dbcsr_get_data (source_area, s_data_c)
-             IF(n.GT.0)t_data_c(1:n) = s_data_c(1:n)
-          CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__,error)
-          END SELECT
-    ENDIF
-    ! If we're releasing the last reference, then free the memory.
-  END SUBROUTINE dbcsr_data_copyall
-
-! *****************************************************************************
-!> \brief Copies a data area, converting data type
-!> \param[inout] target_area     target data area
-!> \param[in]    source_area     source data area
-!> \param[in]    drop_real       (optional) drops real part of complex
-!>                               numbers instead of the imaginary part; default
-!>                               is false
-!> \param[in]    multiply_by_i   (optional) converts real to complex by placing
-!>                               into imaginary instead of real part
-! *****************************************************************************
-  SUBROUTINE dbcsr_data_convert (target_area, source_area, drop_real,&
-       multiply_by_i)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: target_area
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: source_area
-    LOGICAL, INTENT(IN), OPTIONAL            :: drop_real, multiply_by_i
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_convert', &
-      routineP = moduleN//':'//routineN
-
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: s_data_c, t_data_c
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: s_data_z, t_data_z
-    INTEGER                                  :: n, ns, nt
-    LOGICAL                                  :: keep_real, noimult
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: s_data_r, t_data_r
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: s_data_d, t_data_d
-    TYPE(dbcsr_error_type)                   :: error
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_warning_level,&
-         dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__,error)
-    CALL dbcsr_assert (source_area%d%refcount .GT. 0, dbcsr_warning_level,&
-         dbcsr_caller_error, routineN, "Attempt to copy unheld data",__LINE__,error)
-    IF (.NOT. ASSOCIATED (source_area%d)) THEN
-       RETURN
-    ENDIF
-    keep_real = .TRUE.
-    IF (PRESENT (drop_real)) keep_real = .NOT. drop_real
-    noimult = .FALSE.
-    IF (PRESENT (multiply_by_i)) noimult = .NOT. multiply_by_i
-    ns = dbcsr_get_data_size (source_area)
-    nt = dbcsr_get_data_size (source_area)
-    n = MIN (ns, nt)
-    IF (n .GT. 0) THEN
-       SELECT CASE (source_area%d%data_type)
-       CASE (dbcsr_type_real_8)
-          CALL dbcsr_get_data (source_area, s_data_d)
-          SELECT CASE (target_area%d%data_type)
-          CASE(dbcsr_type_real_8)
-             CALL dbcsr_get_data (target_area, t_data_d)
-             t_data_d(1:n) = s_data_d(1:n)
-          CASE(dbcsr_type_real_4)
-             CALL dbcsr_get_data (target_area, t_data_r)
-             t_data_r(1:n) = REAL(s_data_d(1:n), KIND=real_4)
-          CASE(dbcsr_type_complex_8)
-             CALL dbcsr_get_data (target_area, t_data_z)
-             IF (noimult) THEN
-                t_data_z(1:n) = CMPLX(s_data_d(1:n), KIND=real_8)
-             ELSE
-                t_data_z(1:n) = CMPLX(0.0, s_data_d(1:n), KIND=real_8)
-             ENDIF
-          CASE(dbcsr_type_complex_4)
-             CALL dbcsr_get_data (target_area, t_data_c)
-             IF (noimult) THEN
-                t_data_c(1:n) = CMPLX(s_data_d(1:n), KIND=real_8)
-             ELSE
-                t_data_c(1:n) = CMPLX(0.0, s_data_d(1:n), KIND=real_8)
-             ENDIF
-          CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__,error)
-          END SELECT
-       CASE (dbcsr_type_real_4)
-          CALL dbcsr_get_data (source_area, s_data_r)
-          SELECT CASE (target_area%d%data_type)
-          CASE(dbcsr_type_real_8)
-             CALL dbcsr_get_data (target_area, t_data_d)
-             t_data_d(1:n) = REAL(s_data_r(1:n), KIND=real_8)
-          CASE(dbcsr_type_real_4)
-             CALL dbcsr_get_data (target_area, t_data_r)
-             t_data_r(1:n) = s_data_r(1:n)
-          CASE(dbcsr_type_complex_8)
-             CALL dbcsr_get_data (target_area, t_data_z)
-             IF (noimult) THEN
-                t_data_z(1:n) = CMPLX(s_data_r(1:n), KIND=real_8)
-             ELSE
-                t_data_z(1:n) = CMPLX(0.0, s_data_r(1:n), KIND=real_8)
-             ENDIF
-          CASE(dbcsr_type_complex_4)
-             CALL dbcsr_get_data (target_area, t_data_c)
-             IF (noimult) THEN
-                t_data_c(1:n) = CMPLX(s_data_r(1:n), KIND=real_8)
-             ELSE
-                t_data_c(1:n) = CMPLX(0.0, s_data_r(1:n), KIND=real_8)
-             ENDIF
-          CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__,error)
-          END SELECT
-       CASE (dbcsr_type_complex_8)
-          CALL dbcsr_get_data (source_area, s_data_z)
-          SELECT CASE (target_area%d%data_type)
-          CASE(dbcsr_type_real_8)
-             CALL dbcsr_get_data (target_area, t_data_d)
-             IF (keep_real) THEN
-                t_data_d(1:n) = REAL(s_data_z(1:n), KIND=real_8)
-             ELSE
-                t_data_d(1:n) = AIMAG(s_data_z(1:n))
-             ENDIF
-          CASE(dbcsr_type_real_4)
-             CALL dbcsr_get_data (target_area, t_data_r)
-             IF (keep_real) THEN
-                t_data_r(1:n) = REAL(s_data_z(1:n), KIND=real_4)
-             ELSE
-                t_data_r(1:n) = REAL(AIMAG (s_data_z(1:n)), KIND=real_4)
-             ENDIF
-          CASE(dbcsr_type_complex_8)
-             CALL dbcsr_get_data (target_area, t_data_z)
-             t_data_z(1:n) = s_data_z(1:n)
-          CASE(dbcsr_type_complex_4)
-             CALL dbcsr_get_data (target_area, t_data_c)
-             t_data_c(1:n) = CMPLX(s_data_z(1:n), KIND=real_8)
-          CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__,error)
-          END SELECT
-       CASE (dbcsr_type_complex_4)
-          CALL dbcsr_get_data (source_area, s_data_c)
-          SELECT CASE (target_area%d%data_type)
-          CASE(dbcsr_type_real_8)
-             CALL dbcsr_get_data (target_area, t_data_d)
-             IF (keep_real) THEN
-                t_data_d(1:n) = REAL(s_data_c(1:n), KIND=real_8)
-             ELSE
-                t_data_d(1:n) = REAL(AIMAG(s_data_c(1:n)), KIND=real_8)
-             ENDIF
-          CASE(dbcsr_type_real_4)
-             CALL dbcsr_get_data (target_area, t_data_r)
-             IF (keep_real) THEN
-                t_data_r(1:n) = REAL(s_data_c(1:n), KIND=real_4)
-             ELSE
-                t_data_r(1:n) = AIMAG(s_data_c(1:n))
-             ENDIF
-          CASE(dbcsr_type_complex_8)
-             CALL dbcsr_get_data (target_area, t_data_z)
-             t_data_z(1:n) = CMPLX(s_data_c(1:n), KIND=real_8)
-          CASE(dbcsr_type_complex_4)
-             CALL dbcsr_get_data (target_area, t_data_c)
-             t_data_c(1:n) = s_data_c(1:n)
-          CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__,error)
-          END SELECT
-       CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-               routineN, "Invalid data type",__LINE__,error)
-       END SELECT
-    ENDIF
-  END SUBROUTINE dbcsr_data_convert
 
 ! *****************************************************************************
 !> \brief Returns an encapsulated scalar "1"
@@ -2223,418 +2100,6 @@ CONTAINS
   END FUNCTION dbcsr_get_occupation
 
 
-! *****************************************************************************
-! Iterator functions
-! *****************************************************************************
-
-
-! *****************************************************************************
-!> \brief Sets up an iterator
-!> \param[out] iterator   the iterator
-!> \param[in] matrix      DBCSR matrix
-!> \param[in] shared      (optional) Threads do not iterator through
-!>                        the same matrix in a multi-threaded
-!>                        environment; default is TRUE.
-!> \param[in] contiguous_pointers  (optional) Whether returned pointers need
-!>                                 to be contiguous; default is FALSE.
-!>
-!> Contiguous pointers may incur reallocation penalties but enable quick
-!> passing of arrays to routines with unspecified interfaces (i.e., direct
-!> calls to BLACS or MPI).
-! *****************************************************************************
-  SUBROUTINE dbcsr_iterator_start (iterator, matrix, shared,&
-       contiguous_pointers)
-    TYPE(dbcsr_iterator), INTENT(OUT)        :: iterator
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: shared, contiguous_pointers
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ithread, max_c_size, &
-                                                max_r_size, max_size
-    LOGICAL                                  :: share
-
-!   ---------------------------------------------------------------------------
-
-    share = .TRUE.
-    IF (PRESENT (shared)) share = shared
-    share = share .AND.&
-         array_size (dbcsr_distribution_thread_dist (matrix%m%dist)) .GT. 0
-    iterator%shared = share
-    IF (PRESENT (contiguous_pointers)) THEN
-       iterator%contiguous_pointers = contiguous_pointers
-    ELSE
-       iterator%contiguous_pointers = .FALSE.
-    ENDIF
-    iterator%row = 0
-    iterator%pos = 0
-    iterator%rbs => array_data (matrix%m%row_blk_size)
-    iterator%cbs => array_data (matrix%m%col_blk_size)
-    iterator%roff => array_data (matrix%m%row_blk_offset)
-    iterator%coff => array_data (matrix%m%col_blk_offset)
-
-    iterator%nblks = matrix%m%nblks
-    iterator%nblkrows_total = matrix%m%nblkrows_total
-    iterator%max_r_size = matrix%m%max_rbs
-    iterator%max_c_size = matrix%m%max_cbs
-
-    ! Can't do that because fortran forces us lose the matrix reference.
-    !CALL dbcsr_hold (matrix)
-    iterator%row_p => matrix%m%row_p
-    iterator%col_i => matrix%m%col_i
-    iterator%blk_p => matrix%m%blk_p
-    iterator%data_area = matrix%m%data_area
-    CALL dbcsr_data_hold (iterator%data_area)
-    iterator%row_size = 0
-    IF (iterator%shared) THEN
-       iterator%tdist => array_data (dbcsr_distribution_thread_dist (matrix%m%dist))
-    ELSE
-       NULLIFY (iterator%tdist)
-    ENDIF
-    IF (matrix%m%nblks .GE. 1) THEN
-       iterator%row = 1
-       iterator%pos = 1
-       IF (.NOT. iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
-       IF (iterator%row .GT. 0) THEN
-          iterator%row_size = iterator%rbs(iterator%row)
-          iterator%row_offset = iterator%roff(iterator%row)
-          max_r_size = iterator%max_r_size
-          max_c_size = iterator%max_c_size
-       ENDIF
-    ENDIF
-    max_size = MAX (matrix%m%max_rbs, matrix%m%max_cbs)
-    CALL dbcsr_data_init(iterator%buffer_2d)
-    CALL dbcsr_data_new(iterator%buffer_2d,&
-         dbcsr_get_data_type(matrix),&
-         max_size, max_size)
-    !CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_iterator_start
-
-! *****************************************************************************
-!> \brief Stops up an iterator
-!> \param[out] iterator   the iterator
-!> \param[in] matrix      DBCSR matrix
-! *****************************************************************************
-  SUBROUTINE dbcsr_iterator_stop (iterator)
-    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_stop', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-!CALL dbcsr_release (iterator%matrix)
-
-    iterator%row = 0
-    iterator%pos = 0
-
-    CALL dbcsr_data_release (iterator%buffer_2d)
-    NULLIFY (iterator%tdist)
-    !CALL dbcsr_release (iterator%matrix)
-    CALL dbcsr_data_release (iterator%data_area)
-  END SUBROUTINE dbcsr_iterator_stop
-
-
-! *****************************************************************************
-!> \brief Finds the first valid block, inclusive from the current position.
-!>
-!> If there is no valid block, pos is set to 0
-!> \param[in,out] pos        input: current position; output: next valid
-!>                           position or 0
-!> \param[in] maxpos         maximal allowed position
-!> \param[in] blk_p          block pointers, used to check validity
-! *****************************************************************************
-  PURE SUBROUTINE find_first_valid_block (pos, maxpos, blk_p)
-    INTEGER, INTENT(INOUT)                   :: pos
-    INTEGER, INTENT(IN)                      :: maxpos
-    INTEGER, DIMENSION(1:maxpos), INTENT(IN) :: blk_p
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'find_first_valid_block', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    IF (pos .LT. 1) pos = 1
-    DO WHILE (pos .LE. maxpos)
-       IF (blk_p(pos) .EQ. 0) THEN
-          !WRITE(*,*)routineN//" Skipping deleted block."
-          pos = pos+1
-       ELSE
-          EXIT
-       ENDIF
-    ENDDO
-    IF (pos .GT. maxpos) pos = 0
-  END SUBROUTINE find_first_valid_block
-
-! *****************************************************************************
-!> \brief Finds the row to which the current block belongs
-!>
-!> If there is no valid block, pos is set to 0
-!> \param[in pos             current position
-!> \param[in,out] row        input: current row; output: the row corresponding
-!>                           to the position
-!> \param[in] maxrows        maxmimum row
-!> \param[in] row_p          row pointers
-! *****************************************************************************
-  PURE SUBROUTINE find_proper_row (pos, row, maxrows, row_p)
-    INTEGER, INTENT(IN)                      :: pos
-    INTEGER, INTENT(INOUT)                   :: row
-    INTEGER, INTENT(IN)                      :: maxrows
-    INTEGER, DIMENSION(1:maxrows+1), &
-      INTENT(IN)                             :: row_p
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'find_proper_row', &
-      routineP = moduleN//':'//routineN
-
-!   ---------------------------------------------------------------------------
-
-    IF (pos .GT. 0) THEN
-       IF (row .LT. 1) THEN
-          row = 1
-       ELSEIF (row .GT. maxrows) THEN
-          row = maxrows
-       ENDIF
-       DO WHILE (row_p(row+1) .LT. pos)
-          row = row+1
-          IF (row .GT. maxrows) THEN
-             row = 0
-             EXIT
-          ENDIF
-       ENDDO
-    ELSE
-       row = 0
-    ENDIF
-  END SUBROUTINE find_proper_row
-
-! *****************************************************************************
-!> \brief Finds the next proper position accounting for threads
-!>
-!> First time: pos and row are set to 0.
-!> If there is no valid block, pos is set to 0
-!> \param[inout] pos         current position and updated position
-!> \param[in,out] row        input: current row; output: the row corresponding
-!>                           to the next proper position
-!> \param[in] maxpos         maximum allowable position
-!> \param[in] maxrows        maxmimum row
-!> \param[in] blk_p          block pointercs
-!> \param[in] row_p          row pointers
-!> \param[in] tdist          (optional) thread distribution
-!> \param[in] tid            my thread number
-! *****************************************************************************
-  PURE SUBROUTINE find_proper_position (pos, row, maxpos, maxrows,&
-       blk_p, row_p, tdist, tid)
-    INTEGER, INTENT(INOUT)                   :: pos, row
-    INTEGER, INTENT(IN)                      :: maxpos, maxrows
-    INTEGER, DIMENSION(1:maxpos), INTENT(IN) :: blk_p
-    INTEGER, DIMENSION(1:maxrows+1), &
-      INTENT(IN)                             :: row_p
-    INTEGER, DIMENSION(1:maxrows), &
-      INTENT(IN), OPTIONAL                   :: tdist
-    INTEGER, INTENT(IN), OPTIONAL            :: tid
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'find_proper_position', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: row_inrange, row_ok
-
-!   ---------------------------------------------------------------------------
-
-    IF (maxpos .GE. 1) THEN
-       IF (pos.EQ.0) pos = 1
-       CALL find_first_valid_block (pos, maxpos, blk_p)
-       CALL find_proper_row(pos, row, maxrows, row_p)
-       row_inrange = row .NE. 0 .AND. row .LE. maxrows
-       row_ok = row_inrange
-!$     IF (present (tdist) .AND. PRESENT (tid) .AND. row_inrange) THEN
-!$        row_ok = tdist(row) .EQ. tid
-!$     ENDIF
-       DO WHILE (row_inrange .AND. .NOT. row_ok)
-          row = row + 1
-          pos = row_p(row)+1
-          IF (row .GT. maxrows) THEN
-             row = 0
-             EXIT
-          ENDIF
-          CALL find_first_valid_block (pos, maxpos, blk_p)
-          CALL find_proper_row(pos, row, maxrows, row_p)
-          row_inrange = row .NE. 0
-          row_ok = row_inrange
-!$     IF (present (tdist) .AND. PRESENT (tid) .AND. row_inrange) THEN
-!$        row_ok = tdist(row) .EQ. tid
-!$     ENDIF
-       ENDDO
-       IF (row .EQ. 0) pos = 0
-    ELSE
-       pos = 0
-       row = 0
-    ENDIF
-  END SUBROUTINE find_proper_position
-
-! *****************************************************************************
-!> \brief Gets the index information of the next block, no data.
-!> \param[in,out] iterator   the iterator
-!> \param[out] row           row of the data block
-!> \param[out] column        column of the data block
-!> \param[out] blk           block number
-!> \param[out] transposed    (optional) whether block is transposed
-!> \param[out] blk_p         (optional) index into block data array
-!> \param[out] row_size      (optional) logical row size of block
-!> \param[out] col_size      (optional) logical column size of block
-!> \param[out] row_offset    (optional) logical row offset of block
-!> \param[out] col_offset    (optional) logical column offset of block
-! *****************************************************************************
-  SUBROUTINE iterator_next_block_index (iterator, row, column, blk,&
-       transposed, blk_p, row_size, col_size, row_offset, col_offset)
-    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
-    INTEGER, INTENT(OUT)                     :: row, column, blk
-    LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
-    INTEGER, INTENT(OUT), OPTIONAL           :: blk_p, row_size, col_size, &
-                                                row_offset, col_offset
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_index', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: bp, ithread
-
-!   ---------------------------------------------------------------------------
-
-    IF (iterator%pos .LE. iterator%nblks&
-         .AND. iterator%pos .NE. 0) THEN
-       row = iterator%row
-       column = iterator%col_i(iterator%pos)
-       blk = iterator%pos
-       IF (PRESENT (row_size)) row_size = iterator%row_size
-       IF (PRESENT (col_size)) col_size = iterator%cbs(column)
-       IF (PRESENT (row_offset)) row_offset = iterator%row_offset
-       IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
-       IF (PRESENT (blk_p) .OR. PRESENT (transposed)) THEN
-          bp = iterator%blk_p(iterator%pos)
-          IF (PRESENT (blk_p)) blk_p = bp
-          IF (PRESENT (transposed)) transposed = bp .LT. 0
-       ENDIF
-       iterator%pos = iterator%pos+1
-       IF (.NOT.iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
-       !CALL find_first_valid_block (iterator%pos, iterator%nblks,&
-       !     iterator%blk_p)
-       !CALL find_proper_row (iterator%pos, iterator%row,&
-       !     iterator%nblkrows_total, iterator%row_p)
-       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
-       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
-    ELSE
-       row = 0
-       column = 0
-    ENDIF
-    
-  END SUBROUTINE iterator_next_block_index
-
-! *****************************************************************************
-!> \brief Gets the next data block encapsulated in an object.
-!> \param[in,out] iterator   the iterator
-!> \param[out] row           row of the data block
-!> \param[out] column        column of the data block
-!> \param[out] block         encapsulated data
-!> \param[out] transposed    whether the block data is transposed
-!> \param[out] block_number  (optional) block number
-!> \param[out] row_size      (optional) logical row size of block
-!> \param[out] col_size      (optional) logical column size of block
-!> \param[out] row_offset    (optional) logical row offset of block
-!> \param[out] col_offset    (optional) logical column offset of block
-! *****************************************************************************
-  SUBROUTINE iterator_next_area_block (iterator, row, column, block,&
-       transposed, block_number, row_size, col_size, row_offset, col_offset)
-    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
-    INTEGER, INTENT(OUT)                     :: row, column
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
-    INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
-                                                col_size, row_offset, &
-                                                col_offset
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_area_block', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize
-
-!   ---------------------------------------------------------------------------
-
-    IF (iterator%pos .LE. iterator%nblks&
-         .AND. iterator%pos .NE. 0) THEN
-       row = iterator%row
-       column = iterator%col_i(iterator%pos)
-       blk_p = iterator%blk_p(iterator%pos)
-       transposed = blk_p .LT. 0
-       bp = ABS (blk_p)
-       rsize = iterator%row_size
-       csize = iterator%cbs(column)
-       nze = rsize * csize
-       IF (PRESENT (row_size)) row_size = rsize
-       IF (PRESENT (col_size)) col_size = csize
-       IF (PRESENT (row_offset)) row_offset = iterator%row_offset
-       IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
-       ! Redirect the encapsulated pointer to the correct pointer here.
-       CALL set_data_area_area (block, rsize, csize, iterator%data_area,&
-            source_lb=bp)
-       IF (PRESENT (block_number)) block_number = iterator%pos
-       ! Move to the next non-deleted position.
-       iterator%pos = iterator%pos+1
-       IF (.NOT. iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
-       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
-    ELSE
-       row = 0
-       column = 0
-       IF (PRESENT (block_number)) block_number = 0
-    ENDIF
-  END SUBROUTINE iterator_next_area_block
-
-
-
-! *****************************************************************************
-!> \brief Returns whether there any blocks left in the iterator.
-!> \param[in] iterator       the iterator
-!> \param[in]
-! *****************************************************************************
-  PURE FUNCTION dbcsr_iterator_blocks_left (iterator) RESULT (blocks_left)
-    TYPE(dbcsr_iterator), INTENT(IN)         :: iterator
-    LOGICAL                                  :: blocks_left
-
-    blocks_left = iterator%pos .NE. 0
-  END FUNCTION dbcsr_iterator_blocks_left
-
-
 
 ! *****************************************************************************
 !> \brief Points data area data pointers to another data area
@@ -2733,6 +2198,109 @@ CONTAINS
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
   END SUBROUTINE set_data_area_area
+
+
+! *****************************************************************************
+!> \brief Ensures a minimum size of a previously-setup data area.
+!>
+!> The data area must have been previously setup with dbcsr_data_new.
+!> \param[inout] area         data area
+!> \param[in] data_size       (optional) allocate this much data
+!> \param[in] nocopy          (optional) do not keep potentially existing data,
+!>                            default is to keep it
+!> \param[in] zero_pad        (optional) pad new data with zeros
+!> \param[in] factor          (optional) increase size by this factor
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad, factor, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, INTENT(IN), OPTIONAL            :: data_size
+    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, zero_pad
+    REAL, INTENT(IN), OPTIONAL               :: factor
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: current_size, error_handler
+    LOGICAL                                  :: nocp, pad
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Data area must be setup.",__LINE__,error)
+    current_size = dbcsr_get_data_size (area)
+    IF (current_size .GT. 1 .AND. current_size .GE. data_size) THEN
+       CALL dbcsr_error_stop(error_handler, error)
+       RETURN
+    ENDIF
+    !
+    nocp = .FALSE.
+    IF (PRESENT (nocopy)) nocp = nocopy
+    pad = .FALSE.
+    IF (PRESENT (zero_pad)) pad = zero_pad
+    !
+    SELECT CASE (area%d%data_type)
+    CASE (dbcsr_type_real_8)
+       IF (.NOT. ASSOCIATED (area%d%r_dp)) THEN
+          IF (area%d%special) THEN
+             CALL mp_allocate (area%d%r_dp, data_size)
+          ELSE
+             ALLOCATE (area%d%r_dp(data_size))
+          ENDIF
+          IF (pad) area%d%r_dp(:) = 0.0_real_8
+       ELSE
+          CALL ensure_array_size (area%d%r_dp, ub=data_size,&
+               special=area%d%special, nocopy=nocp, zero_pad=zero_pad,&
+               factor=factor,error=error)
+       ENDIF
+    CASE (dbcsr_type_real_4)
+       IF (.NOT. ASSOCIATED (area%d%r_sp)) THEN
+          IF (area%d%special) THEN
+             CALL mp_allocate (area%d%r_sp, data_size)
+          ELSE
+             ALLOCATE (area%d%r_sp(data_size))
+          ENDIF
+          IF (pad) area%d%r_sp(:) = 0.0_real_4
+       ELSE
+          CALL ensure_array_size (area%d%r_sp, ub=data_size,&
+               special=area%d%special, nocopy=nocp, zero_pad=zero_pad,&
+               factor=factor,error=error)
+       ENDIF
+    CASE (dbcsr_type_complex_8)
+       IF (.NOT. ASSOCIATED (area%d%c_dp)) THEN
+          IF (area%d%special) THEN
+             CALL mp_allocate (area%d%c_dp, data_size)
+          ELSE
+             ALLOCATE (area%d%c_dp(data_size))
+          ENDIF
+          IF (pad) area%d%c_dp(:) = 0.0_real_8
+       ELSE
+          CALL ensure_array_size (area%d%c_dp, ub=data_size,&
+               special=area%d%special, nocopy=nocp, zero_pad=zero_pad,&
+               factor=factor,error=error)
+       ENDIF
+    CASE (dbcsr_type_complex_4)
+       IF (.NOT. ASSOCIATED (area%d%c_sp)) THEN
+          IF (area%d%special) THEN
+             CALL mp_allocate (area%d%c_sp, data_size)
+          ELSE
+             ALLOCATE (area%d%c_sp(data_size))
+          ENDIF
+          IF (pad) area%d%c_sp(:) = 0.0_real_4
+       ELSE
+          CALL ensure_array_size (area%d%c_sp, ub=data_size,&
+               special=area%d%special, nocopy=nocp, zero_pad=zero_pad,&
+               factor=factor,error=error)
+       ENDIF
+    CASE default
+       CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
+            dbcsr_unimplemented_error_nr, routineN,&
+            "Invalid data type are supported",__LINE__,error)
+    END SELECT
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_ensure_size
+
 
 
 ! *****************************************************************************

@@ -1,77 +1,4 @@
 ! *****************************************************************************
-!> \brief Gets the next data block, single/double precision real/complex
-!> \param[in,out] iterator   the iterator
-!> \param[out] row           row of the data block
-!> \param[out] column        column of the data block
-!> \param[out] block         pointer to the data block
-!> \param[out] transposed    whether the block data is transposed
-!> \param[out] block_number  (optional) block number
-!> \param[out] row_size      (optional) logical row size of block
-!> \param[out] col_size      (optional) logical column size of block
-! *****************************************************************************
-  SUBROUTINE iterator_next_1d_block_d (iterator, row, column, block,&
-       transposed, block_number, row_size, col_size, row_offset, col_offset)
-    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
-    INTEGER, INTENT(OUT)                     :: row, column
-    REAL(kind=real_8), DIMENSION(:), POINTER :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
-    INTEGER, INTENT(OUT), OPTIONAL           :: block_number
-    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size,&
-         row_offset, col_offset
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_real(kind=real_8)', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize
-    REAL(kind=real_8), DIMENSION(:), POINTER :: rbp
-
-!   ---------------------------------------------------------------------------
-! If we're pointing to a valid block, return that block.
-
-
-    IF (iterator%pos .LE. iterator%nblks&
-         .AND. iterator%pos .NE. 0) THEN
-       row = iterator%row
-       column = iterator%col_i(iterator%pos)
-       blk_p = iterator%blk_p(iterator%pos)
-       transposed = blk_p .LT. 0
-       bp = ABS (blk_p)
-       rsize = iterator%row_size
-       csize = iterator%cbs(column)
-       nze = rsize * csize
-       IF (PRESENT (row_size)) row_size = rsize
-       IF (PRESENT (col_size)) col_size = csize
-       IF (PRESENT (row_offset)) row_offset = iterator%row_offset
-       IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
-       rbp => dbcsr_get_data_p (iterator%data_area, 0.0_real_8)
-       block => rbp(bp:bp+nze-1)
-       IF (PRESENT (block_number)) block_number = iterator%pos
-       ! Move to the next non-deleted position.
-       iterator%pos = iterator%pos+1
-       IF (.NOT. iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
-       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
-       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
-    ELSE
-       row = 0
-       column = 0
-       NULLIFY (block)
-       IF (PRESENT (block_number)) block_number = 0
-    ENDIF
-  END SUBROUTINE iterator_next_1d_block_d
-
-! *****************************************************************************
 !> \brief Sets a data pointer.
 !> \par Assumptions
 !>      Assumes that no memory will be lost when repointing the
@@ -178,15 +105,16 @@
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_p_d (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
     REAL(kind=real_8), DIMENSION(:), POINTER :: DATA
-    INTEGER, INTENT(IN), OPTIONAL  :: lb, ub
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_p_d', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER                        :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
-    TYPE(dbcsr_error_type)         :: error
+    INTEGER                                  :: l, u
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -224,16 +152,19 @@
 !> \param[out] data      pointer to data
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_p_2d_d (area, lb, ub) RESULT (DATA)
-    TYPE(dbcsr_data_obj), INTENT(IN)            :: area
-    REAL(kind=real_8), DIMENSION(:,:), POINTER            :: DATA
-    INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: lb, ub
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER, DIMENSION(2), INTENT(IN), &
+      OPTIONAL                               :: lb, ub
+    REAL(kind=real_8), DIMENSION(:, :), &
+      POINTER                                :: DATA
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_p_2d_d', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER, DIMENSION(2)          :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
-    TYPE(dbcsr_error_type)         :: error
+    INTEGER, DIMENSION(2)                    :: l, u
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -291,16 +222,17 @@
 !> \param[in] ub         (optional) upper bound for pointer
 ! *****************************************************************************
   SUBROUTINE get_data_d (area, DATA, lb, ub)
-    TYPE(dbcsr_data_obj), INTENT(IN)  :: area
-    REAL(kind=real_8), DIMENSION(:), POINTER    :: DATA
-    INTEGER, INTENT(IN), OPTIONAL     :: lb, ub
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    REAL(kind=real_8), DIMENSION(:), POINTER :: DATA
+    INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_data_d', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER                        :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
-    TYPE(dbcsr_error_type)         :: error
+    INTEGER                                  :: l, u
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -335,16 +267,19 @@
 !> \param[in] ub         (optional) upper bound for pointer
 ! *****************************************************************************
   SUBROUTINE get_data_2d_d (area, DATA, lb, ub)
-    TYPE(dbcsr_data_obj), INTENT(IN)            :: area
-    REAL(kind=real_8), DIMENSION(:,:), POINTER            :: DATA
-    INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: lb, ub
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    REAL(kind=real_8), DIMENSION(:, :), &
+      POINTER                                :: DATA
+    INTEGER, DIMENSION(2), INTENT(IN), &
+      OPTIONAL                               :: lb, ub
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_data_2d_d', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER, DIMENSION(2)          :: l, u
-    LOGICAL, PARAMETER             :: dbg = .TRUE.
-    TYPE(dbcsr_error_type)         :: error
+    INTEGER, DIMENSION(2)                    :: l, u
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -377,105 +312,15 @@
   END SUBROUTINE get_data_2d_d
 
 ! *****************************************************************************
-!> \brief Gets the next data block, single/double precision real/complex
-!> \param[in,out] iterator   the iterator
-!> \param[out] row           row of the data block
-!> \param[out] column        column of the data block
-!> \param[out] block         pointer to the data block
-!> \param[out] transposed    whether the block data is transposed
-!> \param[out] block_number  (optional) block number
-!> \param[out] row_size      (optional) logical row size of block
-!> \param[out] col_size      (optional) logical column size of block
-! *****************************************************************************
-  SUBROUTINE iterator_next_2d_block_d (iterator, row, column,&
-       block, transposed,&
-       block_number, row_size, col_size, row_offset, col_offset)
-    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
-    INTEGER, INTENT(OUT)                     :: row, column
-    REAL(kind=real_8), DIMENSION(:, :), &
-      POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
-    INTEGER, INTENT(OUT), OPTIONAL           :: block_number
-    INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size, row_offset, col_offset
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize
-    REAL(kind=real_8), DIMENSION(:), POINTER :: lin_blk_p, rbp
-
-!   ---------------------------------------------------------------------------
-! If we're pointing to a valid block, return that block.
-
-    IF (iterator%pos .LE. iterator%nblks&
-         .AND. iterator%pos .NE. 0) THEN
-       row = iterator%row
-       column = iterator%col_i(iterator%pos)
-       blk_p = iterator%blk_p(iterator%pos)
-       transposed = blk_p .LT. 0
-       bp = ABS (blk_p)
-       rsize = iterator%row_size
-       csize = iterator%cbs(column)
-       IF (PRESENT (row_size)) row_size = rsize
-       IF (PRESENT (col_size)) col_size = csize
-       IF (PRESENT (row_offset)) row_offset = iterator%row_offset
-       IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
-       nze = rsize * csize
-       rbp => dbcsr_get_data_p (iterator%data_area, 0.0_real_8)
-#if defined(__PTR_RANK_REMAP)
-       block(1:rsize, 1:csize) => rbp(bp:bp+nze-1)
-#elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-       lin_blk_p => rbp(bp:bp+nze-1)
-       CALL pointer_d_rank_remap2 (block, rsize, csize, lin_blk_p)
-#else
-       IF (iterator%contiguous_pointers) THEN
-          IF (SIZE (iterator%buffer_2d%d%r2_dp, 1) .NE. rsize) THEN
-             DEALLOCATE (iterator%buffer_2d%d%r2_dp)
-             ALLOCATE (iterator%buffer_2d%d%r2_dp(&
-                  rsize, MAX(iterator%max_cbs, iterator%max_rbs)))
-          ENDIF
-       ENDIF
-       iterator%buffer_2d%d%r2_dp =&
-            RESHAPE (rbp(bp:bp+nze-1), (/rsize, csize/))
-       block => iterator%buffer_2d%d%r2_dp(1:rsize, 1:csize)
-#endif /* __PTR_RANK_REMAP || !__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION */
-       IF (PRESENT (block_number)) block_number = iterator%pos
-       ! Move to the next non-deleted position.
-       iterator%pos = iterator%pos+1
-       IF (.NOT.iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
-       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
-       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
-    ELSE
-       row = 0
-       column = 0
-       NULLIFY (block)
-       IF (PRESENT (block_number)) block_number = 0
-    ENDIF
-  END SUBROUTINE iterator_next_2d_block_d
-
-
-! *****************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
 !> \param[in] scalar                    scalar to encapsulate
 !> \result encapsulated_scalar          encapsulated scalar
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_d (scalar) RESULT (encapsulated_scalar)
-    REAL(kind=real_8), INTENT(IN)       :: scalar
-    TYPE(dbcsr_scalar_type)   :: encapsulated_scalar
+    REAL(kind=real_8), INTENT(IN)            :: scalar
+    TYPE(dbcsr_scalar_type)                  :: encapsulated_scalar
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_real(kind=real_8)', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_d', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -494,9 +339,9 @@
 !> Merge this with dbcsr_util* upon refactoring.
 ! *****************************************************************************
   SUBROUTINE pointer_d_rank_remap2 (r2p, d1, d2, r1p)
-    INTEGER, INTENT(IN)                      :: d1, d2
     REAL(kind=real_8), DIMENSION(:, :), &
       POINTER                                :: r2p
+    INTEGER, INTENT(IN)                      :: d1, d2
     REAL(kind=real_8), DIMENSION(d1*d2), &
       TARGET                                 :: r1p
 

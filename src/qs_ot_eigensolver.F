@@ -20,6 +20,7 @@ MODULE qs_ot_eigensolver
        dbcsr_copy_columns_hack, dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
+  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
   USE dbcsr_methods,                   ONLY: &
        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
@@ -28,7 +29,6 @@ MODULE qs_ot_eigensolver
                                              dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default
-  USE dbcsr_util,                      ONLY: create_bl_distribution
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_in_use,&

@@ -21,6 +21,7 @@ MODULE qs_ot_scf
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
@@ -33,7 +34,6 @@ MODULE qs_ot_scf
                                              dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default
-  USE dbcsr_util,                      ONLY: create_bl_distribution
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&

@@ -16,7 +16,7 @@ MODULE qs_ks_atom
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&

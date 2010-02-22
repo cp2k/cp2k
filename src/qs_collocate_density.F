@@ -52,7 +52,7 @@ MODULE qs_collocate_density
                                              return_cube,&
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_cp2k2d3
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type

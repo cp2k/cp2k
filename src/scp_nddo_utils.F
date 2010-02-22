@@ -12,8 +12,8 @@ MODULE scp_nddo_utils
                                              get_atomic_kind
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_get_diag,&
                                              cp_dbcsr_set_diag
+  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_methods,                   ONLY: dbcsr_get_info
-  USE dbcsr_operations,                ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: get_se_param,&
