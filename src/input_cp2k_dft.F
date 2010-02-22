@@ -7217,8 +7217,8 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"RESTART_HISTORY",&
             description="Dumps unique MO restart files during the run keeping all of them.",&
             print_level=low_print_level, common_iter_levels=0,&
-            each_iter_names=s2a("__ROOT__","MD","GEO_OPT","ROT_OPT","NEB","METADYNAMICS","QS_SCF"),&
-            each_iter_values=(/500,500,500,500,500,500,500/), &
+            each_iter_names=s2a("MD"),&
+            each_iter_values=(/500/), &
             filename="RESTART",error=error)
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
              description="Specifies the maximum index of backup copies.",&

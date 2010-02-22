@@ -663,11 +663,13 @@ CONTAINS
           END DO
 
           CALL section_vals_val_get(r_section,"RESTART_RTP",l_val=flag,error=error)
-          IF(flag.AND.check_restart(input_file, restart_file, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error)) THEN
+!          IF(flag.AND.check_restart(input_file, restart_file, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error)) THEN
+          IF(flag)THEN
                section => section_vals_get_subs_vals(restart_file,&
                   "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",error=error)
-               CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION",&
-                    section,error=error)
+               CALL section_vals_val_get(section,"INITIAL_WFN",i_val=myi,error=error)
+               CALL section_vals_val_set(input_file,"FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%INITIAL_WFN",&
+                  i_val=myi,error=error)
                CALL set_restart_info("REAL TIME PROPAGATION",restarted_infos,error)
           END IF
 
