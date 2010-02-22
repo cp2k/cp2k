@@ -75,8 +75,20 @@ MODULE cp_dbcsr_operations
        dbcsr_release, dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_scalar, &
        dbcsr_scalar_are_equal, dbcsr_scalar_one, dbcsr_scalar_zero, &
        dbcsr_valid_index
-  USE dbcsr_operations
-  USE dbcsr_transformations
+  USE dbcsr_operations,                ONLY: &
+       block_set_d, dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_conjg, &
+       dbcsr_copy, dbcsr_filter, dbcsr_get_block_diag, dbcsr_get_diag, &
+       dbcsr_hadamard_product, dbcsr_mult_m_e_e, dbcsr_norm, &
+       dbcsr_replace_blocks, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
+       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
+  USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
+                                             dbcsr_distribute,&
+                                             dbcsr_make_dense,&
+                                             dbcsr_make_images,&
+                                             dbcsr_make_images_dense,&
+                                             dbcsr_make_undense,&
+                                             dbcsr_new_transposed,&
+                                             dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
