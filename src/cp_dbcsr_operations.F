@@ -14,8 +14,6 @@
 ! *****************************************************************************
 MODULE cp_dbcsr_operations
   USE array_types,                     ONLY: array_data,&
-                                             array_equality,&
-                                             array_hold,&
                                              array_i1d_obj,&
                                              array_new,&
                                              array_nullify,&
@@ -45,55 +43,44 @@ MODULE cp_dbcsr_operations
                                              dbcsr_remove_block,&
                                              dbcsr_reserve_block2d
   USE dbcsr_dist_operations
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
-  USE dbcsr_index_operations,          ONLY: dbcsr_make_index_canonical
   USE dbcsr_io
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
-       dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_hold, dbcsr_distribution_init, &
+       dbcsr_col_block_sizes, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_init, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_size, dbcsr_get_data_type, &
        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, dbcsr_init_p, &
-       dbcsr_may_be_dense, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
-       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_scalar, &
-       dbcsr_scalar_are_equal, dbcsr_scalar_one, dbcsr_scalar_zero, &
-       dbcsr_valid_index
+       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+       dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_scalar, dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
-       block_set_d, dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_conjg, &
-       dbcsr_copy, dbcsr_filter, dbcsr_get_block_diag, dbcsr_get_diag, &
-       dbcsr_hadamard_product, dbcsr_mult_m_e_e, dbcsr_norm, &
-       dbcsr_replace_blocks, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
+       block_set_d, dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
+       dbcsr_filter, dbcsr_get_block_diag, dbcsr_get_diag, &
+       dbcsr_hadamard_product, dbcsr_multiply_anytype=>dbcsr_multiply, &
+       dbcsr_norm, dbcsr_replace_blocks, dbcsr_scale, dbcsr_scale_by_vector, &
+       dbcsr_set, dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_distribute,&
-                                             dbcsr_make_dense,&
-                                             dbcsr_make_images,&
-                                             dbcsr_make_images_dense,&
-                                             dbcsr_make_undense,&
                                              dbcsr_new_transposed,&
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_distribution_obj, &
-       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
-       dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_scalar_type, dbcsr_type_antisymmetric, &
+       dbcsr_2d_array_type, dbcsr_distribution_obj, dbcsr_iterator, &
+       dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_norm_gershgorin, &
+       dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
@@ -102,7 +89,6 @@ MODULE cp_dbcsr_operations
                                              dbcsr_verify_matrix,&
                                              swap
   USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
-                                             dbcsr_add_wm_from_matrix,&
                                              dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
@@ -249,7 +235,6 @@ MODULE cp_dbcsr_operations
   END INTERFACE
 
   INTERFACE dbcsr_multiply
-     MODULE PROCEDURE dbcsr_multiply_anytype
      MODULE PROCEDURE dbcsr_multiply_s, dbcsr_multiply_d,&
                       dbcsr_multiply_c, dbcsr_multiply_z
   END INTERFACE
@@ -1329,440 +1314,6 @@ CONTAINS
     CALL cp_dbcsr_finalize( matrix, error=error )
 
   END SUBROUTINE dbcsr_alloc_block_from_nbl
-
-
-! *****************************************************************************
-!> \brief Performs a multiplication of two dbcsr_type matrices,
-!>        as  C := alpha * op( A ) * op( B ) + beta * C.
-!> \par Matrices m_a and m_b are multiplied into the m_c product matrix. If the
-!>      dist2d parameter is not specified, then a new distribution_2d is
-!>      determined for it.
-!> \par Non-equal column dimensions of the right and product matrices
-!>      The right and product matrix are allowed to have different
-!>      (full) column dimensions. If they differ, there are certain
-!>      peculiar behaviors, then the last_column is effectively set to
-!>      the minimal of the two.
-!> \par Beta scaling of the right product matrix
-!>      If the effective last_column is less than the full column
-!>      dimension of the product matrix, then the scaling of the
-!>      product matrix with beta is limited to the submatrix specified
-!>      by last_column.
-!> \par Sets
-!>      The left and right sets may be passed in (if the left_set or
-!>      right_set argument is present and non-NULL), or they may be
-!>      requeseted to be saved (present and NULL). No verification is done
-!>      that the set is consistent with the given matrix.
-!> \param[in] transa, transb  specifies the form of op( A or B ) to be used in 
-!>                            the matrix multiplication 
-!>                            transx = 'N' or 'n',  op( X ) = X.
-!>                            transx = 'T' or 't',  op( X ) = transpose(X).
-!>                            transx = 'C' or 'c',  op( X ) = transpose(conjg(X)).
-!> \param[in] alpha           scaling of product
-!> \param[in] matrix_a        left BCSR matrix
-!> \param[in] matrix_b        right BCSR matrix
-!> \param[in] beta            scaling of existing data
-!> \param[out] matrix_c       resulting BCSR product matrix.
-!> \param[in] first_row       (optional) first full row of limiting submatrix
-!> \param[in] last_row        (optional) last full row of limiting submatrix
-!> \param[in] first_column    (optional) first full column of limiting submatrix
-!> \param[in] last_column     (optional) last full column of limiting submatrix
-!> \param[in] first_k         (optional) first full column of limiting inner
-!>                            product
-!> \param[in] last_k          (optional) last full column of limiting inner
-!>                            product
-!> \param[in] retain_sparsity (optional) enforce the sparsity pattern of the
-!>                            existing product matrix; default is no
-!> \param[in,out] left_set    (optional) multiplication set for left matrix
-!> \param[in,out] right_set   (optional) multiplication set for right matrix
-!> \param[in,out] error       cp2k error
-!> \param[out] flop           (optional) effective flop
-! *****************************************************************************
-  SUBROUTINE dbcsr_multiply_anytype(transa, transb,&
-       alpha, matrix_a, matrix_b, beta, matrix_c,&
-       first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
-    
-    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
-    TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
-    TYPE(dbcsr_scalar_type), INTENT(IN)      :: beta
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
-    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
-                                                first_column, last_column, &
-                                                first_k, last_k
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    INTEGER(KIND=int_8), INTENT(OUT), &
-      OPTIONAL                               :: flop
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_anytype', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handler, f_col, f_k, &
-                                                f_row, i, l_col, l_k, l_row
-    INTEGER(KIND=int_8)                      :: my_flop
-    LOGICAL :: keep_product_data, keep_sparsity, left_set_given, new_left, &
-      new_right, product_reindex, right_set_given, use_dense_mult
-    REAL(KIND=dp)                            :: cs
-    TYPE(array_i1d_obj) :: old_product_col_blk_offsets, &
-      old_product_col_blk_sizes, old_product_row_blk_offsets, &
-      old_product_row_blk_sizes
-    TYPE(dbcsr_2d_array_type), POINTER       :: m2s_left, m2s_right
-    TYPE(dbcsr_distribution_obj)             :: old_product_distribution
-    TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
-    TYPE(dbcsr_obj)                          :: matrix_left, matrix_right, &
-                                                product_matrix
-
-! this will become the default
-
-    DEBUG_HEADER
-!   ---------------------------------------------------------------------------
-    DEBUG_BODY
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    !
-    ! check parameters
-    CALL dbcsr_assert(transa.EQ.'N'.OR.transa.EQ.'T'.OR.transa.EQ.'C'.OR.&
-                   transa.EQ.'n'.OR.transa.EQ.'t'.OR.transa.EQ.'c',&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Invalid transa = "//transa, __LINE__, error)
-    CALL dbcsr_assert(transb.EQ.'N'.OR.transb.EQ.'T'.OR.transb.EQ.'C'.OR.&
-                   transb.EQ.'n'.OR.transb.EQ.'t'.OR.transb.EQ.'c',&
-         cp_fatal_level, cp_wrong_args_error, routineN,&
-         "Invalid transb = "//transb, __LINE__, error)
-
-    IF (dbg) THEN
-       WRITE(*,*)'========== MULTIPLICATION ========================'
-       CALL dbcsr_verify_matrix (matrix_a, error=error)
-       CALL dbcsr_verify_matrix (matrix_b, error=error)
-       CALL dbcsr_verify_matrix (matrix_c, error=error)
-       CALL dbcsr_print (matrix_a, nodata=.TRUE., error=error)
-       CALL dbcsr_print (matrix_b, nodata=.TRUE., error=error)
-       CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
-    ENDIF
-    !
-    ! transpose/conjg left and/or right matrices if needed 
-    SELECT CASE(transa)
-    CASE('N','n')
-       matrix_left = matrix_a
-       new_left = .FALSE.
-    CASE('T','t')
-       CALL dbcsr_init(matrix_left)
-       CALL dbcsr_new_transposed (matrix_left, matrix_a, shallow_data_copy=.FALSE.,&
-            transpose_distribution=.FALSE., error=error)
-       new_left = .TRUE.
-    CASE('C','c')
-       CALL dbcsr_init(matrix_left)
-       CALL dbcsr_new_transposed (matrix_left, matrix_a, shallow_data_copy=.FALSE.,&
-            transpose_distribution=.FALSE., error=error)
-       CALL dbcsr_conjg(matrix_left, error=error)
-       new_left = .TRUE.
-    CASE DEFAULT
-       CALL dbcsr_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
-            routineN, "wrong transa = "//transa, __LINE__, error)
-    END SELECT
-
-    SELECT CASE(transb)
-    CASE('N','n')
-       matrix_right = matrix_b
-       new_right = .FALSE.
-    CASE('T','t')
-       CALL dbcsr_init(matrix_right)
-       CALL dbcsr_new_transposed (matrix_right, matrix_b, shallow_data_copy=.FALSE.,&
-            transpose_distribution=.FALSE., error=error)
-       new_right = .TRUE.
-    CASE('C','c')
-       CALL dbcsr_init(matrix_right)
-       CALL dbcsr_new_transposed (matrix_right, matrix_b, shallow_data_copy=.FALSE.,&
-            transpose_distribution=.FALSE., error=error)
-       CALL dbcsr_conjg(matrix_right, error=error)
-       new_right = .TRUE.
-    CASE DEFAULT
-       CALL dbcsr_assert(.FALSE., cp_fatal_level, cp_wrong_args_error, &
-            routineN, "wrong transb = "//transb, __LINE__, error)
-    END SELECT
-    !
-    use_dense_mult = dbcsr_may_be_dense (matrix_left%m)&
-               .AND. dbcsr_may_be_dense (matrix_right%m)
-    !
-    ! Submatrix selection
-    f_row = 1
-    l_row = dbcsr_nfullrows_total(matrix_c)
-    f_col = 1
-    l_col = dbcsr_nfullcols_total(matrix_c)
-    f_k = 0
-    l_k = 0
-    IF (PRESENT (first_row)) THEN
-       CALL dbcsr_assert(first_row .GE. 1&
-            .AND. first_row .LE. dbcsr_nfullrows_total(matrix_c),&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid first row specified", __LINE__, error)
-       f_row = first_row
-    ENDIF
-    IF (PRESENT (last_row)) THEN
-       CALL dbcsr_assert(last_row .GE. 1&
-            .AND. last_row .LE. dbcsr_nfullrows_total(matrix_c)&
-            .OR. last_row .LT. 1 ,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid last row specified", __LINE__, error)
-       l_row = last_row
-    ENDIF
-    IF (PRESENT (first_column)) THEN
-       CALL dbcsr_assert(first_column .GE. 1&
-            .AND. first_column .LE. dbcsr_nfullcols_total(matrix_c),&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid first col specified", __LINE__, error)
-       f_col = first_column
-    ENDIF
-    IF (PRESENT (last_column)) THEN
-       CALL dbcsr_assert(last_column .GE. 1&
-            .AND. last_column .LE. dbcsr_nfullcols_total(matrix_c)&
-            .OR. last_column .LT. 1,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid last column specified (C)", __LINE__, error)
-       CALL dbcsr_assert(last_column .GE. 1&
-            .AND. last_column .LE. dbcsr_nfullcols_total(matrix_right)&
-            .OR. last_column .LT. 1,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid last column specified (B)", __LINE__, error)
-       l_col = last_column
-    ENDIF
-    IF (PRESENT (first_k)) THEN
-       CALL dbcsr_assert(first_k .GE. 1&
-            .AND. first_k .LE. dbcsr_nfullcols_total(matrix_left),&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid first k specified (A)", __LINE__, error)
-       f_k = first_k
-    ENDIF
-    IF (PRESENT (last_k)) THEN
-       CALL dbcsr_assert(last_k.GE. 1&
-            .AND. last_k .LE. dbcsr_nfullcols_total(matrix_left)&
-            .OR. last_k  .LT. 1,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Invalid last k specified (A)", __LINE__, error)
-       l_k = last_k
-    ENDIF
-    !
-    ! Now optimize the default submatrix selection values away
-    IF (f_row .EQ. 1) f_row = 0
-    IF (l_row .EQ. dbcsr_nfullrows_total(matrix_left)) l_row = 0
-    IF (f_col .EQ. 1) f_col = 0
-    ! The last column must be set if the right and product matrices
-    ! differ.
-    l_col = MIN (l_col, dbcsr_nfullcols_total(matrix_right))
-    l_col = MIN (l_col, dbcsr_nfullcols_total(matrix_c))
-    IF (l_col .EQ. dbcsr_nfullcols_total(matrix_right) .AND. &
-         dbcsr_nfullcols_total(matrix_right) .EQ.&
-         dbcsr_nfullcols_total(matrix_c)) l_col = 0
-    IF (f_k .EQ. 1) f_k = 0
-    IF (l_k .EQ. dbcsr_nfullcols_total(matrix_left)) l_k = 0
-    IF (.NOT. PRESENT(last_column) .AND.&
-        .NOT. array_equality (dbcsr_col_block_sizes (matrix_right),&
-                              dbcsr_col_block_sizes (matrix_c))) THEN
-       l_col = MIN (dbcsr_nfullcols_total(matrix_right),&
-                    dbcsr_nfullcols_total(matrix_c))
-    ENDIF
-    CALL dbcsr_assert (f_row .LE. l_row, cp_fatal_level,&
-         cp_wrong_args_error, routineN, "Last row smaller than first row", &
-         __LINE__, error)
-    CALL dbcsr_assert (f_col .LE. l_col, cp_fatal_level,&
-         cp_wrong_args_error, routineN, "Last col smaller than first col", &
-         __LINE__, error)
-    !
-    !
-    ! Product data needs to be retained when
-    ! * beta != 0; or
-    ! * there is column limiting (l_col > 0) and the limiting column
-    !   is less than the number of full columns in theproduct matrix
-    keep_sparsity = .FALSE.
-    IF (PRESENT (retain_sparsity)) keep_sparsity=retain_sparsity
-    !
-    keep_product_data = keep_sparsity&
-         .OR. .NOT. dbcsr_scalar_are_equal (beta, dbcsr_scalar_zero(beta%data_type))&
-         .OR. (l_col .GT. 0 .AND. l_col .LT. dbcsr_nfullcols_total(matrix_c))
-    !
-    IF (.NOT. dbcsr_scalar_are_equal (beta, dbcsr_scalar_one(beta%data_type)) .AND. keep_product_data) THEN
-       CALL dbcsr_scale (matrix_c, scale_type='S',&
-            alpha_scalar=beta, &
-            last_column=last_column, error=error)
-    ENDIF
-    !
-    ! The index of the product matrix is twiddled into canonical form
-    ! if it is (anti)symmetric (i.e., rows and columns are where the
-    ! row/column distributions say they are). Doing this in advance
-    ! makes the local multiply more efficient.
-    IF ((&
-         dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_symmetric .OR.&
-         dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_antisymmetric)) THEN
-       product_reindex = .TRUE.
-    ELSE
-       product_reindex = .FALSE.
-    ENDIF
-    ! These two interfere.
-    IF (product_reindex) THEN
-       use_dense_mult = .FALSE.
-    ENDIF
-    product_matrix = matrix_c
-    IF (use_dense_mult) THEN
-       old_product_row_blk_offsets = product_matrix%m%row_blk_offset
-       old_product_col_blk_offsets = product_matrix%m%col_blk_offset
-       old_product_row_blk_sizes = product_matrix%m%row_blk_size
-       old_product_col_blk_sizes = product_matrix%m%col_blk_size
-       CALL array_hold (old_product_row_blk_offsets)
-       CALL array_hold (old_product_col_blk_offsets)
-       CALL array_hold (old_product_row_blk_sizes)
-       CALL array_hold (old_product_col_blk_sizes)
-       old_product_distribution = dbcsr_distribution (product_matrix)
-       CALL dbcsr_distribution_hold (old_product_distribution)
-       CALL dbcsr_make_dense (product_matrix, error=error)
-    ENDIF
-    IF (keep_product_data) THEN
-       IF (product_reindex) THEN
-          IF (dbg) WRITE(*,*)routineN//" Making canonical index"
-          CALL dbcsr_make_index_canonical (product_matrix)
-       ENDIF
-       CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
-       i = 1
-       !$ i = omp_get_num_threads()
-       CALL dbcsr_add_wm_from_matrix(product_matrix, nwms=i, error=error)
-    ENDIF
-    product_matrix%m%nze = 0
-    product_matrix%m%nblks = 0
-    product_matrix%m%valid = .FALSE.
-    !
-    ! Create imaged distributions for the multiply.
-    !
-    ! matrix_c is used instead of product_matrix so that the original
-    ! blocked (non-dense) form is used.
-    CALL dbcsr_create_image_dist (rdist_right, matrix_right%m%dist,&
-         match_row_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_left%m%dist)),&
-         match_col_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_c%m%dist)),&
-         match_col_pdist = array_data (dbcsr_distribution_col_dist (matrix_c%m%dist)))
-    CALL dbcsr_create_image_dist (rdist_left, matrix_left%m%dist,&
-         match_row_pdist = array_data (dbcsr_distribution_row_dist (matrix_c%m%dist)),&
-         match_row_nbins = dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_c%m%dist)),&
-         match_col_pdist = array_data (dbcsr_distribution_row_dist (rdist_right%main)),&
-         match_col_idist = array_data (rdist_right%row_image),&
-         match_col_nbins = dbcsr_mp_nprows (dbcsr_distribution_mp(matrix_right%m%dist)))
-    NULLIFY (m2s_right)
-    right_set_given = .FALSE.
-    IF (PRESENT (right_set)) THEN
-       IF (ASSOCIATED (right_set)) THEN
-          right_set_given = .TRUE.
-          m2s_right => right_set
-       ENDIF
-    ENDIF
-    NULLIFY (m2s_left)
-    left_set_given = .FALSE.
-    IF (PRESENT (left_set)) THEN
-       IF (ASSOCIATED (left_set)) THEN
-          left_set_given = .TRUE.
-          m2s_left => left_set
-       ENDIF
-    ENDIF
-    IF (.NOT. right_set_given) THEN
-       ALLOCATE (m2s_right)
-       CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
-            predistribute="R", special_memory=.FALSE.,&
-            no_copy_data=use_dense_mult, error=error)
-       IF (use_dense_mult) THEN
-          CALL dbcsr_make_images_dense (m2s_right, "R", error=error)
-          rdist_right = m2s_right%image_dist
-       ENDIF
-       IF (PRESENT (right_set)) THEN
-          right_set => m2s_right
-          right_set%image_dist = rdist_right
-       ENDIF
-    ELSE
-       m2s_right => right_set
-    ENDIF
-    IF (.NOT. left_set_given) THEN
-       ALLOCATE (m2s_left)
-       CALL dbcsr_make_images (matrix_left, m2s_left, rdist_left,&
-            predistribute="L", special_memory=.FALSE.,&
-            no_copy_data=use_dense_mult, error=error)
-       IF (use_dense_mult) THEN
-          CALL dbcsr_make_images_dense (m2s_left, "L", error=error)
-          rdist_left = m2s_left%image_dist
-       ENDIF
-       IF (PRESENT (left_set)) THEN
-          left_set =>  m2s_left
-          left_set%image_dist = rdist_left
-       ENDIF
-    ELSE
-       m2s_left => left_set
-    ENDIF
-    IF (dbg) THEN
-       DO i = 1, SIZE (m2s_right%mats,1)
-          CALL dbcsr_verify_matrix(m2s_right%mats(i,1), error=error)
-          CALL dbcsr_print(m2s_right%mats(i,1),nodata=.TRUE., error=error)
-       ENDDO
-       DO i = 1, SIZE (m2s_left%mats,2)
-          CALL dbcsr_verify_matrix(m2s_left%mats(1,i), error=error)
-          CALL dbcsr_print(m2s_left%mats(1,i),nodata=.TRUE., error=error)
-       ENDDO
-    ENDIF
-    !
-    IF (PRESENT (flop)) flop = 0
-    my_flop = 0
-    CALL dbcsr_mult_m_e_e (m2s_left, m2s_right, product_matrix,&
-         (/ f_row, l_row, f_col, l_col, f_k, l_k /),&
-         alpha=alpha, beta=beta, retain_sparsity=retain_sparsity,&
-         error=error, flop=my_flop)
-    IF (PRESENT (flop)) flop = my_flop
-    !
-    IF (new_left) CALL dbcsr_release (matrix_left)
-    IF (new_right) CALL dbcsr_release (matrix_right)
-    CALL dbcsr_distribution_no_threads (product_matrix%m%dist)
-    ! The index of the product matrix is reset to the CP2K form if it
-    ! was previously set to the canonical form.
-    IF (product_reindex) THEN
-       IF (dbg) WRITE(*,*)routineN//" Making CP2K index"
-       CALL dbcsr_make_index_canonical(product_matrix, cp2k=.TRUE.)
-    ELSEIF (use_dense_mult) THEN
-       CALL dbcsr_make_undense(product_matrix, old_product_distribution,&
-            old_product_row_blk_offsets, old_product_col_blk_offsets,&
-            old_product_row_blk_sizes, old_product_col_blk_sizes, error=error)
-       CALL array_release (old_product_row_blk_offsets)
-       CALL array_release (old_product_col_blk_offsets)
-       CALL array_release (old_product_row_blk_sizes)
-       CALL array_release (old_product_col_blk_sizes)
-       CALL dbcsr_distribution_release (old_product_distribution)
-    ENDIF
-    matrix_c = product_matrix
-    IF (dbg) THEN
-       CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
-    ENDIF
-    IF (.NOT. PRESENT (left_set)) THEN
-       CALL dbcsr_destroy_array (m2s_left, error=error)
-       CALL dbcsr_destroy_image_dist (rdist_left)
-       DEALLOCATE (m2s_left)
-    ELSE
-       IF (.NOT. left_set_given) THEN
-          left_set%image_dist = m2s_left%image_dist
-       ELSE
-          CALL dbcsr_destroy_image_dist (rdist_left)
-       ENDIF
-    ENDIF
-    IF (.NOT. PRESENT (right_set)) THEN
-       CALL dbcsr_destroy_array (m2s_right, error=error)
-       CALL dbcsr_destroy_image_dist (rdist_right)
-       DEALLOCATE (m2s_right)
-    ELSE
-       IF (.not.right_set_given) THEN
-          right_set%image_dist = m2s_right%image_dist
-       ELSE
-          CALL dbcsr_destroy_image_dist (rdist_right)
-       ENDIF
-    ENDIF
-    IF (dbg) THEN
-       CALL dbcsr_verify_matrix (matrix_c, error=error)
-       cs = dbcsr_checksum (matrix_c, error=error)
-       WRITE(*,*)routineN//" Product checksum", cs
-    ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_multiply_anytype
 
 
 

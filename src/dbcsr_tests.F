@@ -19,7 +19,6 @@ MODULE dbcsr_tests
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE cp_dbcsr_operations,             ONLY: dbcsr_multiply
   USE dbcsr_block_access
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_type,&

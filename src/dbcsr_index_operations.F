@@ -59,7 +59,7 @@ MODULE dbcsr_index_operations
   PUBLIC :: make_dense_index, make_undense_index
   ! Working with DBCSR and linear indices
   PUBLIC :: dbcsr_make_dbcsr_index, dbcsr_sort_indices,&
-            dbcsr_sort_many_indices
+            dbcsr_sort_many_indices, merge_index_arrays
   ! Index array manipulation
   PUBLIC :: dbcsr_addto_index_array, dbcsr_clearfrom_index_array,&
             dbcsr_repoint_index
@@ -802,6 +802,141 @@ CONTAINS
        END FORALL
     END FORALL
   END SUBROUTINE make_undense_index
+
+
+
+! *****************************************************************************
+!> \brief Merges two indices
+!> \note Used in local multiply
+!>
+!> Assumes they are both pre-sorted
+!> \param[in,out] new_row_i, new_col_i, new_blk_p      merged result
+!> \param[in] new_size                  size of merged index
+!> \param[in,out] old_row_i, old_col_i, old_blk_p      current index
+!> \param[in] old_size                  size of current index
+!> \param[in] add_ip                    index to add into the current index
+!> \param[in] add_size                  size of index to add into the current
+!>                                      index
+! *****************************************************************************
+  SUBROUTINE merge_index_arrays (new_row_i, new_col_i, new_blk_p, new_size,&
+       old_row_i, old_col_i, old_blk_p, old_size,&
+       add_ip, add_size, new_blk_d, old_blk_d, error)
+    INTEGER, INTENT(IN)                      :: new_size
+    INTEGER, DIMENSION(new_size), &
+      INTENT(OUT)                            :: new_blk_p, new_col_i, &
+                                                new_row_i
+    INTEGER, INTENT(IN)                      :: old_size
+    INTEGER, DIMENSION(old_size), INTENT(IN) :: old_blk_p, old_col_i, &
+                                                old_row_i
+    INTEGER, INTENT(IN)                      :: add_size
+    INTEGER, DIMENSION(3, add_size), &
+      INTENT(IN)                             :: add_ip
+    INTEGER, DIMENSION(new_size), &
+      INTENT(OUT), OPTIONAL                  :: new_blk_d
+    INTEGER, DIMENSION(old_size), &
+      INTENT(IN), OPTIONAL                   :: old_blk_d
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    INTEGER                                  :: add_blk, i, merge_from_whom, &
+                                                new_blk, old_blk
+    LOGICAL                                  :: multidata
+
+    DEBUG_HEADER
+!   ---------------------------------------------------------------------------
+    DEBUG_BODY
+    multidata = PRESENT (old_blk_d) .AND. PRESENT (new_blk_d)
+    CALL dbcsr_assert(old_size+add_size .EQ. new_size, &
+         dbcsr_warning_level, dbcsr_internal_error ,"merge_arrays",&
+         "Mismatch of new and old size",__LINE__,error)
+    IF (dbg) THEN
+       WRITE (*,*) " Old array", old_size
+       DO i = 1, old_size
+          WRITE(*,'(I7,2X,I7,2X,I7)')old_row_i(i),old_col_i(i),old_blk_p(i)
+       ENDDO
+       WRITE (*,*) " Add array", add_size
+       DO i = 1, add_size
+          WRITE(*,'(I7,2X,I7,2X,I7)')add_ip (1:3, i)
+       ENDDO
+    ENDIF
+    IF (add_size .GT. 0) THEN
+       old_blk = 1
+       add_blk = 1
+       new_blk = 1
+       IF (old_size .EQ. 0) THEN
+          new_row_i(1:add_size) = add_ip(1, 1:add_size)
+          new_col_i(1:add_size) = add_ip(2, 1:add_size)
+          new_blk_p(1:add_size) = add_ip(3, 1:add_size)
+          !IF (multidata) new_blk_d(1:add_size) = add_ip(4, 1:add_size)
+       ELSE
+          DO WHILE (new_blk .LE. new_size)
+             merge_from_whom = 0
+             IF (old_blk .LE. old_size .AND. add_blk .LE. add_size) THEN
+                IF (add_ip(1, add_blk) .EQ. old_row_i(old_blk)&
+                     .AND.add_ip(2, add_blk) .EQ. old_col_i(old_blk)) THEN
+                   !WRITE(*,*)"Duplicate block! addblk", add_blk, "oldblk", old_blk
+                ENDIF
+                ! Rows come first
+                IF (add_ip(1, add_blk) .LT. old_row_i(old_blk)) THEN
+                   merge_from_whom = 2
+                ELSEIF (add_ip(1, add_blk) .GT. old_row_i(old_blk)) THEN
+                   merge_from_whom = 1
+                ELSE ! Same rows, so now come the columns
+                   IF (add_ip(2, add_blk) .LE. old_col_i(old_blk)) THEN
+                      ! Merges from the add array
+                      merge_from_whom = 2
+                   ELSE
+                      ! Merges from the old array
+                      merge_from_whom = 1
+                   ENDIF
+                ENDIF
+             ELSE
+                IF (add_blk .LE. add_size) THEN
+                   ! Merges from the add array
+                   merge_from_whom = 2
+                ELSEIF (old_blk .LE. old_size) THEN
+                   ! Merges from the old array
+                   merge_from_whom = 1
+                ELSE
+                   ! Hmmm, nothing to merge...
+                   !WRITE(*,*)"Error: Ran out of data to merge"
+                ENDIF
+             ENDIF
+             SELECT CASE (merge_from_whom)
+             CASE (2)
+                ! Merges from the add array
+                new_row_i(new_blk) = add_ip(1, add_blk)
+                new_col_i(new_blk) = add_ip(2, add_blk)
+                new_blk_p(new_blk) = add_ip(3, add_blk)
+                !IF (multidata) new_blk_d(new_blk) = add_ip(4, add_blk)
+                add_blk = add_blk + 1
+             CASE (1)
+                ! Merges from the old array
+                new_row_i(new_blk) = old_row_i(old_blk)
+                new_col_i(new_blk) = old_col_i(old_blk)
+                new_blk_p(new_blk) = old_blk_p(old_blk)
+                IF (multidata) new_blk_p(new_blk) = old_blk_d(old_blk)
+                old_blk = old_blk + 1
+             CASE DEFAULT
+                !WRITE(*,*)"Error: Nothing to merge"
+             END SELECT
+             new_blk = new_blk + 1
+          ENDDO
+       ENDIF
+    ELSE
+       new_row_i(1:old_size) = old_row_i(1:old_size)
+       new_col_i(1:old_size) = old_col_i(1:old_size)
+       new_blk_p(1:old_size) = old_blk_p(1:old_size)
+       IF (multidata) new_blk_d(1:old_size) = old_blk_d(1:old_size)
+    ENDIF
+    IF (dbg) THEN
+       WRITE (*,*) " New array"
+       DO i = 1, new_size
+          WRITE(*,'(4(2X,I7))')new_row_i(i),new_col_i(i),new_blk_p(i)
+       ENDDO
+    ENDIF
+  END SUBROUTINE merge_index_arrays
+
+
 
 
 END MODULE dbcsr_index_operations

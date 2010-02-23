@@ -20,13 +20,20 @@ MODULE dbcsr_mp_operations
   USE dbcsr_message_passing,           ONLY: mp_alltoall,&
                                              mp_irecv,&
                                              mp_isend,&
+                                             mp_type_descriptor_type,&
+                                             mp_type_make,&
                                              mp_waitall
   USE dbcsr_methods,                   ONLY: &
        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, &
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid
-  USE dbcsr_types,                     ONLY: dbcsr_mp_obj
+  USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                             dbcsr_mp_obj,&
+                                             dbcsr_type_complex_4,&
+                                             dbcsr_type_complex_8,&
+                                             dbcsr_type_real_4,&
+                                             dbcsr_type_real_8
   USE f77_blas
   USE f77_blas_generic
 
@@ -46,6 +53,8 @@ MODULE dbcsr_mp_operations
   PUBLIC :: hybrid_alltoall_s1, hybrid_alltoall_d1,&
             hybrid_alltoall_c1, hybrid_alltoall_z1,&
             hybrid_alltoall_i1
+  ! Type heplers
+  PUBLIC :: dbcsr_mp_type_from_anytype
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
@@ -277,6 +286,29 @@ CONTAINS
       ENDDO
     END SUBROUTINE remainder_point_to_point
   END SUBROUTINE hybrid_alltoall_i1
+
+! *****************************************************************************
+!> \brief Creates an MPI combined type from the given anytype.
+!> \param[in] data_area       Data area of any type
+!> \result mp_type            Type descriptor
+! *****************************************************************************
+  FUNCTION dbcsr_mp_type_from_anytype(data_area) RESULT (mp_type)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: data_area
+    TYPE(mp_type_descriptor_type)            :: mp_type
+
+    SELECT CASE (data_area%d%data_type)
+    CASE (dbcsr_type_real_4)
+       mp_type = mp_type_make (data_area%d%r_sp)
+    CASE (dbcsr_type_real_8)
+       mp_type = mp_type_make (data_area%d%r_dp)
+    CASE (dbcsr_type_complex_4)
+       mp_type = mp_type_make (data_area%d%c_sp)
+    CASE (dbcsr_type_complex_8)
+       mp_type = mp_type_make (data_area%d%c_dp)
+    END SELECT
+  END FUNCTION dbcsr_mp_type_from_anytype
+
+
 
 
 ! *****************************************************************************

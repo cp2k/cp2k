@@ -20,9 +20,13 @@ MODULE dbcsr_io
                                              real_4,&
                                              real_8,&
                                              sp
+  USE dbcsr_message_passing,           ONLY: mp_allgather
   USE dbcsr_methods,                   ONLY: dbcsr_get_data,&
+                                             dbcsr_mp_group,&
+                                             dbcsr_mp_numnodes,&
                                              dbcsr_valid_index
-  USE dbcsr_types,                     ONLY: dbcsr_obj,&
+  USE dbcsr_types,                     ONLY: dbcsr_mp_obj,&
+                                             dbcsr_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
@@ -53,6 +57,8 @@ MODULE dbcsr_io
   PUBLIC :: dbcsr_print
   ! Low-level printing
   PUBLIC :: dbcsr_printmat, dbcsr_print2dmat
+  ! Utility printing
+  PUBLIC :: all_print
 
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
@@ -460,6 +466,32 @@ CONTAINS
        ENDIF
     ENDDO
   END SUBROUTINE dbcsr_print2dmat
+
+
+! *****************************************************************************
+!> \brief Prints the values from all processors
+!> \param[in] val   local value to print
+!> \param[in] desc  description of value
+!> \param[in] mp    message-passing environment
+! *****************************************************************************
+  SUBROUTINE all_print (val, desc, mp)
+    INTEGER, INTENT(IN)                      :: val
+    CHARACTER(LEN=*), INTENT(IN)             :: desc
+    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp
+
+    CHARACTER(LEN=80)                        :: fmt
+    INTEGER                                  :: n
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: infos
+
+!
+
+    n = dbcsr_mp_numnodes (mp)
+    WRITE(fmt,'("(1X,A,",I5,"(1X,I4))")')n
+    ALLOCATE (infos(n))
+    CALL mp_allgather(val, infos, dbcsr_mp_group(mp))
+    WRITE(*,fmt)desc,infos
+  END SUBROUTINE all_print
+
 
 
 

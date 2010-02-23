@@ -152,6 +152,7 @@ OBJECTS_GENERIC =\
  dbcsr_data_operations.o\
  dbcsr_dist_operations.o\
  dbcsr_index_operations.o\
+ dbcsr_internal_operations.o\
  dbcsr_io.o\
  dbcsr_iterator_operations.o\
  dbcsr_methods.o\
