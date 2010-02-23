@@ -319,3 +319,5 @@ hcl_ot.inp
 ZrF2-PM6.inp
 # convert mo_derivs to dbcsr
 zn_1w_debug.inp
+#
+zn_1w_debug.inp

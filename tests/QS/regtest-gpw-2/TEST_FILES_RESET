@@ -627,3 +627,7 @@ hcn_ts_r.inp
 hcn_ts_r.inp
 # convert mo_derivs to dbcsr
 Au12_rmsd_mtd.inp
+#
+hcn_ts_r.inp
+#
+Au12_rmsd_mtd.inp

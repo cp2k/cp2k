@@ -144,3 +144,7 @@ graphite.inp
 graphite2.inp
 # convert mo_derivs to dbcsr
 graphite3.inp
+#
+graphite.inp
+#
+graphite2.inp

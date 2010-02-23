@@ -861,3 +861,5 @@ N3-10.inp
 H2O.inp
 # convert mo_derivs to dbcsr
 H2O.inp
+#
+H2O.inp
