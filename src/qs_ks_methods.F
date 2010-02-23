@@ -165,7 +165,6 @@ MODULE qs_ks_methods
 
   INTERFACE calculate_w_matrix
     MODULE PROCEDURE calculate_w_matrix_1,&
-!                     calculate_w_matrix_2,&
                      calculate_w_matrix_roks
                      
   END INTERFACE
@@ -633,6 +632,12 @@ CONTAINS
                           CPSourceFileRef,&
                           only_ionode=.TRUE.)
          END IF
+
+         DO ispin=1,nspins!fm->dbcsr
+            IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
+               CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr            
+            ENDIF!fm->dbcsr
+         ENDDO!fm->dbcsr
 
          CALL admm_fit_mo_coeffs(qs_env, admm_env, dft_control%admm_control, para_env, &
                                  qs_env%matrix_s_aux_fit, qs_env%matrix_s_aux_fit_vs_orb,&
@@ -1261,7 +1266,6 @@ CONTAINS
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,&
                   mo_coeff_b=mo_coeff_b, &
                   occupation_numbers=occupation_numbers )
-             CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!for anycase!fm->dbcsr
              CALL dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
                    0.0_dp,mo_derivs(ispin)%matrix, last_column=k, error=error)
@@ -1289,12 +1293,11 @@ CONTAINS
                  ! reconstruct things in ot, since we irreversibly sum 
                  CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
                  CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
-                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff,&
+                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,&
                       uniform_occupation=uniform_occupation)
                  CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
-                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
-                 CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!for anycase!fm->dbcsr
+                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff_b)
                  CALL dbcsr_get_info(mo_coeff_b,nfullcols_total=k)
                  CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
                             1.0_dp, mo_derivs(1)%matrix, last_column=k,error=error)
@@ -1466,6 +1469,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -1522,7 +1526,12 @@ CONTAINS
        exchange_energy = 0.0_dp
    
        DO ispin=1,SIZE(mo_array)
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
+
+          IF(mo_array(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
+             CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff,error=error)!fm->dbcsr
+          ENDIF!fm->dbcsr
+
           CALL cp_fm_get_info(mo_coeff,ncol_global=norb,error=error)
 
           DO iorb_block=1,norb,blocksize
@@ -1628,8 +1637,8 @@ CONTAINS
     REAL(KIND=dp)                            :: exc, total_rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_fm_type), POINTER                :: fm_deriv, fm_scaled, mo_coeff
-    TYPE(dbcsr_obj), POINTER                 :: dbcsr_deriv, mo_coeff_b
+    TYPE(dbcsr_obj), POINTER                 :: dbcsr_deriv, fm_deriv, &
+                                                fm_scaled, mo_coeff
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, mo_derivs
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1659,22 +1668,19 @@ CONTAINS
     ! we want uniform occupations
     CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
     CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
-    CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
+    CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff, uniform_occupation=uniform_occupation)
     CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
-    NULLIFY(dbcsr_deriv,mo_coeff_b)
+    NULLIFY(dbcsr_deriv)
     CALL cp_dbcsr_init_p(dbcsr_deriv,error)
     CALL cp_dbcsr_copy(dbcsr_deriv,mo_derivs(1)%matrix,error=error)
     CALL cp_dbcsr_set(dbcsr_deriv,0.0_dp,error)
-    CALL cp_dbcsr_init_p(mo_coeff_b,error)!fm->dbcsr should use the dbcsr in mo_array when possible
-    CALL cp_dbcsr_copy(mo_coeff_b,mo_derivs(1)%matrix,error=error)!fm->dbcsr
-    CALL cp_dbcsr_set(mo_coeff_b,0.0_dp,error)!fm->dbcsr
 
     ! basic info
-    CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
-    CALL cp_fm_get_info(mo_coeff,ncol_global=k_alpha,error=error)
-    CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff)
-    CALL cp_fm_get_info(mo_coeff,ncol_global=k_beta,error=error)
+    CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff_b=mo_coeff)
+    CALL dbcsr_get_info(mo_coeff,nfullcols_total=k_alpha)
+    CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff)
+    CALL dbcsr_get_info(mo_coeff,nfullcols_total=k_beta)
 
     ! read the input
     low_spin_roks_section => section_vals_get_subs_vals(input,"DFT%LOW_SPIN_ROKS", error=error)
@@ -1747,10 +1753,16 @@ CONTAINS
 
     ! get mo matrices needed to construct the density matrices
     ! we will base all on the alpha spin matrix, obviously possible in ROKS
-    CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
-    CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,error=error)!fm->dbcsr
-    CALL cp_fm_create(fm_scaled,mo_coeff%matrix_struct,error=error)
-    CALL cp_fm_create(fm_deriv,mo_coeff%matrix_struct,error=error)
+    CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff_b=mo_coeff)
+    !CALL cp_fm_create(fm_scaled,mo_coeff%matrix_struct,error=error)
+    !CALL cp_fm_create(fm_deriv,mo_coeff%matrix_struct,error=error)
+    NULLIFY(fm_scaled, fm_deriv)
+    CALL cp_dbcsr_init_p(fm_scaled,error=error)
+    CALL cp_dbcsr_init_p(fm_deriv,error=error)
+    CALL cp_dbcsr_copy(fm_scaled,mo_coeff,error=error)
+    CALL cp_dbcsr_copy(fm_deriv,mo_coeff,error=error)
+
+
     ALLOCATE(scaling(k_alpha),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -1762,11 +1774,15 @@ CONTAINS
           CALL cp_dbcsr_set(matrix_p(ispin)%matrix,0.0_dp,error=error)
           scaling=1.0_dp
           scaling(k_alpha-Nelectron+1:k_alpha)=occupations(ispin,:,iterm)
-          CALL cp_fm_to_fm(mo_coeff,fm_scaled,error=error)
-          CALL cp_fm_column_scale(fm_scaled,scaling)
-          CALL dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p(ispin)%matrix,&
-                               matrix_v=mo_coeff, matrix_g=fm_scaled,&
-                               ncol=k_alpha,error=error)
+          !CALL cp_fm_to_fm(mo_coeff,fm_scaled,error=error)
+          CALL cp_dbcsr_copy(fm_scaled,mo_coeff,error=error)
+          !CALL cp_fm_column_scale(fm_scaled,scaling)
+          CALL cp_dbcsr_scale_by_vector(fm_scaled,scaling,side='right',error=error)
+          !CALL dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p(ispin)%matrix,&
+          !                     matrix_v=mo_coeff, matrix_g=fm_scaled,&
+          !                     ncol=k_alpha,error=error)
+          CALL cp_dbcsr_multiply('n','t',1.0_dp,mo_coeff,fm_scaled,&
+               0.0_dp,matrix_p(ispin)%matrix, retain_sparsity=.TRUE.,error=error)
           ! compute the densities on the grid
           CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix,&
                 rho=rho_r(ispin),rho_gspace=rho_g(ispin), total_rho=total_rho,&
@@ -1802,7 +1818,7 @@ CONTAINS
 
            ! add this to the mo_derivs, again based on the alpha mo_coeff
            DO ispin=1,Nspin
-              CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_h(ispin)%matrix,mo_coeff_b,&
+              CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_h(ispin)%matrix,mo_coeff,&
                0.0_dp,dbcsr_deriv,last_column=k_alpha, error=error)
 
               scaling=1.0_dp
@@ -1826,15 +1842,14 @@ CONTAINS
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,work_v_rspace%pw,error=error)
 
-    CALL cp_fm_release(fm_deriv,error=error)
-    CALL cp_fm_release(fm_scaled,error=error)
+    CALL cp_dbcsr_release_p(fm_deriv,error=error)
+    CALL cp_dbcsr_release_p(fm_scaled,error=error)
 
     DEALLOCATE(occupations)
     DEALLOCATE(energy_scaling)
     DEALLOCATE(scaling)
 
-    CALL cp_dbcsr_release_p(dbcsr_deriv,error=error)!fm->dbcsr
-    CALL cp_dbcsr_release_p(mo_coeff_b,error=error)!fm->dbcsr
+    CALL cp_dbcsr_release_p(dbcsr_deriv,error=error)
 
     CALL timestop(handle)
 
@@ -1894,6 +1909,13 @@ CONTAINS
     CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,rho=rho,pw_env=pw_env, &
                     input=input, cell=cell, error=error)
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+
+    DO i=1,SIZE(mo_array)!fm->dbcsr
+       IF(mo_array(i)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
+          CALL copy_dbcsr_to_fm(mo_array(i)%mo_set%mo_coeff_b,&
+               mo_array(i)%mo_set%mo_coeff,error=error)!fm->dbcsr
+       ENDIF!fm->dbcsr
+    ENDDO!fm->dbcsr
 
     CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool, error=error)
 

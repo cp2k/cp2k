@@ -943,6 +943,19 @@ CONTAINS
 
     END DO scf_outer_loop
 
+
+    !if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
+    DO ispin=1,SIZE(mos)!fm -> dbcsr
+       IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
+          IF(.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &!fm->dbcsr
+               CALL stop_program(routineN, "mo_coeff_b is not allocated")!fm->dbcsr
+          !write(*,*) routinen//' copy_dbcsr_to_fm',__LINE__
+          CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &!fm->dbcsr
+               mos(ispin)%mo_set%mo_coeff,error=error)!fm -> dbcsr
+       ENDIF!fm->dbcsr
+    ENDDO!fm -> dbcsr
+
+
     IF(qs_env%dft_control%qs_control%becke_restraint)THEN
        CALL pw_env_get(qs_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,&
@@ -999,16 +1012,6 @@ CONTAINS
        orthogonality_metric=>matrix_s(1)%matrix
     END IF
 
-    !
-    ! for the moment we copy the mos and its gradients to dbcsr and after the ot step the mos
-    ! back to the fm format.
-    DO ispin=1,SIZE(mos)!fm -> dbcsr
-       IF(.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &
-            CALL stop_program(routineN, "mo_coeff_b is not allocated")
-       CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b, &
-            error=error)!fm -> dbcsr
-    ENDDO!fm -> dbcsr
-
     ! in case of LSD the first spin qs_ot_env will drive the minimization
     ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
 
@@ -1023,10 +1026,6 @@ CONTAINS
                               smear=smear,&
                               error=error)
     ENDDO
-
-    DO ispin=1,SIZE(mos)!fm -> dbcsr
-       CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm -> dbcsr
-    ENDDO!fm -> dbcsr
 
     DO ispin=1,SIZE(mos)
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
@@ -1352,8 +1351,8 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: ks_scp, orthogonality_metric, &
-                                                pscp
+    TYPE(dbcsr_obj), POINTER                 :: ks_scp, mo_coeff_b, &
+                                                orthogonality_metric, pscp
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1386,6 +1385,14 @@ END SUBROUTINE qs_scf_print_summary
 
     scp_dft = dft_control%scp
     scp_nddo = dft_control%qs_control%se_control%scp 
+
+    ! if using mo_coeff_b then copy to fm
+    DO ispin=1,SIZE(mos)!fm->dbcsr
+       IF(mos(1)%mo_set%use_mo_coeff_b)THEN!fm->dbcsr
+          !write(*,*) routinen//' copy_dbcsr_to_fm',__LINE__
+          CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr
+       ENDIF!fm->dbcsr
+    ENDDO!fm->dbcsr
 
     ! this just guarantees that all mo_occupations match the eigenvalues, if smear
     ! TO BE FIXED, right now, can't be done with xas
@@ -1469,10 +1476,12 @@ END SUBROUTINE qs_scf_print_summary
            !
          CASE(ot_precond_full_all,ot_precond_full_single_inverse)
            DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-             CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b)
+             CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_ks(ispin)%matrix,&
                   do_rotation = .TRUE., &
-                  co_rotate_dbcsr=qs_env%mo_derivs(ispin)%matrix,error=error)
+                  co_rotate=qs_env%mo_derivs(ispin)%matrix,&
+                  para_env=qs_env%para_env,&
+                  blacs_env=qs_env%blacs_env,error=error)
              CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                         scf_control%diagonalization%ot_settings%preconditioner_type, &
                         scf_control%diagonalization%ot_settings%precond_solver_type, &
@@ -1631,10 +1640,12 @@ CPSourceFileRef)
                 do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
                 CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
                 DO ispin=1,dft_control%nspins
-                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-                   CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                   CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b)
+                   CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_ks(ispin)%matrix,&
                         do_rotation = .TRUE., &
-                        co_rotate_dbcsr=qs_env%mo_derivs(ispin)%matrix,error=error)
+                        co_rotate=qs_env%mo_derivs(ispin)%matrix,&
+                        para_env=qs_env%para_env,&
+                        blacs_env=qs_env%blacs_env,error=error)
                    IF (has_unit_metric) THEN
                      CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                           scf_env%qs_ot_env(1)%settings%preconditioner_type, &
@@ -1758,10 +1769,12 @@ CPSourceFileRef)
                 do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
                 CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
                 DO ispin=1,dft_control%nspins
-                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-                   CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                   CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff_b=mo_coeff_b)
+                   CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_ks(ispin)%matrix,&
                         do_rotation = .TRUE., &
-                        co_rotate_dbcsr=qs_env%mo_derivs(ispin)%matrix,error=error)
+                        co_rotate=qs_env%mo_derivs(ispin)%matrix,&
+                        para_env=qs_env%para_env,&
+                        blacs_env=qs_env%blacs_env,error=error)
                    CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
                         scf_env%qs_ot_env(1)%settings%precond_solver_type, &
@@ -1822,7 +1835,6 @@ CPSourceFileRef)
                 ENDDO
              END SELECT
           END IF
-
        ENDIF
 
        ! if we have non-uniform occupations we should be using rotation
@@ -2138,6 +2150,10 @@ CPSourceFileRef)
           END IF
           IF(.not.ASSOCIATED(mo_coeff_b)) THEN
              CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=nmo,error=error)
+             !
+             ! check if we need the mo_coeff_b
+             mos(ispin)%mo_set%use_mo_coeff_b = qs_env%scf_control%use_ot .OR.&
+                                                scf_env%method .EQ. ot_diag_method_nr
              CALL create_bl_distribution (col_dist, col_blk_size, nmo, &! fm->dbcsr
                   dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_s(1)%matrix))))! fm->dbcsr
              CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_s(1)%matrix)),&! fm->dbcsr
@@ -2515,6 +2531,15 @@ CPSourceFileRef)
          CALL qs_ks_scp_did_change ( qs_env=qs_env, rho_changed = .TRUE., error = error )
        END IF
 ! *** SCP
+
+       DO ispin=1,SIZE(qs_env%mos)!fm->dbcsr
+          IF(qs_env%mos(ispin)%mo_set%use_mo_coeff_b) THEN
+             !WRITE(*,*) routinen//' copy_fm_to_dbcsr',__LINE__
+             CALL copy_fm_to_dbcsr(qs_env%mos(ispin)%mo_set%mo_coeff,&
+                  qs_env%mos(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+          ENDIF
+       ENDDO!fm->dbcsr
+
     END IF
 
     CALL timestop(handle)

@@ -146,16 +146,18 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     INTEGER                                  :: handle, istat, k, &
                                                 my_solver_type
     LOGICAL :: failure, my_convert_precond_to_dbcsr, my_mixed_precision, &
-      needs_full_spectrum, needs_homo
+      needs_full_spectrum, needs_homo, use_mo_coeff_b
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
 
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
-    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff)
+    CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
+    use_mo_coeff_b = mo_set%use_mo_coeff_b
 
     CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 
@@ -200,8 +202,15 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        ! to be optimised later.
        ! one flaw is that not all SCF methods (i.e. that go over mo_derivs directly)
        ! have a 'valid' matrix_h... (we even don't know what evals are in that case)
-       CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
+       IF(use_mo_coeff_b) THEN
+          CALL calculate_subspace_eigenvalues(mo_coeff_b,matrix_h,&
+               eigenvalues_ot, do_rotation = .FALSE.,&
+               para_env=mo_coeff%matrix_struct%para_env,&
+               blacs_env=mo_coeff%matrix_struct%context,error=error)
+       ELSE
+          CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
                eigenvalues_ot, do_rotation = .FALSE.,error=error)
+       ENDIF
        IF (k>0) energy_homo=eigenvalues_ot(k)
     ELSE
        IF (needs_homo) THEN 
@@ -259,6 +268,9 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
   CASE (ot_precond_full_single_inverse)
      preconditioner_env%in_use=ot_precond_full_single_inverse
      IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
+     IF(use_mo_coeff_b) THEN
+        CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff,error=error)
+     ENDIF
      IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_single_inverse(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
                                       eigenvalues_ot, energy_gap, my_mixed_precision, &
@@ -271,6 +283,9 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      preconditioner_env%in_use=ot_precond_full_all
      IF(my_solver_type.NE.ot_precond_solver_default) THEN
         CALL stop_program("make preconditioner","Only PRECOND_SOLVER DEFAULT for the moment")
+     ENDIF
+     IF(use_mo_coeff_b) THEN
+        CALL copy_dbcsr_to_fm(mo_coeff_b,mo_coeff,error=error)
      ENDIF
      IF ( PRESENT(matrix_s) ) THEN
         CALL make_full_all(preconditioner_env,mo_coeff,matrix_h, matrix_s, &

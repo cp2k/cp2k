@@ -661,6 +661,10 @@ END SUBROUTINE diag_subspace_allocate
        CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
               do_rotation = .TRUE., error=error)
 
+WRITE(*,*) routinen//' copy_dbcsr_to_fm'
+CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
+     mos(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+
        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=scf_control%smear,error=error)
        CALL calculate_density_matrix(mos(ispin)%mo_set,scf_env%p_mix_new(ispin)%matrix,error=error)
     END DO

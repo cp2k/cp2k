@@ -110,3 +110,5 @@ SiO2.inp
 SiO2_lr_quad.inp
 # convert mo_derivs to dbcsr
 Co_complex.inp
+#
+LM-KSDO-D.inp

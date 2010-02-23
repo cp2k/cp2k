@@ -398,3 +398,9 @@ Li-hybrid-rcam-b3lyp.inp
 CH3-PBE0_TC_LRC.inp
 #
 CH3-PBE0_TC.inp
+#
+Ne-hybrid-rcam-b3lyp.inp
+#
+Li-hybrid-MCY3.inp
+#
+Ne-hybrid-MCY3.inp

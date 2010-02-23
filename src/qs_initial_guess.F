@@ -20,11 +20,11 @@ MODULE qs_initial_guess
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, cp_dbcsr_checksum, cp_dbcsr_create, cp_dbcsr_filter, &
-       cp_dbcsr_get_diag, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_scale, cp_dbcsr_set_diag, cp_dbcsr_trace, &
-       cp_dbcsr_verify_matrix, dbcsr_from_fm, dbcsr_obj_p_type, &
-       dbcsr_sm_fm_multiply
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_checksum, &
+       cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_get_diag, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, &
+       cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix, &
+       dbcsr_from_fm, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
@@ -316,6 +316,11 @@ CPSourceFileRef,&
        ENDDO
 
        DO ispin=1,nspin
+
+          IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
+CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+          ENDIF!fm->dbcsr
+
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
@@ -357,6 +362,9 @@ CPSourceFileRef,&
              ENDDO
 
              DO ispin=1,nspin
+          IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
+CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+          ENDIF!fm->dbcsr
                 CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
                                               p_rmpv(ispin)%matrix,error=error)
              ENDDO
@@ -389,6 +397,11 @@ CPSourceFileRef,&
        ENDDO
 
        DO ispin=1,nspin
+
+          IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
+CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+          ENDIF!fm->dbcsr
+
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
@@ -551,6 +564,8 @@ CPSourceFileRef,&
                 CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
                                        smear=qs_env%scf_control%smear,&
                                        error=error)
+
+CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
 
                 CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                               p_rmpv(ispin)%matrix,&
@@ -841,6 +856,8 @@ CPSourceFileRef,&
                                  smear=qs_env%scf_control%smear,&
                                  error=error)
 
+CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                         p_rmpv(ispin)%matrix,&
                                         error=error)
@@ -1112,6 +1129,7 @@ CPSourceFileRef,&
              CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
                                     smear=qs_env%scf_control%smear,&
                                     error=error)
+CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
 
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                            p_rmpv(ispin)%matrix,&

@@ -24,7 +24,8 @@ MODULE qs_mo_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_copy,&
                                              cp_dbcsr_init_p,&
                                              cp_dbcsr_release_p,&
                                              dbcsr_copy_columns_hack
@@ -85,6 +86,8 @@ MODULE qs_mo_types
     ! the actual MO coefficients as a matrix
     TYPE(cp_fm_type), POINTER                 :: mo_coeff
     TYPE(dbcsr_obj), POINTER                  :: mo_coeff_b
+    ! we are using the dbcsr mo_coeff_b
+    LOGICAL                                   :: use_mo_coeff_b
     ! number of molecular orbitals (# cols in mo_coeff)
     INTEGER                                   :: nmo
     ! number of atomic orbitals (# rows in mo_coeff)
@@ -183,6 +186,7 @@ CONTAINS
        CALL cp_dbcsr_init_p(mo_set_new%mo_coeff_b,error=error)
        CALL cp_dbcsr_copy(mo_set_new%mo_coeff_b,mo_set_old%mo_coeff_b,error=error)
     ENDIF
+    mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
     ALLOCATE (mo_set_new%eigenvalues(nmo),STAT=istat)
     CPPostcondition((istat == 0),cp_failure_level,routineP,error,failure)
@@ -244,6 +248,7 @@ CONTAINS
     NULLIFY (mo_set%occupation_numbers)
     NULLIFY (mo_set%mo_coeff)
     NULLIFY (mo_set%mo_coeff_b)
+    mo_set%use_mo_coeff_b = .FALSE.
 
   END SUBROUTINE allocate_mo_set
 
@@ -733,7 +738,7 @@ CONTAINS
 
     CHARACTER(LEN=30), DIMENSION(2) :: &
       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
-    INTEGER                                  :: handle, ikey, ires
+    INTEGER                                  :: handle, ikey, ires, ispin
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -745,6 +750,18 @@ CONTAINS
          dft_section,keys(1),error=error),cp_p_file) .OR.  &
          BTEST(cp_print_key_should_output(logger%iter_info,&
          dft_section,keys(2),error=error),cp_p_file) ) THEN
+
+       IF(mo_array(1)%mo_set%use_mo_coeff_b) THEN
+          ! we are using the dbcsr mo_coeff
+          ! we copy it to the fm for anycase
+          DO ispin=1,SIZE(mo_array)
+             IF(.not.ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             ENDIF
+             CALL copy_dbcsr_to_fm(mo_array(ispin)%mo_set%mo_coeff_b,&
+                  mo_array(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr
+          ENDDO
+       ENDIF
 
        DO ikey=1,SIZE(keys)
 

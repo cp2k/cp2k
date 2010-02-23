@@ -410,6 +410,7 @@ CONTAINS
 
     DO ispin=1,SIZE(mo_array)
        IF(.NOT.ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
+          CALL stop_program(routinen,'shouldnt get there')
           ! we do ot then copy fm to dbcsr
           ! allocate that somewhere else ! fm -> dbcsr
           CALL create_bl_distribution (col_dist, col_blk_size, mo_array(ispin)%mo_set%nmo, &
