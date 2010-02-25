@@ -549,7 +549,7 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_create
 
   SUBROUTINE cp_dbcsr_filter(matrix, eps, method, error)
-    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(dp), INTENT(IN)                     :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
     TYPE(cp_error_type), INTENT(INOUT)       :: error

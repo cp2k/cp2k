@@ -4920,6 +4920,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="EPS_IRAC_FILTER_MATRIX",&
+            description="Sets the threshold for filtering the matrices.",&
+            usage="EPS_IRAC_FILTER_MATRIX 1.0E-5",&
+            default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="EPS_IRAC",&
             description="Targeted accuracy during the refinement iteration.",&
             usage="EPS_IRAC 1.0E-5",&

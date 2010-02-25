@@ -2285,7 +2285,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_filter(matrix, eps, method, error)
 
-    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)   :: matrix
     REAL(dp), INTENT(IN)                     :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error

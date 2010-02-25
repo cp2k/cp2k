@@ -98,7 +98,8 @@ MODULE qs_ot_types
      INTEGER           :: max_irac     ! maximum number of iteration for the refinement
      REAL(KIND = dp)   :: eps_irac! target accuracy for the refinement
      REAL(KIND = dp)   :: eps_irac_quick_exit
-     REAL(KIND = dp)   :: eps_irac_switch
+     real(dp)          :: eps_irac_filter_matrix
+     real(KIND = dp)   :: eps_irac_switch
      LOGICAL           :: on_the_fly_loc
      CHARACTER(LEN=4)  :: ortho_irac
      LOGICAL           :: mixed_precision
@@ -261,6 +262,7 @@ CONTAINS
     settings%eps_irac=1.0E-10_dp
     settings%eps_irac_quick_exit=1.0E-5_dp
     settings%eps_irac_switch=1.0E-2
+    settings%eps_irac_filter_matrix=0.0_dp
     settings%on_the_fly_loc=.FALSE.
     settings%ortho_irac="CHOL"
     settings%scp_nddo=.FALSE.
@@ -1114,6 +1116,8 @@ CONTAINS
     IF(settings%max_irac < 1) THEN
        CALL stop_program("READ OT MAX_IRAC","VALUE MUST BE GREATER THAN ZERO")
     ENDIF
+    CALL section_vals_val_get(ot_section,"EPS_IRAC_FILTER_MATRIX",r_val=settings%eps_irac_filter_matrix,&
+         error=error)
     CALL section_vals_val_get(ot_section,"EPS_IRAC",r_val=settings%eps_irac,error=error)
     IF(settings%eps_irac < 0.0_dp) THEN
        CALL stop_program("READ OT EPS_IRAC","VALUE MUST BE GREATER THAN ZERO")
