@@ -98,8 +98,8 @@ MODULE qs_ot_types
      INTEGER           :: max_irac     ! maximum number of iteration for the refinement
      REAL(KIND = dp)   :: eps_irac! target accuracy for the refinement
      REAL(KIND = dp)   :: eps_irac_quick_exit
-     real(dp)          :: eps_irac_filter_matrix
-     real(KIND = dp)   :: eps_irac_switch
+     REAL(dp)          :: eps_irac_filter_matrix
+     REAL(KIND = dp)   :: eps_irac_switch
      LOGICAL           :: on_the_fly_loc
      CHARACTER(LEN=4)  :: ortho_irac
      LOGICAL           :: mixed_precision

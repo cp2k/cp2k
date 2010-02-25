@@ -17,26 +17,28 @@ MODULE qs_ot
   USE cp_dbcsr_diag,                   ONLY: dbcsr_heevd,&
                                              dbcsr_syevd
   USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, &
+       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_filter, &
        cp_dbcsr_hadamard_product, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_release_p, &
        cp_dbcsr_scale, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
-       cp_dbcsr_transposed, cp_dbcsr_filter
+       cp_dbcsr_transposed
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_get_info, dbcsr_get_occupation, &
-                                             dbcsr_distribution_mp, dbcsr_mp_group, &
-                                             dbcsr_distribution
+                                             dbcsr_distribution_mp,&
+                                             dbcsr_get_info,&
+                                             dbcsr_get_occupation,&
+                                             dbcsr_mp_group
   USE dbcsr_operations,                ONLY: dbcsr_frobenius_norm,&
                                              dbcsr_gershgorin_norm
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
   USE preconditioner,                  ONLY: apply_preconditioner
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_ot_types,                     ONLY: qs_ot_type
@@ -46,7 +48,6 @@ MODULE qs_ot
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE message_passing,                 ONLY: mp_sum
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -149,11 +150,13 @@ CONTAINS
                                                 rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: blk, col, col_size, handle, &
-                                                i, k, n, p, row, row_size, output_unit
-    TYPE(cp_logger_type), POINTER            :: logger
+                                                i, k, n, output_unit, p, row, &
+                                                row_size
     LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
-    REAL(KIND=dp)                            :: expfactor, norm_fro, norm_gct, f2, tmp
+    REAL(KIND=dp)                            :: expfactor, f2, norm_fro, &
+                                                norm_gct, tmp
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_obj), POINTER                 :: C, Gp1, Gp2, GU, U
 
@@ -352,8 +355,7 @@ CONTAINS
   SUBROUTINE qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(dbcsr_obj), POINTER                 :: C_OLD, C_TMP, C_NEW
-    TYPE(dbcsr_obj), POINTER                 :: P
+    TYPE(dbcsr_obj), POINTER                 :: C_OLD, C_TMP, C_NEW, P
     TYPE(dbcsr_obj)                          :: SC
     REAL(dp), INTENT(IN)                     :: norm_in
     LOGICAL, INTENT(IN)                      :: update
@@ -366,7 +368,7 @@ CONTAINS
                                                 output_unit
     LOGICAL                                  :: quick_exit
     REAL(dp)                                 :: norm, norm_fro, norm_gct, &
-                                                rescale, occ_in, occ_out
+                                                occ_in, occ_out, rescale
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj), POINTER                 :: BUF1, BUF2, BUF_NOSYM, FT, FY
 
@@ -413,7 +415,7 @@ CONTAINS
        ELSE
           CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, FT, FY, 0.0_dp, BUF1, error=error)
           occ_in = dbcsr_get_occupation(buf1)
-          call cp_dbcsr_filter(buf1,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+          CALL cp_dbcsr_filter(buf1,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
           occ_out = dbcsr_get_occupation(buf1)
           IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
                WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(BUF1): occ_in',occ_in,' occ_out',occ_out
@@ -430,13 +432,13 @@ CONTAINS
        ! P = FY^T * P * FY
        CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, P, FY, 0.0_dp, BUF_NOSYM, error=error)
        occ_in = dbcsr_get_occupation(buf_nosym)
-       call cp_dbcsr_filter(buf_nosym,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(buf_nosym,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(buf_nosym)
        IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(BUF_NOSYM): occ_in',occ_in,' occ_out',occ_out
        CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, FY, BUF_NOSYM, 0.0_dp, P, error=error)
        occ_in = dbcsr_get_occupation(p)
-       call cp_dbcsr_filter(p,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(p,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(p)
        IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(P): occ_in',occ_in,' occ_out',occ_out
@@ -470,7 +472,7 @@ CONTAINS
     ! C_NEW = C_NEW * FT * rescale
     CALL cp_dbcsr_multiply('N', 'N', rescale, C_OLD, FT, 0.0_dp, C_NEW, error=error)
     occ_in = dbcsr_get_occupation(c_new)
-    call cp_dbcsr_filter(c_new,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+    CALL cp_dbcsr_filter(c_new,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
     occ_out = dbcsr_get_occupation(c_new)
     IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
          WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(C_NEW): occ_in',occ_in,' occ_out',occ_out
@@ -479,7 +481,7 @@ CONTAINS
     IF(update) THEN
        CALL cp_dbcsr_multiply('N', 'N', rescale, SC, FT, 0.0_dp, C_TMP, error=error)
        occ_in = dbcsr_get_occupation(c_tmp)
-       call cp_dbcsr_filter(c_tmp,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(c_tmp,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(c_tmp)
        IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(C_TMP): occ_in',occ_in,' occ_out',occ_out
@@ -540,7 +542,8 @@ CONTAINS
     CHARACTER(LEN=4)                         :: ortho_irac
     INTEGER                                  :: handle, k, n, output_unit
     LOGICAL                                  :: on_the_fly_loc, update
-    REAL(dp)                                 :: norm, norm_fro, norm_gct, occ_in, occ_out
+    REAL(dp)                                 :: norm, norm_fro, norm_gct, &
+                                                occ_in, occ_out
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj), POINTER                 :: C_NEW, C_OLD, C_TMP, D, &
                                                 G_OLD, P, S, SC
@@ -577,7 +580,7 @@ CONTAINS
     IF(ASSOCIATED(S)) THEN
        CALL cp_dbcsr_multiply('N','N',1.0_dp,S,C_OLD,0.0_dp,SC,last_column=k,error=error)
        occ_in = dbcsr_get_occupation(sc)
-       call cp_dbcsr_filter(sc,qs_ot_env1%settings%eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(sc,qs_ot_env1%settings%eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(sc)
        IF(output_unit>0.AND.qs_ot_env1%settings%eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(SC): occ_in',occ_in,' occ_out',occ_out
@@ -588,7 +591,7 @@ CONTAINS
     ! compute P = C'*SC
     CALL cp_dbcsr_multiply('T','N',1.0_dp,C_OLD,SC,0.0_dp,P,error=error)
     occ_in = dbcsr_get_occupation(p)
-    call cp_dbcsr_filter(p,qs_ot_env1%settings%eps_irac_filter_matrix,error=error)
+    CALL cp_dbcsr_filter(p,qs_ot_env1%settings%eps_irac_filter_matrix,error=error)
     occ_out = dbcsr_get_occupation(p)
     IF(output_unit>0.AND.qs_ot_env1%settings%eps_irac_filter_matrix.GT.0.0_dp) &
          WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(P): occ_in',occ_in,' occ_out',occ_out
@@ -634,9 +637,9 @@ CONTAINS
     ! refinement polynomial of degree 2,3 and 4 (PRB 70, 193102 (2004))
     !----------------------------------------------------------------------
 
-    TYPE(dbcsr_obj), intent(inout)         :: P, FY, P2, T
+    TYPE(dbcsr_obj), INTENT(inout)           :: P, FY, P2, T
     INTEGER, INTENT(in)                      :: irac_degree
-    real(dp), intent(in)                     :: eps_irac_filter_matrix
+    REAL(dp), INTENT(in)                     :: eps_irac_filter_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_refine', &
@@ -644,7 +647,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, output_unit
-    REAL(dp)                                 :: r, occ_in, occ_out
+    REAL(dp)                                 :: occ_in, occ_out, r
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -659,7 +662,7 @@ CONTAINS
        r =   3.0_dp/8.0_dp
        CALL cp_dbcsr_multiply('N', 'N', r, P, P, 0.0_dp, FY, error=error)
        occ_in = dbcsr_get_occupation(fy)
-       call cp_dbcsr_filter(fy,eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(fy,eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(fy)
        IF(output_unit>0.AND.eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(FY): occ_in',occ_in,' occ_out',occ_out
@@ -671,14 +674,14 @@ CONTAINS
        ! C_out = C_in * ( 35/16 * I - 35/16 * P + 21/16 * P^2 - 5/16 P^3)
        CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, P, P, 0.0_dp, P2, error=error)
        occ_in = dbcsr_get_occupation(p2)
-       call cp_dbcsr_filter(p2,eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(p2,eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(p2)
        IF(output_unit>0.AND.eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(P2): occ_in',occ_in,' occ_out',occ_out
        r =  -5.0_dp/16.0_dp
        CALL cp_dbcsr_multiply('N', 'N', r, P2, P, 0.0_dp, FY, error=error)
        occ_in = dbcsr_get_occupation(fy)
-       call cp_dbcsr_filter(fy,eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(fy,eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(fy)
        IF(output_unit>0.AND.eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(FY): occ_in',occ_in,' occ_out',occ_out
@@ -693,7 +696,7 @@ CONTAINS
        !       = C_in * ( 315/128 * I - 420/128 * P + 378/128 * P^2 + ( - 180/128 * P + 35/128 * P^2 ) * P^2 )
        CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, P, P, 0.0_dp, P2, error=error)   ! P^2
        occ_in = dbcsr_get_occupation(p2)
-       call cp_dbcsr_filter(p2,eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(p2,eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(p2)
        IF(output_unit>0.AND.eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(P2): occ_in',occ_in,' occ_out',occ_out
@@ -703,7 +706,7 @@ CONTAINS
        CALL cp_dbcsr_add(T, P2, alpha_scalar=1.0_dp, beta_scalar=r, error=error) ! T=T+35/128*P^2
        CALL cp_dbcsr_multiply('N', 'N', 1.0_dp, T, P2, 0.0_dp, FY, error=error)  ! Y=T*P^2
        occ_in = dbcsr_get_occupation(fy)
-       call cp_dbcsr_filter(fy,eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(fy,eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(fy)
        IF(output_unit>0.AND.eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(FY): occ_in',occ_in,' occ_out',occ_out
@@ -733,11 +736,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    real(dp) :: occ_in, occ_out
     INTEGER                                  :: handle, k, n, output_unit
     LOGICAL                                  :: mixed_precision
-    TYPE(dbcsr_obj), POINTER                 :: C, CHC, G, G_dp, HC, SC
+    REAL(dp)                                 :: occ_in, occ_out
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_obj), POINTER                 :: C, CHC, G, G_dp, HC, SC
 
     CALL timeset(routineN,handle)
 
@@ -758,14 +761,14 @@ CONTAINS
        ! C'*(H*C)
        CALL cp_dbcsr_multiply('T','N',1.0_dp,C,HC,rzero,CHC,error=error)
        occ_in = dbcsr_get_occupation(chc)
-       call cp_dbcsr_filter(chc,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(chc,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(chc)
        IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(CHC): occ_in',occ_in,' occ_out',occ_out
        ! (S*C)*(C'*H*C)
        CALL cp_dbcsr_multiply('N','N',1.0_dp,SC,CHC,0.0_dp,G_dp,error=error)
        occ_in = dbcsr_get_occupation(g_dp)
-       call cp_dbcsr_filter(g_dp,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(g_dp,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(g_dp)
        IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(G_dp): occ_in',occ_in,' occ_out',occ_out
@@ -776,14 +779,14 @@ CONTAINS
        ! C'*(H*C)
        CALL cp_dbcsr_multiply('T','N',1.0_dp,C,HC,0.0_dp,CHC,error=error)
        occ_in = dbcsr_get_occupation(chc)
-       call cp_dbcsr_filter(chc,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(chc,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(chc)
        IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(CHC): occ_in',occ_in,' occ_out',occ_out
        ! (S*C)*(C'*H*C)
        CALL cp_dbcsr_multiply('N','N',1.0_dp,SC,CHC,0.0_dp,G,error=error)
        occ_in = dbcsr_get_occupation(g)
-       call cp_dbcsr_filter(g,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
+       CALL cp_dbcsr_filter(g,qs_ot_env%settings%eps_irac_filter_matrix,error=error)
        occ_out = dbcsr_get_occupation(g)
        IF(output_unit>0.AND.qs_ot_env%settings%eps_irac_filter_matrix.GT.0.0_dp) &
             WRITE(output_unit,'(2(A,F8.5))') routinen//' filter(G): occ_in',occ_in,' occ_out',occ_out
