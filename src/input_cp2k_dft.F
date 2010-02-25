@@ -1733,6 +1733,13 @@ CONTAINS
                         "by adding linear combinations of HOMO/LUMO of the original MOs to the result MOs",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE., error=error)
 
+       CALL keyword_create(keyword, name="OVERWRITE_MOS",&
+            description="If the keyword is active molecular orbitals in memory will be replaced by the mixed wfn."//&
+                        " In combination with RTP or EMD no restart will be required to use the mixed wfn.",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_create(subsection,name="UPDATE",&
             description="update a result MO with with a linear combination of of original MOs."//&
                         " This section can be repeated to build arbitrary linear combinations using repeatedly y=a*y+b*x.",&

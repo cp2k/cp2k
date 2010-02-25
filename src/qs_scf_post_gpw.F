@@ -1060,7 +1060,8 @@ CONTAINS
     INTEGER :: handle, i_rep, ispin, mark_ind, mark_number, n_rep, &
       orig_mo_index, orig_spin_index, result_mo_index, result_spin_index
     LOGICAL                                  :: explicit, failure, &
-                                                orig_is_virtual
+                                                orig_is_virtual,&
+                                                overwrite_mos
     REAL(KIND=dp)                            :: orig_scale, orthonormality, &
                                                 result_scale
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_vector
@@ -1121,6 +1122,8 @@ CONTAINS
           IF(orig_is_virtual)mark_ind=2         
           IF(mark_number.GT.0)orig_mo_index=marked_states(mark_number,orig_spin_index,mark_ind)
 
+          CALL section_vals_val_get(wfn_mix_section,"OVERWRITE_MOS",l_val=overwrite_mos,error=error)
+
           ! first get a copy of the proper orig
           IF (.NOT. ORIG_IS_VIRTUAL) THEN
              CALL cp_fm_to_fm(mos(orig_spin_index)%mo_set%mo_coeff,matrix_x,1,mos(orig_spin_index)%mo_set%nmo-orig_mo_index+1,1)
@@ -1160,6 +1163,11 @@ CONTAINS
        ! *** Write WaveFunction restart file ***
        CALL write_mo_set(mos_new,particle_set,dft_section=dft_section,scp=.FALSE., &
                          atomic_kind_set=atomic_kind_set,error=error)
+       IF(overwrite_mos)THEN
+          DO ispin=1,SIZE(mos_new)
+             CALL cp_fm_to_fm(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff,error)
+          END DO
+        END IF
 
        DO ispin=1,SIZE(mos_new)
           CALL deallocate_mo_set(mos_new(ispin)%mo_set,error)
