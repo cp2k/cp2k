@@ -172,6 +172,10 @@ esac
 shift
 done
 
+if [ "${ARCH}" ]; then
+    ARCH_SPEC="ARCH=${ARCH}"
+fi
+
 # *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
 # Unless cp2k_prefix is overridden in the sourced -config file, the
 # default is used.
@@ -337,7 +341,7 @@ fi
 # *** make realclean
 if [[ ${quick} != "quick" ]]; then
    cd ${dir_base}/${cp2k_dir}/makefiles
-   ${make} realclean VERSION=${cp2k_version} &> out
+   ${make} realclean ${ARCH_SPEC} VERSION=${cp2k_version} &> out
    if (( $? )); then
       echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
       tail -20 out >> ${error_description_file}
@@ -354,7 +358,7 @@ fi
 # *** from here failures are likely to be bugs in cp2k
 echo "-------------------------compiling cp2k-----------------------------------"
 cd ${dir_base}/${cp2k_dir}/makefiles
-${make} -j ${maxtasks} VERSION=${cp2k_version} &> out
+${make} -j ${maxtasks} ${ARCH_SPEC} VERSION=${cp2k_version} &> out
 if (( $? )); then
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
 tail -40 out >> ${error_description_file}
