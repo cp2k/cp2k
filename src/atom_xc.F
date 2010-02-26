@@ -331,6 +331,14 @@ CONTAINS
            CALL numpot_matrix(xcmatb%op,xcpot(:,1,1),atom%basis,1,error)
            DEALLOCATE(drho,STAT=ierr)
            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+           ! Cross Terms
+           NULLIFY(deriv)
+           deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",error=error)
+           IF(ASSOCIATED(deriv)) THEN
+             CALL xc_derivative_get(deriv,deriv_data=xcpot,error=error)
+             CALL numpot_matrix(xcmata%op,xcpot(:,1,1),atom%basis,1,error)
+             CALL numpot_matrix(xcmatb%op,xcpot(:,1,1),atom%basis,1,error)
+           END IF
          END IF
          IF ( needs%tau_spin ) THEN
            n1 = SIZE(xcmata%op,1)
