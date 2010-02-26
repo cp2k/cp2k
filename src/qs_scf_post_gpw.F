@@ -1060,8 +1060,7 @@ CONTAINS
     INTEGER :: handle, i_rep, ispin, mark_ind, mark_number, n_rep, &
       orig_mo_index, orig_spin_index, result_mo_index, result_spin_index
     LOGICAL                                  :: explicit, failure, &
-                                                orig_is_virtual,&
-                                                overwrite_mos
+                                                orig_is_virtual, overwrite_mos
     REAL(KIND=dp)                            :: orig_scale, orthonormality, &
                                                 result_scale
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_vector
