@@ -9,7 +9,6 @@
 !>       2006.03 Moved here from qs_scf.F [Joost VandeVondele]
 ! *****************************************************************************
 MODULE qs_initial_guess
-
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
   USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
@@ -20,27 +19,26 @@ MODULE qs_initial_guess
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_checksum, &
-       cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_get_diag, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, &
-       cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix, &
-       dbcsr_from_fm, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_checksum, cp_dbcsr_copy, &
+       cp_dbcsr_filter, cp_dbcsr_get_diag, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set_diag, cp_dbcsr_trace, &
+       cp_dbcsr_verify_matrix, dbcsr_from_fm, dbcsr_obj_p_type, &
+       dbcsr_sm_fm_multiply
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
        cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_dist_operations,           ONLY: dbcsr_create_dist_r_unrot
+  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_num_blocks, &
+       dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_mp_npcols, &
        dbcsr_row_block_sizes
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
@@ -138,7 +136,7 @@ CONTAINS
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 my_sum, total_rho, trps1, trps2, &
-                                                yy, zeff, checksum, eps
+                                                yy, zeff, checksum, eps, occ
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
     REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: buff,buff2
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
@@ -167,7 +165,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, subsys_section
     TYPE(dbcsr_obj)                          :: mo_dbcsr, mo_tmp_dbcsr
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
-    TYPE(dbcsr_distribution_obj)             :: dist, product_dist
+    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_iterator)                     :: iter
 
     logger => cp_error_get_logger(error)
@@ -625,7 +623,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        i = dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
        IF(output_unit>0)WRITE(output_unit,*) 'S nblks',i,' checksum',checksum
        CALL cp_dbcsr_filter(s_sparse(1)%matrix, eps, error=error)
-       CALL cp_dbcsr_verify_matrix(s_sparse(1)%matrix, error=error)
        checksum = cp_dbcsr_checksum(s_sparse(1)%matrix, error=error)
        i = dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
        IF(output_unit>0)WRITE(output_unit,*) 'S nblks',i,' checksum',checksum
@@ -658,25 +655,25 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           ENDDO
           CALL dbcsr_iterator_stop(iter)
 
-          CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
+          !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
           checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix, error=error)
-          i = dbcsr_get_num_blocks (p_rmpv(ispin)%matrix); CALL mp_sum(i,group)
-          IF(output_unit>0)WRITE(output_unit,*) 'P_init nblks',i,' checksum',checksum
+          occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
+          IF(output_unit>0)WRITE(output_unit,*) 'P_init occ',occ,' checksum',checksum
           ! so far p needs to have the same sparsity as S
           !CALL cp_dbcsr_filter(p_rmpv(ispin)%matrix, eps, error=error)
           !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
           checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix, error=error)
-          i = dbcsr_get_num_blocks (p_rmpv(ispin)%matrix); CALL mp_sum(i,group)
-          IF(output_unit>0)WRITE(output_unit,*) 'P_init nblks',i,' checksum',checksum
+          occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
+          IF(output_unit>0)WRITE(output_unit,*) 'P_init occ',occ,' checksum',checksum
 
           CALL cp_dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1, error=error)
           scale=REAL(nelectron,dp)/trps1
           CALL cp_dbcsr_scale(p_rmpv(ispin)%matrix, scale, error=error)
 
-          CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
+          !CALL cp_dbcsr_verify_matrix(p_rmpv(ispin)%matrix, error=error)
           checksum = cp_dbcsr_checksum(p_rmpv(ispin)%matrix, error=error)
-          i = dbcsr_get_num_blocks (p_rmpv(ispin)%matrix); CALL mp_sum(i,group)
-          IF(output_unit>0)WRITE(output_unit,*) 'P nblks',i,' checksum',checksum
+          occ = dbcsr_get_occupation(p_rmpv(ispin)%matrix)
+          IF(output_unit>0)WRITE(output_unit,*) 'P occ',occ,' checksum',checksum
           !
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -773,78 +770,70 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                    ENDDO
                 ENDDO
                 DEALLOCATE(buff,buff2)
-             ENDIF
 
-             CALL dbcsr_create_dist_r_unrot(dist, dbcsr_distribution (s_sparse(1)%matrix), nmo, col_blk_size)
+             ENDIF
+             !
+             CALL create_bl_distribution (col_dist, col_blk_size, nmo, &
+                  dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution( s_sparse(1)%matrix ))))
+             CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution( s_sparse(1)%matrix )),&
+                  dbcsr_distribution_row_dist(dbcsr_distribution( s_sparse(1)%matrix )), col_dist)
              !
              CALL cp_dbcsr_init(mo_dbcsr, error=error)
              CALL dbcsr_from_fm(mo_dbcsr, mo_coeff, 0.0_dp, dist,&
                                 row_blk_size=dbcsr_row_block_sizes (s_sparse(1)%matrix),&
                                 col_blk_size=col_blk_size,&
                                 error=error)
-             CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
+             !CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
-             i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
-             IF(output_unit>0)WRITE(output_unit,*) 'C nblks',i,' checksum',checksum
+
+             occ = dbcsr_get_occupation(mo_dbcsr)
+             IF(output_unit>0)WRITE(output_unit,*) 'C occ',occ,' checksum',checksum
              CALL cp_dbcsr_filter(mo_dbcsr, eps, error=error)
-             CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
+             !CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
+             occ = dbcsr_get_occupation(mo_dbcsr)
              checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
-             i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
-             IF(output_unit>0)WRITE(output_unit,*) 'C nblks',i,' checksum',checksum
+             IF(output_unit>0)WRITE(output_unit,*) 'C occ',occ,' checksum',checksum
              !
              ! multiply times PS
              IF(ortho_basis) THEN
                 CALL stop_program(routineN,"ortho_basis will be removed soon")
              ENDIF
-
-             CALL dbcsr_distribution_new(product_dist,&
-                  dbcsr_distribution_mp(dbcsr_distribution (s_sparse(1)%matrix)),&
-                  dbcsr_distribution_row_dist(dbcsr_distribution (s_sparse(1)%matrix)),&
-                  dbcsr_distribution_col_dist(dbcsr_distribution (mo_dbcsr)))
              !
              ! S*C
              CALL cp_dbcsr_init(mo_tmp_dbcsr, error)
-             CALL cp_dbcsr_create(mo_tmp_dbcsr, "mo_tmp", product_dist, 'N',&
-                  dbcsr_row_block_sizes (s_sparse(1)%matrix),&
-                  dbcsr_col_block_sizes (mo_dbcsr), error=error)
+             CALL cp_dbcsr_copy(mo_tmp_dbcsr, mo_dbcsr, name="mo_tmp", error=error)
              CALL cp_dbcsr_multiply("N", "N", 1.0_dp, s_sparse(1)%matrix, mo_dbcsr,&
                   0.0_dp, mo_tmp_dbcsr,&
-                  error=error)
-             CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
+                  retain_sparsity=.TRUE., error=error)
+             !CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
              checksum = cp_dbcsr_checksum(mo_tmp_dbcsr, error=error)
-             i = dbcsr_get_num_blocks (mo_tmp_dbcsr); CALL mp_sum(i,group)
-             IF(output_unit>0)WRITE(output_unit,*) 'S*C nblks',i,' checksum',checksum
+             occ = dbcsr_get_occupation(mo_tmp_dbcsr)
+             IF(output_unit>0)WRITE(output_unit,*) 'S*C occ',occ,' checksum',checksum
              CALL cp_dbcsr_filter(mo_tmp_dbcsr, eps, error=error)
-             CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
+             !CALL cp_dbcsr_verify_matrix(mo_tmp_dbcsr, error=error)
              checksum = cp_dbcsr_checksum(mo_tmp_dbcsr, error=error)
-             i = dbcsr_get_num_blocks (mo_tmp_dbcsr); CALL mp_sum(i,group)
-             IF(output_unit>0)WRITE(output_unit,*) 'S*C nblks',i,' checksum',checksum
+             occ = dbcsr_get_occupation(mo_tmp_dbcsr)
+             IF(output_unit>0)WRITE(output_unit,*) 'S*C occ',occ,' checksum',checksum
              !
              ! P*SC
              ! the destroy is needed for the moment to avoid memory leaks !
-             CALL cp_dbcsr_release(mo_dbcsr, error=error)
              ! This one is not needed because _destroy takes care of zeroing.
-             !CALL cp_dbcsr_init(mo_dbcsr, error=error)
-             CALL cp_dbcsr_create (mo_dbcsr, "mo", product_dist, 'N',&
-                  dbcsr_row_block_sizes (p_rmpv(ispin)%matrix),&
-                  dbcsr_col_block_sizes (mo_tmp_dbcsr), error=error)
              CALL cp_dbcsr_multiply("N", "N", 1.0_dp, p_rmpv(ispin)%matrix,&
                   mo_tmp_dbcsr, 0.0_dp, mo_dbcsr, error=error)
-             CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
+             IF(.FALSE.)CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
-             i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
-             IF(output_unit>0)WRITE(output_unit,*) 'P*SC nblks',i,' checksum',checksum
+             occ = dbcsr_get_occupation(mo_dbcsr)
+             IF(output_unit>0)WRITE(output_unit,*) 'P*SC occ',occ,' checksum',checksum
              CALL cp_dbcsr_filter(mo_dbcsr, eps, error=error)
-             CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
+             !CALL cp_dbcsr_verify_matrix(mo_dbcsr, error=error)
              checksum = cp_dbcsr_checksum(mo_dbcsr, error=error)
-             i = dbcsr_get_num_blocks (mo_dbcsr); CALL mp_sum(i,group)
-             IF(output_unit>0)WRITE(output_unit,*) 'P*SC nblks',i,' checksum',checksum
+             occ = dbcsr_get_occupation(mo_dbcsr)
+             IF(output_unit>0)WRITE(output_unit,*) 'P*SC occ',occ,' checksum',checksum
              !
              CALL copy_dbcsr_to_fm(mo_dbcsr, mo_coeff,error=error)
 
              CALL cp_dbcsr_release(mo_dbcsr, error=error)
              CALL cp_dbcsr_release(mo_tmp_dbcsr, error=error)
-             CALL dbcsr_distribution_release(product_dist)
              CALL dbcsr_distribution_release(dist)
              CALL array_release(col_blk_size)
 

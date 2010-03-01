@@ -37,10 +37,14 @@ MODULE dbcsr_iterator_operations
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_bcast,&
                                              mp_sum
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-       dbcsr_data_set_pointer, dbcsr_distribution_thread_dist, &
-       dbcsr_get_data_p, dbcsr_get_data_type, dbcsr_release
+  USE dbcsr_methods,                   ONLY: dbcsr_data_hold,&
+                                             dbcsr_data_init,&
+                                             dbcsr_data_new,&
+                                             dbcsr_data_release,&
+                                             dbcsr_data_set_pointer,&
+                                             dbcsr_distribution_thread_dist,&
+                                             dbcsr_get_data_p,&
+                                             dbcsr_get_data_type
   USE dbcsr_ptr_util,                  ONLY: addto_array
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_iterator,&
@@ -50,9 +54,6 @@ MODULE dbcsr_iterator_operations
   USE dbcsr_util,                      ONLY: dbcsr_set_debug
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   IMPLICIT NONE
 

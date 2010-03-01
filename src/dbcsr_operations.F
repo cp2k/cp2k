@@ -113,9 +113,6 @@ MODULE dbcsr_operations
                                              dbcsr_work_create
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   IMPLICIT NONE
 

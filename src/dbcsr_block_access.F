@@ -37,11 +37,9 @@ MODULE dbcsr_block_access
                                              dbcsr_get_stored_block_info,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_8,&
+  USE dbcsr_kinds,                     ONLY: int_8,&
                                              real_4,&
-                                             real_8,&
-                                             sp
+                                             real_8
   USE dbcsr_message_passing,           ONLY: mp_bcast,&
                                              mp_sum
   USE dbcsr_methods,                   ONLY: &
@@ -63,9 +61,6 @@ MODULE dbcsr_block_access
                                              dbcsr_work_create
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   IMPLICIT NONE
 

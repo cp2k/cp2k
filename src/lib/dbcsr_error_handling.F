@@ -212,8 +212,10 @@ CONTAINS
     ! print the stack
     CALL dbcsr_error_print_stack(error, output_unit)
     !
-    ! abort
-    CALL mp_abort()
+    ! abort if needed
+    IF(error%level.NE.dbcsr_warning_level) THEN
+       CALL mp_abort()
+    ENDIF
     !
   END SUBROUTINE dbcsr_abort
 

@@ -47,7 +47,7 @@ MODULE preconditioner
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block
-  USE dbcsr_dist_operations,           ONLY: dbcsr_create_dist_r_unrot,&
+  USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
@@ -56,7 +56,8 @@ MODULE preconditioner
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
-       dbcsr_distribution_release, dbcsr_get_info, dbcsr_get_occupation, &
+       dbcsr_distribution_new, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_info, dbcsr_get_occupation, &
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
        dbcsr_nblkcols_local, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
@@ -2539,29 +2540,30 @@ WRITE(*,*) 'tend',t(13)-t(12)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, k
-    TYPE(array_i1d_obj)                      :: col_blk_size
-    TYPE(dbcsr_distribution_obj)             :: dist_result
+    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
+    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_obj)                          :: matrix_result, matrix_right
 
   CALL timeset(routineN,handle)
 
     WRITE(*,*)' APPLYING SPARSE SINGLE KINETIC'
     CALL cp_fm_get_info(matrix_in, ncol_global=k, error=error)
-    CALL dbcsr_create_dist_r_unrot (dist_result,&
-         dbcsr_distribution (preconditioner_env%dbcsr_matrix), k,&
-         col_blk_size)
+    CALL create_bl_distribution (col_dist, col_blk_size, k, &
+         dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution( preconditioner_env%dbcsr_matrix ))))
+    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution( preconditioner_env%dbcsr_matrix )),&
+         dbcsr_distribution_row_dist(dbcsr_distribution( preconditioner_env%dbcsr_matrix )), col_dist)
     CALL cp_dbcsr_init (matrix_right, error)
-    CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist_result,&
+    CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist,&
          row_blk_size = dbcsr_row_block_sizes(preconditioner_env%dbcsr_matrix),&
          col_blk_size = col_blk_size, error=error)
     WRITE(*,*)'Pre checksum:',cp_dbcsr_checksum (matrix_right, error=error)
     CALL cp_dbcsr_init (matrix_result, error)
-    CALL cp_dbcsr_create(matrix_result, "result", dist_result, 'N',&
+    CALL cp_dbcsr_create(matrix_result, "result", dist, 'N',&
          dbcsr_row_block_sizes (preconditioner_env%dbcsr_matrix),&
          dbcsr_col_block_sizes (matrix_right), error=error)
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, preconditioner_env%dbcsr_matrix,&
          matrix_right, 0.0_dp, matrix_result, error=error)
-    CALL dbcsr_distribution_release (dist_result)
+    CALL dbcsr_distribution_release (dist)
     CALL cp_dbcsr_release (matrix_right, error=error)
     WRITE(*,*)'Post checksum:',cp_dbcsr_checksum (matrix_result, error=error)
     CALL cp_dbcsr_release (matrix_result, error=error)

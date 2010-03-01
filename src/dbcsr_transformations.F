@@ -100,7 +100,7 @@ MODULE dbcsr_transformations
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: sort
+
   IMPLICIT NONE
   PRIVATE
 
@@ -893,8 +893,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: myt_send_count, recv_count, &
                                                 send_count
-    INTEGER, DIMENSION(:), POINTER :: col_blk_size, col_dist, col_img_dist, &
-      row_blk_size, row_dist, row_img_dist, stored_local_rows
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
+                                                col_img_dist, row_blk_size, &
+                                                row_dist, row_img_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: nocopy, predist, same_dst_p, &
                                                 special, tr
@@ -951,7 +952,6 @@ CONTAINS
     ELSE
        NULLIFY (col_img_dist)
     ENDIF
-    stored_local_rows => array_data (dbcsr_distribution_local_rows (sm%dist))
     mp_obj = dbcsr_distribution_mp (target_dist)
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     numproc = dbcsr_mp_numnodes (mp_obj)
