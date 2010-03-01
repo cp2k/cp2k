@@ -225,7 +225,8 @@ CONTAINS
                particles=particles,error=error)
           DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
              i=colvar_p(icolvar)%colvar%i_atom(ii)
-             particles%els(i)%f=particles%els(i)%f+cv%ff_hills*colvar_p(icolvar)%colvar%dsdr(:,ii)
+             fft = cv%ff_hills + cv%ff_walls
+             particles%els(i)%f=particles%els(i)%f+fft*colvar_p(icolvar)%colvar%dsdr(:,ii)
           ENDDO
        ENDDO
     ELSE
@@ -252,7 +253,7 @@ CONTAINS
           ENDDO
           !  velocity verlet on the s0 if NOT langevin
           IF (.NOT.meta_env%langevin) THEN
-             fft    = cv%ff_s+cv%ff_hills
+             fft    = cv%ff_s + cv%ff_hills + cv%ff_walls
              cv%vvp = cv%vvp+dt*fft/cv%mass
              meta_env%ekin_s = meta_env%ekin_s + 0.5_dp*cv%mass*cv%vvp**2
              meta_env%epot_s = meta_env%epot_s + cv%epot_s

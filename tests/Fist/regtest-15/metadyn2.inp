@@ -1,0 +1,111 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K 0.
+        THETA0 1.8
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.
+        R0 1.8
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atoms O O
+          EPSILON 78.198
+          SIGMA 3.166
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms O H
+          EPSILON 0.0
+          SIGMA 3.6705
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atoms H H
+          EPSILON 0.0
+          SIGMA 3.30523
+          RCUT 11.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .44
+        GMAX 21
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+    &END CELL
+    &COORD
+  O         1.1274189403        0.0203885010       -0.0645225025  H2O
+  H         1.7150615769        0.6494419975        0.4443670104  H2O
+  H         1.2854004748       -0.9144223765        0.2535516481  H2O
+  O        -2.1831607819       -0.0618324395       -0.0051722266  H2O
+  H        -2.6230347760        0.3642527369        0.7853737928  H2O
+  H        -1.4926282224        0.5585794002       -0.3769984099  H2O
+    &END COORD
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 4
+      &END DISTANCE
+    &END COLVAR
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT metadyn2
+  RUN_TYPE md
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    &G3X3
+      DISTANCES 1.8897268 1.8897268 3.0859239
+      MOLECULE 1
+      ATOMS 1 2 3
+    &END G3X3
+  &END CONSTRAINT
+  &FREE_ENERGY
+    METHOD METADYN
+    &METADYN
+      &METAVAR
+        COLVAR 1
+        SCALE 1.0
+        &WALL
+          POSITION 5.0
+          TYPE QUADRATIC
+          &QUADRATIC
+            DIRECTION WALL_PLUS
+            K 0.01
+          &END QUADRATIC
+        &END WALL
+      &END METAVAR
+      &PRINT
+        &COLVAR OFF
+        &END COLVAR
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVE
+    STEPS 50
+    TIMESTEP 2.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION

@@ -759,13 +759,11 @@ CPSourceFileRef,&
                 SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                 CASE(do_wall_p)
                    IF (diff_ss>0.0_dp) THEN
-                     colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
                      colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF
                 CASE(do_wall_m)
                    IF (diff_ss<0.0_dp) THEN
-                     colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
                      colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF
@@ -781,13 +779,11 @@ CPSourceFileRef,&
                 SELECT CASE (colvars(ih)%walls(iwall)%id_direction)
                 CASE(do_wall_p)
                    IF (diff_ss>0.0_dp) THEN 
-                     colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
                      colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF
                 CASE(do_wall_m)
                    IF (diff_ss<0.0_dp) THEN
-                     colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
                      colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
                      colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
                    END IF
@@ -804,7 +800,6 @@ CPSourceFileRef,&
                 dp2 = ddp**2
                 efunc = ww*EXP(-0.5_dp*dp2)
                 dfunc = -efunc*ddp/delta_s
-                colvars(ih)%ff_hills=colvars(ih)%ff_hills-dfunc
                 colvars(ih)%ff_walls=colvars(ih)%ff_walls-dfunc
                 colvars(ih)%epot_walls=colvars(ih)%epot_walls+efunc
              END SELECT
