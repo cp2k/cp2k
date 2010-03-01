@@ -58,9 +58,10 @@ MODULE dbcsr_work_operations
        dbcsr_destroy_image_dist, dbcsr_distribution_hold, &
        dbcsr_distribution_release, dbcsr_get_data_p, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_mutable_destroy, dbcsr_mutable_init, &
-       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_uses_special_memory, &
-       dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_is_initialized, dbcsr_modify_lock, dbcsr_modify_unlock, &
+       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_new, &
+       dbcsr_mutable_release, dbcsr_uses_special_memory, dbcsr_valid_index, &
+       dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: addto_array,&
                                              ensure_array_size
   USE dbcsr_types,                     ONLY: &
