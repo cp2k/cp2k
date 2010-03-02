@@ -924,46 +924,6 @@
 
 
 ! *****************************************************************************
-!> \brief Finds the location of the maximal element in a vector.
-!> \par MPI mapping
-!>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
-!> \par Invalid data types
-!>      This routine is invalid for (int_8) data!
-!> \param[in,out] msg         Find location of maximum element among these
-!>                            data (input).
-!> \param[in] gid             Message passing environment identifier
-! *****************************************************************************
-  SUBROUTINE mp_maxloc_dv(msg,gid)
-    REAL(kind=real_8), INTENT(INOUT)                   :: msg( : )
-    INTEGER, INTENT(IN)                      :: gid
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_dv', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ierr, msglen
-    REAL(kind=real_8), ALLOCATABLE                     :: res( : )
-
-    ierr = 0
-    IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
-       CALL mp_abort&
-            ("Maximal location not available with long integers @ "//routineN)
-    ENDIF
-#if defined(__parallel)
-    t_start = m_walltime ( )
-    msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MAXLOC,gid, ierr)
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res,STAT=ierr)
-    t_end = m_walltime ( )
-#endif
-  END SUBROUTINE mp_maxloc_dv
-
-
-
-! *****************************************************************************
 !> \brief Finds the minimum of a datum with the result left on all processes.
 !> \par MPI mapping
 !>      mpi_allreduce
@@ -1024,45 +984,6 @@
     t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_min_dv
-
-
-! *****************************************************************************
-!> \brief Finds the location of the minimal element in a vector.
-!> \par MPI mapping
-!>      mpi_allreduce with the MPI_MINLOC reduction function identifier
-!> \par Invalid data types
-!>      This routine is invalid for (int_8) data!
-!> \param[in,out] msg         Find location of maximum element among these
-!>                            data (input).
-!> \param[in] gid             Message passing environment identifier
-! *****************************************************************************
-  SUBROUTINE mp_minloc_dv(msg,gid)
-    REAL(kind=real_8), INTENT(INOUT)                   :: msg( : )
-    INTEGER, INTENT(IN)                      :: gid
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_dv', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ierr, msglen
-    REAL(kind=real_8), ALLOCATABLE                     :: res( : )
-
-    ierr = 0
-    IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
-       CALL mp_abort&
-            ("Minimal location not available with long integers @ "//routineN)
-    ENDIF
-#if defined(__parallel)
-    t_start = m_walltime ( )
-    msglen = SIZE(msg)
-    ALLOCATE (res(1:msglen),STAT=ierr)
-    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
-    CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, ierr)
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
-    msg = res
-    DEALLOCATE (res)
-    t_end = m_walltime ( )
-#endif
-  END SUBROUTINE mp_minloc_dv
 
 
 ! *****************************************************************************

@@ -145,18 +145,14 @@ MODULE message_passing
      MODULE PROCEDURE mp_minloc_iv,&
                       mp_minloc_lv,&
                       mp_minloc_rv,&
-                      mp_minloc_dv,&
-                      mp_minloc_cv,&
-                      mp_minloc_zv
+                      mp_minloc_dv
   END INTERFACE
 
   INTERFACE mp_maxloc
      MODULE PROCEDURE mp_maxloc_iv,&
                       mp_maxloc_lv,&
                       mp_maxloc_rv,&
-                      mp_maxloc_dv,&
-                      mp_maxloc_cv,&
-                      mp_maxloc_zv
+                      mp_maxloc_dv
   END INTERFACE
 
   INTERFACE mp_shift
@@ -1878,6 +1874,373 @@ CONTAINS
 #endif
   END SUBROUTINE mp_bcast_am
 
+
+
+! *****************************************************************************
+!> \brief Finds the location of the minimal element in a vector.
+!> \par MPI mapping
+!>      mpi_allreduce with the MPI_MINLOC reduction function identifier
+!> \par Invalid data types
+!>      This routine is invalid for (int_8) data!
+!> \param[in,out] msg         Find location of maximum element among these
+!>                            data (input).
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_minloc_dv(msg,gid)
+    REAL(kind=real_8), INTENT(INOUT)         :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_dv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(kind=real_8), ALLOCATABLE           :: res( : )
+
+    ierr = 0
+    IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
+       CALL mp_abort&
+            ("Minimal location not available with long integers @ "//routineN)
+    ENDIF
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_minloc_dv
+
+
+! *****************************************************************************
+!> \brief Finds the location of the minimal element in a vector.
+!> \par MPI mapping
+!>      mpi_allreduce with the MPI_MINLOC reduction function identifier
+!> \par Invalid data types
+!>      This routine is invalid for (int_8) data!
+!> \param[in,out] msg         Find location of maximum element among these
+!>                            data (input).
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_minloc_iv(msg,gid)
+    INTEGER(KIND=int_4), INTENT(INOUT)       :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_iv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER(KIND=int_4), ALLOCATABLE         :: res( : )
+
+    ierr = 0
+    IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
+       CALL mp_abort&
+            ("Minimal location not available with long integers @ "//routineN)
+    ENDIF
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MINLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_minloc_iv
+
+
+
+! *****************************************************************************
+!> \brief Finds the location of the minimal element in a vector.
+!> \par MPI mapping
+!>      mpi_allreduce with the MPI_MINLOC reduction function identifier
+!> \par Invalid data types
+!>      This routine is invalid for (int_8) data!
+!> \param[in,out] msg         Find location of maximum element among these
+!>                            data (input).
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_minloc_lv(msg,gid)
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_lv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER(KIND=int_8), ALLOCATABLE         :: res( : )
+
+    ierr = 0
+    IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
+       CALL mp_abort&
+            ("Minimal location not available with long integers @ "//routineN)
+    ENDIF
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,1,MPI_INTEGER8,MPI_MINLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_minloc_lv
+
+
+! *****************************************************************************
+!> \brief Finds the location of the minimal element in a vector.
+!> \par MPI mapping
+!>      mpi_allreduce with the MPI_MINLOC reduction function identifier
+!> \par Invalid data types
+!>      This routine is invalid for (int_8) data!
+!> \param[in,out] msg         Find location of maximum element among these
+!>                            data (input).
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_minloc_rv(msg,gid)
+    REAL(kind=real_4), INTENT(INOUT)         :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_minloc_rv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(kind=real_4), ALLOCATABLE           :: res( : )
+
+    ierr = 0
+    IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
+       CALL mp_abort&
+            ("Minimal location not available with long integers @ "//routineN)
+    ENDIF
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,1,MPI_2REAL,MPI_MINLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_minloc_rv
+
+
+
+! *****************************************************************************
+!> \brief Finds the location of the maximal element in a vector.
+!> \par MPI mapping
+!>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
+!> \par Invalid data types
+!>      This routine is invalid for (int_8) data!
+!> \param[in,out] msg         Find location of maximum element among these
+!>                            data (input).
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_maxloc_dv(msg,gid)
+    REAL(kind=real_8), INTENT(INOUT)         :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_dv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(kind=real_8), ALLOCATABLE           :: res( : )
+
+    ierr = 0
+    IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
+       CALL mp_abort&
+            ("Maximal location not available with long integers @ "//routineN)
+    ENDIF
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MAXLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res,STAT=ierr)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_maxloc_dv
+
+! *****************************************************************************
+!> \brief Finds the location of the maximal element in a vector.
+!> \par MPI mapping
+!>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
+!> \par Invalid data types
+!>      This routine is invalid for (int_8) data!
+!> \param[in,out] msg         Find location of maximum element among these
+!>                            data (input).
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_maxloc_iv(msg,gid)
+    INTEGER(KIND=int_4), INTENT(INOUT)       :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_iv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER(KIND=int_4), ALLOCATABLE         :: res( : )
+
+    ierr = 0
+    IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
+       CALL mp_abort&
+            ("Maximal location not available with long integers @ "//routineN)
+    ENDIF
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MAXLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res,STAT=ierr)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_maxloc_iv
+
+! *****************************************************************************
+!> \brief Finds the location of the maximal element in a vector.
+!> \par MPI mapping
+!>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
+!> \par Invalid data types
+!>      This routine is invalid for (int_8) data!
+!> \param[in,out] msg         Find location of maximum element among these
+!>                            data (input).
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_maxloc_lv(msg,gid)
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_lv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    INTEGER(KIND=int_8), ALLOCATABLE         :: res( : )
+
+    ierr = 0
+    IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
+       CALL mp_abort&
+            ("Maximal location not available with long integers @ "//routineN)
+    ENDIF
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,1,MPI_INTEGER8,MPI_MAXLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res,STAT=ierr)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_maxloc_lv
+
+! *****************************************************************************
+!> \brief Finds the location of the maximal element in a vector.
+!> \par MPI mapping
+!>      mpi_allreduce with the MPI_MAXLOC reduction function identifier
+!> \par Invalid data types
+!>      This routine is invalid for (int_8) data!
+!> \param[in,out] msg         Find location of maximum element among these
+!>                            data (input).
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_maxloc_rv(msg,gid)
+    REAL(kind=real_4), INTENT(INOUT)         :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_maxloc_rv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+    REAL(kind=real_4), ALLOCATABLE           :: res( : )
+
+    ierr = 0
+    IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
+       CALL mp_abort&
+            ("Maximal location not available with long integers @ "//routineN)
+    ENDIF
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    ALLOCATE (res(1:msglen),STAT=ierr)
+    IF ( ierr /= 0 ) CALL mp_abort( "allocate @ "//routineN )
+    CALL mpi_allreduce(msg,res,1,MPI_2REAL,MPI_MAXLOC,gid, ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
+    msg = res
+    DEALLOCATE (res,STAT=ierr)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+  END SUBROUTINE mp_maxloc_rv
 
 
 
