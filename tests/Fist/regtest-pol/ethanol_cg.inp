@@ -1,0 +1,134 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT_NAME cp2k
+  RUN_TYPE energy
+&END GLOBAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+   &FORCEFIELD
+     &SPLINE
+       EMAX_SPLINE 1.0
+       RCUT_NB 80.00
+     &END SPLINE
+     &NONBONDED
+       &LENNARD-JONES
+         ATOMS      H H
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      H C
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      H N
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      H O
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      C C
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      C N
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      C O
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      N N
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      N O
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      O O
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+     &END NONBONDED
+     # parameters are complete rubbish, this is just a test
+     &CHARGE
+       ATOM H
+       CHARGE 0.15
+     &END CHARGE
+     &CHARGE
+       ATOM C
+       CHARGE 0.0 #0.00757575757575757575
+     &END CHARGE
+     &CHARGE
+       ATOM N
+       CHARGE -0.3
+     &END CHARGE
+     &CHARGE
+       ATOM O
+       CHARGE -0.5
+     &END CHARGE
+     &DIPOLE
+       ATOM H
+       ALPHA 0.26
+     &END DIPOLE
+     &DIPOLE
+       ATOM C
+       ALPHA 0.26
+     &END DIPOLE
+     &DIPOLE
+       ATOM N
+       ALPHA 0.10
+     &END DIPOLE
+     &DIPOLE
+       ATOM O
+       ALPHA 0.22
+     &END DIPOLE
+   &END FORCEFIELD
+   &POISSON
+     PERIODIC NONE
+     POISSON_SOLVER ANALYTIC
+     &EWALD
+       EWALD_TYPE EWALD
+       ALPHA 0.3
+       GMAX 25
+       O_SPLINE 6
+       &MULTIPOLES T
+         MAX_MULTIPOLE_EXPANSION DIPOLE
+         POL_SCF CONJUGATE_GRADIENT
+         EPS_POL 1.0e-6
+         MAX_IPOL_ITER 100
+       &END MULTIPOLES
+     &END EWALD
+    &END POISSON
+  &END MM
+   &SUBSYS
+     &CELL
+       ABC 40.0 40.0 40.0
+       PERIODIC NONE
+     &END CELL
+     &COORD
+ H     -2.134027     0.421639    -0.021685
+ O      1.104337    -0.329925    -0.000382
+ C     -1.260295    -0.241283     0.000244
+ C      0.021182     0.572065    -0.000169
+ H      1.893041     0.194734     0.005734
+ H     -1.323976    -0.904457    -0.872387
+ H      0.072154     1.227787    -0.891747
+ H     -1.343152    -0.872863     0.894426
+ H      0.071795     1.228552     0.890830
+     &END COORD
+   &END SUBSYS
+ &END FORCE_EVAL

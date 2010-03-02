@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# dang-chang model
+H2O-dimer-dangchang.inp               2
+H2OandI-dangchang.inp                 2
+deca_cg.inp                          11
+deca_sc.inp                          11
+ethanol_cg.inp                       11
+ethanol_sc.inp                       11
+nacl_cg.inp                          11
+nacl_sc.inp                          11
+quartz_cg.inp                         2
+quartz_sc.inp                         2
