@@ -2080,13 +2080,17 @@ CONTAINS
 
     row_blk_size => array_data (matrix%m%row_blk_size)
 
-    IF(dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
-       dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric) THEN
-       occupation = 2.0_real_8 * occupation / &
-            ( REAL(nfullrows,real_8) * REAL(nfullrows+1,real_8) + &
-            SUM( REAL(row_blk_size,real_8) * REAL(row_blk_size-1,real_8) ) )
+    IF(nfullrows.NE.0.AND.nfullcols.NE.0) THEN
+       IF(dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
+            dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric) THEN
+          occupation = 2.0_real_8 * occupation / &
+               ( REAL(nfullrows,real_8) * REAL(nfullrows+1,real_8) + &
+               SUM( REAL(row_blk_size,real_8) * REAL(row_blk_size-1,real_8) ) )
+       ELSE
+          occupation = occupation / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )
+       ENDIF
     ELSE
-       occupation = occupation / ( REAL(nfullrows,real_8) * REAL(nfullcols,real_8) )
+       occupation = 0.0_real_8
     ENDIF
 
   END FUNCTION dbcsr_get_occupation
