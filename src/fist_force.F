@@ -46,7 +46,8 @@ MODULE fist_force
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
-                                             do_ewald_spme
+                                             do_ewald_spme,&
+                                             do_fist_pol_none
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -119,11 +120,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_force_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ewald_type, fg_coulomb_size, handle, i, ii, ikind, &
+    INTEGER :: do_ipol, ewald_type, fg_coulomb_size, handle, i, ii, ikind, &
       iparticle_kind, iparticle_local, iw, iw2, j, natoms, nlocal_particles, &
       node, nparticle_kind, nparticle_local, nshell, shell_index, stat
-    LOGICAL                                  :: do_ipol_scf, do_multipoles, &
-                                                failure, shell_model_ad, &
+    LOGICAL                                  :: do_multipoles, failure, &
+                                                shell_model_ad, &
                                                 shell_present, use_virial
     REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
       pot_manybody, pot_nonbond, pot_onef, pot_opbend, pot_shell, &
@@ -181,7 +182,7 @@ CONTAINS
          multipoles=multipoles, error=error)
 
     CALL ewald_env_get (ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
-         do_ipol_scf=do_ipol_scf,error=error)
+         do_ipol=do_ipol,error=error)
 
     natoms = SIZE ( particle_set )
     nlocal_particles = 0
@@ -347,11 +348,12 @@ CONTAINS
        END IF
 
        ! Polarizable force-field
-       IF (do_ipol_scf) THEN
+       IF (do_ipol /= do_fist_pol_none) THEN
           ! Converge the dipoles self-consistently
-          CALL fist_pol_evaluate(atomic_kind_set, multipoles, ewald_env, ewald_pw,&
-               fist_nonbond_env, cell, particle_set, local_particles, thermo, vg_coulomb,&
-               pot_nonbond, f_nonbond, fg_coulomb, use_virial, pv_g, pv_nonbond, mm_section,&
+          CALL fist_pol_evaluate(atomic_kind_set, multipoles, ewald_env, &
+               ewald_pw, fist_nonbond_env, cell, particle_set, &
+               local_particles, thermo, vg_coulomb, pot_nonbond, f_nonbond, &
+               fg_coulomb, use_virial, pv_g, pv_nonbond, mm_section, do_ipol, &
                error)
        ELSE
           ! Non-Polarizable force-field
@@ -530,7 +532,7 @@ CONTAINS
        thermo%pot = thermo%pot + thermo%e_self + thermo%e_neut
        thermo%pot = thermo%pot + vg_coulomb + thermo%e_bonded
        ! add the induction energy of the dipoles for polarizable models
-       IF ( do_ipol_scf ) thermo%pot = thermo%pot + thermo%e_induction
+       IF ( do_ipol /= do_fist_pol_none ) thermo%pot = thermo%pot + thermo%e_induction
     END IF
 
     ! add up all the forces

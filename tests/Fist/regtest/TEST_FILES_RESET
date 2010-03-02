@@ -489,3 +489,6 @@ multipole_zero.inp
 water32_hbonds_2.inp
 # FFTW3 now plans to use SSE by default 
 water_hbonds_dist.inp
+# numerics
+H2OandI-dangchang.inp
+H2O-dimer-dangchang.inp

@@ -375,12 +375,21 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     
-    CALL keyword_create(keyword, name="POL_SCF",&
-         description="Specify if the SCF for induced multipole moments is used",&
-         usage="POL_SCF T",required=.FALSE.,&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL keyword_create(keyword, name="POL_SCF", &
+         description="Specify the method to obtain self consistent induced "// &
+                     "multipole moments.", &
+         usage="POL_SCF CONJUGATE_GRADIENT", &
+         enum_c_vals=s2a("NONE","SELF_CONSISTENT","CONJUGATE_GRADIENT"), &
+         enum_desc=s2a("No inducible multipoles.", &
+                       "Conventional self-consistent iteration.", &
+                       "Linear conjugate-gradient optimization of the sum "//&
+                       "of the electrostatic and induction energy. This "//&
+                       "method does not support non-linear polarization "//&
+                       "but is sometimes faster."), &
+         enum_i_vals=(/ do_fist_pol_none, do_fist_pol_sc, do_fist_pol_cg/), &
+         type_of_var=enum_t, default_i_val=do_fist_pol_none, error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
-    CALL keyword_release(keyword,error=error) 
+    CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="MAX_IPOL_ITER",&
          description="Specify the maximum number of iterations for induced "//&
