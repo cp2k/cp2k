@@ -42,11 +42,9 @@ MODULE dbcsr_dist_operations
   USE f77_blas_generic
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE util,                            ONLY: sort
+
   IMPLICIT NONE
+
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_dist_operations'
@@ -1114,6 +1112,7 @@ CONTAINS
     INTEGER :: bin, blk_layer, element_stack, els, estimated_blocks, &
       max_blocks_per_bin, nblks, nblocks, stat
     INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
+    TYPE(dbcsr_error_type)                   :: error
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -1139,10 +1138,13 @@ CONTAINS
 
        estimated_blocks = max_blocks_per_bin * nbins
        ALLOCATE (blk_dist (estimated_blocks), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineP, "blk_dist", estimated_blocks)
+       CALL dbcsr_assert (stat == 0,&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "blk_dist",__LINE__,error)
        ALLOCATE (blk_sizes (estimated_blocks), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineP, "blk_sizes", estimated_blocks)
-
+       CALL dbcsr_assert (stat == 0,&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "blk_sizes",__LINE__,error)
        element_stack = 0
        nblks = 0
        DO blk_layer = 1, max_blocks_per_bin
@@ -1171,9 +1173,13 @@ CONTAINS
        ENDIF
     ELSE
        ALLOCATE (blk_dist (0), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineP, "blk_dist", estimated_blocks)
+       CALL dbcsr_assert (stat == 0,&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "blk_dist",__LINE__,error)
        ALLOCATE (blk_sizes (0), stat=stat)
-       IF (stat /= 0) CALL stop_memory (routineP, "blk_sizes", estimated_blocks)
+       CALL dbcsr_assert (stat == 0,&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "blk_sizes",__LINE__,error)
        CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
        CALL array_new (block_size, blk_sizes, gift=.TRUE.)
     ENDIF

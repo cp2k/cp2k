@@ -15,8 +15,6 @@
 MODULE dbcsr_blas_operations
 
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             sp
   USE dbcsr_methods,                   ONLY: dbcsr_data_clear_2d_pointer,&
                                              dbcsr_data_set_2d_pointer
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
@@ -29,10 +27,6 @@ MODULE dbcsr_blas_operations
   USE f77_blas_generic
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE util,                            ONLY: sort
   IMPLICIT NONE
   PRIVATE
 

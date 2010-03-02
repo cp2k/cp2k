@@ -28,11 +28,9 @@ MODULE dbcsr_ptr_util
   USE f77_blas_generic
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE util,                            ONLY: sort
+
   IMPLICIT NONE
+
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_ptr_util'
@@ -197,7 +195,8 @@ CONTAINS
        ELSE
           ALLOCATE(array(lb_new:ub), stat=stat)
        ENDIF
-       IF (stat /= 0) CALL stop_memory(routineP, 'array', ub-lb_new+1)
+       CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+            routineN, "array",__LINE__,error)
        CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
@@ -248,7 +247,8 @@ CONTAINS
     ELSE
        ALLOCATE(newarray(lb_new:ub_new), stat=stat)
     ENDIF
-    IF(stat /= 0) CALL stop_memory(routineP, 'newarray', ub_new-lb_new+1)
+    CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "newarray",__LINE__,error)
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             dbcsr_failure_level, dbcsr_internal_error, routineP,&
@@ -342,7 +342,8 @@ CONTAINS
          routineP, 'Only dimension 1 can be specified.',__LINE__,error)
     osize = SIZE(array,2)
     ALLOCATE(newarray(lb_new:ub_new,osize), stat=stat)
-    IF(stat /= 0) CALL stop_memory(routineP, 'new', ub_new-lb_new+1)
+    CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "new",__LINE__,error)
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             dbcsr_failure_level, dbcsr_internal_error, routineP,&

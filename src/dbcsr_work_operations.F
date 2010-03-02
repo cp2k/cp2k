@@ -83,9 +83,6 @@ MODULE dbcsr_work_operations
                                              dbcsr_unpack_i8_2i4,&
                                              dbcsr_verify_matrix,&
                                              meta_from_dist
-  USE f77_blas
-  USE f77_blas_generic
-  USE termination,                     ONLY: stop_memory
 
   !$ USE OMP_LIB
 
@@ -301,10 +298,14 @@ CONTAINS
             special_memory=matrix%m%special_memory)
        IF (matrix%m%special_memory) THEN
           CALL mp_allocate(matrix%m%index, dbcsr_num_slots, stat=stat)
-          IF (stat /= 0) CALL stop_memory (routineP, 'matrix%m%index', my_nze)
+          CALL dbcsr_assert (stat == 0,&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "matrix%m%index",__LINE__,error)
        ELSE
           ALLOCATE(matrix%m%index(dbcsr_num_slots), stat=stat)
-          IF (stat /= 0) CALL stop_memory (routineP, 'matrix%m%index', my_nze)
+          CALL dbcsr_assert (stat == 0,&
+               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+               "matrix%m%index",__LINE__,error)
        ENDIF
     ENDIF
     CALL dbcsr_assert (LBOUND (matrix%m%index, 1) .LE. 1&
@@ -342,29 +343,37 @@ CONTAINS
 !> \param[in] nblks_guess     (optional) estimated number of blocks
 !> \param[in] sizedata_guess  (optional) estimated size of data
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess)
+  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, error)
     TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
     CHARACTER, INTENT(IN)                    :: data_type
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_wm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nblks, stat
+    INTEGER                                  :: error_handler, nblks, stat
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set(routineN, error_handler, error)
     wm%lastblk = 0
     wm%datasize = 0
     ! Index
     IF(PRESENT(nblks_guess)) THEN
        nblks = nblks_guess
        ALLOCATE(wm%row_i(nblks), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, 'wm%row_i', nblks)
+       CALL dbcsr_assert (stat == 0,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "wm%row_i",__LINE__,error)
        ALLOCATE(wm%col_i(nblks), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, 'wm%col_i', nblks)
+       CALL dbcsr_assert (stat == 0,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "wm%col_i",__LINE__,error)
        ALLOCATE(wm%blk_p(nblks), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, 'wm%blk_p', nblks)
+       CALL dbcsr_assert (stat == 0,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "wm%blk_p",__LINE__,error)
     ELSE
        NULLIFY (wm%row_i, wm%col_i, wm%blk_p)
        !nblks = CEILING (REAL (matrix%nblkrows_local * matrix%nblkcols_local)&
@@ -379,6 +388,7 @@ CONTAINS
        CALL dbcsr_data_new (wm%data_area, data_type)
     ENDIF
     CALL dbcsr_mutable_init (wm%mutable)
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_init_wm
 
 
@@ -442,7 +452,7 @@ CONTAINS
        matrix%m%wms => wms
        DO iw = ow+1, nw
           CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess)
+               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess, error=error)
           IF (matrix%m%work_mutable) &
                CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
                dbcsr_get_data_type (matrix))
@@ -452,7 +462,7 @@ CONTAINS
        ALLOCATE (matrix%m%wms(nw))
        DO iw = 1, nw
           CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
-               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess)
+               nblks_guess=nblks_guess, sizedata_guess=sizedata_guess, error=error)
           IF (matrix%m%work_mutable) &
                CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
                dbcsr_get_data_type (matrix))
@@ -659,7 +669,7 @@ CONTAINS
        matrix%m%wms => new_wms
        DO i = 1, nwms
           CALL dbcsr_init_wm (matrix%m%wms(n+i), dbcsr_get_data_type (matrix),&
-               nblks_guess=dbcsr_get_num_blocks (matrix))
+               nblks_guess=dbcsr_get_num_blocks (matrix), error=error)
        ENDDO
        CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m,&
             nwms=nwms, offset=n, error=error)

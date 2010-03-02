@@ -65,9 +65,6 @@ MODULE dbcsr_internal_operations
                                              dbcsr_work_create
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   IMPLICIT NONE
 
@@ -183,7 +180,7 @@ CONTAINS
       right_send_prow, right_send_v_col, right_send_v_row, right_src_icol, &
       right_src_irow
     INTEGER :: right_src_p, right_src_pcol, right_src_prow, right_src_v_col, &
-      right_src_v_row, timing_handle, v_k, v_ki
+      right_src_v_row, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: infos
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
@@ -231,7 +228,6 @@ CONTAINS
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
     IF (dbg) debug_level = 2
-    CALL timeset (routineN, timing_handle)
     ithread= 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     !IF (.NOT. ASSOCIATED (product_matrix%m%wms)) THEN
@@ -975,7 +971,6 @@ CONTAINS
     ENDIF
     !
     IF (PRESENT (flop)) flop = flop_total
-    CALL timestop (timing_handle)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_mult_m_e_e
 
@@ -1162,12 +1157,12 @@ CONTAINS
     ALLOCATE (new_index (3, left%nfullrows_local*right%nfullcols_local))
     ! c_blk_ps contains the block pointers in the product's current row
     ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps",&
-         product%nblkcols_total)
+    CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "c_blk_ps",__LINE__,error)
     c_blk_ps(:) = 0
     ALLOCATE (c_blk_ps_p(product%nblkcols_total), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineN, "c_blk_ps_p",&
-         product%nblkcols_total)
+    CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "c_blk_ps_p",__LINE__,error)
     size_c_blk_ps = 0
     c_blk_pt = product%wms(ithread+1)%datasize + 1
     lastblk = 0

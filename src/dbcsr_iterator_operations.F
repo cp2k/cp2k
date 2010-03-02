@@ -223,7 +223,6 @@ CONTAINS
     CALL dbcsr_data_new(iterator%buffer_2d,&
          dbcsr_get_data_type(matrix),&
          max_size, max_size)
-    !CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_iterator_start
 
 ! *****************************************************************************

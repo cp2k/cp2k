@@ -46,10 +46,6 @@ MODULE dbcsr_util
   USE f77_blas_generic
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE util,                            ONLY: sort
   IMPLICIT NONE
   PRIVATE
 

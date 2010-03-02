@@ -17,6 +17,7 @@ MODULE dbcsr_index_operations
   USE array_types,                     ONLY: array_data
   USE dbcsr_dist_operations,           ONLY: get_stored_canonical
   USE dbcsr_error_handling
+  USE dbcsr_kinds,                     ONLY: int_4
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_local_cols,&
                                              dbcsr_distribution_local_rows,&
                                              dbcsr_distribution_ncols,&
@@ -38,12 +39,8 @@ MODULE dbcsr_index_operations
   USE f77_blas_generic
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE util,                            ONLY: sort
-  IMPLICIT NONE
 
+  IMPLICIT NONE
 
   PRIVATE
 
@@ -469,12 +466,14 @@ CONTAINS
          dbcsr_caller_error, routineP, 'blk_p too small',__LINE__,error)
     IF (PRESENT (blk_p)) THEN
        ALLOCATE(buf(n), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, 'buf', n)
+       CALL dbcsr_assert(stat == 0, dbcsr_failure_level,&
+            dbcsr_caller_error, routineP, 'buf',__LINE__,error)
        buf(1:n) = blk_p(1:n)
     ENDIF
     IF (PRESENT (blk_d)) THEN
        ALLOCATE(buf_d(n), stat=stat)
-       IF (stat /= 0) CALL stop_memory(routineP, 'buf_d', n)
+       CALL dbcsr_assert(stat == 0, dbcsr_failure_level,&
+            dbcsr_caller_error, routineP, 'buf_d',__LINE__,error)
        buf_d(1:n) = blk_d(1:n)
     ENDIF
     !> Create an ordering for both rows and columns while. If the blk_p must be
@@ -936,6 +935,116 @@ CONTAINS
     ENDIF
   END SUBROUTINE merge_index_arrays
 
+  SUBROUTINE sort ( arr, n, index )
+    INTEGER, INTENT(IN)                      :: n
+    INTEGER(KIND=int_4), INTENT(INOUT)       :: arr(1:n)
+    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m = 7, nstack = 50
+
+    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
+                                                itemp, j, jstack, k, l
+    INTEGER(kind=int_4)                      :: a, temp
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF (n==0) RETURN
+    DO i = 1, n
+       INDEX(i) = i
+    END DO
+    !
+    IF (ALL(arr==arr(1))) RETURN ! Nothing to order..
+    jstack = 0
+    l = 1
+    ir = n
+1   IF (ir-l<m) THEN
+       DO j = l + 1, ir
+          a = arr(j)
+          ib = INDEX(j)
+          DO i = j - 1, 1, -1
+             IF (arr(i)<=a) GO TO 2
+             arr(i+1) = arr(i)
+             INDEX(i+1) = INDEX(i)
+          END DO
+          i = 0
+2         arr(i+1) = a
+          INDEX(i+1) = ib
+       END DO
+       IF (jstack==0) RETURN
+       ir = istack(jstack)
+       l = istack(jstack-1)
+       jstack = jstack - 2
+    ELSE
+       k = (l+ir)/2
+       temp = arr(k)
+       arr(k) = arr(l+1)
+       arr(l+1) = temp
+       itemp = INDEX(k)
+       INDEX(k) = INDEX(l+1)
+       INDEX(l+1) = itemp
+       IF (arr(l+1)>arr(ir)) THEN
+          temp = arr(l+1)
+          arr(l+1) = arr(ir)
+          arr(ir) = temp
+          itemp = INDEX(l+1)
+          INDEX(l+1) = INDEX(ir)
+          INDEX(ir) = itemp
+       END IF
+       IF (arr(l)>arr(ir)) THEN
+          temp = arr(l)
+          arr(l) = arr(ir)
+          arr(ir) = temp
+          itemp = INDEX(l)
+          INDEX(l) = INDEX(ir)
+          INDEX(ir) = itemp
+       END IF
+       IF (arr(l+1)>arr(l)) THEN
+          temp = arr(l+1)
+          arr(l+1) = arr(l)
+          arr(l) = temp
+          itemp = INDEX(l+1)
+          INDEX(l+1) = INDEX(l)
+          INDEX(l) = itemp
+       END IF
+       i = l + 1
+       j = ir
+       a = arr(l)
+       ib = INDEX(l)
+3      CONTINUE
+       i = i + 1
+       IF (arr(i)<a) GO TO 3
+4      CONTINUE
+       j = j - 1
+       IF (arr(j)>a) GO TO 4
+       IF (j<i) GO TO 5
+       temp = arr(i)
+       arr(i) = arr(j)
+       arr(j) = temp
+       itemp = INDEX(i)
+       INDEX(i) = INDEX(j)
+       INDEX(j) = itemp
+       GO TO 3
+5      arr(l) = arr(j)
+       arr(j) = a
+       INDEX(l) = INDEX(j)
+       INDEX(j) = ib
+       jstack = jstack + 2
+       IF (jstack>nstack) STOP ' Nstack too small in sortr'
+       IF (ir-i+1>=j-l) THEN
+          istack(jstack) = ir
+          istack(jstack-1) = i
+          ir = j - 1
+       ELSE
+          istack(jstack) = j - 1
+          istack(jstack-1) = l
+          l = i
+       END IF
+    END IF
+    GO TO 1
+  END SUBROUTINE sort
 
 
 

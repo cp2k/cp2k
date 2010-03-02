@@ -97,9 +97,6 @@ MODULE dbcsr_transformations
   USE f77_blas_generic
 
   !$ USE OMP_LIB
-  USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   IMPLICIT NONE
   PRIVATE
@@ -235,7 +232,8 @@ CONTAINS
     DBG 'meta', transposed%m%nblkrows_total+1, normal%m%nblks
     DBG 'size', SIZE (transposed%m%row_p), SIZE (transposed%m%col_i)
     ALLOCATE (blk_p (normal%m%nblks), stat=stat)
-    IF (stat /= 0) CALL stop_memory (routineP, "blk_p", normal%m%nblks)
+    CALL dbcsr_assert(stat == 0, dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+         "blk_p",__LINE__,error)
     CALL transpose_index_local (transposed%m%row_p, transposed%m%col_i,&
          normal%m%row_p, normal%m%col_i, blk_p, normal%m%blk_p)
     IF (dbg) THEN
@@ -881,7 +879,7 @@ CONTAINS
       error_handler, i, ithread, j, mp_group, ncol_images, nrow_images, &
       nsymmetries, nthreads, numproc, nze, pcol, prev_blk_p, prev_dst_p, &
       prev_row, prow, row, row_img, sd_pos, sm_pos, src_p, stored_blk_p, &
-      stored_col, stored_row, symmetry_i, timing_handle, vcol, vrow
+      stored_col, stored_row, symmetry_i, vcol, vrow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lsdp, lsmp, rd_disp, &
                                                 recv_meta, rm_disp, sd_disp, &
                                                 sdp, send_meta, sm_disp, smp
@@ -912,7 +910,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
-    CALL timeset(routineN, timing_handle)
     tstart = m_walltime ()
     special = .TRUE.
     IF (PRESENT (special_memory)) special=special_memory
@@ -1334,7 +1331,6 @@ CONTAINS
     !WRITE(*,'(1X,A,1X,EN12.4)')'make_column_images time:',tstop-tstart
     DBG 'ums(1) name',ums%mats(1,1)%m%name
     DBG 'Done making images'
-    CALL timestop(timing_handle)
     CALL dbcsr_error_stop(error_handler, dbcsr_error)
   END SUBROUTINE make_images
 
@@ -1357,8 +1353,8 @@ CONTAINS
     CHARACTER                                :: predist
     INTEGER :: error_handler, i, mat_col, mat_row, mypcol, myprow, &
       ncol_images, nfullcols, nfullrows, nlocal_blocks, nlvc, nlvr, npcols, &
-      nprows, nrow_images, nvpcols, nvprows, timing_handle, which_icol, &
-      which_irow, which_pcol, which_prow, which_vcol, which_vrow
+      nprows, nrow_images, nvpcols, nvprows, which_icol, which_irow, &
+      which_pcol, which_prow, which_vcol, which_vrow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: local_col_blk_offsets, &
                                                 local_row_blk_offsets, &
                                                 local_virt_cols, &
@@ -1377,7 +1373,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL timeset (routineN, timing_handle)
     predist = '0'
     IF (PRESENT (predistributed)) predist = predistributed
     old_distribution = images%image_dist%main
@@ -1515,7 +1510,6 @@ CONTAINS
     CALL dbcsr_distribution_release (images%image_dist%main)
     images%image_dist%main = new_distribution
     CALL make_image_distribution_dense (images%image_dist)
-    CALL timestop (timing_handle)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_make_images_dense
 
@@ -1533,7 +1527,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: error_handler, i, mypcol, myprow, nfullcols_local, &
-      nfullrows_local, nlocal_blocks, npcols, nprows, timing_handle
+      nfullrows_local, nlocal_blocks, npcols, nprows
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: local_col_blk_offsets, &
                                                 local_row_blk_offsets
     INTEGER, DIMENSION(:), POINTER           :: meta
@@ -1545,7 +1539,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL timeset (routineN, timing_handle)
     distribution = dbcsr_distribution (matrix)
     old_distribution = distribution
     mp = dbcsr_distribution_mp (distribution)
@@ -1608,7 +1601,6 @@ CONTAINS
     CALL make_dense_index (matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
          nprows, npcols, myprow, mypcol, meta, nlocal_blocks)
     CALL dbcsr_unpack_meta (matrix%m, meta)
-    CALL timestop (timing_handle)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_make_dense
 
@@ -1633,7 +1625,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: error_handler, nblkcols_local, nblkcols_total, nblkrows_local, &
-      nblkrows_total, nfullcols_local, nfullrows_local, timing_handle
+      nblkrows_total, nfullcols_local, nfullrows_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: local_col_offsets, &
                                                 local_row_offsets
     INTEGER, DIMENSION(:), POINTER           :: local_cols, local_rows, meta
@@ -1643,7 +1635,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL timeset (routineN, timing_handle)
     dense_distribution = dbcsr_distribution (matrix)
     nfullrows_local = matrix%m%nfullrows_local
     nfullcols_local = matrix%m%nfullcols_local
@@ -1713,7 +1704,6 @@ CONTAINS
          nfullrows_local, nfullcols_local,&
          local_row_offsets, local_col_offsets)
     CALL dbcsr_data_release (dense_data)
-    CALL timestop (timing_handle)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_make_undense
 

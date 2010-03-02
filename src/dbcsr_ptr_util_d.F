@@ -106,7 +106,8 @@
        ELSE
           ALLOCATE(array(lb_new:ub), stat=stat)
        ENDIF
-       IF (stat /= 0) CALL stop_memory(routineP, 'array', ub-lb+1)
+       CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+            routineN, "array",__LINE__,error)
        IF (pad) array(:) = 0.0_real_8
        CALL dbcsr_error_stop(error_handler, error)
        RETURN
@@ -160,7 +161,8 @@
     ELSE
        ALLOCATE(newarray(lb_new:ub_new), stat=stat)
     ENDIF
-    IF(stat /= 0) CALL stop_memory(routineP, 'newarray', ub_new-lb_new+1)
+    CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+         routineN, "newarray",__LINE__,error)
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             dbcsr_failure_level, dbcsr_internal_error, routineP,&

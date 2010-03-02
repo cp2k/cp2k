@@ -111,6 +111,7 @@ MODULE cp_dbcsr_operations
        add_block_node, allocate_matrix, checksum_matrix, deallocate_matrix, &
        first_block_node, get_block_node, next_block_node, &
        real_block_node_type, real_matrix_type, replicate_matrix
+  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -673,14 +674,28 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
+    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
+                                                trans_b
+    INTEGER                                  :: timing_handle, &
+                                                timing_handle_detail
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    trans_a = transa
+    trans_b = transb
+    CALL uppercase(trans_a)
+    CALL uppercase(trans_b)
+    shape_a='R'
+    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
+    shape_b='R'
+    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
+    CALL timeset('dbcsr_mult_'//trans_a//shape_a//dbcsr_get_matrix_type(matrix_a)//'_'&
+         //trans_b//shape_b//dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a, matrix_b, beta, matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
+    CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_s
 
@@ -705,14 +720,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
+    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
+                                                trans_b
+    INTEGER                                  :: timing_handle, &
+                                                timing_handle_detail
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+
+    trans_a = transa
+    trans_b = transb
+    CALL uppercase(trans_a)
+    CALL uppercase(trans_b)
+    shape_a='R'
+    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
+    shape_b='R'
+    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
+    CALL timeset('dbcsr_mult_'//trans_a//shape_a//dbcsr_get_matrix_type(matrix_a)//'_'&
+         //trans_b//shape_b//dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a, matrix_b, beta, matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, left_set, right_set, dbcsr_error, flop)
+    CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_d
 
@@ -737,14 +767,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_c', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
+    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
+                                                trans_b
+    INTEGER                                  :: timing_handle, &
+                                                timing_handle_detail
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+
+    trans_a = transa
+    trans_b = transb
+    CALL uppercase(trans_a)
+    CALL uppercase(trans_b)
+    shape_a='R'
+    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
+    shape_b='R'
+    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
+    CALL timeset('dbcsr_mult_'//trans_a//shape_a//dbcsr_get_matrix_type(matrix_a)//'_'&
+         //trans_b//shape_b//dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a, matrix_b, beta, matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
+    CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_c
 
@@ -769,14 +814,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_z', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: timing_handle
+    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
+                                                trans_b
+    INTEGER                                  :: timing_handle, &
+                                                timing_handle_detail
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+
+    trans_a = transa
+    trans_b = transb
+    CALL uppercase(trans_a)
+    CALL uppercase(trans_b)
+    shape_a='R'
+    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
+    shape_b='R'
+    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
+    CALL timeset('dbcsr_mult_'//trans_a//shape_a//dbcsr_get_matrix_type(matrix_a)//'_'&
+         //trans_b//shape_b//dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a, matrix_b, beta, matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
+    CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_z
 
