@@ -119,7 +119,7 @@ CONTAINS
 !> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
 ! *****************************************************************************
   SUBROUTINE dbcsr_block_transpose_aa (dst, src, & 
-       row_size, col_size, lb, source_lb, scale, lb2, source_lb2)
+       row_size, col_size, lb, source_lb, scale, lb2, source_lb2, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     TYPE(dbcsr_data_obj), INTENT(IN)         :: src
     INTEGER, INTENT(IN)                      :: row_size, col_size
@@ -127,16 +127,18 @@ CONTAINS
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: scale
     INTEGER, INTENT(IN), OPTIONAL            :: lb2, source_lb2
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_aa', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_size, lb2_s, lb2_t, &
-                                                lb_s, lb_t, ub_s, ub_t
-    TYPE(dbcsr_error_type)                   :: error
+    INTEGER                                  :: data_size, error_handler, &
+                                                lb2_s, lb2_t, lb_s, lb_t, &
+                                                ub_s, ub_t
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set(routineN, error_handler, error)
     IF (bcsr_debug) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d), 'AND', ASSOCIATED(src%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -271,6 +273,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
     END SELECT
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_block_transpose_aa
 
 ! *****************************************************************************
@@ -281,17 +284,19 @@ CONTAINS
 !> \param[in] row_size   number of rows in existing block
 !> \param[in] col_size   number of columns in existing block
 ! *****************************************************************************
-  SUBROUTINE dbcsr_block_transpose_a (area, row_size, col_size)
+  SUBROUTINE dbcsr_block_transpose_a (area, row_size, col_size, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, INTENT(IN)                      :: row_size, col_size
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_a', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: error
+    INTEGER                                  :: error_handler
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set(routineN, error_handler, error)
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_block_transpose (area%d%r_dp,&
@@ -309,6 +314,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_block_transpose_a
 
 

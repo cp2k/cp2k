@@ -365,7 +365,8 @@ CONTAINS
              ELSE
                 CALL dbcsr_block_transpose (dst, src,&
                      col_size, row_size,&
-                     lb=ABS(blk_p(blk)), source_lb=ABS(old_blk_p(blk)))
+                     lb=ABS(blk_p(blk)), source_lb=ABS(old_blk_p(blk)), &
+                     error=error)
              ENDIF
              nze_prev = nze
           ENDIF ! blk exists

@@ -1358,28 +1358,20 @@ CONTAINS
 !> \result may_be_dense    use the mutable and not append-only working
 !>                            structures
 ! *****************************************************************************
-  FUNCTION dbcsr_may_be_dense (matrix) RESULT (may_be_dense)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
+  FUNCTION dbcsr_may_be_dense (matrix, occ_thresh) RESULT (may_be_dense)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    REAL(real_8), INTENT(in)                 :: occ_thresh
     LOGICAL                                  :: may_be_dense
 
-    INTEGER                                  :: local_dense
+    REAL(real_8)                             :: occ
 
 !   ---------------------------------------------------------------------------
-!may_be_dense = matrix%nblks .EQ. &
-!     matrix%nblkrows_local * matrix%nblkcols_local &
-!     .AND. &
-!     matrix%nze .EQ. &
-!     matrix%nfullrows_local * matrix%nfullcols_local &
-!     .AND. &
-!     matrix%matrix_type .EQ. dbcsr_type_normal
 
-    local_dense = matrix%nze
-    CALL mp_sum (local_dense, dbcsr_mp_group (dbcsr_distribution_mp (matrix%dist)))
-    may_be_dense = local_dense .EQ.&
-         matrix%nfullrows_total * matrix%nfullcols_total
+    occ = dbcsr_get_occupation(matrix)
+    may_be_dense =  .NOT.( occ .LT. occ_thresh )
+    ! make sure every proc sees the same
+    CALL mp_sum(may_be_dense, dbcsr_mp_group (dbcsr_distribution_mp (matrix%m%dist)))
   END FUNCTION dbcsr_may_be_dense
-
-
 
 ! *****************************************************************************
 !> \brief Returns the blocked row size of a row

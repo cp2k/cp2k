@@ -737,15 +737,16 @@ CONTAINS
 !> \brief Detransposes all blocks in a matrix
 !> \param[in,out] matrix      DBCSR matrix
 ! *****************************************************************************
-  SUBROUTINE dbcsr_make_untransposed_blocks(matrix)
+  SUBROUTINE dbcsr_make_untransposed_blocks(matrix, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'dbcsr_make_untransposed_blocks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, col_size, row, &
-                                                row_size
+    INTEGER                                  :: blk, col, col_size, &
+                                                error_handler, row, row_size
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: sym_negation, tr
     TYPE(dbcsr_data_obj)                     :: block_data
@@ -753,6 +754,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set(routineN, error_handler, error)
     rbs => array_data (dbcsr_row_block_sizes (matrix))
     cbs => array_data (dbcsr_col_block_sizes (matrix))
     CALL dbcsr_data_init (block_data)
@@ -766,7 +768,8 @@ CONTAINS
        IF (tr) THEN
           row_size = rbs(row)
           col_size = cbs(col)
-          CALL dbcsr_block_transpose(block_data, col_size, row_size)
+          CALL dbcsr_block_transpose(block_data, col_size, row_size, &
+               error=error)
           IF (sym_negation) THEN
              SELECT CASE (block_data%d%data_type)
              CASE (dbcsr_type_real_4)
@@ -785,6 +788,7 @@ CONTAINS
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_data_clear_pointer (block_data)
     CALL dbcsr_data_release (block_data)
+    CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_make_untransposed_blocks
 
 
@@ -1041,9 +1045,9 @@ CONTAINS
                 ! shift = vpcol
                 ! vrow = vrow - shift
                 vrow = vrow - pcol*target_imgdist%row_multiplicity
-                vrow = modulo(vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%row_decimation)
+                vrow = MODULO(vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%row_decimation)
                 prow = vrow / target_imgdist%row_decimation
-                row_img = 1+modulo (vrow, target_imgdist%row_decimation)
+                row_img = 1+MODULO (vrow, target_imgdist%row_decimation)
                 IF (dbg) &
                      WRITE(*,'(2(1X,A,2(1X,I5)))')routineN//" R shift from",&
                      i,j, "to", vrow, vcol
@@ -1051,9 +1055,9 @@ CONTAINS
                 ! shift = vprow
                 ! vcol = vcol - shift
                 vcol = vcol - prow*target_imgdist%col_multiplicity
-                vcol = modulo(vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%col_decimation)
+                vcol = MODULO(vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%col_decimation)
                 pcol = vcol / target_imgdist%col_decimation
-                col_img = 1+modulo (vcol, target_imgdist%col_decimation)
+                col_img = 1+MODULO (vcol, target_imgdist%col_decimation)
                 IF (dbg) &
                      WRITE(*,'(2(1X,A,2(1X,I5)))')routineN//" L shift from",&
                      i,j, "to", vrow, vcol
@@ -1192,16 +1196,16 @@ CONTAINS
                 ! shift = vpcol
                 ! vrow = vrow + shift
                 vrow = vrow - pcol*target_imgdist%row_multiplicity
-                vrow = modulo (vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%row_decimation)
+                vrow = MODULO (vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%row_decimation)
                 prow = vrow / target_imgdist%row_decimation
-                row_img = 1+modulo (vrow, target_imgdist%row_decimation)
+                row_img = 1+MODULO (vrow, target_imgdist%row_decimation)
              ELSEIF (predistribute.eq."L") THEN
                 ! shift = vprow
                 ! vcol = vcol + shift
                 vcol = vcol - prow*target_imgdist%col_multiplicity
-                vcol = modulo (vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%col_decimation)
+                vcol = MODULO (vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%col_decimation)
                 pcol = vcol / target_imgdist%col_decimation
-                col_img = 1+modulo (vcol, target_imgdist%col_decimation)
+                col_img = 1+MODULO (vcol, target_imgdist%col_decimation)
              ENDIF
           ENDIF
           dst_p = blacs2mpi(prow, pcol)
@@ -1756,7 +1760,8 @@ CONTAINS
              CALL dbcsr_block_transpose (&
                   dst=dense2d, lb=row_offset, lb2=col_offset,&
                   row_size=col_size, col_size=row_size,&
-                  src=block, source_lb=1, source_lb2=1)
+                  src=block, source_lb=1, source_lb2=1,&
+                  error=error)
           ELSE
              CALL dbcsr_data_set (&
                   dst=dense2d, lb=row_offset, lb2=col_offset,&
@@ -1822,7 +1827,8 @@ CONTAINS
              CALL dbcsr_block_transpose (&
                   dst=block, lb=1, lb2=1,&
                   row_size=row_size, col_size=col_size,&
-                  src=dense2d, source_lb=row_offset, source_lb2=col_offset)
+                  src=dense2d, source_lb=row_offset, source_lb2=col_offset,&
+                  error=error)
           ELSE
              CALL dbcsr_data_set (&
                   dst=block, lb=1, lb2=1,&
@@ -2552,7 +2558,8 @@ CONTAINS
                      dst=data_block,&
                      lb=col_offset_new, lb2=row_offset_new,&
                      src=src_2d,&
-                     row_size=row_rle, col_size=col_rle)
+                     row_size=row_rle, col_size=col_rle, &
+                     error=error)
                 !CALL dbcsr_block_transpose (&
                 !     r2_dp(&
                 !     col_offset_new:col_offset_new+col_rle-1,&

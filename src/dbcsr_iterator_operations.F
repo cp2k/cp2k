@@ -51,7 +51,8 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_obj,&
                                              dbcsr_scalar_type,&
                                              dbcsr_type
-  USE dbcsr_util,                      ONLY: dbcsr_set_debug, swap
+  USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
+                                             swap
 
   !$ USE OMP_LIB
 
