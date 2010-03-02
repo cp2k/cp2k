@@ -238,3 +238,5 @@ nh3-meta-walks_2r.inp
 nh3-meta-walks_1.inp
 nh3-meta-walks_2r.inp
 nh3-meta-4.inp
+# bug fix
+ethene_colv1_growth_lim.inp

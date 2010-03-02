@@ -539,11 +539,19 @@ CONTAINS
              IF (explicit) THEN
                 CALL section_vals_val_get(collective_sections, "TARGET_LIMIT", r_val=limit,&
                    i_rep_section=irep, error=error)
-                IF ((clv_target-limit)*SIGN(1.0_dp,value)>=0.0_dp) THEN 
-                   do_update_colvar = .FALSE.
-                ELSE IF (ABS(new_clv_target)>ABS(limit)) THEN
-                   new_clv_target = limit
-                END IF
+                IF (value>0.0_dp) THEN
+                   IF (clv_target==limit) THEN
+                      do_update_colvar = .FALSE.
+                   ELSE IF (new_clv_target>=limit) THEN
+                      new_clv_target = limit
+                   END IF
+                ELSE
+                   IF (clv_target==limit) THEN
+                      do_update_colvar = .FALSE.
+                   ELSE IF (new_clv_target<=limit) THEN
+                      new_clv_target = limit
+                   END IF
+                ENDIF
              END IF
              IF (do_update_colvar) THEN
                 CALL section_vals_val_set(collective_sections, "TARGET", r_val=new_clv_target,&
