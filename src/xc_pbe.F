@@ -175,6 +175,7 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
 
     SELECT CASE(param)
     CASE(xc_pbe_orig)
+       CALL cite_reference(Perdew1996)
        IF (sx==1._dp .AND.sc==1._dp) THEN
           IF ( PRESENT ( reference ) ) THEN
              reference = "J.P.Perdew, K.Burke, M.Ernzerhof, "//&
@@ -197,6 +198,8 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
           END IF
        END IF
     CASE(xc_rev_pbe)
+       CALL cite_reference(Perdew1996)
+       CALL cite_reference(Zhang1998)
        IF (sx==1._dp .AND.sc==1._dp) THEN
           IF ( PRESENT ( reference ) ) THEN
              reference="revPBE, Yingkay Zhang and Weitao Yang,"//&
