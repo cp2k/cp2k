@@ -106,7 +106,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EXCHANGE_INTEGRALS",&
             description="Method to calculate Exchange integrals",&
-            usage="COULOMB_INTEGRALS analytic",&
+            usage="EXCHANGE_INTEGRALS analytic",&
             default_i_val=do_numeric,&
             enum_c_vals=(/"ANALYTIC                 ",&
                           "SEMI_ANALYTIC            ",&
