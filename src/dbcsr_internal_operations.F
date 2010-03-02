@@ -57,8 +57,7 @@ MODULE dbcsr_internal_operations
        dbcsr_scalar_type, dbcsr_type, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: absmod,&
-                                             dbcsr_checksum,&
+  USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_set_debug
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
@@ -385,7 +384,7 @@ CONTAINS
                 left_src_v_col = left_src_pcol*left_col_nimages + left_col_image-1
                 ! Rewind the column
                 left_src_v_col = left_src_v_col + left_src_prow*left_col_mult
-                left_src_v_col = absmod(left_src_v_col + nvirt_k, nvirt_k)
+                left_src_v_col = MODULO(left_src_v_col, nvirt_k)
                 left_sizes(idata, left_src_v_row, left_src_v_col) = all_sizes(&
                      idata, left_row_image, left_col_image, left_src_p)
                 left_sizes(imeta, left_src_v_row, left_src_v_col) = all_sizes(&
@@ -407,7 +406,7 @@ CONTAINS
                 right_src_v_col = right_src_pcol*right_col_nimages + right_col_image-1
                 ! Rewind the row
                 right_src_v_row = right_src_v_row + right_src_pcol*right_row_mult
-                right_src_v_row = absmod(right_src_v_row + nvirt_k, nvirt_k)
+                right_src_v_row = MODULO(right_src_v_row, nvirt_k)
                 right_sizes(idata, right_src_v_row, right_src_v_col) =&
                      all_sizes(&
                      idata+2, right_row_image, right_col_image, right_src_p)
@@ -503,9 +502,9 @@ CONTAINS
              right_send_v_row = v_ki &
                   + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
                   - min_nimages
-             right_send_v_row = MOD (right_send_v_row + nvirt_k, nvirt_k)
+             right_send_v_row = MODULO (right_send_v_row, nvirt_k)
              right_send_prow = right_send_v_row / right_row_nimages
-             right_send_irow = MOD (right_send_v_row, right_row_nimages)
+             right_send_irow = MODULO (right_send_v_row, right_row_nimages)
              CALL dbcsr_assert (&
                   right_send_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -519,9 +518,9 @@ CONTAINS
                   + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
                   + dbcsr_mp_mypcol(right_mp_obj)*right_row_mult &
                   - min_nimages
-             right_dst_v_row = MOD (right_dst_v_row + nvirt_k, nvirt_k)
+             right_dst_v_row = MODULO (right_dst_v_row, nvirt_k)
              right_dst_prow = right_dst_v_row / right_row_nimages
-             right_dst_irow = 1 + MOD (right_dst_v_row, right_row_nimages)
+             right_dst_irow = 1 + MODULO (right_dst_v_row, right_row_nimages)
              CALL dbcsr_assert(&
                   right_dst_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -569,9 +568,9 @@ CONTAINS
              right_src_v_row = v_k &
                   + dbcsr_mp_myprow(right_mp_obj)*right_row_nimages &
                   + dbcsr_mp_mypcol(right_mp_obj)*right_row_mult
-             right_src_v_row = MOD (right_src_v_row, nvirt_k)
+             right_src_v_row = MODULO (right_src_v_row, nvirt_k)
              right_src_prow = right_src_v_row / right_row_nimages
-             right_src_irow = 1 + MOD (right_src_v_row, right_row_nimages)
+             right_src_irow = 1 + MODULO (right_src_v_row, right_row_nimages)
              CALL dbcsr_assert(&
                   right_src_prow, "LT", dbcsr_mp_nprows(right_mp_obj),&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -714,7 +713,7 @@ CONTAINS
              !
              left_send_v_col = dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
                   - min_nimages + v_ki
-             left_send_v_col = MOD (left_send_v_col + nvirt_k, nvirt_k)
+             left_send_v_col = MODULO (left_send_v_col, nvirt_k)
              left_send_pcol = left_send_v_col / left_col_nimages
              left_send_icol = 1
              CALL dbcsr_assert (&
@@ -730,9 +729,9 @@ CONTAINS
                   + dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
                   + dbcsr_mp_myprow(left_mp_obj)*left_col_mult &
                   - min_nimages
-             left_dst_v_col = MOD (left_dst_v_col + nvirt_k, nvirt_k)
+             left_dst_v_col = MODULO (left_dst_v_col, nvirt_k)
              left_dst_pcol = left_dst_v_col / left_col_nimages
-             left_dst_icol = 1 + MOD (left_dst_v_col, left_col_nimages)
+             left_dst_icol = 1 + MODULO (left_dst_v_col, left_col_nimages)
              CALL dbcsr_assert(&
                   left_dst_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -782,9 +781,9 @@ CONTAINS
                   !+ dbcsr_mp_mypcol(right_mp_obj)*right_row_mult
                   + dbcsr_mp_mypcol(left_mp_obj)*left_col_nimages &
                   + dbcsr_mp_myprow(left_mp_obj)*left_col_mult
-             left_src_v_col = MOD(left_src_v_col, nvirt_k)
+             left_src_v_col = MODULO (left_src_v_col, nvirt_k)
              left_src_pcol = left_src_v_col / left_col_nimages
-             left_src_icol = 1 + MOD (left_src_v_col, left_col_nimages)
+             left_src_icol = 1 + MODULO (left_src_v_col, left_col_nimages)
              CALL dbcsr_assert(&
                   left_src_pcol, "LT", dbcsr_mp_npcols(left_mp_obj),&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&

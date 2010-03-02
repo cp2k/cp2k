@@ -64,7 +64,7 @@ MODULE dbcsr_util
             global_offsets_to_local,&
             dbcsr_unpack_i8_2i4, make_coordinate_tuple,&
             nfull_elements
-  PUBLIC :: swap, absmod, sgn
+  PUBLIC :: swap, sgn
   ! math routines
   PUBLIC :: gcd, lcm
 
@@ -632,22 +632,6 @@ CONTAINS
     tuple = most
     tuple = IOR (ISHFT(tuple, 32), INT(least, int_8))
   END FUNCTION make_coordinate_tuple
-
-
-
-! *****************************************************************************
-!> \brief A modulo operation that always returns non-negative numbers.
-!> \param[in] n               take modulo of this number
-!> \param[in] divisor         modulo divisor
-!> \result absmod             resulting remainder
-! *****************************************************************************
-  PURE FUNCTION absmod(n, divisor)
-    INTEGER, INTENT(IN)                      :: n, divisor
-    INTEGER                                  :: absmod
-
-    absmod = MOD(n+divisor, divisor)
-  END FUNCTION absmod
-
 
 
 

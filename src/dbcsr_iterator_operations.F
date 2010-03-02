@@ -51,7 +51,7 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_obj,&
                                              dbcsr_scalar_type,&
                                              dbcsr_type
-  USE dbcsr_util,                      ONLY: dbcsr_set_debug
+  USE dbcsr_util,                      ONLY: dbcsr_set_debug, swap
 
   !$ USE OMP_LIB
 
@@ -498,6 +498,7 @@ CONTAINS
        IF (PRESENT (row_offset)) row_offset = iterator%row_offset
        IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
        ! Redirect the encapsulated pointer to the correct pointer here.
+       IF (transposed) CALL swap (rsize, csize)
        CALL dbcsr_data_set_pointer (block, rsize, csize, iterator%data_area,&
             source_lb=bp)
        IF (PRESENT (block_number)) block_number = iterator%pos

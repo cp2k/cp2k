@@ -360,7 +360,8 @@ CONTAINS
        new_left = .FALSE.
     CASE('T','t')
        CALL dbcsr_init(matrix_left)
-       CALL dbcsr_new_transposed (matrix_left, matrix_a, shallow_data_copy=.FALSE.,&
+       CALL dbcsr_new_transposed (matrix_left, matrix_a,&
+            shallow_data_copy=.FALSE.,&
             transpose_distribution=.FALSE., error=error)
        new_left = .TRUE.
     CASE('C','c')
@@ -380,7 +381,8 @@ CONTAINS
        new_right = .FALSE.
     CASE('T','t')
        CALL dbcsr_init(matrix_right)
-       CALL dbcsr_new_transposed (matrix_right, matrix_b, shallow_data_copy=.FALSE.,&
+       CALL dbcsr_new_transposed (matrix_right, matrix_b,&
+            shallow_data_copy=.FALSE.,&
             transpose_distribution=.FALSE., error=error)
        new_right = .TRUE.
     CASE('C','c')

@@ -120,6 +120,7 @@
        IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
        nze = rsize * csize
        rbp => dbcsr_get_data_p (iterator%data_area, 0.0_real_4)
+       IF (transposed) CALL swap (rsize, csize)
 #if defined(__PTR_RANK_REMAP)
        block(1:rsize, 1:csize) => rbp(bp:bp+nze-1)
 #elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)

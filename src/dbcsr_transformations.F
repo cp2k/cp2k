@@ -82,8 +82,7 @@ MODULE dbcsr_transformations
        dbcsr_slot_row_p, dbcsr_type, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_normal, &
        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: absmod,&
-                                             convert_sizes_to_offsets,&
+  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_pack_meta,&
                                              dbcsr_set_debug,&
                                              dbcsr_unpack_meta,&
@@ -277,7 +276,7 @@ CONTAINS
     DEALLOCATE (blk_p)
     !
     ! Redistribute if mpgrid was not transposed
-    IF (.NOT. tr_dist) THEN
+    IF (.NOT. tr_dist .AND. .NOT. shallow) THEN
        !write (*,*)routineN//" redistributing"
        CALL dbcsr_init (t2)
        CALL dbcsr_create (t2, transposed%m%name, transposed%m%dist,&
@@ -1042,9 +1041,9 @@ CONTAINS
                 ! shift = vpcol
                 ! vrow = vrow - shift
                 vrow = vrow - pcol*target_imgdist%row_multiplicity
-                vrow = absmod(vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%row_decimation)
+                vrow = modulo(vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%row_decimation)
                 prow = vrow / target_imgdist%row_decimation
-                row_img = 1+absmod (vrow, target_imgdist%row_decimation)
+                row_img = 1+modulo (vrow, target_imgdist%row_decimation)
                 IF (dbg) &
                      WRITE(*,'(2(1X,A,2(1X,I5)))')routineN//" R shift from",&
                      i,j, "to", vrow, vcol
@@ -1052,9 +1051,9 @@ CONTAINS
                 ! shift = vprow
                 ! vcol = vcol - shift
                 vcol = vcol - prow*target_imgdist%col_multiplicity
-                vcol = absmod(vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%col_decimation)
+                vcol = modulo(vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%col_decimation)
                 pcol = vcol / target_imgdist%col_decimation
-                col_img = 1+absmod (vcol, target_imgdist%col_decimation)
+                col_img = 1+modulo (vcol, target_imgdist%col_decimation)
                 IF (dbg) &
                      WRITE(*,'(2(1X,A,2(1X,I5)))')routineN//" L shift from",&
                      i,j, "to", vrow, vcol
@@ -1193,16 +1192,16 @@ CONTAINS
                 ! shift = vpcol
                 ! vrow = vrow + shift
                 vrow = vrow - pcol*target_imgdist%row_multiplicity
-                vrow = absmod(vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%row_decimation)
+                vrow = modulo (vrow, dbcsr_mp_nprows(mp_obj)*target_imgdist%row_decimation)
                 prow = vrow / target_imgdist%row_decimation
-                row_img = 1+absmod (vrow, target_imgdist%row_decimation)
+                row_img = 1+modulo (vrow, target_imgdist%row_decimation)
              ELSEIF (predistribute.eq."L") THEN
                 ! shift = vprow
                 ! vcol = vcol + shift
                 vcol = vcol - prow*target_imgdist%col_multiplicity
-                vcol = absmod(vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%col_decimation)
+                vcol = modulo (vcol, dbcsr_mp_npcols(mp_obj)*target_imgdist%col_decimation)
                 pcol = vcol / target_imgdist%col_decimation
-                col_img = 1+absmod (vcol, target_imgdist%col_decimation)
+                col_img = 1+modulo (vcol, target_imgdist%col_decimation)
              ENDIF
           ENDIF
           dst_p = blacs2mpi(prow, pcol)
@@ -1220,7 +1219,7 @@ CONTAINS
              !send_data(sd_pos:sd_pos+nze-1) = r_dp(bp:bp+nze-1)
              send_meta(sm_pos+1) = stored_col
              send_meta(sm_pos+2) = SGN (&
-                  sd_pos-sd_disp(dst_p)+1, blk_p, tr)
+                  sd_pos-sd_disp(dst_p)+1, bp, tr)
              send_meta(sm_pos+3) = row_img
              send_meta(sm_pos+4) = col_img
              prev_blk_p = send_meta(sm_pos+2)
@@ -1756,7 +1755,7 @@ CONTAINS
           IF (tr) THEN
              CALL dbcsr_block_transpose (&
                   dst=dense2d, lb=row_offset, lb2=col_offset,&
-                  row_size=row_size, col_size=col_size,&
+                  row_size=col_size, col_size=row_size,&
                   src=block, source_lb=1, source_lb2=1)
           ELSE
              CALL dbcsr_data_set (&

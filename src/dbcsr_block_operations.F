@@ -146,7 +146,11 @@ CONTAINS
        CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
             .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
             .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_8_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_4_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4_2d,&
             dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
     ENDIF
     IF (PRESENT (scale)) THEN
