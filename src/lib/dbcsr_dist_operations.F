@@ -38,8 +38,6 @@ MODULE dbcsr_dist_operations
                                              dbcsr_set_debug,&
                                              gcd,&
                                              lcm
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
 

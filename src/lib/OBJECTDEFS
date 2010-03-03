@@ -9,10 +9,26 @@ LIB3_OBJECTS = array_types.o\
                btree_i8_k_dp2d_v.o\
                btree_i8_k_cp2d_v.o\
                btree_i8_k_zp2d_v.o\
+               dbcsr_blas_operations.o\
+               dbcsr_block_access.o\
+               dbcsr_block_operations.o\
                dbcsr_c_mpi_calls.o\
+               dbcsr_data_operations.o\
+               dbcsr_dist_operations.o\
                dbcsr_error_handling.o\
+               dbcsr_index_operations.o\
+               dbcsr_internal_operations.o\
+               dbcsr_io.o\
+               dbcsr_iterator_operations.o\
                dbcsr_kinds.o\
                dbcsr_machine.o\
                dbcsr_message_passing.o\
-               dbcsr_types.o
+               dbcsr_methods.o\
+               dbcsr_mp_operations.o\
+               dbcsr_types.o\
+               dbcsr_operations.o\
+               dbcsr_ptr_util.o\
+               dbcsr_transformations.o\
+               dbcsr_work_operations.o\
+               dbcsr_util.o
 

@@ -32,8 +32,6 @@ MODULE dbcsr_io
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: dbcsr_set_debug
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
 

@@ -34,8 +34,6 @@ MODULE dbcsr_mp_operations
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
 

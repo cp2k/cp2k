@@ -29,8 +29,6 @@ MODULE dbcsr_data_operations
                                              dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
                                              sgn
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
 

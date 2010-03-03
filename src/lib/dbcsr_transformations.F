@@ -92,8 +92,6 @@ MODULE dbcsr_transformations
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
 

@@ -23,8 +23,6 @@ MODULE dbcsr_blas_operations
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
   IMPLICIT NONE
@@ -65,13 +63,17 @@ CONTAINS
          "Incompatible data types",__LINE__,error)
     SELECT CASE (alpha%data_type)
     CASE (dbcsr_type_real_4)
-       CALL BL_SCAL (n, alpha%r_sp, x%d%r_sp, incx)
+       !CALL BL_SCAL (n, alpha%r_sp, x%d%r_sp, incx)
+       CALL SSCAL (n, alpha%r_sp, x%d%r_sp, incx)
     CASE (dbcsr_type_real_8)
-       CALL BL_SCAL (n, alpha%r_dp, x%d%r_dp, incx)
+       !CALL BL_SCAL (n, alpha%r_dp, x%d%r_dp, incx)
+       CALL DSCAL (n, alpha%r_dp, x%d%r_dp, incx)
     CASE (dbcsr_type_complex_4)
-       CALL BL_SCAL (n, alpha%c_sp, x%d%c_sp, incx)
+       !CALL BL_SCAL (n, alpha%c_sp, x%d%c_sp, incx)
+       CALL CSCAL (n, alpha%c_sp, x%d%c_sp, incx)
     CASE (dbcsr_type_complex_8)
-       CALL BL_SCAL (n, alpha%c_dp, x%d%c_dp, incx)
+       !CALL BL_SCAL (n, alpha%c_dp, x%d%c_dp, incx)
+       CALL ZSCAL (n, alpha%c_dp, x%d%c_dp, incx)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid data type",__LINE__,error)
@@ -120,16 +122,24 @@ CONTAINS
     CALL dbcsr_data_set_2d_pointer (c, ldc)
     SELECT CASE (alpha%data_type)
     CASE (dbcsr_type_real_4)
-       CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%r_sp,&
+       !CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%r_sp,&
+       !     a%d%r2_sp, LDA, b%d%r2_sp, LDB, beta%r_sp, c%d%r2_sp, LDC)
+       CALL SGEMM (TRANSA, TRANSB, M, N, K, alpha%r_sp,&
             a%d%r2_sp, LDA, b%d%r2_sp, LDB, beta%r_sp, c%d%r2_sp, LDC)
     CASE (dbcsr_type_real_8)
-       CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%r_dp,&
+       !CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%r_dp,&
+       !     a%d%r2_dp, LDA, b%d%r2_dp, LDB, beta%r_dp, c%d%r2_dp, LDC)
+       CALL DGEMM (TRANSA, TRANSB, M, N, K, alpha%r_dp,&
             a%d%r2_dp, LDA, b%d%r2_dp, LDB, beta%r_dp, c%d%r2_dp, LDC)
     CASE (dbcsr_type_complex_4)
-       CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%c_sp,&
+       !CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%c_sp,&
+       !     a%d%c2_sp, LDA, b%d%c2_sp, LDB, beta%c_sp, c%d%c2_sp, LDC)
+       CALL CGEMM (TRANSA, TRANSB, M, N, K, alpha%c_sp,&
             a%d%c2_sp, LDA, b%d%c2_sp, LDB, beta%c_sp, c%d%c2_sp, LDC)
     CASE (dbcsr_type_complex_8)
-       CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%c_dp,&
+       !CALL BL_GEMM (TRANSA, TRANSB, M, N, K, alpha%c_dp,&
+       !     a%d%c2_dp, LDA, b%d%c2_dp, LDB, beta%c_dp, c%d%c2_dp, LDC)
+       CALL ZGEMM (TRANSA, TRANSB, M, N, K, alpha%c_dp,&
             a%d%c2_dp, LDA, b%d%c2_dp, LDB, beta%c_dp, c%d%c2_dp, LDC)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
@@ -157,13 +167,13 @@ CONTAINS
          "Incompatible data types",__LINE__,error)
     SELECT CASE (x%d%data_type)
     CASE (dbcsr_type_real_4)
-       CALL BL_COPY (n, x%d%r_sp, incx, y%d%r_sp, incy)
+       CALL SCOPY (n, x%d%r_sp, incx, y%d%r_sp, incy)
     CASE (dbcsr_type_real_8)
-       CALL BL_COPY (n, x%d%r_dp, incx, y%d%r_dp, incy)
+       CALL DCOPY (n, x%d%r_dp, incx, y%d%r_dp, incy)
     CASE (dbcsr_type_complex_4)
-       CALL BL_COPY (n, x%d%c_sp, incx, y%d%c_sp, incy)
+       CALL CCOPY (n, x%d%c_sp, incx, y%d%c_sp, incy)
     CASE (dbcsr_type_complex_8)
-       CALL BL_COPY (n, x%d%c_dp, incx, y%d%c_dp, incy)
+       CALL ZCOPY (n, x%d%c_dp, incx, y%d%c_dp, incy)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid data type",__LINE__,error)

@@ -35,8 +35,6 @@ MODULE dbcsr_index_operations
        dbcsr_slot_size, dbcsr_type
   USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
                                              swap
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
 

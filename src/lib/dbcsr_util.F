@@ -42,8 +42,6 @@ MODULE dbcsr_util
        dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_type, dbcsr_type, &
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
        dbcsr_type_real_8
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
   IMPLICIT NONE

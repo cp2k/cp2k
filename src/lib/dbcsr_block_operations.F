@@ -30,8 +30,6 @@ MODULE dbcsr_block_operations
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
-  USE f77_blas
-  USE f77_blas_generic
 
   !$ USE OMP_LIB
   IMPLICIT NONE

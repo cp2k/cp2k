@@ -146,23 +146,7 @@ OBJECTS_GENERIC =\
  cuda_cublas.o\
  cuda_memory.o\
  d3_poly.o\
- dbcsr_blas_operations.o\
- dbcsr_block_access.o\
- dbcsr_block_operations.o\
- dbcsr_data_operations.o\
- dbcsr_dist_operations.o\
- dbcsr_index_operations.o\
- dbcsr_internal_operations.o\
- dbcsr_io.o\
- dbcsr_iterator_operations.o\
- dbcsr_methods.o\
- dbcsr_mp_operations.o\
- dbcsr_operations.o\
- dbcsr_ptr_util.o\
- dbcsr_transformations.o\
- dbcsr_work_operations.o\
  dbcsr_tests.o\
- dbcsr_util.o\
  dft_plus_u.o\
  dg_rho0_types.o\
  dg_types.o\
