@@ -472,7 +472,7 @@ CONTAINS
        ! Give the norm of the total gradient of the density
        IF (needs%norm_drho) THEN
           DO ia = 1,na
-            rho_set%norm_drho(ia,1,1) = SQRT((drho(ia,1)+drho(ia,2))**2)
+            rho_set%norm_drho(ia,1,1) = drho(ia,1)+drho(ia,2)
           END DO
           rho_set%owns%norm_drho=.TRUE.
           rho_set%has%norm_drho=.TRUE.
