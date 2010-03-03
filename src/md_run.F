@@ -426,7 +426,8 @@ CONTAINS
             constraint_section,"LAGRANGE_MULTIPLIERS",error=error)
        
        ! Free Energy calculation 
-      CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)       
+       CALL free_energy_evaluate(md_env,should_stop,free_energy_section,error)       
+
        IF (should_stop) EXIT
 
        ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit 

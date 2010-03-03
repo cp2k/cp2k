@@ -27,6 +27,7 @@ MODULE force_env_methods
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_util,                 ONLY: getold
   USE constraint_vsite,                ONLY: vsite_force_control
+  USE cp_iter_types,                   ONLY: cp_iteration_info_copy_iter
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -972,7 +973,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
     TYPE(cell_type), POINTER                 :: cell, cell_mix
     TYPE(cp_error_type)                      :: my_error
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_logger_type), POINTER            :: logger, my_logger
     TYPE(cp_result_p_type), DIMENSION(:), &
       POINTER                                :: results
     TYPE(cp_result_type), POINTER            :: loc_results, results_mix
@@ -1039,6 +1040,10 @@ CONTAINS
        ! From this point on the error is the sub_error
        my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
        my_error = force_env%mixed_env%sub_error(my_group+1)
+       my_logger => cp_error_get_logger(my_error)
+       ! Copy iterations info (they are updated only in the main mixed_env)
+       CALL cp_iteration_info_copy_iter(logger%iter_info, my_logger%iter_info)
+
        ! Get all available subsys
        CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
                           subsys=subsystems(iforce_eval)%subsys,cell=cell,error=my_error)
