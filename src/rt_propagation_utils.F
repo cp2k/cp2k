@@ -808,6 +808,7 @@ MODULE  rt_propagation_utils
 
        alpha=mos(ispin)%mo_set%maxocc
 
+       ! calculate the W matrix analogue for EMD
        ! calculate B_mat force 
 
        CALL get_rtp(rtp=rtp,B_mat=B_mat,S_der=S_der,S_inv=S_inv,SinvH=SinvH,SinvB=SinvB,mos_new=mos_new,error=error)
@@ -821,31 +822,16 @@ MODULE  rt_propagation_utils
        CALL cp_fm_create(tmp_mo2,tmp_fm_struct,error=error)
        CALL cp_fm_struct_release(tmp_fm_struct,error)
        CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin)%matrix,SinvB,0.0_dp,tmp_mo1,error=error)
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin-1)%matrix,SinvB,0.0_dp,tmp_mo2,error=error)
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin-1)%matrix,SinvH(ispin)%matrix,1.0_dp,tmp_mo1,error=error)
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,-alpha,mos_new(2*ispin-1)%matrix,SinvB,0.0_dp,tmp_mo2,error=error)
+       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin)%matrix,SinvH(ispin)%matrix,1.0_dp,tmp_mo2,error=error)
        CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin-1)%matrix,tmp_mo1,0.0_dp,tmp_mat1,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nmo,-1.0_dp,mos_new(2*ispin)%matrix,tmp_mo2,1.0_dp,tmp_mat1,error=error)
+       CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin)%matrix,tmp_mo2,1.0_dp,tmp_mat1,error=error)
        
+
        CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
        CALL cp_fm_scale_and_add(0.0_dp,tmp_mat2,1.0_dp,tmp_mat,error)
        CALL cp_fm_scale_and_add(0.0_dp,tmp_mat3,1.0_dp,tmp_mat1,error)
-
-       !calculate the W matrix analogue for EMD
-
-       CALL cp_fm_create(p,C_mat(1)%matrix%matrix_struct,error=error)
-       CALL copy_dbcsr_to_fm(qs_env%rho%rho_ao(ispin)%matrix,p,error=error)
-       CALL cp_fm_upper_to_full(p,tmp_mat,error)
-
-       
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin-1)%matrix,SinvH(ispin)%matrix,0.0_dp,tmp_mo1,error=error)
-       CALL cp_fm_gemm("T","T",nmo,nao,nao,alpha,mos_new(2*ispin)%matrix,SinvH(ispin)%matrix,0.0_dp,tmp_mo2,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin-1)%matrix,tmp_mo1,0.0_dp,tmp_mat1,error=error)
-       CALL cp_fm_gemm("N","N",nao,nao,nmo,1.0_dp,mos_new(2*ispin)%matrix,tmp_mo2,1.0_dp,tmp_mat1,error=error)
-        
-!      CALL cp_fm_gemm("T","T",nao,nao,nao,1.0_dp,p,SinvH(ispin)%matrix,0.0_dp,tmp_mat1,error=error)
-       CALL cp_fm_transpose(tmp_mat1,tmp_mat,error)
-
-       CALL cp_fm_scale_and_add(1.0_dp,tmp_mat2,1.0_dp,tmp_mat,error)
-       CALL cp_fm_scale_and_add(1.0_dp,tmp_mat3,1.0_dp,tmp_mat1,error)
 
        !C_mat forces
 
@@ -879,7 +865,6 @@ MODULE  rt_propagation_utils
        END DO
 
        ! recall QS forces, at this point have the other sign.
-       CALL cp_fm_release(p,error)
        CALL cp_fm_release(tmp_mo1,error)
        CALL cp_fm_release(tmp_mo2,error)
        
