@@ -1683,6 +1683,7 @@ CONTAINS
     CALL dbcsr_work_create(matrix, work_mutable=.TRUE., error=error)
 
     DO row = 1,dbcsr_nblkrows_total(matrix)
+       tr = .FALSE.
        CALL dbcsr_get_stored_coordinates (matrix, row, row, tr, hold)
        IF(hold.EQ.mynode) THEN
           CALL dbcsr_get_block_p(matrix, row, row, data_d, tr, found)
