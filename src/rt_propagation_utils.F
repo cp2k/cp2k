@@ -728,9 +728,9 @@ MODULE  rt_propagation_utils
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat, mos_new, S_der, SinvH
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: B_mat, p, S_inv, SinvB, &
-                                                tmp_mat, tmp_mat1, tmp_mat2, &
-                                                tmp_mat3, tmp_mo1, tmp_mo2
+    TYPE(cp_fm_type), POINTER                :: B_mat, S_inv, SinvB, tmp_mat, &
+                                                tmp_mat1, tmp_mat2, tmp_mat3, &
+                                                tmp_mo1, tmp_mo2
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
