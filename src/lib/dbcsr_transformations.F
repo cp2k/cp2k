@@ -27,13 +27,11 @@ MODULE dbcsr_transformations
                                              dbcsr_data_clear,&
                                              dbcsr_data_set
   USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data
-  USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates,&
-                                             dbcsr_reblocking_targets,&
-                                             dbcsr_transpose_dims,&
-                                             dbcsr_transpose_distribution,&
-                                             find_local_virtual_elements,&
-                                             make_image_distribution_dense,&
-                                             match_sizes_to_dist
+  USE dbcsr_dist_operations,           ONLY: &
+       dbcsr_get_stored_coordinates, dbcsr_reblocking_targets, &
+       dbcsr_transpose_dims, dbcsr_transpose_distribution, &
+       find_local_virtual_elements, make_image_distribution_dense, &
+       make_sizes_dense, match_sizes_to_dist, mostly_non_transposed
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
@@ -62,12 +60,13 @@ MODULE dbcsr_transformations
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_init, dbcsr_is_initialized, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_type_1d_to_2d, dbcsr_uses_special_memory, dbcsr_valid_index
+       dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_init, &
+       dbcsr_is_initialized, dbcsr_mp_group, dbcsr_mp_mynode, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_type_1d_to_2d, &
+       dbcsr_uses_special_memory, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: hybrid_alltoall_c1,&
                                              hybrid_alltoall_d1,&
                                              hybrid_alltoall_i1,&
@@ -81,14 +80,11 @@ MODULE dbcsr_transformations
        dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
        dbcsr_slot_row_p, dbcsr_type, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_normal, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
-                                             dbcsr_pack_meta,&
-                                             dbcsr_set_debug,&
-                                             dbcsr_unpack_meta,&
-                                             global_offsets_to_local,&
-                                             nfull_elements,&
-                                             sgn
+       dbcsr_type_real_4, dbcsr_type_real_8
+  USE dbcsr_util,                      ONLY: &
+       convert_sizes_to_offsets, dbcsr_checksum, dbcsr_pack_meta, &
+       dbcsr_set_debug, dbcsr_unpack_meta, global_offsets_to_local, &
+       nfull_elements, sgn, swap
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
@@ -141,16 +137,20 @@ CONTAINS
 !> \param[in] transpose_data  (optional) transpose data blocks, default is True
 !> \param[in] transpose_distribution    (optional) transpose the distribution
 !>                                      from the input matrix, default is True
+!> \param[in] transpose_index           (optional) transpose the index
+!>                                      (default=yes) or turn it into BCSC
 !> \param[in] use_distribution          (optional) use this distribution
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_new_transposed (transposed, normal, shallow_data_copy,&
-       transpose_data, transpose_distribution, use_distribution, error)
+       transpose_data, transpose_distribution, transpose_index,&
+       use_distribution, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: transposed
     TYPE(dbcsr_obj), INTENT(IN)              :: normal
     LOGICAL, INTENT(IN), OPTIONAL            :: shallow_data_copy, &
                                                 transpose_data, &
-                                                transpose_distribution
+                                                transpose_distribution, &
+                                                transpose_index
     TYPE(dbcsr_distribution_obj), &
       INTENT(IN), OPTIONAL                   :: use_distribution
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -158,10 +158,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: new_type
     INTEGER                                  :: error_handler, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
-    LOGICAL                                  :: shallow, tr_blocks, tr_dist
+    LOGICAL                                  :: shallow, tr_blocks, tr_dist, &
+                                                tr_index
     TYPE(dbcsr_distribution_obj)             :: new_dist
     TYPE(dbcsr_obj)                          :: t2
 
@@ -179,6 +179,8 @@ CONTAINS
     IF (PRESENT (transpose_data)) tr_blocks = transpose_data
     tr_dist = .TRUE.
     IF (PRESENT (transpose_distribution)) tr_dist = transpose_distribution
+    tr_index = .TRUE.
+    IF (PRESENT (transpose_index)) tr_index = transpose_index
     ! Prepare the distribution for the transposed matrix
     IF (PRESENT (use_distribution)) THEN
        CALL dbcsr_assert (dbcsr_distribution_nrows (use_distribution),&
@@ -201,15 +203,21 @@ CONTAINS
        ENDIF
     ENDIF
     ! Create the transposed matrix
-    new_type = normal%m%matrix_type
     CALL dbcsr_create (transposed, "transposed "//normal%m%name, new_dist,&
-         new_type, normal%m%col_blk_size, normal%m%row_blk_size,&
+         dbcsr_get_matrix_type(normal),&
+         normal%m%col_blk_size, normal%m%row_blk_size,&
          data_type=normal%m%data_type, special=normal%m%special_memory, error=error)
     CALL dbcsr_distribution_release (new_dist)
     ! Reserve the space for the new indices.
-    CALL dbcsr_addto_index_array (transposed%m, dbcsr_slot_row_p,&
-         reservation=transposed%m%nblkrows_total+1, extra=transposed%m%nblks*2,&
-         error=error)
+    IF (tr_index) THEN
+       CALL dbcsr_addto_index_array (transposed%m, dbcsr_slot_row_p,&
+            reservation=transposed%m%nblkrows_total+1, extra=transposed%m%nblks*2,&
+            error=error)
+    ELSE
+       CALL dbcsr_addto_index_array (transposed%m, dbcsr_slot_row_p,&
+            reservation=normal%m%nblkrows_total+1, extra=transposed%m%nblks*2,&
+            error=error)
+    ENDIF
     CALL dbcsr_addto_index_array (transposed%m, dbcsr_slot_col_i,&
          reservation=normal%m%nblks, error=error)
     CALL dbcsr_addto_index_array (transposed%m, dbcsr_slot_blk_p,&
@@ -228,18 +236,27 @@ CONTAINS
     DBG 'Original size', normal%m%nblks, normal%m%nze
     DBG 'meta', transposed%m%nblkrows_total+1, normal%m%nblks
     DBG 'size', SIZE (transposed%m%row_p), SIZE (transposed%m%col_i)
+
+
     ALLOCATE (blk_p (normal%m%nblks), stat=stat)
-    CALL dbcsr_assert(stat == 0, dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "blk_p",__LINE__,error)
-    CALL transpose_index_local (transposed%m%row_p, transposed%m%col_i,&
-         normal%m%row_p, normal%m%col_i, blk_p, normal%m%blk_p)
-    IF (dbg) THEN
-       WRITE(*,*)'orig. row_p',normal%m%row_p
-       WRITE(*,*)'orig. col_i',normal%m%col_i
-       WRITE(*,*)'orig. blk_p',normal%m%blk_p
-       WRITE(*,*)'new . row_p',transposed%m%row_p
-       WRITE(*,*)'new . col_i',transposed%m%col_i
-       WRITE(*,*)'new . blk_p',blk_p!transposed%m%blk_p
+    CALL dbcsr_assert(stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "blk_p",__LINE__,error)
+    IF (tr_index) THEN
+       CALL transpose_index_local (transposed%m%row_p, transposed%m%col_i,&
+            normal%m%row_p, normal%m%col_i, blk_p, normal%m%blk_p)
+       IF (dbg) THEN
+          WRITE(*,*)'orig. row_p',normal%m%row_p
+          WRITE(*,*)'orig. col_i',normal%m%col_i
+          WRITE(*,*)'orig. blk_p',normal%m%blk_p
+          WRITE(*,*)'new . row_p',transposed%m%row_p
+          WRITE(*,*)'new . col_i',transposed%m%col_i
+          WRITE(*,*)'new . blk_p',blk_p!transposed%m%blk_p
+       ENDIF
+    ELSE
+       transposed%m%row_p(:) = normal%m%row_p(:)
+       transposed%m%col_i(:) = normal%m%col_i(:)
+       blk_p(:) = normal%m%blk_p(:)
+       transposed%m%transpose = .TRUE.
     ENDIF
     ! Copy the data
     IF (shallow) THEN
@@ -271,7 +288,7 @@ CONTAINS
        WRITE(*,1315)transposed%m%blk_p
     ENDIF
     !
-    DEALLOCATE (blk_p)
+    IF (tr_index) DEALLOCATE (blk_p)
     !
     ! Redistribute if mpgrid was not transposed
     IF (.NOT. tr_dist .AND. .NOT. shallow) THEN
@@ -342,7 +359,7 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Matrix not initialized.",__LINE__,error)
     nsymmetries = 1
-    IF (sm%m%matrix_type .EQ. 'S' .OR. sm%m%matrix_type .EQ. 'A') THEN
+    IF (sm%m%symmetry) THEN
        nsymmetries = 2
     ENDIF
     SELECT CASE (sm%m%data_type)
@@ -376,7 +393,7 @@ CONTAINS
     DBG 'blacs2mpi',blacs2mpi
     DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
     DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
-    IF (sm%m%matrix_type .EQ. 'S' .OR. sm%m%matrix_type .EQ. 'A') THEN
+    IF (sm%m%symmetry) THEN
        CALL dbcsr_assert(SIZE(row_dist) .EQ. SIZE(col_dist), dbcsr_warning_level,&
             dbcsr_wrong_args_error, routineN,&
             'Unequal row and column distributions for symmetric matrix.',__LINE__,error)
@@ -409,8 +426,8 @@ CONTAINS
          dbcsr_type_normal, sm%m%row_blk_size, sm%m%col_blk_size,&
          0,0, dbcsr_get_data_type(sm), special=sm%m%special_memory,&
          error=error)
-    IF (sm%m%matrix_type .EQ. dbcsr_type_antisymmetric) THEN
-       desm%m%sym_negation = .TRUE.
+    IF (dbcsr_get_matrix_type (sm) .EQ. dbcsr_type_antisymmetric) THEN
+       desm%m%negate_real = .TRUE.
     ENDIF
     ! Count initial sizes for sending.
     DBG 'A'
@@ -758,7 +775,7 @@ CONTAINS
     CALL dbcsr_data_init (block_data)
     CALL dbcsr_data_new (block_data, dbcsr_get_data_type(matrix))
     CALL dbcsr_iterator_start (iter, matrix)
-    sym_negation = matrix%m%sym_negation
+    sym_negation = matrix%m%negate_real
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, block_data,&
             transposed=tr,&
@@ -824,24 +841,13 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_valid_index (source),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Matrix not initialized.",__LINE__,error)
-    DBG 'Make images for matrix', source%m%matrix_type, source%m%name
+    DBG 'Make images for matrix', dbcsr_get_matrix_type(source), source%m%name
     normalized%image_dist = target_image_dist
-    SELECT CASE (source%m%matrix_type)
-    CASE ('N', 'S', 'A')
-       CALL make_images(source, normalized,&
-            target_image_dist, desymmetrize=.TRUE.,&
-            predistribute=predistribute, special_memory=special_memory,&
-            no_copy_data=no_copy_data,&
-            error=error)
-    CASE ('T')
-       CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
-            dbcsr_unimplemented_error_nr, routineP,&
-            "Making images of transposed matrices not "//&
-            "supported yet.",__LINE__,error)
-    CASE DEFAULT
-       CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
-            dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__,error)
-    END SELECT
+    CALL make_images(source, normalized,&
+         target_image_dist, desymmetrize=dbcsr_has_symmetry(source),&
+         predistribute=predistribute, special_memory=special_memory,&
+         no_copy_data=no_copy_data,&
+         error=error)
     normalized%image_dist = target_image_dist
     DBG 'parent ums(1) name', normalized%mats(1,1)%m%name
     CALL dbcsr_error_stop(error_handler, error)
@@ -919,9 +925,7 @@ CONTAINS
     sm = ism%m
     nsymmetries = 1
     IF (PRESENT (desymmetrize)) THEN
-       IF (desymmetrize .AND. (&
-            sm%matrix_type .EQ. dbcsr_type_symmetric&
-            .OR. sm%matrix_type .EQ. dbcsr_type_antisymmetric)) THEN
+       IF (desymmetrize .AND. sm%symmetry) THEN
           nsymmetries = 2
        ENDIF
     ENDIF
@@ -954,6 +958,7 @@ CONTAINS
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     numproc = dbcsr_mp_numnodes (mp_obj)
     mp_group = dbcsr_mp_group (mp_obj)
+    DBG ism%m%name
     DBG 'row_dist', row_dist
     DBG 'col_dist', col_dist
     DBG 'row, col maxval:', MAXVAL(row_dist), MAXVAL(col_dist)
@@ -962,7 +967,7 @@ CONTAINS
     DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
     DBG 'row,col images',nrow_images,ncol_images
     ALLOCATE (ums%mats(nrow_images,ncol_images))
-    IF (sm%matrix_type .EQ. 'S' .OR. sm%matrix_type .EQ. 'A') THEN
+    IF (sm%symmetry) THEN
        CALL dbcsr_assert(SIZE(row_dist),'EQ', SIZE(col_dist), dbcsr_warning_level,&
             dbcsr_wrong_args_error, routineN,&
             'Unequal row and column distributions for symmetric matrix.',__LINE__,error)
@@ -1003,9 +1008,9 @@ CONTAINS
                target_dist,&
                dbcsr_type_normal, sm%row_blk_size, sm%col_blk_size,&
                0,0, sm%data_type, special=special, error=dbcsr_error)
-          IF (sm%matrix_type .EQ. dbcsr_type_antisymmetric) THEN
-             ums%mats(row_img, col_img)%m%sym_negation = .TRUE.
-          ENDIF
+          ums%mats(row_img, col_img)%m%negate_real = sm%negate_real
+          ums%mats(row_img, col_img)%m%negate_imaginary = sm%negate_imaginary
+          ums%mats(row_img, col_img)%m%transpose = sm%transpose
        ENDDO
     ENDDO
     send_count(:,:,:,:) = 0
@@ -1026,11 +1031,11 @@ CONTAINS
              stored_row = col ; stored_col = row
           ENDIF
           ! Where do we send this block?
+          row_img = 1
+          col_img = 1
           prow = row_dist(stored_row)
           pcol = col_dist(stored_col)
-          row_img = 1
           IF (nrow_images .GT. 1) row_img = row_img_dist (stored_row)
-          col_img = 1
           IF (ncol_images .GT. 1) col_img = col_img_dist (stored_col)
           IF (predist) THEN
              IF (dbg) THEN
@@ -1341,30 +1346,40 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Makes dense matrices for the image matrices.
 !> \param[in,out] images          matrix images
+!> \param[in] join_cols           (optional) make columns dense, default is
+!>                                yes
+!> \param[in] join_rows           (optional) make rows dense, default is yes
+!> \param[in,out] error           error
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
-  SUBROUTINE dbcsr_make_images_dense (images, predistributed, error)
+  SUBROUTINE dbcsr_make_images_dense (images, predistributed, &
+       join_cols, join_rows, error)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: images
     CHARACTER, INTENT(IN), OPTIONAL          :: predistributed
+    LOGICAL, INTENT(IN), OPTIONAL            :: join_cols, join_rows
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_images_dense', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     CHARACTER                                :: predist
-    INTEGER :: error_handler, i, mat_col, mat_row, mypcol, myprow, &
-      ncol_images, nfullcols, nfullrows, nlocal_blocks, nlvc, nlvr, npcols, &
-      nprows, nrow_images, nvpcols, nvprows, which_icol, which_irow, &
-      which_pcol, which_prow, which_vcol, which_vrow
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: local_col_blk_offsets, &
-                                                local_row_blk_offsets, &
-                                                local_virt_cols, &
-                                                local_virt_rows
+    INTEGER :: error_handler, i, ldc, ldr, mat_col, mat_row, mypcol, myprow, &
+      ncol_images, new_nblkcols_total, new_nblkrows_total, nfullcols, &
+      nfullrows, nlocal_blocks, nlvc, nlvr, npcols, nprows, nrow_images, &
+      nvpcols, nvprows, which_icol, which_irow, which_pcol, which_prow, &
+      which_vcol, which_vrow
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: local_col_blk_offsets, &
+      local_dense_cols, local_dense_rows, local_row_blk_offsets, &
+      local_virt_cols, local_virt_rows
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offsets, meta, &
                                                 old_col_images, &
                                                 old_row_images, &
                                                 row_blk_offsets
-    TYPE(array_i1d_obj)                      :: new_col_dist, new_row_dist, &
+    LOGICAL                                  :: jcols, jrows, mktr
+    REAL(kind=dp)                            :: cs
+    TYPE(array_i1d_obj)                      :: new_col_dist, new_col_idist, &
+                                                new_row_dist, new_row_idist, &
                                                 old_cbo, old_rbo
     TYPE(dbcsr_data_obj)                     :: dense_data, old_data
     TYPE(dbcsr_distribution_obj)             :: new_distribution, &
@@ -1376,6 +1391,11 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     predist = '0'
     IF (PRESENT (predistributed)) predist = predistributed
+    jcols = .TRUE.
+    IF (PRESENT (join_cols)) jcols = join_cols
+    jrows = .TRUE.
+    IF (PRESENT (join_rows)) jrows = join_rows
+    mktr = jrows .AND. .NOT. jcols
     old_distribution = images%image_dist%main
     mp = dbcsr_distribution_mp (old_distribution)
     nprows = dbcsr_mp_nprows (mp)
@@ -1407,18 +1427,48 @@ CONTAINS
     ! New distribution
     CALL array_nullify (new_row_dist)
     CALL array_nullify (new_col_dist)
-    CALL array_new (new_row_dist, &
-         (/ (INT(i/nrow_images), i=0, nvprows-1) /), 1)
-    CALL array_new (new_col_dist,&
-         (/ (INT(i/ncol_images), i=0, nvpcols-1) /), 1)
+    IF (jrows) THEN
+       CALL array_new (new_row_dist, &
+            (/ (INT(i/nrow_images), i=0, nvprows-1) /), 1)
+       CALL array_new (new_row_idist, &
+            (/ (MOD(i,nrow_images)+1, i=0, nvprows-1) /), 1)
+    ELSE
+       new_row_dist = dbcsr_distribution_row_dist (old_distribution)
+       CALL array_hold (new_row_dist)
+    ENDIF
+    IF (jcols) THEN
+       CALL array_new (new_col_dist,&
+            (/ (INT(i/ncol_images), i=0, nvpcols-1) /), 1)
+       CALL array_new (new_col_idist,&
+            (/ (MOD(i,ncol_images)+1, i=0, nvpcols-1) /), 1)
+    ELSE
+       new_col_dist = dbcsr_distribution_col_dist (old_distribution)
+       CALL array_hold (new_col_dist)
+    ENDIF
     CALL dbcsr_distribution_init (new_distribution)
     CALL dbcsr_distribution_new (new_distribution, mp,&
          new_row_dist, new_col_dist)
     CALL array_release (new_row_dist)
     CALL array_release (new_col_dist)
+    new_nblkrows_total = dbcsr_distribution_nrows (new_distribution)
+    new_nblkcols_total = dbcsr_distribution_ncols (new_distribution)
+    IF (jrows) THEN
+       ALLOCATE (local_dense_rows (nrow_images))
+    ELSE
+       ALLOCATE (local_dense_rows (new_nblkrows_total))
+    ENDIF
+    IF (jcols) THEN
+       ALLOCATE (local_dense_cols (ncol_images))
+    ELSE
+       ALLOCATE (local_dense_cols (new_nblkcols_total))
+    ENDIF
     !
     DO mat_row = 1, nrow_images
        DO mat_col = 1, ncol_images
+          IF (dbg) THEN
+             cs = dbcsr_checksum (images%mats(mat_row,mat_col), error=error)
+             WRITE(*,*)routineN//" cs pre", cs
+          ENDIF
           which_vrow = myprow*nrow_images+mat_row-1
           which_vcol = mypcol*ncol_images+mat_col-1
           SELECT CASE (predist)
@@ -1435,14 +1485,28 @@ CONTAINS
           which_irow = MODULO (which_vrow, nrow_images)+1
           which_pcol = which_vcol / ncol_images
           which_icol = MODULO (which_vcol, ncol_images)+1
-          CALL find_local_virtual_elements (local_virt_rows, nlvr,&
-               array_data(dbcsr_distribution_row_dist (&
-               old_distribution)),&
-               old_row_images, which_prow, which_irow)
-          CALL find_local_virtual_elements (local_virt_cols, nlvc,&
-               array_data(dbcsr_distribution_col_dist (&
-               old_distribution)),&
-               old_col_images, which_pcol, which_icol)
+          ! Finds the imaged & predistributed local rows of the old
+          ! distribution.
+          IF (jrows) THEN
+             CALL find_local_virtual_elements (local_virt_rows, nlvr,&
+                  array_data(dbcsr_distribution_row_dist (&
+                  old_distribution)),&
+                  old_row_images, which_prow, which_irow)
+          ELSE
+             CALL find_local_virtual_elements (local_virt_rows, nlvr,&
+                  array_data(dbcsr_distribution_row_dist (old_distribution)),&
+                  local_grid = which_prow)
+          ENDIF
+          IF (jcols) THEN
+             CALL find_local_virtual_elements (local_virt_cols, nlvc,&
+                  array_data(dbcsr_distribution_col_dist (&
+                  old_distribution)),&
+                  old_col_images, which_pcol, which_icol)
+          ELSE
+             CALL find_local_virtual_elements (local_virt_cols, nlvc,&
+                  array_data(dbcsr_distribution_col_dist (old_distribution)),&
+                  local_grid = which_pcol)
+          ENDIF
           ! Conversion of global to local offsets (old blocks)
           CALL global_offsets_to_local (&
                row_blk_offsets,&
@@ -1460,33 +1524,75 @@ CONTAINS
           CALL dbcsr_data_new (dense_data, dbcsr_get_data_type (old_data),&
                data_size = nfullrows * nfullcols,&
                special_memory=dbcsr_uses_special_memory (old_data))
+          ! Should we make transposed blocks or not? We try to avoid
+          ! uneccessary transposes.
+          mktr = .NOT. mostly_non_transposed (&
+               images%mats(mat_row,mat_col)%m%blk_p)
           ! Reshuffle the data
           CALL make_dense_data (images%mats(mat_row,mat_col),&
                dense_data, nfullrows, nfullcols,&
-               local_row_blk_offsets, local_col_blk_offsets)
+               local_row_blk_offsets, local_col_blk_offsets,&
+               join_rows=jrows, join_cols=jcols, make_tr=mktr)
           CALL dbcsr_data_release (old_data)
           images%mats(mat_row, mat_col)%m%data_area = dense_data
-          ! Switch disttributions
+          ! Switch distributions
           CALL dbcsr_distribution_release (images%mats(mat_row, mat_col)%m%dist)
           CALL dbcsr_distribution_hold (new_distribution)
           images%mats(mat_row, mat_col)%m%dist = new_distribution
           ! New sizes
-          CALL match_sizes_to_dist (new_distribution,&
-               old_distribution,&
-               images%mats(mat_row, mat_col)%m%row_blk_size,&
-               images%mats(mat_row, mat_col)%m%col_blk_size,&
-               images%mats(mat_row, mat_col)%m%row_blk_offset,&
-               images%mats(mat_row, mat_col)%m%col_blk_offset,&
-               old_image_dist=images%image_dist)
-          nlocal_blocks = MIN (nfullrows*nfullcols, 1)
-          CALL dbcsr_assert (nlocal_blocks, "LE", 1,&
-               dbcsr_warning_level,&
-               dbcsr_internal_error, routineN,&
-               "Too many local dense blocks.",__LINE__,error)
-          ! New index structure
+          IF (jrows) THEN
+             CALL make_sizes_dense (dbcsr_distribution_row_dist (new_distribution),&
+                  dbcsr_distribution_row_dist (old_distribution),&
+                  images%mats(mat_row, mat_col)%m%row_blk_size,&
+                  images%mats(mat_row, mat_col)%m%row_blk_offset,&
+                  nbins=nprows, old_image_dist=old_row_images,&
+                  nimages=nrow_images)
+          ENDIF
+          IF (jcols) THEN
+             CALL make_sizes_dense (dbcsr_distribution_col_dist (new_distribution),&
+                  dbcsr_distribution_col_dist (old_distribution),&
+                  images%mats(mat_row, mat_col)%m%col_blk_size,&
+                  images%mats(mat_row, mat_col)%m%col_blk_offset,&
+                  nbins=npcols, old_image_dist=old_col_images,&
+                  nimages=ncol_images)
+          ENDIF
+          ! Create list of new dense local rows and columns
+          IF (jrows) THEN
+             CALL find_local_virtual_elements (local_dense_rows, ldr,&
+                  array_data(dbcsr_distribution_row_dist (&
+                  new_distribution)),&
+                  array_data(new_row_idist), which_prow, which_irow)
+             CALL dbcsr_assert (ldr,"LE",nrow_images, dbcsr_fatal_level,&
+                  dbcsr_internal_error, routineN, "Too many dense rows",&
+                  __LINE__, error=error)
+          ELSE
+             CALL find_local_virtual_elements (local_dense_rows, ldr,&
+                  array_data(dbcsr_distribution_row_dist (new_distribution)),&
+                  local_grid=which_prow)
+          ENDIF
+          IF (jcols) THEN
+             CALL find_local_virtual_elements (local_dense_cols, ldc,&
+                  array_data(dbcsr_distribution_col_dist (new_distribution)),&
+                  array_data(new_col_idist), which_pcol, which_icol)
+             CALL dbcsr_assert (ldc,"LE",ncol_images, dbcsr_fatal_level,&
+                  dbcsr_internal_error, routineN, "Too many dense columns",&
+                  __LINE__, error=error)
+          ELSE
+             CALL find_local_virtual_elements (local_dense_cols, ldc,&
+                  array_data(dbcsr_distribution_col_dist (new_distribution)),&
+                  local_grid=which_pcol)
+          ENDIF
+          nlocal_blocks = ldr * ldc
+          nfullrows = nfull_elements (&
+               array_data(images%mats(mat_row, mat_col)%m%row_blk_offset),&
+               local_dense_rows(1:ldr))
+          nfullcols = nfull_elements (&
+               array_data(images%mats(mat_row, mat_col)%m%col_blk_offset),&
+               local_dense_cols(1:ldc))
+          ! Create the new index
           CALL dbcsr_addto_index_array (images%mats(mat_row,mat_col)%m,&
                dbcsr_slot_row_p,&
-               reservation=nvprows+1, error=error)
+               reservation=new_nblkrows_total+1, error=error)
           CALL dbcsr_addto_index_array (images%mats(mat_row,mat_col)%m,&
                dbcsr_slot_col_i,&
                reservation=nlocal_blocks, error=error)
@@ -1500,17 +1606,30 @@ CONTAINS
           CALL make_dense_index (images%mats(mat_row,mat_col)%m%row_p,&
                images%mats(mat_row,mat_col)%m%col_i,&
                images%mats(mat_row,mat_col)%m%blk_p,&
-               nvprows, nvpcols,&
-               which_vrow,&
-               which_vcol, meta, nlocal_blocks)
+               new_nblkrows_total, new_nblkcols_total,&
+               local_dense_rows(1:ldr),&
+               local_dense_cols(1:ldc),&
+               row_blk_offsets=&
+               array_data(images%mats(mat_row, mat_col)%m%row_blk_offset),&
+               col_blk_offsets=&
+               array_data(images%mats(mat_row, mat_col)%m%col_blk_offset),&
+               make_tr=mktr,&
+               meta=meta, error=error)
           CALL dbcsr_unpack_meta (images%mats(mat_row, mat_col)%m, meta)
+          IF (dbg) THEN
+             cs = dbcsr_checksum (images%mats(mat_row,mat_col), error=error)
+             WRITE(*,*)routineN//" cs pst", cs
+          ENDIF
        ENDDO
     ENDDO
     CALL array_release (old_rbo)
     CALL array_release (old_cbo)
+    IF (jrows) CALL array_release (new_row_idist)
+    IF (jcols) CALL array_release (new_col_idist)
     CALL dbcsr_distribution_release (images%image_dist%main)
     images%image_dist%main = new_distribution
-    CALL make_image_distribution_dense (images%image_dist)
+    CALL make_image_distribution_dense (images%image_dist,&
+         join_rows=jrows, join_cols=jcols)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_make_images_dense
 
@@ -1526,12 +1645,14 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dense', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER :: error_handler, i, mypcol, myprow, nfullcols_local, &
       nfullrows_local, nlocal_blocks, npcols, nprows
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: local_col_blk_offsets, &
                                                 local_row_blk_offsets
     INTEGER, DIMENSION(:), POINTER           :: meta
+    REAL(kind=dp)                            :: cs
     TYPE(array_i1d_obj)                      :: new_col_dist, new_row_dist
     TYPE(dbcsr_data_obj)                     :: dense_data, old_data
     TYPE(dbcsr_distribution_obj)             :: distribution, old_distribution
@@ -1540,6 +1661,10 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (dbg) THEN
+       cs = dbcsr_checksum (matrix, error=error)
+       WRITE(*,*)routineN//" prod cs pre", cs
+    ENDIF
     distribution = dbcsr_distribution (matrix)
     old_distribution = distribution
     mp = dbcsr_distribution_mp (distribution)
@@ -1600,8 +1725,17 @@ CONTAINS
     meta(dbcsr_slot_nze) = nfullrows_local*nfullcols_local
     meta(dbcsr_slot_nblks) = nlocal_blocks
     CALL make_dense_index (matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
-         nprows, npcols, myprow, mypcol, meta, nlocal_blocks)
+         nprows, npcols, (/myprow+1/), (/mypcol+1/),&
+         row_blk_offsets=&
+         array_data(matrix%m%row_blk_offset),&
+         col_blk_offsets=&
+         array_data(matrix%m%col_blk_offset),&
+         meta=meta, error=error)
     CALL dbcsr_unpack_meta (matrix%m, meta)
+    IF (dbg) THEN
+       cs = dbcsr_checksum (matrix, error=error)
+       WRITE(*,*)routineN//" prod cs pst", cs
+    ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_make_dense
 
@@ -1713,31 +1847,47 @@ CONTAINS
 !> \param[in] matrix                 Existing blocked matrix
 !> \param[in,out] dense_data         Dense data
 !> \param[in] nfullrows, nfullcols    size of new data
+!> \param[in] join_cols           (optional) make columns dense, default is
+!>                                yes
+!> \param[in] join_rows           (optional) make rows dense, default is yes
+!> \param[in] make_tr             (optional) make the dense blocks transposed
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_dense_data (matrix, dense_data, nfullrows, nfullcols,&
-       row_blk_offsets, col_blk_offsets)
+       row_blk_offsets, col_blk_offsets, join_rows, join_cols, make_tr)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dense_data
     INTEGER, INTENT(IN)                      :: nfullrows, nfullcols
     INTEGER, DIMENSION(:), INTENT(IN)        :: row_blk_offsets, &
                                                 col_blk_offsets
+    LOGICAL, INTENT(IN), OPTIONAL            :: join_rows, join_cols, make_tr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_col, blk_row, col_offset, &
-                                                col_size, row_offset, row_size
-    LOGICAL                                  :: tr
+    INTEGER :: blk_col, blk_row, col_offset, col_size, row_offset, row_size, &
+      target_cs, target_offset, target_rs, tco, tro
+    LOGICAL                                  :: jcols, jrows, mktr, tr
     TYPE(dbcsr_data_obj)                     :: block, dense2d
     TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (dbcsr_get_data_size (dense_data), 'GE', nfullrows*nfullcols,&
+    CALL dbcsr_assert (dbcsr_get_data_size (dense_data), 'GE',&
+         nfullrows*nfullcols,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Dense data too small",__LINE__,error)
+    jcols = .TRUE.
+    IF (PRESENT (join_cols)) jcols = join_cols
+    jrows = .TRUE.
+    IF (PRESENT (join_rows)) jrows = join_rows
+    mktr = .FALSE.
+    IF (PRESENT (make_tr)) mktr = make_tr
+    CALL dbcsr_assert (jcols, "OR", jrows, dbcsr_warning_level,&
+         dbcsr_unimplemented_error_nr, routineN,&
+         "Joining neither rows nor columns is untested", __LINE__, error=error)
+    !
     CALL dbcsr_data_clear (dense_data)
     IF (dbcsr_get_data_size(matrix%m%data_area) .GT. 0&
          .AND. nfullrows .GT. 0 .AND. nfullcols .GT. 0) THEN
@@ -1746,23 +1896,69 @@ CONTAINS
          dbcsr_type_1d_to_2d(dbcsr_get_data_type(dense_data)))
        CALL dbcsr_data_init (dense2d)
        CALL dbcsr_data_new (dense2d, dbcsr_type_1d_to_2d(dbcsr_get_data_type(dense_data)))
-       CALL dbcsr_data_set_pointer (dense2d, rsize=nfullrows, csize=nfullcols,&
-            pointee=dense_data)
+       !CALL dbcsr_data_set_pointer (dense2d, rsize=nfullrows, csize=nfullcols,&
+       !     pointee=dense_data)
+       target_rs = nfullrows
+       target_cs = nfullcols
+       IF (mktr) CALL swap (target_rs, target_cs)
        CALL dbcsr_iterator_start (iter, matrix)
        DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block (iter, blk_row, blk_col, block, tr,&
                row_size=row_size, col_size=col_size)
+          IF (mktr) THEN
+             IF (.NOT. jrows) target_cs = row_size
+             IF (.NOT. jcols) target_rs = col_size
+          ELSE
+             IF (.NOT. jrows) target_rs = row_size
+             IF (.NOT. jcols) target_cs = col_size
+          ENDIF
           row_offset = row_blk_offsets(blk_row)
           col_offset = col_blk_offsets(blk_col)
+          tro = row_offset
+          tco = col_offset
+          IF (mktr) CALL swap (tro, tco)
+          target_offset = 1
+          IF (mktr) THEN
+             IF (.NOT. jrows) THEN
+                target_offset = target_offset + (row_offset-1) * target_rs
+                tro = 1
+             ENDIF
+             IF (.NOT. jcols) THEN
+                target_offset = target_offset + (col_offset-1) * target_cs
+                tro = 1
+             ENDIF
+          ELSE
+             IF (.NOT. jrows) THEN
+                ! The target points to the blocked row so there is no row offset.
+                target_offset = target_offset + (row_offset-1)*target_cs
+                tro = 1
+             ENDIF
+             IF (.NOT. jcols) THEN
+                ! The target points to the blocked column so there is no
+                ! column offset.
+                target_offset = target_offset + (col_offset-1)*target_rs
+                tco = 1
+             ENDIF
+          ENDIF
+          !WRITE(*,'(1X,A,8(1X,I5),I7,L1)')&
+          !     routineN//" r,c s; offset; offset,t",&
+          !     blk_row, blk_col,&
+          !     target_rs, target_cs, row_offset, col_offset, tro, tco,&
+          !     target_offset,tr
+          CALL dbcsr_data_set_pointer (dense2d,&
+               rsize=target_rs, csize=target_cs,&
+               pointee=dense_data, source_lb=target_offset)
+          IF (tr) CALL swap (row_size, col_size) ! Need stored blocks sizes for source data block
+          IF (mktr) tr = .NOT. tr
           IF (tr) THEN
              CALL dbcsr_block_transpose (&
-                  dst=dense2d, lb=row_offset, lb2=col_offset,&
-                  row_size=col_size, col_size=row_size,&
+                  dst=dense2d, lb=tro, lb2=tco,&
+                  row_size=row_size, col_size=col_size,&
                   src=block, source_lb=1, source_lb2=1,&
                   error=error)
           ELSE
              CALL dbcsr_data_set (&
-                  dst=dense2d, lb=row_offset, lb2=col_offset,&
+                  dst=dense2d, lb=tro, lb2=tco,&
                   data_size=row_size, data_size2=col_size,&
                   src=block, source_lb=1, source_lb2=1)
           ENDIF
@@ -2182,8 +2378,7 @@ CONTAINS
     my_keep_sparsity = .FALSE.
     IF (PRESENT (keep_sparsity)) my_keep_sparsity = keep_sparsity
     !
-    sym = dbcsr_get_matrix_type(redist) .EQ. dbcsr_type_symmetric .OR.&
-         dbcsr_get_matrix_type(redist) .EQ. dbcsr_type_antisymmetric
+    sym = dbcsr_has_symmetry (redist)
     data_type = matrix%m%data_type
     ! Get row and column start and end positions
     ! Old matrix

@@ -30,10 +30,12 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_processor, dbcsr_distribution_row_dist, &
        dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_release
-  USE dbcsr_types,                     ONLY: &
-       dbcsr_distribution_obj, dbcsr_imagedistribution_type, &
-       dbcsr_magic_number, dbcsr_mp_obj, dbcsr_obj, dbcsr_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_normal, dbcsr_type_symmetric
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_imagedistribution_type,&
+                                             dbcsr_magic_number,&
+                                             dbcsr_mp_obj,&
+                                             dbcsr_obj,&
+                                             dbcsr_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_set_debug,&
                                              gcd,&
@@ -77,8 +79,9 @@ MODULE dbcsr_dist_operations
              reimage_distribution,&
              rebin_imaged_distribution,&
              test_create_bl_distribution,&
-             match_sizes_to_dist,&
+             match_sizes_to_dist, make_sizes_dense,&
              find_local_virtual_elements,&
+             mostly_non_transposed,&
              dbcsr_print_dist
 
 
@@ -176,9 +179,7 @@ CONTAINS
 ! SM-compatible way
 
     IF (PRESENT (processor)) THEN
-       IF ((matrix%matrix_type .EQ. dbcsr_type_symmetric&
-            .OR. matrix%matrix_type .EQ. dbcsr_type_antisymmetric)&
-            .AND. checker_tr(row, column)) THEN
+       IF ((matrix%symmetry .AND. checker_tr(row, column)) .NEQV. transpose) THEN
           ! The transposed way.
           processor = dbcsr_distribution_processor (matrix%dist, column, row)
        ELSE
@@ -201,10 +202,8 @@ CONTAINS
 
 ! The old way
 
-    straight = matrix%matrix_type .NE. dbcsr_type_normal
-    straight = (.NOT.&
-         (matrix%matrix_type.EQ.dbcsr_type_symmetric&
-         .OR.matrix%matrix_type.EQ.dbcsr_type_antisymmetric))&
+    straight = matrix%transpose .OR. matrix%symmetry
+    straight = (.NOT. matrix%symmetry)&
          .OR.&
          (straight .EQV. .NOT.checker_tr(row, column))
     !transpose = .NOT. straight! .NEQV. transpose
@@ -1565,9 +1564,10 @@ CONTAINS
 !> \brief Make the image distribution reflect the dense matrix blocks.
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
-  SUBROUTINE make_image_distribution_dense (image_dist)
+  SUBROUTINE make_image_distribution_dense (image_dist, join_rows, join_cols)
     TYPE(dbcsr_imagedistribution_type), &
       INTENT(INOUT)                          :: image_dist
+    LOGICAL, INTENT(IN), OPTIONAL            :: join_rows, join_cols
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'make_image_distribution_dense', &
@@ -1577,29 +1577,38 @@ CONTAINS
                                                 nprows, nrow_images, nvpcols, &
                                                 nvprows
     INTEGER, DIMENSION(:), POINTER           :: new_cid, new_rid
+    LOGICAL                                  :: jcols, jrows
 
 !   ---------------------------------------------------------------------------
 
+    jcols = .TRUE.
+    IF (PRESENT (join_cols)) jcols = join_cols
+    jrows = .TRUE.
+    IF (PRESENT (join_rows)) jrows = join_rows
     nrow_images = image_dist%row_decimation
     ncol_images = image_dist%col_decimation
     nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (image_dist%main))
     npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (image_dist%main))
     nvprows = nprows * nrow_images
     nvpcols = npcols * ncol_images
-    CALL array_release (image_dist%row_image)
-    CALL array_release (image_dist%col_image)
-    CALL array_nullify (image_dist%row_image)
-    CALL array_nullify (image_dist%col_image)
-    ALLOCATE (new_rid (nvprows))
-    ALLOCATE (new_cid (nvpcols))
-    FORALL (i = 1 : nvprows)
-       new_rid(i) = MOD (i-1, nrow_images) + 1
-    END FORALL
-    FORALL (i = 1 : nvpcols)
-       new_cid(i) = MOD (i-1, ncol_images) + 1
-    END FORALL
-    CALL array_new (image_dist%row_image, new_rid, gift=.TRUE.)
-    CALL array_new (image_dist%col_image, new_cid, gift=.TRUE.)
+    IF (jrows) THEN
+       CALL array_release (image_dist%row_image)
+       CALL array_nullify (image_dist%row_image)
+       ALLOCATE (new_rid (nvprows))
+       FORALL (i = 1 : nvprows)
+          new_rid(i) = MOD (i-1, nrow_images) + 1
+       END FORALL
+       CALL array_new (image_dist%row_image, new_rid, gift=.TRUE.)
+    ENDIF
+    IF (jcols) THEN
+       CALL array_release (image_dist%col_image)
+       CALL array_nullify (image_dist%col_image)
+       ALLOCATE (new_cid (nvpcols))
+       FORALL (i = 1 : nvpcols)
+          new_cid(i) = MOD (i-1, ncol_images) + 1
+       END FORALL
+       CALL array_new (image_dist%col_image, new_cid, gift=.TRUE.)
+    ENDIF
   END SUBROUTINE make_image_distribution_dense
 
 
@@ -1686,6 +1695,60 @@ CONTAINS
     CALL array_release (old_row_blk_offsets)
     CALL array_release (old_col_blk_offsets)
   END SUBROUTINE match_sizes_to_dist
+
+! *****************************************************************************
+!> \brief Matches row/block sizes and offsets to a given distribution, inplace.
+!> \note Used for making matrices dense/undense
+! *****************************************************************************
+  SUBROUTINE make_sizes_dense (new_distribution, old_distribution,&
+       blk_sizes, blk_offsets, nbins,&
+       old_image_dist, nimages)
+    TYPE(array_i1d_obj), INTENT(IN)          :: new_distribution, &
+                                                old_distribution
+    TYPE(array_i1d_obj), INTENT(INOUT)       :: blk_sizes, blk_offsets
+    INTEGER, INTENT(IN)                      :: nbins
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: old_image_dist
+    INTEGER, INTENT(IN), OPTIONAL            :: nimages
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_sizes_dense', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nvbins
+    INTEGER, DIMENSION(:), POINTER           :: bo, bs, new_bin_dist, &
+                                                old_bin_dist, old_bo
+    LOGICAL                                  :: images
+    TYPE(array_i1d_obj)                      :: old_blk_offsets, old_blk_sizes
+
+!   ---------------------------------------------------------------------------
+
+    images = PRESENT (old_image_dist) .AND. PRESENT (nimages)
+    ! Save old data
+    old_bin_dist => array_data (old_distribution)
+    old_blk_sizes = blk_sizes
+    old_blk_offsets = blk_offsets
+    old_bo => array_data (blk_offsets)
+    CALL array_nullify (blk_sizes)
+    CALL array_nullify (blk_offsets)
+    new_bin_dist => array_data (new_distribution)
+    IF (images) THEN
+       nvbins = nbins * nimages
+       ALLOCATE (bs(nvbins), bo(nvbins+1))
+       CALL match_sizes_to_el_dist(bs, old_bo, new_bin_dist,&
+            old_bin_dist, old_image_dist, nimages)
+    ELSE
+       nvbins = nbins
+       ALLOCATE (bs(nvbins), bo(nvbins+1))
+       CALL match_sizes_to_el_dist (bs, old_bo, new_bin_dist,&
+            old_bin_dist)
+    ENDIF
+    CALL convert_sizes_to_offsets (bs, bo)
+    CALL array_new (blk_sizes, bs, gift=.TRUE.)
+    CALL array_new (blk_offsets, bo, gift=.TRUE.)
+    CALL array_release (old_blk_sizes)
+    CALL array_release (old_blk_offsets)
+  END SUBROUTINE make_sizes_dense
+
 
 ! *****************************************************************************
 !> \brief Determines block sizes from old offsets and old and new
@@ -1784,23 +1847,80 @@ CONTAINS
        grid_distribution, image_distribution, local_grid, local_image)
     INTEGER, DIMENSION(:), INTENT(OUT)       :: local_virtual_elements
     INTEGER, INTENT(OUT)                     :: nlve
-    INTEGER, DIMENSION(:), INTENT(IN)        :: grid_distribution, &
-                                                image_distribution
-    INTEGER, INTENT(IN)                      :: local_grid, local_image
+    INTEGER, DIMENSION(:), INTENT(IN)        :: grid_distribution
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: image_distribution
+    INTEGER, INTENT(IN)                      :: local_grid
+    INTEGER, INTENT(IN), OPTIONAL            :: local_image
 
     INTEGER                                  :: el
 
     nlve = 0
-    DO el = 1, SIZE (grid_distribution)
-       IF (grid_distribution(el) .EQ. local_grid&
-            .AND. image_distribution(el) .EQ. local_image) THEN
-          nlve = nlve + 1
-          local_virtual_elements(nlve) = el
-       ENDIF
-    ENDDO
+    IF (PRESENT (image_distribution) .AND. PRESENT (local_image)) THEN
+       DO el = 1, SIZE (grid_distribution)
+          IF (grid_distribution(el) .EQ. local_grid&
+               .AND. image_distribution(el) .EQ. local_image) THEN
+             nlve = nlve + 1
+             local_virtual_elements(nlve) = el
+          ENDIF
+       ENDDO
+    ELSE
+       DO el = 1, SIZE (grid_distribution)
+          IF (grid_distribution(el) .EQ. local_grid) THEN
+             nlve = nlve + 1
+             local_virtual_elements(nlve) = el
+          ENDIF
+       ENDDO
+    ENDIF
   END SUBROUTINE find_local_virtual_elements
 
+! *****************************************************************************
+!> \brief Determines whether most blocks are stored transposed in normally.
+!> \note Tries to be quick and not necessarily accurate.
+!> \param[in] blk_p           Pointers to blocks
+! *****************************************************************************
+  PURE FUNCTION mostly_non_transposed (blk_p)
+    INTEGER, DIMENSION(:), INTENT(IN) :: blk_p
+    LOGICAL                           :: mostly_non_transposed
 
+    INTEGER            :: n, lb, ub, str, sntr
+    INTEGER, PARAMETER :: allcheck_cutoff = 8
+
+    n = SIZE (blk_p)
+    IF (n .EQ. 0) THEN
+       mostly_non_transposed = .TRUE.
+       RETURN
+    ENDIF
+    str = 0
+    sntr = 0
+    CALL check_range (blk_p, 1, allcheck_cutoff, sntr, str)
+    IF (n .GT. 4*allcheck_cutoff) THEN
+       CALL check_range (blk_p, (n-allcheck_cutoff)/2, (n+allcheck_cutoff)/2,&
+            sntr, str)
+       CALL check_range (blk_p, n-allcheck_cutoff, n, sntr, str)
+    ENDIF
+    IF (str .EQ. 0) THEN
+       mostly_non_transposed = .TRUE.
+       RETURN
+    ELSE
+       ! Bias towards .TRUE.
+       mostly_non_transposed = ((2*str) / (1+str+sntr)) .EQ. 0
+    ENDIF
+    RETURN
+  CONTAINS
+    PURE SUBROUTINE check_range (blk_p, lb, ub, sntr, str)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: blk_p
+    INTEGER, INTENT(IN)                      :: lb, ub
+    INTEGER, INTENT(INOUT)                   :: sntr, str
+
+    INTEGER                                  :: b1, b2
+
+      b1 = MAX (1, lb)
+      b2 = MIN (SIZE(blk_p), b2)
+      sntr = sntr + COUNT (blk_p(b1:b2) .GT. 0)
+      str = str + COUNT (blk_p(b1:b2) .LT. 0)
+    END SUBROUTINE check_range
+  END FUNCTION mostly_non_transposed
 
 
 END MODULE dbcsr_dist_operations

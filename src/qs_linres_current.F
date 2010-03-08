@@ -54,7 +54,9 @@ MODULE qs_linres_current
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_release,&
+                                             dbcsr_get_matrix_type
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_antisymmetric,&
@@ -843,19 +845,23 @@ CONTAINS
        ENDIF
 
        CALL cp_dbcsr_create(deltajp_a, ' deltajp_a ', &
-            mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
+            dbcsr_distribution (mat_a), dbcsr_get_matrix_type (mat_a),&
+            mat_a%m%row_blk_size,&
             mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
             error=error)
        CALL cp_dbcsr_create(deltajp_b, ' deltajp_b ', &
-            mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
+            dbcsr_distribution (mat_a), dbcsr_get_matrix_type (mat_a),&
+            mat_a%m%row_blk_size,&
             mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
             error=error)
        CALL cp_dbcsr_create(deltajp_c, ' deltajp_c ', &
-            mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
+            dbcsr_distribution (mat_a), dbcsr_get_matrix_type (mat_a),&
+            mat_a%m%row_blk_size,&
             mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
             error=error)
        IF(do_igaim) CALL cp_dbcsr_create(deltajp_d, ' deltajp_d ', &
-            mat_a%m%dist, mat_a%m%matrix_type, mat_a%m%row_blk_size,&
+            dbcsr_distribution (mat_a), dbcsr_get_matrix_type (mat_a),&
+            mat_a%m%row_blk_size,&
             mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
             error=error)
     ELSE

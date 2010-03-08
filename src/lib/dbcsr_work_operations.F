@@ -74,10 +74,8 @@ MODULE dbcsr_work_operations
        dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
        dbcsr_slot_nfullrows_local, dbcsr_slot_nfullrows_total, &
        dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_type_transposed, &
-       dbcsr_work_type
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_work_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_set_debug,&
                                              dbcsr_unpack_i8_2i4,&
@@ -153,7 +151,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: mt
     INTEGER                                  :: error_handler, my_nblks, &
                                                 my_nze, stat
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, row_blk_offset
@@ -315,23 +312,25 @@ CONTAINS
     matrix%m%index(1:dbcsr_num_slots) = 0
     matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
     !
-    matrix%m%sym_negation = .FALSE.
+    matrix%m%symmetry = .FALSE.
+    matrix%m%negate_real = .FALSE.
+    matrix%m%negate_imaginary = .FALSE.
+    matrix%m%transpose = .FALSE.
     SELECT CASE (matrix_type)
     CASE ('N', 'n')
-       mt = dbcsr_type_normal
     CASE ('T', 't')
-       mt = dbcsr_type_transposed
+       matrix%m%transpose = .TRUE.
     CASE ('S', 's')
-       mt = dbcsr_type_symmetric
+       matrix%m%symmetry = .TRUE.
     CASE ('A', 'a')
-       mt = dbcsr_type_antisymmetric
-       matrix%m%sym_negation = .TRUE.
+       matrix%m%symmetry = .TRUE.
+       matrix%m%negate_real = .TRUE.
     CASE DEFAULT
        CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
             dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__,error)
     END SELECT
-    matrix%m%matrix_type = mt
     NULLIFY (matrix%m%predistributed)
+    matrix%m%bcsc = .FALSE.
 !$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_create

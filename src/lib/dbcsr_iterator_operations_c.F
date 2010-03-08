@@ -34,6 +34,7 @@
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
        column = iterator%col_i(iterator%pos)
+       IF (iterator%transpose) CALL swap (row, column)
        blk_p = iterator%blk_p(iterator%pos)
        transposed = blk_p .LT. 0
        bp = ABS (blk_p)
@@ -61,8 +62,7 @@
                iterator%blk_p, iterator%row_p,&
                tdist=iterator%tdist, tid=ithread)
        ENDIF
-       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
-       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
+       CALL update_row_info (iterator)
     ELSE
        row = 0
        column = 0
@@ -109,6 +109,7 @@
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
        column = iterator%col_i(iterator%pos)
+       IF (iterator%transpose) CALL swap (row, column)
        blk_p = iterator%blk_p(iterator%pos)
        transposed = blk_p .LT. 0
        bp = ABS (blk_p)
@@ -153,8 +154,7 @@
                iterator%blk_p, iterator%row_p,&
                tdist=iterator%tdist, tid=ithread)
        ENDIF
-       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
-       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
+       CALL update_row_info (iterator)
     ELSE
        row = 0
        column = 0

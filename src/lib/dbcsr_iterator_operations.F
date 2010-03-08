@@ -179,8 +179,13 @@ CONTAINS
     iterator%roff => array_data (matrix%m%row_blk_offset)
     iterator%coff => array_data (matrix%m%col_blk_offset)
 
+    iterator%transpose = matrix%m%transpose
     iterator%nblks = matrix%m%nblks
-    iterator%nblkrows_total = matrix%m%nblkrows_total
+    IF (iterator%transpose) THEN
+       iterator%nblkrows_total = matrix%m%nblkcols_total
+    ELSE
+       iterator%nblkrows_total = matrix%m%nblkrows_total
+    ENDIF
     iterator%max_r_size = matrix%m%max_rbs
     iterator%max_c_size = matrix%m%max_cbs
 
@@ -213,8 +218,13 @@ CONTAINS
                tdist=iterator%tdist, tid=ithread)
        ENDIF
        IF (iterator%row .GT. 0) THEN
-          iterator%row_size = iterator%rbs(iterator%row)
-          iterator%row_offset = iterator%roff(iterator%row)
+          IF (iterator%transpose) THEN
+             iterator%row_size = iterator%cbs(iterator%row)
+             iterator%row_offset = iterator%coff(iterator%row)
+          ELSE
+             iterator%row_size = iterator%rbs(iterator%row)
+             iterator%row_offset = iterator%roff(iterator%row)
+          ENDIF
           max_r_size = iterator%max_r_size
           max_c_size = iterator%max_c_size
        ENDIF
@@ -386,6 +396,25 @@ CONTAINS
   END SUBROUTINE find_proper_position
 
 ! *****************************************************************************
+!> \brief Updates the row info stored in the iterator
+!> \note Added to handle the complexity introduced with the transpose
+!> \param[in,out] iterator     the iterator
+! *****************************************************************************
+  PURE SUBROUTINE update_row_info (iterator)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+
+    IF (iterator%row .GT. 0) THEN
+       IF (iterator%transpose) THEN
+          iterator%row_size = iterator%cbs(iterator%row)
+          iterator%row_offset = iterator%coff(iterator%row)
+       ELSE
+          iterator%row_size = iterator%rbs(iterator%row)
+          iterator%row_offset = iterator%roff(iterator%row)
+       ENDIF
+    ENDIF
+  END SUBROUTINE update_row_info
+
+! *****************************************************************************
 !> \brief Gets the index information of the next block, no data.
 !> \param[in,out] iterator   the iterator
 !> \param[out] row           row of the data block
@@ -417,6 +446,7 @@ CONTAINS
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
        column = iterator%col_i(iterator%pos)
+       IF (iterator%transpose) CALL swap (row, column)
        blk = iterator%pos
        IF (PRESENT (row_size)) row_size = iterator%row_size
        IF (PRESENT (col_size)) col_size = iterator%cbs(column)
@@ -444,13 +474,11 @@ CONTAINS
        !     iterator%blk_p)
        !CALL find_proper_row (iterator%pos, iterator%row,&
        !     iterator%nblkrows_total, iterator%row_p)
-       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
-       IF (iterator%row .GT. 0) iterator%row_offset = iterator%roff(iterator%row)
+       CALL update_row_info (iterator)
     ELSE
        row = 0
        column = 0
     ENDIF
-    
   END SUBROUTINE iterator_next_block_index
 
 ! *****************************************************************************
@@ -488,6 +516,7 @@ CONTAINS
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
        column = iterator%col_i(iterator%pos)
+       IF (iterator%transpose) CALL swap (row, column)
        blk_p = iterator%blk_p(iterator%pos)
        transposed = blk_p .LT. 0
        bp = ABS (blk_p)
@@ -517,7 +546,7 @@ CONTAINS
                iterator%blk_p, iterator%row_p,&
                tdist=iterator%tdist, tid=ithread)
        ENDIF
-       IF (iterator%row .GT. 0) iterator%row_size = iterator%rbs(iterator%row)
+       CALL update_row_info (iterator)
     ELSE
        row = 0
        column = 0

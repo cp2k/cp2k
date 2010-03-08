@@ -54,9 +54,8 @@ MODULE dbcsr_internal_operations
                                              pointer_replace
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_mp_obj, dbcsr_obj, &
-       dbcsr_scalar_type, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_scalar_type, dbcsr_type, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_set_debug
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -1009,8 +1008,12 @@ CONTAINS
                buffer_set%mats(row_image, col_image)%m%index,&
                ub=index_size, nocopy=.TRUE., special=.TRUE.,&
                error=error)
-          buffer_set%mats(row_image, col_image)%m%sym_negation&
-               = source_matrix%m%sym_negation
+          buffer_set%mats(row_image, col_image)%m%transpose&
+               = source_matrix%m%transpose
+          buffer_set%mats(row_image, col_image)%m%negate_real&
+               = source_matrix%m%negate_real
+          buffer_set%mats(row_image, col_image)%m%negate_imaginary&
+               = source_matrix%m%negate_imaginary
        ENDDO
     ENDDO
     CALL dbcsr_error_stop(error_handler, error)
@@ -1097,8 +1100,7 @@ CONTAINS
        !WRITE(*,*)routineN//" Retaining sparsity!"
        keep_sparsity = .TRUE.
     END IF
-    product_is_symmetric = (product%matrix_type .EQ. dbcsr_type_symmetric &
-         .OR. product%matrix_type .EQ. dbcsr_type_antisymmetric)
+    product_is_symmetric = product%symmetry
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
     !WRITE(*,*)'Hello! I am thread',ithread
@@ -1153,7 +1155,7 @@ CONTAINS
     mt_t_dgemm = 0.0_dp
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
        !
-    ALLOCATE (new_index (3, left%nfullrows_local*right%nfullcols_local))
+    ALLOCATE (new_index (3, left%nblkrows_local*right%nblkcols_local))
     ! c_blk_ps contains the block pointers in the product's current row
     ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
     CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
@@ -1394,11 +1396,11 @@ CONTAINS
                 dgemm_joins(stack_p)%last_n = b_col_size_logical
                 ! assert b_col_size_logical .eq. c_col_size_logical
              ENDIF
-             negate_alpha = parameters_a(stack_p_a)%tr .AND. left%sym_negation
-             negate_alpha = negate_alpha .NEQV. (parameters_b(stack_p_b)%tr .AND. right%sym_negation)
+             negate_alpha = parameters_a(stack_p_a)%tr .AND. left%negate_real
+             negate_alpha = negate_alpha .NEQV. (parameters_b(stack_p_b)%tr .AND. right%negate_real)
              !write(*,*)routineN//" tr_p:", tr_p
              !write(*,*)routineN//" p.s.n", product%sym_negation
-             negate_alpha = negate_alpha .NEQV. (tr_p .AND. product%sym_negation)
+             negate_alpha = negate_alpha .NEQV. (tr_p .AND. product%negate_real)
              IF (negate_alpha) THEN
                 dgemm_joins(stack_p)%alpha &
                      = dbcsr_scalar_negative (my_alpha)

@@ -110,7 +110,8 @@ CONTAINS
     yesprint = .TRUE.
     IF (PRESENT (nodata)) yesprint = .NOT. nodata
     WRITE(*,*)routineP//' Contents of matrix named ', matrix%m%name
-    WRITE(*,*)routineP//' Flags ', matrix%m%matrix_type
+    WRITE(*,*)routineP//' Flags ', matrix%m%transpose, matrix%m%symmetry,&
+         matrix%m%negate_real, matrix%m%negate_imaginary
     WRITE(*,'(1X,A,I5,A,I5)')routineP//" Full size",&
          matrix%m%nfullrows_total, "x",matrix%m%nfullcols_total
     WRITE(*,'(1X,A,I5,A,I5)')routineP//" Blocked size",&
@@ -141,28 +142,32 @@ CONTAINS
              blk_p = ABS(matrix%m%blk_p(blk))
              tr = matrix%m%blk_p(blk) .LT. 0
              block_exists: IF (blk_p .NE. 0) THEN
-                SELECT CASE (matrix%m%data_type)
-                CASE (dbcsr_type_real_8)
-                   blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
-                        &               r_dp(blk_p:blk_p+mn-1))
-                   !CALL &
-                   !     dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-                CASE (dbcsr_type_real_4)
-                   blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
-                        &               r_sp(blk_p:blk_p+mn-1))
-                   !CALL &
-                   !     dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
-                CASE (dbcsr_type_complex_8)
-                   blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
-                        &               c_dp(blk_p:blk_p+mn-1))
-                   !CALL &
-                   !     dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-                CASE (dbcsr_type_complex_4)
-                   blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
-                        &               c_sp(blk_p:blk_p+mn-1))
-                   !CALL &
-                   !     dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
-                END SELECT
+                IF (mn .GT. 0) THEN
+                   SELECT CASE (matrix%m%data_type)
+                   CASE (dbcsr_type_real_8)
+                      blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
+                           &               r_dp(blk_p:blk_p+mn-1))
+                      !CALL &
+                      !     dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                   CASE (dbcsr_type_real_4)
+                      blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
+                           &               r_sp(blk_p:blk_p+mn-1))
+                      !CALL &
+                      !     dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                   CASE (dbcsr_type_complex_8)
+                      blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
+                           &               c_dp(blk_p:blk_p+mn-1))
+                      !CALL &
+                      !     dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                   CASE (dbcsr_type_complex_4)
+                      blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
+                           &               c_sp(blk_p:blk_p+mn-1))
+                      !CALL &
+                      !     dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                   END SELECT
+                ELSE
+                   blk_cs = 0.0_dp
+                ENDIF
                 !WRITE(*,*)routineP//' chksum for (',br,',',bc,') at',&
                 !     blk_p,'l',mn,'= ', blk_cs,'size',m,n
                 IF(.not.my_matlab_format) WRITE(*,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
@@ -170,27 +175,29 @@ CONTAINS
                      " Checksum for (",br,bc,") at ",matrix%m%blk_p(blk)," size ",m,n,mn,&
                      " checksum=",blk_cs
                 IF (yesprint .AND. blk_p .NE. 0) THEN
-                   SELECT CASE (matrix%m%data_type)
-                   CASE (dbcsr_type_real_8)
-                      !WRITE(*,'(10(1X,F7.2))')r_dp(blk_p:blk_p+mn-1)
-                      IF(my_matlab_format) THEN
-                         CALL dbcsr_printmat_matlab_d(r_dp(blk_p:blk_p+mn-1),m,n, &
-                              row_blk_offset(br), col_blk_offset(bc),tr=tr)
-                      ELSE
-                         CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-                      ENDIF
-                   CASE (dbcsr_type_real_4)
-                      CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
-                   CASE (dbcsr_type_complex_8)
-                      IF(my_matlab_format) THEN
-                         CALL dbcsr_printmat_matlab_z(c_dp(blk_p:blk_p+mn-1),m,n, &
-                              row_blk_offset(br), col_blk_offset(bc),tr=tr)
-                      ELSE
-                         CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
-                      ENDIF
-                   CASE (dbcsr_type_complex_4)
-                      CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
-                   END SELECT
+                   IF (mn .GT. 0) THEN
+                      SELECT CASE (matrix%m%data_type)
+                      CASE (dbcsr_type_real_8)
+                         !WRITE(*,'(10(1X,F7.2))')r_dp(blk_p:blk_p+mn-1)
+                         IF(my_matlab_format) THEN
+                            CALL dbcsr_printmat_matlab_d(r_dp(blk_p:blk_p+mn-1),m,n, &
+                                 row_blk_offset(br), col_blk_offset(bc),tr=tr)
+                         ELSE
+                            CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                         ENDIF
+                      CASE (dbcsr_type_real_4)
+                         CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                      CASE (dbcsr_type_complex_8)
+                         IF(my_matlab_format) THEN
+                            CALL dbcsr_printmat_matlab_z(c_dp(blk_p:blk_p+mn-1),m,n, &
+                                 row_blk_offset(br), col_blk_offset(bc),tr=tr)
+                         ELSE
+                            CALL dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                         ENDIF
+                      CASE (dbcsr_type_complex_4)
+                         CALL dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                      END SELECT
+                   ENDIF
                 ENDIF
              ENDIF block_exists
           ENDDO

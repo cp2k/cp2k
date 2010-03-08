@@ -58,6 +58,7 @@ MODULE dbcsr_ptr_util
   INTERFACE pointer_view
      MODULE PROCEDURE pointer_view_s, pointer_view_d,&
                       pointer_view_c, pointer_view_z
+     MODULE PROCEDURE pointer_view_i
      MODULE PROCEDURE pointer_view_a
   END INTERFACE
 
@@ -367,6 +368,21 @@ CONTAINS
     IF (ASSOCIATED (original_p)) DEALLOCATE (original_p)
     original_p => new_p
   END SUBROUTINE pointer_replace_i
+
+
+! *****************************************************************************
+!> \brief Returns a pointer with different bounds.
+!> \param[in] original   original data pointer
+!> \param[in] lb, ub     lower and upper bound for the new pointer view
+!> \param[out] view      new pointer
+! *****************************************************************************
+  FUNCTION pointer_view_i (original, lb, ub) RESULT (view)
+    INTEGER, DIMENSION(:), POINTER           :: original
+    INTEGER, INTENT(IN)                      :: lb, ub
+    INTEGER, DIMENSION(:), POINTER           :: view
+
+    view => original(lb:ub)
+  END FUNCTION pointer_view_i
 
 
 ! *****************************************************************************

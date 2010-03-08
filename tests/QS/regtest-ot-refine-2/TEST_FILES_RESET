@@ -246,3 +246,7 @@ h2o_ot_precond_13.inp
 no_ot_precond_13.inp
 # atomic code: unrestricted calculations 
 o2_ot_sparse_kinetic_1.inp
+#  
+h2o_ot_precond_13.inp
+#  
+no_ot_precond_13.inp

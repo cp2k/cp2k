@@ -78,14 +78,15 @@ MODULE dbcsr_operations
        dbcsr_distribution_mp, dbcsr_distribution_no_threads, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
-       dbcsr_may_be_dense, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_scalar, dbcsr_scalar_are_equal, &
-       dbcsr_scalar_one, dbcsr_scalar_zero, dbcsr_valid_index
+       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, &
+       dbcsr_init, dbcsr_is_initialized, dbcsr_max_col_size, &
+       dbcsr_max_row_size, dbcsr_may_be_dense, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
+       dbcsr_scalar_zero, dbcsr_valid_index
   USE dbcsr_ptr_util,                  ONLY: addto_array,&
                                              ensure_array_size,&
                                              pointer_view
@@ -317,8 +318,8 @@ CONTAINS
     INTEGER                                  :: error_handler, f_col, f_k, &
                                                 f_row, i, l_col, l_k, l_row
     INTEGER(KIND=int_8)                      :: my_flop
-    LOGICAL :: keep_product_data, keep_sparsity, left_set_given, new_left, &
-      new_right, product_reindex, right_set_given, use_dense_mult
+    LOGICAL :: ab_dense, keep_product_data, keep_sparsity, left_set_given, &
+      new_left, new_right, product_reindex, right_set_given, use_dense_mult
     REAL(KIND=dp)                            :: cs
     TYPE(array_i1d_obj) :: old_product_col_blk_offsets, &
       old_product_col_blk_sizes, old_product_row_blk_offsets, &
@@ -364,12 +365,13 @@ CONTAINS
     CASE('T','t')
        CALL dbcsr_init(matrix_left)
        CALL dbcsr_new_transposed (matrix_left, matrix_a,&
-            shallow_data_copy=.FALSE.,&
+            shallow_data_copy=.TRUE.,&
             transpose_distribution=.FALSE., error=error)
        new_left = .TRUE.
     CASE('C','c')
        CALL dbcsr_init(matrix_left)
-       CALL dbcsr_new_transposed (matrix_left, matrix_a, shallow_data_copy=.FALSE.,&
+       CALL dbcsr_new_transposed (matrix_left, matrix_a,&
+            shallow_data_copy=.FALSE.,&
             transpose_distribution=.FALSE., error=error)
        CALL dbcsr_conjg(matrix_left, error=error)
        new_left = .TRUE.
@@ -385,12 +387,13 @@ CONTAINS
     CASE('T','t')
        CALL dbcsr_init(matrix_right)
        CALL dbcsr_new_transposed (matrix_right, matrix_b,&
-            shallow_data_copy=.FALSE.,&
+            shallow_data_copy=.TRUE.,&
             transpose_distribution=.FALSE., error=error)
        new_right = .TRUE.
     CASE('C','c')
        CALL dbcsr_init(matrix_right)
-       CALL dbcsr_new_transposed (matrix_right, matrix_b, shallow_data_copy=.FALSE.,&
+       CALL dbcsr_new_transposed (matrix_right, matrix_b,&
+            shallow_data_copy=.FALSE.,&
             transpose_distribution=.FALSE., error=error)
        CALL dbcsr_conjg(matrix_right, error=error)
        new_right = .TRUE.
@@ -399,14 +402,15 @@ CONTAINS
             routineN, "wrong transb = "//transb, __LINE__, error)
     END SELECT
     !
-    use_dense_mult = dbcsr_may_be_dense (matrix_left, make_dense_occ_thresh)&
-               .AND. dbcsr_may_be_dense (matrix_right, make_dense_occ_thresh)
     ! we skip dense multiply for (anti)symmetric matrices (slowdown for S/H * C)
-    IF(dbcsr_get_matrix_type(matrix_left).EQ.dbcsr_type_symmetric.OR.&
-       dbcsr_get_matrix_type(matrix_left).EQ.dbcsr_type_antisymmetric.OR.&
-       dbcsr_get_matrix_type(matrix_right).EQ.dbcsr_type_symmetric.OR.&
-       dbcsr_get_matrix_type(matrix_right).EQ.dbcsr_type_antisymmetric) use_dense_mult = .FALSE.
-    !
+    IF(dbcsr_has_symmetry (matrix_left) .OR. &
+         dbcsr_has_symmetry(matrix_right)) THEN
+       use_dense_mult = .FALSE.
+    ELSE
+       use_dense_mult = dbcsr_may_be_dense (matrix_left, make_dense_occ_thresh)&
+            .AND. dbcsr_may_be_dense (matrix_right, make_dense_occ_thresh)
+    ENDIF
+    ab_dense = use_dense_mult
     ! Submatrix selection
     f_row = 1
     l_row = dbcsr_nfullrows_total(matrix_c)
@@ -513,14 +517,13 @@ CONTAINS
     ! if it is (anti)symmetric (i.e., rows and columns are where the
     ! row/column distributions say they are). Doing this in advance
     ! makes the local multiply more efficient.
-    IF ((&
-         dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_symmetric .OR.&
-         dbcsr_get_matrix_type(matrix_c).eq.dbcsr_type_antisymmetric)) THEN
+    IF (dbcsr_has_symmetry (matrix_c)) THEN
        product_reindex = .TRUE.
     ELSE
        product_reindex = .FALSE.
     ENDIF
-    ! These two interfere.
+    ! Product can not be made dense; however, A & B may still be made
+    ! dense unless previously determined otherwise.
     IF (product_reindex) THEN
        use_dense_mult = .FALSE.
     ENDIF
@@ -587,8 +590,9 @@ CONTAINS
        CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
             predistribute="R", special_memory=.FALSE.,&
             no_copy_data=use_dense_mult, error=error)
-       IF (use_dense_mult) THEN
-          CALL dbcsr_make_images_dense (m2s_right, "R", error=error)
+       IF (ab_dense) THEN
+          CALL dbcsr_make_images_dense (m2s_right, "R", &
+               join_cols = use_dense_mult, error=error)
           rdist_right = m2s_right%image_dist
        ENDIF
        IF (PRESENT (right_set)) THEN
@@ -603,8 +607,9 @@ CONTAINS
        CALL dbcsr_make_images (matrix_left, m2s_left, rdist_left,&
             predistribute="L", special_memory=.FALSE.,&
             no_copy_data=use_dense_mult, error=error)
-       IF (use_dense_mult) THEN
-          CALL dbcsr_make_images_dense (m2s_left, "L", error=error)
+       IF (ab_dense) THEN
+          CALL dbcsr_make_images_dense (m2s_left, "L",&
+               join_rows = use_dense_mult, error=error)
           rdist_left = m2s_left%image_dist
        ENDIF
        IF (PRESENT (left_set)) THEN
@@ -678,6 +683,8 @@ CONTAINS
        ENDIF
     ENDIF
     IF (dbg) THEN
+       WRITE(*,*)routineN//" Use dense mult, symm", use_dense_mult, ab_dense, &
+            dbcsr_has_symmetry (matrix_c)
        CALL dbcsr_verify_matrix (matrix_c, error=error)
        cs = dbcsr_checksum (matrix_c, error=error)
        WRITE(*,*)routineN//" Product checksum", cs
@@ -1719,7 +1726,8 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_create(diag, 'diag of '//matrix%m%name, &
-         matrix%m%dist, matrix%m%matrix_type, matrix%m%row_blk_size,&
+         matrix%m%dist, dbcsr_get_matrix_type (matrix),&
+         matrix%m%row_blk_size,&
          matrix%m%col_blk_size, matrix%m%nblks, matrix%m%nze,&
          matrix%m%data_type, matrix%m%special_memory, error=error)
 
@@ -1913,13 +1921,13 @@ CONTAINS
        ENDIF
        IF(PRESENT(name)) THEN
           CALL dbcsr_create(matrix_b, name, &
-               matrix_a%m%dist, matrix_a%m%matrix_type,&
+               dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
                nblks=matrix_a%m%nblks, data_type=new_type,&
                special=matrix_a%m%special_memory, error=error)
        ELSE
-          CALL dbcsr_create(matrix_b,'copy of '//matrix_a%m%name, &
-               matrix_a%m%dist, matrix_a%m%matrix_type,&
+          CALL dbcsr_create(matrix_b,'copy of '//dbcsr_name(matrix_a),&
+               dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
                nblks=matrix_a%m%nblks, data_type=new_type,&
                special=matrix_a%m%special_memory, error=error)

@@ -103,9 +103,11 @@ CONTAINS
 
     nblks = SIZE(old_blk_p)
     ALLOCATE(row_i (nblks))
-    !write(*,*)"old row_p", old_row_p
-    !write(*,*)"old col_i", old_col_i
-    !write(*,*)"old blk_p", old_blk_p
+    IF (dbg) THEN
+       WRITE(*,*)"old row_p", old_row_p
+       WRITE(*,*)"old col_i", old_col_i
+       WRITE(*,*)"old blk_p", old_blk_p
+    ENDIF
     DO row = 1, SIZE(old_row_p)-1
        DO blk = old_row_p(row)+1, old_row_p(row+1)
           col = old_col_i(blk)
@@ -114,9 +116,9 @@ CONTAINS
           tr = .FALSE.
           CALL get_stored_canonical (matrix, stored_row, stored_col, tr)
           IF (dbg) &
-               WRITE(*,'(A,2(1X,I5),A,2(1X,I5),";",I7)')&
+               WRITE(*,'(A,2(1X,I5),A,2(1X,I5),";",I7,1X,L1)')&
                routineN//" X->",row,col,"->",&
-               stored_row, stored_col,blk
+               stored_row, stored_col,blk,tr
           row_i(blk) = stored_row
           new_col_i(blk) = stored_col
           IF (.NOT. tr) THEN
@@ -129,10 +131,12 @@ CONTAINS
     CALL dbcsr_sort_indices(nblks, row_i, new_col_i, blk_p=new_blk_p)
     ! Re-create the index
     CALL dbcsr_make_dbcsr_index (new_row_p, row_i, SIZE(new_row_p)-1, nblks)
-    !write(*,*)"new row_p", new_row_p
-    !write(*,*)"new row_i", row_i
-    !write(*,*)"new col_i", new_col_i
-    !write(*,*)"new blk_p", new_blk_p
+    IF (dbg) THEN
+       WRITE(*,*)"new row_p", new_row_p
+       WRITE(*,*)"new row_i", row_i
+       WRITE(*,*)"new col_i", new_col_i
+       WRITE(*,*)"new blk_p", new_blk_p
+    ENDIF
   END SUBROUTINE make_index_canonical
 
 
@@ -166,23 +170,26 @@ CONTAINS
 
     nblks = SIZE(old_blk_p)
     ALLOCATE(row_i (nblks))
-    !write(*,*)"old row_p", old_row_p
-    !write(*,*)"old col_i", old_col_i
-    !write(*,*)"old blk_p", old_blk_p
+    IF (dbg) THEN
+       WRITE(*,*)"old row_p", old_row_p
+       WRITE(*,*)"old col_i", old_col_i
+       WRITE(*,*)"old blk_p", old_blk_p
+    ENDIF
     DO row = 1, SIZE(old_row_p)-1
        DO blk = old_row_p(row)+1, old_row_p(row+1)
           col = old_col_i(blk)
           stored_row = row
           stored_col = col
           tr = .FALSE.
+          CALL get_stored_canonical (matrix, stored_row, stored_col, tr)
           IF (stored_row .GT. stored_col) THEN
              CALL swap (stored_row, stored_col)
-             tr = .TRUE.
+             tr = .NOT. tr
           ENDIF
           IF (dbg) &
-               WRITE(*,'(A,2(1X,I5),A,2(1X,I5),";",I7)')&
+               WRITE(*,'(A,2(1X,I5),A,2(1X,I5),";",I7,1X,L1)')&
                routineN//" X->",row,col,"->",&
-               stored_row, stored_col,blk
+               stored_row, stored_col,blk,tr
           row_i(blk) = stored_row
           new_col_i(blk) = stored_col
           IF (.NOT. tr) THEN
@@ -195,10 +202,12 @@ CONTAINS
     CALL dbcsr_sort_indices(nblks, row_i, new_col_i, blk_p=new_blk_p)
     ! Re-create the index
     CALL dbcsr_make_dbcsr_index (new_row_p, row_i, SIZE(new_row_p)-1, nblks)
-    !write(*,*)"new row_p", new_row_p
-    !write(*,*)"new row_i", row_i
-    !write(*,*)"new col_i", new_col_i
-    !write(*,*)"new blk_p", new_blk_p
+    IF (dbg) THEN
+       WRITE(*,*)"new row_p", new_row_p
+       WRITE(*,*)"new row_i", row_i
+       WRITE(*,*)"new col_i", new_col_i
+       WRITE(*,*)"new blk_p", new_blk_p
+    ENDIF
   END SUBROUTINE make_index_triangular
 
 
@@ -709,32 +718,92 @@ CONTAINS
 !> \param[in,out] distribution                Distribution for matrix
 !> \param[in,out] matrix                      Matrix
 !> \param[in,out] meta                        Metadata updates for new index
+!> \param[in] nblkrows_total                  Total blocked rows
+!> \param[in] nblkcols_total                  Total blocked columns
+!> \param[in] myblkrows                       List of blocked rows in my
+!>                                            process row
+!> \param[in] myblkcols                       List of blocked columns in my
+!>                                            process column
+!> \param[in] make_tr                         Dense blocks are transposed
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_dense_index (row_p, col_i, blk_p,&
-       nprows, npcols, myprow, mypcol, meta, nblks)
+       nblkrows_total, nblkcols_total, myblkrows, myblkcols,&
+       row_blk_offsets, col_blk_offsets, meta, make_tr, error)
 
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: row_p, col_i, blk_p
-    INTEGER, INTENT(IN)                      :: nprows, npcols, myprow, mypcol
+    !INTEGER, DIMENSION(:), INTENT(OUT)       :: row_p, col_i, blk_p
+    INTEGER, INTENT(IN)                      :: nblkrows_total
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: blk_p, col_i
+    INTEGER, DIMENSION(1:nblkrows_total+1), &
+      INTENT(OUT)                            :: row_p
+    INTEGER, INTENT(IN)                      :: nblkcols_total
+    INTEGER, DIMENSION(:), INTENT(IN)        :: myblkrows, myblkcols, &
+                                                row_blk_offsets, &
+                                                col_blk_offsets
     INTEGER, DIMENSION(dbcsr_meta_size), &
       INTENT(INOUT)                          :: meta
-    INTEGER, INTENT(IN)                      :: nblks
+    LOGICAL, INTENT(IN), OPTIONAL            :: make_tr
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_index', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    meta(dbcsr_slot_nblkrows_local) = nblks
-    meta(dbcsr_slot_nblkcols_local) = nblks
+    INTEGER                                  :: blk, c, col_l, mynblkcols, &
+                                                mynblkrows, nblks, nze, &
+                                                prev_row, row, row_l, &
+                                                sign_carrier, sz
+
+!   ---------------------------------------------------------------------------
+
+    sign_carrier = 1
+    IF (PRESENT (make_tr)) THEN
+       IF (make_tr) sign_carrier = -1
+    ENDIF
+    mynblkrows = SIZE(myblkrows)
+    mynblkcols = SIZE(myblkcols)
+    meta(dbcsr_slot_nblkrows_local) = mynblkrows
+    meta(dbcsr_slot_nblkcols_local) = mynblkcols
+    nblks = mynblkrows * mynblkcols
+    nze = 1
     IF (nblks .EQ. 0) THEN
        row_p(1:) = 0
     ELSE
-       row_p(1:myprow+1) = 0
-       row_p(myprow+1+1:) = nblks
-       col_i(1) = mypcol+1
-       blk_p(1) = 1
+       row_p(1) = 0
+       !row_p(nrows+1) = nblks
+       prev_row = 1
+       blk = 0
+       DO row_l = 1, mynblkrows
+          row = myblkrows(row_l)
+          row_p(prev_row+1:row) = blk
+          DO col_l = 1, mynblkcols
+             c = myblkcols(col_l)
+             col_i(blk+col_l) = c
+             sz = (row_blk_offsets(row+1)-row_blk_offsets(row))*&
+                  (col_blk_offsets(c+1)-col_blk_offsets(c))
+             IF (sz .GT. 0) THEN
+                blk_p(blk+col_l) = SIGN (nze, sign_carrier)
+                nze = nze + sz
+             ELSE
+                blk_p(blk+col_l) = 0
+             ENDIF
+          ENDDO
+          prev_row = row
+          blk = blk + mynblkcols
+       END DO
+       CALL dbcsr_assert (blk, "EQ", nblks, dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN, "Block mismatch", __LINE__,&
+            error=error)
+       row_p(prev_row+1:nblkrows_total+1) = nblks
     ENDIF
-    meta(dbcsr_slot_nblkrows_total) = nprows
-    meta(dbcsr_slot_nblkcols_total) = npcols
+    IF (dbg) THEN
+       WRITE(*,*)routineN//" new index"
+       WRITE(*,*)"row_p=",row_p
+       WRITE(*,*)"col_i=",col_i
+       WRITE(*,*)"blk_p=",blk_p
+    ENDIF
+    meta(dbcsr_slot_nblkrows_total) = nblkrows_total
+    meta(dbcsr_slot_nblkcols_total) = nblkcols_total
   END SUBROUTINE make_dense_index
 
 ! *****************************************************************************

@@ -57,11 +57,11 @@ MODULE preconditioner
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_distribution_mp, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_info, dbcsr_get_occupation, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_nblkcols_local, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
-       dbcsr_row_block_sizes, dbcsr_uses_special_memory
+       dbcsr_distribution_row_dist, dbcsr_get_info, dbcsr_get_matrix_type, &
+       dbcsr_get_occupation, dbcsr_mp_group, dbcsr_mp_mynode, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_nblkcols_local, dbcsr_nblkrows_local, &
+       dbcsr_nblkrows_total, dbcsr_row_block_sizes, dbcsr_uses_special_memory
   USE dbcsr_operations,                ONLY: block_add_on_diag_d,&
                                              block_chol_inv_d,&
                                              dbcsr_scale
@@ -514,7 +514,8 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
     ALLOCATE(preconditioner_env%sparse_matrix)
     CALL cp_dbcsr_init(preconditioner_env%sparse_matrix,error=error)
     CALL cp_dbcsr_create(preconditioner_env%sparse_matrix, ' PRECONDITIONER ', &
-         matrix_h%m%dist, matrix_h%m%matrix_type, matrix_h%m%row_blk_size,&
+         dbcsr_distribution (matrix_h),&
+         dbcsr_get_matrix_type (matrix_h), matrix_h%m%row_blk_size,&
          matrix_h%m%col_blk_size, 0, 0, error=error)
 
   CALL dbcsr_get_info(matrix_h,nfullrows_total=nblocks)
@@ -1398,7 +1399,8 @@ SUBROUTINE make_sparse_diag_ortho(preconditioner_env, matrix_h, energy_homo, ene
     ALLOCATE(preconditioner_env%sparse_matrix)
     CALL cp_dbcsr_init(preconditioner_env%sparse_matrix,error=error)
     CALL cp_dbcsr_create(preconditioner_env%sparse_matrix, ' PRECONDITIONER ', &
-         matrix_h%m%dist, matrix_h%m%matrix_type, matrix_h%m%row_blk_size,&
+         dbcsr_distribution (matrix_h), dbcsr_get_matrix_type (matrix_h),&
+         matrix_h%m%row_blk_size,&
          matrix_h%m%col_blk_size, 0, 0, error=error)
 
   CALL dbcsr_get_info(matrix_h,nfullrows_total=nblocks)
@@ -1741,7 +1743,8 @@ END SUBROUTINE make_full_all_ortho
     ALLOCATE(sm_inner)
     CALL cp_dbcsr_init(sm_inner,error=error)
     CALL cp_dbcsr_create(sm_inner, ' PRECONDITIONER ', &
-         sm%m%dist, sm%m%matrix_type, sm%m%row_blk_size,&
+         dbcsr_distribution (sm), dbcsr_get_matrix_type (sm),&
+         sm%m%row_blk_size,&
          sm%m%col_blk_size, 0, 0, error=error)
 
     CALL dbcsr_get_info(sm,nfullrows_total=nblocks)
@@ -2604,7 +2607,8 @@ WRITE(*,*) 'tend',t(13)-t(12)
     ALLOCATE(preconditioner_env%sparse_matrix)
     CALL cp_dbcsr_init(preconditioner_env%sparse_matrix,error=error)
     CALL cp_dbcsr_create(preconditioner_env%sparse_matrix, ' PRECONDITIONER ', &
-         matrix_t%m%dist, matrix_t%m%matrix_type, matrix_t%m%row_blk_size,&
+         dbcsr_distribution (matrix_t),&
+         dbcsr_get_matrix_type (matrix_t), matrix_t%m%row_blk_size,&
          matrix_t%m%col_blk_size, 0, 0, error=error)
     CALL cp_dbcsr_finalize(preconditioner_env%sparse_matrix,error=error)
 

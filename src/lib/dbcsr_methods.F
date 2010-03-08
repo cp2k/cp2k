@@ -50,8 +50,9 @@ MODULE dbcsr_methods
        dbcsr_mutable_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_type, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
-       dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
-       dbcsr_type_real_8, dbcsr_type_real_8_2d, dbcsr_type_symmetric, &
+       dbcsr_type_complex_8_2d, dbcsr_type_conjugate, dbcsr_type_normal, &
+       dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
+       dbcsr_type_real_8_2d, dbcsr_type_symmetric, dbcsr_type_transposed, &
        dbcsr_work_type
 
   !$ USE OMP_LIB
@@ -96,7 +97,8 @@ MODULE dbcsr_methods
             dbcsr_uses_special_memory, dbcsr_get_occupation,&
             dbcsr_is_real, dbcsr_is_complex,&
             dbcsr_name, dbcsr_may_be_dense,&
-            dbcsr_use_mutable, dbcsr_wm_use_mutable
+            dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
+            dbcsr_is_transposed
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area,&
@@ -1334,7 +1336,23 @@ CONTAINS
     IF (PRESENT (distribution)) distribution = matrix%m%dist
     IF (PRESENT (name)) name = matrix%m%name
     IF (PRESENT (data_area)) data_area = matrix%m%data_area
-    IF (PRESENT (matrix_type)) matrix_type = matrix%m%matrix_type
+    IF (PRESENT (matrix_type)) THEN
+       ! Doesn't check all valid types
+       matrix_type = '0' ! Invalid
+       IF (matrix%m%transpose) THEN
+          matrix_type = dbcsr_type_transposed
+       ELSEIF (matrix%m%symmetry) THEN
+          IF (.NOT. matrix%m%negate_real .AND. matrix%m%negate_imaginary) THEN
+             matrix_type = dbcsr_type_conjugate
+          ELSEIF (matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
+             matrix_type = dbcsr_type_antisymmetric
+          ELSEIF (.NOT. matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
+             matrix_type = dbcsr_type_symmetric
+          ENDIF
+       ELSE
+          matrix_type = dbcsr_type_normal
+       ENDIF
+    ENDIF
     IF (PRESENT (data_type)) data_type = matrix%m%data_type
     IF (PRESENT (local_rows)) &
          local_rows => array_data (dbcsr_distribution_local_rows (matrix%m%dist))
@@ -1771,8 +1789,47 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER                                :: matrix_type
 
-    matrix_type = matrix%m%matrix_type
+! Doesn't check all valid types
+
+    matrix_type = '0' ! Invalid
+    IF (matrix%m%transpose) THEN
+       matrix_type = dbcsr_type_transposed
+    ELSEIF (matrix%m%symmetry) THEN
+       IF (.NOT. matrix%m%negate_real .AND. matrix%m%negate_imaginary) THEN
+          matrix_type = dbcsr_type_conjugate
+       ELSEIF (matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
+          matrix_type = dbcsr_type_antisymmetric
+       ELSEIF (.NOT. matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
+          matrix_type = dbcsr_type_symmetric
+       ENDIF
+    ELSE
+       matrix_type = dbcsr_type_normal
+    ENDIF
   END FUNCTION dbcsr_get_matrix_type
+
+! *****************************************************************************
+!> \brief Whether matrix has symmetry
+!> \param matrix              query this matrix
+!> \result has_symmetry       matrix has symmetry
+! *****************************************************************************
+  PURE FUNCTION dbcsr_has_symmetry (matrix) RESULT (has_symmetry)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    LOGICAL                                  :: has_symmetry
+
+    has_symmetry = matrix%m%symmetry
+  END FUNCTION dbcsr_has_symmetry
+
+! *****************************************************************************
+!> \brief Whether matrix is (logically) transposed
+!> \param matrix          query this matrix
+!> \result transposed     matrix is transposed
+! *****************************************************************************
+  PURE FUNCTION dbcsr_is_transposed (matrix) RESULT (transposed)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    LOGICAL                                  :: transposed
+
+    transposed = matrix%m%transpose
+  END FUNCTION dbcsr_is_transposed
 
 ! *****************************************************************************
 !> \brief Returns the data type stored in the matrix
@@ -2079,8 +2136,7 @@ CONTAINS
     row_blk_size => array_data (matrix%m%row_blk_size)
 
     IF(nfullrows.NE.0.AND.nfullcols.NE.0) THEN
-       IF(dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
-            dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric) THEN
+       IF(dbcsr_has_symmetry (matrix)) THEN
           occupation = 2.0_real_8 * occupation / &
                ( REAL(nfullrows,real_8) * REAL(nfullrows+1,real_8) + &
                SUM( REAL(row_blk_size,real_8) * REAL(row_blk_size-1,real_8) ) )
@@ -2090,7 +2146,6 @@ CONTAINS
     ELSE
        occupation = 0.0_real_8
     ENDIF
-
   END FUNCTION dbcsr_get_occupation
 
 
@@ -2140,8 +2195,10 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Lower bound specification not possible with 2-d data",__LINE__,error)
     ! Check if size is OK.
-    CALL dbcsr_assert (bp .GE. 1&
-         .AND. bp + nze - 1 .LE. dbcsr_get_data_size (pointee),&
+    CALL dbcsr_assert (bp, "GE", 1,&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Attempt to point out of bounds",__LINE__,error)
+    CALL dbcsr_assert (bp + nze - 1, "LE", dbcsr_get_data_size (pointee),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Attempt to point out of bounds",__LINE__,error)
     ! There's a remap if the ranks are compatible but not equal.

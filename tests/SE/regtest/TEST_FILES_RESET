@@ -485,3 +485,9 @@ dimer3.inp
 h2o_gks_p.inp
 #
 h2o_gks_e.inp
+#  
+st.inp
+#  
+h2po4.inp
+#  
+ice-scp-ewald_gks.inp

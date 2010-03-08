@@ -855,7 +855,8 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     CALL dbcsr_new_transposed(transposed, normal, shallow_data_copy,&
-         transpose_data, transpose_distribution, use_distribution, dbcsr_error)
+         transpose_data, transpose_distribution,&
+         use_distribution=use_distribution, error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_transposed
 

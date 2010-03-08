@@ -30,7 +30,7 @@ MODULE dbcsr_util
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_get_data_size, &
-       dbcsr_mp_group, dbcsr_valid_index
+       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_magic_number, dbcsr_meta_size, &
        dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
@@ -67,7 +67,7 @@ MODULE dbcsr_util
   PUBLIC :: gcd, lcm
 
   INTERFACE swap
-     MODULE PROCEDURE iswap
+     MODULE PROCEDURE iswap, bswap
   END INTERFACE
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
@@ -544,8 +544,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_pack_meta', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: error
-
 !   ---------------------------------------------------------------------------
 
     meta(dbcsr_slot_nblks)  = matrix%nblks
@@ -559,20 +557,15 @@ CONTAINS
     meta(dbcsr_slot_nfullrows_local) = matrix%nfullrows_local
     meta(dbcsr_slot_nfullcols_local) = matrix%nfullcols_local
     meta(dbcsr_slot_dense) = 0
-    SELECT CASE (matrix%matrix_type)
-    CASE ('N')
-       meta(dbcsr_slot_type) = 0
-    CASE ('T')
-       meta(dbcsr_slot_type) = 1
-    CASE ('S')
-       meta(dbcsr_slot_type) = 2
-    CASE ('A')
-       meta(dbcsr_slot_type) = 3
-    CASE DEFAULT
-       meta(dbcsr_slot_type) = -1
-       CALL dbcsr_assert(.FALSE.,  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-            "Invalid matrix type.",__LINE__,error)
-    END SELECT
+    meta(dbcsr_slot_type) = 0
+    IF (matrix%transpose)&
+         meta(dbcsr_slot_type) = IBSET (meta(dbcsr_slot_type), 0)
+    IF (matrix%symmetry)&
+         meta(dbcsr_slot_type) = IBSET (meta(dbcsr_slot_type), 1)
+    IF (matrix%negate_real)&
+         meta(dbcsr_slot_type) = IBSET (meta(dbcsr_slot_type), 2)
+    IF (matrix%negate_imaginary)&
+         meta(dbcsr_slot_type) = IBSET (meta(dbcsr_slot_type), 3)
   END SUBROUTINE dbcsr_pack_meta
 
 ! *****************************************************************************
@@ -588,8 +581,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_unpack_meta', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: error
-
 !   ---------------------------------------------------------------------------
 
     matrix%nblks = meta(dbcsr_slot_nblks)
@@ -603,20 +594,10 @@ CONTAINS
     matrix%nfullrows_local = meta(dbcsr_slot_nfullrows_local)
     matrix%nfullcols_local = meta(dbcsr_slot_nfullcols_local)
     matrix%index(dbcsr_slot_dense) = 0
-    SELECT CASE (meta(dbcsr_slot_type))
-    CASE (0)
-       matrix%matrix_type = 'N'
-    CASE (1)
-       matrix%matrix_type = 'T'
-    CASE (2)
-       matrix%matrix_type = 'S'
-    CASE (3)
-       matrix%matrix_type = 'A'
-    CASE DEFAULT
-       matrix%matrix_type = '0'
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            routineN, "Invalid matrix type.",__LINE__,error)
-    END SELECT
+    matrix%transpose = BTEST (meta(dbcsr_slot_type), 0)
+    matrix%symmetry = BTEST (meta(dbcsr_slot_type), 1)
+    matrix%negate_real = BTEST (meta(dbcsr_slot_type), 2)
+    matrix%negate_imaginary = BTEST (meta(dbcsr_slot_type), 3)
   END SUBROUTINE dbcsr_unpack_meta
 
 
@@ -637,7 +618,7 @@ CONTAINS
 !> \brief Swaps two integers
 !> \param[in,out] a,b         Integers to swap
 ! *****************************************************************************
-  SUBROUTINE iswap(a, b)
+  ELEMENTAL SUBROUTINE iswap(a, b)
     INTEGER, INTENT(INOUT)                   :: a, b
 
     INTEGER                                  :: tmp
@@ -648,6 +629,22 @@ CONTAINS
     a = b
     b = tmp
   END SUBROUTINE iswap
+
+! *****************************************************************************
+!> \brief Swaps two logicals
+!> \param[in,out] a,b         Logicals to swap
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE bswap(a, b)
+    LOGICAL, INTENT(INOUT)                   :: a, b
+
+    LOGICAL                                  :: tmp
+
+!   ---------------------------------------------------------------------------
+
+    tmp = a
+    a = b
+    b = tmp
+  END SUBROUTINE bswap
 
 
 
@@ -839,21 +836,25 @@ CONTAINS
           mn = m*n
           blk_p = ABS(matrix%m%blk_p(blk))
           IF (blk_p .NE. 0) THEN
-             ! Calculate DDOT
-             SELECT CASE (matrix%m%data_type)
-             CASE (dbcsr_type_real_8)
-                blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
-                     &               r_dp(blk_p:blk_p+mn-1))
-             CASE (dbcsr_type_real_4)
-                blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
-                     &               r_sp(blk_p:blk_p+mn-1))
-             CASE (dbcsr_type_complex_8)
-                blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
-                     &               c_dp(blk_p:blk_p+mn-1))
-             CASE (dbcsr_type_complex_4)
-                blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
-                     &               c_sp(blk_p:blk_p+mn-1))
-             END SELECT
+             IF (mn .GT. 0) THEN
+                ! Calculate DDOT
+                SELECT CASE (matrix%m%data_type)
+                CASE (dbcsr_type_real_8)
+                   blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
+                        &               r_dp(blk_p:blk_p+mn-1))
+                CASE (dbcsr_type_real_4)
+                   blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
+                        &               r_sp(blk_p:blk_p+mn-1))
+                CASE (dbcsr_type_complex_8)
+                   blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
+                        &               c_dp(blk_p:blk_p+mn-1))
+                CASE (dbcsr_type_complex_4)
+                   blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
+                        &               c_sp(blk_p:blk_p+mn-1))
+                END SELECT
+             ELSE
+                blk_cs = 0.0_dp
+             ENDIF
              DBGV ' chksum for (',br,',',bc,') at', blk_p,'l',mn,'= ', blk_cs
              local_cs = local_cs + blk_cs
           ENDIF
@@ -905,8 +906,9 @@ CONTAINS
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
     IF (PRESENT (verbosity)) dbg = verbosity
-    IF (dbg.GE.3) WRITE(*,'(1X,A,A,A,A)')r//'Matrix name: ', m%m%name,&
-         " of type ",m%m%matrix_type
+    IF (dbg.GE.3) WRITE(*,'(1X,A,A,A,1X,4(L1))')r//'Matrix name: ', m%m%name,&
+         " of types ",m%m%transpose, m%m%symmetry, m%m%negate_real,&
+         m%m%negate_imaginary
     IF (dbg.GE.3) THEN
        WRITE(*,'(1X,A,I5,"x",I5,A,I5,"x",I5)')r//' Size blocked',&
             m%m%nblkrows_total, m%m%nblkcols_total, ", full ",&
@@ -915,7 +917,7 @@ CONTAINS
     row_blk_size => array_data (m%m%row_blk_size)
     col_blk_size => array_data (m%m%col_blk_size)
     !
-    IF(m%m%matrix_type.EQ.'N' .OR. m%m%matrix_type.EQ.'T') THEN
+    IF(.NOT.dbcsr_has_symmetry (m)) THEN
        n_full_blocks_total = m%m%nblkrows_total * m%m%nblkcols_total
     ELSE
        CALL dbcsr_assert(m%m%nblkrows_total, "EQ", m%m%nblkcols_total,&

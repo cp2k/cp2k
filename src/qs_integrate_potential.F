@@ -46,6 +46,8 @@ MODULE qs_integrate_potential
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_d32cp2k
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_get_matrix_type
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
@@ -691,7 +693,8 @@ CONTAINS
        ALLOCATE(dh)
        CALL cp_dbcsr_init(dh, error=error)
        CALL cp_dbcsr_create(dh, 'LocalH', &
-            h%matrix%m%dist, h%matrix%m%matrix_type, h%matrix%m%row_blk_size,&
+            dbcsr_distribution (h%matrix),&
+            dbcsr_get_matrix_type (h%matrix), h%matrix%m%row_blk_size,&
             h%matrix%m%col_blk_size, h%matrix%m%nblks, h%matrix%m%nze,&
             error=error)
 
@@ -702,7 +705,9 @@ CONTAINS
              ALLOCATE(ddv(idir)%matrix)
              CALL cp_dbcsr_init(ddv(idir)%matrix, error=error)
              CALL cp_dbcsr_create(ddv(idir)%matrix, "LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))), &
-                  h%matrix%m%dist, h%matrix%m%matrix_type, h%matrix%m%row_blk_size,&
+                  dbcsr_distribution (h%matrix),&
+                  dbcsr_get_matrix_type (h%matrix),&
+                  h%matrix%m%row_blk_size,&
                   h%matrix%m%col_blk_size, h%matrix%m%nblks, h%matrix%m%nze,&
                   error=error)
           END DO

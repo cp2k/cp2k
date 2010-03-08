@@ -142,3 +142,5 @@ Si_tersoff_qmmm.inp
 Si_tersoff_qmmm.inp
 # convert mo_derivs to dbcsr
 Si_tersoff_qmmm.inp
+#  
+Si_tersoff_qmmm.inp

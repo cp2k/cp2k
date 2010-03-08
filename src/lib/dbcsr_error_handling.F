@@ -163,7 +163,7 @@ CONTAINS
        WRITE(*,*) 'error%line=',error%line
        WRITE(*,*) 'error%stack%level=',error%stack%level
        WRITE(*,*) 'dbcsr_error_stack_size=',dbcsr_error_stack_size
-       STOP
+       RETURN
     ENDIF
 
     WRITE(output_unit,'(A)') ''
@@ -211,6 +211,8 @@ CONTAINS
     !
     ! print the stack
     CALL dbcsr_error_print_stack(error, output_unit)
+    ! Segmentation faults can be handy for debugging.
+    !WRITE(*,*)error%stack%handler(-666)
     !
     ! abort if needed
     IF(error%level.NE.dbcsr_warning_level) THEN
@@ -297,6 +299,8 @@ CONTAINS
        l = left .OR. right
     CASE ("AND")
        l = left .AND. right
+    CASE ("IMP")
+       l = .NOT. left .OR. right
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__, error)

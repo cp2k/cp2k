@@ -73,7 +73,8 @@ MODULE dbcsr_types
             dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
             dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d
   PUBLIC :: dbcsr_type_normal, dbcsr_type_symmetric,&
-            dbcsr_type_antisymmetric, dbcsr_type_transposed
+            dbcsr_type_antisymmetric, dbcsr_type_transposed,&
+            dbcsr_type_conjugate
   PUBLIC :: dbcsr_repl_none, dbcsr_repl_row, dbcsr_repl_col, dbcsr_repl_full
 
   PUBLIC :: dbcsr_filter_frobenius
@@ -266,7 +267,7 @@ MODULE dbcsr_types
      INTEGER                                        :: pos, row, row_size, &
           row_offset
      INTEGER, DIMENSION(:), POINTER :: rbs, cbs, roff, coff
-     LOGICAL            :: contiguous_pointers, shared
+     LOGICAL            :: contiguous_pointers, shared, transpose
      ! Copies from the matrix.
      INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
      INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p, tdist
@@ -340,7 +341,6 @@ MODULE dbcsr_types
 !> \var row_blk_offset          row offset (size = nrow+1)
 !> \var col_blk_offset          col offset (size = ncol+1)
 !> \var max_rbs, max_cbs      maximal row and column sizes
-!> \var dist2d      distribution_2d used by this matrix
 !> \var dist        distribution used by this matrix
 !> \var nblks       number of blocks locally present
 !> \var nze         number of non-zero elements locally present
@@ -352,16 +352,21 @@ MODULE dbcsr_types
 !>                  and full columns
 !> \var nfullrows_local, nfull_cols_local size of local part of matrix in full
 !>                  rows and full columns
-!> \var matrix_type           'N' for normal, 'T' for transposed, 'S' for
-!>                            symmetric, and 'A' for antisymmetric
+!> \var symmetry              matrix has symmetry
+!> \var negate_real           symmetry is realized by negating the real part
+!> \var negate_imaginary      symmetry is realized by negating complex part
+!>                            (i.e., antisymmetric)
 !> \var data_type             'r'/'R' for single/double precision real or
 !>                            'c'/'C' for single/double precision complex data
 !> \var replication_type      multi-process replication used in the matrix
-!> \var sym_negation          negate transposition for negative block pointer
+!> \var transpose             matrix is logically transposed
+!> \var bscs                  BCS Column instead of BCS Row
 !> \var special_memory        uses special (MPI-allocated) memory
 !> \var refcount              reference count
 !> \var work_mutable          uses the mutable data for working and not the
 !>                            append-only data
+!> \var predistributed        array of images used to avoid preshifting static
+!>                            matrices before multiplication
 ! *****************************************************************************
   TYPE dbcsr_type
      LOGICAL                            :: valid
@@ -387,8 +392,10 @@ MODULE dbcsr_types
      INTEGER                 :: nfullrows_total, nfullcols_total
      INTEGER                 :: nblkrows_local, nblkcols_local
      INTEGER                 :: nfullrows_local, nfullcols_local
-     CHARACTER               :: matrix_type, data_type, replication_type
-     LOGICAL                 :: sym_negation
+     CHARACTER               :: data_type, replication_type
+     LOGICAL                 :: symmetry, negate_real, negate_imaginary
+     LOGICAL                 :: transpose
+     LOGICAL                 :: bcsc
      LOGICAL                 :: special_memory
      !TYPE(dbcsr_work_type)   :: w
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
@@ -404,6 +411,7 @@ MODULE dbcsr_types
   CHARACTER, PARAMETER        :: dbcsr_type_normal = 'N'
   CHARACTER, PARAMETER        :: dbcsr_type_symmetric = 'S'
   CHARACTER, PARAMETER        :: dbcsr_type_antisymmetric = 'A'
+  CHARACTER, PARAMETER        :: dbcsr_type_conjugate = 'C'
   CHARACTER, PARAMETER        :: dbcsr_type_transposed = 'T'
 
   CHARACTER, PARAMETER        :: dbcsr_repl_none = 'N'
