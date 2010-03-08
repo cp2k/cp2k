@@ -24,10 +24,11 @@ MODULE dbcsr_mp_operations
                                              mp_type_make,&
                                              mp_waitall
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, &
-       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid
+       dbcsr_get_data_type, dbcsr_mp_get_process, dbcsr_mp_grid_setup, &
+       dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
+       dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
+       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_type_complex_4,&
@@ -49,7 +50,8 @@ MODULE dbcsr_mp_operations
   PUBLIC :: hybrid_alltoall_s1, hybrid_alltoall_d1,&
             hybrid_alltoall_c1, hybrid_alltoall_z1,&
             hybrid_alltoall_i1
-  ! Type heplers
+  PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
+  ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
@@ -303,6 +305,65 @@ CONTAINS
        mp_type = mp_type_make (data_area%d%c_dp)
     END SELECT
   END FUNCTION dbcsr_mp_type_from_anytype
+
+
+! *****************************************************************************
+!> \brief Non-blocking send of encapsulated data.
+!> \sa mp_isend_iv
+! *****************************************************************************
+  SUBROUTINE dbcsr_isend_any(msgin,dest,comm,request,tag, error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(OUT)                     :: request
+    INTEGER, INTENT(IN), OPTIONAL            :: tag
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_isend_any', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE (dbcsr_get_data_type (msgin))
+    CASE (dbcsr_type_real_4)
+       CALL mp_isend (msgin%d%r_sp, dest, comm, request, tag)
+    CASE (dbcsr_type_real_8)
+       CALL mp_isend (msgin%d%r_dp, dest, comm, request, tag)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_isend (msgin%d%r_sp, dest, comm, request, tag)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_isend (msgin%d%r_dp, dest, comm, request, tag)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__, error=error)
+    END SELECT
+  END SUBROUTINE dbcsr_isend_any
+
+! *****************************************************************************
+!> \brief Non-blocking recv of encapsulated data.
+!> \sa mp_irecv_iv
+! *****************************************************************************
+  SUBROUTINE dbcsr_irecv_any(msgin,dest,comm,request,tag, error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
+    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(OUT)                     :: request
+    INTEGER, INTENT(IN), OPTIONAL            :: tag
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_irecv_any', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE (dbcsr_get_data_type (msgin))
+    CASE (dbcsr_type_real_4)
+       CALL mp_irecv (msgin%d%r_sp, dest, comm, request, tag)
+    CASE (dbcsr_type_real_8)
+       CALL mp_irecv (msgin%d%r_dp, dest, comm, request, tag)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_irecv (msgin%d%r_sp, dest, comm, request, tag)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_irecv (msgin%d%r_dp, dest, comm, request, tag)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__, error=error)
+    END SELECT
+  END SUBROUTINE dbcsr_irecv_any
 
 
 

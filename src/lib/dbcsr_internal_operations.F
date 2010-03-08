@@ -49,7 +49,9 @@ MODULE dbcsr_internal_operations
        dbcsr_mp_pgrid, dbcsr_nfullcols_local, dbcsr_nfullrows_local, &
        dbcsr_row_block_sizes, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
        dbcsr_scalar_one, dbcsr_scalar_zero
-  USE dbcsr_mp_operations,             ONLY: dbcsr_mp_type_from_anytype
+  USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
+                                             dbcsr_isend_any,&
+                                             dbcsr_mp_type_from_anytype
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_replace
   USE dbcsr_types,                     ONLY: &
@@ -646,28 +648,12 @@ CONTAINS
                 CALL mp_irecv (right_recv_type(v_ki+1, 1), right_recv_p,&
                      grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
              ELSE
-                SELECT CASE (data_type)
-                CASE (dbcsr_type_real_4)
-                   CALL mp_isend (right_data_sp%d%r_sp, right_send_p,&
-                        grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-                   CALL mp_irecv (right_data_rp%d%r_sp, right_recv_p,&
-                        grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
-                CASE (dbcsr_type_real_8)
-                   CALL mp_isend (right_data_sp%d%r_dp, right_send_p,&
-                        grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-                   CALL mp_irecv (right_data_rp%d%r_dp, right_recv_p,&
-                        grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
-                CASE (dbcsr_type_complex_4)
-                   CALL mp_isend (right_data_sp%d%c_sp, right_send_p,&
-                        grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-                   CALL mp_irecv (right_data_rp%d%c_sp, right_recv_p,&
-                        grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
-                CASE (dbcsr_type_complex_8)
-                   CALL mp_isend (right_data_sp%d%c_dp, right_send_p,&
-                        grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row)
-                   CALL mp_irecv (right_data_rp%d%c_dp, right_recv_p,&
-                        grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row)
-                END SELECT
+                CALL dbcsr_isend_any (right_data_sp, right_send_p,&
+                     grp, right_data_sr(v_ki+1, 1), tag=right_dst_v_row,&
+                     error=error)
+                CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
+                     grp, right_data_rr(v_ki+1, 1), tag=right_src_v_row,&
+                     error=error)
                 CALL mp_isend (right_index_sp, right_send_p,&
                      grp, right_index_sr(v_ki+1, 1), tag=right_dst_v_row)
                 CALL mp_irecv (right_index_rp, right_recv_p,&
@@ -856,28 +842,12 @@ CONTAINS
                 CALL mp_irecv (left_recv_type(1, v_ki+1), left_recv_p,&
                      grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
              ELSE
-                SELECT CASE (data_type)
-                CASE (dbcsr_type_real_4)
-                   CALL mp_isend (left_data_sp%d%r_sp, left_send_p,&
-                        grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-                   CALL mp_irecv (left_data_rp%d%r_sp, left_recv_p,&
-                        grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
-                CASE (dbcsr_type_real_8)
-                   CALL mp_isend (left_data_sp%d%r_dp, left_send_p,&
-                        grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-                   CALL mp_irecv (left_data_rp%d%r_dp, left_recv_p,&
-                        grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
-                CASE (dbcsr_type_complex_4)
-                   CALL mp_isend (left_data_sp%d%c_sp, left_send_p,&
-                        grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-                   CALL mp_irecv (left_data_rp%d%c_sp, left_recv_p,&
-                        grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
-                CASE (dbcsr_type_complex_8)
-                   CALL mp_isend (left_data_sp%d%c_dp, left_send_p,&
-                        grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col)
-                   CALL mp_irecv (left_data_rp%d%c_dp, left_recv_p,&
-                        grp, left_data_rr(1, v_ki+1), tag=left_src_v_col)
-                END SELECT
+                CALL dbcsr_isend_any (left_data_sp, left_send_p,&
+                     grp, left_data_sr(1, v_ki+1), tag=left_dst_v_col,&
+                     error=error)
+                CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
+                     grp, left_data_rr(1, v_ki+1), tag=left_src_v_col,&
+                     error=error)
                 CALL mp_isend (left_index_sp, left_send_p,&
                      grp, left_index_sr(1, v_ki+1), tag=left_dst_v_col)
                 CALL mp_irecv (left_index_rp, left_recv_p,&
