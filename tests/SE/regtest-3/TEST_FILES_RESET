@@ -126,3 +126,7 @@ SiO2.inp
 SiO2_lr_quad.inp
 #  
 Co_complex.inp
+#  
+LM-KSDO-D.inp
+#  
+N3_rp_md.inp
