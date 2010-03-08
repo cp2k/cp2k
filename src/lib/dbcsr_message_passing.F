@@ -1327,7 +1327,8 @@ CONTAINS
     !type_descriptor%mpi_type_handle = MPI_DATATYPE_NULL
     type_descriptor%length = 1
 #if defined(__parallel)
-    type_descriptor%base = MPI_BOTTOM
+    CALL mpi_get_address (MPI_BOTTOM, type_descriptor%base, ierr)
+    IF (ierr /= 0) CALL mp_abort("MPI_get_address @ "//routineN)
     ALLOCATE (displacements(n))
 #endif
     type_descriptor%vector_descriptor(1:2) = 1
