@@ -66,7 +66,8 @@ MODULE cp_dbcsr_operations
        dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_valid_index
+       dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_valid_index, &
+       dbcsr_wm_use_mutable
   USE dbcsr_operations,                ONLY: &
        block_set_d, dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
        dbcsr_filter, dbcsr_get_block_diag, dbcsr_get_diag, &
@@ -3327,7 +3328,8 @@ CONTAINS
        CALL cp_dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
        matrix%m%valid = .FALSE.
     ENDIF
-    CALL cp_assert (.NOT. ASSOCIATED (matrix%m%wms(ithread+1)%row_i), cp_warning_level,&
+    CALL cp_assert (dbcsr_wm_use_mutable (matrix%m%wms(ithread+1)),&
+         cp_warning_level,&
          cp_unimplemented_error_nr, routineN,&
          "Data loss due to no conversion of appendable to mutable data")
     is_there = ASSOCIATED(block)
