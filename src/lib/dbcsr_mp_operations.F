@@ -327,9 +327,9 @@ CONTAINS
     CASE (dbcsr_type_real_8)
        CALL mp_isend (msgin%d%r_dp, dest, comm, request, tag)
     CASE (dbcsr_type_complex_4)
-       CALL mp_isend (msgin%d%r_sp, dest, comm, request, tag)
+       CALL mp_isend (msgin%d%c_sp, dest, comm, request, tag)
     CASE (dbcsr_type_complex_8)
-       CALL mp_isend (msgin%d%r_dp, dest, comm, request, tag)
+       CALL mp_isend (msgin%d%c_dp, dest, comm, request, tag)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect data type", __LINE__, error=error)
@@ -356,9 +356,9 @@ CONTAINS
     CASE (dbcsr_type_real_8)
        CALL mp_irecv (msgin%d%r_dp, dest, comm, request, tag)
     CASE (dbcsr_type_complex_4)
-       CALL mp_irecv (msgin%d%r_sp, dest, comm, request, tag)
+       CALL mp_irecv (msgin%d%c_sp, dest, comm, request, tag)
     CASE (dbcsr_type_complex_8)
-       CALL mp_irecv (msgin%d%r_dp, dest, comm, request, tag)
+       CALL mp_irecv (msgin%d%c_dp, dest, comm, request, tag)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect data type", __LINE__, error=error)
