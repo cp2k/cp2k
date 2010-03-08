@@ -23,9 +23,9 @@ MODULE kg_neighbor_lists
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE external_potential_types,        ONLY: elp_potential_type,&
-                                             get_potential,&
-                                             gth_potential_type
+  USE external_potential_types,        ONLY: get_potential,&
+                                             gth_potential_type,&
+                                             kg_potential_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -112,8 +112,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
       maxatom_local, natom_a, natom_local_a, nkind, output_unit
-    LOGICAL                                  :: elp_potential_present, &
-                                                gth_potential_present
+    LOGICAL                                  :: gth_potential_present, &
+                                                kg_potential_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: aux_present, orb_present, &
                                                 ppl_present
     REAL(dp)                                 :: r_skin, subcells, unit_conv
@@ -126,9 +126,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
+    TYPE(kg_potential_type), POINTER         :: kg_potential
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
     TYPE(neighbor_list_set_p_type), &
@@ -147,7 +147,7 @@ CONTAINS
     NULLIFY (cell)
     NULLIFY (distribution_1d)
     NULLIFY (gth_potential)
-    NULLIFY (elp_potential)
+    NULLIFY (kg_potential)
     NULLIFY (orb_basis_set)
     NULLIFY (aux_basis_set)
     NULLIFY (particle_set)
@@ -172,7 +172,7 @@ CONTAINS
                     sac_ppl_aux=sac_ppl_aux,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             elp_potential_present=elp_potential_present,&
+                             kg_potential_present=kg_potential_present,&
                              gth_potential_present=gth_potential_present,&
                              maxatom=maxatom)
 
@@ -202,7 +202,7 @@ CONTAINS
                                      "aux_radius",nkind*dp_size)
     aux_radius(:) = 0.0_dp
 
-    IF (gth_potential_present.OR.elp_potential_present) THEN
+    IF (gth_potential_present.OR.kg_potential_present) THEN
 
       ALLOCATE (ppl_present(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -232,7 +232,7 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            atom_list=atom(ikind)%list,&
                            gth_potential=gth_potential,&
-                           elp_potential=elp_potential,&
+                           kg_potential=kg_potential,&
                            aux_basis_set=aux_basis_set,&
                            orb_basis_set=orb_basis_set)
 
@@ -313,8 +313,8 @@ CONTAINS
         CALL get_potential(potential=gth_potential,&
                            ppl_present=ppl_present(ikind),&
                            ppl_radius=ppl_radius(ikind))
-      ELSE IF (ASSOCIATED(elp_potential)) THEN
-        CALL get_potential(potential=elp_potential,&
+      ELSE IF (ASSOCIATED(kg_potential)) THEN
+        CALL get_potential(potential=kg_potential,&
                            ppl_present=ppl_present(ikind),&
                            ppl_radius=ppl_radius(ikind))
       END IF
@@ -323,7 +323,7 @@ CONTAINS
 
 !   *** Build orbital PPL operator overlap list ***
 
-    IF (gth_potential_present.OR.elp_potential_present) THEN
+    IF (gth_potential_present.OR.kg_potential_present) THEN
 
       neighbor_list_section => section_vals_get_subs_vals(force_env_section,"DFT%PRINT%NEIGHBOR_LISTS",error=error)
       IF (ANY(ppl_present).AND.ANY(orb_present)) THEN
@@ -403,7 +403,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "aux_radius")
 
-    IF (gth_potential_present.OR.elp_potential_present) THEN
+    IF (gth_potential_present.OR.kg_potential_present) THEN
 
       DEALLOCATE (ppl_present,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

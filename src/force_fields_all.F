@@ -19,7 +19,7 @@ MODULE force_fields_all
   USE cell_types,                      ONLY: cell_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE external_potential_types,        ONLY: elp_potential_type,&
+  USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              set_potential
   USE f77_blas
@@ -1982,7 +1982,7 @@ CONTAINS
                                                 scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha, charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(fist_potential_type), POINTER       :: fist_potential
 
     failure = .FALSE.
 
@@ -1995,10 +1995,10 @@ CONTAINS
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            elp_potential=elp_potential,&
+                            fist_potential=fist_potential,&
                             atom_list=my_atom_list,&
                             name=atmname)
-       CALL get_potential(potential=elp_potential,&
+       CALL get_potential(potential=fist_potential,&
                           qeff=charge(i), a_pol=alpha(i))
 
        is_shell = .FALSE.
@@ -2107,8 +2107,8 @@ CPSourceFileRef,&
           END IF
        END IF
 
-       CALL set_potential(potential=elp_potential,qeff=charge(i), a_pol=alpha(i))
-       CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
+       CALL set_potential(potential=fist_potential,qeff=charge(i),a_pol=alpha(i))
+       CALL set_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
        ! Sum up total charges for IO
        IF (found) THEN
           IF (is_shell) THEN

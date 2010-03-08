@@ -30,9 +30,9 @@ MODULE qs_interactions
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE external_potential_types,        ONLY: all_potential_type,&
-                                             elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type,&
+                                             kg_potential_type,&
                                              set_potential
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
@@ -108,15 +108,15 @@ CONTAINS
       POINTER                                :: zetg
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
                                                 aux_fit_basis_set, &
                                                 orb_basis_set, soft_basis
+    TYPE(kg_potential_type), POINTER         :: kg_potential
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
-    NULLIFY ( atomic_kind, all_potential, gth_potential, elp_potential, &
+    NULLIFY ( atomic_kind, all_potential, gth_potential, kg_potential, &
               orb_basis_set, aux_basis_set, soft_basis, geminal_basis_set, paw_proj_set)
     NULLIFY ( npgf, nprj_ppnl, nshell, nexp_ppl_elp, lshell, nprj )
     NULLIFY ( alpha_ppnl, cexp_ppl, set_radius, alpha_ppl_elp, cprj_ppnl, &
@@ -145,7 +145,7 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            all_potential=all_potential,&
                            gth_potential=gth_potential,&
-                           elp_potential=elp_potential,&
+                           kg_potential=kg_potential,&
                            aux_basis_set=aux_basis_set,&
                            aux_fit_basis_set=aux_fit_basis_set,&
                            orb_basis_set=orb_basis_set,&
@@ -289,11 +289,11 @@ CONTAINS
                            ppl_radius=ppl_radius,&
                            ppnl_radius=ppnl_radius)
 
-      ELSE IF (ASSOCIATED(elp_potential)) THEN
+      ELSE IF (ASSOCIATED(kg_potential)) THEN
 
         p_ccr = .TRUE.
         p_ppl = .TRUE.
-        CALL get_potential(potential=elp_potential,&
+        CALL get_potential(potential=kg_potential,&
                            alpha_core_charge=alpha_core_charge,&
                            ccore_charge=ccore_charge,&
                            alpha_ppl=alpha_ppl_elp,&
@@ -322,7 +322,7 @@ CONTAINS
           END DO
         END DO
 
-        CALL set_potential(potential=elp_potential,&
+        CALL set_potential(potential=kg_potential,&
                            core_charge_radius=core_charge_radius,&
                            ppl_radius=ppl_radius)
 
@@ -669,8 +669,8 @@ CONTAINS
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(kg_potential_type), POINTER         :: kg_potential
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -688,15 +688,15 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name,&
                all_potential=all_potential,&
-               elp_potential=elp_potential,&
+               kg_potential=kg_potential,&
                gth_potential=gth_potential)
           IF (ASSOCIATED(all_potential)) THEN
              CALL get_potential(potential=all_potential,&
                   core_charge_radius=core_charge_radius)
              WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
                   ikind,name,core_charge_radius*conv
-          ELSE IF (ASSOCIATED(elp_potential)) THEN
-             CALL get_potential(potential=elp_potential,&
+          ELSE IF (ASSOCIATED(kg_potential)) THEN
+             CALL get_potential(potential=kg_potential,&
                   core_charge_radius=core_charge_radius)
              WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
                   ikind,name,core_charge_radius*conv
@@ -1028,8 +1028,8 @@ CONTAINS
     REAL(KIND=dp)                            :: conv, ppl_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(kg_potential_type), POINTER         :: kg_potential
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -1046,15 +1046,15 @@ CONTAINS
         atomic_kind => atomic_kind_set(ikind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name,&
-                             elp_potential=elp_potential,&
+                             kg_potential=kg_potential,&
                              gth_potential=gth_potential)
         IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
                              ppl_radius=ppl_radius)
           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,ppl_radius*conv
-        ELSE IF (ASSOCIATED(elp_potential)) THEN
-          CALL get_potential(potential=elp_potential,&
+        ELSE IF (ASSOCIATED(kg_potential)) THEN
+          CALL get_potential(potential=kg_potential,&
                              ppl_radius=ppl_radius)
           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,ppl_radius*conv

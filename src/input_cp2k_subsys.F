@@ -427,7 +427,8 @@ CONTAINS
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
        CALL keyword_create(keyword, name="potential",&
             description="If the printkey is activated controls the printing of the"//&
-            " elp_potential, gth_potential or all electron potential information",&
+            " fist_potential, kg_potential gth_potential or all electron"//&
+            " potential information",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -813,7 +814,7 @@ CONTAINS
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="CP2K Pseudo Potential Standard Format (GTH, ALL or ELP)",&
+            description="CP2K Pseudo Potential Standard Format (GTH, ALL or KG)",&
             repeats=.TRUE.,type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

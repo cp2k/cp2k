@@ -22,7 +22,7 @@ MODULE mc_misc
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE external_potential_types,        ONLY: elp_potential_type,&
+  USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              gth_potential_type
   USE f77_blas
@@ -508,10 +508,10 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -538,7 +538,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 ! nullify some stuff
       NULLIFY(qs_env,atomic_kind_set,atomic_kind,gth_potential,&
-         orb_basis_set,elp_potential,input,xc_fun,kg_env,&
+         orb_basis_set,fist_potential,input,xc_fun,kg_env,&
          bond_list,bend_list,torsion_list,spline_section)
 
 ! grab some of the structures we're gonna need
@@ -656,8 +656,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          DO itype=1,ntypes
             atomic_kind => atomic_kind_set(itype)
             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-              name=name,elp_potential=elp_potential)
-            CALL get_potential(potential=elp_potential,&
+              name=name,fist_potential=fist_potential)
+            CALL get_potential(potential=fist_potential,&
               qeff=charge)
             WRITE(unit,10000) "      &CHARGE"
             WRITE(unit,20001) "        ATOM ",TRIM(ADJUSTL(name))
@@ -949,7 +949,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             atomic_kind => atomic_kind_set(itype)
             CALL get_atomic_kind(atomic_kind=atomic_kind,&
             element_symbol=element_symbol,gth_potential=gth_potential,&
-            orb_basis_set=orb_basis_set,elp_potential=elp_potential)
+            orb_basis_set=orb_basis_set,fist_potential=fist_potential)
 
             CALL get_gto_basis_set(orb_basis_set,name=name)
 
@@ -960,7 +960,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
                CALL get_potential(gth_potential,name=name)
                WRITE(unit,20001) "      POTENTIAL    ",TRIM(ADJUSTL(name))
             ELSE
-               CALL get_potential(elp_potential,name=name)
+               CALL get_potential(fist_potential,name=name)
                WRITE(unit,20001) "      POTENTIAL    ",TRIM(ADJUSTL(name))
             ENDIF
             WRITE(unit,10000) "    &END KIND"

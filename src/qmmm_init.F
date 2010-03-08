@@ -22,7 +22,7 @@ MODULE qmmm_init
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE external_potential_types,        ONLY: elp_potential_type,&
+  USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              set_potential
   USE f77_blas
@@ -107,7 +107,7 @@ CONTAINS
     INTEGER                                  :: I, ilink, IndMM
     REAL(dp)                                 :: qi, rc, ri
     TYPE(atomic_kind_type), POINTER          :: my_kind
-    TYPE(elp_potential_type), POINTER        :: my_potential
+    TYPE(fist_potential_type), POINTER       :: my_potential
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -119,11 +119,11 @@ CONTAINS
    DO I = 1, SIZE(mm_atom_index)
       IndMM = mm_atom_index(I)
       my_kind => particle_set(IndMM)%atomic_kind
-      CALL get_atomic_kind(atomic_kind=my_kind, elp_potential=my_potential)
+      CALL get_atomic_kind(atomic_kind=my_kind, fist_potential=my_potential)
       CALL get_potential  (potential=my_potential,&
                            qeff=qi,&
-                           core_charge_radius=ri,&
-                           ccore_charge_radius=rc)
+                           qmmm_radius=ri,&
+                           qmmm_corr_radius=rc)
       mm_atom_chrg(I)          = qi
       mm_el_pot_radius(I)      = ri
       mm_el_pot_radius_corr(I) = rc
@@ -489,7 +489,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_sph_cut
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(section_vals_type), POINTER         :: cell_section, mm_kinds
 
     NULLIFY(mm_link_atoms, cell_section, tmp_sph_cut)
@@ -528,12 +528,12 @@ CPSourceFileRef,&
        DO Ikind = 1, SIZE(atomic_kinds%els)
           atomic_kind => atomic_kinds%els(Ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               elp_potential=elp_potential)
-          CALL set_potential  (potential=elp_potential,&
-                               core_charge_radius=tmp_radius,&
-                               ccore_charge_radius=tmp_radius)
+                               fist_potential=fist_potential)
+          CALL set_potential  (potential=fist_potential,&
+                               qmmm_radius=tmp_radius,&
+                               qmmm_corr_radius=tmp_radius)
           CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                               elp_potential=elp_potential)
+                               fist_potential=fist_potential)
        END DO
        CALL setup_qm_atom_list(qmmm_section=qmmm_section,&
                                qm_atom_index=qm_atom_index,&
@@ -554,12 +554,11 @@ CPSourceFileRef,&
           atomic_kind => atomic_kinds%els(IkindR)
           CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               elp_potential=elp_potential)
-          CALL set_potential  (potential=elp_potential,&
-               core_charge_radius=tmp_radius,&
-               ccore_charge_radius=tmp_radius)
+               fist_potential=fist_potential)
+          CALL set_potential(potential=fist_potential,qmmm_radius=tmp_radius,&
+               qmmm_corr_radius=tmp_radius)
           CALL set_atomic_kind(atomic_kind=atomic_kind,&
-               elp_potential=elp_potential)
+               fist_potential=fist_potential)
        END DO Set_Radius_Pot_0
        !
        ! If present overwrite the kind specified in input file...
@@ -580,12 +579,12 @@ CPSourceFileRef,&
                 is_qm = qmmm_ff_precond_only_qm(atmname)
                 IF (TRIM(mm_atom_kind)==atmname) THEN
                    CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                        elp_potential=elp_potential)
-                   CALL set_potential  (potential=elp_potential,&
-                        core_charge_radius=tmp_radius,&
-                        ccore_charge_radius=tmp_radius_c)
+                        fist_potential=fist_potential)
+                   CALL set_potential(potential=fist_potential,&
+                        qmmm_radius=tmp_radius,&
+                        qmmm_corr_radius=tmp_radius_c)
                    CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                        elp_potential=elp_potential)
+                        fist_potential=fist_potential)
                 END IF
              END DO Set_Radius_Pot_1
           END DO

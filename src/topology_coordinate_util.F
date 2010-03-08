@@ -16,7 +16,7 @@ MODULE topology_coordinate_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: allocate_potential,&
-                                             elp_potential_type,&
+                                             fist_potential_type,&
                                              get_potential,&
                                              set_potential
   USE f77_blas
@@ -91,9 +91,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: atmname, &
-                                                my_elp_description(2), &
-                                                my_elp_name
+    CHARACTER(LEN=default_string_length)     :: atmname
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: element
     CHARACTER(LEN=default_string_length), &
@@ -105,8 +103,7 @@ CONTAINS
                                                 natom_of_kind, wlist
     LOGICAL :: check, do_center, explicit, failure, found, my_qmmm, &
       present_12_excl_ei_list, present_12_excl_vdw_list
-    REAL(KIND=dp)                            :: alpha_core_charge, &
-                                                bounds(2,3), cdims(3), &
+    REAL(KIND=dp)                            :: bounds(2,3), cdims(3), &
                                                 dims(3), qeff, vec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, cpoint, mass
     TYPE(array1_list_type), DIMENSION(:), &
@@ -118,7 +115,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(section_vals_type), POINTER         :: exclude_section, &
@@ -623,7 +620,7 @@ CPSourceFileRef,&
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 10. Set the atomic_kind_set()%elp_potentail%[qeff] (PART 1)
+    ! 10. Set the atomic_kind_set()%fist_potentail%[qeff] (PART 1)
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_10',handle2)
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
@@ -631,20 +628,11 @@ CPSourceFileRef,&
        DO i=1,SIZE(atomic_kind_set)
           atomic_kind => atomic_kind_set(i)
           CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
-          qeff = -10000.0_dp
-          alpha_core_charge = -10000.0_dp
           qeff = charge(i)
-          my_elp_name = TRIM("FIST_"//TRIM(atmname))
-          my_elp_description(1) = "FIST Electrostatic Potential"
-          my_elp_description(2) = "                            "
-          NULLIFY(elp_potential)
-          CALL allocate_potential(elp_potential,error)
-          CALL set_potential(potential=elp_potential,&
-               qeff=qeff,&
-               alpha_core_charge=alpha_core_charge,&
-               name=my_elp_name,&
-               description=my_elp_description)
-          CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
+          NULLIFY(fist_potential)
+          CALL allocate_potential(fist_potential,error)
+          CALL set_potential(potential=fist_potential,qeff=qeff)
+          CALL set_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
        END DO
     END IF
     DEALLOCATE(charge,STAT=stat)
@@ -669,8 +657,8 @@ CPSourceFileRef,&
              atomic_kind => atomic_kind_set(k)
              CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
              IF(method_name_id == do_fist) THEN
-                CALL get_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
-                CALL get_potential(potential=elp_potential,qeff=qeff)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
+                CALL get_potential(potential=fist_potential,qeff=qeff)
                 IF((atom_list(j)%name == atmname).AND.(qeff==atom_info%atm_charge(first+j-1)) ) THEN
                    atom_list(j)%atomic_kind => atomic_kind_set(k)
                    EXIT

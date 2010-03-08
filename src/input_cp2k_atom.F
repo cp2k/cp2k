@@ -702,7 +702,7 @@ CONTAINS
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="CP2K Pseudo Potential Standard Format (GTH, ALL or ELP)",&
+            description="CP2K Pseudo Potential Standard Format (GTH, ALL or KG)",&
             repeats=.TRUE.,type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -26,9 +26,9 @@ MODULE kg_ppl
   USE dynamical_coeff_types,           ONLY: dyn_coeff_distributed,&
                                              dyn_coeff_set_type,&
                                              dyn_coeff_type
-  USE external_potential_types,        ONLY: elp_potential_type,&
-                                             get_potential,&
-                                             gth_potential_type
+  USE external_potential_types,        ONLY: get_potential,&
+                                             gth_potential_type,&
+                                             kg_potential_type
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -86,8 +86,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: elp_potential_present, &
-                                                gth_potential_present, &
+    LOGICAL                                  :: gth_potential_present, &
+                                                kg_potential_present, &
                                                 ppl_present
     REAL(KIND=dp)                            :: alfa, dab, dac, dbc, e_ppl, &
                                                 rab2, rac2, rbc2
@@ -102,12 +102,12 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(kg_potential_type), POINTER         :: kg_potential
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sac_ppl
     TYPE(neighbor_list_type), POINTER        :: sac_ppl_neighbor_list
@@ -146,7 +146,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
+    NULLIFY(atomic_kind_set,atomic_kind,cexp,kg_potential,gth_potential)
     NULLIFY(orb_basis_set,particle_set,sac_ppl,set_radius_a,rpgfa,sphi_a,zeta)
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles,my_alpha)
@@ -199,7 +199,7 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
-                             elp_potential_present=elp_potential_present,&
+                             kg_potential_present=kg_potential_present,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
                              maxlppl=maxlppl,&
@@ -267,11 +267,11 @@ CONTAINS
         atomic_kind => atomic_kind_set(ikind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             elp_potential=elp_potential,&
+                             kg_potential=kg_potential,&
                              gth_potential=gth_potential)
 
-        IF (ASSOCIATED(elp_potential)) THEN
-          CALL get_potential(potential=elp_potential,&
+        IF (ASSOCIATED(kg_potential)) THEN
+          CALL get_potential(potential=kg_potential,&
                              alpha_ppl=my_alpha,&
                              cexp_ppl=my_c,&
                              ppl_radius=ppl_radius(ikind))
@@ -592,8 +592,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: elp_potential_present, &
-                                                gth_potential_present, &
+    LOGICAL                                  :: gth_potential_present, &
+                                                kg_potential_present, &
                                                 ppl_present
     REAL(KIND=dp)                            :: alfa, coef, dab, dac, dbc, &
                                                 e_ppl, rab2, rac2, rbc2
@@ -610,12 +610,12 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(kg_potential_type), POINTER         :: kg_potential
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sac_ppl_aux
     TYPE(neighbor_list_type), POINTER        :: sac_ppl_neighbor_list
@@ -653,7 +653,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
+    NULLIFY(atomic_kind_set,atomic_kind,cexp,kg_potential,gth_potential)
     NULLIFY(aux_basis_set,particle_set,sac_ppl_aux,set_radius_a,rpgfa,sphi_a,zeta)
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles)
@@ -712,7 +712,7 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
-                             elp_potential_present=elp_potential_present,&
+                             kg_potential_present=kg_potential_present,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
                              maxlppl=maxlppl,&
@@ -780,11 +780,11 @@ CONTAINS
         atomic_kind => atomic_kind_set(ikind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             elp_potential=elp_potential,&
+                             kg_potential=kg_potential,&
                              gth_potential=gth_potential)
 
-        IF (ASSOCIATED(elp_potential)) THEN
-          CALL get_potential(potential=elp_potential,&
+        IF (ASSOCIATED(kg_potential)) THEN
+          CALL get_potential(potential=kg_potential,&
                              alpha_ppl=alpha_ppl(ikind)%alpha,&
                              cexp_ppl=cexp_ppl(ikind)%c,&
                              ppl_radius=ppl_radius(ikind))
