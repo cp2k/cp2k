@@ -2226,6 +2226,7 @@ END SUBROUTINE make_full_all_ortho
     d_offset = 1
     DO k = 1,nblkrows_total
        !write(*,*) 'enter loop k=',k
+       tr = .FALSE.
        CALL dbcsr_get_stored_coordinates (mat_t, k, k, tr, proc_holds_diag_blk)
        !write(*,*) 'proc_holds_diag_blk',proc_holds_diag_blk, proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)
 

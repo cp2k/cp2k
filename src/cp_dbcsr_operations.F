@@ -2039,6 +2039,7 @@ CONTAINS
     row = 1
     col = b_col
     !write(*,*) 'dbcsr_multiply_vec: row, col',row,col
+    tr = .FALSE.
     CALL dbcsr_get_stored_coordinates (matrix_b, row, col, tr, node)
     !write(*,*) 'dbcsr_multiply_vec: node',node
     CALL dbcsr_mp_get_coordinates(mp_obj, node, prow, pcol)
@@ -2619,6 +2620,7 @@ CONTAINS
           row_size = row_blk_size(row)
           nze = row_size*col_size
           ! add block only on the correct node
+          tr = .FALSE.
           CALL dbcsr_get_stored_coordinates (matrix, row, col, tr, node)
           IF(node.EQ.mynode) CALL dbcsr_put_block(matrix, row, col, &
                pkd_vec(INT(pkd_vec(row)):INT(pkd_vec(row)+nze-1)), &
@@ -2635,6 +2637,7 @@ CONTAINS
           col_size = col_blk_size(col)
           nze = row_size*col_size
           ! add block only on the correct node
+          tr = .FALSE.
           CALL dbcsr_get_stored_coordinates (matrix, row, col, tr, node)
           IF(node.EQ.mynode) CALL dbcsr_put_block(matrix, row, col, &
                pkd_vec(INT(pkd_vec(col)):INT(pkd_vec(col)+nze-1)),&
@@ -3341,7 +3344,7 @@ CONTAINS
          existed=existed)
 !
     IF (dbg) THEN
-       r = block_row ; c = block_col
+       r = block_row ; c = block_col ; tr = .FALSE.
        CALL dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
        CALL cp_assert (p .EQ. dbcsr_mp_mynode (dbcsr_distribution_mp (&
             matrix%m%dist)),&
