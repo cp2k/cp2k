@@ -958,7 +958,7 @@ CONTAINS
      END DO
     END IF
 
-!$omp do schedule(dynamic,ntasks/natoms*12/nthread)
+!$omp do schedule(dynamic,MAX(1,(ntasks*12)/(natoms*nthread)))
     loop_tasks: DO itask=1,ntasks
        !decode the atom pair and basis info
        CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
