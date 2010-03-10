@@ -677,15 +677,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="eigensolver",&
-         description=" Tests the eigensolver,ABS(n) is the matrix dimension: "//&
-         "n > 0: the matrix will be filled WITH random numbers; "//&
-         "n < 0: the matrix is READ from the formatted file named MATRIX; "//&
-         "m > 0: eigenvalues will be calculated",&
-         usage="eigensolver n m",default_i_vals=(/0,0/),error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
     CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
          description="Controls the printing of information regarding the PW and RS grid structures"//&
          " (ONLY for TEST run).",&
@@ -703,6 +694,10 @@ CONTAINS
 
     NULLIFY(subsection)
     CALL create_rs_pw_transfer_section(subsection,error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+    CALL create_eigensolver_section(subsection,error)
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
 
@@ -932,6 +927,70 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
   END SUBROUTINE create_cp_fm_gemm_section
+
+! *****************************************************************************
+!> \brief   creates the eigensolver section for use in the test section
+!> \author  Joost VandeVondele
+!> \date    2010-03-10
+! *****************************************************************************
+  SUBROUTINE create_eigensolver_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_eigensolver_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="EIGENSOLVER",&
+         description="Benchmark and test the eigensolver routines.",&
+         n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="N",&
+         description="Dimension of the square matrix",&
+         usage="N 1024",default_i_val=256,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="N_LOOP",&
+         description="Number of operations being timed (useful for small matrices).",&
+         usage="N_LOOP 10",default_i_val=10,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="DIAG_METHOD",&
+         description="Diagonalization strategy",&
+         usage="DIAG_METHOD syevd",&
+         enum_c_vals=s2a("syevd","syevx"),&
+         enum_desc=s2a("(sca)lapacks syevd","(sca)lapacks syevx"),&
+         enum_i_vals=(/ do_diag_syevd, do_diag_syevx/),&
+         default_i_val=do_diag_syevd, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="EIGENVALUES",&
+         description="number of eigenvalues to be computed (all=<0) ",&
+         usage="EIGENVALUES 13",default_i_val=-1,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="INIT_METHOD",&
+         description="Initialization approach",&
+         usage="INIT_METHOD RANDOM",&
+         enum_c_vals=s2a("random","read"),&
+         enum_desc=s2a("use a random initial matrix", "read a matrix from file MATRIX"),&
+         enum_i_vals=(/ do_mat_random, do_mat_read/),&
+         default_i_val=do_mat_random, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+  END SUBROUTINE create_eigensolver_section
 
 ! *****************************************************************************
 !> \brief   creates the cp_dbcsr section for use in the test section

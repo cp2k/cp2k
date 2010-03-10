@@ -63,6 +63,13 @@ MODULE input_constants
                                               BLACS_GRID_ROW    = 2,&
                                               BLACS_GRID_COL    = 3
 
+  ! diag methods
+  INTEGER, PARAMETER, PUBLIC               :: do_diag_syevd = 1,&
+                                              do_diag_syevx = 2
+  ! initial matrix methods methods
+  INTEGER, PARAMETER, PUBLIC               :: do_mat_random = 1,&
+                                              do_mat_read = 2
+
   ! EWALD methods
   INTEGER, PARAMETER, PUBLIC               :: do_ewald_none=1,&
                                               do_ewald_ewald=2,&

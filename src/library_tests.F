@@ -22,8 +22,7 @@ MODULE library_tests
                                              init_cell
   USE cg_test,                         ONLY: clebsch_gordon_test
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
-                                             cp_blacs_env_release,&
-                                             cp_blacs_env_write
+                                             cp_blacs_env_release
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -32,8 +31,7 @@ MODULE library_tests
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_type,&
-                                             cp_fm_struct_write
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
@@ -52,7 +50,11 @@ MODULE library_tests
                                              fft_radix_operations,&
                                              init_fft
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_pwgrid_ns_fullspace,&
+  USE input_constants,                 ONLY: do_diag_syevd,&
+                                             do_diag_syevx,&
+                                             do_mat_random,&
+                                             do_mat_read,&
+                                             do_pwgrid_ns_fullspace,&
                                              do_pwgrid_ns_halfspace,&
                                              do_pwgrid_spherical
   USE input_section_types,             ONLY: section_vals_get,&
@@ -132,7 +134,8 @@ CONTAINS
     LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: cp_dbcsr_test_section, &
-      cp_fm_gemm_test_section, pw_transfer_section, rs_pw_transfer_section
+      cp_fm_gemm_test_section, eigensolver_section, pw_transfer_section, &
+      rs_pw_transfer_section
 
     CALL timeset(routineN,handle)
 
@@ -164,8 +167,6 @@ CONTAINS
     !
     IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw, error)
     !
-    IF ( runtest ( 10 )/= 0 ) CALL eigensolver_test( para_env, globenv, iw, error)
-
     rs_pw_transfer_section => section_vals_get_subs_vals(root_section,"TEST%RS_PW_TRANSFER",error=error)
     CALL section_vals_get(rs_pw_transfer_section,explicit=explicit, error=error)
     IF (explicit) THEN
@@ -180,10 +181,18 @@ CONTAINS
 
     cp_fm_gemm_test_section => section_vals_get_subs_vals(root_section,"TEST%CP_FM_GEMM",error=error)
     CALL section_vals_get(cp_fm_gemm_test_section,explicit=explicit, error=error)
-
     IF (explicit) THEN
       CALL cp_fm_gemm_test ( para_env, iw, cp_fm_gemm_test_section, error )
     ENDIF
+
+    eigensolver_section => section_vals_get_subs_vals(root_section,"TEST%EIGENSOLVER",error=error)
+    CALL section_vals_get(eigensolver_section,explicit=explicit, error=error)
+    IF (explicit) THEN
+      CALL eigensolver_test( para_env, iw,eigensolver_section,& 
+                                blacs_grid_layout=globenv%blacs_grid_layout,&
+                                blacs_repeatable=globenv%blacs_repeatable, error=error )
+    ENDIF
+
 
     ! DBCSR tests
     cp_dbcsr_test_section => section_vals_get_subs_vals(root_section,&
@@ -216,12 +225,6 @@ CONTAINS
 !> I    RS_GRIDS n                                                             I
 !> I    MPI      n                                                             I
 !> I    RNG      n             -> Parallel random number generator             I
-!> I    EIGENSOLVER n m        -> ABS(n) is the matrix dimension:              I
-!> I                              n > 0: the matrix will be filled with random I
-!> I                                     numbers                               I
-!> I                              n < 0: the matrix is read from the formatted I
-!> I                                     file named MATRIX                     I
-!> I                              m > 0: eigenvalues will be calculated        I
 !> I---------------------------------------------------------------------------I
 !> \author JGH 30-NOV-2000
 ! *****************************************************************************
@@ -233,7 +236,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'test_input', &
       routineP = moduleN//':'//routineN
 
-    INTEGER, DIMENSION(:), POINTER           :: i_vals
     TYPE(section_vals_type), POINTER         :: test_section
 
 !
@@ -249,9 +251,6 @@ CONTAINS
     CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest(6),error=error )
     CALL section_vals_val_get(test_section,'mpi',i_val=runtest (8),error=error )
     CALL section_vals_val_get(test_section,'rng',i_val=runtest(9),error=error )
-    CALL section_vals_val_get(test_section,'eigensolver',i_vals=i_vals,error=error )
-    runtest(10) = i_vals(1)
-    runtest(11) = MIN(MAX(1,i_vals(2)),ABS(i_vals(1)))
 
     CALL mp_sync(para_env%group)
   END SUBROUTINE test_input
@@ -1558,19 +1557,21 @@ CONTAINS
 !>      JGH  6-Feb-2001 : Test and performance code
 !> \author JGH  1-JAN-2001
 ! *****************************************************************************
-  SUBROUTINE eigensolver_test(para_env,globenv,output_unit,error)
+  SUBROUTINE eigensolver_test(para_env, iw, eigensolver_section, blacs_grid_layout, blacs_repeatable, error )
+
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER                                  :: output_unit
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER                                  :: iw
+    TYPE(section_vals_type), POINTER         :: eigensolver_section
+    INTEGER                                  :: blacs_grid_layout
+    LOGICAL                                  :: blacs_repeatable
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, i, j, n, neig, &
-                                                nrow_global, source, &
-                                                unit_number
-    LOGICAL                                  :: ionode
+    INTEGER :: diag_method, group, i, i_loop, i_rep, init_method, j, n, &
+      n_loop, n_rep, neig, nrow_global, source, unit_number
+    REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: buffer
@@ -1579,197 +1580,216 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: eigenvectors, matrix, work
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    nrow_global = runtest(10)
-    neig   = runtest(11)
     group  = para_env%group
-    ionode = para_env%ionode
     source = para_env%source
-    n = ABS(nrow_global)
 
-    IF (ionode) THEN
-       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "EIGENSOLVER TEST"
+    IF (iw>0) THEN
+       WRITE (UNIT=iw,FMT="(/,/,T2,A,/)") "EIGENSOLVER TEST"
     END IF
 
+    ! create blacs env corresponding to para_env
     NULLIFY (blacs_env)
     CALL cp_blacs_env_create(blacs_env=blacs_env,&
                              para_env=para_env,&
-                             blacs_grid_layout=globenv%blacs_grid_layout,&
-                             blacs_repeatable=globenv%blacs_repeatable,&
                              error=error)
-    IF (ionode) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
-            "BLACS_ENV (BLACS environment)"
-       CALL cp_blacs_env_write(blacs_env=blacs_env,&
-                               unit_nr=output_unit,&
-                               error=error)
-    END IF
 
-    NULLIFY (fmstruct)
-    CALL cp_fm_struct_create(fmstruct=fmstruct,&
-                             para_env=para_env,&
-                             context=blacs_env,&
-                             nrow_global=n,&
-                             ncol_global=n,&
-                             error=error)
-    IF (ionode) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)")&
-            "FMSTRUCT (Full Matrix STRUCTure information)"
-       CALL cp_fm_struct_write(fmstruct=fmstruct,&
-                               unit_nr=output_unit,&
-                               long_description=.TRUE.,&
-                               error=error)
-    END IF
+    ! loop over all tests
+    CALL section_vals_get(eigensolver_section,n_repetition=n_rep,error=error)
+    DO i_rep=1,n_rep
 
-    NULLIFY (matrix)
-    CALL cp_fm_create(matrix=matrix,&
-                      matrix_struct=fmstruct,&
-                      name="MATRIX",&
-                      error=error)
-    CALL cp_fm_set_all(matrix,0.0_dp,error=error)
+       ! parse section
+       CALL section_vals_val_get(eigensolver_section,"N",i_rep_section=i_rep,i_val=n,error=error)
+       CALL section_vals_val_get(eigensolver_section,"EIGENVALUES",i_rep_section=i_rep,i_val=neig,error=error)
+       CALL section_vals_val_get(eigensolver_section,"DIAG_METHOD",i_rep_section=i_rep,i_val=diag_method,error=error)
+       CALL section_vals_val_get(eigensolver_section,"INIT_METHOD",i_rep_section=i_rep,i_val=init_method,error=error)
+       CALL section_vals_val_get(eigensolver_section,"N_loop",i_rep_section=i_rep,i_val=n_loop,error=error)
 
-    NULLIFY (eigenvectors)
-    CALL cp_fm_create(matrix=eigenvectors,&
-                      matrix_struct=fmstruct,&
-                      name="EIGENVECTORS",&
-                      error=error)
-    CALL cp_fm_set_all(eigenvectors,0.0_dp,error=error)
+       ! proper number of eigs
+       IF (neig<0) neig=n
+       neig=MIN(neig,n)
 
-    NULLIFY (work)
-    CALL cp_fm_create(matrix=work,&
-                      matrix_struct=fmstruct,&
-                      name="WORK",&
-                      error=error)
-    CALL cp_fm_set_all(matrix,0.0_dp,error=error)
+       ! report
+       IF (iw>0) THEN
+          WRITE(iw,*) "Matrix size",n
+          WRITE(iw,*) "Number of eigenvalues",neig
+          WRITE(iw,*) "Timing loops",n_loop
+          SELECT CASE(diag_method) 
+          CASE(do_diag_syevd)
+              WRITE(iw,*) "Diag using syevd"
+          CASE(do_diag_syevx)
+              WRITE(iw,*) "Diag using syevx"
+          CASE DEFAULT
+              ! stop
+          END SELECT
 
-    ALLOCATE (eigenvalues(n))
-    eigenvalues = 0.0_dp
+          SELECT CASE(init_method) 
+          CASE(do_mat_random)
+              WRITE(iw,*) "using random matrix"
+          CASE(do_mat_read)
+              WRITE(iw,*) "reading from file"
+          CASE DEFAULT
+              ! stop
+          END SELECT
+       ENDIF
 
-    ALLOCATE (buffer(1,n))
 
-    IF (ionode) THEN
-       IF (nrow_global > 0) THEN
-          NULLIFY (rng_stream)
-          CALL create_rng_stream(rng_stream=rng_stream,&
-                                 name="rng_stream",&
-                                 distribution_type=UNIFORM,&
-                                 extended_precision=.TRUE.,error=error)
-       ELSE
-          CALL open_file(file_name="MATRIX",&
-                         file_action="READ",&
-                         file_form="FORMATTED",&
-                         file_status="OLD",&
-                         unit_number=unit_number)
+       ! create matrix struct type
+       NULLIFY (fmstruct)
+       CALL cp_fm_struct_create(fmstruct=fmstruct,&
+                                para_env=para_env,&
+                                context=blacs_env,&
+                                nrow_global=n,&
+                                ncol_global=n,&
+                                error=error)
+
+       ! create all needed matrices, and buffers for the eigenvalues
+       NULLIFY (matrix)
+       CALL cp_fm_create(matrix=matrix,&
+                         matrix_struct=fmstruct,&
+                         name="MATRIX",&
+                         error=error)
+       CALL cp_fm_set_all(matrix,0.0_dp,error=error)
+
+       NULLIFY (eigenvectors)
+       CALL cp_fm_create(matrix=eigenvectors,&
+                         matrix_struct=fmstruct,&
+                         name="EIGENVECTORS",&
+                         error=error)
+       CALL cp_fm_set_all(eigenvectors,0.0_dp,error=error)
+
+       NULLIFY (work)
+       CALL cp_fm_create(matrix=work,&
+                         matrix_struct=fmstruct,&
+                         name="WORK",&
+                         error=error)
+       CALL cp_fm_set_all(matrix,0.0_dp,error=error)
+
+       ALLOCATE (eigenvalues(n))
+       eigenvalues = 0.0_dp
+       ALLOCATE (buffer(1,n))
+
+       ! generate initial matrix, either by reading a file, or using random numbers
+       IF (para_env%mepos==para_env%source) THEN
+          SELECT CASE(init_method)
+          CASE(do_mat_random)
+             NULLIFY (rng_stream)
+             CALL create_rng_stream(rng_stream=rng_stream,&
+                                    name="rng_stream",&
+                                    distribution_type=UNIFORM,&
+                                    extended_precision=.TRUE.,error=error)
+          CASE(do_mat_read)
+             CALL open_file(file_name="MATRIX",&
+                            file_action="READ",&
+                            file_form="FORMATTED",&
+                            file_status="OLD",&
+                            unit_number=unit_number)
+          END SELECT
        END IF
-    END IF
 
-    DO i=1,n
-       IF (ionode) THEN
-          IF (nrow_global > 0) THEN
-             DO j=i,n
-                buffer(1,j) = next_random_number(rng_stream,error=error) - 0.5_dp
-             END DO
-             !MK activate/modify for a diagonal dominant symmetric matrix:
-             !MK buffer(1,i) = 10.0_dp*buffer(1,i)
-          ELSE
-             READ (UNIT=unit_number,FMT=*) buffer(1,1:n)
+       DO i=1,n
+          IF (para_env%mepos==para_env%source) THEN
+             SELECT CASE(init_method)
+             CASE(do_mat_random)
+                DO j=i,n
+                   buffer(1,j) = next_random_number(rng_stream,error=error) - 0.5_dp
+                END DO
+                !MK activate/modify for a diagonal dominant symmetric matrix:
+                !MK buffer(1,i) = 10.0_dp*buffer(1,i)
+             CASE(do_mat_read)
+                READ (UNIT=unit_number,FMT=*) buffer(1,1:n)
+             END SELECT
           END IF
-       END IF
-       CALL mp_bcast(buffer,source,group)
-       IF (nrow_global > 0) THEN
-          CALL cp_fm_set_submatrix(fm=matrix,&
-                                   new_values=buffer,&
-                                   start_row=i,&
-                                   start_col=i,&
-                                   n_rows=1,&
-                                   n_cols=n-i+1,&
-                                   alpha=1.0_dp,&
-                                   beta=0.0_dp,&
-                                   transpose=.FALSE.,&
-                                   error=error)
-          CALL cp_fm_set_submatrix(fm=matrix,&
-                                   new_values=buffer,&
-                                   start_row=i,&
-                                   start_col=i,&
-                                   n_rows=n-i+1,&
-                                   n_cols=1,&
-                                   alpha=1.0_dp,&
-                                   beta=0.0_dp,&
-                                   transpose=.TRUE.,&
-                                   error=error)
-       ELSE
-          CALL cp_fm_set_submatrix(fm=matrix,&
-                                   new_values=buffer,&
-                                   start_row=i,&
-                                   start_col=1,&
-                                   n_rows=1,&
-                                   n_cols=n,&
-                                   alpha=1.0_dp,&
-                                   beta=0.0_dp,&
-                                   transpose=.FALSE.,&
-                                   error=error)
-       END IF
-    END DO
-
-    DEALLOCATE (buffer)
-
-    IF (ionode) THEN
-       IF (nrow_global > 0) THEN
-          CALL delete_rng_stream(rng_stream=rng_stream,error=error)
-          WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
-               n," x ",n," matrix generated using random numbers [-0.5,+0.5]"
-       ELSE
-          CALL close_file(unit_number=unit_number)
-          WRITE (UNIT=output_unit,FMT="(/,/,T3,2(I5,A),/)")&
-               n," x ",n," matrix read from file MATRIX"
-       END IF
-    END IF
-
-    ! Divide-and-conquer driver
-    CALL cp_fm_to_fm(source=matrix,&
-                     destination=work,&
-                     error=error)
-    CALL cp_fm_syevd(matrix=work,&
-                     eigenvectors=eigenvectors,&
-                     eigenvalues=eigenvalues,&
-                     error=error)
-
-    IF (ionode) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVD)"
-       DO i=1,neig
-          WRITE (UNIT=output_unit,FMT="(T3,I6,F14.6)") i,eigenvalues(i)
+          CALL mp_bcast(buffer,source,group)
+          SELECT CASE(init_method)
+          CASE(do_mat_random)
+             CALL cp_fm_set_submatrix(fm=matrix,&
+                                      new_values=buffer,&
+                                      start_row=i,&
+                                      start_col=i,&
+                                      n_rows=1,&
+                                      n_cols=n-i+1,&
+                                      alpha=1.0_dp,&
+                                      beta=0.0_dp,&
+                                      transpose=.FALSE.,&
+                                      error=error)
+             CALL cp_fm_set_submatrix(fm=matrix,&
+                                      new_values=buffer,&
+                                      start_row=i,&
+                                      start_col=i,&
+                                      n_rows=n-i+1,&
+                                      n_cols=1,&
+                                      alpha=1.0_dp,&
+                                      beta=0.0_dp,&
+                                      transpose=.TRUE.,&
+                                      error=error)
+          CASE(do_mat_read)
+             CALL cp_fm_set_submatrix(fm=matrix,&
+                                      new_values=buffer,&
+                                      start_row=i,&
+                                      start_col=1,&
+                                      n_rows=1,&
+                                      n_cols=n,&
+                                      alpha=1.0_dp,&
+                                      beta=0.0_dp,&
+                                      transpose=.FALSE.,&
+                                      error=error)
+          END SELECT
        END DO
-       WRITE (UNIT=output_unit,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
-    END IF
 
-    ! Expert driver
+       DEALLOCATE (buffer)
 
-    eigenvalues = 0.0_dp
-    CALL cp_fm_set_all(eigenvectors,0.0_dp,error=error)
-    CALL cp_fm_to_fm(source=matrix,&
-                     destination=work,&
-                     error=error)
-    CALL cp_fm_syevx(matrix=work,&
-                     eigenvectors=eigenvectors,&
-                     eigenvalues=eigenvalues,&
-                     neig=neig,&
-                     work_syevx=1.0_dp,&
-                     error=error)
+       IF (para_env%mepos==para_env%source) THEN
+          SELECT CASE(init_method)
+          CASE(do_mat_random)
+             CALL delete_rng_stream(rng_stream=rng_stream,error=error)
+          CASE(do_mat_read)
+             CALL close_file(unit_number=unit_number)
+          END SELECT
+       END IF
 
-    IF (ionode) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVX)"
-       DO i=1,neig
-          WRITE (UNIT=output_unit,FMT="(T3,I6,F14.6)") i,eigenvalues(i)
-       END DO
-       WRITE (UNIT=output_unit,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
-    END IF
+       DO i_loop=1,n_loop
+          eigenvalues = 0.0_dp
+          CALL cp_fm_set_all(eigenvectors,0.0_dp,error=error)
+          CALL cp_fm_to_fm(source=matrix,&
+                           destination=work,&
+                           error=error)
 
-    ! Clean up
+          ! DONE, now testing
+          t1=m_walltime()
+          SELECT CASE(diag_method)
+          CASE(do_diag_syevd)
+            CALL cp_fm_syevd(matrix=work,&
+                             eigenvectors=eigenvectors,&
+                             eigenvalues=eigenvalues,&
+                             error=error)
+          CASE(do_diag_syevx)
+            CALL cp_fm_syevx(matrix=work,&
+                             eigenvectors=eigenvectors,&
+                             eigenvalues=eigenvalues,&
+                             neig=neig,&
+                             work_syevx=1.0_dp,&
+                             error=error)
+          END SELECT
+          t2=m_walltime()
+          IF (iw>0) WRITE(iw,*) "Timing for loop ",i_loop," : ",t2-t1
+       ENDDO
 
-    DEALLOCATE (eigenvalues)
-    CALL cp_fm_release(matrix=work,error=error)
-    CALL cp_fm_release(matrix=eigenvectors,error=error)
-    CALL cp_fm_release(matrix=matrix,error=error)
-    CALL cp_fm_struct_release(fmstruct=fmstruct,error=error)
+       IF (iw>0) THEN
+          WRITE(iw,*) "Eigenvalues: "
+          WRITE (UNIT=iw,FMT="(T3,5F14.6)") eigenvalues(1:neig)
+          WRITE (UNIT=iw,FMT="(T3,A4,F16.6)") "Sum:",SUM(eigenvalues(1:neig))
+          WRITE(iw,*) ""
+       END IF
+
+       ! Clean up
+       DEALLOCATE (eigenvalues)
+       CALL cp_fm_release(matrix=work,error=error)
+       CALL cp_fm_release(matrix=eigenvectors,error=error)
+       CALL cp_fm_release(matrix=matrix,error=error)
+       CALL cp_fm_struct_release(fmstruct=fmstruct,error=error)
+
+    ENDDO
+
     CALL cp_blacs_env_release(blacs_env=blacs_env,error=error)
 
   END SUBROUTINE eigensolver_test
