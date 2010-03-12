@@ -1044,11 +1044,9 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_obj)                          :: matrix
 
-    IF (.FALSE.) THEN
+    IF (.TRUE.) THEN
        r4 => dbcsr_get_data_p (data_area, 0.0_real_4)
        r8 => dbcsr_get_data_p (data_area, 0.0_real_8)
-       CALL mp_sum (i, 0)
-       CALL mp_bcast (key, 0, 0)
        CALL addto_array (data_area, r8, error=error)
        CALL btree_add_s (bt_s, key, bt_ds)
        CALL btree_add_d (bt_d, key, bt_dd)
@@ -1060,7 +1058,7 @@ CONTAINS
        CALL btree_get_z (bt_z, key, bt_dz)
        p_i => array_data (array_i)
     ENDIF
-    IF (.FALSE.) THEN
+    IF (.TRUE.) THEN
        temp => dbcsr_get_data_p (data_area, 0.0_dp)
        CALL dbcsr_get_info (matrix)
        CALL dbcsr_mutable_release(matrix%m%wms(0)%mutable)
