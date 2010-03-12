@@ -20,14 +20,10 @@ MODULE dbcsr_work_operations
                                              array_new,&
                                              array_release,&
                                              array_size
-  USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d,&
-                                             btree_c => btree
-  USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
-                                             btree_d => btree
-  USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d,&
-                                             btree_s => btree
-  USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d,&
-                                             btree_z => btree
+  USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d
+  USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d
+  USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d
+  USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d
   USE dbcsr_block_operations,          ONLY: dbcsr_data_set
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall
   USE dbcsr_error_handling

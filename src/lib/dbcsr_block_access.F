@@ -16,20 +16,16 @@ MODULE dbcsr_block_access
   USE array_types,                     ONLY: array_data
   USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d,&
                                              btree_add_c => btree_add,&
-                                             btree_c => btree,&
                                              btree_get_c => btree_find
   USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
                                              btree_add_d => btree_add,&
-                                             btree_d => btree,&
                                              btree_get_d => btree_find
   USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d,&
                                              btree_add_s => btree_add,&
-                                             btree_get_s => btree_find,&
-                                             btree_s => btree
+                                             btree_get_s => btree_find
   USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d,&
                                              btree_add_z => btree_add,&
-                                             btree_get_z => btree_find,&
-                                             btree_z => btree
+                                             btree_get_z => btree_find
   USE dbcsr_block_operations,          ONLY: dbcsr_block_copy,&
                                              dbcsr_block_transpose
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_block_index,&
