@@ -18,22 +18,6 @@ MODULE dbcsr_operations
                                              array_hold,&
                                              array_i1d_obj,&
                                              array_release
-  USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d,&
-                                             btree_add_c => btree_add,&
-                                             btree_c => btree,&
-                                             btree_get_c => btree_find
-  USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
-                                             btree_add_d => btree_add,&
-                                             btree_d => btree,&
-                                             btree_get_d => btree_find
-  USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d,&
-                                             btree_add_s => btree_add,&
-                                             btree_get_s => btree_find,&
-                                             btree_s => btree
-  USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d,&
-                                             btree_add_z => btree_add,&
-                                             btree_get_z => btree_find,&
-                                             btree_z => btree
   USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy,&
                                              dbcsr_blas_gemm,&
                                              dbcsr_blas_scal
@@ -46,7 +30,6 @@ MODULE dbcsr_operations
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_operations,           ONLY: checker_square_proc,&
-                                             checker_tr,&
                                              dbcsr_create_image_dist,&
                                              dbcsr_find_column,&
                                              dbcsr_get_stored_coordinates
@@ -87,8 +70,7 @@ MODULE dbcsr_operations
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
        dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
        dbcsr_scalar_zero, dbcsr_valid_index
-  USE dbcsr_ptr_util,                  ONLY: addto_array,&
-                                             ensure_array_size,&
+  USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
                                              dbcsr_make_images,&
@@ -2903,66 +2885,6 @@ CONTAINS
   END SUBROUTINE dbcsr_trace_a_b_d
 
 
-
-
-! *****************************************************************************
-!> \brief Calls the functions that are called in the included files but not
-!>        in thin one. Needed to make prettify think the functions ary really
-!>        used.
-!> \param[in] matrix          matrix
-!> \param[out] temp1, temp2   pointers to the data
-! *****************************************************************************
-  SUBROUTINE prettify_fooler (matrix, temp1, temp2, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: temp1
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: temp2
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    INTEGER                                  :: i
-    INTEGER(KIND=int_8)                      :: key
-    INTEGER, DIMENSION(:), POINTER           :: ip
-    LOGICAL                                  :: tr
-    TYPE(btree_2d_data_c)                    :: bt_dc
-    TYPE(btree_2d_data_d)                    :: bt_dd
-    TYPE(btree_2d_data_s)                    :: bt_ds
-    TYPE(btree_2d_data_z)                    :: bt_dz
-    TYPE(btree_c)                            :: bt_c
-    TYPE(btree_d)                            :: bt_d
-    TYPE(btree_s)                            :: bt_s
-    TYPE(btree_z)                            :: bt_z
-    TYPE(dbcsr_data_obj)                     :: md
-    TYPE(dbcsr_distribution_obj)             :: dist
-    TYPE(dbcsr_mp_obj)                       :: mp
-
-    IF (.FALSE.) THEN
-       temp1 => dbcsr_get_data_p (matrix%data_area, 0.0_real_4)
-       temp2 => dbcsr_get_data_p (matrix%data_area, 0.0_real_8)
-       ip => array_data (dbcsr_distribution_row_dist (matrix%dist))
-       ip => array_data (dbcsr_distribution_col_dist (matrix%dist))
-       CALL mp_sum (i, 0)
-       CALL mp_bcast (temp1, 0, 0)
-       CALL addto_array (matrix%data_area, temp1, error=error)
-       CALL btree_add_s (bt_s, key, bt_ds)
-       CALL btree_add_d (bt_d, key, bt_dd)
-       CALL btree_add_c (bt_c, key, bt_dc)
-       CALL btree_add_z (bt_z, key, bt_dz)
-       CALL btree_get_s (bt_s, key, bt_ds)
-       CALL btree_get_d (bt_d, key, bt_dd)
-       CALL btree_get_c (bt_c, key, bt_dc)
-       CALL btree_get_z (bt_z, key, bt_dz)
-       WRITE(*,*)dbcsr_repl_none, dbcsr_repl_full
-       WRITE(*,*) checker_tr (1, 1)
-       WRITE(*,*)checker_square_proc(1,1,RESHAPE((/ 1 /),(/1,1/)),(/0/),(/0/))
-       dist = matrix%dist
-       CALL dbcsr_get_data (md, temp2)
-       CALL dbcsr_find_column (i, ip(1), ip(2), (/ 1 /), (/ 1 /), ip(3), tr)
-       mp = dbcsr_distribution_mp (dist)
-       i = dbcsr_mp_myprow (mp)
-       i = dbcsr_mp_mypcol (mp)
-       ip = RESHAPE (dbcsr_mp_pgrid (mp), (/ 1 /))
-       CALL dbcsr_data_set_pointer (md, temp2)
-    ENDIF
-  END SUBROUTINE prettify_fooler
 
 #include "dbcsr_operations_d_.F"
 #include "dbcsr_operations_z_.F"

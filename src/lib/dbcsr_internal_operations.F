@@ -1862,28 +1862,6 @@ CONTAINS
   END FUNCTION select_n_or_t
 
 
-! *****************************************************************************
-!> \brief Calls the functions that are called in the included files but not
-!>        in thin one. Needed to make prettify think the functions ary really
-!>        used.
-!> \param[in] matrix          matrix
-!> \param[out] temp1, temp2   pointers to the data
-! *****************************************************************************
-  SUBROUTINE prettify_fooler (matrix, temp1, temp2, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: temp1
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: temp2
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    TYPE(dbcsr_data_obj)                     :: md
-
-    IF (.FALSE.) THEN
-       temp2 = 0.0_real_8
-       CALL dbcsr_data_set_pointer (md, temp1)
-       CALL dbcsr_data_clear (md)
-    ENDIF
-  END SUBROUTINE prettify_fooler
-
 
 #include "dbcsr_internal_operations_d.F"
 #include "dbcsr_internal_operations_z.F"

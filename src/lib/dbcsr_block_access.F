@@ -13,8 +13,7 @@
 !  - 2010-02-18 Moved from dbcsr_operations and dbcsr_methods
 ! *****************************************************************************
 MODULE dbcsr_block_access
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj
+  USE array_types,                     ONLY: array_data
   USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d,&
                                              btree_add_c => btree_add,&
                                              btree_c => btree,&
@@ -37,11 +36,8 @@ MODULE dbcsr_block_access
                                              dbcsr_get_stored_block_info,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling
-  USE dbcsr_kinds,                     ONLY: int_8,&
-                                             real_4,&
+  USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
-  USE dbcsr_message_passing,           ONLY: mp_bcast,&
-                                             mp_sum
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_column_size, dbcsr_blk_row_size, dbcsr_data_clear_pointer, &
        dbcsr_data_ensure_size, dbcsr_data_set_pointer, dbcsr_get_data_p, &
@@ -50,8 +46,8 @@ MODULE dbcsr_block_access
   USE dbcsr_ptr_util,                  ONLY: addto_array,&
                                              pointer_view
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_type, &
-       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_type_complex_4, &
+       dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
   USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
@@ -440,65 +436,6 @@ CONTAINS
     END SELECT
   END SUBROUTINE dbcsr_put_block_area
 
-
-! *****************************************************************************
-!> \brief Calls the functions that are called in the included files but not
-!>        in thin one. Needed to make prettify think the functions ary really
-!>        used.
-!> \param[in] matrix          matrix
-!> \param[out] temp1, temp2   pointers to the data
-! *****************************************************************************
-  SUBROUTINE prettify_fooler (matrix, temp1, temp2, error)
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: temp1
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: temp2
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
-
-    INTEGER                                  :: i, i2
-    INTEGER(KIND=int_8)                      :: key
-    INTEGER, DIMENSION(:), POINTER           :: p_i
-    LOGICAL                                  :: tr
-    REAL(KIND=real_8), DIMENSION(:, :), &
-      POINTER                                :: temp3
-    TYPE(array_i1d_obj)                      :: array_i
-    TYPE(btree_2d_data_c)                    :: bt_dc
-    TYPE(btree_2d_data_d)                    :: bt_dd
-    TYPE(btree_2d_data_s)                    :: bt_ds
-    TYPE(btree_2d_data_z)                    :: bt_dz
-    TYPE(btree_c)                            :: bt_c
-    TYPE(btree_d)                            :: bt_d
-    TYPE(btree_s)                            :: bt_s
-    TYPE(btree_z)                            :: bt_z
-    TYPE(dbcsr_obj)                          :: mm
-
-    IF (.FALSE.) THEN
-       temp1 => dbcsr_get_data_p (matrix%data_area, 0.0_real_4)
-       temp2 => dbcsr_get_data_p (matrix%data_area, 0.0_real_8)
-       CALL swap (i, i2)
-       CALL mp_sum (i, 0)
-       CALL mp_bcast (temp1, 0, 0)
-       CALL addto_array (matrix%data_area, temp1, error=error)
-       CALL btree_add_s (bt_s, key, bt_ds)
-       CALL btree_add_d (bt_d, key, bt_dd)
-       CALL btree_add_c (bt_c, key, bt_dc)
-       CALL btree_add_z (bt_z, key, bt_dz)
-       CALL btree_get_s (bt_s, key, bt_ds)
-       CALL btree_get_d (bt_d, key, bt_dd)
-       CALL btree_get_c (bt_c, key, bt_dc)
-       CALL btree_get_z (bt_z, key, bt_dz)
-       CALL dbcsr_get_stored_coordinates (matrix, i, i2, tr)
-       CALL dbcsr_get_stored_block_info (matrix, i, i2, tr, p_i(1))
-       CALL dbcsr_work_create (mm, error=error)
-       CALL add_work_coordinate (matrix%wms(0), i, i2, error=error)
-       CALL dbcsr_mutable_new (matrix%wms(0)%mutable, dbcsr_type_real_4)
-       CALL dbcsr_block_transpose (temp1, 1, 1)
-       CALL dbcsr_data_ensure_size (matrix%data_area, 1, error=error)
-       CALL dbcsr_block_copy (temp3, (/ 0.0_real_8 /), 1, 1)
-       p_i => array_data (array_i)
-       temp1 => pointer_view (temp1, 1, 1)
-       IF (dbcsr_wm_use_mutable (matrix%wms(0))) WRITE(*,*)"Mutable"
-    ENDIF
-  END SUBROUTINE prettify_fooler
 
 
 #include "dbcsr_block_access_d.F"

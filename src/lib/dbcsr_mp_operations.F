@@ -367,19 +367,6 @@ CONTAINS
 
 
 
-
-! *****************************************************************************
-!> \brief Calls the functions that are called in the included files but not
-!>        in thin one. Needed to make prettify think the functions ary really
-!>        used.
-! *****************************************************************************
-  SUBROUTINE prettify_fooler ()
-
-    IF (.FALSE.) THEN
-       WRITE(*,*)0.0_real_4, 0.0_real_8
-    ENDIF
-  END SUBROUTINE prettify_fooler
-
 #include "dbcsr_mp_operations_d.F"
 #include "dbcsr_mp_operations_z.F"
 #include "dbcsr_mp_operations_s.F"

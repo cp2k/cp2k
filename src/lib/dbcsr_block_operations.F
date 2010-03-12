@@ -19,14 +19,11 @@ MODULE dbcsr_block_operations
                                              real_4,&
                                              real_8,&
                                              sp
-  USE dbcsr_methods,                   ONLY: dbcsr_get_data_p,&
-                                             dbcsr_get_data_type,&
-                                             dbcsr_get_info,&
-                                             dbcsr_mutable_release,&
+  USE dbcsr_methods,                   ONLY: dbcsr_get_data_type,&
                                              dbcsr_type_2d_to_1d,&
                                              dbcsr_type_is_2d
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_type_complex_4, &
+       dbcsr_data_obj, dbcsr_scalar_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
@@ -837,26 +834,6 @@ CONTAINS
             routineN, "Invalid data type or 2-d not supported",__LINE__,error)
     END SELECT
   END SUBROUTINE block_partial_copy_a
-
-! *****************************************************************************
-!> \brief Calls the functions that are called in the included files but not
-!>        in thin one. Needed to make prettify think the functions ary really
-!>        used.
-!> \param[in] matrix          data_area
-!> \param[out] temp           pointer to the data
-! *****************************************************************************
-  SUBROUTINE prettify_fooler (data_area, temp)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: data_area
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: temp
-
-    TYPE(dbcsr_obj)                          :: matrix
-
-    IF (.FALSE.) THEN
-       temp => dbcsr_get_data_p (data_area, 0.0_dp)
-       CALL dbcsr_get_info (matrix)
-       CALL dbcsr_mutable_release(matrix%m%wms(0)%mutable)
-    ENDIF
-  END SUBROUTINE prettify_fooler
 
 #include "dbcsr_block_operations_d.F"
 #include "dbcsr_block_operations_z.F"

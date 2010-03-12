@@ -13,9 +13,11 @@
 MODULE dbcsr_message_passing
   USE dbcsr_c_mpi_calls,               ONLY: mp_alloc_mem,&
                                              mp_free_mem
-  USE dbcsr_kinds,                     ONLY: &
-       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
-       real_8_size
+  USE dbcsr_kinds,                     ONLY: dp,&
+                                             int_4,&
+                                             int_8,&
+                                             real_4,&
+                                             real_8
   USE dbcsr_machine,                   ONLY: default_output_unit,&
                                              m_abort,&
                                              m_flush,&
@@ -1816,29 +1818,6 @@ CONTAINS
 #endif
   END SUBROUTINE mp_irecv_custom
 
-
-! *****************************************************************************
-! HERE ARE the includes for the templates.
-! *****************************************************************************
-
-  SUBROUTINE prettify_fooler(a, i4, i8, r4, r8, c4, c8)
-    INTEGER, INTENT(INOUT)                   :: a
-    INTEGER(KIND=int_4)                      :: i4
-    INTEGER(KIND=int_8)                      :: i8
-    REAL(KIND=real_4)                        :: r4
-    REAL(KIND=real_8)                        :: r8
-    COMPLEX(KIND=real_4)                     :: c4
-    COMPLEX(KIND=real_8)                     :: c8
-
-    INTEGER, DIMENSION(:), POINTER           :: buffer
-
-    a = int_4_size + int_8_size + real_4_size + real_8_size
-    i4 = 0_int_4 ; i8 = 0_int_8
-    r4 = 0_real_4 ; r8 = 0_real_8
-    c4 = CMPLX(0, real_4) ; c8 = CMPLX(0, real_8)
-    CALL mp_alloc_mem (buffer, 2)
-    CALL mp_free_mem (buffer)
-  END SUBROUTINE prettify_fooler
 
 #include "dbcsr_message_passing_i.F"
 #include "dbcsr_message_passing_l.F"

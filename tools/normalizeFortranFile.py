@@ -76,11 +76,27 @@ def parseRoutine(inFile):
              'interfaceCount':0,
              'use':[]
              }
+    includeRe=re.compile(r"#? *include +[\"'](?P<file>.+)[\"'] *$",re.IGNORECASE)
     while 1:
         (jline,comments,lines)=readFortranLine(inFile)
         if len(lines)==0: break
         if startRe.match(jline):break
         routine['preRoutine'].extend(lines)
+        m=includeRe.match(lines[0])
+        if m:
+            try:
+                subF=file(m.group('file'))
+                while 1:
+                    (subjline,subcomments,sublines)=readFortranLine(subF)
+                    if not sublines:
+                        break
+                    routine['strippedCore'].append(subjline)
+                subF.close()
+            except:
+                import traceback
+                print "error trying to follow include ",m.group('file')
+                print "warning this might lead to the removal of used variables"
+                traceback.print_exc()
     if jline:
         routine['begin']=lines
         m=startRoutineRe.match(jline)
@@ -183,7 +199,6 @@ def parseRoutine(inFile):
             routine['preDeclComments'].append("".join(lines))
         elif comments:
             routine['declComments'].append(comments)
-    includeRe=re.compile(r"#? *include +[\"'](?P<file>.+)[\"'] *$",re.IGNORECASE)
     containsRe=re.compile(r" *contains *$",re.IGNORECASE)
     while len(lines)>0:
         if endRe.match(jline):

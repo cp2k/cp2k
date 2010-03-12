@@ -21,20 +21,12 @@ MODULE dbcsr_work_operations
                                              array_release,&
                                              array_size
   USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d,&
-                                             btree_add_c => btree_add,&
-                                             btree_c => btree,&
-                                             btree_get_c => btree_find
+                                             btree_c => btree
   USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d,&
-                                             btree_add_d => btree_add,&
-                                             btree_d => btree,&
-                                             btree_get_d => btree_find
+                                             btree_d => btree
   USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d,&
-                                             btree_add_s => btree_add,&
-                                             btree_get_s => btree_find,&
                                              btree_s => btree
   USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d,&
-                                             btree_add_z => btree_add,&
-                                             btree_get_z => btree_find,&
                                              btree_z => btree
   USE dbcsr_block_operations,          ONLY: dbcsr_data_set
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall
@@ -47,8 +39,7 @@ MODULE dbcsr_work_operations
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: dp,&
-                                             int_8,&
+  USE dbcsr_kinds,                     ONLY: int_8,&
                                              real_4,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_allocate
@@ -56,19 +47,17 @@ MODULE dbcsr_work_operations
        dbcsr_data_ensure_size, dbcsr_data_hold, dbcsr_data_init, &
        dbcsr_data_new, dbcsr_data_release, dbcsr_destroy_array, &
        dbcsr_destroy_image_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_release, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_modify_lock, dbcsr_modify_unlock, &
-       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_new, &
-       dbcsr_mutable_release, dbcsr_uses_special_memory, dbcsr_valid_index, &
-       dbcsr_wm_use_mutable
-  USE dbcsr_ptr_util,                  ONLY: addto_array,&
-                                             ensure_array_size
+       dbcsr_distribution_release, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_get_num_blocks, dbcsr_init, dbcsr_is_initialized, &
+       dbcsr_modify_lock, dbcsr_modify_unlock, dbcsr_mutable_destroy, &
+       dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_release, &
+       dbcsr_uses_special_memory, dbcsr_valid_index, dbcsr_wm_use_mutable
+  USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
-       dbcsr_magic_number, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
-       dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
-       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblkcols_local, &
+       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_magic_number, &
+       dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, &
+       dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, &
+       dbcsr_slot_col_i, dbcsr_slot_nblkcols_local, &
        dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
        dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
        dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
@@ -1014,57 +1003,6 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_merge_data
 
-
-
-! *****************************************************************************
-!> \brief Calls the functions that are called in the included files but not
-!>        in thin one. Needed to make prettify think the functions ary really
-!>        used.
-!> \param[in] matrix          data_area
-!> \param[out] temp           pointer to the data
-! *****************************************************************************
-  SUBROUTINE prettify_fooler (data_area, temp)
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: data_area
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: temp
-
-    INTEGER                                  :: i
-    INTEGER(KIND=int_8)                      :: key
-    INTEGER, DIMENSION(:), POINTER           :: p_i
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: r4
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: r8
-    TYPE(array_i1d_obj)                      :: array_i
-    TYPE(btree_2d_data_c)                    :: bt_dc
-    TYPE(btree_2d_data_d)                    :: bt_dd
-    TYPE(btree_2d_data_s)                    :: bt_ds
-    TYPE(btree_2d_data_z)                    :: bt_dz
-    TYPE(btree_c)                            :: bt_c
-    TYPE(btree_d)                            :: bt_d
-    TYPE(btree_s)                            :: bt_s
-    TYPE(btree_z)                            :: bt_z
-    TYPE(dbcsr_error_type)                   :: error
-    TYPE(dbcsr_obj)                          :: matrix
-
-    IF (.TRUE.) THEN
-       r4 => dbcsr_get_data_p (data_area, 0.0_real_4)
-       r8 => dbcsr_get_data_p (data_area, 0.0_real_8)
-       CALL addto_array (data_area, r8, error=error)
-       CALL btree_add_s (bt_s, key, bt_ds)
-       CALL btree_add_d (bt_d, key, bt_dd)
-       CALL btree_add_c (bt_c, key, bt_dc)
-       CALL btree_add_z (bt_z, key, bt_dz)
-       CALL btree_get_s (bt_s, key, bt_ds)
-       CALL btree_get_d (bt_d, key, bt_dd)
-       CALL btree_get_c (bt_c, key, bt_dc)
-       CALL btree_get_z (bt_z, key, bt_dz)
-       p_i => array_data (array_i)
-    ENDIF
-    IF (.TRUE.) THEN
-       temp => dbcsr_get_data_p (data_area, 0.0_dp)
-       CALL dbcsr_get_info (matrix)
-       CALL dbcsr_mutable_release(matrix%m%wms(0)%mutable)
-       CALL dbcsr_unpack_i8_2i4 ( (/ key /), p_i, p_i)
-    ENDIF
-  END SUBROUTINE prettify_fooler
 
 #include "dbcsr_work_operations_d.F"
 #include "dbcsr_work_operations_z.F"
