@@ -958,7 +958,10 @@ CONTAINS
      END DO
     END IF
 
-!$omp do schedule(dynamic,MAX(1,(ntasks*12)/(natoms*nthread)))
+    ! Schedule so each thread will get approx 20 blocks of tasks
+    ! This is a compromise between load balance and scheduling overhead
+
+!$omp do schedule(dynamic,MAX(1,ntasks/(20*nthread)))
     loop_tasks: DO itask=1,ntasks
        !decode the atom pair and basis info
        CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
