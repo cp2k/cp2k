@@ -21,7 +21,8 @@ MODULE colvar_methods
        hydronium_colvar_id, plane_distance_colvar_id, &
        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
        reaction_path_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
-       torsion_colvar_id, xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+       torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, &
+       xyz_outerdiag_colvar_id
   USE constraint_fxd,                  ONLY: check_fixed_atom_cns_colv
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -36,6 +37,7 @@ MODULE colvar_methods
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_get_natom,&
                                              force_env_type
   USE fparser,                         ONLY: evalf,&
                                              evalfd,&
@@ -126,7 +128,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, explicit, failure
-    LOGICAL, DIMENSION(18)                   :: my_subsection
+    LOGICAL, DIMENSION(19)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
     REAL(KIND=dp), DIMENSION(1)              :: my_val
@@ -142,8 +144,8 @@ CONTAINS
       gyration_section, hydronium_section, path_section, plane_dist_section, &
       plane_plane_angle_section, plane_sections, point_section, &
       population_section, qparm_section, reaction_path_section, rmsd_section, &
-      rotation_section, torsion_section, wrk_section, xyz_diag_section, &
-      xyz_outerdiag_section
+      rotation_section, torsion_section, u_section, wrk_section, &
+      xyz_diag_section, xyz_outerdiag_section
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -180,6 +182,7 @@ CONTAINS
     xyz_diag_section      => section_vals_get_subs_vals(colvar_section,"XYZ_DIAG",i_rep_section=icol,error=error)
     xyz_outerdiag_section => section_vals_get_subs_vals(colvar_section,"XYZ_OUTERDIAG",i_rep_section=icol,&
                              error=error)
+    u_section             => section_vals_get_subs_vals(colvar_section,"U",i_rep_section=icol,error=error)
 
     CALL section_vals_get(distance_section,     explicit=my_subsection( 1), error=error)
     CALL section_vals_get(angle_section,        explicit=my_subsection( 2), error=error)
@@ -209,6 +212,7 @@ CONTAINS
     CALL section_vals_get(rmsd_section,         explicit=my_subsection(15), error=error)
     CALL section_vals_get(xyz_diag_section,     explicit=my_subsection(17), error=error)
     CALL section_vals_get(xyz_outerdiag_section,explicit=my_subsection(18), error=error)
+    CALL section_vals_get(u_section,            explicit=my_subsection(19), error=error)
 
     ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
@@ -904,6 +908,10 @@ CPSourceFileRef)
        CALL section_vals_val_get(wrk_section,"COMPONENT_B",i_val=icomponent,error=error)
        colvar%xyz_outerdiag_param%components(2) = icomponent
        CALL section_vals_val_get(wrk_section,"PBC",l_val=colvar%xyz_outerdiag_param%use_pbc,error=error)
+    ELSE IF (my_subsection(19)) THEN
+       ! Energy
+       wrk_section => u_section
+       CALL colvar_create(colvar, u_colvar_id, error)
     END IF
     CALL colvar_setup(colvar, error)
 
@@ -1102,6 +1110,8 @@ CPSourceFileRef)
 
           WRITE ( iw, '( A,T57,3I8)' )   ' COLVARS| CROSS TERM POSITION ('//TRIM(tag_comp1)&
                //" * "//TRIM(tag_comp2)//')  >>> '//tag, colvar%xyz_outerdiag_param%i_atoms
+       CASE(u_colvar_id)
+          WRITE ( iw, '( A,T77,A4)' ) ' COLVARS| ENERGY          >>> '//tag,'all!'
        END SELECT
        IF (colvar%use_points) THEN
           WRITE ( iw, '( A)') ' COLVARS| INFORMATION ON DEFINED GEOMETRICAL POINTS'
@@ -1207,6 +1217,9 @@ CPSourceFileRef)
           CALL xyz_diag_colvar(colvar,cell,particles=particles, error=error)
        CASE (xyz_outerdiag_colvar_id)
           CALL xyz_outerdiag_colvar(colvar,cell,particles=particles, error=error)
+       CASE (u_colvar_id)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="need force_env!", error=error, error_level=cp_failure_level)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1235,6 +1248,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: colvar_ok, failure
+    REAL(KIND=dp)                            :: potential_energy
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1286,6 +1300,10 @@ CPSourceFileRef)
           CALL xyz_diag_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (xyz_outerdiag_colvar_id)
           CALL xyz_outerdiag_colvar(colvar,cell,subsys=subsys, error=error)
+       CASE (u_colvar_id)
+          CALL force_env_get(force_env,potential_energy=potential_energy,error=error)
+          CALL u_colvar(colvar,cell,force_env=force_env,subsys=subsys,&
+               potential_energy=potential_energy,error=error)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1352,6 +1370,9 @@ CPSourceFileRef)
           CALL xyz_diag_colvar(colvar,cell,particles=particles, error=error)
        CASE (xyz_outerdiag_colvar_id)
           CALL xyz_outerdiag_colvar(colvar,cell,particles=particles, error=error)
+       CASE (u_colvar_id)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="need force_env!", error=error, error_level=cp_failure_level)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -1575,6 +1596,54 @@ CPSourceFileRef)
     CALL put_derivative(colvar, 2, fi(:,2))
 
   END SUBROUTINE xyz_outerdiag_colvar
+
+! *****************************************************************************
+!> \brief evaluates the force due (and on) the energy as collective variable
+!> \author Sebastiano Caravati
+! *****************************************************************************
+  SUBROUTINE u_colvar(colvar,cell,force_env,subsys,particles,potential_energy,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: potential_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'u_colvar', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iatom, iatyp, ityp, natom
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: fi(3)
+
+    failure = .FALSE.
+    natom = force_env_get_natom(force_env,error)
+
+    IF (PRESENT(force_env) .AND. PRESENT(potential_energy)) THEN
+       colvar%n_atom_s      = natom
+       colvar%u_param%natom = natom
+       colvar%ss            = potential_energy
+
+       CALL reallocate(colvar%i_atom,  1,natom)
+       CALL reallocate(colvar%dsdr,1,3,1,natom)
+       iatom=0
+       DO ityp=1,SIZE(force_env%qs_env%force)
+          DO iatyp=1,SIZE(force_env%qs_env%force(ityp)%total)/3
+             fi(:)=force_env%qs_env%force(ityp)%total(:,iatyp)
+             iatom=iatom+1
+             colvar%i_atom(iatom)=iatom
+             CALL put_derivative(colvar, iatom, fi)
+          ENDDO
+       ENDDO
+       CPPostcondition(iatom==natom,cp_fatal_level,routineP,error,failure)
+    ELSE
+        CALL cp_unimplemented_error(fromWhere=routineP, &
+             message="need force_env!", error=error, error_level=cp_failure_level)
+    ENDIF
+
+  END SUBROUTINE u_colvar
 
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the distance from the plane collective variable

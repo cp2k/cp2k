@@ -217,6 +217,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_colvar_u_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)      
+
        IF(.NOT. skip_recursive_colvar)THEN
           CALL create_colvar_rpath_section(subsection,error)
           CALL section_add_subsection(section, subsection, error=error)
@@ -948,6 +952,35 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_xyz_od_section
+
+! *****************************************************************************
+!> \brief energy as collective variable
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Sebastiano Caravati
+! *****************************************************************************
+  SUBROUTINE create_colvar_u_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_u_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="u",&
+            description="Section to define the energy as a generalized collective variable.",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_u_section
 
 ! *****************************************************************************
 !> \brief creates the colvar section regarded to the collective variables distance 

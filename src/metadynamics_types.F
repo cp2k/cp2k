@@ -42,7 +42,7 @@ MODULE metadynamics_types
 !> \brief defines types for HILLS
 ! *****************************************************************************
   TYPE hills_env_type
-     LOGICAL                                   :: restart
+     LOGICAL                                   :: restart, wtcontrol
      !RG Adaptive hills
      REAL(KIND=dp)                             :: ww, min_disp, energy
      INTEGER                                   :: n_hills, nt_hills 
@@ -51,6 +51,7 @@ MODULE metadynamics_types
      REAL(KIND=dp), DIMENSION(:,:), POINTER    :: ss_history
      REAL(KIND=dp), DIMENSION(:,:), POINTER    :: delta_s_history
      REAL(KIND=dp), DIMENSION(:),   POINTER    :: ww_history
+     REAL(KIND=dp), DIMENSION(:),   POINTER    :: invdt_history
   END TYPE hills_env_type
 
 ! *****************************************************************************
@@ -95,12 +96,15 @@ MODULE metadynamics_types
      INTEGER                                   :: ref_count, id_nr
      LOGICAL                                   :: do_hills, do_multiple_walkers
      LOGICAL                                   :: extended_lagrange
+     LOGICAL                                   :: well_tempered
      LOGICAL                                   :: langevin
      INTEGER                                   :: n_colvar
      REAL(KIND=dp)                             :: ekin_s, epot_s, dt, &
                                                   avg_temp, epot_walls
      LOGICAL                                   :: tempcontrol, restart
      REAL(KIND=dp)                             :: temp_wanted,toll_temp
+     REAL(KIND=dp)                             :: delta_t, invdt, &
+                                                  wtgamma, wttemperature
      INTEGER                                   :: n_steps
      ! time pointer should never be allocated itself.. that's a quite bad
      ! choice derived from the md_env.. So whenever the meta_env type is 
@@ -184,6 +188,8 @@ CONTAINS
        ALLOCATE(meta_env%hills_env%delta_s_history(n_colvar,0), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        ALLOCATE(meta_env%hills_env%ww_history(0), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ALLOCATE(meta_env%hills_env%invdt_history(0), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        meta_env%hills_env%n_hills = 0
        meta_env%hills_env%energy = 0.0_dp
@@ -376,6 +382,10 @@ CONTAINS
        END IF
        IF (ASSOCIATED(hills_env%ww_history)) THEN
           DEALLOCATE(hills_env%ww_history,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(hills_env%invdt_history)) THEN
+          DEALLOCATE(hills_env%invdt_history,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
        DEALLOCATE(hills_env,stat=stat)

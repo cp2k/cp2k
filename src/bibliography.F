@@ -55,7 +55,7 @@ MODULE bibliography
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
-             Ceriotti2009,Guidon2009
+             Ceriotti2009,Guidon2009,BarducBus2008
 
 CONTAINS
 
@@ -1781,6 +1781,25 @@ CONTAINS
          "UT ISI:000271522500011",&
          "ER"),&
           DOI="10.1021/ct900494g")
+
+    CALL add_reference(key=BarducBus2008, ISI_record=s2a(&
+         "AU Barducci, A",&
+         "   Bussi, G",&
+         "   Parrinello, M",&
+         "TI Well-Tempered Metadynamics: A Smoothly Converging and Tunable Free-Energy Method",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "SN 0031-9007",&
+         "J9 PHYS REV LETT",&
+         "JI Phys. Rev. Lett.",&
+         "PD JAN 18",&
+         "PY 2008",&
+         "VL 100",&
+         "IS 2",&
+         "AR 020603",&
+         "PG 4",&
+         "UT ISI:000252471200008",&
+         "ER"),&
+         DOI="10.1103/PhysRevLett.100.020603")
 
   END SUBROUTINE add_all_references
 

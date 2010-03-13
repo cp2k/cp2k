@@ -619,6 +619,10 @@ CONTAINS
                   "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",&
                   section,error=error)
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_INVDT",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%FREE_ENERGY%METADYN%SPAWNED_HILLS_INVDT",&
+                  section,error=error)
              ! Extended Lagrangian
              section => section_vals_get_subs_vals(restart_file,&
                   "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
@@ -1039,6 +1043,8 @@ CPSourceFileRef,&
        section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_SCALE",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_INVDT",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
        CALL section_vals_remove_values(section_to_delete,error)

@@ -9,7 +9,8 @@
 !> \author teo & fawzi
 ! *****************************************************************************
 MODULE input_cp2k_free_energy
-  USE bibliography,                    ONLY: VandenCic2006
+  USE bibliography,                    ONLY: BarducBus2008,&
+                                             VandenCic2006
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
   USE input_constants
@@ -198,6 +199,27 @@ CONTAINS
        CALL keyword_create(keyword, name="DO_HILLS",&
             description="This keyword enables the spawning of the hills. Default .FALSE.",&
             usage="DO_HILLS",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WELL_TEMPERED",&
+            description="This keyword enables Well-tempered metadynamics. Default .FALSE.",&
+            usage="WELL_TEMPERED",citations=(/BarducBus2008/),&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DELTA_T",&
+            description="If Well-tempered metaD is used, the temperature parameter "//&
+            "must be specified.",usage="DELTA_T <REAL>",&
+            unit_str='K',default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WTGAMMA",&
+            description="If Well-tempered metaD is used, the gamma parameter "//&
+            "must be specified if not DELTA_T.",usage="WTGAMMA <REAL>",&
+            default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -526,6 +548,20 @@ CONTAINS
             description="The height of the spawned hills during metadynamics."//&
             "Used for RESTART.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify the spawned hills",repeats=.TRUE.,&
+            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(metadyn_section, section, error=error)
+       CALL section_release(section,error=error)
+
+       CALL section_create(section,name="SPAWNED_HILLS_INVDT",&
+            description="The inverse of the DELTA_T parameter used for Well-Tempered metadynamics."//&
+            "Used for RESTART.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&

@@ -594,7 +594,8 @@ CONTAINS
                                                 n_colvar, n_hills_start, &
                                                 n_step, stat
     LOGICAL                                  :: failure, force_gauss
-    REAL(KIND=dp)                            :: dfunc, diff_ss, dp2
+    REAL(KIND=dp)                            :: dfunc, diff_ss, dp2, &
+                                                V_now_here, V_to_fes, wtww, ww
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ddp, local_last_hills
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
@@ -618,8 +619,14 @@ CONTAINS
     ! Set-up restart if any
     IF (meta_env%hills_env%restart) THEN
        meta_env%hills_env%restart = .FALSE.
-       CALL restart_hills(hills_env%ss_history, hills_env%delta_s_history, hills_env%ww_history,&
-            hills_env%ww, hills_env%n_hills, n_colvar, colvars, meta_env%metadyn_section, error)
+       IF (meta_env%well_tempered) THEN
+          CALL restart_hills(hills_env%ss_history, hills_env%delta_s_history, hills_env%ww_history,&
+               hills_env%ww, hills_env%n_hills, n_colvar, colvars, meta_env%metadyn_section, error,&
+               invdt_history=hills_env%invdt_history)
+       ELSE
+          CALL restart_hills(hills_env%ss_history, hills_env%delta_s_history, hills_env%ww_history,&
+               hills_env%ww, hills_env%n_hills, n_colvar, colvars, meta_env%metadyn_section, error)
+       END IF
     END IF
 
  
@@ -659,7 +666,29 @@ CONTAINS
 
        n_hills_start = hills_env%n_hills
        ! Add the hill corresponding to this location
-       CALL add_hill_single(hills_env, colvars, hills_env%ww, hills_env%n_hills, n_colvar, error)
+       IF (meta_env%well_tempered) THEN
+          ! Well-Tempered scaling of hills height
+          V_now_here = 0._dp
+          DO ih=1,hills_env%n_hills
+             dp2 = 0._dp
+             DO i = 1, n_colvar
+               diff_ss = colvars(i)%ss0-hills_env%ss_history(i,ih)
+               IF (colvars(i)%periodic) THEN
+                  ! The difference of a periodic COLVAR is always within [-pi,pi]
+                  diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
+               END IF
+               diff_ss = (diff_ss)/hills_env%delta_s_history(i,ih)
+               dp2 = dp2 + diff_ss**2
+             ENDDO
+             V_to_fes   = 1.0_dp + meta_env%wttemperature*hills_env%invdt_history(ih)
+             V_now_here = V_now_here+hills_env%ww_history(ih)/V_to_fes*EXP(-0.5_dp*dp2)
+          ENDDO
+          wtww=hills_env%ww*EXP(-V_now_here*meta_env%invdt)
+          ww=wtww*(1.0_dp + meta_env%wttemperature*meta_env%invdt)
+          CALL add_hill_single(hills_env, colvars,           ww, hills_env%n_hills, n_colvar, error, meta_env%invdt)
+       ELSE
+          CALL add_hill_single(hills_env, colvars, hills_env%ww, hills_env%n_hills, n_colvar, error)
+       END IF
        ! Update local n_hills counter
        IF (meta_env%do_multiple_walkers) multiple_walkers%n_hills_local = multiple_walkers%n_hills_local+1
 
@@ -748,6 +777,7 @@ CONTAINS
        ENDDO
        ! ff_hills contains the "force" due to the hills
        dfunc = hills_env%ww_history(ih)*EXP(-0.5_dp*dp2)
+       IF (meta_env%well_tempered) dfunc=dfunc/(1.0_dp + meta_env%wttemperature*hills_env%invdt_history(ih))
        hills_env%energy = hills_env%energy + dfunc
        DO i=1,n_colvar
           IF (hills_env%delta_s_history(i,ih) /= 0.0_dp) THEN

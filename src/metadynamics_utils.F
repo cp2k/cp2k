@@ -131,6 +131,24 @@ CONTAINS
        CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=meta_env%langevin,error=error)      
        CALL section_vals_val_get(metadyn_section,"TEMP_TOL",explicit=meta_env%tempcontrol,&
             r_val=meta_env%toll_temp,error=error)
+       CALL section_vals_val_get(metadyn_section,"WELL_TEMPERED",l_val=meta_env%well_tempered,error=error)
+       CALL section_vals_val_get(metadyn_section,"DELTA_T",explicit=meta_env%hills_env%wtcontrol,&
+&           r_val=meta_env%delta_t,error=error)
+       CALL section_vals_val_get(metadyn_section,"WTGAMMA",explicit=check,&
+&           r_val=meta_env%wtgamma,error=error)
+       IF (meta_env%well_tempered) THEN
+         meta_env%hills_env%wtcontrol=meta_env%hills_env%wtcontrol.OR.check
+         check=meta_env%hills_env%wtcontrol
+         CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
+               "When using Well-Tempered metadynamics, DELTA_T (or WTGAMMA) should be explicitly specified.",&
+               only_ionode=.TRUE.)
+         CALL cp_assert(.NOT.meta_env%extended_lagrange,cp_fatal_level,cp_assertion_failed,routineP,&
+               "Well-Tempered metadynamics not possible with extended-lagrangian formulation.",&
+               only_ionode=.TRUE.)
+         CALL cp_assert(.NOT.(meta_env%hills_env%min_disp > 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
+               "Well-Tempered metadynamics not possible with Adaptive hills.",&
+               only_ionode=.TRUE.)
+       ENDIF
 
        CALL section_vals_val_get(metadyn_section,"COLVAR_AVG_TEMPERATURE_RESTART",&
             r_val=meta_env%avg_temp,error=error)
@@ -263,6 +281,15 @@ CPSourceFileRef,&
              meta_env%hills_env%min_disp
           END IF
           !RG Adaptive hills
+       END IF
+
+       IF (meta_env%well_tempered) THEN 
+          WRITE (iw,'( A )')' METADYN| Well-Tempered metadynamics '
+          IF (meta_env%delta_t>EPSILON(1._dp)) THEN
+             WRITE (iw,'( A,T71,F10.3)')  ' METADYN| Temperature parameter (Delta T) [K]',meta_env%delta_t*kelvin
+          ELSE
+             WRITE (iw,'( A,T71,F10.3)')  ' METADYN| Temperature parameter (gamma)',meta_env%wtgamma
+          END IF
        END IF
 
        IF (meta_env%do_multiple_walkers) THEN
@@ -436,7 +463,7 @@ CPSourceFileRef,&
     INTEGER                                  :: delta_hills, i, i_hills, ih, &
                                                 iw, stat, unit_nr
     LOGICAL                                  :: exist, failure
-    REAL(KIND=dp)                            :: ww
+    REAL(KIND=dp)                            :: invdt, ww
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_s_save, ss0_save
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -458,6 +485,7 @@ CPSourceFileRef,&
           WRITE(unit_nr,*)hills_env%ss_history(ih,hills_env%n_hills)
           WRITE(unit_nr,*)hills_env%delta_s_history(ih,hills_env%n_hills)
        END DO
+       IF (hills_env%wtcontrol) WRITE(unit_nr,*)hills_env%invdt_history(hills_env%n_hills)
        CALL close_file(unit_nr)
        CALL m_mov(tmpname, filename)
     END IF
@@ -497,10 +525,15 @@ CPSourceFileRef,&
                 READ(unit_nr,*)colvars(ih)%ss0
                 READ(unit_nr,*)colvars(ih)%delta_s
              END DO
+             IF (hills_env%wtcontrol) READ(unit_nr,*)invdt
              CALL close_file(unit_nr)
 
              ! Add this hill to the history dependent terms
-             CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar, error)
+             IF (hills_env%wtcontrol) THEN
+                CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar, error, invdt=invdt)
+             ELSE
+                CALL add_hill_single(hills_env, colvars, ww, hills_env%n_hills, n_colvar, error)
+             END IF
 
              i_hills  = i_hills + 1
              filename = TRIM(multiple_walkers%walkers_file_name(i))//"_"//&
@@ -536,7 +569,7 @@ CPSourceFileRef,&
 !> \brief Add a single Hill
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! *****************************************************************************
-  SUBROUTINE add_hill_single(hills_env, colvars, ww, n_hills, n_colvar, error)
+  SUBROUTINE add_hill_single(hills_env, colvars, ww, n_hills, n_colvar, error, invdt)
     TYPE(hills_env_type), POINTER            :: hills_env
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
@@ -544,16 +577,17 @@ CPSourceFileRef,&
     INTEGER, INTENT(INOUT)                   :: n_hills
     INTEGER, INTENT(IN)                      :: n_colvar
     TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: invdt
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_hill_single', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, wtcontrol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tnp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
 
-    failure = .FALSE.
+    failure = .FALSE.; wtcontrol=PRESENT(invdt)
     NULLIFY(tmp, tnp)
     IF(SIZE(hills_env%ss_history,2)< n_hills+1)THEN
        ALLOCATE(tmp(n_colvar,n_hills+100), stat=stat)
@@ -585,21 +619,34 @@ CPSourceFileRef,&
        hills_env%ww_history => tnp
        NULLIFY(tnp)
     ENDIF
+    IF(wtcontrol)THEN
+       IF(SIZE(hills_env%invdt_history)< n_hills+1)THEN
+          ALLOCATE(tnp(n_hills+100), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          tnp(1:n_hills) = hills_env%invdt_history
+          tnp(n_hills+1:)= 0.0_dp
+          DEALLOCATE(hills_env%invdt_history,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          hills_env%invdt_history => tnp
+          NULLIFY(tnp)
+       ENDIF
+    ENDIF
     n_hills = n_hills + 1
     ! Now add the hill
     DO i=1,n_colvar
        hills_env%ss_history(i,n_hills)      = colvars(i)%ss0
        hills_env%delta_s_history(i,n_hills) = colvars(i)%delta_s
-       hills_env%ww_history(n_hills)        = ww
     ENDDO
+    hills_env%ww_history(n_hills)           = ww
+    IF (wtcontrol) hills_env%invdt_history(n_hills) = invdt
   END SUBROUTINE add_hill_single
 
 ! *****************************************************************************
 !> \brief Restart Hills Information 
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2008
 ! *****************************************************************************
-  SUBROUTINE restart_hills(ss_history, delta_s_history, ww_history, ww, n_hills,&
-       n_colvar, colvars, metadyn_section, error)
+  SUBROUTINE restart_hills(ss_history, delta_s_history, ww_history, ww,&
+       n_hills, n_colvar, colvars, metadyn_section, error, invdt_history)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ss_history, delta_s_history
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ww_history
     REAL(KIND=dp)                            :: ww
@@ -608,29 +655,35 @@ CPSourceFileRef,&
       POINTER                                :: colvars
     TYPE(section_vals_type), POINTER         :: metadyn_section
     TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: invdt_history
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_hills', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, ndum, stat
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit, failure, wtcontrol
     REAL(KIND=dp)                            :: rval
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
     TYPE(section_vals_type), POINTER         :: hills_history
 
-    failure = .FALSE.
+    failure = .FALSE.; wtcontrol=PRESENT(invdt_history)
     NULLIFY(rvals)
     hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_POS",error=error)
     CALL section_vals_get(hills_history, explicit=explicit, error=error)
     IF (explicit) THEN
        CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum, error=error)
-       ! ss_history, delta_s_history, ww_history : deallocate and reallocate with the proper size
+       ! ss_history, delta_s_history, ww_history, invdt_history : deallocate and reallocate with the proper size
        DEALLOCATE(ss_history,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DEALLOCATE(delta_s_history,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DEALLOCATE(ww_history,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       IF (wtcontrol) THEN
+          DEALLOCATE(invdt_history,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ENDIF
        !
        CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
        ALLOCATE(ss_history(n_colvar,n_hills), stat=stat)
@@ -639,6 +692,10 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        ALLOCATE(ww_history(n_hills), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       IF (wtcontrol) THEN
+          ALLOCATE(invdt_history(n_hills), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+       ENDIF
        !
        DO i = 1, n_hills
           CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
@@ -688,10 +745,42 @@ CPSourceFileRef,&
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Section SPAWNED_HILLS_HEIGHT is not present! Setting the height of the"//&
-               "restarted hills according the parameters specified in the input file. "//&
+               " restarted hills according the parameters specified in the input file. "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
           ww_history = ww
+       END IF
+       !
+       hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_INVDT",error=error)
+       CALL section_vals_get(hills_history, explicit=explicit, error=error)
+       IF (wtcontrol) THEN
+          IF (explicit) THEN
+             ! invdt_history
+             CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",&
+                  n_rep_val=ndum, error=error)
+             CPPostcondition(n_hills==ndum,cp_failure_level,routinep,error,failure)
+             DO i = 1, n_hills
+                CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
+                     i_rep_val=i, r_val=rval, error=error)
+                CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,error,failure)
+                invdt_history(i)=rval
+             END DO
+          ELSE
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                  "Section SPAWNED_HILLS_INVDT is not present! Restarting from standard"//&
+                  " metadynamics run i.e. setting 1/(Delta T) equal to zero. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+             invdt_history = 0._dp
+          END IF
+       ELSE
+          IF (explicit) THEN
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "Found section SPAWNED_HILLS_INVDT while restarting a standard metadynamics run..."//&
+                     " Cannot restart metadynamics from well-tempered MetaD runs. "//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
+          END IF
        END IF
     ENDIF
 

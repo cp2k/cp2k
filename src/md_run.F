@@ -172,7 +172,7 @@ CONTAINS
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: check, ehrenfest_md, failure, &
                                                 save_mem, should_stop
-    REAL(KIND=dp)                            :: time_iter_start, &
+    REAL(KIND=dp)                            :: dummy, time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: constant, time, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -361,6 +361,25 @@ CONTAINS
        IF (ASSOCIATED(force_env%meta_env)) THEN
           IF(force_env%meta_env%langevin) THEN
              CALL create_wiener_process_cv(force_env%meta_env, error=error)
+          ENDIF
+          IF (force_env%meta_env%well_tempered) THEN
+             force_env%meta_env%wttemperature = simpar%temp_ext
+             IF (force_env%meta_env%wtgamma>EPSILON(1._dp)) THEN
+                dummy=force_env%meta_env%wttemperature*(force_env%meta_env%wtgamma-1._dp)
+                IF (force_env%meta_env%delta_t>EPSILON(1._dp)) THEN
+                   check=ABS(force_env%meta_env%delta_t-dummy)<1.E+3_dp*EPSILON(1._dp)
+                   CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
+                      "Inconsistency between DELTA_T and WTGAMMA (both specified):"//&
+                      " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE",&
+                      error,failure)
+                ELSE
+                   force_env%meta_env%delta_t = dummy
+                ENDIF
+             ELSE
+                force_env%meta_env%wtgamma    = 1._dp &
+                   + force_env%meta_env%delta_t/force_env%meta_env%wttemperature
+             ENDIF
+             force_env%meta_env%invdt         = 1._dp/force_env%meta_env%delta_t
           ENDIF
           CALL metadyn_forces(force_env,error=error)
           CALL metadyn_write_colvar(force_env,error=error)

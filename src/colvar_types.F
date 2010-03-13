@@ -70,7 +70,8 @@ MODULE colvar_types
             gyration_colvar_type,&
             rmsd_colvar_type,&
             xyz_diag_colvar_type,&
-            xyz_outerdiag_colvar_type
+            xyz_outerdiag_colvar_type,&
+            u_colvar_type
 
   INTEGER, PARAMETER, PUBLIC :: no_colvar_id                  = -2,&
                                 dist_colvar_id                =  1,&
@@ -90,7 +91,8 @@ MODULE colvar_types
                                 rmsd_colvar_id                = 15,&
                                 distance_from_path_colvar_id  = 16,&
                                 xyz_diag_colvar_id            = 17,&
-                                xyz_outerdiag_colvar_id       = 18
+                                xyz_outerdiag_colvar_id       = 18,&
+                                u_colvar_id                   = 19
                                 
 
 ! *****************************************************************************
@@ -268,6 +270,11 @@ MODULE colvar_types
   END TYPE xyz_outerdiag_colvar_type
 
 ! *****************************************************************************
+  TYPE u_colvar_type
+     INTEGER       :: natom
+  END TYPE u_colvar_type
+
+! *****************************************************************************
 !> \brief parameters for a collective variable
 !> \author alessandro laio and fawzi mohamed
 ! *****************************************************************************
@@ -296,6 +303,7 @@ MODULE colvar_types
      TYPE(rmsd_colvar_type), POINTER             :: rmsd_param
      TYPE(xyz_diag_colvar_type), POINTER         :: xyz_diag_param
      TYPE(xyz_outerdiag_colvar_type), POINTER    :: xyz_outerdiag_param
+     TYPE(u_colvar_type),POINTER                 :: u_param
      TYPE(point_type), DIMENSION(:), POINTER     :: points
   END TYPE colvar_type
 
@@ -365,6 +373,7 @@ CONTAINS
     NULLIFY(colvar%qparm_param)
     NULLIFY(colvar%xyz_diag_param)
     NULLIFY(colvar%xyz_outerdiag_param)
+    NULLIFY(colvar%u_param)
     NULLIFY(colvar%hydronium_param)
     NULLIFY(colvar%reaction_path_param)
     NULLIFY(colvar%combine_cvs_param)
@@ -421,6 +430,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           ! Initialize r0 with dummy..
           colvar%xyz_outerdiag_param%r0=HUGE(0.0_dp)
+       CASE(u_colvar_id)
+          ALLOCATE(colvar%u_param, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        CASE(hydronium_colvar_id)
           ALLOCATE(colvar%hydronium_param, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -913,6 +925,10 @@ CPSourceFileRef)
           list(1) = i
           i = colvar%xyz_outerdiag_param%i_atoms(2)
           list(2) = i
+       CASE(u_colvar_id)
+          np = 1; ALLOCATE(list(np),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+          colvar%n_atom_s=np; list(1)=1
        CASE(combine_colvar_id)
           colvar%n_atom_s=0
           DO ii=1,SIZE(colvar%combine_cvs_param%colvar_p)
@@ -1113,6 +1129,9 @@ CPSourceFileRef)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (xyz_outerdiag_colvar_id)
        DEALLOCATE(colvar%xyz_outerdiag_param, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    CASE (u_colvar_id)
+       DEALLOCATE(colvar%u_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (hydronium_colvar_id)
        DEALLOCATE(colvar%hydronium_param%i_oxygens, stat=stat)
@@ -1369,6 +1388,8 @@ CPSourceFileRef)
        colvar_out%xyz_outerdiag_param%components = colvar_in%xyz_outerdiag_param%components
        colvar_out%xyz_outerdiag_param%r0         = colvar_in%xyz_outerdiag_param%r0
        colvar_out%xyz_outerdiag_param%use_pbc    = colvar_in%xyz_outerdiag_param%use_pbc
+     CASE(u_colvar_id)
+       colvar_out%u_param%natom = colvar_in%u_param%natom
      CASE(hydronium_colvar_id)
        colvar_out%hydronium_param%n_hydrogens = colvar_in%hydronium_param%n_hydrogens  
        colvar_out%hydronium_param%n_oxygens   = colvar_in%hydronium_param%n_oxygens

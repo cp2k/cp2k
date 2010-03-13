@@ -907,6 +907,10 @@ CONTAINS
           CALL meta_hills_val_set_ds(work_section, meta_env, error=error)
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_HEIGHT",error=error)
           CALL meta_hills_val_set_ww(work_section, meta_env, error=error)
+          IF (meta_env%well_tempered) THEN
+             work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"SPAWNED_HILLS_INVDT",error=error)
+             CALL meta_hills_val_set_dt(work_section, meta_env, error=error)
+          END IF
        END IF
        IF (meta_env%extended_lagrange) THEN
           CALL section_vals_val_set(meta_env%metadyn_section,"COLVAR_AVG_TEMPERATURE_RESTART",&
@@ -2673,6 +2677,76 @@ CONTAINS
     END DO
     ww_section%values(ik,1)%list => vals
   END SUBROUTINE meta_hills_val_set_ww
+
+! *****************************************************************************
+!> \brief routine to dump hills information during metadynamics run
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2009 created [seb]
+!> \author SC
+! *****************************************************************************
+  SUBROUTINE meta_hills_val_set_dt(invdt_section, meta_env, error)
+
+    TYPE(section_vals_type), POINTER         :: invdt_section
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_dt', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik, irk, lsize, Nlist
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(val_type), POINTER                  :: my_val, old_val
+
+    failure=.FALSE.
+    NULLIFY(my_val, old_val, section, vals)
+    CPPrecondition(ASSOCIATED(invdt_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(invdt_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    section => invdt_section%section
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+         "section "//TRIM(section%name)//" does not contain keyword "//&
+         "_DEFAULT_KEYWORD_",error,failure)
+    DO
+       IF (SIZE(invdt_section%values,2)==1) EXIT
+       CALL section_vals_add_values(invdt_section,error=error)
+    END DO
+    vals  => invdt_section%values(ik,1)%list
+    Nlist = 0
+    IF (ASSOCIATED(vals)) THEN
+       Nlist = cp_sll_val_get_length(vals,error)
+    END IF
+    lsize = meta_env%hills_env%n_hills
+    DO irk=1,lsize
+       CALL val_create(my_val,r_val=meta_env%hills_env%invdt_history(irk),error=error)
+
+       IF (irk<=Nlist) THEN
+          IF (irk==1) THEN
+             new_pos => vals
+          ELSE
+             new_pos => new_pos%rest
+          END IF
+          old_val => new_pos%first_el
+          CALL val_release(old_val,error=error)
+          new_pos%first_el => my_val
+       ELSE
+          IF (irk==1) THEN
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+             vals => new_pos
+          ELSE
+             NULLIFY(new_pos%rest)
+             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+             new_pos => new_pos%rest
+          END IF
+       END IF
+       NULLIFY(my_val)
+    END DO
+    invdt_section%values(ik,1)%list => vals
+  END SUBROUTINE meta_hills_val_set_dt
 
 END MODULE input_cp2k_restarts
 
