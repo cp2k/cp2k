@@ -62,3 +62,4 @@ H2O-extpot.inp      11
 H-extpot.inp        11
 # welltempered metadynamics
 2H2O_meta_welltemp.inp  1
+ND3_meta_welltemp.inp   1
