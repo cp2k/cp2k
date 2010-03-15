@@ -33,7 +33,7 @@
 !> \note
 !>       should be kept as lean as possible.
 !>       see cp2k_run for more comments
-!> \author Joost VandeVondele
+!> \author Joost VandeVondele !
 ! *****************************************************************************
 PROGRAM cp2k
   USE cp2k_info,         ONLY : print_cp2k_license,&
