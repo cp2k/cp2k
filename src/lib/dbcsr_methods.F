@@ -1106,6 +1106,9 @@ CONTAINS
           END FORALL
        ENDIF
     ENDIF
+!!$omp single
+!       td(:) = 0
+!!$omp end single nowait
 !$OMP BARRIER
   END SUBROUTINE dbcsr_distribution_make_threads
 
@@ -2170,14 +2173,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: dt1, dt2
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: c_sp
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: c_dp
     INTEGER                                  :: bp, nze
     LOGICAL                                  :: compatible, pointee_is_2d, rmp
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -2211,42 +2208,42 @@ CONTAINS
     rmp = dt1 .NE. dt2
     SELECT CASE (dt2)
     CASE (dbcsr_type_real_4_2d)
+       !area%d%r2_sp => dbcsr_get_data_p_2d_s (pointee)
        area%d%r2_sp => pointee%d%r2_sp(1:rsize,1:csize)
     CASE (dbcsr_type_real_4)
        IF (rmp) THEN
-          r_sp => dbcsr_get_data_p_s (pointee, bp, bp+nze-1)
           CALL pointer_s_rank_remap2(area%d%r2_sp, rsize, csize,&
-               r_sp)
+               dbcsr_get_data_p_s (pointee, bp, bp+nze-1))
        ELSE
           area%d%r_sp => dbcsr_get_data_p_s (pointee, bp, bp+nze-1)
        ENDIF
     CASE (dbcsr_type_real_8_2d)
+       !area%d%r2_dp => dbcsr_get_data_p_2d_d (pointee)
        area%d%r2_dp => pointee%d%r2_dp(1:rsize,1:csize)
     CASE (dbcsr_type_real_8)
        IF (rmp) THEN
-          r_dp => dbcsr_get_data_p_d (pointee, bp, bp+nze-1)
           CALL pointer_d_rank_remap2(area%d%r2_dp, rsize, csize,&
-               r_dp)
+               dbcsr_get_data_p_d (pointee, bp, bp+nze-1))
        ELSE
           area%d%r_dp => dbcsr_get_data_p_d (pointee, bp, bp+nze-1)
        ENDIF
     CASE (dbcsr_type_complex_4_2d)
+       !area%d%c2_sp => dbcsr_get_data_p_2d_c (pointee)
        area%d%c2_sp => pointee%d%c2_sp(1:rsize,1:csize)
     CASE (dbcsr_type_complex_4)
        IF (rmp) THEN
-          c_sp => dbcsr_get_data_p_c (pointee, bp, bp+nze-1)
           CALL pointer_c_rank_remap2(area%d%c2_sp, rsize, csize,&
-               c_sp)
+               dbcsr_get_data_p_c (pointee, bp, bp+nze-1))
        ELSE
           area%d%c_sp => dbcsr_get_data_p_c (pointee, bp, bp+nze-1)
        ENDIF
     CASE (dbcsr_type_complex_8_2d)
+       !area%d%c2_dp => dbcsr_get_data_p_2d_z (pointee)
        area%d%c2_dp => pointee%d%c2_dp(1:rsize,1:csize)
     CASE (dbcsr_type_complex_8)
        IF (rmp) THEN
-          c_dp => dbcsr_get_data_p_z (pointee, bp, bp+nze-1)
           CALL pointer_z_rank_remap2(area%d%c2_dp, rsize, csize,&
-               c_dp)
+               dbcsr_get_data_p_z (pointee, bp, bp+nze-1))
        ELSE
           area%d%c_dp => dbcsr_get_data_p_z (pointee, bp, bp+nze-1)
        ENDIF
@@ -2377,14 +2374,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: dt1
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: c_sp
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: c_dp
     INTEGER                                  :: bp, csize, nze
     LOGICAL                                  :: compatible
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -2410,21 +2401,17 @@ CONTAINS
     ENDIF
     SELECT CASE (dt1)
     CASE (dbcsr_type_real_4)
-       r_sp => dbcsr_get_data_p_s (area, bp, bp+nze-1)
        CALL pointer_s_rank_remap2(area%d%r2_sp, rowsize, csize,&
-            r_sp)
+            dbcsr_get_data_p_s (area, bp, bp+nze-1))
     CASE (dbcsr_type_real_8)
-       r_dp => dbcsr_get_data_p_d (area, bp, bp+nze-1)
        CALL pointer_d_rank_remap2(area%d%r2_dp, rowsize, csize,&
-            r_dp)
+            dbcsr_get_data_p_d (area, bp, bp+nze-1))
     CASE (dbcsr_type_complex_4)
-       c_sp => dbcsr_get_data_p_c (area, bp, bp+nze-1)
        CALL pointer_c_rank_remap2(area%d%c2_sp, rowsize, csize,&
-            c_sp)
+            dbcsr_get_data_p_c (area, bp, bp+nze-1))
     CASE (dbcsr_type_complex_8)
-       c_dp => dbcsr_get_data_p_z (area, bp, bp+nze-1)
        CALL pointer_z_rank_remap2(area%d%c2_dp, rowsize, csize,&
-            c_dp)
+            dbcsr_get_data_p_z (area, bp, bp+nze-1))
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
             routineN, "Invalid data type",__LINE__,error)

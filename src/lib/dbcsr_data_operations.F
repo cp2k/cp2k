@@ -103,24 +103,32 @@ CONTAINS
        SELECT CASE (source_area%d%data_type)
           CASE (dbcsr_type_real_8)
              n = dbcsr_get_data_size (source_area)
-             CALL dbcsr_get_data (target_area, t_data_d)
-             CALL dbcsr_get_data (source_area, s_data_d)
-             IF(n.GT.0)t_data_d(1:n) = s_data_d(1:n)
+             IF (n .GT. 0) THEN
+                CALL dbcsr_get_data (target_area, t_data_d)
+                CALL dbcsr_get_data (source_area, s_data_d)
+                t_data_d(1:n) = s_data_d(1:n)
+             ENDIF
           CASE (dbcsr_type_real_4)
              n = dbcsr_get_data_size (source_area)
-             CALL dbcsr_get_data (target_area, t_data_r)
-             CALL dbcsr_get_data (source_area, s_data_r)
-             IF(n.GT.0)t_data_r(1:n) = s_data_r(1:n)
+             IF (n .GT. 0) THEN
+                CALL dbcsr_get_data (target_area, t_data_r)
+                CALL dbcsr_get_data (source_area, s_data_r)
+                t_data_r(1:n) = s_data_r(1:n)
+             ENDIF
           CASE (dbcsr_type_complex_8)
              n = dbcsr_get_data_size (source_area)
-             CALL dbcsr_get_data (target_area, t_data_z)
-             CALL dbcsr_get_data (source_area, s_data_z)
-             IF(n.GT.0)t_data_z(1:n) = s_data_z(1:n)
+             IF (n .GT. 0) THEN
+                CALL dbcsr_get_data (target_area, t_data_z)
+                CALL dbcsr_get_data (source_area, s_data_z)
+                t_data_z(1:n) = s_data_z(1:n)
+             ENDIF
           CASE (dbcsr_type_complex_4)
              n = dbcsr_get_data_size (source_area)
-             CALL dbcsr_get_data (target_area, t_data_c)
-             CALL dbcsr_get_data (source_area, s_data_c)
-             IF(n.GT.0)t_data_c(1:n) = s_data_c(1:n)
+             IF (n .GT. 0) THEN
+                CALL dbcsr_get_data (target_area, t_data_c)
+                CALL dbcsr_get_data (source_area, s_data_c)
+                t_data_c(1:n) = s_data_c(1:n)
+             ENDIF
           CASE default
              CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
                   routineN, "Invalid data type",__LINE__,error)

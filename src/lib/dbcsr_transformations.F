@@ -1020,7 +1020,7 @@ CONTAINS
     myt_send_count(:,:,:,:) = 0
     prev_dst_p = -1
     ! Count sizes for sending.
-    CALL dbcsr_iterator_start(iter, ism)
+    CALL dbcsr_iterator_start(iter, ism, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk)
        DO symmetry_i = 1, nsymmetries
@@ -1166,7 +1166,7 @@ CONTAINS
     ALLOCATE (lsmp(0:numproc-1), lsdp(0:numproc-1))
     prev_dst_p = -1
     ! Copies metadata and actual data to be sent into the send buffers.
-    CALL dbcsr_iterator_start(iter, ism)
+    CALL dbcsr_iterator_start(iter, ism, shared=.FALSE.)
     prev_row = 0
     prev_blk_p = 0
     DO WHILE (dbcsr_iterator_blocks_left (iter))

@@ -334,6 +334,10 @@ CONTAINS
        CALL dbcsr_verify_matrix (matrix_a, error=error)
        CALL dbcsr_verify_matrix (matrix_b, error=error)
        CALL dbcsr_verify_matrix (matrix_c, error=error)
+       WRITE(*,*)routineN//" ABC checksums",&
+            dbcsr_checksum(matrix_a, error=error),&
+            dbcsr_checksum(matrix_b, error=error),&
+            dbcsr_checksum(matrix_c, error=error)
        CALL dbcsr_print (matrix_a, nodata=.TRUE., error=error)
        CALL dbcsr_print (matrix_b, nodata=.TRUE., error=error)
        CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
@@ -523,15 +527,42 @@ CONTAINS
        CALL dbcsr_distribution_hold (old_product_distribution)
        CALL dbcsr_make_dense (product_matrix, error=error)
     ENDIF
+!$omp parallel default (none) shared (product_matrix, error, i)
+    ! The thread distribution must reflect the current (possibly
+    ! dense) distribution
+    CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
+!$omp single
+    i = 1
+!$  i = omp_get_num_threads()
+!$omp end single nowait
+!$omp end parallel
+    !@@@
+    IF (dbg) THEN
+       WRITE(*,*)routineN//" Matrices ", dbcsr_get_matrix_type(matrix_a),&
+            dbcsr_get_matrix_type(matrix_b), dbcsr_get_matrix_type(matrix_c)
+       WRITE(*,*)routineN//" Matrices ", transA, transB, "keep", keep_product_data
+    ENDIF
     IF (keep_product_data) THEN
        IF (product_reindex) THEN
           IF (dbg) WRITE(*,*)routineN//" Making canonical index"
           CALL dbcsr_make_index_canonical (product_matrix)
        ENDIF
-       CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
-       i = 1
-       !$ i = omp_get_num_threads()
-       CALL dbcsr_add_wm_from_matrix(product_matrix, nwms=i, error=error)
+       CALL dbcsr_assert (.NOT. ASSOCIATED (product_matrix%m%wms),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Product matrix should be finalized!", __LINE__, error=error)
+!$omp parallel default (none) shared (product_matrix, i, error)
+       ! For the multiply logic to work correctly, existing data must
+       ! be added only after the index has been transformed into the
+       ! canonical form.
+!@@@
+       WRITE(*,*)routineN//' nwms', ASSOCIATED (product_matrix%m%wms)
+       IF (ASSOCIATED (product_matrix%m%wms)) THEN
+          WRITE(*,*)routineN//' nwms', SIZE(product_matrix%m%wms)
+       ENDIF
+
+!$omp barrier
+       CALL dbcsr_add_wm_from_matrix(product_matrix, error=error)
+!$omp end parallel
     ENDIF
     product_matrix%m%nze = 0
     product_matrix%m%nblks = 0
@@ -668,12 +699,15 @@ CONTAINS
        WRITE(*,*)routineN//" Use dense mult, symm", use_dense_mult, ab_dense, &
             dbcsr_has_symmetry (matrix_c)
        CALL dbcsr_verify_matrix (matrix_c, error=error)
+       CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
        cs = dbcsr_checksum (matrix_c, error=error)
        WRITE(*,*)routineN//" Product checksum", cs
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multiply_anytype
   
+
+
   SUBROUTINE dbcsr_multiply_s(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&

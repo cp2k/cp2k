@@ -118,7 +118,8 @@ CONTAINS
 !> \param[in] matrix      DBCSR matrix
 !> \param[in] shared      (optional) Threads do not iterator through
 !>                        the same matrix in a multi-threaded
-!>                        environment; default is TRUE.
+!>                        environment; default is TRUE. if the
+!>                        threaded distribution is defined.
 !> \param[in] contiguous_pointers  (optional) Whether returned pointers need
 !>                                 to be contiguous; default is FALSE.
 !>
@@ -142,7 +143,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     share = .TRUE.
+!$  share = omp_get_num_threads() .GT. 1
     IF (PRESENT (shared)) share = shared
+    ! Only allow sharing if there's a distribution defined.
     share = share .AND.&
          array_size (dbcsr_distribution_thread_dist (matrix%m%dist)) .GT. 0
     iterator%shared = share
@@ -173,8 +176,10 @@ CONTAINS
     iterator%row_p => matrix%m%row_p
     iterator%col_i => matrix%m%col_i
     iterator%blk_p => matrix%m%blk_p
+!$omp critical
     iterator%data_area = matrix%m%data_area
     CALL dbcsr_data_hold (iterator%data_area)
+!$omp end critical
     iterator%row_size = 0
     IF (iterator%shared) THEN
        iterator%tdist => array_data (dbcsr_distribution_thread_dist (matrix%m%dist))
@@ -235,7 +240,9 @@ CONTAINS
     CALL dbcsr_data_release (iterator%buffer_2d)
     NULLIFY (iterator%tdist)
     !CALL dbcsr_release (iterator%matrix)
+!$omp critical
     CALL dbcsr_data_release (iterator%data_area)
+!$omp end critical
   END SUBROUTINE dbcsr_iterator_stop
 
 

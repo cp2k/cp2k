@@ -49,6 +49,8 @@ MODULE dbcsr_internal_operations
        dbcsr_mp_pgrid, dbcsr_nfullcols_local, dbcsr_nfullrows_local, &
        dbcsr_row_block_sizes, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
        dbcsr_scalar_one, dbcsr_scalar_zero
+
+!$ USE dbcsr_methods, ONLY: dbcsr_distribution_thread_dist
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_mp_type_from_anytype
@@ -228,12 +230,17 @@ CONTAINS
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
     IF (dbg) debug_level = 2
-    ithread= 0 ; nthreads = 1
-    !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
-    !IF (.NOT. ASSOCIATED (product_matrix%m%wms)) THEN
-       CALL dbcsr_work_create(product_matrix,&
-            work_mutable=.FALSE., error=error)
-    !ENDIF
+!$omp parallel default (none) private (ithread) &
+!$omp shared (nthreads, product_matrix, error)
+    ithread= 0
+    !$ ithread = OMP_GET_THREAD_NUM ()
+!$omp single
+    nthreads = 1
+    !$ nthreads = OMP_GET_NUM_THREADS ()
+!$omp end single
+    CALL dbcsr_work_create(product_matrix,&
+         work_mutable=.FALSE., error=error)
+!$omp end parallel
     !logger => cp_error_get_logger (error)
     output_unit = default_output_unit
     !cp_logger_get_default_io_unit (logger)
@@ -870,6 +877,12 @@ CONTAINS
                 CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
              ENDIF
              tstart = m_walltime ()
+!$omp parallel default (none) &
+!$omp shared (left_buffer_calc, right_buffer_calc, &
+!$omp         v_ki, &
+!$omp         product_matrix, submatrix_selection, &
+!$omp         retain_sparsity, alpha, error) &
+!$omp reduction (+: flop_single, t_all, t_dgemm)
              CALL dbcsr_nn_mult_lin(&
                   left_buffer_calc%mats(1, v_ki+1)%m,&
                   right_buffer_calc%mats(v_ki+1, 1)%m,&
@@ -878,6 +891,7 @@ CONTAINS
                   alpha=alpha,&
                   flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm, error=error)
+!$omp end parallel
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
              IF (tstop-tstart .EQ. 0) tstop = tstart+0.000001_dp
@@ -929,7 +943,10 @@ CONTAINS
     CALL dbcsr_data_release(right_data_sp)
     CALL dbcsr_data_release(right_data_rp)
     !
+!$omp parallel default(none) &
+!$omp shared (product_matrix, error)
     CALL dbcsr_finalize(product_matrix, error=error)
+!$omp end parallel
     !
     IF (dbg) THEN
        checksum = dbcsr_checksum (product_matrix, error=error)
@@ -1028,12 +1045,11 @@ CONTAINS
       b_col_size_logical, b_row_logical, b_row_size_logical, blk_end, &
       blk_size, blk_start, c_blk_p, c_blk_pt, c_col_logical, &
       c_col_size_logical, c_nze, c_row_logical, c_row_size_logical, &
-      clamp_k_len, datasize, error_handler, first_k, first_mergeable, &
-      first_row, i, ithread, j, last_k, last_row, lastblk, new_blk, &
-      new_row_blks, nthreads, old_blk, old_row_begin_blk, old_size, &
-      row_begin_blk, row_blk, rpt, size_c_blk_ps, stack_p, stack_p_a, &
-      stack_p_b, stack_p_c, stat, submat_f_col, submat_f_row, submat_l_col
-    INTEGER :: submat_l_row, this_right_limit
+      clamp_k_len, datasize, error_handler, first_k, first_mergeable, i, &
+      ithread, j, last_k, lastblk, new_blk, new_row_blks, nthreads, old_blk, &
+      old_row_begin_blk, old_size, row_begin_blk, row_blk, size_c_blk_ps, &
+      stack_p, stack_p_a, stack_p_b, stack_p_c, stat, submat_f_col, &
+      submat_f_row, submat_l_col, submat_l_row, this_right_limit
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: lflop, one_flop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
@@ -1041,6 +1057,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: left_col_blk_offset, left_local_rows, &
       left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
       product_col_blk_offset, right_col_blk_offset
+
+!$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
     LOGICAL :: block_exists, flush_stack, found, keep_sparsity, &
       left_limit_rows, limit_k, negate_alpha, product_is_symmetric, &
       right_limit_cols, tr_p
@@ -1073,7 +1091,6 @@ CONTAINS
     product_is_symmetric = product%symmetry
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
-    !WRITE(*,*)'Hello! I am thread',ithread
     epoch = m_walltime()
     DBG "Doing NN matrix multiplication",left%name,' x ',right%name
     DBG "Pre-mult blk sizes, data", product%wms(ithread+1)%lastblk,&
@@ -1082,7 +1099,9 @@ CONTAINS
     left_col_blk_offset => array_data (left%col_blk_offset)
     right_col_blk_offset => array_data (right%col_blk_offset)
     product_col_blk_offset => array_data (product%col_blk_offset)
-    !left_thread_dist => array_data (dbcsr_distribution_thread_dist (product%dist))
+!$  NULLIFY (product_thread_dist)    
+!$  product_thread_dist => array_data (&
+!$       dbcsr_distribution_thread_dist (product%dist))
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
     ! Submatrix handling
     CALL dbcsr_assert (submatrix_box(1) .EQ. 0,&
@@ -1146,13 +1165,9 @@ CONTAINS
     first_mergeable = 1
     stack_p = 0 ; stack_p_a = 0 ; stack_p_b = 0 ; stack_p_c = 0
     new_blk = 0
-    !write(*,*)ithread,':',left_thread_dist
-    rpt = CEILING (REAL(left%nblkrows_local) / REAL(nthreads))
-    first_row = MIN (ithread*rpt+1, left%nblkrows_local)
-    last_row = MIN ((ithread+1)*rpt, left%nblkrows_local)
-    !write(*,*)ithread,'Doing rows', first_row, last_row
     DO a_row_l = 1, left%nblkrows_local
        a_row_logical = left_local_rows (a_row_l)
+!$     IF (product_thread_dist(a_row_logical) .ne. ithread) CYCLE
        IF (dbg) WRITE(*,*)routineN//" A row", a_row_logical
        blk_start = left_row_blk_offset(a_row_logical)
        blk_end = left_row_blk_offset(a_row_logical+1)-1

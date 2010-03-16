@@ -40,20 +40,20 @@ MODULE dbcsr_work_operations
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_allocate
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_data_ensure_size, dbcsr_data_hold, dbcsr_data_init, &
-       dbcsr_data_new, dbcsr_data_release, dbcsr_destroy_array, &
-       dbcsr_destroy_image_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_release, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_num_blocks, dbcsr_init, dbcsr_is_initialized, &
-       dbcsr_modify_lock, dbcsr_modify_unlock, dbcsr_mutable_destroy, &
+       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_hold, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_destroy_array, dbcsr_destroy_image_dist, &
+       dbcsr_distribution_hold, dbcsr_distribution_release, &
+       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_num_blocks, &
+       dbcsr_init, dbcsr_is_initialized, dbcsr_mutable_destroy, &
        dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_release, &
        dbcsr_uses_special_memory, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
-       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_magic_number, &
-       dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, dbcsr_repl_col, &
-       dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, &
-       dbcsr_slot_col_i, dbcsr_slot_nblkcols_local, &
+       dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
+       dbcsr_magic_number, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
+       dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
+       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblkcols_local, &
        dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
        dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
        dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
@@ -414,7 +414,7 @@ CONTAINS
        nw = 1
 !$     nw = omp_get_max_threads()
     ENDIF
-!$  CALL dbcsr_modify_lock (matrix)
+!$omp single
     wms_new = .NOT. ASSOCIATED (matrix%m%wms)
     wms_realloc = .FALSE.
     nw = 1
@@ -453,7 +453,7 @@ CONTAINS
        END DO
     ENDIF
 !$OMP FLUSH (matrix)
-!$  CALL dbcsr_modify_unlock (matrix)
+!$omp end single
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_work_create
 
@@ -480,7 +480,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: all_nblks, all_nze, &
-                                                error_handler, i, j
+                                                error_handler, i, j, nwms
     LOGICAL                                  :: multidata, sort_data, &
                                                 sort_index
 
@@ -488,37 +488,52 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
-    CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%predistributed),&
-         dbcsr_warning_level,&
-         dbcsr_internal_error, routineN, "Submatrices exist",__LINE__,error)
+!$omp single
+    ! Remove the cached pre-distributed images.
     IF (ASSOCIATED (matrix%m%predistributed)) THEN
           CALL dbcsr_destroy_array (matrix%m%predistributed,error)
           CALL dbcsr_destroy_image_dist (matrix%m%predistributed%image_dist)
           DEALLOCATE (matrix%m%predistributed)
     ENDIF
     NULLIFY (matrix%m%predistributed)
+!$omp end single
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not finalize uninitialized matrix.",__LINE__,error)
     IF (dbcsr_valid_index(matrix)) THEN
-       IF (dbg) WRITE(*,'(2(1X,A))')&
-            "No need to finalize a valid matrix, skipping."
-!vw       CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%wms), dbcsr_warning_level,&
-!vw            dbcsr_internal_error, routineN,&
-!vw            "Valid matrix should not contain work data")
+!$omp single
+       !"No need to finalize a valid matrix, skipping."
+       !
+       ! A matrix with a valid index should not have associated work
+       ! arrays.  This may happen when this routine is called on a
+       ! matrix that was not changed.
        IF (ASSOCIATED (matrix%m%wms)) &
             CALL dbcsr_work_destroy_all(matrix%m)
+!$omp end single
        CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
-    IF (dbg) WRITE(*,'(A,1X,A,2(1X,I9))')routineN//' finalizing matrix ',&
-         matrix%m%name, matrix%m%nze, matrix%m%nblks
-    !CALL dbcsr_assert (matrix%m%nze.EQ.0 .EQV. matrix%m%nblks.EQ.0,&
-    !     dbcsr_warning_level, dbcsr_unimplemented_error_nr, routineN,&
-    !     "Matrix data size not consistent with number of blocks.")
-    ! If there is data in the matrix proper, create a work matrix from it.
+    ! If there is data in the matrix proper, create a work matrix from
+    ! it since it's more consistent to merge that way.  If there are
+    ! no work matrices, then, for efficiency, only one work matrix is
+    ! created. If the number of work matrices matches the number of
+    ! threads and none of the work matrices is mutable, then the
+    ! matrix data is merged into the work matrices. Otherwise, an
+    ! addition set is created.
     IF (matrix%m%nze .GT. 0) THEN
-       CALL dbcsr_add_wm_from_matrix (matrix, 1, error=error)
+       nwms = 1
+!$     IF (ASSOCIATED (matrix%m%wms)) THEN
+!$        IF (omp_get_num_threads() .EQ. SIZE(matrix%m%wms)) THEN
+!$          nwms = 0
+!$        ENDIF
+!$        DO i = 1, SIZE(matrix%m%wms)
+!$          IF (dbcsr_wm_use_mutable (matrix%m%wms(i))) THEN
+!$            nwms = omp_get_num_threads()
+!$            EXIT
+!$          ENDIF
+!$        ENDDO
+!$     ENDIF
+       CALL dbcsr_add_wm_from_matrix (matrix, new_nwms=nwms, error=error)
     ENDIF
     IF (PRESENT (reshuffle)) THEN
        sort_data = reshuffle
@@ -539,25 +554,30 @@ CONTAINS
                "Nothing to be done.",__LINE__,error)
        ENDIF
        ! Should short-circut and just create an empty index.
-       CALL dbcsr_work_create (matrix, error=error)
+       CALL dbcsr_work_create (matrix, n=1, error=error)
     ENDIF
     CALL dbcsr_assert (ASSOCIATED (matrix%m%wms), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not finalize matrix containing no work matrices.",__LINE__,error)
     CALL dbcsr_assert (SIZE (matrix%m%wms),'GT', 0, dbcsr_failure_level,&
          dbcsr_caller_error, routineN,&
          "Can not finalize matrix containing no work matrices.",__LINE__,error)
+!$omp barrier
     ! If there are multiple work matrices, the indices have to be sorted to
     ! enable merging the index.
     IF (sort_index .OR. multidata) THEN
        IF (multidata) THEN
+!$omp single
           CALL dbcsr_sort_many_indices (matrix%m)
+!$omp end single
           sort_data = .TRUE.
        ELSE
           IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(1))&
                .AND. matrix%m%wms(1)%lastblk .GT. 0) THEN
+!$omp single
              CALL dbcsr_sort_indices(matrix%m%wms(1)%lastblk,&
                   matrix%m%wms(1)%row_i,&
                   matrix%m%wms(1)%col_i, matrix%m%wms(1)%blk_p)
+!$omp end single
           ENDIF
        ENDIF
     ENDIF
@@ -568,6 +588,7 @@ CONTAINS
        all_nblks = all_nblks + matrix%m%wms(i)%lastblk
        all_nze = all_nze + matrix%m%wms(i)%datasize
     ENDDO
+!$omp master
     IF (dbg) THEN
        DO i = 1, SIZE (matrix%m%wms)
           WRITE(*,'(A,4(1X,I4))')"Sorted work matrix",i, matrix%m%wms(i)%lastblk,&
@@ -582,6 +603,9 @@ CONTAINS
           ENDIF
        ENDDO
     ENDIF
+!$omp end master
+!$omp barrier
+!$omp single
     matrix%m%nblks = all_nblks
     matrix%m%nze = all_nze
     matrix%m%index(dbcsr_slot_nblks) = matrix%m%nblks
@@ -608,6 +632,7 @@ CONTAINS
     CALL dbcsr_work_destroy_all(matrix%m)
     matrix%m%valid = .TRUE.
     IF (dbg) CALL dbcsr_verify_matrix (matrix, error=error)
+!$omp end single
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_finalize
 
@@ -615,17 +640,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Creates a work matrix from the data present in a finalized matrix.
 !> \param[in,out] matrix      DBCSR matrix
-!> \param[in] nwms            Number of work matrices (i.e., threads)
+!> \param[in] new_nwms        (optional) Number of work matrices
+!>                            (i.e., threads)
+!> \param[in,out] error       error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add_wm_from_matrix(matrix, nwms, error)
+  SUBROUTINE dbcsr_add_wm_from_matrix(matrix, new_nwms, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    INTEGER, INTENT(IN)                      :: nwms
+    INTEGER, INTENT(IN), OPTIONAL            :: new_nwms
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_wm_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, n
+    INTEGER                                  :: error_handler, i, nwms, &
+                                                old_nwms
+    LOGICAL                                  :: preexists
     TYPE(dbcsr_work_type), DIMENSION(:), &
       POINTER                                :: new_wms
 
@@ -634,30 +663,55 @@ CONTAINS
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
     DBG "Adding to an existing matrix, wee!"
-    IF (ASSOCIATED (matrix%m%wms)) THEN
-       n = SIZE (matrix%m%wms)
-       IF (n .EQ. 0) DEALLOCATE (matrix%m%wms)
+    preexists = ASSOCIATED (matrix%m%wms)
+!$omp barrier
+    IF (preexists) THEN
+       old_nwms = SIZE (matrix%m%wms)
+!$omp barrier
+       CALL dbcsr_assert (old_nwms, "NE", 0, dbcsr_warning_level,&
+            dbcsr_internal_error, routineN, "Nonexisting work matrices?!",&
+            __LINE__, error=error)
+       IF (old_nwms .EQ. 0) THEN
+!$omp single
+          DEALLOCATE (matrix%m%wms)
+!$omp end single
+       ENDIF
     ELSE
-       n = 0
+       old_nwms = 0
     ENDIF
-    IF (n .EQ. 0) THEN
-       ! Just create it
+    IF (PRESENT (new_nwms)) THEN
+       nwms = MAX (1, old_nwms + new_nwms)
+    ELSE
+       nwms = MAX(1, old_nwms)
+!$     nwms = MAX(1, old_nwms + omp_get_num_threads())
+    ENDIF
+    IF (old_nwms .EQ. 0) THEN
        CALL dbcsr_work_create (matrix, matrix%m%nblks, matrix%m%nze, n=nwms,&
             work_mutable=.FALSE., error=error)
+!$omp barrier
        CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m, nwms=nwms,&
             offset=0, error=error)
     ELSE
-       ALLOCATE (new_wms (1:n+nwms))
-       new_wms(1:n) = matrix%m%wms(1:n)
-       DEALLOCATE (matrix%m%wms)
-       matrix%m%wms => new_wms
-       DO i = 1, nwms
-          CALL dbcsr_init_wm (matrix%m%wms(n+i), dbcsr_get_data_type (matrix),&
-               nblks_guess=dbcsr_get_num_blocks (matrix), error=error)
-       ENDDO
-       CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m,&
-            nwms=nwms, offset=n, error=error)
+       IF (nwms .NE. old_nwms) THEN
+!$omp barrier
+!$omp single
+          ALLOCATE (new_wms (1:nwms))
+          new_wms(1:old_nwms) = matrix%m%wms(1:old_nwms)
+          DEALLOCATE (matrix%m%wms)
+          matrix%m%wms => new_wms
+          DO i = old_nwms+1, nwms
+             CALL dbcsr_init_wm (matrix%m%wms(i), dbcsr_get_data_type (matrix),&
+                  nblks_guess=dbcsr_get_num_blocks (matrix), error=error)
+          ENDDO
+!$omp end single
+          CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m,&
+               nwms=nwms-old_nwms, offset=old_nwms, error=error)
+       ELSE
+          CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m,&
+               nwms=nwms, offset=0, error=error)
+       ENDIF
     ENDIF
+!$omp barrier
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_wm_from_matrix
 
@@ -681,9 +735,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_p, col, &
-                                                error_handler, i, nblks, row, &
+                                                error_handler, ithread, &
+                                                nblks, nze, row, wblk_p, &
                                                 which_wm
     INTEGER, DIMENSION(:), POINTER           :: tdist
+    LOGICAL                                  :: mt, tr
+    TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_obj)                          :: m
 
@@ -693,38 +750,64 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     nblks = matrix%nblks
     m%m = matrix
+    mt = .FALSE.
     IF (nwms .GT. 1) THEN
+!$     mt = omp_get_num_threads() .EQ. nwms
        tdist => array_data (matrix%dist%d%thread_dist)
-       CALL dbcsr_assert (ASSOCIATED (tdist), dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "thread distribution must be defined in threaded env.",__LINE__,error)
-       WRITE(*,*)routineN//" Threading fill", tdist
+       CALL dbcsr_assert (ASSOCIATED (tdist),&
+            dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "thread distribution must be defined in threaded env.",&
+            __LINE__,error)
     ENDIF
-    CALL dbcsr_iterator_start (iter, m)
-    IF (dbg) WRITE(*,*)routineN//" There are",nblks,"blocks."
-    i = 1
+    ithread = 0
+!$  ithread = omp_get_thread_num ()
+    IF (nwms .GT. 1) THEN
+       CALL dbcsr_data_init (data_block)
+       CALL dbcsr_data_new (data_block, dbcsr_get_data_type (matrix%data_area))
+       DO which_wm = 1+offset, nwms+offset
+          IF (mt .AND. which_wm .NE. ithread+1+offset) CYCLE
+          CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
+               dbcsr_get_data_size (matrix%data_area), error=error)
+       ENDDO
+    ENDIF
+    CALL dbcsr_iterator_start (iter, m, shared=mt)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       IF (dbg) WRITE(*,*)routineN//" Getting block", i,"/",nblks
-       CALL dbcsr_iterator_next_block (iter, row, col, blk=blk, blk_p=blk_p)
-       IF (dbg) WRITE(*,*)routineN//" With coor", row, col, "at", blk_p
-       !which_wm = MOD (row, nwms) + 1 + offset
        IF (nwms .GT. 1) THEN
-          which_wm = tdist (row) + offset
+          CALL dbcsr_iterator_next_block (iter, row, col, data_block,&
+               transposed=tr, block_number=blk)
+          blk_p = matrix%blk_p(blk)
+          IF (mt) THEN
+             which_wm = ithread+1 + offset
+          ELSE
+             which_wm = tdist(row)+1 + offset
+          ENDIF
+          wblk_p = SIGN (wm(which_wm)%datasize+1, blk_p)
+          CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
+          nze = dbcsr_get_data_size (data_block)
+          CALL dbcsr_data_set (wm(which_wm)%data_area,&
+               lb=ABS(wblk_p),&
+               data_size=nze,&
+               src=data_block, source_lb=1)
+          wm(which_wm)%datasize = wm(which_wm)%datasize+nze
        ELSE
+          CALL dbcsr_iterator_next_block (iter, row, col, blk=blk, blk_p=blk_p)
           which_wm = offset+1
+          CALL add_work_coordinate (wm(which_wm), row, col, blk_p, error=error)
        ENDIF
-       CALL add_work_coordinate (wm(which_wm), row, col, blk_p, error=error)
-       i = i+1
     ENDDO
     CALL dbcsr_iterator_stop (iter)
-    !wm%data_area = matrix%data_area
-    !CALL dbcsr_data_hold (wm%data_area)
-    DO which_wm = 1+offset, nwms+offset
-       CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-            dbcsr_get_data_size (matrix%data_area), error=error)
-       CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%data_area)
-       wm(which_wm)%datasize = dbcsr_get_data_size (wm(which_wm)%data_area)
-    ENDDO
-    IF (dbg) WRITE(*,*)routineN//" Size is",wm%datasize, wm%lastblk
+    IF (nwms .GT. 1) THEN
+       CALL dbcsr_data_clear_pointer (data_block)
+       CALL dbcsr_data_release (data_block)
+    ELSE
+       DO which_wm = 1+offset, nwms+offset
+          IF (mt .AND. which_wm .NE. ithread+1+offset) CYCLE
+          CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
+               dbcsr_get_data_size (matrix%data_area), error=error)
+          CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%data_area)
+          wm(which_wm)%datasize = dbcsr_get_data_size (wm(which_wm)%data_area)
+       ENDDO
+    ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_fill_wm_from_matrix
 

@@ -107,12 +107,14 @@ CONTAINS
     INTEGER, INTENT(out)                     :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
+!$OMP MASTER
     error%stack%level = error%stack%level + 1
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
        error%stack%level.LT.1) STOP
     error%stack%s(error%stack%level) = name
     handler = error%stack%level
     error%stack%handler(error%stack%level) = handler
+!$OMP END MASTER
   END SUBROUTINE dbcsr_error_set
 
 ! *****************************************************************************
@@ -123,6 +125,7 @@ CONTAINS
     INTEGER, INTENT(inout)                   :: handler
     TYPE(dbcsr_error_type)                   :: error
 
+!$OMP MASTER
     IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
        error%stack%level.LT.1) THEN
        WRITE(*,*) 'dbcsr_error_stop'
@@ -141,6 +144,7 @@ CONTAINS
     error%stack%level = error%stack%level - 1
     ! destroy the handler for any case
     handler = -HUGE(0)
+!$OMP END MASTER
   END SUBROUTINE dbcsr_error_stop
 
 ! *****************************************************************************
@@ -211,11 +215,11 @@ CONTAINS
     !
     ! print the stack
     CALL dbcsr_error_print_stack(error, output_unit)
-    ! Segmentation faults can be handy for debugging.
-    !WRITE(*,*)error%stack%handler(-666)
     !
     ! abort if needed
     IF(error%level.NE.dbcsr_warning_level) THEN
+       ! Segmentation faults can be handy for debugging.
+       WRITE(*,*)error%stack%handler(-line - 666)
        CALL mp_abort()
     ENDIF
     !
