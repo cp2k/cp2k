@@ -555,10 +555,10 @@ CONTAINS
        ! be added only after the index has been transformed into the
        ! canonical form.
 !@@@
-       WRITE(*,*)routineN//' nwms', ASSOCIATED (product_matrix%m%wms)
-       IF (ASSOCIATED (product_matrix%m%wms)) THEN
-          WRITE(*,*)routineN//' nwms', SIZE(product_matrix%m%wms)
-       ENDIF
+       !vwWRITE(*,*)routineN//' nwms', ASSOCIATED (product_matrix%m%wms)
+       !vwIF (ASSOCIATED (product_matrix%m%wms)) THEN
+       !vw   WRITE(*,*)routineN//' nwms', SIZE(product_matrix%m%wms)
+       !vwENDIF
 
 !$omp barrier
        CALL dbcsr_add_wm_from_matrix(product_matrix, error=error)
