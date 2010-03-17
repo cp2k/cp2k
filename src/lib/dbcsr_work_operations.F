@@ -513,6 +513,11 @@ CONTAINS
        CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
+    IF (PRESENT (reshuffle)) THEN
+       sort_data = reshuffle
+    ELSE
+       sort_data = .FALSE.
+    ENDIF
     ! If there is data in the matrix proper, create a work matrix from
     ! it since it's more consistent to merge that way.  If there are
     ! no work matrices, then, for efficiency, only one work matrix is
@@ -533,12 +538,15 @@ CONTAINS
 !$          ENDIF
 !$        ENDDO
 !$     ENDIF
-       CALL dbcsr_add_wm_from_matrix (matrix, new_nwms=nwms, error=error)
-    ENDIF
-    IF (PRESENT (reshuffle)) THEN
-       sort_data = reshuffle
-    ELSE
-       sort_data = .FALSE.
+       IF (nwms .EQ. 1) THEN
+          ! Count the data that is must actually be added. This
+          ! prevents the finalized matrix from having unused space.
+          CALL dbcsr_add_wm_from_matrix (matrix, new_nwms=nwms,&
+               count_data=.TRUE.,&
+               error=error)
+       ELSE
+          CALL dbcsr_add_wm_from_matrix (matrix, new_nwms=nwms, error=error)
+       ENDIF
     ENDIF
     sort_index = .TRUE.
     IF (PRESENT (resort)) sort_index = resort
@@ -644,15 +652,16 @@ CONTAINS
 !>                            (i.e., threads)
 !> \param[in,out] error       error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add_wm_from_matrix(matrix, new_nwms, error)
+  SUBROUTINE dbcsr_add_wm_from_matrix(matrix, new_nwms, count_data, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: new_nwms
+    LOGICAL, INTENT(IN), OPTIONAL            :: count_data
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_wm_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, nwms, &
+    INTEGER                                  :: error_handler, i, nwms, nze, &
                                                 old_nwms
     LOGICAL                                  :: preexists
     TYPE(dbcsr_work_type), DIMENSION(:), &
@@ -690,7 +699,7 @@ CONTAINS
             work_mutable=.FALSE., error=error)
 !$omp barrier
        CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m, nwms=nwms,&
-            offset=0, error=error)
+            offset=0, count_data=count_data, error=error)
     ELSE
        IF (nwms .NE. old_nwms) THEN
 !$omp barrier
@@ -705,10 +714,11 @@ CONTAINS
           ENDDO
 !$omp end single
           CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m,&
-               nwms=nwms-old_nwms, offset=old_nwms, error=error)
+               nwms=nwms-old_nwms, offset=old_nwms, count_data=count_data,&
+               error=error)
        ELSE
           CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m,&
-               nwms=nwms, offset=0, error=error)
+               nwms=nwms, offset=0, count_data=count_data, error=error)
        ENDIF
     ENDIF
 !$omp barrier
@@ -724,22 +734,24 @@ CONTAINS
 !> \param[in] nwms            number of work matrices
 !> \param[in] offset          first work matrix to use
 ! *****************************************************************************
-  SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix, nwms, offset,error)
+  SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix, nwms, offset, count_data,&
+       error)
     TYPE(dbcsr_work_type), DIMENSION(:), &
       INTENT(INOUT)                          :: wm
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, INTENT(IN)                      :: nwms, offset
+    LOGICAL, INTENT(IN), OPTIONAL            :: count_data
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_fill_wm_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p, col, &
+    INTEGER                                  :: blk, blk_p, col, cs, &
                                                 error_handler, ithread, &
-                                                nblks, nze, row, wblk_p, &
+                                                nblks, nze, row, rs, wblk_p, &
                                                 which_wm
     INTEGER, DIMENSION(:), POINTER           :: tdist
-    LOGICAL                                  :: mt, tr
+    LOGICAL                                  :: count, mt, tr
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_obj)                          :: m
@@ -750,6 +762,8 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     nblks = matrix%nblks
     m%m = matrix
+    count = .FALSE.
+    IF (PRESENT (count_data)) count = count_data
     mt = .FALSE.
     IF (nwms .GT. 1) THEN
 !$     mt = omp_get_num_threads() .EQ. nwms
@@ -766,11 +780,13 @@ CONTAINS
        CALL dbcsr_data_new (data_block, dbcsr_get_data_type (matrix%data_area))
        DO which_wm = 1+offset, nwms+offset
           IF (mt .AND. which_wm .NE. ithread+1+offset) CYCLE
+          ! We don't know how much data we'll get so we have to be generous.
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
                dbcsr_get_data_size (matrix%data_area), error=error)
        ENDDO
     ENDIF
     CALL dbcsr_iterator_start (iter, m, shared=mt)
+    IF (count) nze = 0
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        IF (nwms .GT. 1) THEN
           CALL dbcsr_iterator_next_block (iter, row, col, data_block,&
@@ -790,7 +806,13 @@ CONTAINS
                src=data_block, source_lb=1)
           wm(which_wm)%datasize = wm(which_wm)%datasize+nze
        ELSE
-          CALL dbcsr_iterator_next_block (iter, row, col, blk=blk, blk_p=blk_p)
+          IF (count) THEN
+             CALL dbcsr_iterator_next_block (iter, row, col, blk=blk,&
+                  blk_p=blk_p, row_size=rs, col_size=cs)
+             nze = nze+rs*cs
+          ELSE
+             CALL dbcsr_iterator_next_block (iter, row, col, blk=blk, blk_p=blk_p)
+          ENDIF
           which_wm = offset+1
           CALL add_work_coordinate (wm(which_wm), row, col, blk_p, error=error)
        ENDIF
@@ -805,7 +827,11 @@ CONTAINS
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
                dbcsr_get_data_size (matrix%data_area), error=error)
           CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%data_area)
-          wm(which_wm)%datasize = dbcsr_get_data_size (wm(which_wm)%data_area)
+          IF (count) THEN
+             wm(which_wm)%datasize = nze
+          ELSE
+             wm(which_wm)%datasize = dbcsr_get_data_size (wm(which_wm)%data_area)
+          ENDIF
        ENDDO
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
