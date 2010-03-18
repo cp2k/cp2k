@@ -45,9 +45,10 @@ MODULE dbcsr_work_operations
        dbcsr_destroy_array, dbcsr_destroy_image_dist, &
        dbcsr_distribution_hold, dbcsr_distribution_release, &
        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_num_blocks, &
-       dbcsr_init, dbcsr_is_initialized, dbcsr_mutable_destroy, &
-       dbcsr_mutable_init, dbcsr_mutable_new, dbcsr_mutable_release, &
-       dbcsr_uses_special_memory, dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_init, dbcsr_is_initialized, dbcsr_modify_lock, &
+       dbcsr_modify_unlock, dbcsr_mutable_destroy, dbcsr_mutable_init, &
+       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_uses_special_memory, &
+       dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
@@ -414,11 +415,9 @@ CONTAINS
        nw = 1
 !$     nw = omp_get_max_threads()
     ENDIF
-!$omp single
+!$  CALL dbcsr_modify_lock (matrix)
     wms_new = .NOT. ASSOCIATED (matrix%m%wms)
     wms_realloc = .FALSE.
-    nw = 1
-!$    nw = omp_get_max_threads()
     IF (ASSOCIATED (matrix%m%wms)) THEN
        ow = SIZE(matrix%m%wms)
        CALL dbcsr_assert (ow, 'GE', nw, dbcsr_warning_level,&
@@ -453,7 +452,7 @@ CONTAINS
        END DO
     ENDIF
 !$OMP FLUSH (matrix)
-!$omp end single
+!$  CALL dbcsr_modify_unlock (matrix)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_work_create
 

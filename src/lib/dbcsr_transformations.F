@@ -53,15 +53,16 @@ MODULE dbcsr_transformations
        dbcsr_data_ensure_size, dbcsr_data_hold, dbcsr_data_init, &
        dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
        dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_hold, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_mp_group, dbcsr_mp_mynode, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_no_threads, &
+       dbcsr_distribution_nrows, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, &
+       dbcsr_init, dbcsr_is_initialized, dbcsr_mp_group, dbcsr_mp_mynode, &
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
@@ -96,8 +97,10 @@ MODULE dbcsr_transformations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_transformations'
 
-  REAL, PARAMETER                      :: default_resize_factor = 1.618034
+  !@@@
+  REAL(KIND=dp) :: image_time = 0.0_dp
 
+  REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
   PUBLIC :: dbcsr_desymmetrize_deep,&
             dbcsr_new_transposed,&
@@ -885,16 +888,13 @@ CONTAINS
     INTEGER :: blk, blk_l, blk_p, bp, col, col_img, data_p, dst_p, &
       error_handler, i, ithread, j, mp_group, ncol_images, nrow_images, &
       nsymmetries, nthreads, numproc, nze, pcol, prev_blk_p, prev_dst_p, &
-      prev_row, prow, row, row_img, sd_pos, sm_pos, src_p, stored_blk_p, &
-      stored_col, stored_row, symmetry_i, vcol, vrow
+      prow, row, row_img, sd_pos, sm_pos, src_p, stored_blk_p, stored_col, &
+      stored_row, symmetry_i, t, vcol, vrow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: lsdp, lsmp, rd_disp, &
                                                 recv_meta, rm_disp, sd_disp, &
                                                 sdp, send_meta, sm_disp, smp
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: blk_ps, blks, &
-                                                total_recv_count, &
-                                                total_send_count
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: row_dst_counts, &
-                                                row_dst_offsets
+    INTEGER, ALLOCATABLE, DIMENSION(:, :) :: all_total_send_offset, blk_ps, &
+      blks, myt_total_send_count, total_recv_count, total_send_count
     INTEGER, ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: myt_send_count, recv_count, &
                                                 send_count
@@ -902,12 +902,12 @@ CONTAINS
                                                 col_img_dist, row_blk_size, &
                                                 row_dist, row_img_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: nocopy, predist, same_dst_p, &
-                                                special, tr
+    LOGICAL                                  :: nocopy, predist, release_td, &
+                                                same_dst_p, special, tr
     REAL(KIND=dp)                            :: tstart, tstop
     TYPE(dbcsr_data_obj)                     :: received_data_area, &
                                                 recv_data_area, send_data_area
-    TYPE(dbcsr_distribution_obj)             :: target_dist
+    TYPE(dbcsr_distribution_obj)             :: old_dist, target_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj
@@ -940,6 +940,7 @@ CONTAINS
     row_blk_size => array_data (sm%row_blk_size)
     col_blk_size => array_data (sm%col_blk_size)
     target_dist = target_imgdist%main
+    old_dist = dbcsr_distribution (ism)
     row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
     col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
     nrow_images = target_imgdist%row_decimation
@@ -996,11 +997,38 @@ CONTAINS
     ALLOCATE (sm_disp(0:numproc-1))
     ALLOCATE (rd_disp(0:numproc-1))
     ALLOCATE (rm_disp(0:numproc-1))
-    ALLOCATE (row_dst_counts(2, 0:numproc-1, sm%nblkrows_total))
-    ALLOCATE (row_dst_offsets(2, 0:numproc-1, sm%nblkrows_total))
     ithread = 0
     nthreads = 1
+    release_td = .NOT.dbcsr_distribution_has_threads (old_dist)
+!$omp parallel default (none) &
+!$omp private (ithread,&
+!$omp          row_img, col_img, iter,&
+!$omp          myt_send_count, myt_total_send_count, &
+!$omp          prev_dst_p, dst_p, same_dst_p, &
+!$omp          row, col, blk, symmetry_i, stored_row, stored_col, &
+!$omp          prev_blk_p, blk_p, tr, data_p, stored_blk_p, &
+!$omp          prow, pcol, vcol, vrow, i, j, nze, bp, sm_pos, sd_pos,&
+!$omp          lsmp, lsdp) &
+!$omp shared (nthreads, dbcsr_error, dbg, nocopy, release_td,&
+!$omp         nrow_images, ncol_images, &
+!$omp         ums, sm, ism, target_dist, special, predist, predistribute, &
+!$omp         old_dist, &
+!$omp         mp_obj, target_imgdist, mp_group, numproc, row_dist, col_dist,&
+!$omp         row_img_dist, col_img_dist, blacs2mpi, row_blk_size,&
+!$omp         col_blk_size, data_type, &
+!$omp         send_count, recv_count, all_total_send_offset, total_send_count, &
+!$omp         total_recv_count, &
+!$omp         sd_disp, sm_disp, rd_disp, rm_disp, &
+!$omp         send_meta, recv_meta, send_data_area, &
+!$omp         recv_data_area, received_data_area, &
+!$omp         blk_ps, blks, nsymmetries)
+!$  ithread = omp_get_thread_num()
+!$  IF (release_td) THEN
+!$     CALL dbcsr_distribution_make_threads (old_dist)
+!$  ENDIF
     ! Create and allocate the imaged matrices.
+!$omp single
+!$  nthreads = omp_get_num_threads()
     DO row_img = 1, nrow_images
        DO col_img = 1, ncol_images
           CALL dbcsr_init (ums%mats(row_img, col_img))
@@ -1013,14 +1041,17 @@ CONTAINS
           ums%mats(row_img, col_img)%m%transpose = sm%transpose
        ENDDO
     ENDDO
-    send_count(:,:,:,:) = 0
-    row_dst_counts(:,:,:) = 0
     ! C
+!$omp end single nowait
     ALLOCATE (myt_send_count(2, nrow_images, ncol_images, 0:numproc-1))
+    ALLOCATE (myt_total_send_count(2, 0:numproc-1))
     myt_send_count(:,:,:,:) = 0
+!$omp single
+    ALLOCATE (all_total_send_offset(2, 0:numproc-1))
+!$omp end single nowait
     prev_dst_p = -1
     ! Count sizes for sending.
-    CALL dbcsr_iterator_start(iter, ism, shared=.FALSE.)
+    CALL dbcsr_iterator_start(iter, ism)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk)
        DO symmetry_i = 1, nsymmetries
@@ -1070,24 +1101,31 @@ CONTAINS
           same_dst_p = prev_dst_p .EQ. dst_p
           prev_dst_p = dst_p
           ! These counts are meant for the thread that processes this row.
-          row_dst_counts(1, dst_p, row) =&
-               row_dst_counts(1, dst_p, row) + metalen
           myt_send_count(1, row_img, col_img, dst_p) =&
                myt_send_count(1, row_img, col_img, dst_p) + 1
           ! Data can be duplicated if the transpose is destined to the same
           ! process.
           IF (.NOT. same_dst_p .OR. symmetry_i .EQ. 1) THEN
              nze = row_blk_size(stored_row) * col_blk_size(stored_col)
-             row_dst_counts(2, dst_p, row) =&
-                  row_dst_counts(2, dst_p, row) + nze
              myt_send_count(2, row_img, col_img, dst_p) =&
                   myt_send_count(2, row_img, col_img, dst_p) + nze
           ENDIF
        ENDDO ! symmetry_i
     ENDDO
     CALL dbcsr_iterator_stop(iter)
-    ! Merge the send counts.
+    FORALL (dst_p = 0:numproc-1)
+       myt_total_send_count(1, dst_p) = SUM(myt_send_count(1,:,:,dst_p))
+       myt_total_send_count(2, dst_p) = SUM(myt_send_count(2,:,:,dst_p))
+    END FORALL
+    ! Merge the send counts
+!$omp single
+    send_count(:,:,:,:) = 0
+!$omp end single
+!$omp critical
     send_count(:,:,:,:) = send_count(:,:,:,:) + myt_send_count(:,:,:,:)
+!$omp end critical
+!$omp barrier
+!$omp master
     CALL mp_alltoall(send_count, recv_count, 2*nrow_images*ncol_images,&
          mp_group)
     ! Fill in the meta data structures and copy the data.
@@ -1097,12 +1135,13 @@ CONTAINS
        total_recv_count(1, dst_p) = SUM (recv_count (1, :, :, dst_p))
        total_recv_count(2, dst_p) = SUM (recv_count (2, :, :, dst_p))
     ENDDO
+!$omp end master
+!$omp barrier
     ! Allocate data structures needed for data exchange.
-    !ALLOCATE (recv_data(SUM(recv_count(2, :, :, :))))
+!$omp single
     CALL dbcsr_data_init (recv_data_area)
     CALL dbcsr_data_new (recv_data_area, data_type, SUM(recv_count(2, :, :, :)))
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :, :))))
-    !ALLOCATE (send_data(SUM(send_count(2, :, :, :))))
     CALL dbcsr_data_init (send_data_area)
     CALL dbcsr_data_new (send_data_area, data_type, SUM(send_count(2, :, :, :)))
     ALLOCATE (send_meta(metalen*SUM(send_count(1, :, :, :))))
@@ -1121,26 +1160,35 @@ CONTAINS
        rd_disp(dst_p) = rd_disp(dst_p-1)&
                         + total_recv_count(2, dst_p-1)
     ENDDO
-    ! Calculate the displacements for rows on processors needed for
-    ! the exchanges. (Used to avoid critical sections in the following
-    ! DO loop that copies data into the send buffer.)
-    IF(sm%nblkrows_total.GT.0) THEN
-       row_dst_offsets(:,0,1) = 1
-       DO dst_p = 1, numproc-1
-          row_dst_offsets(1, dst_p, 1) = row_dst_offsets(1, dst_p-1, 1)&
-               + metalen*total_send_count(1, dst_p-1)
-          row_dst_offsets(2, dst_p, 1) = row_dst_offsets(2, dst_p-1, 1)&
-               + total_send_count(2, dst_p-1)
-       ENDDO
+!$omp end single
+    ! Thread-local pointers of the current adding position into the
+    ! send buffers
+    ALLOCATE (lsmp(0:numproc-1), lsdp(0:numproc-1))
+    ! Calculate thread-local displacemnts
+    IF (ithread .EQ. 0) THEN
+       lsmp(:) = sm_disp(:)
+       lsdp(:) = sd_disp(:)
+       IF (nthreads .GT. 1) THEN
+          all_total_send_offset(1,:) = sm_disp(:) + metalen*myt_total_send_count(1,:)
+          all_total_send_offset(2,:) = sd_disp(:) + myt_total_send_count(2,:)
+       ENDIF
     ENDIF
-    DO row = 2, sm%nblkrows_total
-       row_dst_offsets(:, :, row) =&
-            + row_dst_offsets(:, :, row-1)&
-            + row_dst_counts(:, :, row-1)
+!$omp barrier
+    DO t = 1, nthreads-1
+       IF (ithread .EQ. t) THEN
+          lsmp(:) = all_total_send_offset(1,:)
+          lsdp(:) = all_total_send_offset(2,:)
+          all_total_send_offset(1,:) &
+               = all_total_send_offset(1,:) + metalen*myt_total_send_count(1,:)
+          all_total_send_offset(2,:) &
+               = all_total_send_offset(2,:) + myt_total_send_count(2,:)
+       ENDIF
+!$omp barrier
     ENDDO
     ! Prepares some indices needed for the last DO loop that copies
     ! from buffer to local space. Placed early to take advantage of
     ! the SECTIONS.
+!$omp single
     ALLOCATE (blk_ps(nrow_images, ncol_images))
     ALLOCATE (blks (nrow_images, ncol_images))
     blk_ps(:,:) = 1
@@ -1148,35 +1196,29 @@ CONTAINS
     ! Prepares the work matrices used in the last DO loop. Placed
     ! early.
     CALL dbcsr_data_init (received_data_area)
-    !CALL dbcsr_data_new (received_data_area, sm%data_type,&
-    !     special_memory=.FALSE.)
     ! This is an ugly cuckoo.
     received_data_area = recv_data_area
     CALL dbcsr_data_hold(received_data_area)
     !received_data_area%d%r_dp => recv_data
+!$omp end single
+!$omp do
     DO row_img = 1, nrow_images
        DO col_img = 1, ncol_images
           CALL dbcsr_work_create(ums%mats(row_img, col_img),&
-               SUM(recv_count(1,row_img,col_img,:)), error=dbcsr_error)
+               SUM(recv_count(1,row_img,col_img,:)), n=1, error=dbcsr_error)
+!$omp critical
           CALL dbcsr_data_hold (received_data_area)
+!$omp end critical
           CALL dbcsr_data_release (ums%mats(row_img,col_img)%m%wms(1)%data_area)
           ums%mats(row_img,col_img)%m%wms(1)%data_area = received_data_area
        ENDDO
     ENDDO
-    ALLOCATE (lsmp(0:numproc-1), lsdp(0:numproc-1))
     prev_dst_p = -1
     ! Copies metadata and actual data to be sent into the send buffers.
-    CALL dbcsr_iterator_start(iter, ism, shared=.FALSE.)
-    prev_row = 0
+    CALL dbcsr_iterator_start(iter, ism)
     prev_blk_p = 0
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk, blk_p=blk_p)
-       ! New row
-       IF (row .NE. prev_row) THEN
-          lsmp = row_dst_offsets(1, :, row)
-          lsdp = row_dst_offsets(2, :, row)
-          prev_row = row
-       ENDIF
        bp = ABS(blk_p)
        DO symmetry_i = 1, nsymmetries
           IF (symmetry_i .EQ. 1) THEN
@@ -1239,6 +1281,7 @@ CONTAINS
        ENDDO ! symmetry_i
     ENDDO ! iterator
     CALL dbcsr_iterator_stop(iter)
+!$omp end parallel
     ! Exchange the data and metadata structures.
     SELECT CASE (data_type)
     CASE (dbcsr_type_real_4)
@@ -1329,18 +1372,23 @@ CONTAINS
     !DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
     ! Get rid of the cuckoo.
+!$  IF (release_td) THEN
+!$     CALL dbcsr_distribution_no_threads (old_dist)
+!$  ENDIF
     CALL dbcsr_data_release (received_data_area)
     !
     CALL dbcsr_data_release (recv_data_area)
     !
     tstop = m_walltime ()
-    !WRITE(*,'(1X,A,1X,EN12.4)')'make_column_images time:',tstop-tstart
+    !@@@
+    image_time = (image_time + tstop) - tstart
+    !@@@
+    !WRITE(*,'(1X,A,1X,EN12.4)')'make_images time:',tstop-tstart
+    !WRITE(*,'(1X,A,1X,EN12.4)')'make_images cumm. time:',image_time
     DBG 'ums(1) name',ums%mats(1,1)%m%name
     DBG 'Done making images'
     CALL dbcsr_error_stop(error_handler, dbcsr_error)
   END SUBROUTINE make_images
-
-
 
 
 ! *****************************************************************************

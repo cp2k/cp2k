@@ -14,6 +14,7 @@
 ! *****************************************************************************
 MODULE dbcsr_methods
   USE array_types,                     ONLY: array_data,&
+                                             array_exists,&
                                              array_hold,&
                                              array_i1d_obj,&
                                              array_new,&
@@ -85,7 +86,7 @@ MODULE dbcsr_methods
             dbcsr_distribution_row_dist, dbcsr_distribution_col_dist,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nlocal_cols,&
             dbcsr_distribution_local_rows, dbcsr_distribution_local_cols,&
-            dbcsr_distribution_thread_dist,&
+            dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
             dbcsr_distribution_make_threads, dbcsr_distribution_no_threads
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
             dbcsr_get_matrix_type, dbcsr_get_data_type,&
@@ -1035,6 +1036,16 @@ CONTAINS
     thread_dist = dist%d%thread_dist
   END FUNCTION dbcsr_distribution_thread_dist
 
+
+  PURE FUNCTION dbcsr_distribution_has_threads(dist) RESULT (has_thread_dist)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    LOGICAL                                  :: has_thread_dist
+
+!   ---------------------------------------------------------------------------
+
+    has_thread_dist = array_exists (dist%d%thread_dist)
+  END FUNCTION dbcsr_distribution_has_threads
+
 ! *****************************************************************************
 !> \brief Creates a distribution for threads
 !> \param[in,out] dist   Add thread distribution to this distribution
@@ -1061,12 +1072,11 @@ CONTAINS
     lrows => array_data (dbcsr_distribution_local_rows (dist))
     lcols => array_data (dbcsr_distribution_local_cols (dist))
     !
-!$OMP MASTER
+!$OMP SINGLE
     CALL array_release (dist%d%thread_dist)
     ALLOCATE (td(nrows))
     CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
-!$OMP END MASTER
-!$OMP BARRIER
+!$OMP END SINGLE
     td => array_data (dist%d%thread_dist)
     rpt = CEILING (REAL(nrows) / REAL(nthreads))
     t = ithread
@@ -1106,9 +1116,6 @@ CONTAINS
           END FORALL
        ENDIF
     ENDIF
-!!$omp single
-!       td(:) = 0
-!!$omp end single nowait
 !$OMP BARRIER
   END SUBROUTINE dbcsr_distribution_make_threads
 

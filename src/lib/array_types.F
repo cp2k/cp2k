@@ -30,7 +30,8 @@ MODULE array_types
   PUBLIC :: array_new,&
             array_hold,&
             array_release,&
-            array_nullify
+            array_nullify,&
+            array_exists
   PUBLIC :: array_data,&
             array_size,&
             array_equality
@@ -51,6 +52,11 @@ MODULE array_types
   INTERFACE array_nullify
      MODULE PROCEDURE array_nullify_i1d, array_nullify_i2d,&
                       array_nullify_d1d, array_nullify_d2d
+  END INTERFACE
+
+  INTERFACE array_exists
+     MODULE PROCEDURE array_exists_i1d, array_exists_i2d,&
+                      array_exists_d1d, array_exists_d2d
   END INTERFACE
 
   INTERFACE array_data
@@ -342,6 +348,40 @@ CONTAINS
 
     NULLIFY (array%low)
   END SUBROUTINE array_nullify_d2d
+
+  !
+
+  PURE FUNCTION array_exists_i1d (array) RESULT (array_exists)
+    TYPE(array_i1d_obj), INTENT(IN)          :: array
+    LOGICAL                                  :: array_exists
+
+    array_exists = ASSOCIATED (array%low)
+    IF (array_exists) array_exists = array%low%refcount .GT. 0
+  END FUNCTION array_exists_i1d
+  PURE FUNCTION array_exists_i2d (array) RESULT (array_exists)
+    TYPE(array_i2d_obj), INTENT(IN)          :: array
+    LOGICAL                                  :: array_exists
+
+    array_exists = ASSOCIATED (array%low)
+    IF (array_exists) array_exists = array%low%refcount .GT. 0
+  END FUNCTION array_exists_i2d
+  PURE FUNCTION array_exists_d1d (array) RESULT (array_exists)
+    TYPE(array_d1d_obj), INTENT(IN)          :: array
+    LOGICAL                                  :: array_exists
+
+    array_exists = ASSOCIATED (array%low)
+    IF (array_exists) array_exists = array%low%refcount .GT. 0
+
+  END FUNCTION array_exists_d1d
+  PURE FUNCTION array_exists_d2d (array) RESULT (array_exists)
+    TYPE(array_d2d_obj), INTENT(IN)          :: array
+    LOGICAL                                  :: array_exists
+
+    array_exists = ASSOCIATED (array%low)
+    IF (array_exists) array_exists = array%low%refcount .GT. 0
+
+  END FUNCTION array_exists_d2d
+
 
   !
 

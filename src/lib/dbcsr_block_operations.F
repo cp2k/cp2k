@@ -411,13 +411,13 @@ CONTAINS
                dbcsr_caller_error, routineN, "associated(dst%d%r_sp)",__LINE__,error)
           CALL dbcsr_assert(ASSOCIATED(src%d%r_sp),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "associated(src%d%r_sp)",__LINE__,error)
-          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%r_sp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(lb, "GE", LBOUND(dst%d%r_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb dst%d%r_sp",__LINE__,error)
-          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%r_sp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(ub, "LE", UBOUND(dst%d%r_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "ub dst%d%r_sp",__LINE__,error)
-          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%r_sp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(lb_s, "GE", LBOUND(src%d%r_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb src%d%r_sp",__LINE__,error)
-          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%r_sp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(ub_s, "LE", UBOUND(src%d%r_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "ub src%d%r_sp",__LINE__,error)
        ENDIF
        IF (PRESENT (scale)) THEN
@@ -431,13 +431,13 @@ CONTAINS
                dbcsr_caller_error, routineN, "associated(dst%d%r_dp)",__LINE__,error)
           CALL dbcsr_assert(ASSOCIATED(src%d%r_dp),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "associated(src%d%r_dp)",__LINE__,error)
-          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%r_dp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(lb, "GE", LBOUND(dst%d%r_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb dst%d%r_dp",__LINE__,error)
-          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%r_dp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(ub, "LE", UBOUND(dst%d%r_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "ub dst%d%r_dp",__LINE__,error)
-          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%r_dp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(lb_s, "GE", LBOUND(src%d%r_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb src%d%r_dp",__LINE__,error)
-          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%r_dp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(ub_s, "LE", UBOUND(src%d%r_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "ub src%d%r_dp",__LINE__,error)
        ENDIF
        IF (PRESENT (scale)) THEN
@@ -451,13 +451,13 @@ CONTAINS
                dbcsr_caller_error, routineN, "associated(dst%d%c_sp)",__LINE__,error)
           CALL dbcsr_assert(ASSOCIATED(src%d%c_sp),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "associated(src%d%c_sp)",__LINE__,error)
-          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%c_sp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(lb, "GE", LBOUND(dst%d%c_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb dst%d%c_sp",__LINE__,error)
-          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%c_sp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(ub, "LE", UBOUND(dst%d%c_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "ub dst%d%c_sp",__LINE__,error)
-          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%c_sp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(lb_s, "GE", LBOUND(src%d%c_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb src%d%c_sp",__LINE__,error)
-          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%c_sp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(ub_s, "LE", UBOUND(src%d%c_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "ub src%d%c_sp",__LINE__,error)
        ENDIF
        IF (PRESENT (scale)) THEN
@@ -471,13 +471,13 @@ CONTAINS
                dbcsr_caller_error, routineN, "associated(dst%d%c_dp)",__LINE__,error)
           CALL dbcsr_assert(ASSOCIATED(src%d%c_dp),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "associated(src%d%c_dp)",__LINE__,error)
-          CALL dbcsr_assert(lb.GE.LBOUND(dst%d%c_dp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(lb, "GE", LBOUND(dst%d%c_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb dst%d%c_dp",__LINE__,error)
-          CALL dbcsr_assert(ub.LE.UBOUND(dst%d%c_dp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(ub, "LE", UBOUND(dst%d%c_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "ub dst%d%c_dp",__LINE__,error)
-          CALL dbcsr_assert(lb_s.GE.LBOUND(src%d%c_dp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(lb_s, "GE", LBOUND(src%d%c_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb src%d%c_dp",__LINE__,error)
-          CALL dbcsr_assert(ub_s.LE.UBOUND(src%d%c_dp,1),dbcsr_fatal_level,&
+          CALL dbcsr_assert(ub_s, "LE", UBOUND(src%d%c_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "ub src%d%c_dp",__LINE__,error)
        ENDIF
        IF (PRESENT (scale)) THEN
