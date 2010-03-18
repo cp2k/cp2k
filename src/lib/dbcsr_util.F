@@ -987,9 +987,11 @@ CONTAINS
        WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%m%nze,'data size',&
             dbcsr_get_data_size(m%m%data_area)
     ENDIF
-    CALL dbcsr_assert(dbcsr_get_data_size(m%m%data_area), "GE", m%m%nze,&
-         dbcsr_warning_level, dbcsr_internal_error, r,&
-         'Data storage may be too small.',__LINE__,error)
+    !This tends to be too verbose and usually untrue for symmetric
+    !matrices.
+    !CALL dbcsr_assert(dbcsr_get_data_size(m%m%data_area), "GE", m%m%nze,&
+    !     dbcsr_warning_level, dbcsr_internal_error, r,&
+    !     'Data storage may be too small.',__LINE__,error)
     IF (dbg.GE.5) THEN
        WRITE (*,'(1X,A,I7,A)') r//' size=',SIZE(m%m%row_p),' row_p='
        WRITE (*,2047) m%m%row_p(1:m%m%nblkrows_total+1)
