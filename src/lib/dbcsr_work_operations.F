@@ -451,7 +451,7 @@ CONTAINS
                dbcsr_get_data_type (matrix))
        END DO
     ENDIF
-!$OMP FLUSH (matrix)
+!$OMP FLUSH
 !$  CALL dbcsr_modify_unlock (matrix)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_work_create
@@ -1071,6 +1071,9 @@ CONTAINS
              ENDIF
           ENDIF
        ENDDO
+       CALL dbcsr_assert ("NOT", finished (smallest), dbcsr_fatal_level, &
+            dbcsr_internal_error, routineN, "Found an invalid block!",&
+            __LINE__, error=error)
        matrix%col_i(blk) = smallest_col
        o_blk_p = matrix%wms(smallest)%blk_p(wm_blk_p(smallest))
        nze = rbs(smallest_row) * cbs(smallest_col)
