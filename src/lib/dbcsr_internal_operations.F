@@ -239,7 +239,7 @@ CONTAINS
     !$ nthreads = OMP_GET_NUM_THREADS ()
 !$omp end single
     CALL dbcsr_work_create(product_matrix,&
-         work_mutable=.FALSE., n=threads, error=error)
+         work_mutable=.FALSE., n=nthreads, error=error)
 !$omp end parallel
     !logger => cp_error_get_logger (error)
     output_unit = default_output_unit
