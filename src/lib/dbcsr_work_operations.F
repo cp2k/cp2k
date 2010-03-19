@@ -662,7 +662,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_wm_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, nwms, nze, &
+    INTEGER                                  :: error_handler, i, nwms, &
                                                 old_nwms
     LOGICAL                                  :: preexists
     TYPE(dbcsr_work_type), DIMENSION(:), &
