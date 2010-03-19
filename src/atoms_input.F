@@ -365,7 +365,7 @@ CPSourceFileRef,&
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Overwriting cores coordinates. "//&
-               " Active coordinates READ from &SHELL_COORD section. "//&
+               " Active coordinates READ from &CORE_COORD section. "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
           CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list,error=error)
