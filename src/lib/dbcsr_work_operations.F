@@ -633,7 +633,9 @@ CONTAINS
     !CALL dbcsr_data_ensure_size (matrix%m%data_area, all_nze)
     ! Now merge the index and data.
     matrix%m%nze = all_nze ! Specifies size of data array to be allocated
+!$omp parallel num_threads(1)
     CALL dbcsr_merge_data (matrix%m, sort_data, error=error)
+!$omp end parallel
     !
     ! Clean up.
     CALL dbcsr_work_destroy_all(matrix%m)
