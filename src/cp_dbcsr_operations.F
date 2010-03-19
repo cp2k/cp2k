@@ -3331,6 +3331,9 @@ CONTAINS
        CALL cp_dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
        matrix%m%valid = .FALSE.
     ENDIF
+!$  CALL cp_assert (SIZE (matrix%m%wms) .GE. omp_get_num_threads(),&
+!$       cp_fatal_level, cp_wrong_args_error, routineN,&
+!$       "Too few threads.", error=error)
     CALL cp_assert (dbcsr_wm_use_mutable (matrix%m%wms(ithread+1)),&
          cp_warning_level,&
          cp_unimplemented_error_nr, routineN,&
