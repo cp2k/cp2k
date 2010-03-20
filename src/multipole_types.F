@@ -8,10 +8,11 @@
 !> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
 ! *****************************************************************************
 MODULE multipole_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE external_potential_types,        ONLY: fist_potential_type,&
+                                             get_potential
   USE f77_blas
   USE input_constants,                 ONLY: do_multipole_charge,&
                                              do_multipole_dipole,&
@@ -45,6 +46,7 @@ MODULE multipole_types
      INTEGER :: id_nr, ref_count
      LOGICAL, DIMENSION(3)                    :: task
      REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
      REAL(KIND=dp), DIMENSION(:,:), POINTER   :: dipoles
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: quadrupoles
   END TYPE multipole_type
@@ -77,7 +79,7 @@ CONTAINS
     LOGICAL                                  :: do_multipoles, explicit, &
                                                 failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
@@ -92,6 +94,7 @@ CONTAINS
        multipoles%ref_count=1
        multipoles%task = .FALSE.
        NULLIFY(multipoles%charges)
+       NULLIFY(multipoles%radii)
        NULLIFY(multipoles%dipoles)
        NULLIFY(multipoles%quadrupoles)
        SELECT CASE(max_multipole)
@@ -110,10 +113,15 @@ CONTAINS
        IF (multipoles%task(1)) THEN
           ALLOCATE(multipoles%charges(nparticles),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(multipoles%radii(nparticles),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ! Fill in charge array
           DO iparticle = 1, nparticles
-             atomic_kind => particle_set(iparticle)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=multipoles%charges(iparticle))
+             !atomic_kind =>
+             CALL get_atomic_kind(particle_set(iparticle)%atomic_kind,&
+                                  fist_potential=fist_potential)
+             CALL get_potential(fist_potential,qeff=multipoles%charges(iparticle),&
+                                mm_radius=multipoles%radii(iparticle))
           END DO
        END IF
        IF (multipoles%task(2)) THEN
@@ -182,6 +190,10 @@ CONTAINS
        IF (multipoles%ref_count==0) THEN
           IF (ASSOCIATED(multipoles%charges)) THEN
              DEALLOCATE(multipoles%charges, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(multipoles%radii)) THEN
+             DEALLOCATE(multipoles%radii, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(multipoles%dipoles)) THEN

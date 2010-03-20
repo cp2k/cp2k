@@ -1,0 +1,36 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# systematic tests of all combations of ions with core-shell atoms
+# and also of gaussian ions/shells and point shells. the energy
+# obtained with a python script is included in the first line
+# of each input
+gsscs-gsscs.inp                      11
+gss-gsscs.inp                        11
+gss-gss.inp                          11
+gss-pntcs.inp                        11
+pntcs-gsscs.inp                      11
+pntcs-pntcs.inp                      11
+pnt-gsscs.inp                        11
+pnt-gss.inp                          11
+pnt-pntcs.inp                        11
+pnt-pnt.inp                          11
+# manually checked the SR contribution to the electrostatic energy
+gcd.gcd.inp                          11
+gcd.pcd.inp                          11
+gc_.gcd.inp                          11
+gc_.gq_.inp                          11
+gc_.pcd.inp                          11
+g_d.g_d.inp                          11
+g_d.p_d.inp                          11
+pcd.gcd.inp                          11
+pcd.pcd.inp                          11
+pc_.gcd.inp                          11
+pc_.gq_.inp                          11
+pc_.pcd.inp                          11
+pc_.pq_.inp                          11
+p_d.g_d.inp                          11
+p_d.p_d.inp                          11

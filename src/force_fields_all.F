@@ -37,7 +37,8 @@ MODULE force_fields_all
                                              do_ff_g96,&
                                              do_ff_undef,&
                                              do_qmmm_none
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -99,6 +100,7 @@ MODULE force_fields_all
             force_field_pack_impr,&
             force_field_pack_opbend,&
             force_field_pack_ch,&
+            force_field_pack_radius,&
             force_field_pack_shell,&
             force_field_pack_sbe,&
             force_field_pack_onfo,&
@@ -1952,7 +1954,7 @@ CONTAINS
   END SUBROUTINE force_field_pack_opbend
 
 ! *****************************************************************************
-!> \brief Set up atomic_kind_set()%elp_potentail%qeff (PART 2) and shell potential
+!> \brief Set up atomic_kind_set()%fist_potentail (PART 2) and shell potential
 !>      parameters
 ! *****************************************************************************
   SUBROUTINE force_field_pack_ch  ( atomic_kind_set, qmmm_env, fatal, iw, iw4,&
@@ -1998,8 +2000,8 @@ CONTAINS
                             fist_potential=fist_potential,&
                             atom_list=my_atom_list,&
                             name=atmname)
-       CALL get_potential(potential=fist_potential,&
-                          qeff=charge(i), a_pol=alpha(i))
+       CALL get_potential(potential=fist_potential, qeff=charge(i), &
+                          a_pol=alpha(i))
 
        is_shell = .FALSE.
        found    = .FALSE.
@@ -2107,7 +2109,8 @@ CPSourceFileRef,&
           END IF
        END IF
 
-       CALL set_potential(potential=fist_potential,qeff=charge(i),a_pol=alpha(i))
+       CALL set_potential(potential=fist_potential, qeff=charge(i), &
+                          a_pol=alpha(i))
        CALL set_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
        ! Sum up total charges for IO
        IF (found) THEN
@@ -2122,11 +2125,72 @@ CPSourceFileRef,&
     IF (iw4>0) THEN
        WRITE(iw4,FMT='(T2,"CHARGE_INFO| Total Charge of the Classical System: ",T69,F12.6)')chrg_tot
     END IF
-    DEALLOCATE (alpha,STAT=stat)
     DEALLOCATE (charge,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (alpha,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle2)
   END SUBROUTINE force_field_pack_ch
+
+! *****************************************************************************
+!> \brief Set up the radius of the electrostatic multipole in Fist
+!> \author Toon.Verstraelen@gmail.com
+! *****************************************************************************
+  SUBROUTINE force_field_pack_radius(atomic_kind_set, iw, subsys_section, error)
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      INTENT(IN), POINTER                    :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(section_vals_type), INTENT(IN), &
+      POINTER                                :: subsys_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_radius', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: inp_kind_name, kind_name
+    INTEGER                                  :: handle, i, i_rep, n_rep
+    LOGICAL                                  :: found
+    REAL(KIND=dp)                            :: mm_radius
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(fist_potential_type), POINTER       :: fist_potential
+    TYPE(section_vals_type), POINTER         :: kind_section
+
+    CALL timeset(routineN,handle)
+    kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
+    CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
+
+    DO i=1,SIZE(atomic_kind_set)
+       atomic_kind => atomic_kind_set(i)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            fist_potential=fist_potential,&
+                            name=kind_name)
+       CALL uppercase(kind_name)
+       found = .FALSE.
+
+       ! Try to find a matching KIND section in the SUBSYS section and read the
+       ! MM_RADIUS field if it is present. In case the kind section is never
+       ! encountered, the mm_radius remains zero.
+       mm_radius = 0.0_dp
+       DO i_rep=1,n_rep
+          CALL section_vals_val_get(kind_section, "_SECTION_PARAMETERS_",&
+            c_val=inp_kind_name, i_rep_section=i_rep, error=error)
+          CALL uppercase(inp_kind_name)
+          IF (iw>0) WRITE(iw,*) "Matching kinds for MM_RADIUS :: '", &
+            TRIM(kind_name), "' with '", TRIM(inp_kind_name), "'"
+          IF (TRIM(kind_name)==TRIM(inp_kind_name)) THEN
+             CALL section_vals_val_get(kind_section, i_rep_section=i_rep,&
+               keyword_name="MM_RADIUS", r_val=mm_radius, error=error)
+             CALL issue_duplications(found, routineP, "MM_RADIUS", kind_name, error=error)
+             found = .TRUE.
+          END IF
+       END DO
+
+       CALL set_potential(potential=fist_potential, mm_radius=mm_radius)
+       !CALL set_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
+    END DO
+    CALL timestop(handle)
+  END SUBROUTINE force_field_pack_radius
 
 ! *****************************************************************************
 !> \brief Set up shell potential parameters

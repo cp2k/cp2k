@@ -11,21 +11,17 @@
 ! *****************************************************************************
 MODULE pair_potential_util
 
-  USE erf_fn,                          ONLY: erfc
-  USE ewald_environment_types,         ONLY: ewald_env_get,&
-                                             ewald_environment_type
+  USE erf_fn,                          ONLY: erf,&
+                                             erfc
   USE f77_blas
   USE fparser,                         ONLY: EvalErrType,&
-                                             evalf,&
-                                             finalizef,&
-                                             initf,&
-                                             parsef
+                                             evalf
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, ea_type, ft_type, gp_type, gw_type, ip_type, &
-       lj_charmm_type, lj_type, not_initialized, pair_potential_pp_type, &
-       pair_potential_single_type, wl_type
+       lj_charmm_type, lj_type, not_initialized, pair_potential_single_type, &
+       wl_type
   USE physcon,                         ONLY: bohr,&
                                              evolt
   USE termination,                     ONLY: stop_program
@@ -80,7 +76,7 @@ CONTAINS
           ENDIF
           lvalue=lvalue
        ELSE IF (pot%type(j)==wl_type) THEN
-          lvalue = pot%set(j)%willis%a*EXP(-pot%set(j)%willis%b*r) - pot%set(j)%willis%c/r**6 
+          lvalue = pot%set(j)%willis%a*EXP(-pot%set(j)%willis%b*r) - pot%set(j)%willis%c/r**6
        ELSE IF (pot%type(j)==gw_type) THEN
           scale = EXP(pot%set(j)%goodwin%m*(-(r/pot%set(j)%goodwin%dc)**pot%set(j)%goodwin%mc+&
                (pot%set(j)%goodwin%d/pot%set(j)%goodwin%dc)**pot%set(j)%goodwin%mc))
@@ -105,12 +101,12 @@ CONTAINS
            pp = 0.0_dp
            DO n = 0,pot%set(j)%buck4r%npoly1
              pp = pp+pot%set(j)%buck4r%poly1(n)*r**n
-           END DO 
+           END DO
          ELSEIF(r>pot%set(j)%buck4r%r2.AND.r<=pot%set(j)%buck4r%r3) THEN
            pp = 0.0_dp
            DO n = 0,pot%set(j)%buck4r%npoly2
              pp = pp+pot%set(j)%buck4r%poly2(n)*r**n
-           END DO 
+           END DO
          ELSEIF(r>pot%set(j)%buck4r%r3)THEN
            pp = -pot%set(j)%buck4r%c/r**6
          END IF
@@ -137,7 +133,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Evaluates the Coulomb electrostatic energy
 ! *****************************************************************************
-  FUNCTION ener_coul ( pot, e_cutoff_coul, fac, r, ewald_type, alpha, my_do_14, zbl )
+  FUNCTION ener_coul(pot, e_cutoff_coul, fac, r, ewald_type, alpha, my_do_14,&
+                     mm_radius, zbl)
 
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
@@ -145,23 +142,33 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ewald_type
     REAL(KIND=dp), INTENT(IN)                :: alpha
     LOGICAL, INTENT(IN)                      :: my_do_14
+    REAL(KIND=dp), INTENT(IN)                :: mm_radius
     LOGICAL, INTENT(IN), OPTIONAL            :: zbl
     REAL(KIND=dp)                            :: ener_coul
 
     LOGICAL                                  :: my_zbl
 
     my_zbl = .FALSE.
-    IF(PRESENT(zbl)) my_zbl=zbl
+    IF(PRESENT(zbl)) my_zbl = zbl
 
     ener_coul= 0.0_dp
-    IF (.NOT. my_do_14 ) THEN
-       IF (ewald_type /= do_ewald_none) THEN
-          ener_coul = fac * erfc ( alpha * r ) / r -  e_cutoff_coul
+    IF (.NOT. my_do_14) THEN
+       IF (mm_radius > 0.0_dp) THEN
+          IF (ewald_type == do_ewald_none) THEN
+             ener_coul = fac*erf(r/mm_radius)/r - e_cutoff_coul
+          ELSE
+             ener_coul = fac*(erf(r/mm_radius) - erf(alpha*r))/r - e_cutoff_coul
+          END IF
        ELSE
-          ener_coul = fac / r - e_cutoff_coul
+          IF (ewald_type == do_ewald_none) THEN
+             ener_coul = fac/r - e_cutoff_coul
+          ELSE
+             ener_coul = fac*erfc(alpha*r)/r - e_cutoff_coul
+          END IF
        END IF
-       IF(my_zbl) THEN
-          ener_coul = ener_coul + ener_zbl (pot, r, alpha )
+
+       IF (my_zbl) THEN
+          ener_coul = ener_coul + ener_zbl(pot, r, alpha)
        END IF
     ELSE
        ! to avoid a large number of points in the spline generation
@@ -202,7 +209,7 @@ CONTAINS
     END FUNCTION ener_zbl
 
 ! *****************************************************************************
-!> \brief Determine the polinomial coefficients used to set to zero the zbl potential 
+!> \brief Determine the polinomial coefficients used to set to zero the zbl potential
 !>        at the cutoff radius, with continuity in function, first and second derivative
 !>        Only shell-model for interactions among pairs without repulsive term
 !> \author i soliti ignoti
@@ -218,8 +225,8 @@ CONTAINS
 
       pot%zbl_rcut(1) = (rc1+rc2)*(1.0_dp-0.2_dp)*bohr
       pot%zbl_rcut(2) = (rc1+rc2)*bohr
-      x1=pot%zbl_rcut(1) 
-      x2=pot%zbl_rcut(2) 
+      x1=pot%zbl_rcut(1)
+      x2=pot%zbl_rcut(2)
 
       au = 0.88534_dp*bohr/(pot%z1**0.23_dp+pot%z2**0.23_dp)
       x = x1/au
@@ -239,7 +246,7 @@ CONTAINS
           + fac / x1/ au**2 * (0.1861632E1_dp  * EXP(-0.32E1_dp * x) + &
             0.4527551450_dp  * EXP(-0.9423_dp * x) + 0.4548442048E-1_dp  * EXP(-0.4029_dp * x) + &
             0.1144900915E-2_dp  * EXP(-0.2016_dp * x))
-      
+
        v2 = 0.0_dp
        d2 = 0.0_dp
        dd2 = 0.0_dp
@@ -306,62 +313,6 @@ CONTAINS
 
 
     END SUBROUTINE compute_polinomial_5th
-! *****************************************************************************
-!> \brief Evaluates the nonbond and electrostaitic potential analytically
-!> \author Teodoro Laino [tlaino] 2006.05
-! *****************************************************************************
-  SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, ewald_env, error )
-    REAL(KIND=dp), INTENT(IN)                :: rijsq
-    TYPE(pair_potential_pp_type), POINTER    :: potparm
-    REAL(KIND=dp), INTENT(IN)                :: qi, qj
-    INTEGER, INTENT(IN)                      :: iatom, jatom
-    REAL(KIND=dp), INTENT(OUT)               :: energy
-    TYPE(ewald_environment_type), OPTIONAL, &
-      POINTER                                :: ewald_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: ewald_type, i, max_id
-    LOGICAL                                  :: do_multipoles
-    REAL(KIND=dp)                            :: alpha, e_cutoff_coul, &
-                                                energy_cutoff, f, hicut, rij
-
-    rij = SQRT (rijsq)
-    hicut = SQRT (potparm%pot(iatom, jatom)%pot%rcutsq )
-    IF (ABS(hicut) <= MIN_HICUT_VALUE) hicut = DEFAULT_HICUT_VALUE
-    ! If genpot we need to get ready for the evaluation of the potential
-    IF (ANY(potparm%pot(iatom,jatom)%pot%type==gp_type)) THEN
-       max_id = -HUGE(0)
-       DO i = 1, SIZE(potparm%pot(iatom,jatom)%pot%type)
-          IF (potparm%pot(iatom,jatom)%pot%type(i)/=gp_type) CYCLE
-          max_id = MAX(max_id, potparm%pot(iatom,jatom)%pot%set(i)%gp%myid)
-       END DO
-       CALL initf(max_id)
-       DO i = 1, SIZE(potparm%pot(iatom,jatom)%pot%type)
-          IF (potparm%pot(iatom,jatom)%pot%type(i)/=gp_type) CYCLE
-          CALL parsef(potparm%pot(iatom,jatom)%pot%set(i)%gp%myid,&
-                      TRIM(potparm%pot(iatom,jatom)%pot%set(i)%gp%potential),&
-                      potparm%pot(iatom,jatom)%pot%set(i)%gp%parameters)
-       END DO
-    END IF
-    energy_cutoff = ener_pot ( potparm%pot(iatom,jatom)%pot, hicut, 0.0_dp, 1.0_dp)
-
-    ! non-bond energy
-    energy = ener_pot ( potparm%pot(iatom,jatom)%pot, rij, energy_cutoff, 1.0_dp)
-    IF (ANY(potparm%pot(iatom,jatom)%pot%type==gp_type)) THEN
-       CALL finalizef()
-    ENDIF
-    ! real-space ewald non-bond energy
-    IF ( PRESENT ( ewald_env ) ) THEN
-       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,&
-            do_multipoles=do_multipoles,error=error)
-       IF (.NOT.do_multipoles) THEN
-          f = qi * qj
-          e_cutoff_coul = ener_coul ( potparm%pot(iatom,jatom)%pot, 0.0_dp, f, hicut, ewald_type, alpha, my_do_14=.FALSE.)
-          energy = energy + ener_coul ( potparm%pot(iatom,jatom)%pot, e_cutoff_coul, f, rij, ewald_type, alpha, my_do_14=.FALSE.)
-       END IF
-    END IF
-
-  END SUBROUTINE potential_f
 
 END MODULE pair_potential_util
 

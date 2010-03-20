@@ -7,7 +7,7 @@
 !> \par History
 !>      September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential (BMHTF)
 !>      2006 - Major rewriting of the routines.. Linear scaling setup of splines
-!>      2007 - Teodoro Laino - University of Zurich - Multiple potential 
+!>      2007 - Teodoro Laino - University of Zurich - Multiple potential
 !>             Major rewriting nr.2
 !> \author CJM
 ! *****************************************************************************
@@ -18,6 +18,7 @@ MODULE pair_potential
                                              get_atomic_kind_set
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
+  USE external_potential_types,        ONLY: get_potential
   USE f77_blas
   USE fparser,                         ONLY: finalizef,&
                                              initf,&
@@ -92,7 +93,7 @@ CONTAINS
        DO j = 1, i  ! j:  second atom type
           pot => potparm%pot(i,j)%pot
           DO k = 1, SIZE(pot%type)
-             IF (pot%type(k)==gp_type) THEN 
+             IF (pot%type(k)==gp_type) THEN
                 ngp = ngp + 1
                 pot%set(k)%gp%myid = ngp
                 CALL parsef(ngp,TRIM(pot%set(k)%gp%potential),pot%set(k)%gp%parameters)
@@ -138,7 +139,8 @@ CONTAINS
       do_shell_model, failure, found_locut, my_do_14, my_do_zbl
     REAL(KIND=dp) :: alpha, c_cutoff_e, cs_cutoff_e, cutoff_e, cutoff_n, &
       e_cutoff_coul, ec_cc, ec_cs, ec_sc, energy_cutoff, fac, hicut, hicut0, &
-      locut, my_ei_scale14, my_vdw_scale14, sc_cutoff_e
+      locut, mm_radius, mm_radius_i, mm_radius_j, mm_radius_tmp, &
+      my_ei_scale14, my_vdw_scale14, sc_cutoff_e
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
@@ -165,7 +167,8 @@ CONTAINS
     DO i = 1, ntype
        ! First Atom
        atomic_kind=> atomic_kind_set(i)
-       CALL get_atom_info(atomic_kind, my_do_14, do_shell_model=do_i_shell_model, error=error)
+       CALL get_atom_info(atomic_kind, my_do_14, do_shell_model=do_i_shell_model, &
+            mm_radius=mm_radius_i, error=error)
        DO j = 1, i
           ! Second Atom
           pot => potparm%pot(i,j)%pot
@@ -173,8 +176,10 @@ CONTAINS
              IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
           ENDIF
           atomic_kind=> atomic_kind_set(j)
-          CALL get_atom_info(atomic_kind, my_do_14, do_shell_model=do_j_shell_model, error=error)
-          do_shell_model   = do_i_shell_model .OR. do_j_shell_model
+          CALL get_atom_info(atomic_kind, my_do_14, do_shell_model=do_j_shell_model, &
+                             mm_radius=mm_radius_j, error=error)
+          do_shell_model = do_i_shell_model .OR. do_j_shell_model
+          mm_radius = SQRT(mm_radius_i*mm_radius_i + mm_radius_j*mm_radius_j)
 
           ! Setup of Exclusion Types
           pot%only_mb = .TRUE.
@@ -218,46 +223,56 @@ CONTAINS
           ! Find the real locut according emax_spline
           CALL get_spline_cutoff(hicut, locut, found_locut, do_shell_model, pot, my_vdw_scale14,&
           my_ei_scale14, my_do_14, ewald_type, do_multipoles, my_do_zbl, alpha, e_cutoff_coul, &
-               ec_cc, ec_sc, ec_cs, energy_cutoff, emax_spline)
+               ec_cc, ec_sc, ec_cs, energy_cutoff, emax_spline, mm_radius_i, mm_radius_j, &
+               mm_radius)
           locut=MAX(locut*SQRT(pot%spl_f%rcutsq_f),rlow_nb)
 
-          ! Real Generation of the Spline
+          ! Real Generation of the Spline (Shell-Shell, Shell-Ion or Ion-Shell)
           CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints, locut, hicut, my_vdw_scale14,&
                my_ei_scale14, my_do_14, ewald_type, do_multipoles, alpha, pot%e_fac, scale_cutoff,&
                eps_spline, iw, iw2, i, j, n, ncount, max_energy, e_cutoff_coul, pot, energy_cutoff,&
                label='', found_locut=found_locut, do_nonbonded=.TRUE.,hicut0=hicut0, &
-               do_zbl=my_do_zbl, error=error)
+               do_zbl=my_do_zbl, mm_radius=mm_radius, error=error)
 
           ! This is Specific for Shell-Model (Only Coulomb terms in the splines)
           IF(do_shell_model) THEN
              CPPostcondition(PRESENT(spline_c_coul),cp_failure_level,routineP,error,failure)
              CPPostcondition(PRESENT(spline_cs_coul),cp_failure_level,routineP,error,failure)
-             CPPostcondition(PRESENT(spline_sc_coul),cp_failure_level,routineP,error,failure) 
+             CPPostcondition(PRESENT(spline_sc_coul),cp_failure_level,routineP,error,failure)
 
-             ! Real Generation of the Spline Core-Core
+             mm_radius_tmp = 0.0_dp
+             ! Note: at least one of the two has a shell, so both if-expressions
+             ! are not going to be true at the same time.
+             IF (.NOT. do_i_shell_model) THEN
+               mm_radius_tmp = mm_radius_i
+             ELSE IF (.NOT. do_j_shell_model) THEN
+               mm_radius_tmp = mm_radius_j
+             END IF
+             ! Real Generation of the Spline Core-Core, Core-Ion or Ion-Core
              CALL generate_spline_low(spline_c_coul%spl_pp(n)%spl_p, npoints, locut, hicut,&
                   0.0_dp, 1.0_dp, .FALSE., ewald_type, do_multipoles, alpha, pot%e_fcc, &
                   .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_cc,&
                   pot, label='Core-Core Coulomb term in Shell-Model',&
-                  found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,do_zbl=my_do_zbl,&
-                  error=error)
+                  found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,&
+                  do_zbl=my_do_zbl, mm_radius=mm_radius_tmp, error=error)
 
-             ! Both are shell
+             ! Both have a shell
              IF (do_i_shell_model.AND.do_j_shell_model) THEN
                 ! Real Generation of the Spline Core-Shell
                 CALL generate_spline_low(spline_cs_coul%spl_pp(n)%spl_p, npoints, locut, hicut,&
                      0.0_dp, 1.0_dp, .FALSE., ewald_type, do_multipoles, alpha, pot%e_fcs, &
                      .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_cs,&
                      pot,label='Core-Shell Coulomb term in Shell-Model',&
-                     found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,do_zbl=my_do_zbl,&
-                     error=error)
+                     found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,&
+                     do_zbl=my_do_zbl, mm_radius=mm_radius_j, error=error)
 
                 ! Real Generation of the Spline Shell-Core
                 CALL generate_spline_low(spline_sc_coul%spl_pp(n)%spl_p, npoints, locut, hicut,&
                      0.0_dp, 1.0_dp, .FALSE., ewald_type, do_multipoles, alpha, pot%e_fsc, &
                      .FALSE., eps_spline, iw, iw2, i, j, n, ncount, max_energy, ec_sc,&
                      pot,label='Shell-Core Coulomb term in Shell-Model',&
-                     found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,do_zbl=my_do_zbl,&
+                     found_locut=found_locut,do_nonbonded=.FALSE.,hicut0=hicut0,&
+                     do_zbl=my_do_zbl, mm_radius=mm_radius_i, &
                      error=error)
              END IF
           END IF
@@ -276,18 +291,19 @@ CONTAINS
           ! Correct Cutoff...
           IF (scale_cutoff) THEN
              cutoff_n = ener_pot(pot, hicut0, 0.0_dp, my_vdw_scale14)
-             cutoff_e = ener_coul(pot, 0.0_dp, fac*pot%e_fac*pot%spl_f%fscale(1), hicut0, ewald_type, alpha, &
-                        my_do_14, zbl = my_do_zbl)
+             cutoff_e = ener_coul(pot, 0.0_dp, fac*pot%e_fac*pot%spl_f%fscale(1), &
+                hicut0, ewald_type, alpha, my_do_14, mm_radius=mm_radius, &
+                zbl=my_do_zbl)
              pot%spl_f%cutoff_n = pot%spl_f%cutoff_n*pot%spl_f%fscale(2) - cutoff_n
              pot%spl_f%cutoff_e = pot%spl_f%cutoff_e*pot%spl_f%fscale(1) - cutoff_e
              pot%spl_f%cutoff   = pot%spl_f%cutoff_n + pot%spl_f%cutoff_e
              IF(do_shell_model) THEN
-                c_cutoff_e  = ener_coul(pot,0.0_dp, fac*pot%e_fcc*pot%spl_c%fscale(1), hicut0, ewald_type, alpha, &
-                    my_do_14, zbl=my_do_zbl )
-                sc_cutoff_e = ener_coul(pot,0.0_dp, fac*pot%e_fsc*pot%spl_sc%fscale(1),hicut0, ewald_type, alpha, &
-                    my_do_14, zbl=my_do_zbl )
-                cs_cutoff_e = ener_coul(pot,0.0_dp, fac*pot%e_fcs*pot%spl_cs%fscale(1),hicut0, ewald_type, alpha, &
-                    my_do_14, zbl=my_do_zbl )
+                c_cutoff_e = ener_coul(pot, 0.0_dp, fac*pot%e_fcc*pot%spl_c%fscale(1), &
+                   hicut0, ewald_type, alpha, my_do_14, mm_radius=mm_radius_tmp, zbl=my_do_zbl)
+                sc_cutoff_e = ener_coul(pot, 0.0_dp, fac*pot%e_fsc*pot%spl_sc%fscale(1), &
+                   hicut0, ewald_type, alpha, my_do_14, mm_radius=mm_radius_j, zbl=my_do_zbl )
+                cs_cutoff_e = ener_coul(pot, 0.0_dp, fac*pot%e_fcs*pot%spl_cs%fscale(1), &
+                   hicut0, ewald_type, alpha, my_do_14, mm_radius=mm_radius_i, zbl=my_do_zbl )
                 pot%spl_c%cutoff_n  = 0.0_dp
                 pot%spl_sc%cutoff_n = 0.0_dp
                 pot%spl_cs%cutoff_n = 0.0_dp
@@ -323,11 +339,14 @@ CONTAINS
 !>      Splitting in order to make some season cleaning..
 !> \author Teodoro Laino [tlaino] 2007.06
 ! *****************************************************************************
-  SUBROUTINE get_atom_info(atomic_kind, my_do_14, qi, qci, qsi, z, rc, do_shell_model, error)
+  SUBROUTINE get_atom_info(atomic_kind, my_do_14, qi, qci, qsi, z, rc, &
+    do_shell_model, mm_radius, error)
+
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     LOGICAL, INTENT(IN)                      :: my_do_14
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qi, qci, qsi, z, rc
     LOGICAL, INTENT(OUT), OPTIONAL           :: do_shell_model
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: mm_radius
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_info', &
@@ -342,7 +361,7 @@ CONTAINS
     CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qli,shell_active=is_i_shell,shell=shell_i,z=number, rcov=rcov)
     my_do_shell_model = is_i_shell .AND.(.NOT. my_do_14)
     IF(my_do_shell_model) THEN
-       CALL get_shell(shell=shell_i, charge_core=qlci, charge_shell=qlsi, error=error) 
+       CALL get_shell(shell=shell_i, charge_core=qlci, charge_shell=qlsi, error=error)
     ELSE
        qlsi = qli
        qlci = qli
@@ -353,6 +372,9 @@ CONTAINS
     IF (PRESENT(z)) z = REAL(number)
     IF (PRESENT(rc)) rc = rcov
     IF (PRESENT(do_shell_model)) do_shell_model = my_do_shell_model
+    IF (PRESENT(mm_radius)) THEN
+      CALL get_potential(atomic_kind%fist_potential, mm_radius=mm_radius)
+    END IF
   END SUBROUTINE get_atom_info
 
 ! *****************************************************************************
@@ -364,7 +386,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE  get_spline_cutoff(hicut, locut, found_locut, do_shell_model, pot,&
   my_vdw_scale14, my_ei_scale14, my_do_14, ewald_type, do_multipoles, my_do_zbl, alpha,&
-       e_cutoff_coul, ec_cc, ec_sc, ec_cs, energy_cutoff, emax_spline)
+       e_cutoff_coul, ec_cc, ec_sc, ec_cs, energy_cutoff, emax_spline, mm_radius_1,&
+       mm_radius_2, mm_radius)
 
     REAL(KIND=dp), INTENT(IN)                :: hicut
     REAL(KIND=dp), INTENT(INOUT)             :: locut
@@ -376,9 +399,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: my_do_14
     INTEGER, INTENT(IN)                      :: ewald_type
     LOGICAL, INTENT(IN)                      :: do_multipoles, my_do_zbl
-    REAL(KIND=dp), INTENT(IN)                :: alpha, e_cutoff_coul, ec_cc, &
-                                                ec_sc, ec_cs, energy_cutoff, &
-                                                emax_spline
+    REAL(KIND=dp), INTENT(IN) :: alpha, e_cutoff_coul, ec_cc, ec_sc, ec_cs, &
+      energy_cutoff, emax_spline, mm_radius_1, mm_radius_2, mm_radius
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_spline_cutoff', &
       routineP = moduleN//':'//routineN
@@ -396,15 +418,19 @@ CONTAINS
        DO ilevel=1,2
           dx2 = dx2 / 100.0_dp
           DO jx = 1, 100
-             e = ener_pot( pot, x , energy_cutoff, my_vdw_scale14 )
+             e = ener_pot(pot, x, energy_cutoff, my_vdw_scale14)
              f = fac * pot%e_fac
-             e = e + ener_coul ( pot, e_cutoff_coul, f, x, ewald_type, alpha, .FALSE., zbl=my_do_zbl )
+             e = e + ener_coul(pot, e_cutoff_coul, f, x, ewald_type, alpha, &
+                .FALSE., mm_radius, zbl=my_do_zbl)
              f = fac * pot%e_fsc
-             e = e + ener_coul ( pot,        ec_sc, f, x, ewald_type, alpha, .FALSE., zbl=my_do_zbl )
+             e = e + ener_coul(pot, ec_sc, f, x, ewald_type, alpha, &
+                .FALSE., mm_radius_1, zbl=my_do_zbl)
              f = fac * pot%e_fcs
-             e = e + ener_coul ( pot,        ec_cs, f, x, ewald_type, alpha, .FALSE., zbl=my_do_zbl )
+             e = e + ener_coul(pot, ec_cs, f, x, ewald_type, alpha, &
+                .FALSE., mm_radius_2, zbl=my_do_zbl)
              f = fac * pot%e_fcc
-             e = e + ener_coul ( pot,        ec_cc, f, x, ewald_type, alpha, .FALSE., zbl=my_do_zbl )  
+             e = e + ener_coul(pot, ec_cc, f, x, ewald_type, alpha, &
+                .FALSE., 0.0_dp, zbl=my_do_zbl)
              IF (ABS(e) > emax_spline) THEN
                 locut_found = x
                 found_locut = .TRUE.
@@ -418,9 +444,10 @@ CONTAINS
        DO ilevel=1,2
           dx2 = dx2 / 100.0_dp
           DO jx = 1, 100
-             e = ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
+             e = ener_pot(pot, x, energy_cutoff, my_vdw_scale14)
              f =  fac * my_ei_scale14 * pot%e_fac
-             e = e + ener_coul (pot,e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, zbl=my_do_zbl )
+             e = e + ener_coul(pot,e_cutoff_coul, f, x, ewald_type, alpha, &
+                my_do_14, mm_radius, zbl=my_do_zbl)
              IF (ABS(e) > emax_spline) THEN
                 locut_found = x
                 found_locut = .TRUE.
@@ -436,7 +463,7 @@ CONTAINS
   END SUBROUTINE get_spline_cutoff
 
 ! *****************************************************************************
-!> \brief Real Generation of spline.. 
+!> \brief Real Generation of spline..
 !> \par History
 !>      Splitting in order to make some season cleaning..
 !> \author Teodoro Laino [tlaino] 2007.06
@@ -444,7 +471,8 @@ CONTAINS
   SUBROUTINE generate_spline_low(spl_p, npoints, locut, hicut, my_vdw_scale14,&
        my_ei_scale14, my_do_14, ewald_type, do_multipoles, alpha, e_fac,&
        scale_cutoff, eps_spline, iw, iw2, i, j, n, ncount, max_energy, e_cutoff_coul,&
-       pot, energy_cutoff, label, found_locut, do_nonbonded, hicut0, do_zbl, error)
+       pot, energy_cutoff, label, found_locut, do_nonbonded, hicut0, do_zbl, &
+       mm_radius, error)
 
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -466,6 +494,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: found_locut, do_nonbonded
     REAL(KIND=dp), INTENT(IN)                :: hicut0
     LOGICAL, INTENT(IN)                      :: do_zbl
+    REAL(KIND=dp), INTENT(IN)                :: mm_radius
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
@@ -503,7 +532,8 @@ CONTAINS
        DO jx = 1, npoints + 1
           ! jx: loop over 1/distance**2
           x = SQRT ( 1.0_dp/x2 )
-          e = ener_coul(pot,e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, do_zbl)
+          e = ener_coul(pot, e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, &
+             mm_radius, do_zbl)
           IF (do_nonbonded) THEN
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
@@ -530,7 +560,8 @@ CONTAINS
        xsav = hicut
        DO jx = 1, mfac*npoints
           x = x2
-          e = ener_coul(pot,e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, do_zbl )
+          e = ener_coul(pot, e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, &
+             mm_radius, do_zbl)
           IF (do_nonbonded) THEN
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
@@ -588,7 +619,8 @@ CPSourceFileRef,&
        WRITE(1000+n,*)"KINDS: ",i,j,"  SPLINE NUMBER:",ncount
        DO jx = 1, 5000
           x = x2
-          e =  ener_coul(pot,e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, do_zbl )
+          e = ener_coul(pot, e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, &
+             mm_radius, do_zbl)
           IF (do_nonbonded) THEN
              e =  e + ener_pot(pot, x , energy_cutoff, my_vdw_scale14 )
           END IF
@@ -608,7 +640,8 @@ CPSourceFileRef,&
        DO jx = 1, npoints + 1
           ! jx: loop over 1/distance**2
           x = SQRT ( 1.0_dp/x2 )
-          e = ener_coul(pot,e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, do_zbl )
+          e = ener_coul(pot, e_cutoff_coul, f, x, ewald_type, alpha, my_do_14, &
+             mm_radius, do_zbl)
           spline_data % y(jx) = e
           x2 = x2 + dx2
        END DO
@@ -1039,7 +1072,7 @@ CPSourceFileRef,&
           !
           CALL set_potparm_index(potparm, (/n/), multi_type, ntype, tmpij,&
                atomic_kind_set, my_do_14, scale_cutoff, ewald_env, my_ei_scale14,&
-               my_vdw_scale14, my_do_zbl, error)         
+               my_vdw_scale14, my_do_zbl, error)
        END DO
     END DO
     ! Concluding the postprocess..
@@ -1098,8 +1131,8 @@ CPSourceFileRef,&
                                                 do_shell_model, failure
     REAL(KIND=dp) :: alpha, fac, hicut0, l_elec, l_elec_c, l_elec_cs, &
       l_elec_sc, l_epsilon, l_sigma6, m_elec, m_elec_c, m_elec_cs, m_elec_sc, &
-      m_epsilon, m_sigma6, min_sigma6, qci, qcj, qi, qj, qsi, qsj, rci, rcj, &
-      zi, zj
+      m_epsilon, m_sigma6, min_sigma6, mm_radius, mm_radius_i, mm_radius_j, &
+      qci, qcj, qi, qj, qsi, qsj, rci, rcj, zi, zj
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: sigma6
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
@@ -1124,7 +1157,7 @@ CPSourceFileRef,&
           value = my_index(i)
           CALL get_indexes(value,ntype,tmpij)
           pot => potparm%pot(tmpij(1),tmpij(2))%pot
-          ! Preliminary check.. 
+          ! Preliminary check..
           check = SIZE(pot%type)==1
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
 
@@ -1178,7 +1211,7 @@ CPSourceFileRef,&
     tmpij_out = tmpij
     pot => potparm%pot(tmpij(1),tmpij(2))%pot
     pot%undef = .TRUE.
-    IF (scale_cutoff) THEN 
+    IF (scale_cutoff) THEN
        CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,&
                           do_multipoles=do_multipoles,error=error)
        fac = my_ei_scale14
@@ -1198,9 +1231,14 @@ CPSourceFileRef,&
           CALL spline_factor_create(pot%spl_cs, error)
        END IF
        atomic_kind=> atomic_kind_set(tmpij(1))
-       CALL get_atom_info(atomic_kind, my_do_14, qi, qci, qsi, z=zi, rc=rci, do_shell_model=do_i_shell_model, error=error)
+       CALL get_atom_info(atomic_kind, my_do_14, qi, qci, qsi, z=zi, rc=rci, &
+          do_shell_model=do_i_shell_model, mm_radius=mm_radius_i, &
+          error=error)
        atomic_kind=> atomic_kind_set(tmpij(2))
-       CALL get_atom_info(atomic_kind, my_do_14, qj, qcj, qsj, z=zj, rc=rcj, do_shell_model=do_j_shell_model, error=error)
+       CALL get_atom_info(atomic_kind, my_do_14, qj, qcj, qsj, z=zj, rc=rcj, &
+          do_shell_model=do_j_shell_model, mm_radius=mm_radius_j, &
+          error=error)
+       mm_radius = SQRT(mm_radius_i*mm_radius_i + mm_radius_j*mm_radius_j)
        l_elec    = qsi * qsj
        l_elec_c  = qci * qcj
        l_elec_cs = qci * qsj
@@ -1215,7 +1253,7 @@ CPSourceFileRef,&
           pot%z1 = zi
           pot%z2 = zj
 
-          pot%spl_f%rscale(1) = 1.0_dp 
+          pot%spl_f%rscale(1) = 1.0_dp
           pot%spl_f%fscale(1) = 0.0_dp
           IF (l_elec /=0.0_dp) THEN
              pot%spl_f%fscale(1) = -l_elec/m_elec
@@ -1285,10 +1323,10 @@ CPSourceFileRef,&
           IF (do_shell_model) THEN
              pot%spl_c%rscale  = 1.0_dp
              pot%spl_c%fscale  = 1.0_dp
-             
+
              pot%spl_sc%rscale = 1.0_dp
              pot%spl_sc%fscale = 1.0_dp
-             
+
              pot%spl_cs%rscale = 1.0_dp
              pot%spl_cs%fscale = 1.0_dp
           END IF
@@ -1308,14 +1346,15 @@ CPSourceFileRef,&
           ! Cutoff NonBonded
           pot%spl_f%cutoff_n = ener_pot(pot, hicut0, 0.0_dp, my_vdw_scale14)
           ! Cutoff Coulomb
-          pot%spl_f%cutoff_e = ener_coul(pot,0.0_dp, fac*l_elec, hicut0, ewald_type, alpha, my_do_14, zbl=my_do_zbl )
+          pot%spl_f%cutoff_e = ener_coul(pot, 0.0_dp, fac*l_elec, hicut0, &
+             ewald_type, alpha, my_do_14, mm_radius, zbl=my_do_zbl)
           IF(do_shell_model) THEN
-             pot%spl_c%cutoff_e  = ener_coul(pot,0.0_dp, fac*l_elec_c,  hicut0, ewald_type, alpha, my_do_14,&
-                zbl=my_do_zbl )
-             pot%spl_sc%cutoff_e = ener_coul(pot,0.0_dp, fac*l_elec_sc, hicut0, ewald_type, alpha, my_do_14,&
-                zbl=my_do_zbl )
-             pot%spl_cs%cutoff_e = ener_coul(pot,0.0_dp, fac*l_elec_cs, hicut0, ewald_type, alpha, my_do_14,&
-                zbl=my_do_zbl )
+             pot%spl_sc%cutoff_e = ener_coul(pot, 0.0_dp, fac*l_elec_sc, hicut0, &
+                ewald_type, alpha, my_do_14, mm_radius_i, zbl=my_do_zbl)
+             pot%spl_cs%cutoff_e = ener_coul(pot, 0.0_dp, fac*l_elec_cs, hicut0, &
+                ewald_type, alpha, my_do_14, mm_radius_j, zbl=my_do_zbl)
+             pot%spl_c%cutoff_e = ener_coul(pot, 0.0_dp, fac*l_elec_c,  hicut0, &
+                ewald_type, alpha, my_do_14, 0.0_dp, zbl=my_do_zbl)
           END IF
        END IF
     END DO
@@ -1330,13 +1369,13 @@ CPSourceFileRef,&
           ! Cutoff NonBonded
           pot%spl_f%cutoff_n = pot_ref%spl_f%cutoff_n*pot%spl_f%fscale(2) - pot%spl_f%cutoff_n
           ! Cutoff Coulomb
-          pot%spl_f%cutoff_e = pot_ref%spl_f%cutoff_e*pot%spl_f%fscale(1) - pot%spl_f%cutoff_e 
+          pot%spl_f%cutoff_e = pot_ref%spl_f%cutoff_e*pot%spl_f%fscale(1) - pot%spl_f%cutoff_e
           pot%spl_f%cutoff   = pot%spl_f%cutoff_n + pot%spl_f%cutoff_e
           IF(do_shell_model) THEN
              pot%spl_c%cutoff_n  = 0.0_dp
              pot%spl_sc%cutoff_n = 0.0_dp
              pot%spl_cs%cutoff_n = 0.0_dp
-             pot%spl_c%cutoff_e  = pot_ref%spl_c%cutoff_e  * pot%spl_c%fscale(1)  - pot%spl_c%cutoff_e 
+             pot%spl_c%cutoff_e  = pot_ref%spl_c%cutoff_e  * pot%spl_c%fscale(1)  - pot%spl_c%cutoff_e
              pot%spl_sc%cutoff_e = pot_ref%spl_sc%cutoff_e * pot%spl_sc%fscale(1) - pot%spl_sc%cutoff_e
              pot%spl_cs%cutoff_e = pot_ref%spl_cs%cutoff_e * pot%spl_cs%fscale(1) - pot%spl_cs%cutoff_e
              pot%spl_c%cutoff    = pot%spl_c%cutoff_n  + pot%spl_c%cutoff_e

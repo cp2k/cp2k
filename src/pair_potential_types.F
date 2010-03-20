@@ -542,7 +542,7 @@ CONTAINS
   END SUBROUTINE pair_potential_single_copy
 
 ! *****************************************************************************
-!> \brief Add potential parameter type to an existing potential poarameter type
+!> \brief Add potential parameter type to an existing potential parameter type
 !>      Used in case of multiple_potential definition
 !> \author Teodoro Laino [teo] 11.2005
 ! *****************************************************************************

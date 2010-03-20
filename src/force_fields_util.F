@@ -39,12 +39,12 @@ MODULE force_fields_util
   USE force_fields_all,                ONLY: &
        force_field_pack_bend, force_field_pack_bond, force_field_pack_ch, &
        force_field_pack_impr, force_field_pack_onfo, force_field_pack_opbend, &
-       force_field_pack_pp, force_field_pack_ppse, force_field_pack_sbe, &
-       force_field_pack_shell, force_field_pack_sne, force_field_pack_tors, &
-       force_field_pack_ub, force_field_unique_bend, force_field_unique_bond, &
-       force_field_unique_impr, force_field_unique_onfo, &
-       force_field_unique_opbend, force_field_unique_tors, &
-       force_field_unique_ub
+       force_field_pack_pp, force_field_pack_ppse, force_field_pack_radius, &
+       force_field_pack_sbe, force_field_pack_shell, force_field_pack_sne, &
+       force_field_pack_tors, force_field_pack_ub, force_field_unique_bend, &
+       force_field_unique_bond, force_field_unique_impr, &
+       force_field_unique_onfo, force_field_unique_opbend, &
+       force_field_unique_tors, force_field_unique_ub
   USE input_constants,                 ONLY: do_ff_undef
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -237,29 +237,35 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL force_field_pack_opbend (particle_set, molecule_kind_set, molecule_set, &
        Ainfo, inp_info, error)
-
     ! Give information only if any Urey-Bradley, Torsion, improper or opbend is missing
     ! continue calculation..
     CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 14. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
     !-----------------------------------------------------------------------------
     CALL force_field_pack_ch  (atomic_kind_set, qmmm_env, fatal, iw, iw4,&
          Ainfo, my_qmmm, inp_info, error)
-
     ! Give information only if charge is missing and abort..
     CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 15. Set up  Shell potential
+    ! 15. Set up the radius of the electrostatic multipole in Fist
+    !-----------------------------------------------------------------------------
+    CALL force_field_pack_radius(atomic_kind_set, iw, subsys_section, error)
+
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 16. Set up  Shell potential
     !-----------------------------------------------------------------------------
     CALL force_field_pack_shell ( particle_set, atomic_kind_set,&
          molecule_kind_set, molecule_set, root_section, subsys_section,&
          shell_particle_set, core_particle_set, cell, iw, inp_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 16. Set spline_bond_env, use for ONFO interaction
+    ! 17. Set spline_bond_env, use for ONFO interaction
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded14) THEN
        NULLIFY(spline_bond_env)
@@ -270,14 +276,14 @@ CONTAINS
        CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
        !--------------------------------------------------------------------------
-       ! 16.(a) ONFO
+       ! 17.(a) ONFO
        !--------------------------------------------------------------------------
        CALL force_field_pack_onfo(particle_set, molecule_kind_set, molecule_set,&
             iw, potparm_bond, error)
     END IF
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 17. Set spline_nonbond_env
+    ! 18. Set spline_nonbond_env
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded) THEN
        CALL force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env, ewald_env, &
@@ -286,7 +292,7 @@ CONTAINS
        ! Give information and abort if any pair potential spline is missing..
        CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
-       ! 17.(a) create the pair potential spline environment
+       ! 18.(a) create the pair potential spline environment
        !--------------------------------------------------------------------------
        NULLIFY(spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env, &
             spline_sc_coul_env)
@@ -295,7 +301,7 @@ CONTAINS
             iw4, spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env,&
             spline_sc_coul_env, potparm_nonbond, do_zbl, error)
        !--------------------------------------------------------------------------
-       ! 17.(b) Setup of the pair potential spline environment (Evtl. Core/Shell)
+       ! 18.(b) Setup of the pair potential spline environment (Evtl. Core/Shell)
        !--------------------------------------------------------------------------
        CALL force_field_pack_pp (atomic_kind_set, spline_nonbond_env, spline_c_coul_env,&
             spline_cs_coul_env, spline_sc_coul_env, potparm_nonbond, shell_present,&

@@ -74,7 +74,7 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env,&
        cell, particle_set, local_particles, energy_local, energy_glob, e_neut, e_self,&
-       task, do_correction_bonded, do_forces, do_stress, do_efield, charges, dipoles,&
+       task, do_correction_bonded, do_forces, do_stress, do_efield, radii, charges, dipoles,&
        quadrupoles, forces_local, forces_glob, pv_local, pv_glob, efield0, efield1,&
        efield2, iw, do_debug, atomic_kind_set, mm_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -90,7 +90,7 @@ CONTAINS
                                                 do_forces, do_stress, &
                                                 do_efield
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: charges
+      POINTER                                :: radii, charges
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -150,16 +150,16 @@ CONTAINS
           CPPostcondition(PRESENT(atomic_kind_set),cp_failure_level,routineP,error,failure)
           CPPostcondition(PRESENT(mm_section),cp_failure_level,routineP,error,failure)
           CALL debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env,&
-               cell, particle_set, local_particles, charges, dipoles, quadrupoles,&
-               task, iw, atomic_kind_set, mm_section, error)
+               cell, particle_set, local_particles, radii, charges, dipoles,&
+               quadrupoles, task, iw, atomic_kind_set, mm_section, error)
           STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD!"
        END IF
        ! Debug the potential, electric fields and electric fields gradient in oder
        ! to retrieve the correct energy
        IF (debug_e_field_en) THEN
           CALL debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env,&
-               cell, particle_set, local_particles, charges, dipoles, quadrupoles,&
-               task, iw, error)
+               cell, particle_set, local_particles, radii, charges, dipoles,&
+               quadrupoles, task, iw, error)
           STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!!" 
        END IF
     END IF
@@ -223,18 +223,18 @@ CONTAINS
     IF (.NOT.debug_g_space) THEN
        ! Compute the Real Space (Short-Range) part of the Ewald sum
        CALL ewald_multipole_SR (nonbond_env, ewald_env, cell, e_rspace, my_task,&
-            do_forces, do_efield, do_stress, charges, dipoles, quadrupoles, forces_glob,&
-            pv_glob, efield0_sr, efield1_sr, efield2_sr, error)
+            do_forces, do_efield, do_stress, radii, charges, dipoles, quadrupoles,&
+            forces_glob, pv_glob, efield0_sr, efield1_sr, efield2_sr, error)
        energy_glob = energy_glob + e_rspace
 
        IF (do_correction_bonded) THEN
           ! If we request for the bonded correction we store in the SR part of the fields array
           ! also the contribution coming from the correction.. 
           e_bonded = 0.0_dp
-          CALL ewald_multipole_bonded (atomic_kind_set, local_particles, particle_set, &
-               ewald_env, cell, e_bonded, my_task, do_forces, do_efield, do_stress,  &
-               charges, dipoles, quadrupoles, forces_glob, pv_glob, efield0_sr, &
-               efield1_sr, efield2_sr, error)
+          CALL ewald_multipole_bonded (atomic_kind_set, local_particles, particle_set,&
+               ewald_env, cell, e_bonded, my_task, do_forces, do_efield, do_stress,&
+               radii, charges, dipoles, quadrupoles, forces_glob, pv_glob,&
+               efield0_sr, efield1_sr, efield2_sr, error)
           energy_glob = energy_glob + e_bonded 
        END IF
     END IF
@@ -299,8 +299,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE ewald_multipole_SR (nonbond_env, ewald_env, cell, energy, task,&
-       do_forces, do_efield, do_stress, charges, dipoles, quadrupoles, forces,&
-       pv, efield0, efield1, efield2, error)
+       do_forces, do_efield, do_stress, radii, charges, dipoles, quadrupoles,&
+       forces, pv, efield0, efield1, efield2, error)
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell
@@ -309,7 +309,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: do_forces, do_efield, &
                                                 do_stress
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: charges
+      POINTER                                :: radii, charges
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -331,11 +331,11 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure, &
                                                 force_eval
-    REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, fac_ij, ir, &
-      irab2, ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, &
-      ptens32, ptens33, r, rab2, rab2_max, rcut, tij, tmp, tmp1, tmp11, &
-      tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, &
-      tmp_ji
+    REAL(KIND=dp) :: alpha, beta, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, &
+      fac_ij, ir, irab2, ptens11, ptens12, ptens13, ptens21, ptens22, &
+      ptens23, ptens31, ptens32, ptens33, r, rab2, rab2_max, radius, rcut, &
+      tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, &
+      tmp32, tmp33, tmp_ij, tmp_ji
     REAL(KIND=dp), DIMENSION(0:5)            :: f
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, dp_i, dp_j, &
                                                 ef1_i, ef1_j, fr, rab, tij_a
@@ -390,6 +390,21 @@ CONTAINS
              rab    = rab + cell_v
              rab2   = rab(1)**2 + rab(2)**2 + rab(3)**2
              IF (rab2 <= rab2_max) THEN
+               IF (PRESENT(radii)) THEN
+                 radius = SQRT(radii(atom_a)*radii(atom_a) + radii(atom_b)*radii(atom_b))
+               ELSE
+                 radius = 0.0_dp
+               END IF
+               IF (radius > 0.0_dp) THEN
+                 beta = 1.0_dp/radius
+#define SCREENED_COULOMB_GAUSS
+#define STORE_ENERGY
+#define STORE_FORCES
+#include "ewalds_multipole_sr.f90"
+#undef STORE_FORCES
+#undef STORE_ENERGY
+#undef SCREENED_COULOMB_GAUSS
+               ELSE
 #define SCREENED_COULOMB_ERFC
 #define STORE_ENERGY
 #define STORE_FORCES
@@ -397,6 +412,7 @@ CONTAINS
 #undef STORE_FORCES
 #undef STORE_ENERGY
 #undef SCREENED_COULOMB_ERFC
+               END IF
              END IF
           END DO Pairs
        END DO Kind_Group_Loop
@@ -422,7 +438,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 05.2009 
 ! *****************************************************************************
   SUBROUTINE ewald_multipole_bonded (atomic_kind_set, local_particles, particle_set, &
-       ewald_env, cell, energy, task, do_forces, do_efield, do_stress, charges, & 
+       ewald_env, cell, energy, task, do_forces, do_efield, do_stress, radii, charges, &
        dipoles, quadrupoles, forces, pv, efield0, efield1, efield2, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -435,7 +451,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: do_forces, do_efield, &
                                                 do_stress
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: charges
+      POINTER                                :: radii, charges
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -456,10 +472,11 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure, &
                                                 force_eval
-    REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, fac_ij, ir, &
-      irab2, ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, &
-      ptens32, ptens33, r, rab2, tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, &
-      tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, tmp_ji
+    REAL(KIND=dp) :: alpha, beta, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, &
+      fac_ij, ir, irab2, ptens11, ptens12, ptens13, ptens21, ptens22, &
+      ptens23, ptens31, ptens32, ptens33, r, rab2, radius, tij, tmp, tmp1, &
+      tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, &
+      tmp_ij, tmp_ji
     REAL(KIND=dp), DIMENSION(0:5)            :: f
     REAL(KIND=dp), DIMENSION(3)              :: dp_i, dp_j, ef1_i, ef1_j, fr, &
                                                 rab, tij_a
@@ -495,6 +512,21 @@ CONTAINS
              rab    = particle_set (atom_b)%r-particle_set(atom_a)%r
              rab = pbc(rab, cell)
              rab2   = rab(1)**2 + rab(2)**2 + rab(3)**2
+             IF (PRESENT(radii)) THEN
+               radius = SQRT(radii(atom_a)*radii(atom_a) + radii(atom_b)*radii(atom_b))
+             ELSE
+               radius = 0.0_dp
+             END IF
+             IF (radius > 0.0_dp) THEN
+               beta = 1.0_dp/radius
+#define SCREENED_COULOMB_GAUSS
+#define STORE_ENERGY
+#define STORE_FORCES
+#include "ewalds_multipole_sr.f90"
+#undef STORE_FORCES
+#undef STORE_ENERGY
+#undef SCREENED_COULOMB_GAUSS
+             ELSE
 #define SCREENED_COULOMB_ERF
 #define STORE_ENERGY
 #define STORE_FORCES
@@ -502,6 +534,7 @@ CONTAINS
 #undef STORE_FORCES
 #undef STORE_ENERGY
 #undef SCREENED_COULOMB_ERF
+            END IF
           END DO excl
        END DO atom
     END DO kinds

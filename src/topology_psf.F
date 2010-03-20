@@ -777,7 +777,7 @@ CPSourceFileRef,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(charge_inp(nchg),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL read_chrg_section(charge_atm,charge_inp,tmp_section,0,error)
+       CALL read_chrg_section(charge_atm,charge_inp,section=tmp_section,start=0,error=error)
        DO j = 1, topology%natoms
           record = atom_info%label_atmname(j)
           ldum = qmmm_ff_precond_only_qm(record)

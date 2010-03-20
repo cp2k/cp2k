@@ -14,6 +14,7 @@
 
                 ! Compute the radial function
 #ifdef SCREENED_COULOMB_ERFC
+                ! code for point multipole with screening
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
                    tmp   = 0.0_dp
@@ -25,6 +26,23 @@
                 DO i = 1, 5
                    fac  = fac*REAL(2*i-1,KIND=dp)
                    f(i) = irab2*(f(i-1)+ tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
+                END DO
+#endif
+#ifdef SCREENED_COULOMB_GAUSS
+                ! code for gaussian multipole with screening
+                IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
+                   f(0)  = ir
+                   tmp1   = 0.0_dp
+                   tmp2   = 0.0_dp
+                ELSE
+                   f(0)  = erf(beta*r)*ir - erf(alpha*r)*ir
+                   tmp1   = EXP(-alpha**2*rab2)*oorootpi
+                   tmp2   = EXP(-beta**2*rab2)*oorootpi
+                END IF
+                fac = 1.0_dp
+                DO i = 1, 5
+                   fac  = fac*REAL(2*i-1,KIND=dp)
+                   f(i) = irab2*(f(i-1) + tmp1*((2.0_dp*alpha**2)**i)/(fac*alpha) - tmp2*((2.0_dp*beta**2)**i)/(fac*beta))
                 END DO
 #endif
 #ifdef SCREENED_COULOMB_ERF
@@ -42,9 +60,26 @@
                 END DO
 #endif
 #ifdef PURE_COULOMB
+                ! code for point multipole without screening
                 f(0)  = ir
                 DO i = 1, 5
                    f(i) = irab2*f(i-1)
+                END DO
+#endif
+#ifdef PURE_COULOMB_GAUSS
+                ! code for gaussian multipole without screening
+                IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
+                   f(0)  = ir
+                   tmp   = 0.0_dp
+                ELSE
+                   f(0)  = erf(beta*r)*ir
+                   tmp   = EXP(-beta**2*rab2)*oorootpi
+                END IF
+                fac = 1.0_dp
+                print *, "CHECK", f(0)
+                DO i = 1, 5
+                   fac  = fac*REAL(2*i-1,KIND=dp)
+                   f(i) = irab2*(f(i-1) - tmp*((2.0_dp*beta**2)**i)/(fac*beta))
                 END DO
 #endif
                 ! Compute the Tensor components

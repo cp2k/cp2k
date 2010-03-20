@@ -393,15 +393,15 @@ SUBROUTINE create_ewald_section(section,error)
 
     CALL keyword_create(keyword, name="MAX_IPOL_ITER",&
          description="Specify the maximum number of iterations for induced "//&
-         "Dipoles",&
+         "dipoles",&
          usage="MAX_IPOL_ITER {int}",required=.FALSE., type_of_var=integer_t,&
             n_var=1, default_i_val=0,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     
     CALL keyword_create(keyword, name="EPS_POL",&
-         description="Specify the maximum number of iterations for induced "//&
-         "Dipoles",&
+         description="Specify the rmsd threshold for the derivatives "//&
+         "of the energy towards the Cartesian dipoles components",&
          usage="EPS_POL {real}",required=.FALSE., type_of_var=real_t,&
             n_var=1, default_r_val=0.5e-07_dp,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)

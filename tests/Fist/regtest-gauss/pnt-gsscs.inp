@@ -1,0 +1,97 @@
+# The energy should be about -0.213763047935 Hartree.
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT_NAME pnt-gsscs
+  RUN_TYPE energy
+&END GLOBAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+   &FORCEFIELD
+     &SPLINE
+       EMAX_SPLINE 1.0
+       RCUT_NB 12.00
+       EMAX_ACCURACY 1.0
+       EPS_SPLINE 1.0E-7
+     &END SPLINE
+     &NONBONDED
+       &LENNARD-JONES
+         ATOMS      Na Na
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      Na Cl
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      Cl Cl
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+     &END NONBONDED
+     &CHARGE
+       ATOM Na
+       CHARGE -1.0
+     &END CHARGE
+     &CHARGE
+       ATOM Cl
+       CHARGE 1.0
+     &END CHARGE
+     @IF 0
+     &SHELL Na
+       SPRING -1.0
+       SHELL_CHARGE 0.0
+       CORE_CHARGE 0.0
+     &END SHELL
+     @ENDIF
+     @IF 1
+     &SHELL Cl
+       SPRING 0.1
+       SHELL_CHARGE -0.5
+       CORE_CHARGE 1.5
+     &END SHELL
+     @ENDIF
+   &END FORCEFIELD
+   &POISSON
+     PERIODIC NONE
+     POISSON_SOLVER ANALYTIC
+     &EWALD
+       EWALD_TYPE NONE
+     &END EWALD
+    &END POISSON
+  &END MM
+   &SUBSYS
+     &CELL
+       ABC 14.0 14.0 14.0
+       PERIODIC NONE
+     &END CELL
+     &KIND Na
+       MM_RADIUS 0.0
+     &END KIND
+     &KIND Cl
+       MM_RADIUS 1.5875316249
+     &END KIND
+     &COORD
+       Na 0.0 0.0 0.0
+       Cl 0.0 0.0 2.1167088332
+     &END COORD
+     &CORE_COORD
+       @IF 0
+       Na 0.0 0.0 0.0 1
+       @ENDIF
+       @IF 1
+       Cl 0.0 0.0 2.1167088332 2
+       @ENDIF
+     &END CORE_COORD
+     &SHELL_COORD
+       @IF 0
+       Na 0.0 0.0 0.0 1
+       @ENDIF
+       @IF 1
+       Cl 0.0 0.05291772083 2.14316769361 2
+       @ENDIF
+     &END SHELL_COORD
+   &END SUBSYS
+ &END FORCE_EVAL

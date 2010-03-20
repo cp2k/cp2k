@@ -1,0 +1,83 @@
+# The real-space part of the electrostatic energy should be about 0.00229082751235 Hartree.
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT_NAME g_d.g_d
+  RUN_TYPE energy
+&END GLOBAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+   &FORCEFIELD
+     &SPLINE
+       EMAX_SPLINE 1.0
+       RCUT_NB 12.0
+       EMAX_ACCURACY 1.0
+       EPS_SPLINE 1.0E-7
+     &END SPLINE
+     &NONBONDED
+       &LENNARD-JONES
+         ATOMS      Na Na
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      Na Cl
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+       &LENNARD-JONES
+         ATOMS      Cl Cl
+         EPSILON    0.0
+         SIGMA      1.0
+       &END LENNARD-JONES
+     &END NONBONDED
+     &CHARGE
+       ATOM Na
+       CHARGE 0.0
+     &END CHARGE
+     &CHARGE
+       ATOM Cl
+       CHARGE 0.0
+     &END CHARGE
+   &END FORCEFIELD
+   &POISSON
+     PERIODIC XYZ
+     POISSON_SOLVER ANALYTIC
+     &EWALD
+       EWALD_TYPE EWALD
+       ALPHA 0.3
+       GMAX 15
+       O_SPLINE 6
+       &MULTIPOLES
+         MAX_MULTIPOLE_EXPANSION DIPOLE
+       &END MULTIPOLES
+     &END EWALD
+    &END POISSON
+    &PRINT
+      &EWALD_INFO ON
+      &END EWALD_INFO
+    &END PRINT
+   &END MM
+   &SUBSYS
+     &CELL
+       ABC 14.0 14.0 14.0
+       PERIODIC XYZ
+     &END CELL
+     &KIND Na
+       MM_RADIUS 1.0583544166
+     &END KIND
+     &KIND Cl
+       MM_RADIUS 1.0583544166
+     &END KIND
+     &COORD
+       Na 0.0 0.0 0.0
+       Cl 0.0 0.0 2.1167088332
+     &END COORD
+     &MULTIPOLES
+       &DIPOLES
+         -0.5 0.0 0.0
+         -0.5 0.0 0.0
+       &END DIPOLES
+     &END MULTIPOLES
+   &END SUBSYS
+ &END FORCE_EVAL

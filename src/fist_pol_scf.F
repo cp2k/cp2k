@@ -629,11 +629,11 @@ CONTAINS
             particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
             thermo%e_self, multipoles%task, do_correction_bonded=do_correction_bonded,&
             do_forces=do_forces,do_stress=do_stress, do_efield=do_efield,&
-            charges=multipoles%charges, dipoles=multipoles%dipoles,&
-            quadrupoles=multipoles%quadrupoles, forces_local=forces_local,&
-            forces_glob=forces_glob, pv_local=pv_local, pv_glob=pv_glob, iw=iw2,&
-            do_debug=do_debug, atomic_kind_set=atomic_kind_set, mm_section=mm_section,&
-            efield0=efield0, efield1=efield1, error=error)
+            radii=multipoles%radii, charges=multipoles%charges,&
+            dipoles=multipoles%dipoles, quadrupoles=multipoles%quadrupoles,&
+            forces_local=forces_local, forces_glob=forces_glob, pv_local=pv_local,&
+            pv_glob=pv_glob, iw=iw2, do_debug=do_debug, atomic_kind_set=atomic_kind_set,&
+            mm_section=mm_section, efield0=efield0, efield1=efield1, error=error)
     CASE(do_ewald_pme)
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Multipole Ewald not yet implemented within a PME scheme!", &
