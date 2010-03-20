@@ -70,6 +70,11 @@ CONTAINS
 !>         atomic_kind_set and mm_section are between the arguments only
 !>         for debug purpose (therefore optional) and can be avoided when this
 !>         function is called in other part of the program
+!> \par    Note
+!>         When a gaussian multipole is used instead of point multipole, i.e.
+!>         when radii(i)>0, the electrostatic fields (efield0, efield1, efield2)
+!>         become derivatives of the electrostatic potential energy towards
+!>         these gaussian multipoles.
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
   RECURSIVE SUBROUTINE ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env,&
