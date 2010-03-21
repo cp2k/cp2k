@@ -38,11 +38,11 @@
      &END CHARGE
      &DIPOLE
        ATOM Na
-       ALPHA 0.0
+       APOL 0.0
      &END DIPOLE
      &DIPOLE
        ATOM Cl
-       ALPHA 2.368
+       APOL 2.368
      &END DIPOLE
    &END FORCEFIELD
    &POISSON

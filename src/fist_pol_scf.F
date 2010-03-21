@@ -133,7 +133,7 @@ CONTAINS
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, iwarn
-    REAL(KIND=dp)                            :: a_pol, eps_pol, &
+    REAL(KIND=dp)                            :: apol, eps_pol, &
                                                 pot_nonbond_local, rmsd
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: efield1
@@ -176,22 +176,22 @@ CONTAINS
        thermo%e_induction = 0.0_dp
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind, a_pol=a_pol, natom=natom_of_kind, atom_list=atom_list)
+          CALL get_atomic_kind(atomic_kind, apol=apol, natom=natom_of_kind, atom_list=atom_list)
           ! ignore atoms with polarizability zero
-          IF ( a_pol == 0 ) CYCLE
+          IF ( apol == 0 ) CYCLE
           ntot = ntot + natom_of_kind
           DO iatom = 1, natom_of_kind
              ii = atom_list(iatom)
              DO i=1, 3
                 ! the rmsd of the derivatives of the energy towards the
                 ! components of the atomic dipole moments
-                rmsd = rmsd + (multipoles%dipoles(i,ii)/a_pol - efield1(i,ii))**2
+                rmsd = rmsd + (multipoles%dipoles(i,ii)/apol - efield1(i,ii))**2
              END DO
-             multipoles%dipoles(:,ii) = a_pol*efield1(:,ii)
+             multipoles%dipoles(:,ii) = apol*efield1(:,ii)
              ! Compute the new induction term while we are here
              thermo%e_induction = thermo%e_induction + &
                   DOT_PRODUCT(multipoles%dipoles(:,ii), &
-                              multipoles%dipoles(:,ii))/a_pol/2.0_dp
+                              multipoles%dipoles(:,ii))/apol/2.0_dp
           END DO
        END DO
        rmsd = SQRT (rmsd/REAL(ntot,KIND=dp))
@@ -294,7 +294,7 @@ CONTAINS
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, iwarn
-    REAL(KIND=dp)                            :: a_pol, alpha, beta, denom, &
+    REAL(KIND=dp)                            :: alpha, apol, beta, denom, &
                                                 eps_pol, pot_nonbond_local, &
                                                 rmsd
     REAL(KIND=dp), ALLOCATABLE, &
@@ -361,15 +361,15 @@ CONTAINS
     residual = 0.0_dp
     DO ikind = 1, nkind
        atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind, a_pol=a_pol, natom=natom_of_kind, atom_list=atom_list)
+       CALL get_atomic_kind(atomic_kind, apol=apol, natom=natom_of_kind, atom_list=atom_list)
        ! ignore atoms with polarizability zero
-       IF ( a_pol == 0 ) CYCLE
+       IF ( apol == 0 ) CYCLE
        ntot = ntot + natom_of_kind
        DO iatom = 1, natom_of_kind
           ii = atom_list(iatom)
           DO i=1, 3
              ! residual = b - A x
-             residual(i,ii) = efield1(i,ii) - multipoles%dipoles(i,ii)/a_pol
+             residual(i,ii) = efield1(i,ii) - multipoles%dipoles(i,ii)/apol
           END DO
        END DO
     END DO
@@ -398,9 +398,9 @@ CONTAINS
        ! Compute the rmsd of the residual.
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind, a_pol=a_pol, natom=natom_of_kind, atom_list=atom_list)
+          CALL get_atomic_kind(atomic_kind, apol=apol, natom=natom_of_kind, atom_list=atom_list)
           ! ignore atoms with polarizability zero
-          IF ( a_pol == 0 ) CYCLE
+          IF ( apol == 0 ) CYCLE
           DO iatom = 1, natom_of_kind
              ii = atom_list(iatom)
              DO i=1, 3
@@ -408,7 +408,7 @@ CONTAINS
                rmsd = rmsd + residual(i,ii)**2
                IF (debug_this_module) THEN
                   denom = denom + (residual(i,ii) - (efield1(i,ii) - &
-                          multipoles%dipoles(i,ii)/a_pol))**2
+                          multipoles%dipoles(i,ii)/apol))**2
                END IF
              END DO
           END DO
@@ -441,13 +441,13 @@ CONTAINS
        denom = 0.0_dp
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind, a_pol=a_pol, natom=natom_of_kind, atom_list=atom_list)
+          CALL get_atomic_kind(atomic_kind, apol=apol, natom=natom_of_kind, atom_list=atom_list)
           ! ignore atoms with polarizability zero
-          IF ( a_pol == 0 ) CYCLE
+          IF ( apol == 0 ) CYCLE
           DO iatom = 1, natom_of_kind
              ii = atom_list(iatom)
              DO i=1, 3
-               conjugate_applied(i,ii) = conjugate_applied(i,ii) + conjugate(i,ii)/a_pol
+               conjugate_applied(i,ii) = conjugate_applied(i,ii) + conjugate(i,ii)/apol
              END DO
              alpha = alpha + DOT_PRODUCT(residual(:,ii), residual(:,ii))
              denom = denom + DOT_PRODUCT(conjugate(:,ii), conjugate_applied(:,ii))
@@ -460,8 +460,8 @@ CONTAINS
        denom = 0.0_dp
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind, a_pol=a_pol, natom=natom_of_kind, atom_list=atom_list)
-          IF ( a_pol == 0 ) CYCLE
+          CALL get_atomic_kind(atomic_kind, apol=apol, natom=natom_of_kind, atom_list=atom_list)
+          IF ( apol == 0 ) CYCLE
           DO iatom = 1, natom_of_kind
              ii = atom_list(iatom)
              denom = denom + DOT_PRODUCT(residual(:,ii), residual(:,ii))
@@ -478,15 +478,15 @@ CONTAINS
        thermo%e_induction = 0.0_dp
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind, a_pol=a_pol, natom=natom_of_kind, atom_list=atom_list)
+          CALL get_atomic_kind(atomic_kind, apol=apol, natom=natom_of_kind, atom_list=atom_list)
           ! ignore atoms with polarizability zero
-          IF ( a_pol == 0 ) CYCLE
+          IF ( apol == 0 ) CYCLE
           DO iatom = 1, natom_of_kind
              ii = atom_list(iatom)
              DO i=1, 3
                multipoles%dipoles(i,ii) = multipoles%dipoles(i,ii) + alpha*conjugate(i,ii)
                conjugate(i,ii) = residual(i,ii) + beta*conjugate(i,ii)
-               thermo%e_induction = thermo%e_induction + multipoles%dipoles(i,ii)**2/a_pol/2.0_dp
+               thermo%e_induction = thermo%e_induction + multipoles%dipoles(i,ii)**2/apol/2.0_dp
              END DO
           END DO
        END DO
@@ -520,14 +520,14 @@ CONTAINS
        rmsd = 0.0_dp
        DO ikind = 1, nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind, a_pol=a_pol, natom=natom_of_kind, atom_list=atom_list)
+          CALL get_atomic_kind(atomic_kind, apol=apol, natom=natom_of_kind, atom_list=atom_list)
           ! ignore atoms with polarizability zero
-          IF ( a_pol == 0 ) CYCLE
+          IF ( apol == 0 ) CYCLE
           DO iatom = 1, natom_of_kind
              ii = atom_list(iatom)
              DO i=1, 3
                 ! residual = b - A x
-                rmsd = rmsd + (efield1(i,ii) - multipoles%dipoles(i,ii)/a_pol)**2
+                rmsd = rmsd + (efield1(i,ii) - multipoles%dipoles(i,ii)/apol)**2
              END DO
           END DO
        END DO

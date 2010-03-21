@@ -82,19 +82,19 @@
      &END CHARGE
      &DIPOLE
        ATOM H
-       ALPHA 0.26
+       APOL 0.26
      &END DIPOLE
      &DIPOLE
        ATOM C
-       ALPHA 0.26
+       APOL 0.26
      &END DIPOLE
      &DIPOLE
        ATOM N
-       ALPHA 0.10
+       APOL 0.10
      &END DIPOLE
      &DIPOLE
        ATOM O
-       ALPHA 0.22
+       APOL 0.22
      &END DIPOLE
    &END FORCEFIELD
    &POISSON

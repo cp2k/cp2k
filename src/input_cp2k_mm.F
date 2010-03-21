@@ -976,9 +976,9 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="ALPHA",&
+       CALL keyword_create(keyword, name="APOL",&
             description="Defines the isotropic polarizability of the MM atom.",&
-            usage="ALPHA {real}", required=.TRUE., type_of_var=real_t,&
+            usage="APOL {real}", required=.TRUE., type_of_var=real_t,&
             n_var=1, unit_str='angstrom^3', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

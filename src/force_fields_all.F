@@ -99,8 +99,9 @@ MODULE force_fields_all
             force_field_pack_tors,&
             force_field_pack_impr,&
             force_field_pack_opbend,&
-            force_field_pack_ch,&
+            force_field_pack_charge,&
             force_field_pack_radius,&
+            force_field_pack_pol, &
             force_field_pack_shell,&
             force_field_pack_sbe,&
             force_field_pack_onfo,&
@@ -1954,10 +1955,10 @@ CONTAINS
   END SUBROUTINE force_field_pack_opbend
 
 ! *****************************************************************************
-!> \brief Set up atomic_kind_set()%fist_potentail (PART 2) and shell potential
-!>      parameters
+!> \brief Set up atomic_kind_set()%fist_potentail%[qeff] (PART 2) and shell
+!>      potential parameters
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_ch  ( atomic_kind_set, qmmm_env, fatal, iw, iw4,&
+  SUBROUTINE force_field_pack_charge(atomic_kind_set, qmmm_env, fatal, iw, iw4,&
        Ainfo, my_qmmm, inp_info, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1971,62 +1972,45 @@ CONTAINS
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_ch', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charge', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atmname
-    INTEGER                                  :: handle2, i, ilink, j, stat
+    INTEGER                                  :: handle, i, ilink, j
     INTEGER, DIMENSION(:), POINTER           :: my_atom_list
     LOGICAL                                  :: failure, found, found_p, &
                                                 is_link_atom, is_shell, &
                                                 only_manybody, only_qm
-    REAL(KIND=dp)                            :: chrg_tot, cs_charge, &
-                                                scale_factor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha, charge
+    REAL(KIND=dp)                            :: charge, charge_tot, &
+                                                cs_charge, scale_factor
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_potential_type), POINTER       :: fist_potential
 
     failure = .FALSE.
 
-    CALL timeset(routineN,handle2)
-    chrg_tot = 0.0_dp
-    ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(alpha(SIZE(atomic_kind_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timeset(routineN,handle)
+    charge_tot = 0.0_dp
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             fist_potential=fist_potential,&
                             atom_list=my_atom_list,&
                             name=atmname)
-       CALL get_potential(potential=fist_potential, qeff=charge(i), &
-                          a_pol=alpha(i))
+       CALL get_potential(potential=fist_potential, qeff=charge)
 
        is_shell = .FALSE.
        found    = .FALSE.
        only_qm  = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
-       IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
+       IF(charge/=-HUGE(0.0_dp)) found = .TRUE.
 
        ! Always have the input param last to overwrite all the other ones
        IF(ASSOCIATED(inp_info%charge_atm)) THEN
           DO j=1,SIZE(inp_info%charge_atm)
              IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(inp_info%charge_atm(j)),atmname
              IF((inp_info%charge_atm(j))==atmname) THEN
-                charge(i) = inp_info%charge(j)
+                charge = inp_info%charge(j)
                 CALL issue_duplications(found,routineP, "Charge", atmname, error=error)
-                found = .TRUE.
-             END IF
-          END DO
-       END IF
-       ! Always have the input param last to overwrite all the other ones
-       IF(ASSOCIATED(inp_info%alpha_atm)) THEN
-          DO j=1,SIZE(inp_info%alpha_atm)
-             IF (iw>0) WRITE(iw,*)"Alpha Checking ::",TRIM(inp_info%alpha_atm(j)),atmname
-             IF((inp_info%alpha_atm(j))==atmname) THEN
-                alpha(i) = inp_info%alpha(j)
-                CALL issue_duplications(found,routineP, "Alpha", atmname, error=error)
                 found = .TRUE.
              END IF
           END DO
@@ -2040,7 +2024,7 @@ CONTAINS
                 is_shell  = .TRUE.
                 cs_charge = inp_info%shell_list(j)%shell%charge_core+&
                             inp_info%shell_list(j)%shell%charge_shell
-                charge(i) = 0.0_dp
+                charge = 0.0_dp
                 IF (found) THEN
                    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
                         "CORE-SHELL model defined for KIND ("//TRIM(atmname)//")"//&
@@ -2074,7 +2058,7 @@ CPSourceFileRef,&
                 END IF
              END DO
              IF (only_manybody.AND.found_p) THEN
-                charge(i) = 0.0_dp
+                charge = 0.0_dp
                 found     = .TRUE.
              END IF
           END IF
@@ -2082,7 +2066,7 @@ CPSourceFileRef,&
        IF (.NOT.found) THEN
          ! Set the charge to zero anyway in case the user decides to ignore
          ! missing critical parameters.
-         charge(i) = 0.0_dp
+         charge = 0.0_dp
          CALL store_FF_missing_par(atm1=TRIM(atmname),&
                                    fatal=fatal,&
                                    type_name="Charge",&
@@ -2105,32 +2089,26 @@ CPSourceFileRef,&
                 CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,error,failure)
                 scale_factor = qmmm_env%fist_scale_charge_link(ilink)
              END IF
-             charge(i) = charge(i) * scale_factor
+             charge = charge * scale_factor
           END IF
        END IF
 
-       CALL set_potential(potential=fist_potential, qeff=charge(i), &
-                          a_pol=alpha(i))
-       CALL set_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
+       CALL set_potential(potential=fist_potential, qeff=charge)
        ! Sum up total charges for IO
        IF (found) THEN
           IF (is_shell) THEN
-             chrg_tot = chrg_tot + atomic_kind%natom*cs_charge
+             charge_tot = charge_tot + atomic_kind%natom*cs_charge
           ELSE
-             chrg_tot = chrg_tot + atomic_kind%natom*charge(i)
+             charge_tot = charge_tot + atomic_kind%natom*charge
           END IF
        END IF
     END DO
     ! Print Total Charge of the system
     IF (iw4>0) THEN
-       WRITE(iw4,FMT='(T2,"CHARGE_INFO| Total Charge of the Classical System: ",T69,F12.6)')chrg_tot
+       WRITE(iw4,FMT='(T2,"CHARGE_INFO| Total Charge of the Classical System: ",T69,F12.6)')charge_tot
     END IF
-    DEALLOCATE (charge,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (alpha,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(handle2)
-  END SUBROUTINE force_field_pack_ch
+    CALL timestop(handle)
+  END SUBROUTINE force_field_pack_charge
 
 ! *****************************************************************************
 !> \brief Set up the radius of the electrostatic multipole in Fist
@@ -2191,6 +2169,58 @@ CPSourceFileRef,&
     END DO
     CALL timestop(handle)
   END SUBROUTINE force_field_pack_radius
+
+! *****************************************************************************
+!> \brief Set up the polarizable FF parameters
+!> \author Toon.Verstraelen@gmail.com
+! *****************************************************************************
+  SUBROUTINE force_field_pack_pol(atomic_kind_set, iw, inp_info, error)
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      INTENT(IN), POINTER                    :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(input_info_type), INTENT(IN), &
+      POINTER                                :: inp_info
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_pol', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: kind_name
+    INTEGER                                  :: handle, i, j
+    LOGICAL                                  :: found
+    REAL(KIND=dp)                            :: apol
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(fist_potential_type), POINTER       :: fist_potential
+
+    CALL timeset(routineN,handle)
+
+    DO i=1,SIZE(atomic_kind_set)
+       atomic_kind => atomic_kind_set(i)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            fist_potential=fist_potential,&
+                            name=kind_name)
+       CALL get_potential(potential=fist_potential, apol=apol)
+       CALL uppercase(kind_name)
+       found = .FALSE.
+
+       ! Always have the input param last to overwrite all the other ones
+       IF(ASSOCIATED(inp_info%apol_atm)) THEN
+          DO j=1,SIZE(inp_info%apol_atm)
+             IF (iw>0) WRITE(iw,*) "Matching kinds for APOL :: '", &
+                TRIM(kind_name), "' with '", TRIM(inp_info%apol_atm(j)), "'"
+             IF((inp_info%apol_atm(j))==kind_name) THEN
+                apol = inp_info%apol(j)
+                CALL issue_duplications(found,routineP, "APOL", kind_name, error=error)
+                found = .TRUE.
+             END IF
+          END DO
+       END IF
+
+       CALL set_potential(potential=fist_potential, apol=apol)
+    END DO
+    CALL timestop(handle)
+  END SUBROUTINE force_field_pack_pol
 
 ! *****************************************************************************
 !> \brief Set up shell potential parameters

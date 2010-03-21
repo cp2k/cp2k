@@ -155,7 +155,7 @@
      &END CHARGE
      &DIPOLE
        ATOM MW
-       ALPHA 1.444
+       APOL 1.444
      &END DIPOLE
    &END FORCEFIELD
    &POISSON
