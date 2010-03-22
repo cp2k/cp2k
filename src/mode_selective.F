@@ -300,7 +300,7 @@ CONTAINS
        IF(n_rep_val.NE.0)THEN
           CALL section_vals_val_get(ms_vib_section,"RANGE",r_vals=ms_vib%f_range,error=error)
           IF(ms_vib%f_range(1).GT.ms_vib%f_range(2))THEN
-             ms_vib%f_range(2)=my_val
+             my_val=ms_vib%f_range(2)
              ms_vib%f_range(2)=ms_vib%f_range(1)
              ms_vib%f_range(1)=my_val
           END IF
