@@ -986,14 +986,25 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates the intersections of blocks
-!> \par nints output format
+!> \par ints output format
 !>      The ints array should be up to twice as large as the number of
 !>      intersecting blocks. Each entry is comprised of the target
-!>      block and the common length.
+!>      block and the common length along with the offsets of the
+!>      intersection in the old and new blocks.
 !> \par n_src_dsts format
 !>      This arrays stored the number of intersecting blocks in common
 !>      (position 2) and the offset of the first common intersecting
 !>      block (position 1).
+!> \par Interpretation (Mapping old blocks into new blocks)
+!>      The old element belongs to block B. Lookup row B in
+!>      n_src_dsts.  The first element F tells you which is the first
+!>      new block to map into and the second element tells you into
+!>      how many new blocks N you have to map.  You then look up rows
+!>      F to F+N-1 in ints. The first block tells you into which block
+!>      it is mapped and the secend element tells you how many
+!>      elements they have in common. The third element specifies the
+!>      offset of the intesection in the old block while the fourth
+!>      specifies the offset of the intersection in the new block.
 !> \note This routine is used in the counting and sending loops in
 !>       dbcsr_complete_redistribute
 !> \param[out] ints           intersections of blocks
@@ -1002,65 +1013,90 @@ CONTAINS
 !>                            to source blocks
 !> \param[in] src_sizes       sizes of source blocks
 !> \param[in] dst_sizes       sizes of target blocks
+!> \param[in,out] error       error
+!> \par History
+!>      UB [2009] Created
+!>      UB [2010-03-22] Offsets of the intersections in the old/new blocks
+!>                      are calculated & saved. Zero-length blocks are
+!>                      skipped.
 ! *****************************************************************************
   SUBROUTINE dbcsr_reblocking_targets (ints, numints, n_src_dsts,&
-       src_sizes, dst_sizes)
+       src_sizes, dst_sizes, error)
     INTEGER, INTENT(INOUT)                   :: numints
-    INTEGER, DIMENSION(2, numints), &
+    INTEGER, DIMENSION(4, numints), &
       INTENT(OUT)                            :: ints
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: n_src_dsts
     INTEGER, DIMENSION(:), INTENT(IN)        :: src_sizes, dst_sizes
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reblocking_targets', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: common_extent, current_dst, &
-                                                current_int, current_src, &
-                                                n_dst, n_src, s_dst, s_src
+    INTEGER :: common_extent, current_dst, current_int, current_src, dst_off, &
+      n_dst, n_src, s_dst, s_src, src_off
 
 !   ---------------------------------------------------------------------------
 
     n_src = SIZE(src_sizes)
     n_dst = SIZE(dst_sizes)
-    current_int = 1
-    current_src = 1
-    current_dst = 1
-    IF(n_src.GT.0) THEN
-       s_src = src_sizes (current_src)
-       n_src_dsts(:,1) = (/ 1, 0 /)
-    ELSE
-       s_src = HUGE(0)
-    ENDIF
-    IF(n_dst.GT.0) THEN
-       s_dst = dst_sizes (current_dst)
-    ELSE
-       s_dst = HUGE(0)
-    ENDIF
+    current_int = 0
+    current_src = 0
+    s_src = 0 ! HUGE(0)
+    DO WHILE (s_src .EQ. 0 .AND. current_src .LE. n_src)
+       current_src = current_src + 1
+       src_off = 1
+       IF (current_src .LE. n_src) THEN
+          s_src = src_sizes (current_src)
+          n_src_dsts(:, current_src) = (/ current_int+1, 0 /)
+       ENDIF
+    END DO
+    current_dst = 0
+    s_dst = 0 ! HUGE(0)
+    DO WHILE (s_dst .EQ. 0 .AND. current_dst .LE. n_dst)
+       current_dst = current_dst + 1
+       dst_off = 1
+       IF (current_dst .LE. n_dst) s_dst = dst_sizes (current_dst)
+    END DO
+    current_int = current_int + 1
     DO WHILE (current_src .LE. n_src .AND. current_dst .LE. n_dst)
-       ! Calculate many elements do the current blocks have in common
-       ! and record these as going to the current target block.
+       CALL dbcsr_assert (current_int, "LE", numints, &
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Ran out of space.", __LINE__, error=error)
+       ! Calculate how many elements do the current blocks have in
+       ! common and record these as going to the current target block.
        common_extent = MIN (s_src, s_dst)
        ints(1, current_int) = current_dst ! target block
        ints(2, current_int) = common_extent
+       ints(3, current_int) = src_off
+       ints(4, current_int) = dst_off
        ! We've used up the common extents.
        s_src = s_src - common_extent
        s_dst = s_dst - common_extent
+       src_off = src_off + common_extent
+       dst_off = dst_off + common_extent
+       ! We've used up another block.
        n_src_dsts(2,current_src) = n_src_dsts(2,current_src) + 1
-       IF (s_src .EQ. 0) THEN
+       ! Check if we've used up the whole source block.
+       DO WHILE (s_src .EQ. 0 .AND. current_src .LE. n_src)
           current_src = current_src + 1
+          src_off = 1
           IF (current_src .LE. n_src) THEN
              s_src = src_sizes (current_src)
              n_src_dsts(:, current_src) = (/ current_int+1, 0 /)
           ENDIF
-       ENDIF
-       IF (s_dst .EQ. 0) THEN
+       END DO
+       DO WHILE (s_dst .EQ. 0 .AND. current_dst .LE. n_dst)
           current_dst = current_dst + 1
+          dst_off = 1
           IF (current_dst .LE. n_dst) s_dst = dst_sizes (current_dst)
-       ENDIF
+       END DO
        current_int = current_int + 1
     ENDDO
+    IF (current_src .LT. n_src) &
+         n_src_dsts(:, current_src+1:n_src) = -7
     numints = current_int - 1
   END SUBROUTINE dbcsr_reblocking_targets
+
 
 
 ! *****************************************************************************

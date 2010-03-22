@@ -2398,9 +2398,10 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
     LOGICAL                                  :: found, my_keep_sparsity, &
                                                 new_meta, sym, tr, valid_block
-    REAL(kind=dp)                            :: t_all, t_blk, t_blk2, &
-                                                t_count, t_fill, t_prolog, &
-                                                t_unpack, t_xfer1, t_xfer2
+    REAL(kind=dp)                            :: cs1, cs2, t_all, t_blk, &
+                                                t_blk2, t_count, t_fill, &
+                                                t_prolog, t_unpack, t_xfer1, &
+                                                t_xfer2
     TYPE(dbcsr_data_obj)                     :: buff_data, data_block, &
                                                 recv_data, send_data, src_2d
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
@@ -2459,15 +2460,15 @@ CONTAINS
     nblkcols_total_new = dbcsr_nblkcols_total (redist)
     ! Create mappings
     i = dbcsr_nfullrows_total (redist)
-    ALLOCATE (row_reblocks (2,i))
+    ALLOCATE (row_reblocks (4,i))
     ALLOCATE (n_row_reblocks (2, dbcsr_nblkrows_total (matrix)))
     CALL dbcsr_reblocking_targets (row_reblocks, i, n_row_reblocks,&
-         row_blk_size_old, row_blk_size_new)
+         row_blk_size_old, row_blk_size_new, error=error)
     i = dbcsr_nfullcols_total (redist)
-    ALLOCATE (col_reblocks (2,i))
+    ALLOCATE (col_reblocks (4,i))
     ALLOCATE (n_col_reblocks (2, dbcsr_nblkcols_total (matrix)))
     CALL dbcsr_reblocking_targets (col_reblocks, i, n_col_reblocks,&
-         col_blk_size_old, col_blk_size_new)
+         col_blk_size_old, col_blk_size_new, error=error)
     !
     mp_obj_new = dbcsr_distribution_mp (dist_new)
     pgrid => dbcsr_mp_pgrid (mp_obj_new)
@@ -2501,7 +2502,9 @@ CONTAINS
     ALLOCATE (rd_disp(0:numnodes-1))
     ALLOCATE (rm_disp(0:numnodes-1))
     IF (dbg) CALL dbcsr_print(matrix,error=error)
-    !cs1 = dbcsr_checksum (matrix)
+    IF (dbg) THEN
+       cs1 = dbcsr_checksum (matrix, error=error)
+    ENDIF
     !cs1 = dbcsr_checksum (matrix)
     !call dbcsr_print(matrix)
     !
@@ -2604,11 +2607,9 @@ CONTAINS
             row_size=row_size, col_size=col_size)
        IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
        !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
-       col_offset_old = 1
        DO col_int = n_col_reblocks (1,col),&
             n_col_reblocks(1,col) + n_col_reblocks(2,col)-1
           blk_col_new = col_reblocks(1, col_int)
-          row_offset_old = 1
           DO row_int = n_row_reblocks (1, row),&
                n_row_reblocks(1,row) + n_row_reblocks(2,row)-1
              blk_row_new = row_reblocks(1, row_int)
@@ -2619,12 +2620,12 @@ CONTAINS
                 tr = .FALSE.
                 CALL dbcsr_get_stored_coordinates (redist%m,&
                      blk_row_new, blk_col_new, tr, dst_p)
+                row_offset_old = row_reblocks(3, row_int)
+                col_offset_old = col_reblocks(3, col_int)
+                row_offset_new = row_reblocks(4, row_int)
+                col_offset_new = col_reblocks(4, col_int)
                 row_rle = row_reblocks(2,row_int)
                 col_rle = col_reblocks(2,col_int)
-                row_offset_new = row_offset_old + row_start_old(row) - &
-                     row_start_new(blk_row_new)
-                col_offset_new = col_offset_old + col_start_old(col) - &
-                     col_start_new(blk_col_new)
                 smp(dst_p) = smp(dst_p) + metalen
                 send_meta(smp(dst_p)) = blk_row_new   ! new blocked row
                 send_meta(smp(dst_p)+1) = blk_col_new ! new blocked column
@@ -2643,21 +2644,6 @@ CONTAINS
                      src_rs=row_size, src_cs=col_size, src_tr=tr,&
                      src_r_lb=row_offset_old, src_c_lb=col_offset_old,&
                      nrow=row_rle, ncol=col_rle)
-                !IF (.NOT. tr) THEN
-                !      CALL dbcsr_block_copy(&
-                !           send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
-                !           r2_dp(&
-                !           row_offset_old:row_offset_old+row_rle-1,&
-                !           col_offset_old:col_offset_old+col_rle-1),&
-                !           row_rle, col_rle)
-                !ELSE
-                !   CALL dbcsr_block_transpose(&
-                !        send_data(sdp(dst_p):sdp(dst_p)+nze_rle-1),&
-                !        r2_dp(&
-                !        col_offset_old:col_offset_old+col_rle-1,&
-                !        row_offset_old:row_offset_old+row_rle-1),&
-                !        row_rle, col_rle)
-                !ENDIF
                 sdp(dst_p) = sdp(dst_p)+nze_rle
              ENDIF loc_ok
              row_offset_old = row_offset_old + row_reblocks(2, row_int)
@@ -2867,8 +2853,10 @@ CONTAINS
     !write(*,*)" "
     !if (dbg) call dbcsr_print(redist)
     !call dbcsr_print(redist)
-    !cs2 = dbcsr_checksum (redist)
-    !WRITE(*,*)routineN//" Checksums=",cs1, cs2, cs1-cs2
+    IF (dbg) THEN
+       cs2 = dbcsr_checksum (redist, error=error)
+       WRITE(*,*)routineN//" Checksums=",cs1, cs2, cs1-cs2
+    ENDIF
     !CALL dbcsr_assert (cs1-cs2 .LT. 0.00001, dbcsr_fatal_level, dbcsr_internal_error,&
     !     routineN, "Mangled data!")
     CALL dbcsr_error_stop(error_handler, error)
