@@ -2864,8 +2864,7 @@ CONTAINS
 
     INTEGER                                  :: col, col_size, k_row, &
                                                 k_row_size, nblkrows_total, &
-                                                row, row_size, timing_handle, &
-                                                v_offset
+                                                row, row_size, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: tr
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buff
