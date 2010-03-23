@@ -877,6 +877,7 @@ CONTAINS
                 CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
              ENDIF
              tstart = m_walltime ()
+             flop_single = 0
 !$omp parallel default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, &
 !$omp         v_ki, &

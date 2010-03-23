@@ -113,8 +113,6 @@ CONTAINS
     IF (PRESENT (offset)) start = offset
     ! assert offset > lb_t
     last = start+s_f-1
-    IF(dbg) WRITE(*,*)routineP//' target array bounds',lb_t,':',ub_t,&
-         'starting at',start,'last',last,'source size', s_f
     IF (ub_t .LT. last) THEN
        IF (PRESENT (factor)) THEN
           f = factor
@@ -124,7 +122,6 @@ CONTAINS
        ub_t = MAX(start + INT(s_t * f), last)
        IF(dbg) WRITE(*,*)routineP//' expanding array from :',UBOUND(to),&
             'to',ub_t
-       !CALL reallocate(to, lb_t, ub_t)
        CALL ensure_array_size(to, lb_t, ub_t, factor=1.0, nocopy=.FALSE.,&
             special=spec, error=error)
     ENDIF

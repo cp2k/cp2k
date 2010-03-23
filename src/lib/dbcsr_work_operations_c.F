@@ -26,8 +26,6 @@
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
-    IF (dbg) WRITE(*,'(1X,A,I5,A)')routineN//" Work matrix",i,&
-         " has mutable data"
     ! srt = .TRUE. ! Not needed because of the copy
     treesize = btree_size_c(wm%mutable%m%btree_c)
     IF (dbg) WRITE(*,*)routineN//" Declared size",wm%lastblk,&

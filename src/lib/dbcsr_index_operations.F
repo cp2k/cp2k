@@ -304,7 +304,7 @@ CONTAINS
     ENDIF
     ! Shorten an index entry.
     IF (space .LT. matrix%index(slot+1) - matrix%index(slot)+1) THEN
-       IF(dbg) WRITE(*,*)routineP//' Shortening index to ubound', ub_new
+       IF(dbg) WRITE(*,*)routineP//' Shortening index'
        matrix%index(slot+1) = matrix%index(slot) + space -1
        CALL dbcsr_repoint_index(matrix, slot)
     ENDIF

@@ -1345,7 +1345,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    left_mp_env = dbcsr_distribution_mp (dist_left)
+    left_mp_env = dbcsr_distribution_mp (dist_right)
     CALL create_bl_distribution (left_row_dist,&
          left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env))
     CALL dbcsr_distribution_new (dist_left, left_mp_env,&
@@ -1952,7 +1952,7 @@ CONTAINS
     INTEGER                                  :: b1, b2
 
       b1 = MAX (1, lb)
-      b2 = MIN (SIZE(blk_p), b2)
+      b2 = MIN (SIZE(blk_p), ub)
       sntr = sntr + COUNT (blk_p(b1:b2) .GT. 0)
       str = str + COUNT (blk_p(b1:b2) .LT. 0)
     END SUBROUTINE check_range
