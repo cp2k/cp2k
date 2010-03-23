@@ -357,8 +357,8 @@ CONTAINS
     fp = -b*x0/px0
 
 !$omp parallel do default(none) private(ip,px,dpx,at,pa,dat,d2at,ln1,dln1,d2ln1) &
-!$omp             private(ln2,dln2,d2ln2,fp,dex,d2ex) &
-!$omp             shared(npoints, rho, eps_rho, x, b, c, q, x0, xb, e_rho_rho, sc)
+!$omp             private(ln2,dln2,d2ln2,dex,d2ex) &
+!$omp             shared(npoints, rho, fp, eps_rho, x, b, c, q, x0, xb, e_rho_rho, sc)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -407,7 +407,7 @@ CONTAINS
 
 !$omp parallel do private(ip,px,dpx,at,pa,dat,d2at,d3at,ln1,ax,bx) &
 !$omp             private(dbx,d2bx,dln1,d2ln1,d3ln1,ln2,cx,dx,ddx,d2dx,dln2,d2ln2,d3ln2) &
-!$omp             private(fp,dex,d2ex,d3ex)
+!$omp             private(dex,d2ex,d3ex) shared(fp)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN

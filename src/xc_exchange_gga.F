@@ -606,8 +606,8 @@ CONTAINS
     t2 = 14.0_dp
     t3 = 0.2_dp
     f15 = 1.0_dp/15.0_dp
-!$omp parallel do private(ip,s2,s4,s6,p0,p1,p15,f15)&
-!$omp  private( t1, t2, t3, t8, t9, t10, t12, t13, t14, t19, t25)
+!$omp parallel do private(ip,s2,s4,s6,p0,p1,p15)&
+!$omp  private( t8, t9, t10, t12, t13, t14, t19, t25) shared(t1, t2, t3, f15)
     DO ip=1,SIZE(s)
       s2 = s(ip)*s(ip)
       s4 = s2*s2
