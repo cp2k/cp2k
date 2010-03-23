@@ -126,3 +126,5 @@ wfn_mix_loc-1.inp
 wfn_mix_loc-1.inp
 # atomic code: unrestricted calculations 
 wfn_mix_1.inp
+# Numerics 
+wfn_mix_1.inp

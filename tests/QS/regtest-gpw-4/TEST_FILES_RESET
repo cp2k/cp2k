@@ -751,3 +751,11 @@ spin_restraint.inp
 He3_multi_ddapc.inp
 #
 He3_multi_ddapc.inp
+# Numerics 
+spin_restraint.inp
+# Numerics 
+He3_multi_ddapc.inp
+# Numerics 
+h2o-otdiag.inp
+# Numerics 
+h2o-otdiag-lsd.inp

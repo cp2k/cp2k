@@ -325,3 +325,9 @@ zn_1w_debug.inp
 H2O-32.inp
 # numerics
 scan_zn_1w_cp2k.inp
+# Numerics 
+ch4-ot.inp
+# Numerics 
+ZrF2-PM6.inp
+# Numerics 
+zn_1w_debug.inp

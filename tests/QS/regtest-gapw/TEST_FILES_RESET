@@ -289,3 +289,5 @@ HF_gapw_all_LB.inp
 H2S-gapw-gop-ot.inp
 #
 He2-all-md.inp
+# Numerics 
+He2-all-md.inp
