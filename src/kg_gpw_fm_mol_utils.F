@@ -45,8 +45,6 @@ MODULE kg_gpw_fm_mol_utils
                                              mp_sum
   USE qs_mo_types,                     ONLY: wfn_restart_file_name
   USE sparse_matrix_types,             ONLY: real_matrix_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -251,7 +249,9 @@ CONTAINS
 
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
          cp_failure_level,cp_assertion_failed,routineP,&
-         "wrong argument op", error,failure)
+         "wrong argument op"//&
+                CPSourceFileRef,&
+         only_ionode=.TRUE.)
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -262,7 +262,9 @@ CONTAINS
        CASE DEFAULT
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "wrong argument pos", error,failure)
+               "wrong argument pos"//&
+                CPSourceFileRef,&
+         only_ionode=.TRUE.)
        END SELECT
     ELSE
        my_pos='L'
@@ -311,10 +313,12 @@ CONTAINS
 
     INTEGER                                  :: handle, icol, istat, ncol, &
                                                 nrow
+    LOGICAL :: failure
     REAL(dp)                                 :: f, p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigenvalues
 
     CALL timeset(routineN,handle)
+    failure = .FALSE.
 
     nrow = SIZE(matrix,1)
     ncol = SIZE(matrix,2)
@@ -322,7 +326,7 @@ CONTAINS
     n_dependent = 0
 
     ALLOCATE(eigenvalues(ncol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues",ncol*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     eigenvalues(:) = 0.0_dp
 
     CALL fm_mol_syevx(matrix,eigenvectors,ldv,ncv,eigenvalues,ncol,error=error)
@@ -345,7 +349,7 @@ CONTAINS
                                  0.0_dp,matrix(1,1),nrow)
 
     DEALLOCATE(eigenvalues, STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
@@ -386,20 +390,20 @@ CONTAINS
       lwork=1+6*nrow+2*nrow**2+5000
       liwork=5*nrow+3
       ALLOCATE(work(lwork),STAT=istat)
-      IF (istat.NE.0) CALL stop_memory("eigensolver","work",lwork*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(iwork(liwork),STAT=istat)
-      IF (istat.NE.0) CALL stop_memory("eigensolver","iwork",liwork*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL DSYEVD('V','U', nrow, matrix(1,1), nrow, eigenvalues(1),&
                   work(1), lwork, iwork(1), liwork, info)
-
-      !   *** Error handling ***
-      IF (info /= 0) CALL stop_program(routineP,"Error in dsyevd")
+    CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
 
       CALL DCOPY (nrow*nrow,matrix(1,1),1,matrix_out(1,1),1)
 
     ELSE
-      !stop error
-      CALL stop_program(routineP,"Error in dsyevd")
+      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+              " Error in dsyevd"//&
+              CPSourceFileRef,&
+              only_ionode=.TRUE.)
     END IF
 
   END SUBROUTINE fm_mol_syevd
@@ -447,7 +451,7 @@ CONTAINS
     CPPostcondition(ncol<=SIZE(eigenvalues,1),cp_failure_level,routineP,error,failure)
 
     ALLOCATE(w(nrow), STAT =istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"w",nrow*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     w(:) = 0.0_dp
 
     eigenvalues(:) = 0.0_dp
@@ -459,24 +463,22 @@ CONTAINS
     liwork = 5*nrow
 
     ALLOCATE (ifail(nrow),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"ifail",nrow*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*dp_size)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL dsyevx("V","I","U",nrow,matrix(1,1),nrow,vl,vu,1,ncol,abstol,&
                 m,w,eigenvetors(1,1),ldb,work(1),lwork,&
                 iwork(1),ifail(1),info)
-
-!   *** Error handling ***
-    IF (info /= 0) CALL stop_program(routineP,"Error in dsyevx")
+    CPPrecondition(info==0,cp_failure_level,routineP,error,failure)
 
     eigenvalues(1:ncol) = w(1:ncol)
 
 !   *** Release work storage ***
     DEALLOCATE(w,ifail,iwork,work,STAT =istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"w,ifail,iwork,work")
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE fm_mol_syevx
 
@@ -653,7 +655,7 @@ CONTAINS
     INTEGER :: group, handle, ikey, imo, imol_found, imol_global, imol_local, &
       imol_proc, imolecule_kind, ires, ispin, istat, n_ao, n_mo(2), nao_max, &
       nelectron_global, nelectron_spin(2), nmo_max, nmolecule_global, &
-      nmolecule_kind, nmolecule_local, output_unit, source
+      nmolecule_kind, nmolecule_local, source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nao_molkind, natom_molkind, &
                                                 nmol_molkind
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: nel_molkind
@@ -791,13 +793,15 @@ CONTAINS
                CALL mp_sum(imol_found,group)
 
                IF(imol_found==0 ) THEN
-                  IF(output_unit>0) &
-                       WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " MOLECULE NOT FOUND ON ANY PROC. "
-                  CALL stop_program (routineP,"Error ")
+                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                    " WRITE RESTART : at least one molecule has not been found on any proc. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
                ELSEIF(imol_found >=2 ) THEN
-                  IF(output_unit>0) &
-                       WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " ON MORE THAN ONE PROC. "
-                  CALL stop_program (routineP,"Error ")
+                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                    " WRITE RESTART : at least one molecule is found on more than one proc. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
                ELSE
                   CALL mp_sum(mo_buffer,group)
                   CALL mp_sum(eig_buffer,group)
@@ -868,7 +872,7 @@ CONTAINS
       nelectron_global_read, nelectron_spin(2), nmo_max, nmo_min, &
       nmol_kind_global, nmolecule_global, nmolecule_global_read, &
       nmolecule_kind, nmolecule_kind_read, nmolecule_local, nspins_read, &
-      output_unit, restart_unit, source
+      restart_unit, source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nao_molkind_read, &
                                                 natom_molkind_read, &
                                                 nmol_molkind_read
@@ -933,21 +937,26 @@ CONTAINS
 
       READ (restart_unit) method, nmolecule_kind_read, nmolecule_global_read, nelectron_global_read, nspins_read
 
-      IF (.NOT. (method=="KG_GPW")) THEN
-        CALL stop_program(routineP,"READ RESTART: this is not a KG_GPW restart file")
-      END IF
-      IF (nmolecule_kind_read  /= nmolecule_kind) THEN
-        CALL stop_program(routineP,"READ RESTART: different number of molecule kinds")
-      END IF
-      IF (nmolecule_global_read /= nmolecule_global_read) THEN
-        CALL stop_program(routineP,"READ RESTART: different number of molecules ")
-      END IF
-      IF (nelectron_global_read /= nelectron_global_read) THEN
-        CALL stop_program(routineP,"READ RESTART: different number of electrons ")
-      END IF
-      IF (nspins_read /= nspins) THEN
-        CALL stop_program(routineP,"READ RESTART: nspin is not equal (program this !!)")
-      END IF
+      CALL cp_assert(method=="KG_GPW",cp_failure_level,cp_assertion_failed,routineP,&
+              "READ RESTART: this is not a KG_GPW restart file"//&
+              CPSourceFileRef,&
+              only_ionode=.TRUE.)
+      CALL cp_assert(nmolecule_kind_read  == nmolecule_kind ,cp_failure_level,cp_assertion_failed,routineP,&
+              "READ RESTART: different number of molecule kinds "//&
+              CPSourceFileRef,&
+              only_ionode=.TRUE.)
+      CALL cp_assert(nmolecule_global_read == nmolecule_global_read,cp_failure_level,cp_assertion_failed,routineP,&
+              "READ RESTART: different number of molecules "//&
+              CPSourceFileRef,&
+              only_ionode=.TRUE.)
+      CALL cp_assert(nelectron_global_read == nelectron_global_read ,cp_failure_level,cp_assertion_failed,routineP,&
+              "READ RESTART: different number of electrons "//&
+              CPSourceFileRef,&
+              only_ionode=.TRUE.)
+      CALL cp_assert( nspins_read == nspins,cp_failure_level,cp_assertion_failed,routineP,&
+             "READ RESTART: nspin is not equal (program this !!)"//&
+              CPSourceFileRef,&
+              only_ionode=.TRUE.)
 
       READ (restart_unit) nmol_molkind_read
       READ (restart_unit) nao_molkind_read
@@ -967,8 +976,10 @@ CONTAINS
         CPPostcondition(n_ao==nao_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
         CPPostcondition(natom==natom_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
         IF(failure) THEN
-         WRITE(output_unit,*) " READ RESTART : molecule kind ",imolecule_kind , " is not consistent "
-         CALL stop_program(routineP,"error")
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                  " READ RESTART : molecule kind is not consistent "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
         END IF
       END DO
 
@@ -1034,7 +1045,10 @@ CONTAINS
              imol_found = 1
              imol_proc = para_env%mepos
 
-             IF(n_ao /= n_ao_read) CALL stop_program(routineP,"RESTART READ: different number of AO")
+             CALL cp_assert(n_ao == n_ao_read,cp_failure_level,cp_assertion_failed,routineP,&
+               "READ RESTART: different number of AO"//&
+                CPSourceFileRef,&
+                only_ionode=.TRUE.)
 
              CALL get_fm_mol_block(fm_mol_block=mol_block, mos = mos)
 

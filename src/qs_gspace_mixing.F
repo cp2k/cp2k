@@ -1548,6 +1548,8 @@ CONTAINS
       IF(para_env%ionode)  WRITE(*,*) 'norm res  U' , norm_res_up(1:nb)
 !dbg
       norm_res(1:nb) = 1.0_dp/SQRT(norm_res(1:nb))
+      n_low = 0.0_dp
+      n_up = 0.0_dp
       DO jb=1,nb
         n_low = n_low + norm_res_low(jb)/norm_res(jb)
         n_up = n_up + norm_res_up(jb)/norm_res(jb)
