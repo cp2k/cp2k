@@ -325,7 +325,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE update_cost_cpu_row(cost_cpu,cost_ele_pair,P,Q,nele,local_rows,local_cols,iele,icpu_old,icpu_new)
     INTEGER, INTENT(IN)                      :: P, Q
-    INTEGER, INTENT(OUT)                     :: cost_cpu(P,Q)
+    INTEGER, INTENT(INOUT)                   :: cost_cpu(P,Q)
     INTEGER, INTENT(IN) :: nele, cost_ele_pair(nele,nele), local_rows(nele), &
       local_cols(nele), iele, icpu_old, icpu_new
 
@@ -373,7 +373,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE update_cost_cpu_diff(cost_cpu,cost_ele_pair,P,Q,nele,local_rows_new,local_cols_new,local_rows_old,local_cols_old)
     INTEGER, INTENT(IN)                      :: P, Q
-    INTEGER, INTENT(OUT)                     :: cost_cpu(P,Q)
+    INTEGER, INTENT(INOUT)                   :: cost_cpu(P,Q)
     INTEGER, INTENT(IN)                      :: nele, cost_ele_pair(nele,nele)
     INTEGER :: local_rows_new(nele), local_cols_new(nele), &
       local_rows_old(nele), local_cols_old(nele)
