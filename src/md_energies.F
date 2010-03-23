@@ -193,8 +193,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natom
-    LOGICAL                                  :: init, shell_adiabatic, &
-                                                tcoeff, tkind, tshell
+    LOGICAL                                  :: shell_adiabatic, tcoeff, &
+                                                tkind, tshell
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -207,7 +207,7 @@ CONTAINS
 
     NULLIFY(atomic_kinds, atomic_kind_set, cell_ref, dyn_coeff_set, force_env,&
             particles, subsys, simpar)
-    CALL get_md_env(md_env=md_env, init=init, force_env=force_env, &
+    CALL get_md_env(md_env=md_env, force_env=force_env, &
          simpar=simpar, error=error)
 
     CALL force_env_get(force_env, cell_ref=cell_ref, dyn_coeff_set=dyn_coeff_set, &
@@ -224,17 +224,6 @@ CONTAINS
 
     CALL cp_subsys_get(subsys,particles=particles,error=error)
     natom=particles%n_els
-
-    !---------------------------------------------
-    ! Initialize V0 properly for nph calculations
-    !---------------------------------------------
-    IF (init) THEN
-       IF ( &
-            simpar%ensemble == nph_uniaxial_ensemble .OR.&
-            simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
-          IF ( simpar%v0 == 0.0_dp ) simpar%v0 = cell_ref%deth
-       ENDIF
-    ENDIF
 
     CALL compute_conserved_quantity(md_env, md_ener, tkind=tkind,&
          tcoeff=tcoeff, tshell=tshell, natom=natom, error=error)
