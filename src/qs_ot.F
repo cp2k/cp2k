@@ -550,11 +550,12 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
+
     IF(output_unit>0) WRITE(output_unit,*) routinen//' eps_irac_filter_matrix=',&
          qs_ot_env1%settings%eps_irac_filter_matrix
 
-    logger => cp_error_get_logger(error)
-    output_unit = cp_logger_get_default_io_unit(logger)
     CALL dbcsr_get_info(matrix_c,nfullrows_total=n,nfullcols_total=k)
     !
     C_NEW => matrix_c

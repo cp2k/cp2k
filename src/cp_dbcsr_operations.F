@@ -2898,7 +2898,7 @@ CONTAINS
        IF(INT(pkd_v(col)).LE.0) THEN
           pkd_v(col) = pkd_v(nblkrows_total+1)
           pkd_v(INT(pkd_v(col)):INT(pkd_v(col)) + k_row_size * col_size-1) = 0.0_dp
-          v_offset = v_offset + k_row_size * col_size
+          !v_offset = v_offset + k_row_size * col_size
           pkd_v(nblkrows_total+1) = pkd_v(nblkrows_total+1) + REAL(k_row_size * col_size,dp)
        ENDIF
        !
