@@ -31,7 +31,7 @@
     TYPE(btree_2d_data_s)          :: data_block
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
+    CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data type mismatch for requested block.",__LINE__,error)
 
@@ -125,7 +125,7 @@
     TYPE(btree_2d_data_s)          :: data_block
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
+    CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data type mismatch for requested block.",__LINE__,error)
 
@@ -214,7 +214,7 @@
     TYPE(btree_2d_data_s)          :: data_block
     REAL(kind=real_4), DIMENSION(:), POINTER           :: block_1d
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
+    CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data type mismatch for requested block.",__LINE__,error)
 
@@ -304,7 +304,7 @@
                                                 stored_col
     LOGICAL                                  :: stored_tr
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_assert (matrix%m%data_type .EQ. dbcsr_type_real_4,&
+    CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_4,&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data type mismatch for requested block.",__LINE__,error)
 
@@ -328,7 +328,7 @@
        CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
             dbcsr_caller_error, routineN,&
             "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
-       CALL dbcsr_assert (.NOT.dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
+       CALL dbcsr_assert ("NOT", dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
             dbcsr_caller_error, routineN,&
             "Can not retrieve rank-1 block pointers from mutable work matrices.",__LINE__,error)
     ENDIF
@@ -414,6 +414,7 @@
          data_block, found, data_block2)
 
     IF (.NOT. found) THEN
+       matrix%m%valid = .FALSE.
        matrix%m%wms(iw)%lastblk = matrix%m%wms(iw)%lastblk + 1
        matrix%m%wms(iw)%datasize = matrix%m%wms(iw)%datasize + row_size*col_size
     ELSE
@@ -587,7 +588,7 @@
     ! check for 0 block
     IF(nze.LE.0) RETURN
 
-    CALL dbcsr_assert (SIZE(block) .GE. nze, dbcsr_fatal_level,&
+    CALL dbcsr_assert (SIZE(block), "GE", nze, dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__,error)
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, offset)
