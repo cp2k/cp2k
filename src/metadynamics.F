@@ -643,10 +643,10 @@ CONTAINS
        !RG Calculate the displacement 
        dp2=0.0_dp
        DO i = 1, n_colvar
-           ddp(i) = colvars(i)%ss0 - local_last_hills(i)
+          ddp(i) = colvars(i)%ss0 - local_last_hills(i)
           IF (colvars(i)%periodic) THEN
              ! The difference of a periodic COLVAR is always within [-pi,pi]
-             diff_ss = SIGN(1.0_dp,ASIN(SIN(diff_ss)))*ACOS(COS(diff_ss))
+             ddp(i) = SIGN(1.0_dp,ASIN(SIN(ddp(i))))*ACOS(COS(ddp(i)))
           END IF
           dp2 = dp2 + ddp(i)**2
        ENDDO

@@ -271,12 +271,13 @@ CONTAINS
         CALL release_reftraj(reftraj,error=error)
     END IF
 
-    CALL force_env_get(force_env, subsys=subsys, cell=cell, force_env_section=force_env_section,&
-         error=error )
+    CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref,&
+                       force_env_section=force_env_section, error=error )
 
     ! Set V0 if needed
-    IF ( ASSOCIATED ( cell_ref ) ) THEN
-       IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
+    IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
+       CPPrecondition(ASSOCIATED(cell_ref),cp_failure_level,routineP,error,failure)
+       IF ( simpar%v0 == 0._dp ) simpar%v0 = cell_ref%deth
     ENDIF
 
     ! Initialize velocities possibly applying constraints at the zeroth MD step
