@@ -928,6 +928,7 @@ CONTAINS
     CALL section_vals_val_get(subsys_section,"PRINT%RADII%UNIT",c_val=unit_str,error=error)
     conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (output_unit>0) THEN
+      bas="GEMINAL"
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T55,A,T62,A,T74,A)")&
         "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_str),"Kind","Label","Radius"
       DO ikind=1,nkind

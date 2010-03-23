@@ -726,6 +726,8 @@ MODULE qs_geminals
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
+    charge = 0._dp
+
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
        NULLIFY(geminal_basis_set)
