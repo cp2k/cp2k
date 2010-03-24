@@ -2853,8 +2853,11 @@ CONTAINS
                      in_space=REALSPACE, use_data=REALDATA3D,error=error)
                 CALL pw_transfer(rho_g(ispin)%pw,rho_r(ispin)%pw, error=error)
              END DO
-             CPPrecondition(.NOT.rho_struct%tau_r_valid,cp_failure_level,routineP,error,failure)
              IF (rho_struct%tau_r_valid) THEN
+               ! tau with finer grids is not implemented (at least not correctly), which this asserts
+               CALL cp_unimplemented_error(fromWhere=routineP, &
+                    message="tau with finer grids", &
+                    error=error, error_level=cp_failure_level)
                 ALLOCATE(tau(dft_control%nspins),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 DO ispin=1,dft_control%nspins
