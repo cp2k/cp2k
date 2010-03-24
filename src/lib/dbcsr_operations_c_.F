@@ -288,75 +288,6 @@
 
   END SUBROUTINE bcast_block_c
 
-  SUBROUTINE block_add_on_diag_c(m, blk, alpha)
-    INTEGER, INTENT(in)                      :: m
-    COMPLEX(kind=real_4), INTENT(inout)                   :: blk(m,m)
-    COMPLEX(kind=real_4), INTENT(in)                      :: alpha
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_c', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-
-!   ---------------------------------------------------------------------------
-
-    FORALL (i = 1:m)
-       blk(i,i) = blk(i,i) + alpha
-    END FORALL
-  END SUBROUTINE block_add_on_diag_c
-
-  SUBROUTINE block_set_c (m, n, blk, alpha, beta)
-    INTEGER                                  :: m, n
-    COMPLEX(kind=real_4)                                  :: blk(m,n)
-    COMPLEX(kind=real_4), OPTIONAL                        :: alpha, beta
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_set_c', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    REAL(dp)                                 :: my_alpha, my_beta
-
-!   ---------------------------------------------------------------------------
-
-    my_beta = REAL(0.0,real_4)
-    my_alpha = REAL(0.0,real_4)
-    IF(PRESENT(alpha)) my_alpha = alpha
-    IF(PRESENT(beta)) my_beta = beta
-    blk(:,:) = my_beta
-    IF(m.EQ.n) THEN
-       FORALL (i = 1:m)
-          blk(i,i) = my_alpha
-       END FORALL
-    ENDIF
-  END SUBROUTINE block_set_c
-
-  SUBROUTINE block_chol_inv_c(m, blk)
-    INTEGER                                  :: m
-    COMPLEX(kind=real_4)                                  :: blk(m,m)
-    TYPE(dbcsr_error_type)                   :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'block_chol_inv_c', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, info, j
-
-!   ---------------------------------------------------------------------------
-
-    CALL cpotrf( 'U', m, blk, m, info )
-    CALL dbcsr_assert (info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "error in dpotrf",__LINE__,error)
-    CALL cpotri( 'U', m, blk, m, info )
-    CALL dbcsr_assert (info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "error in dpotri",__LINE__,error)
-    !
-    ! symmetrize
-    DO i=1,m
-       DO j=i,m
-          blk(j,i) = blk(i,j)
-       ENDDO
-    ENDDO
-  END SUBROUTINE block_chol_inv_c
-
   !> \brief Interface for matrix scaling by a vector
   SUBROUTINE dbcsr_scale_by_vector_c(matrix_a, alpha, side, error)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix_a
@@ -445,3 +376,65 @@
     ENDIF
   END SUBROUTINE dbcsr_add_beta_c
 
+  SUBROUTINE dbcsr_filter_c (matrix, eps, method, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    COMPLEX(kind=real_4), INTENT(IN)                      :: eps
+    INTEGER, INTENT(IN), OPTIONAL            :: method
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+    CALL dbcsr_filter_anytype (matrix, dbcsr_scalar(eps), method, error)
+  END SUBROUTINE dbcsr_filter_c
+
+  SUBROUTINE dbcsr_set_diag_c(matrix, diag, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN), TARGET :: diag
+    TYPE(dbcsr_error_type), INTENT(INOUT)     :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag_c', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: diag_p
+    TYPE(dbcsr_data_obj)                     :: diag_a
+
+    diag_p => diag
+    CALL dbcsr_data_init (diag_a)
+    CALL dbcsr_data_new (diag_a, dbcsr_get_data_type(matrix))
+    CALL dbcsr_data_set_pointer (diag_a, diag_p)
+    CALL dbcsr_set_diag(matrix, diag_a, error)
+    CALL dbcsr_data_clear_pointer (diag_a)
+    CALL dbcsr_data_release (diag_a)
+  END SUBROUTINE dbcsr_set_diag_c
+
+  SUBROUTINE dbcsr_get_diag_c(matrix, diag, error)
+
+    TYPE(dbcsr_obj), INTENT(IN), TARGET            :: matrix
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(INOUT), TARGET   :: diag
+    TYPE(dbcsr_error_type), INTENT(INOUT)          :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag_c', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: diag_p
+    TYPE(dbcsr_data_obj)                     :: diag_a
+
+    diag_p => diag
+    CALL dbcsr_data_init (diag_a)
+    CALL dbcsr_data_new (diag_a, dbcsr_get_data_type(matrix))
+    CALL dbcsr_data_set_pointer (diag_a, diag_p)
+    CALL dbcsr_get_diag(matrix, diag_a, error)
+    CALL dbcsr_data_clear_pointer (diag_a)
+    CALL dbcsr_data_release (diag_a)
+  END SUBROUTINE dbcsr_get_diag_c
+
+
+! *****************************************************************************
+!> \brief add a constant to the diagonal of a matrix
+!> \param[inout] matrix       DBCSR matrix
+!> \param[in]    alpha_scalar scalar
+! *****************************************************************************
+  SUBROUTINE dbcsr_add_on_diag_c(matrix, alpha_scalar, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    COMPLEX(kind=real_4), INTENT(IN)                      :: alpha_scalar
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CALL dbcsr_add_on_diag(matrix, dbcsr_scalar(alpha_scalar), error)
+  END SUBROUTINE dbcsr_add_on_diag_c

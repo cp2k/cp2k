@@ -107,7 +107,10 @@ MODULE dbcsr_methods
             dbcsr_data_clear_2d_pointer, dbcsr_data_ensure_size
   PUBLIC :: dbcsr_get_num_blocks
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
-            dbcsr_get_data_p_d, dbcsr_get_data_p_z
+            dbcsr_get_data_p_d, dbcsr_get_data_p_z,&
+            dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_d,&
+            dbcsr_get_data_p_2d_c, dbcsr_get_data_p_2d_z
+
 
   PUBLIC :: dbcsr_blk_row_size, dbcsr_blk_column_size
 

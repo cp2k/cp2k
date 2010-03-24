@@ -42,6 +42,7 @@ MODULE cp_dbcsr_operations
                                              dbcsr_put_block,&
                                              dbcsr_remove_block,&
                                              dbcsr_reserve_block2d
+  USE dbcsr_block_operations,          ONLY: block_set
   USE dbcsr_dist_operations
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -59,21 +60,21 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_init, dbcsr_init_p, &
-       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_valid_index, &
-       dbcsr_wm_use_mutable
+       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+       dbcsr_init, dbcsr_init_p, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
+       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_release_p, dbcsr_row_block_sizes, &
+       dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_operations,                ONLY: &
-       block_set_d, dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, &
-       dbcsr_filter, dbcsr_get_block_diag, dbcsr_get_diag, &
-       dbcsr_hadamard_product, dbcsr_multiply, dbcsr_norm, &
-       dbcsr_replace_blocks, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
-       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, dbcsr_filter, &
+       dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
+       dbcsr_multiply, dbcsr_norm, dbcsr_replace_blocks, dbcsr_scale, &
+       dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, &
+       dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_distribute,&
                                              dbcsr_new_transposed,&
@@ -275,7 +276,17 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_norm(matrix, which_norm, norm_scalar, norm_vector, dbcsr_error)
+    IF (PRESENT (norm_scalar)) THEN
+       CALL dbcsr_norm(matrix, which_norm, norm_scalar=norm_scalar,&
+            error=dbcsr_error)
+    ELSEIF (PRESENT (norm_vector)) THEN
+       CALL dbcsr_norm (matrix, which_norm, norm_vector=norm_vector,&
+            error=dbcsr_error)
+    ELSE
+       CALL cp_assert (.FALSE., cp_wrong_args_error, cp_internal_error,&
+            routineN, "Must pass either scalar or vector norm.", error=error)
+    ENDIF
+
   END SUBROUTINE cp_dbcsr_norm
 
   SUBROUTINE cp_dbcsr_replicate_all(matrix, error)
@@ -563,7 +574,7 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_filter
 
   SUBROUTINE cp_dbcsr_set_diag(matrix, diag, error)
-    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(dp), DIMENSION(:), INTENT(IN)       :: diag
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -581,7 +592,8 @@ CONTAINS
   SUBROUTINE cp_dbcsr_get_diag(matrix, diag, error)
 
     TYPE(dbcsr_obj), INTENT(IN), TARGET      :: matrix
-    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: diag
+    REAL(dp), DIMENSION(:), INTENT(INOUT), &
+      TARGET                                 :: diag
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_diag', &
@@ -614,7 +626,7 @@ CONTAINS
 
   SUBROUTINE cp_dbcsr_add_on_diag(matrix, alpha_scalar, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    REAL(KIND=real_8), INTENT(IN)            :: alpha_scalar
+    REAL(KIND=dp), INTENT(IN)                :: alpha_scalar
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_on_diag', &
@@ -2839,7 +2851,7 @@ CONTAINS
        ENDIF
     ENDDO
     !
-    CALL block_set_d(k_blk_size, k_blk_size, pkd_u(u_offset:u_offset+ k_blk_size**2-1), &
+    CALL block_set(k_blk_size, k_blk_size, pkd_u(u_offset:u_offset+ k_blk_size**2-1), &
          &         1.0_dp, 0.0_dp)
     pkd_u(k) = u_offset
     u_offset = u_offset + k_blk_size**2
@@ -3772,9 +3784,13 @@ END FUNCTION cp_dbcsr_get_id_nr
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
           CALL add_work_coordinate(bc_mat%m%wms(1), row, col, blk_p, error=dbcsr_error)
           IF (fm%use_sp) THEN
-             blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
+             !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
+             blk_1d_sp => dbcsr_get_data_p (bc_mat%m%wms(1)%data_area,&
+                  coersion=REAL(0.0, KIND=sp), lb=blk_p, ub=blk_p+nze-1)
           ELSE
-             blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
+             !blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
+             blk_1d_dp => dbcsr_get_data_p (bc_mat%m%wms(1)%data_area,&
+                  coersion=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           ENDIF
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
                cp_fatal_level, cp_internal_error, routineN,&
@@ -3951,7 +3967,9 @@ END FUNCTION cp_dbcsr_get_id_nr
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
           CALL add_work_coordinate(bc_mat%m%wms(1), row, col, blk_p, error=dbcsr_error)
-          blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
+          !blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
+          blk_1d => dbcsr_get_data_p (bc_mat%m%wms(1)%data_area,&
+               coersion=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
                cp_fatal_level, cp_internal_error, routineN,&
                "Block size does not match block row/col sizes")

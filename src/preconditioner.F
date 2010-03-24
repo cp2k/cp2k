@@ -47,6 +47,8 @@ MODULE preconditioner
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block
+  USE dbcsr_block_operations,          ONLY: block_add_on_diag,&
+                                             block_chol_inv
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
@@ -62,9 +64,7 @@ MODULE preconditioner
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_nblkcols_local, dbcsr_nblkrows_local, &
        dbcsr_nblkrows_total, dbcsr_row_block_sizes, dbcsr_uses_special_memory
-  USE dbcsr_operations,                ONLY: block_add_on_diag_d,&
-                                             block_chol_inv_d,&
-                                             dbcsr_scale
+  USE dbcsr_operations,                ONLY: dbcsr_scale
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
                                              dbcsr_mp_obj,&
@@ -2245,7 +2245,7 @@ END SUBROUTINE make_full_all_ortho
        IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
           CALL dbcsr_get_block_p(mat_v, k, k, blk_p, tr, found)
           IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
-          CALL block_add_on_diag_d(row_blk_size(k), blk_p, -s)
+          CALL block_add_on_diag(row_blk_size(k), blk_p, -s)
        ENDIF
 
        !chksum = cp_dbcsr_checksum(mat_v,error)
@@ -2374,11 +2374,11 @@ END SUBROUTINE make_full_all_ortho
           CALL dbcsr_get_block(mat_v, k, k, blk, .FALSE., found)
           IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
           CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)
-          CALL block_add_on_diag_d(row_blk_size(k), blk, 1.0_dp)
+          CALL block_add_on_diag(row_blk_size(k), blk, 1.0_dp)
           CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_d(d_offset), 1)
           !
           ! inv(d(k,k))
-          CALL block_chol_inv_d(row_blk_size(k), blk)
+          CALL block_chol_inv(row_blk_size(k), blk)
           CALL dcopy(row_blk_size(k)**2, blk, 1, pkd_inv_d(d_offset), 1)
        ENDIF
        !

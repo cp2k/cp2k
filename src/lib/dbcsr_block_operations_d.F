@@ -1,5 +1,6 @@
 ! *****************************************************************************
-!> \brief Sets the diagonal of a square data block represented as a 1-D array.
+!> \brief Sets the diagonal of a square data block represented as a 1-D array
+!>        to a single value.
 !>        Non-diagonal elements are set to 0.
 !> \param[out] block_data     sets diagonal in this data block
 !> \param[in] value           value of the diagonal elements
@@ -14,11 +15,100 @@
 
 !   ---------------------------------------------------------------------------
 
-    block_data(:) = 0
-    FORALL (i = 0 : d-1)
-       block_data(1 + i*d + i) = value
-    END FORALL
+    CALL block_set_d (d, d, block_data, value, 0.0_real_8)
   END SUBROUTINE set_block_diagonal_d
+
+  PURE SUBROUTINE block_2d_set_d (m, n, blk, alpha, beta)
+    INTEGER, INTENT(IN)                      :: m, n
+    REAL(kind=real_8), DIMENSION(m,n), INTENT(OUT)     :: blk
+    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: alpha, beta
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_2d_set_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    REAL(dp)                                 :: my_alpha, my_beta
+
+!   ---------------------------------------------------------------------------
+
+    IF(PRESENT(alpha)) THEN
+       my_alpha = alpha
+    ELSE
+       my_alpha = 0.0_real_8
+    ENDIF
+    IF(PRESENT(beta)) THEN
+       my_beta = beta
+    ELSE
+       my_beta = 0.0_real_8
+    ENDIF
+    blk(:,:) = my_beta
+    IF(m.EQ.n) THEN
+       FORALL (i = 1:m)
+          blk(i,i) = my_alpha
+       END FORALL
+    ENDIF
+  END SUBROUTINE block_2d_set_d
+
+  PURE SUBROUTINE block_set_d (m, n, blk, alpha, beta)
+    INTEGER, INTENT(IN)                      :: m, n
+    REAL(kind=real_8), DIMENSION(m*n), INTENT(OUT)     :: blk
+    REAL(kind=real_8), INTENT(IN), OPTIONAL            :: alpha, beta
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_set_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    REAL(dp)                                 :: my_alpha, my_beta
+
+!   ---------------------------------------------------------------------------
+
+    CALL block_2d_set_d (m, n, blk, alpha, beta)
+  END SUBROUTINE block_set_d
+
+
+! *****************************************************************************
+!> \brief Sets the diagonal of a square data block
+!> \par Off-diagonal values
+!>      Other values are untouched.
+!> \param[out] block_data     sets the diagonal of this data block
+!> \param[in] diagonal        set diagonal of block_data to these values
+!> \param[in] d               dimension of block
+! *****************************************************************************
+  PURE SUBROUTINE set_block2d_diagonal_d (block_data, diagonal, d)
+    INTEGER, INTENT(IN)                    :: d
+    REAL(kind=real_8), DIMENSION(d,d), INTENT(INOUT) :: block_data
+    REAL(kind=real_8), DIMENSION(d), INTENT(IN)      :: diagonal
+
+    INTEGER                                :: i
+
+!   ---------------------------------------------------------------------------
+
+    FORALL (i = 1 : d)
+       block_data(i,i) = diagonal(i)
+    END FORALL
+  END SUBROUTINE set_block2d_diagonal_d
+
+
+! *****************************************************************************
+!> \brief Gets the diagonal of a square data block
+!> \param[in] block_data      gets the diagonal of this data block
+!> \param[out] diagonal       values of the diagonal elements
+!> \param[in] d               dimension of block
+! *****************************************************************************
+  PURE SUBROUTINE get_block2d_diagonal_d (block_data, diagonal, d)
+    INTEGER, INTENT(IN)                 :: d
+    REAL(kind=real_8), DIMENSION(d,d), INTENT(IN) :: block_data
+    REAL(kind=real_8), DIMENSION(d), INTENT(OUT)  :: diagonal
+
+    INTEGER                             :: i
+
+!   ---------------------------------------------------------------------------
+
+    FORALL (i = 1 : d)
+       diagonal(i) = block_data(i, i)
+    END FORALL
+  END SUBROUTINE get_block2d_diagonal_d
+
 
 
 ! *****************************************************************************
@@ -243,3 +333,78 @@
     ENDIF
     dst%d%r_dp(lb:ub) = src(lb_s:ub_s)
   END SUBROUTINE dbcsr_data_set_ad
+
+  PURE SUBROUTINE block_2d_add_on_diag_d(m, blk, alpha)
+    INTEGER, INTENT(IN)                      :: m
+    REAL(kind=real_8), INTENT(INOUT), DIMENSION(m,m)   :: blk
+    REAL(kind=real_8), INTENT(IN)                      :: alpha
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_2d_add_on_diag_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+!   ---------------------------------------------------------------------------
+
+    FORALL (i = 1:m)
+       blk(i,i) = blk(i,i) + alpha
+    END FORALL
+  END SUBROUTINE block_2d_add_on_diag_d
+
+  PURE SUBROUTINE block_add_on_diag_d(m, blk, alpha)
+    INTEGER, INTENT(IN)                      :: m
+    REAL(kind=real_8), INTENT(INOUT), DIMENSION(m*m)   :: blk
+    REAL(kind=real_8), INTENT(IN)                      :: alpha
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+!   ---------------------------------------------------------------------------
+
+    CALL block_2d_add_on_diag_d(m, blk, alpha)
+  END SUBROUTINE block_add_on_diag_d
+
+  SUBROUTINE block_2d_chol_inv_d(m, blk)
+    INTEGER, INTENT(IN)                      :: m
+    REAL(kind=real_8), INTENT(INOUT), DIMENSION(m,m)   :: blk
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_2d_chol_inv_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, info, j
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+
+    CALL dpotrf( 'U', m, blk, m, info )
+    CALL dbcsr_assert (info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
+            routineN, "error in dpotrf",__LINE__,error)
+    CALL dpotri( 'U', m, blk, m, info )
+    CALL dbcsr_assert (info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
+            routineN, "error in dpotri",__LINE__,error)
+    !
+    ! symmetrize
+    DO i=1,m
+       DO j=i,m
+          blk(j,i) = blk(i,j)
+       ENDDO
+    ENDDO
+  END SUBROUTINE block_2d_chol_inv_d
+
+  SUBROUTINE block_chol_inv_d(m, blk)
+    INTEGER, INTENT(IN)                      :: m
+    REAL(kind=real_8), DIMENSION(m*m), INTENT(INOUT)   :: blk
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_chol_inv_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, info, j
+
+!   ---------------------------------------------------------------------------
+
+    CALL block_2d_chol_inv_d(m, blk)
+  END SUBROUTINE block_chol_inv_d
+
