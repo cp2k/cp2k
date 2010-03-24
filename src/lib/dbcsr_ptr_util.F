@@ -103,6 +103,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    dbg = .FALSE.
     spec = .FALSE.
     IF (PRESENT (special)) spec = special
     s_f = SIZE(from, 1)
