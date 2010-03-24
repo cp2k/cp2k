@@ -1898,6 +1898,8 @@ CPSourceFileRef)
     failure=.FALSE.
     my_transition_potential = .FALSE.
     logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+                                       extension=".scfLog",error=error)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1936,8 +1938,6 @@ CPSourceFileRef)
          nelectron=scf_env%nelectron)
     scf_env%nelectron = scf_env%nelectron - dft_control%charge
     ! print occupation numbers
-    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
-                                       extension=".scfLog",error=error)
     IF (output_unit > 0) THEN
        DO ispin=1,dft_control%nspins
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
