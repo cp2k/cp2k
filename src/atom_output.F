@@ -109,6 +109,12 @@ CONTAINS
            WRITE(iw,'(A5,T10,10F6.2)') label(l),(state%occ(l,j),j=1,mo)
         ELSE
            mc = mm(l)
+!deb
+WRITE(6,*) "l=",l,"    mo=",mo,"   mc=",mc
+WRITE(6,*) "OCC     ",state%occ(l,:)
+WRITE(6,*) "CORE    ",state%core(l,:)
+WRITE(6,*) "OCC     ",SUM(state%occ(l,1:mc)),SUM(state%occ(l,:))
+!deb
            CPPrecondition(SUM(state%occ(l,1:mc))==0,cp_failure_level,routineP,error,failure)
            WRITE(iw,ADVANCE="no",FMT='(A5,T9,A1,10F6.2)') label(l),"[",(state%core(l,j),j=1,mc)
            WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occ(l,j),j=mc+1,mc+mo)
@@ -165,6 +171,8 @@ CONTAINS
     IF ( atom%potential%ppot_type /= NO_PSEUDO ) THEN
        WRITE(iw,'(T20,A,T61,F20.12)') "    Total Pseudopotential Energy ::",atom%energy%epseudo
        WRITE(iw,'(T20,A,T61,F20.12)') "    Local Pseudopotential Energy ::",atom%energy%eploc
+       IF(atom%energy%elsd /= 0._dp) &
+         WRITE(iw,'(T20,A,T61,F20.12)') "     Local Spin-potential Energy ::",atom%energy%elsd
        WRITE(iw,'(T20,A,T61,F20.12)') " Nonlocal Pseudopotential Energy ::",atom%energy%epnl
     END IF
     IF ( atom%potential%confinement ) THEN
@@ -396,7 +404,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=60)                        :: pline
-    INTEGER                                  :: i, j, l
+    INTEGER                                  :: i, j, k, l
     LOGICAL                                  :: failure = .FALSE.
 
     SELECT CASE (potential%ppot_type)
@@ -408,6 +416,24 @@ CONTAINS
         WRITE(iw,'(T10,A,T66,F15.6)') " Rc ",potential%gth_pot%rc
         WRITE(pline,'(5F12.6)') (potential%gth_pot%cl(i),i=1,potential%gth_pot%ncl)
         WRITE(iw,'(T10,A,T21,A60)') " C1 C2 ... ",ADJUSTR(pline)
+        IF(potential%gth_pot%lpotextended) THEN
+          DO k=1,potential%gth_pot%nexp_lpot
+            WRITE(iw,'(T10,A,F10.6,T38,A,4F10.6)') " LPot: rc=",potential%gth_pot%alpha_lpot(k),&
+              "CX=",(potential%gth_pot%cval_lpot(i,k),i=1,potential%gth_pot%nct_lpot(k))
+          END DO
+        END IF
+        IF(potential%gth_pot%nlcc) THEN
+          DO k=1,potential%gth_pot%nexp_nlcc
+            WRITE(iw,'(T10,A,F10.6,T38,A,4F10.6)') " LSDPot: rc=",potential%gth_pot%alpha_nlcc(k),&
+              "CX=",(potential%gth_pot%cval_nlcc(i,k),i=1,potential%gth_pot%nct_nlcc(k))
+          END DO
+        END IF
+        IF(potential%gth_pot%lsdpot) THEN
+          DO k=1,potential%gth_pot%nexp_lsd
+            WRITE(iw,'(T10,A,F10.6,T38,A,4F10.6)') " LSDPot: rc=",potential%gth_pot%alpha_lsd(k),&
+              "CX=",(potential%gth_pot%cval_lsd(i,k),i=1,potential%gth_pot%nct_lsd(k))
+          END DO
+        END IF
         DO l=0,3
           IF (potential%gth_pot%nl(l) > 0) THEN
              WRITE(iw,'(T10,A,T76,I5)') " Angular momentum ",l

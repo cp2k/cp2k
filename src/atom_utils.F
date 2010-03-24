@@ -14,6 +14,7 @@ MODULE atom_utils
   USE atom_types,                      ONLY: CGTO_BASIS,&
                                              GTO_BASIS,&
                                              atom_basis_type,&
+                                             atom_gthpot_type,&
                                              atom_state,&
                                              atom_type,&
                                              eri
@@ -42,7 +43,7 @@ MODULE atom_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_utils'
 
   PUBLIC :: atom_set_occupation, get_maxl_occ, get_maxn_occ
-  PUBLIC :: atom_denmat, atom_density
+  PUBLIC :: atom_denmat, atom_density, atom_core_density
   PUBLIC :: prune_grid, integrate_grid, atom_trace, atom_solve
   PUBLIC :: coulomb_potential_numeric, coulomb_potential_analytic
   PUBLIC :: exchange_numeric, exchange_semi_analytic
@@ -390,6 +391,53 @@ CONTAINS
     CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE atom_orbital_charge
+! *****************************************************************************
+  SUBROUTINE atom_core_density(corden,gthpot,typ,rr,error)
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: corden
+    TYPE(atom_gthpot_type), INTENT(IN)       :: gthpot
+    CHARACTER(LEN=*), OPTIONAL               :: typ
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rr
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_core_density', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=3)                         :: my_typ = "RHO"
+    INTEGER                                  :: i, ierr, j, m, n
+    LOGICAL                                  :: failure = .FALSE.
+    REAL(KIND=dp)                            :: a
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
+
+    IF(PRESENT(typ)) my_typ = typ(1:3)
+
+    IF(gthpot%nlcc) THEN
+      m = SIZE(corden)
+      ALLOCATE(fe(m),rc(m),STAT=ierr)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+      n=gthpot%nexp_nlcc
+      DO i=1,n
+        a=gthpot%alpha_nlcc(i)
+        rc(:)=rr(:)/a
+        fe(:)=EXP(-0.5_dp*rc(:)*rc(:))
+        DO j=1,gthpot%nct_nlcc(i)
+          IF(my_typ == "RHO") THEN
+            corden(:) = corden(:) + fe(:)*rc**(2*j-2)*gthpot%cval_nlcc(j,i) 
+          ELSE IF(my_typ == "DER") THEN
+            corden(:) = corden(:) - fe(:)*rc**(2*j-1)*gthpot%cval_nlcc(j,i) 
+            IF(j>1) THEN
+              corden(:) = corden(:) + REAL(2*j-2,dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j,i) 
+            END IF
+          ELSE
+            CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END IF
+        END DO
+      END DO
+      DEALLOCATE(fe,rc,STAT=ierr)
+      CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE atom_core_density
 ! *****************************************************************************
   SUBROUTINE atom_orbital_max(rmax,wfn,rcov,l,basis,error)
     REAL(KIND=dp), INTENT(OUT)               :: rmax

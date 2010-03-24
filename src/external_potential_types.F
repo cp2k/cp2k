@@ -18,7 +18,8 @@ MODULE external_potential_types
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_object,&
+  USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                             parser_get_object,&
                                              parser_search_string,&
                                              parser_test_next_token
   USE cp_parser_types,                 ONLY: cp_parser_type,&
@@ -122,7 +123,27 @@ MODULE external_potential_types
      REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl,cexp_ppl
      INTEGER, DIMENSION(:), POINTER             :: elec_conf,nprj_ppnl
      REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj,cprj_ppnl,vprj_ppnl
+     ! type extensions
+     ! NLCC
+     LOGICAL                                    :: nlcc
+     INTEGER                                    :: nexp_nlcc
+     REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_nlcc
+     INTEGER, DIMENSION(:), POINTER             :: nct_nlcc
+     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cval_nlcc
+     ! LSD potential
+     LOGICAL                                    :: lsdpot
+     INTEGER                                    :: nexp_lsd
+     REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_lsd
+     INTEGER, DIMENSION(:), POINTER             :: nct_lsd
+     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cval_lsd
+     ! extended local potential
+     LOGICAL                                    :: lpotextended
+     INTEGER                                    :: nexp_lpot
+     REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_lpot
+     INTEGER, DIMENSION(:), POINTER             :: nct_lpot
+     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cval_lpot
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
+
   END TYPE gth_potential_type
 
   ! Define the Kim-Gordon potential type
@@ -593,7 +614,10 @@ CONTAINS
        nprj_ppnl_max,z,zeff,zeff_correction,&
        ppl_present,ppnl_present,&
        alpha_ppnl,cexp_ppl,elec_conf,nprj_ppnl,cprj,&
-       cprj_ppnl,vprj_ppnl,hprj_ppnl)
+       cprj_ppnl,vprj_ppnl,hprj_ppnl,&
+       lpot_present,nexp_lpot,alpha_lpot,nct_lpot,cval_lpot,&
+       lsd_present,nexp_lsd,alpha_lsd,nct_lsd,cval_lsd,&
+       nlcc_present,nexp_nlcc,alpha_nlcc,nct_nlcc,cval_nlcc)
 
     TYPE(gth_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
@@ -602,14 +626,19 @@ CONTAINS
       ccore_charge, cerf_ppl, core_charge_radius, ppl_radius, ppnl_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: lppnl, lprj_ppnl_max, &
                                                 nexp_ppl, nppnl, &
-                                                nprj_ppnl_max, z
+                                                nprj_ppnl_max, z, &
+                                                nexp_lpot, nexp_lsd, nexp_nlcc
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, zeff_correction
-    LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present, ppnl_present
+    LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present, ppnl_present,&
+                                                nlcc_present, lpot_present, lsd_present
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: alpha_ppnl, cexp_ppl
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf, nprj_ppnl
+      POINTER                                :: alpha_ppnl, cexp_ppl, alpha_nlcc, &
+                                                alpha_lsd, alpha_lpot
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf, nprj_ppnl, &
+                                                nct_lpot, nct_lsd, nct_nlcc
     REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: cprj, cprj_ppnl, vprj_ppnl
+      OPTIONAL, POINTER                      :: cprj, cprj_ppnl, vprj_ppnl, &
+                                                cval_lpot, cval_lsd, cval_nlcc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: hprj_ppnl
 
@@ -646,6 +675,24 @@ CONTAINS
        IF (PRESENT(cprj_ppnl)) cprj_ppnl => potential%cprj_ppnl
        IF (PRESENT(vprj_ppnl)) vprj_ppnl => potential%vprj_ppnl
        IF (PRESENT(hprj_ppnl)) hprj_ppnl => potential%hprj_ppnl
+
+       IF (PRESENT(lpot_present)) lpot_present = potential%lpotextended
+       IF (PRESENT(nexp_lpot)) nexp_lpot = potential%nexp_lpot
+       IF (PRESENT(alpha_lpot)) alpha_lpot => potential%alpha_lpot
+       IF (PRESENT(nct_lpot)) nct_lpot => potential%nct_lpot
+       IF (PRESENT(cval_lpot)) cval_lpot => potential%cval_lpot
+
+       IF (PRESENT(lsd_present)) lsd_present = potential%lsdpot
+       IF (PRESENT(nexp_lsd)) nexp_lsd = potential%nexp_lsd
+       IF (PRESENT(alpha_lsd)) alpha_lsd => potential%alpha_lsd
+       IF (PRESENT(nct_lsd)) nct_lsd => potential%nct_lsd
+       IF (PRESENT(cval_lsd)) cval_lsd => potential%cval_lsd
+
+       IF (PRESENT(nlcc_present)) nlcc_present = potential%nlcc
+       IF (PRESENT(nexp_nlcc)) nexp_nlcc = potential%nexp_nlcc
+       IF (PRESENT(alpha_nlcc)) alpha_nlcc => potential%alpha_nlcc
+       IF (PRESENT(nct_nlcc)) nct_nlcc => potential%nct_nlcc
+       IF (PRESENT(cval_nlcc)) cval_nlcc => potential%cval_nlcc
 
     ELSE
 
@@ -1151,8 +1198,8 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    INTEGER :: i, irep, istr, j, l, lppnl, lprj_ppnl_max, maxlppl, n, nppnl, &
-      nprj_ppnl, nprj_ppnl_max, stat, strlen1, strlen2
+    INTEGER :: i, ic, ipot, irep, istr, j, l, lppnl, lprj_ppnl_max, maxlppl, &
+      n, nppnl, nprj_ppnl, nprj_ppnl_max, stat, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: failure, found, is_ok, match, &
                                                 read_from_input
@@ -1180,6 +1227,14 @@ CONTAINS
             error=error)
        CALL parser_create(parser,potential_file_name,para_env=para_env,error=error)
     END IF
+
+    !initialize extended form
+    potential%lpotextended = .FALSE.
+    potential%nexp_lpot = 0
+    potential%lsdpot = .FALSE.
+    potential%nexp_lsd = 0
+    potential%nlcc = .FALSE.
+    potential%nexp_nlcc = 0
 
     !   *** Search for the requested potential in the potential file   ***
     !   *** until the potential is found or the end of file is reached ***
@@ -1320,18 +1375,159 @@ CONTAINS
 
              IF (maxlppl > -1) CALL init_orbital_pointers(maxlppl)
 
+             ! Read extended form of GTH pseudopotential
+             ! local potential, NLCC, LSD potential
+             IF (read_from_input) THEN
+               DO
+                 is_ok=cp_sll_val_next(list,val,error=error)
+                 CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+                 CALL val_get(val,c_val=line_att,error=error)
+                 IF(INDEX(line_att,"LPOT") /= 0) THEN
+                   potential%lpotextended = .TRUE.
+                   CALL remove_word(line_att)
+                   READ(line_att,*) potential%nexp_lpot
+                   n=potential%nexp_lpot
+                   maxlppl = 2*(n - 1)
+                   IF (maxlppl > -1) CALL init_orbital_pointers(maxlppl)
+                   NULLIFY(potential%alpha_lpot,potential%nct_lpot,potential%cval_lpot)
+                   CALL reallocate(potential%alpha_lpot,1,n)
+                   CALL reallocate(potential%nct_lpot,1,n)
+                   CALL reallocate(potential%cval_lpot,1,4,1,n)
+                   DO ipot=1,potential%nexp_lpot
+                      is_ok=cp_sll_val_next(list,val,error=error)
+                      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+                      CALL val_get(val,c_val=line_att,error=error)
+                      READ(line_att,*) potential%alpha_lpot(ipot)
+                      CALL remove_word(line_att)
+                      READ(line_att,*) potential%nct_lpot(ipot)
+                      CALL remove_word(line_att)
+                      DO ic=1,potential%nct_lpot(ipot)
+                        READ(line_att,*) potential%cval_lpot(ic,ipot)
+                        CALL remove_word(line_att)
+                      END DO
+                   END DO
+                 ELSEIF(INDEX(line_att,"NLCC") /= 0) THEN
+                   potential%nlcc = .TRUE.
+                   CALL remove_word(line_att)
+                   READ(line_att,*) potential%nexp_nlcc
+                   NULLIFY(potential%alpha_nlcc,potential%nct_nlcc,potential%cval_nlcc)
+                   CALL reallocate(potential%alpha_nlcc,1,n)
+                   CALL reallocate(potential%nct_nlcc,1,n)
+                   CALL reallocate(potential%cval_nlcc,1,4,1,n)
+                   DO ipot=1,potential%nexp_nlcc
+                      is_ok=cp_sll_val_next(list,val,error=error)
+                      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+                      CALL val_get(val,c_val=line_att,error=error)
+                      READ(line_att,*) potential%alpha_nlcc(ipot)
+                      CALL remove_word(line_att)
+                      READ(line_att,*) potential%nct_nlcc(ipot)
+                      CALL remove_word(line_att)
+                      DO ic=1,potential%nct_nlcc(ipot)
+                        READ(line_att,*) potential%cval_nlcc(ic,ipot)
+                        CALL remove_word(line_att)
+                      END DO
+                   END DO
+                 ELSEIF(INDEX(line_att,"LSD") /= 0) THEN
+                   potential%lsdpot = .TRUE.
+                   CALL remove_word(line_att)
+                   READ(line_att,*) potential%nexp_lsd
+                   NULLIFY(potential%alpha_lsd,potential%nct_lsd,potential%cval_lsd)
+                   CALL reallocate(potential%alpha_lsd,1,n)
+                   CALL reallocate(potential%nct_lsd,1,n)
+                   CALL reallocate(potential%cval_lsd,1,4,1,n)
+                   DO ipot=1,potential%nexp_lsd
+                      is_ok=cp_sll_val_next(list,val,error=error)
+                      CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
+                      CALL val_get(val,c_val=line_att,error=error)
+                      READ(line_att,*) potential%alpha_lsd(ipot)
+                      CALL remove_word(line_att)
+                      READ(line_att,*) potential%nct_lsd(ipot)
+                      CALL remove_word(line_att)
+                      DO ic=1,potential%nct_lsd(ipot)
+                        READ(line_att,*) potential%cval_lsd(ic,ipot)
+                        CALL remove_word(line_att)
+                      END DO
+                   END DO
+                 ELSE
+                   EXIT
+                 END IF
+               END DO
+             ELSE
+               DO
+                 CALL parser_get_next_line(parser,1,error=error)
+                 IF(parser_test_next_token(parser,error=error) == "INT") THEN
+                   EXIT
+                 ELSEIF(parser_test_next_token(parser,error=error) == "STR") THEN
+                   CALL parser_get_object(parser,line,error=error)
+                   IF(INDEX(LINE,"LPOT") /= 0) THEN
+                     ! local potential
+                     potential%lpotextended = .TRUE.
+                     CALL parser_get_object(parser,potential%nexp_lpot,error=error)
+                     n = potential%nexp_lpot
+                     NULLIFY(potential%alpha_lpot,potential%nct_lpot,potential%cval_lpot)
+                     CALL reallocate(potential%alpha_lpot,1,n)
+                     CALL reallocate(potential%nct_lpot,1,n)
+                     CALL reallocate(potential%cval_lpot,1,4,1,n)
+                     DO ipot=1,potential%nexp_lpot
+                       CALL parser_get_object(parser,potential%alpha_lpot(ipot),newline=.TRUE.,error=error)
+                       CALL parser_get_object(parser,potential%nct_lpot(ipot),error=error)
+                       DO ic=1,potential%nct_lpot(ipot)
+                         CALL parser_get_object(parser,potential%cval_lpot(ic,ipot),error=error)
+                       END DO
+                     END DO
+                   ELSEIF(INDEX(LINE,"NLCC") /= 0) THEN
+                     ! NLCC
+                     potential%nlcc = .TRUE.
+                     CALL parser_get_object(parser,potential%nexp_nlcc,error=error)
+                     n = potential%nexp_nlcc
+                     NULLIFY(potential%alpha_nlcc,potential%nct_nlcc,potential%cval_nlcc)
+                     CALL reallocate(potential%alpha_nlcc,1,n)
+                     CALL reallocate(potential%nct_nlcc,1,n)
+                     CALL reallocate(potential%cval_nlcc,1,4,1,n)
+                     DO ipot=1,potential%nexp_nlcc
+                       CALL parser_get_object(parser,potential%alpha_nlcc(ipot),newline=.TRUE.,error=error)
+                       CALL parser_get_object(parser,potential%nct_nlcc(ipot),error=error)
+                       DO ic=1,potential%nct_nlcc(ipot)
+                         CALL parser_get_object(parser,potential%cval_nlcc(ic,ipot),error=error)
+                       END DO
+                     END DO
+                   ELSEIF(INDEX(LINE,"LSD") /= 0) THEN
+                     ! LSD potential
+                     potential%lsdpot = .TRUE.
+                     CALL parser_get_object(parser,potential%nexp_lsd,error=error)
+                     n = potential%nexp_lsd
+                     NULLIFY(potential%alpha_lsd,potential%nct_lsd,potential%cval_lsd)
+                     CALL reallocate(potential%alpha_lsd,1,n)
+                     CALL reallocate(potential%nct_lsd,1,n)
+                     CALL reallocate(potential%cval_lsd,1,4,1,n)
+                     DO ipot=1,potential%nexp_lsd
+                       CALL parser_get_object(parser,potential%alpha_lsd(ipot),newline=.TRUE.,error=error)
+                       CALL parser_get_object(parser,potential%nct_lsd(ipot),error=error)
+                       DO ic=1,potential%nct_lsd(ipot)
+                         CALL parser_get_object(parser,potential%cval_lsd(ic,ipot),error=error)
+                       END DO
+                     END DO
+                   ELSE
+                     CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                   END IF
+                 ELSE
+                   CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+                 END IF
+               END DO
+             END IF
              !         *** Read the parameters for the non-local  ***
              !         *** part of the GTH pseudopotential (ppnl) ***
              IF (read_from_input) THEN
-                is_ok=cp_sll_val_next(list,val,error=error)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                     __LINE__,&
-                     "Error reading the Potential from input file!!")
-                CALL val_get(val,c_val=line_att,error=error)
+!deb            is_ok=cp_sll_val_next(list,val,error=error)
+!deb            IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
+!deb                 __LINE__,&
+!deb                 "Error reading the Potential from input file!!")
+!deb            CALL val_get(val,c_val=line_att,error=error)
                 READ(line_att,*)n
                 CALL remove_word(line_att)
              ELSE
-                CALL parser_get_object(parser,n,newline=.TRUE.,error=error)
+!deb            CALL parser_get_object(parser,n,newline=.TRUE.,error=error)
+                CALL parser_get_object(parser,n,error=error)
                 irep = irep + 1
                 WRITE(line_att,'(1X,I0)')n
                 CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&

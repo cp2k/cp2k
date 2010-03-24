@@ -8,12 +8,13 @@
 !>      for the atomic code
 ! *****************************************************************************
 MODULE atom_xc
-  USE atom_types,                      ONLY: atom_type,&
+  USE atom_types,                      ONLY: GTH_PSEUDO,&
+                                             atom_type,&
                                              opmat_type
-  USE atom_utils,                      ONLY: atom_density,&
+  USE atom_utils,                      ONLY: atom_core_density,&
+                                             atom_density,&
                                              integrate_grid,&
                                              numpot_matrix
-  USE f77_blas
   USE input_constants,                 ONLY: xc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -63,7 +64,7 @@ CONTAINS
     INTEGER                                  :: deriv_order, handle, ierr, l, &
                                                 myfun, n1, n2, n3, nr, nspins
     INTEGER, DIMENSION(2, 3)                 :: bounds
-    LOGICAL                                  :: failure = .FALSE., lsd
+    LOGICAL                                  :: failure = .FALSE., lsd, nlcc
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxc
@@ -79,6 +80,11 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
+
+    nlcc=.FALSE.
+    IF ( atom%potential%ppot_type==GTH_PSEUDO ) THEN
+      nlcc = atom%potential%gth_pot%nlcc
+    END IF
 
     IF ( ASSOCIATED(xc_section) ) THEN
       NULLIFY(rho_set) 
@@ -120,11 +126,17 @@ CONTAINS
           ALLOCATE(rho(nr,1),STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
           CALL atom_density(rho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
+          IF ( nlcc ) THEN
+            CALL atom_core_density(rho(:,1),atom%potential%gth_pot,typ="RHO",rr=atom%basis%grid%rad,error=error)
+          END IF
         END IF
         IF ( needs%norm_drho ) THEN
           ALLOCATE(drho(nr,1),STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
           CALL atom_density(drho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="DER",error=error)
+          IF ( nlcc ) THEN
+            CALL atom_core_density(drho(:,1),atom%potential%gth_pot,typ="DER",rr=atom%basis%grid%rad,error=error)
+          END IF
         END IF
         IF ( needs%tau ) THEN
           ALLOCATE(tau(nr,1),STAT=ierr)
@@ -192,12 +204,15 @@ CONTAINS
 
     ELSE
 
-      ! we don't have an xc_section, use a defaukt setup
+      ! we don't have an xc_section, use a default setup
       nr = atom%basis%grid%nr
       ALLOCATE(rho(nr,1),exc(nr),vxc(nr),STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
 
       CALL atom_density(rho(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,typ="RHO",error=error)
+      IF ( nlcc ) THEN
+        CALL atom_core_density(rho(:,1),atom%potential%gth_pot,typ="RHO",rr=atom%basis%grid%rad,error=error)
+      END IF
       CALL lda_pade(rho(:,1),exc,vxc,error)
 
       atom%energy%exc = fourpi*integrate_grid(exc,atom%basis%grid)
@@ -323,14 +338,16 @@ CONTAINS
            CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
          END IF
          IF ( needs%norm_drho_spin ) THEN
+           ! drhoa
+           NULLIFY(deriv)
            deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",allocate_deriv=.FALSE.,error=error)
            CALL xc_derivative_get(deriv,deriv_data=xcpot,error=error)
            CALL numpot_matrix(xcmata%op,xcpot(:,1,1),atom%basis,1,error)
+           ! drhob
+           NULLIFY(deriv)
            deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",allocate_deriv=.FALSE.,error=error)
            CALL xc_derivative_get(deriv,deriv_data=xcpot,error=error)
            CALL numpot_matrix(xcmatb%op,xcpot(:,1,1),atom%basis,1,error)
-           DEALLOCATE(drho,STAT=ierr)
-           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
            ! Cross Terms
            NULLIFY(deriv)
            deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",error=error)
@@ -339,6 +356,8 @@ CONTAINS
              CALL numpot_matrix(xcmata%op,xcpot(:,1,1),atom%basis,1,error)
              CALL numpot_matrix(xcmatb%op,xcpot(:,1,1),atom%basis,1,error)
            END IF
+           DEALLOCATE(drho,STAT=ierr)
+           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
          END IF
          IF ( needs%tau_spin ) THEN
            n1 = SIZE(xcmata%op,1)
@@ -383,7 +402,7 @@ CONTAINS
  
      ELSE
 
-      ! we don't have an xc_section, use a defaukt setup
+      ! we don't have an xc_section, use a default setup
       nr = atom%basis%grid%nr
       ALLOCATE(rho(nr,2),exc(nr),vxca(nr),vxcb(nr),STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -472,7 +491,7 @@ CONTAINS
        ! Give the norm of the total gradient of the density
        IF (needs%norm_drho) THEN
           DO ia = 1,na
-            rho_set%norm_drho(ia,1,1) = drho(ia,1)+drho(ia,2)
+            rho_set%norm_drho(ia,1,1) = drho(ia,1) + drho(ia,2)
           END DO
           rho_set%owns%norm_drho=.TRUE.
           rho_set%has%norm_drho=.TRUE.

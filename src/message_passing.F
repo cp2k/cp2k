@@ -20,8 +20,6 @@
 ! *****************************************************************************
 
 MODULE message_passing
-  USE c_mpi_calls,                     ONLY: mp_alloc_mem,&
-                                             mp_free_mem
   USE f77_blas
   USE kinds,                           ONLY: &
        dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &

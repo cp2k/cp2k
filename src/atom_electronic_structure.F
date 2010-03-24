@@ -364,13 +364,14 @@ CONTAINS
     INTEGER                                  :: handle, i, iter, k, l, &
                                                 max_iter, method, reltyp
     LOGICAL                                  :: do_hfx, doguess, failure, &
-                                                need_x, need_xc
+                                                lsdpot, need_x, need_xc
     REAL(KIND=dp)                            :: deps, depsa, depsb, eps_scf, &
                                                 hf_frac, ne, nm
     TYPE(atom_history_type)                  :: historya, historyb
     TYPE(opgrid_type), POINTER               :: cpot, density, rhoa, rhob
-    TYPE(opmat_type), POINTER                :: fmata, fmatb, hcore, jmat, &
-                                                kmata, kmatb, xcmata, xcmatb
+    TYPE(opmat_type), POINTER                :: fmata, fmatb, hcore, hlsd, &
+                                                jmat, kmata, kmatb, xcmata, &
+                                                xcmatb
     TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
 
     failure = .FALSE.
@@ -447,9 +448,12 @@ CONTAINS
 
     IF (iw>0) CALL atom_print_state(atom%state,iw,error)
 
-    NULLIFY(hcore)
+    NULLIFY(hcore,hlsd)
     CALL create_opmat(hcore,atom%basis%nbas,error)
+    CALL create_opmat(hlsd,atom%basis%nbas,error)
+    hlsd%op = 0._dp
     ! Pseudopotentials
+    lsdpot=.FALSE.
     SELECT CASE (atom%potential%ppot_type)
       CASE DEFAULT
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
@@ -466,6 +470,10 @@ CONTAINS
         END SELECT
       CASE (GTH_PSEUDO)
         hcore%op = atom%integrals%kin + atom%integrals%core + atom%integrals%hnl
+        IF(atom%potential%gth_pot%lsdpot) THEN
+          lsdpot=.TRUE.
+          hlsd%op = atom%integrals%clsd
+        END IF
     END SELECT
     ! add confinement potential (not included in relativistic transformations)
     IF ( atom%potential%confinement ) THEN
@@ -497,14 +505,14 @@ CONTAINS
       density%op = 2._dp*rhoa%op
       CALL wigner_slater_functional(density%op,cpot%op,error)
       CALL numpot_matrix(xcmata%op,cpot%op,atom%basis,0,error)
-      fmata%op = hcore%op + jmat%op + xcmata%op
+      fmata%op = hcore%op + hlsd%op + jmat%op + xcmata%op
       CALL atom_solve(fmata%op,atom%integrals%utrans,atom%orbitals%wfna,atom%orbitals%enera,&
                       atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
       ! beta spin
       density%op = 2._dp*rhob%op
       CALL wigner_slater_functional(density%op,cpot%op,error)
       CALL numpot_matrix(xcmatb%op,cpot%op,atom%basis,0,error)
-      fmatb%op = hcore%op + jmat%op + xcmatb%op
+      fmatb%op = hcore%op - hlsd%op + jmat%op + xcmatb%op
       CALL atom_solve(fmatb%op,atom%integrals%utrans,atom%orbitals%wfnb,atom%orbitals%enerb,&
                       atom%basis%nbas,atom%integrals%nne,atom%state%maxl_calc,error)
     END IF
@@ -613,13 +621,22 @@ CONTAINS
         xcmatb%op = 0._dp
         atom%energy%exc = 0._dp
       END IF
+
+      IF(lsdpot) THEN
+         atom%energy%elsd = atom_trace(hlsd%op,atom%orbitals%pmata,error) - &
+                            atom_trace(hlsd%op,atom%orbitals%pmatb,error)
+         atom%energy%epseudo = atom%energy%epseudo + atom%energy%elsd
+         atom%energy%ecore = atom%energy%ecore + atom%energy%elsd
+      ELSE
+         atom%energy%elsd=0._dp
+      END IF
      
       ! Total energy
       atom%energy%etot = atom%energy%ecore + atom%energy%ecoulomb + atom%energy%eexchange + atom%energy%exc
 
       ! Total HF/KS matrix
-      fmata%op = hcore%op + jmat%op + kmata%op + xcmata%op
-      fmatb%op = hcore%op + jmat%op + kmatb%op + xcmatb%op
+      fmata%op = hcore%op + hlsd%op + jmat%op + kmata%op + xcmata%op
+      fmatb%op = hcore%op - hlsd%op + jmat%op + kmatb%op + xcmatb%op
 
       ! calculate error matrix
       CALL err_matrix(xcmata%op,depsa,fmata%op,atom%orbitals%pmata,atom%integrals%utrans,&
@@ -680,6 +697,7 @@ CONTAINS
     CALL release_opmat(kmatb,error)
     CALL release_opmat(xcmata,error)
     CALL release_opmat(xcmatb,error)
+    CALL release_opmat(hlsd,error)
     CALL release_opmat(hcore,error)
 
     CALL timestop(handle)

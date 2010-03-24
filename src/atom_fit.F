@@ -438,7 +438,7 @@ CONTAINS
 
     ALLOCATE(xi(200),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
-!decide here what to optimize
+    !decide here what to optimize
     CALL get_pseudo_param(xi,ostate%nvar,ppot%gth_pot,error)
     ALLOCATE(x(ostate%nvar),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
@@ -1047,30 +1047,63 @@ CONTAINS
 
     INTEGER                                  :: i, ival, j, l, n
 
-    pvec = 0
-    ival = 1
-    pvec(ival) = rcpro(-1,gthpot%rc)
-    DO i=1,gthpot%ncl
-      ival=ival+1
-      pvec(ival) = gthpot%cl(i)
-    END DO
-    DO l=0,3
-      IF(gthpot%nl(l) > 0) THEN
-        ival = ival+1
-        pvec(ival) = rcpro(-1,gthpot%rcnl(l))
-      END IF
-    END DO
-    DO l=0,3
-      IF(gthpot%nl(l) > 0) THEN
-        n = gthpot%nl(l)
-        DO i=1,n
-          DO j=i,n
-            ival = ival+1
-            pvec(ival) = gthpot%hnl(i,j,l)
+    IF(gthpot%lsdpot) THEN
+      pvec = 0
+      ival = 0
+      DO j=1,gthpot%nexp_lsd
+        ival=ival+1
+        pvec(ival) = rcpro(-1,gthpot%alpha_lsd(j))
+        DO i=1,gthpot%nct_lsd(j)
+          ival=ival+1
+          pvec(ival) = gthpot%cval_lsd(i,j)
+        END DO
+      END DO
+    ELSE
+      pvec = 0
+      ival = 1
+      pvec(ival) = rcpro(-1,gthpot%rc)
+      DO i=1,gthpot%ncl
+        ival=ival+1
+        pvec(ival) = gthpot%cl(i)
+      END DO
+      IF(gthpot%lpotextended) THEN
+        DO j=1,gthpot%nexp_lpot
+          ival=ival+1
+          pvec(ival) = rcpro(-1,gthpot%alpha_lpot(j))
+          DO i=1,gthpot%nct_lpot(j)
+            ival=ival+1
+            pvec(ival) = gthpot%cval_lpot(i,j)
           END DO
         END DO
       END IF
-    END DO
+      IF(gthpot%nlcc) THEN
+        DO j=1,gthpot%nexp_nlcc
+          ival=ival+1
+          pvec(ival) = rcpro(-1,gthpot%alpha_nlcc(j))
+          DO i=1,gthpot%nct_nlcc(j)
+            ival=ival+1
+            pvec(ival) = gthpot%cval_nlcc(i,j)
+          END DO
+        END DO
+      END IF
+      DO l=0,3
+        IF(gthpot%nl(l) > 0) THEN
+          ival = ival+1
+          pvec(ival) = rcpro(-1,gthpot%rcnl(l))
+        END IF
+      END DO
+      DO l=0,3
+        IF(gthpot%nl(l) > 0) THEN
+          n = gthpot%nl(l)
+          DO i=1,n
+            DO j=i,n
+              ival = ival+1
+              pvec(ival) = gthpot%hnl(i,j,l)
+            END DO
+          END DO
+        END IF
+      END DO
+    END IF
     nval = ival
 
   END SUBROUTINE get_pseudo_param 
@@ -1085,29 +1118,61 @@ CONTAINS
 
     INTEGER                                  :: i, ival, j, l, n
 
-    ival = 1
-    gthpot%rc = rcpro(1,pvec(ival))
-    DO i=1,gthpot%ncl
-      ival=ival+1
-      gthpot%cl(i) = pvec(ival)
-    END DO
-    DO l=0,3
-      IF(gthpot%nl(l) > 0) THEN
-        ival = ival+1
-        gthpot%rcnl(l) = rcpro(1,pvec(ival))
-      END IF
-    END DO
-    DO l=0,3
-      IF(gthpot%nl(l) > 0) THEN
-        n = gthpot%nl(l)
-        DO i=1,n
-          DO j=i,n
-            ival = ival+1
-            gthpot%hnl(i,j,l) = pvec(ival)
+    IF(gthpot%lsdpot) THEN
+      ival=0
+      DO j=1,gthpot%nexp_lsd
+        ival=ival+1
+        gthpot%alpha_lsd(j)=rcpro(1,pvec(ival))
+        DO i=1,gthpot%nct_lsd(j)
+          ival=ival+1
+          gthpot%cval_lsd(i,j) = pvec(ival)
+        END DO
+      END DO
+    ELSE
+      ival = 1
+      gthpot%rc = rcpro(1,pvec(ival))
+      DO i=1,gthpot%ncl
+        ival=ival+1
+        gthpot%cl(i) = pvec(ival)
+      END DO
+      IF(gthpot%lpotextended) THEN
+        DO j=1,gthpot%nexp_lpot
+          ival=ival+1
+          gthpot%alpha_lpot(j)=rcpro(1,pvec(ival))
+          DO i=1,gthpot%nct_lpot(j)
+            ival=ival+1
+            gthpot%cval_lpot(i,j) = pvec(ival)
           END DO
         END DO
       END IF
-    END DO
+      IF(gthpot%nlcc) THEN
+        DO j=1,gthpot%nexp_nlcc
+          ival=ival+1
+          gthpot%alpha_nlcc(j)=rcpro(1,pvec(ival))
+          DO i=1,gthpot%nct_nlcc(j)
+            ival=ival+1
+            gthpot%cval_nlcc(i,j) = pvec(ival)
+          END DO
+        END DO
+      END IF
+      DO l=0,3
+        IF(gthpot%nl(l) > 0) THEN
+          ival = ival+1
+          gthpot%rcnl(l) = rcpro(1,pvec(ival))
+        END IF
+      END DO
+      DO l=0,3
+        IF(gthpot%nl(l) > 0) THEN
+          n = gthpot%nl(l)
+          DO i=1,n
+            DO j=i,n
+              ival = ival+1
+              gthpot%hnl(i,j,l) = pvec(ival)
+            END DO
+          END DO
+        END IF
+      END DO
+   END IF
 
   END SUBROUTINE put_pseudo_param
 
@@ -1143,6 +1208,27 @@ CONTAINS
     WRITE(iw,'(A2,A)') gthpot%symbol,ADJUSTL(TRIM(gthpot%pname))
     WRITE(iw,'(4I5)') gthpot%econf
     WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%rc,gthpot%ncl,(gthpot%cl(i),i=1,gthpot%ncl)
+    IF(gthpot%lpotextended) THEN
+      WRITE(iw,'(A,I5)') "  LPOT",gthpot%nexp_lpot
+      DO i=1,gthpot%nexp_lpot
+        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_lpot(i),gthpot%nct_lpot(i),&
+                           (gthpot%cval_lpot(j,i),j=1,gthpot%nct_lpot(i))
+      END DO
+    END IF
+    IF(gthpot%lsdpot) THEN
+      WRITE(iw,'(A,I5)') "  LSD ",gthpot%nexp_lsd
+      DO i=1,gthpot%nexp_lsd
+        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_lsd(i),gthpot%nct_lsd(i),&
+                           (gthpot%cval_lsd(j,i),j=1,gthpot%nct_lsd(i))
+      END DO
+    END IF
+    IF(gthpot%nlcc) THEN
+      WRITE(iw,'(A,I5)') " NLCC ",gthpot%nexp_nlcc
+      DO i=1,gthpot%nexp_nlcc
+        WRITE(iw,'(F18.12,I8,5F18.12)') gthpot%alpha_nlcc(i),gthpot%nct_nlcc(i),&
+                           (gthpot%cval_nlcc(j,i),j=1,gthpot%nct_nlcc(i))
+      END DO
+    END IF
     n = 0
     DO i=3,0,-1
       IF ( gthpot%nl(i) > 0 ) THEN

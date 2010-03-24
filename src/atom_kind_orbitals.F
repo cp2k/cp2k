@@ -70,19 +70,22 @@ CONTAINS
     INTEGER                                  :: i, ierr, ii, ipgf, j, k, k1, &
                                                 k2, l, ll, lm, m, mb, mo, n, &
                                                 ne, ngp, nj, nn, nr, ns, &
-                                                nset, nsgf, quadtype, z
+                                                nset, nsgf, quadtype, z, &
+                                                nexp_lpot, nexp_lsd, nexp_nlcc
     INTEGER, DIMENSION(0:3)                  :: econfx
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
     INTEGER, DIMENSION(:), POINTER           :: econf, lmax, lmin, npgf, &
-                                                nppnl, nshell, ppeconf
+                                                nppnl, nshell, ppeconf, &
+                                                nct_lpot, nct_lsd, nct_nlcc
     INTEGER, DIMENSION(:, :), POINTER        :: addel, first_sgf, laddel, &
                                                 last_sgf, ls, naddel
     LOGICAL                                  :: bs_occupation, &
+                                                lpot_present, lsd_present, nlcc_present, &
                                                 failure = .FALSE.
     REAL(KIND=dp)                            :: ac, al, ear, rk, scal, zeff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ap, ce
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ap, ce, alpha_lpot, alpha_lsd, alpha_nlcc
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet, cval_lpot, cval_lsd, cval_nlcc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc, hp
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -160,6 +163,53 @@ CONTAINS
         potential%gth_pot%rcnl(l)   = SQRT(0.5_dp/ap(l))
         potential%gth_pot%hnl(1:n,1:n,l)= hp(1:n,1:n,l)
       END DO
+      !extended type
+      potential%gth_pot%lpotextended = .FALSE.
+      potential%gth_pot%lsdpot = .FALSE.
+      potential%gth_pot%nlcc = .FALSE.
+      potential%gth_pot%nexp_lpot = 0
+      potential%gth_pot%nexp_lsd = 0
+      potential%gth_pot%nexp_nlcc = 0
+      CALL get_potential(gth_potential,&
+                         lpot_present=lpot_present,&
+                         lsd_present=lsd_present,&
+                         nlcc_present=nlcc_present)
+      IF (lpot_present) THEN
+        CALL get_potential(gth_potential,&
+                           nexp_lpot=nexp_lpot,&
+                           alpha_lpot=alpha_lpot,&
+                           nct_lpot=nct_lpot,&
+                           cval_lpot=cval_lpot)
+        potential%gth_pot%lpotextended = .TRUE. 
+        potential%gth_pot%nexp_lpot = nexp_lpot
+        potential%gth_pot%alpha_lpot(1:nexp_lpot) = alpha_lpot(1:nexp_lpot)
+        potential%gth_pot%nct_lpot(1:nexp_lpot) = nct_lpot(1:nexp_lpot)
+        potential%gth_pot%cval_lpot(1:4,1:nexp_lpot) = cval_lpot(1:4,1:nexp_lpot)
+      END IF
+      IF (lsd_present) THEN
+        CALL get_potential(gth_potential,&
+                           nexp_lsd=nexp_lsd,&
+                           alpha_lsd=alpha_lsd,&
+                           nct_lsd=nct_lsd,&
+                           cval_lsd=cval_lsd)
+        potential%gth_pot%lsdpot = .TRUE.
+        potential%gth_pot%nexp_lsd = nexp_lsd
+        potential%gth_pot%alpha_lsd(1:nexp_lsd) = alpha_lsd(1:nexp_lsd)
+        potential%gth_pot%nct_lsd(1:nexp_lsd) = nct_lsd(1:nexp_lsd)
+        potential%gth_pot%cval_lsd(1:4,1:nexp_lsd) = cval_lsd(1:4,1:nexp_lsd)
+      END IF
+      IF (nlcc_present) THEN
+        CALL get_potential(gth_potential,&
+                           nexp_nlcc=nexp_nlcc,&
+                           alpha_nlcc=alpha_nlcc,&
+                           nct_nlcc=nct_nlcc,&
+                           cval_nlcc=cval_nlcc)
+        potential%gth_pot%nlcc = .TRUE.
+        potential%gth_pot%nexp_nlcc = nexp_nlcc
+        potential%gth_pot%alpha_nlcc(1:nexp_nlcc) = alpha_lpot(1:nexp_nlcc)
+        potential%gth_pot%nct_nlcc(1:nexp_nlcc) = nct_lpot(1:nexp_nlcc)
+        potential%gth_pot%cval_nlcc(1:4,1:nexp_nlcc) = cval_nlcc(1:4,1:nexp_nlcc)
+      END IF
 
       CALL set_atom(atom,zcore=NINT(zeff),potential=potential,error=error)
     ELSE

@@ -353,6 +353,10 @@ CONTAINS
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
       integrals%core = 0._dp
 
+      ALLOCATE (integrals%clsd(n,n,0:3),STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+      integrals%clsd = 0._dp
+
       integrals%ppstat = 1
 
       SELECT CASE (basis%basis_type)
@@ -382,6 +386,28 @@ CONTAINS
                   integrals%core(1:n,1:n,l) = integrals%core(1:n,1:n,l) + &
                      potential%gth_pot%cl(i)*omat(1:n,1:n)
                 END DO
+                IF (potential%gth_pot%lpotextended) THEN
+                  DO k=1,potential%gth_pot%nexp_lpot
+                    DO i=1,potential%gth_pot%nct_lpot(k)
+                      omat = 0._dp
+                      CALL sg_gpot ( omat(1:n,1:n), i-1, potential%gth_pot%alpha_lpot(k), l, &
+                                     basis%am(1:n,l), basis%am(1:n,l) )
+                      integrals%core(1:n,1:n,l) = integrals%core(1:n,1:n,l) + &
+                         potential%gth_pot%cval_lpot(i,k)*omat(1:n,1:n)
+                    END DO
+                  END DO
+                END IF
+                IF (potential%gth_pot%lsdpot) THEN
+                  DO k=1,potential%gth_pot%nexp_lsd
+                    DO i=1,potential%gth_pot%nct_lsd(k)
+                      omat = 0._dp
+                      CALL sg_gpot ( omat(1:n,1:n), i-1, potential%gth_pot%alpha_lsd(k), l, &
+                                     basis%am(1:n,l), basis%am(1:n,l) )
+                      integrals%clsd(1:n,1:n,l) = integrals%clsd(1:n,1:n,l) + &
+                         potential%gth_pot%cval_lsd(i,k)*omat(1:n,1:n)
+                    END DO
+                  END DO
+                END IF
 
                 spmat = 0._dp
                 m = potential%gth_pot%nl(l)
@@ -714,6 +740,10 @@ CONTAINS
     END IF
     IF ( ASSOCIATED(integrals%core) ) THEN
       DEALLOCATE (integrals%core,STAT=ierr)
+      CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    END IF
+    IF ( ASSOCIATED(integrals%clsd) ) THEN
+      DEALLOCATE (integrals%clsd,STAT=ierr)
       CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
     END IF
 
