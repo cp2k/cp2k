@@ -1039,7 +1039,7 @@ USE cp_array_r_utils, ONLY: cp_3d_r_p_type
   IF (.NOT.ASSOCIATED(sll)) THEN
      CALL cp_sll_3d_r_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
-     IF (PRESENT(pos)) pos=>iter%rest
+     IF (PRESENT(pos)) pos=>sll%rest
      RETURN
   END IF
   comp=compare_function(sll%first_el,el)
@@ -1047,7 +1047,7 @@ USE cp_array_r_utils, ONLY: cp_3d_r_p_type
      IF (i_eq.OR.comp/=0) THEN
         CALL cp_sll_3d_r_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
-        IF (PRESENT(pos)) pos=>iter%rest
+        IF (PRESENT(pos)) pos=>sll%rest
      END IF
   ELSE
      iter => sll

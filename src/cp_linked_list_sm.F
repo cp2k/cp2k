@@ -1030,7 +1030,7 @@ USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
   IF (.NOT.ASSOCIATED(sll)) THEN
      CALL cp_sll_sm_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
-     IF (PRESENT(pos)) pos=>iter%rest
+     IF (PRESENT(pos)) pos=>sll%rest
      RETURN
   END IF
   comp=compare_function(sll%first_el,el)
@@ -1038,7 +1038,7 @@ USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
      IF (i_eq.OR.comp/=0) THEN
         CALL cp_sll_sm_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
-        IF (PRESENT(pos)) pos=>iter%rest
+        IF (PRESENT(pos)) pos=>sll%rest
      END IF
   ELSE
      iter => sll

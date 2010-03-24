@@ -1028,7 +1028,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
   IF (.NOT.ASSOCIATED(sll)) THEN
      CALL cp_sll_rs_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
-     IF (PRESENT(pos)) pos=>iter%rest
+     IF (PRESENT(pos)) pos=>sll%rest
      RETURN
   END IF
   comp=compare_function(sll%first_el,el)
@@ -1036,7 +1036,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
      IF (i_eq.OR.comp/=0) THEN
         CALL cp_sll_rs_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
-        IF (PRESENT(pos)) pos=>iter%rest
+        IF (PRESENT(pos)) pos=>sll%rest
      END IF
   ELSE
      iter => sll
