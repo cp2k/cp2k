@@ -347,7 +347,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE update_cost_cpu_col(cost_cpu,cost_ele_pair,P,Q,nele,local_rows,local_cols,iele,icpu_old,icpu_new)
     INTEGER, INTENT(IN)                      :: P, Q
-    INTEGER, INTENT(OUT)                     :: cost_cpu(P,Q)
+    INTEGER, INTENT(INOUT)                   :: cost_cpu(P,Q)
     INTEGER, INTENT(IN)                      :: nele, cost_ele_pair(nele,nele)
     INTEGER                                  :: local_rows(nele), &
                                                 local_cols(nele), iele, &
