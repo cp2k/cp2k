@@ -295,7 +295,10 @@ CONTAINS
         xcmat%op = 0._dp
         atom%energy%exc = 0._dp
       END IF
-     
+
+      ! Zero this contribution
+      atom%energy%elsd=0._dp
+
       ! Total energy
       atom%energy%etot = atom%energy%ecore + atom%energy%ecoulomb + atom%energy%eexchange + atom%energy%exc
 
