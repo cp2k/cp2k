@@ -426,6 +426,8 @@ CONTAINS
                               error=error)
 
     ! *** set up the rs multi-grids *** !
+    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=ierr)
+    IF (ierr /= 0) CALL stop_memory(routineP,"rs_rho")
     DO igrid_level = 1,gridlevel_info%ngrid_levels
       CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
