@@ -67,25 +67,26 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_atomic_orbitals', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, ii, ipgf, j, k, k1, &
-                                                k2, l, ll, lm, m, mb, mo, n, &
-                                                ne, ngp, nj, nn, nr, ns, &
-                                                nset, nsgf, quadtype, z, &
-                                                nexp_lpot, nexp_lsd, nexp_nlcc
+    INTEGER :: i, ierr, ii, ipgf, j, k, k1, k2, l, ll, lm, m, mb, mo, n, ne, &
+      nexp_lpot, nexp_lsd, nexp_nlcc, ngp, nj, nn, nr, ns, nset, nsgf, &
+      quadtype, z
     INTEGER, DIMENSION(0:3)                  :: econfx
     INTEGER, DIMENSION(0:3, 10)              :: ncalc, ncore, nelem
     INTEGER, DIMENSION(0:3, 100)             :: set_index, shell_index
-    INTEGER, DIMENSION(:), POINTER           :: econf, lmax, lmin, npgf, &
-                                                nppnl, nshell, ppeconf, &
-                                                nct_lpot, nct_lsd, nct_nlcc
+    INTEGER, DIMENSION(:), POINTER           :: econf, lmax, lmin, nct_lpot, &
+                                                nct_lsd, nct_nlcc, npgf, &
+                                                nppnl, nshell, ppeconf
     INTEGER, DIMENSION(:, :), POINTER        :: addel, first_sgf, laddel, &
                                                 last_sgf, ls, naddel
     LOGICAL                                  :: bs_occupation, &
-                                                lpot_present, lsd_present, nlcc_present, &
-                                                failure = .FALSE.
+                                                failure = .FALSE., &
+                                                lpot_present, lsd_present, &
+                                                nlcc_present
     REAL(KIND=dp)                            :: ac, al, ear, rk, scal, zeff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ap, ce, alpha_lpot, alpha_lsd, alpha_nlcc
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet, cval_lpot, cval_lsd, cval_nlcc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_lpot, alpha_lsd, &
+                                                alpha_nlcc, ap, ce
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cval_lpot, cval_lsd, &
+                                                cval_nlcc, zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc, hp
     TYPE(all_potential_type), POINTER        :: all_potential

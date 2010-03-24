@@ -626,21 +626,37 @@ CONTAINS
       ccore_charge, cerf_ppl, core_charge_radius, ppl_radius, ppnl_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: lppnl, lprj_ppnl_max, &
                                                 nexp_ppl, nppnl, &
-                                                nprj_ppnl_max, z, &
-                                                nexp_lpot, nexp_lsd, nexp_nlcc
+                                                nprj_ppnl_max, z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, zeff_correction
-    LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present, ppnl_present,&
-                                                nlcc_present, lpot_present, lsd_present
+    LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present, ppnl_present
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: alpha_ppnl, cexp_ppl, alpha_nlcc, &
-                                                alpha_lsd, alpha_lpot
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf, nprj_ppnl, &
-                                                nct_lpot, nct_lsd, nct_nlcc
+      POINTER                                :: alpha_ppnl, cexp_ppl
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf, nprj_ppnl
     REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: cprj, cprj_ppnl, vprj_ppnl, &
-                                                cval_lpot, cval_lsd, cval_nlcc
+      OPTIONAL, POINTER                      :: cprj, cprj_ppnl, vprj_ppnl
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: hprj_ppnl
+    LOGICAL, INTENT(OUT), OPTIONAL           :: lpot_present
+    INTEGER, INTENT(OUT), OPTIONAL           :: nexp_lpot
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha_lpot
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nct_lpot
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cval_lpot
+    LOGICAL, INTENT(OUT), OPTIONAL           :: lsd_present
+    INTEGER, INTENT(OUT), OPTIONAL           :: nexp_lsd
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha_lsd
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nct_lsd
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cval_lsd
+    LOGICAL, INTENT(OUT), OPTIONAL           :: nlcc_present
+    INTEGER, INTENT(OUT), OPTIONAL           :: nexp_nlcc
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: alpha_nlcc
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nct_nlcc
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: cval_nlcc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_gth_potential', &
       routineP = moduleN//':'//routineN
