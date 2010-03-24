@@ -1748,6 +1748,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (small_buff)
     CALL dbcsr_data_release (small_buff)
     CALL dbcsr_data_release (buff)
+    CALL dbcsr_data_release (data_a)
     CALL dbcsr_finalize(matrix, error=error)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_on_diag_anytype
