@@ -40,20 +40,17 @@ MODULE se_fock_matrix_integrals
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Construction of 2-center 1-electron Fock Matrix
+!> \brief  Construction of 2-center 1-electron Fock Matrix
 !> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date 04.2008 [tlaino]
+!> \param  DIMENSION(sepi%natorb, sepi%natorb) :: ksi_block
+!> \param  DIMENSION(sepj%natorb, sepj%natorb) :: ksj_block
+!> \date   04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block, pj_block,&
        ecore, itype, anag, se_int_control, se_taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
-    REAL(KIND=dp), &
-      DIMENSION(sepi%natorb, sepi%natorb), &
-      INTENT(INOUT)                          :: ksi_block
-    REAL(KIND=dp), &
-      DIMENSION(sepj%natorb, sepj%natorb), &
-      INTENT(INOUT)                          :: ksj_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksi_block, ksj_block
     REAL(KIND=dp), &
       DIMENSION(sepi%natorb, sepi%natorb), &
       INTENT(IN)                             :: pi_block
@@ -201,6 +198,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Construction of 1-center 2-electron Fock Matrix
 !> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param  DIMENSION(sep%natorb, sep%natorb) :: f_mat
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock1_2el(sep, p_tot, p_mat, f_mat, factor, error)
@@ -210,9 +208,7 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(sep%natorb, sep%natorb), &
       INTENT(IN)                             :: p_mat
-    REAL(KIND=dp), &
-      DIMENSION(sep%natorb, sep%natorb), &
-      INTENT(INOUT)                          :: f_mat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: f_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -270,15 +266,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Construction of 2-center 1-electron Fock Matrix (Ewald self term)
 !> \author jgh - University of Zurich
+!> \param  DIMENSION(sep%natorb, sep%natorb) :: ks_block
 !> \date 04.2009 [jgh]
 ! *****************************************************************************
   SUBROUTINE fock2_1el_ew (sep, rij, ks_block, p_block, ecore, itype, anag, &
                            se_int_control, se_taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
-    REAL(KIND=dp), &
-      DIMENSION(sep%natorb, sep%natorb), &
-      INTENT(INOUT)                          :: ks_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block
     REAL(KIND=dp), &
       DIMENSION(sep%natorb, sep%natorb), &
       INTENT(IN)                             :: p_block
@@ -326,8 +321,9 @@ CONTAINS
   END SUBROUTINE fock2_1el_ew
 
 ! *****************************************************************************
-!> \brief Construction of 2-center Fock Matrix - Coulomb Self Terms (Ewald)
+!> \brief  Construction of 2-center Fock Matrix - Coulomb Self Terms (Ewald)
 !> \author jgh - University of Zurich
+!> \param  DIMENSION(sep%natorb, sep%natorb) :: f_mat
 !> \date 04.2009 [jgh]
 ! *****************************************************************************
   SUBROUTINE fock2C_ew(sep, rij, p_tot, f_mat, factor, anag, se_int_control, &
@@ -336,9 +332,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(IN)                             :: p_tot
-    REAL(KIND=dp), &
-      DIMENSION(sep%natorb, sep%natorb), &
-      INTENT(INOUT)                          :: f_mat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: f_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
@@ -392,8 +386,10 @@ CONTAINS
   END SUBROUTINE fock2C_ew
 
 ! *****************************************************************************
-!> \brief Construction of 2-center Fock Matrix - Coulomb Terms
+!> \brief  Construction of 2-center Fock Matrix - Coulomb Terms
 !> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param  DIMENSION(sepi%natorb, sepi%natorb) :: fi_mat
+!> \param  DIMENSION(sepj%natorb, sepj%natorb) :: fj_mat
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2C(sepi, sepj, rij, switch, pi_tot, fi_mat, pj_tot, fj_mat, &
@@ -403,14 +399,10 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: switch
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(IN)                             :: pi_tot
-    REAL(KIND=dp), &
-      DIMENSION(sepi%natorb, sepi%natorb), &
-      INTENT(INOUT)                          :: fi_mat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fi_mat
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(IN)                             :: pj_tot
-    REAL(KIND=dp), &
-      DIMENSION(sepj%natorb, sepj%natorb), &
-      INTENT(INOUT)                          :: fj_mat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fj_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
@@ -568,6 +560,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Construction of 2-center Fock Matrix - General Driver
 !> \author Teodoro Laino [tlaino] - University of Zurich
+!> \param  DIMENSION(isize(1), isize(2)) :: fi_mat
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, fi_mat, factor,&
@@ -581,9 +574,7 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(isize(1), isize(2)), &
       INTENT(IN)                             :: pi_mat
-    REAL(KIND=dp), &
-      DIMENSION(isize(1), isize(2)), &
-      INTENT(INOUT)                          :: fi_mat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fi_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
     LOGICAL, INTENT(IN)                      :: anag
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
@@ -752,18 +743,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Construction of 2-center 1-electron Fock Matrix for the residual 
 !>         (1/R^3) integral part
+!> \param  DIMENSION(sepi%natorb, sepi%natorb) :: ksi_block
+!> \param  DIMENSION(sepj%natorb, sepj%natorb) :: ksj_block
 !> \author Teodoro Laino [tlaino]
 !> \date   12.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2_1el_r3 (sepi, sepj, ksi_block, ksj_block, pi_block, pj_block,&
        e1b, e2a, ecore, rp, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(KIND=dp), &
-      DIMENSION(sepi%natorb, sepi%natorb), &
-      INTENT(INOUT)                          :: ksi_block
-    REAL(KIND=dp), &
-      DIMENSION(sepj%natorb, sepj%natorb), &
-      INTENT(INOUT)                          :: ksj_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ksi_block, ksj_block
     REAL(KIND=dp), &
       DIMENSION(sepi%natorb, sepi%natorb), &
       INTENT(IN)                             :: pi_block
@@ -865,6 +853,8 @@ CONTAINS
 !> \brief  Construction of 2-center Fock Matrix - Coulomb Terms for the residual
 !>         (1/R^3) integral part 
 !> \author Teodoro Laino [tlaino]
+!> \param  DIMENSION(sepi%natorb, sepi%natorb) :: fi_mat
+!> \param  DIMENSION(sepj%natorb, sepj%natorb) :: fj_mat
 !> \date   12.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE fock2C_r3(sepi, sepj, switch, pi_tot, fi_mat, pj_tot, fj_mat, &
@@ -873,14 +863,10 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: switch
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(IN)                             :: pi_tot
-    REAL(KIND=dp), &
-      DIMENSION(sepi%natorb, sepi%natorb), &
-      INTENT(INOUT)                          :: fi_mat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fi_mat
     REAL(KIND=dp), DIMENSION(45, 45), &
       INTENT(IN)                             :: pj_tot
-    REAL(KIND=dp), &
-      DIMENSION(sepj%natorb, sepj%natorb), &
-      INTENT(INOUT)                          :: fj_mat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fj_mat
     REAL(KIND=dp), INTENT(IN)                :: factor
     REAL(KIND=dp), DIMENSION(81), INTENT(IN) :: w
     REAL(KIND=dp), INTENT(IN)                :: rp
