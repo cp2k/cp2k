@@ -109,12 +109,6 @@ CONTAINS
            WRITE(iw,'(A5,T10,10F6.2)') label(l),(state%occ(l,j),j=1,mo)
         ELSE
            mc = mm(l)
-!deb
-WRITE(6,*) "l=",l,"    mo=",mo,"   mc=",mc
-WRITE(6,*) "OCC     ",state%occ(l,:)
-WRITE(6,*) "CORE    ",state%core(l,:)
-WRITE(6,*) "OCC     ",SUM(state%occ(l,1:mc)),SUM(state%occ(l,:))
-!deb
            CPPrecondition(SUM(state%occ(l,1:mc))==0,cp_failure_level,routineP,error,failure)
            WRITE(iw,ADVANCE="no",FMT='(A5,T9,A1,10F6.2)') label(l),"[",(state%core(l,j),j=1,mc)
            WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occ(l,j),j=mc+1,mc+mo)
