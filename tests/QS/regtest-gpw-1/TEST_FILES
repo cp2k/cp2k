@@ -48,3 +48,5 @@ core_pp_2.inp     1
 # vdW correction
 vdW_PP_GRIMME_p1.inp 33
 vdW_PP_GRIMME_p2.inp 33
+# finer xc grids
+Ar-fine-1.inp 1
