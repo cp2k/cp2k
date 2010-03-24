@@ -3272,7 +3272,6 @@ CPSourceFileRef,&
        radius=0.5_dp
        sigma =0.1_dp
        nc(:)=CEILING(radius/dr(:))
-       WRITE(6,*) radius,sigma,nc(:)
        ALLOCATE(Kernel(-nc(1):nc(1),-nc(2):nc(2),-nc(3):nc(3)))
        sum = 0.0_dp
        DO r=-nc(3),nc(3)
