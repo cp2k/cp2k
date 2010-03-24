@@ -268,6 +268,11 @@ CONTAINS
        !
     END IF
 
+    ipt          = 0
+    jpt          = 0
+    xipt         = 0._dp
+    xjpt         = 0._dp
+
     half=0.5_dp
     one=1.0_dp
     tenth=0.1_dp
