@@ -1200,6 +1200,7 @@ CONTAINS
                       END IF
 
                       IF(kinetic_m)THEN   
+                         tab => sab
                          tab = 0.0_dp
                          CALL present_integral(iatom,jatom,tab,tpgf_block,pgfa,pgfb,&
                               npgfa(iset),tot_npgfa,npgfb(jset),tot_npgfb,&
@@ -1207,7 +1208,7 @@ CONTAINS
                               ncoset(lb_max(jset)),ncoset(lb_min(jset)-1)) 
 
                          CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                              1.0_dp,hab(1,1),SIZE(hab,1),&
+                              1.0_dp,tab(1,1),SIZE(tab,1),&
                               sphi_b(1,sgfb),SIZE(sphi_b,1),&
                               0.0_dp,work(1,1),SIZE(work,1))
                          IF (iatom <= jatom) THEN
