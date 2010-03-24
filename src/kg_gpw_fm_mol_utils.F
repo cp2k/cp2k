@@ -37,9 +37,7 @@ MODULE kg_gpw_fm_mol_utils
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
   USE kinds,                           ONLY: default_path_length,&
-                                             dp,&
-                                             dp_size,&
-                                             int_size
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
@@ -313,7 +311,7 @@ CONTAINS
 
     INTEGER                                  :: handle, icol, istat, ncol, &
                                                 nrow
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: f, p
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigenvalues
 
