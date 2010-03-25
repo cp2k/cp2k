@@ -512,7 +512,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
-    CALL dbcsr_finalize(matrix, resort, reshuffle, dbcsr_error)
+    CALL dbcsr_finalize(matrix, resort, reshuffle, error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_finalize
 

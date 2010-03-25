@@ -479,9 +479,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: all_nblks, all_nze, &
-                                                error_handler, i, j, nwms
-    LOGICAL                                  :: multidata, sort_data, &
-                                                sort_index
+                                                error_handler, i, j, k, nwms
+    LOGICAL                                  :: count_data, multidata, &
+                                                sort_data, sort_index
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -517,6 +517,7 @@ CONTAINS
     ELSE
        sort_data = .FALSE.
     ENDIF
+    count_data = dbcsr_get_data_size(matrix) .GT. matrix%m%nze
     ! If there is data in the matrix proper, create a work matrix from
     ! it since it's more consistent to merge that way.  If there are
     ! no work matrices, then, for efficiency, only one work matrix is
@@ -541,7 +542,6 @@ CONTAINS
           ! Count the data that is must actually be added. This
           ! prevents the finalized matrix from having unused space.
           CALL dbcsr_add_wm_from_matrix (matrix, new_nwms=nwms,&
-               count_data=.TRUE.,&
                error=error)
        ELSE
           CALL dbcsr_add_wm_from_matrix (matrix, new_nwms=nwms, error=error)
@@ -593,7 +593,21 @@ CONTAINS
     all_nze = 0
     DO i = 1, SIZE (matrix%m%wms)
        all_nblks = all_nblks + matrix%m%wms(i)%lastblk
-       all_nze = all_nze + matrix%m%wms(i)%datasize
+       IF (dbcsr_wm_use_mutable (matrix%m%wms(i)) .OR. .NOT. count_data) THEN
+          all_nze = all_nze + matrix%m%wms(i)%datasize
+       ELSE
+          j = matrix%m%wms(i)%lastblk
+          IF (j .GT. 0) THEN
+             CALL dbcsr_count_wm(matrix%m%wms(i)%row_i,&
+                  matrix%m%wms(i)%col_i,&
+                  array_data (matrix%m%row_blk_size),&
+                  array_data (matrix%m%col_blk_size),&
+                  j, k)
+          ELSE
+             k = 0
+          ENDIF
+          all_nze = all_nze + k
+       ENDIF
     ENDDO
 !$omp master
     IF (dbg) THEN
@@ -952,6 +966,33 @@ CONTAINS
   END SUBROUTINE add_work_coordinate
 
 
+! *****************************************************************************
+!> \brief Count actual size taken by work matrix
+!> \param[in] row_i           row indices
+!> \param[in] col_i           column indices
+!> \param[in] row_block_sizes  offsets of rows
+!> \param[in] col_block_sizes  offsets of columns
+!> \param[in] nblks              number of blocks
+!> \param[out] nze               counted data size
+! *****************************************************************************
+  PURE SUBROUTINE dbcsr_count_wm(row_i, col_i,&
+       row_block_sizes, col_block_sizes, nblks, nze)
+    INTEGER, INTENT(IN)                      :: nblks
+    INTEGER, DIMENSION(:), INTENT(IN)        :: col_block_sizes, &
+                                                row_block_sizes
+    INTEGER, DIMENSION(nblks), INTENT(IN)    :: col_i, row_i
+    INTEGER, INTENT(OUT)                     :: nze
+
+    INTEGER                                  :: blk
+
+!   ---------------------------------------------------------------------------
+
+    nze = 0
+    DO blk = 1, nblks
+       nze = nze + row_block_sizes(row_i(blk)) * col_block_sizes(col_i(blk))
+    ENDDO
+  END SUBROUTINE dbcsr_count_wm
+
 
 ! *****************************************************************************
 !> \brief Merge data from sorted work matrices indices into the final matrix.
@@ -1020,6 +1061,13 @@ CONTAINS
           ENDIF
        ENDIF
     ENDDO
+    ! Do not let the matrix data size be too big.
+    IF (dbcsr_get_data_size(matrix%data_area) .GT. 2*matrix%nze) THEN
+       CALL dbcsr_data_release(matrix%data_area)
+       CALL dbcsr_data_new (matrix%data_area, matrix%data_type,&
+            special_memory=matrix%special_memory)
+       srt = .TRUE.
+    ENDIF
     IF (.NOT. srt) THEN
        CALL dbcsr_data_release (matrix%data_area)
        matrix%data_area = matrix%wms(1)%data_area
