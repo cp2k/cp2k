@@ -12,6 +12,7 @@
       METHOD       GAPW
       EPS_GVG      1.0E-6
       EPS_PGF_ORB  1.0E-6
+   EPS_FILTER_MATRIX 0.0e0
       QUADRATURE   GC_LOG
       EPSFIT       1.E-4
       EPSISO       1.0E-12

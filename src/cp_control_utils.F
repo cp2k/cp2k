@@ -446,6 +446,8 @@ CPSourceFileRef,&
     qs_control%eps_ppnl        = qs_control%eps_pgf_orb/100.0_dp
     ! accuracy is basically set by the overlap, this sets an empirical shift
     qs_control%eps_ppl         = 1.0E-2_dp
+    ! set the  threshold for matrix filtering
+    qs_control%eps_filter_matrix = tmpsqrt
     ! 
     qs_control%gapw_control%eps_cpc   = value
     ! expexted error in the density 
@@ -1102,6 +1104,8 @@ CPSourceFileRef,&
        WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
             "QS| Interaction thresholds: eps_pgf_orb:",&
             qs_control%eps_pgf_orb,&
+            "QS|                         eps_filter_matrix:",&
+            qs_control%eps_filter_matrix,&
             "QS|                         eps_core_charge:",&
             qs_control%eps_core_charge,&
             "QS|                         eps_rho_gspace:",&

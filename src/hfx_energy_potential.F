@@ -582,7 +582,7 @@ MODULE hfx_energy_potential
       IF ( .NOT. ks_fully_occ) THEN
         WRITE(error_msg,'(A,A,A)') "The Kohn Sham matrix is not 100% occupied. This "//&
              "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
-             "in the QS section. "
+             "and EPS_FILTER_MATRIX in the QS section. "
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                        error_msg,&
                        error,&

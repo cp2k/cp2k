@@ -1988,8 +1988,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_FILTER_MATRIX",&
-            description="Sets the threshold for filtering matrix elements",&
-            usage="EPS_FILTER_MATRIX 1E-6", default_r_val=0.0_dp, type_of_var=real_t,&
+            description="Sets the threshold for filtering matrix elements. Overrides sqrt(EPS_DEFAULT) value",&
+            usage="EPS_FILTER_MATRIX 1.0E-6", type_of_var=real_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

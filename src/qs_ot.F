@@ -553,7 +553,8 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
 
-    IF(output_unit>0) WRITE(output_unit,*) routinen//' eps_irac_filter_matrix=',&
+    IF(output_unit>0.AND.qs_ot_env1%settings%eps_irac_filter_matrix.GT.0.0_dp) &
+         WRITE(output_unit,*) routinen//' eps_irac_filter_matrix=',&
          qs_ot_env1%settings%eps_irac_filter_matrix
 
     CALL dbcsr_get_info(matrix_c,nfullrows_total=n,nfullcols_total=k)

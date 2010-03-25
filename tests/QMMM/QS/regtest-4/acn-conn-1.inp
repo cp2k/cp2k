@@ -12,6 +12,7 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-6
+      EPS_FILTER_MATRIX 0.0E0
       MAP_CONSISTENT
     &END QS
     &SCF

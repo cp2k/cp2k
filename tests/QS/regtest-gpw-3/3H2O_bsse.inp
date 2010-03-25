@@ -20,6 +20,7 @@
     &END MGRID
     &QS
       EPS_DEFAULT 1.0E-4
+      EPS_FILTER_MATRIX 0.0e0
     &END QS
     &SCF
       EPS_SCF 1.0E-3

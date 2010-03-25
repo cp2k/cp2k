@@ -15,6 +15,7 @@
       METHOD GAPW
       EPS_DEFAULT 1.0E-12
       EPS_PGF_ORB 1.0E-16
+   EPS_FILTER_MATRIX 0.0e0
     &END QS
     &SCF
       EPS_SCF 1.0E-7
