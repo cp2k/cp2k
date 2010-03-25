@@ -1697,7 +1697,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler, hold, mynode, &
-                                                row, row_size
+                                                row, row_size, stored_row
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: found, tr
     TYPE(dbcsr_data_obj)                     :: buff, data_a, small_buff
@@ -1726,20 +1726,21 @@ CONTAINS
 
     DO row = 1,dbcsr_nblkrows_total(matrix)
        tr = .FALSE.
-       CALL dbcsr_get_stored_coordinates (matrix, row, row, tr, hold)
+       stored_row = row
+       CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_row, tr,&
+            hold)
        IF(hold.EQ.mynode) THEN
-          CALL dbcsr_get_block_p(matrix, row, row, data_a, tr, found,&
-               row_size=row_size)
+          CALL dbcsr_get_block_p(matrix, stored_row, stored_row, data_a, tr,&
+               found, row_size=row_size)
           IF(found) THEN
              CALL block_add_on_diag(data_a, alpha_scalar, row_size, error=error)
           ELSE
-             !buff(1:row_size,1:row_size) = 0.0_dp
              CALL dbcsr_data_set_pointer (small_buff, row_size, row_size,&
                   buff)
              CALL dbcsr_data_clear (small_buff)
              CALL block_add_on_diag (small_buff, alpha_scalar, row_size,&
                   error=error)
-             CALL dbcsr_put_block (matrix, row, row, small_buff)
+             CALL dbcsr_put_block (matrix, stored_row, stored_row, small_buff)
           ENDIF
        ENDIF
     ENDDO

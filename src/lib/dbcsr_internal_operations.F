@@ -154,7 +154,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     CHARACTER(LEN=80), PARAMETER :: &
       fdata = '(A,1X,I4,"(",2(I3),"x",2(I3),")","(",I3,"x",I3,")")', fxfer = &
-      '(A,1X,I4,"->",I4,2(1X,"(",I3,"x",I3,")"),1X,"IM (",I3,"x",I3,")"))'
+      '(A,1X,I4,"->",I4,2(1X,"(",I3,"x",I3,")"),1X,"IM (",I3,"x",I3,")")'
     INTEGER, PARAMETER                       :: idata = 1, imeta = 2, &
                                                 M_L = 2, M_P = 1, M_R = 3, &
                                                 RC_C = 2, RC_R = 1

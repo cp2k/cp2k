@@ -219,7 +219,7 @@ CONTAINS
     ! abort if needed
     IF(error%level.NE.dbcsr_warning_level) THEN
        ! Segmentation faults can be handy for debugging.
-       WRITE(*,*)error%stack%handler(-line - 666)
+       !WRITE(*,*)error%stack%handler(-line - 666)
        CALL mp_abort()
     ENDIF
     !
