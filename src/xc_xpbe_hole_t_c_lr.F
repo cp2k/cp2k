@@ -1183,7 +1183,7 @@ MODULE xc_xpbe_hole_t_c_lr
       IF( P+Q < 0.5_dp ) THEN
         tmp = -euler -LOG(P+Q)+P+Q
         tmp = tmp - 0.25_dp*(P+Q)**2+1.0_dp/18.0_dp*(P+Q)**3-1.0_dp/96.0_dp*(P+Q)**4
-        tmp = tmp +1.0_dp/600_dp*(P+Q)**5
+        tmp = tmp +1.0_dp/600.0_dp*(P+Q)**5
         exei = EXP(P)*tmp
       ELSE
         exei = EXP(P)*expint(1,Q+P)
