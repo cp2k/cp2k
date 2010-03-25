@@ -731,7 +731,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 2
 
-    INTEGER                                  :: bin, i, virtual_bin
+    INTEGER                                  :: i, virtual_bin
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -787,8 +787,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_col_image_dist', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: debug_level, new_ncols, &
-                                                npcols, nprows
+    INTEGER                                  :: new_ncols, npcols, nprows
     INTEGER, DIMENSION(:), POINTER           :: new_col_dist_data, &
                                                 new_col_img_data, rd
     TYPE(array_i1d_obj)                      :: new_col_dist, new_col_image
@@ -799,7 +798,6 @@ CONTAINS
 !
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    IF (dbg) debug_level = 5
     CALL dbcsr_distribution_init (new_dist)
     CALL dbcsr_distribution_init (imgdist%main)
     CALL array_nullify (imgdist%col_image)
@@ -860,7 +858,7 @@ CONTAINS
       INTENT(OUT)                            :: imgdist
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL, TARGET                       :: match_row_pdist, &
+      OPTIONAL                               :: match_row_pdist, &
                                                 match_row_idist
     INTEGER, INTENT(IN)                      :: match_row_nbins
     INTEGER, DIMENSION(:), INTENT(IN), &
@@ -1667,8 +1665,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'match_sizes_to_dist', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nvpcols, nvprows, old_npcols, &
-                                                old_nprows
+    INTEGER                                  :: nvpcols, nvprows
     INTEGER, DIMENSION(:), POINTER :: cbo, cbs, new_pcol_dist, new_prow_dist, &
       old_cbo, old_icol_dist, old_irow_dist, old_pcol_dist, old_prow_dist, &
       old_rbo, rbo, rbs
@@ -1693,8 +1690,6 @@ CONTAINS
     old_col_blk_offsets = col_blk_offsets
     old_rbo => array_data (row_blk_offsets)
     old_cbo => array_data (col_blk_offsets)
-    old_nprows = dbcsr_mp_nprows (old_mp)
-    old_npcols = dbcsr_mp_npcols (old_mp)
     CALL array_nullify (row_blk_sizes)
     CALL array_nullify (col_blk_sizes)
     CALL array_nullify (row_blk_offsets)
@@ -1919,7 +1914,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN) :: blk_p
     LOGICAL                           :: mostly_non_transposed
 
-    INTEGER            :: n, lb, ub, str, sntr
+    INTEGER            :: n, str, sntr
     INTEGER, PARAMETER :: allcheck_cutoff = 8
 
     n = SIZE (blk_p)

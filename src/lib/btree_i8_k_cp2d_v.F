@@ -208,10 +208,9 @@ CONTAINS
     TYPE(btree_node), OPTIONAL, POINTER      :: subtree
 
     INTEGER                                  :: ge_pos, split_pos
-    INTEGER(KIND=keyt)                       :: median, upgrade_key
+    INTEGER(KIND=keyt)                       :: upgrade_key
     LOGICAL                                  :: leaf
     TYPE(btree_node), POINTER                :: new_node
-    TYPE(btree_node_p)                       :: one_subtree
     TYPE(cp2d)                               :: upgrade_value
 
 !
@@ -242,11 +241,8 @@ CONTAINS
        ENDIF
        RETURN
     ELSE
-       NULLIFY(one_subtree%node)
-       IF (PRESENT (subtree)) one_subtree%node => subtree
        split_pos = ISHFT (tree%b%max_fill+1, -1)
        ! I assert that split_pos <= SIZE(node%keys)
-       median = node%keys(split_pos)
        CALL btree_new_node (tree, new_node)
        ! The key to be added falls in the left node
        node%filled = split_pos-1
@@ -471,7 +467,6 @@ CONTAINS
 
 !
 !
-!
 
     NULLIFY (rebalance_node)
     parent_pos = 0
@@ -568,6 +563,7 @@ CONTAINS
     ! Check to see if we can merge with the left or right siblings.
     left_exists = .FALSE.
     right_exists = .FALSE.
+    left_skinny = .FALSE. ; right_skinny = .FALSE.
     NULLIFY (node_left)
     IF (ppos .GT. 1) THEN
        left_exists = .TRUE.
@@ -997,7 +993,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: ge_position
     LOGICAL, INTENT(IN), OPTIONAL            :: short
 
-    INTEGER                                  :: eqi, gti, i, lti
+    INTEGER                                  :: gti
     LOGICAL                                  :: stop_short
 
 ! Used mark searches
@@ -1010,7 +1006,7 @@ CONTAINS
     IF (PRESENT (ge_position)) ge_position = 0
     !IF (tree%b%n .EQ. 0) RETURN
     IF (.NOT. ASSOCIATED (tree%b%root)) RETURN
-    lti = 1 ; gti = 1 ; eqi = 1 ; i = 1
+    gti = 1
     ! Try to find the key in the given node. If it's found, then
     ! return the node.
     node => tree%b%root
@@ -1156,6 +1152,7 @@ CONTAINS
 
 !
 ! Recurses down and prints the values.
+! pid = -1
 ! WRITE(*,*)'btree_print_node: id',node%id,'fill of',node%filled,'level',level
 
     num_nodes = num_nodes+1
@@ -1194,13 +1191,13 @@ CONTAINS
     TYPE(btree_node), INTENT(IN)             :: node
     INTEGER, INTENT(IN)                      :: level
 
-    INTEGER                                  :: branch, pid
+    INTEGER                                  :: branch
     INTEGER, DIMENSION(node%filled+1)        :: child_ids
 
 !
+!pid = -1
+!IF (ASSOCIATED (node%parent)) pid = node%parent%id
 
-    pid = -1
-    IF (ASSOCIATED (node%parent)) pid = node%parent%id
     child_ids = 0
     DO branch = 1, node%filled+1
        IF (ASSOCIATED (node%subtrees(branch)%node)) THEN
@@ -1265,15 +1262,14 @@ CONTAINS
                                                 max_leaf_level, min_leaf_level
     LOGICAL, INTENT(INOUT)                   :: printing
 
-    INTEGER                                  :: branch, pid
+    INTEGER                                  :: branch
     LOGICAL                                  :: any_assoc, any_notassoc
 
 !
 ! Recurses down and prints the values.
+!IF (ASSOCIATED (node%parent)) pid = node%parent%id
+! WRITE(*,*)'btree_verify_node: id',node%id,'fill,level,parent',node%filled,level,pid
 
-    pid = -1
-    IF (ASSOCIATED (node%parent)) pid = node%parent%id
-    ! WRITE(*,*)'btree_verify_node: id',node%id,'fill,level,parent',node%filled,level,pid
     num_nodes = num_nodes+1
     IF (level.GT.0.AND.node%filled+1 .LT. tree%b%min_fill) WRITE(*,*)'Error: Dieting leaf'
     IF (nids(node%id)) WRITE(*,*)'Error: duplicate node id',node%id

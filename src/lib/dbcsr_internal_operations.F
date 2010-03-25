@@ -141,7 +141,7 @@ CONTAINS
        submatrix_selection, error, retain_sparsity, alpha, beta, flop)
     TYPE(dbcsr_2d_array_type), &
       INTENT(INOUT), TARGET                  :: left_set, right_set
-    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: product_matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: product_matrix
     INTEGER, DIMENSION(6), INTENT(IN)        :: submatrix_selection
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
@@ -161,30 +161,28 @@ CONTAINS
     LOGICAL, PARAMETER                       :: use_combined_types = .FALSE.
 
     CHARACTER                                :: data_type
-    INTEGER :: debug_level, error_handler, grp, i, ithread, left_col_image, &
-      left_col_mult, left_col_nimages, left_col_v_offset, left_dst_icol, &
-      left_dst_irow, left_dst_p, left_dst_pcol, left_dst_prow, &
-      left_dst_v_col, left_dst_v_row, left_recv_icol, left_recv_irow, &
-      left_recv_p, left_recv_pcol, left_recv_prow, left_recv_v_col, &
-      left_recv_v_row, left_row_image, left_row_mult, left_row_nimages, &
-      left_send_icol, left_send_irow, left_send_p, left_send_pcol, &
-      left_send_prow, left_send_v_col, left_send_v_row, left_src_icol, &
-      left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
-      left_src_v_col, left_src_v_row, max_nblks
-    INTEGER :: max_nze, metronome, min_nimages, mp_group, mynode, nsteps_k, &
-      nthreads, numnodes, nvirt_k, output_unit, right_col_image, &
-      right_col_mult, right_col_nimages, right_dst_icol, right_dst_irow, &
-      right_dst_p, right_dst_pcol, right_dst_prow, right_dst_v_col, &
-      right_dst_v_row, right_recv_icol, right_recv_irow, right_recv_p, &
-      right_recv_pcol, right_recv_prow, right_recv_v_col, right_recv_v_row, &
-      right_row_image, right_row_mult, right_row_nimages, right_row_v_offset, &
-      right_send_icol, right_send_irow, right_send_p, right_send_pcol, &
-      right_send_prow, right_send_v_col, right_send_v_row, right_src_icol, &
-      right_src_irow
-    INTEGER :: right_src_p, right_src_pcol, right_src_prow, right_src_v_col, &
-      right_src_v_row, v_k, v_ki
+    INTEGER :: error_handler, grp, i, left_col_image, left_col_mult, &
+      left_col_nimages, left_col_v_offset, left_dst_icol, left_dst_irow, &
+      left_dst_p, left_dst_pcol, left_dst_prow, left_dst_v_col, &
+      left_dst_v_row, left_recv_icol, left_recv_irow, left_recv_p, &
+      left_recv_pcol, left_recv_prow, left_recv_v_col, left_recv_v_row, &
+      left_row_image, left_row_mult, left_row_nimages, left_send_icol, &
+      left_send_irow, left_send_p, left_send_pcol, left_send_prow, &
+      left_send_v_col, left_send_v_row, left_src_icol, left_src_irow, &
+      left_src_p, left_src_pcol, left_src_prow, left_src_v_col, &
+      left_src_v_row, max_nblks, max_nze, metronome
+    INTEGER :: min_nimages, mp_group, mynode, nsteps_k, nthreads, numnodes, &
+      nvirt_k, output_unit, right_col_image, right_col_mult, &
+      right_col_nimages, right_dst_icol, right_dst_irow, right_dst_p, &
+      right_dst_pcol, right_dst_prow, right_dst_v_col, right_dst_v_row, &
+      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
+      right_recv_prow, right_recv_v_col, right_recv_v_row, right_row_image, &
+      right_row_mult, right_row_nimages, right_row_v_offset, right_send_icol, &
+      right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
+      right_send_v_col, right_send_v_row, right_src_icol, right_src_irow, &
+      right_src_p, right_src_pcol
+    INTEGER :: right_src_prow, right_src_v_col, right_src_v_row, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: infos
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
       left_index_rr, left_index_sr, right_data_rr, right_data_sr, &
       right_index_rr, right_index_sr
@@ -226,14 +224,10 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
-    debug_level=0
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
-    IF (dbg) debug_level = 2
-!$omp parallel default (none) private (ithread) &
+!$omp parallel default (none) &
 !$omp shared (nthreads, product_matrix, error)
-    ithread= 0
-    !$ ithread = OMP_GET_THREAD_NUM ()
 !$omp single
     nthreads = 1
     !$ nthreads = OMP_GET_NUM_THREADS ()
@@ -474,8 +468,6 @@ CONTAINS
     CALL dbcsr_data_new(left_data_rp, data_type)
     CALL dbcsr_data_new(right_data_sp, data_type)
     CALL dbcsr_data_new(right_data_rp, data_type)
-    !
-    ALLOCATE (infos (numnodes-1))
     !
     ! In the first loop iteration, the data is fetched from the
     ! sources. In the remaining iterations, the data are exchanged
@@ -1024,7 +1016,7 @@ CONTAINS
 !>                            floating point operations performed
 ! *****************************************************************************
   SUBROUTINE dbcsr_nn_mult_lin(left, right, product, submatrix_box, flop,&
-       retain_sparsity, alpha, beta,&
+       retain_sparsity, alpha,&
        t_all, t_dgemm, error)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
@@ -1033,7 +1025,7 @@ CONTAINS
       OPTIONAL                               :: flop
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_scalar_type), INTENT(IN), &
-      OPTIONAL                               :: alpha, beta
+      OPTIONAL                               :: alpha
     REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
@@ -1044,13 +1036,13 @@ CONTAINS
     INTEGER :: a_blk, a_col_logical, a_col_size_logical, a_row_l, &
       a_row_logical, a_row_size_logical, b_blk, b_col_logical, &
       b_col_size_logical, b_row_logical, b_row_size_logical, blk_end, &
-      blk_size, blk_start, c_blk_p, c_blk_pt, c_col_logical, &
-      c_col_size_logical, c_nze, c_row_logical, c_row_size_logical, &
-      clamp_k_len, datasize, error_handler, first_k, first_mergeable, i, &
-      ithread, j, last_k, lastblk, new_blk, new_row_blks, nthreads, old_blk, &
-      old_row_begin_blk, old_size, row_begin_blk, row_blk, size_c_blk_ps, &
-      stack_p, stack_p_a, stack_p_b, stack_p_c, stat, submat_f_col, &
-      submat_f_row, submat_l_col, submat_l_row, this_right_limit
+      blk_size, blk_start, c_blk_pt, c_col_logical, c_col_size_logical, &
+      c_nze, c_row_logical, c_row_size_logical, clamp_k_len, datasize, &
+      error_handler, first_k, first_mergeable, i, ithread, j, last_k, &
+      lastblk, new_blk, new_row_blks, nthreads, old_blk, old_row_begin_blk, &
+      old_size, row_begin_blk, size_c_blk_ps, stack_p, stack_p_a, stack_p_b, &
+      stack_p_c, stat, submat_f_col, submat_f_row, submat_l_col, &
+      submat_l_row, this_right_limit
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: lflop, one_flop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
@@ -1060,7 +1052,7 @@ CONTAINS
       product_col_blk_offset, right_col_blk_offset
 
 !$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
-    LOGICAL :: block_exists, flush_stack, found, keep_sparsity, &
+    LOGICAL :: block_exists, flush_stack, keep_sparsity, &
       left_limit_rows, limit_k, negate_alpha, product_is_symmetric, &
       right_limit_cols, tr_p
     REAL(KIND=dp)                            :: epoch, mt_t_dgemm
@@ -1069,7 +1061,7 @@ CONTAINS
       DIMENSION(dgemm_stack_size)            :: parameters_a, parameters_b, &
                                                 parameters_c
     TYPE(dbcsr_scalar_type)                  :: beta_add, beta_new, my_alpha, &
-                                                my_beta, which_beta
+                                                which_beta
     TYPE(dgemm_join), &
       DIMENSION(dgemm_stack_size)            :: dgemm_joins
 
@@ -1080,8 +1072,6 @@ CONTAINS
     data_type = product%data_type
     my_alpha = dbcsr_scalar_one (data_type)
     IF (PRESENT (alpha)) my_alpha = alpha
-    my_beta = dbcsr_scalar_zero (data_type)
-    IF (PRESENT (beta)) my_beta = beta
     beta_new = dbcsr_scalar_zero (data_type)
     beta_add = dbcsr_scalar_one (data_type)
     keep_sparsity = .FALSE.
@@ -1139,10 +1129,11 @@ CONTAINS
        !write(*,*)routineN//" Limiting k", submatrix_box(5:6)
     ENDIF
     !
-    c_blk_p = product%wms(ithread+1)%datasize + 1
     DBG 'A rows:',left%nblkrows_total
     old_size = product%wms(ithread+1)%lastblk
     mt_t_dgemm = 0.0_dp
+    lflop = 0
+    one_time = 0.0_dp
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
        !
     ALLOCATE (new_index (3, left%nblkrows_local*right%nblkcols_local))
@@ -1159,9 +1150,6 @@ CONTAINS
     lastblk = 0
     datasize = 0
     !
-    mt_t_dgemm = 0.0_dp
-    lflop = 0
-    one_time = 0.0_dp
     old_blk = 1
     first_mergeable = 1
     stack_p = 0 ; stack_p_a = 0 ; stack_p_b = 0 ; stack_p_c = 0
@@ -1214,7 +1202,6 @@ CONTAINS
                   product%wms(ithread+1)%col_i(old_blk),&
                   product%wms(ithread+1)%blk_p(old_blk)
              c_col_logical = product%wms(ithread+1)%col_i(old_blk)
-             found = .FALSE.
              c_blk_ps(c_col_logical)&
                   = product%wms(ithread+1)%blk_p(old_blk)
              size_c_blk_ps = size_c_blk_ps + 1
@@ -1236,7 +1223,6 @@ CONTAINS
           IF (left%blk_p(a_blk) .EQ. 0) THEN
              CYCLE
           ENDIF
-          row_blk = row_begin_blk
           old_blk = old_row_begin_blk
           a_col_logical = left%col_i(a_blk)
           IF (dbg) WRITE(*,*)routineN//" A col", a_col_logical,";",a_row_logical

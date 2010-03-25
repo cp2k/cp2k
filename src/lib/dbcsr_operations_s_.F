@@ -236,16 +236,14 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'bcast_block_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icol, irow, mp_group, mynode, &
+    INTEGER                                  :: icol, irow, mp_group, &
                                                 mypcol, myprow, npcols, &
-                                                nprows, numnodes, src
+                                                nprows, src
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     REAL(kind=real_4), ALLOCATABLE, DIMENSION(:)       :: buff
 
 !   ---------------------------------------------------------------------------
 
-    numnodes = dbcsr_mp_numnodes (mp_obj)
-    mynode = dbcsr_mp_mynode (mp_obj)
     myprow = dbcsr_mp_myprow (mp_obj)
     mypcol = dbcsr_mp_mypcol (mp_obj)
     npcols = dbcsr_mp_npcols (mp_obj)
@@ -297,10 +295,8 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_by_vector_s', &
       routineP = moduleN//':'//routineN
     REAL(kind=real_4), DIMENSION(:), POINTER            :: tmp_p
-    CHARACTER                                 :: scale_type
     TYPE(dbcsr_data_obj)                      :: enc_alpha_vec
 
-    scale_type = 'V'
     CALL dbcsr_data_init (enc_alpha_vec)
     CALL dbcsr_data_new (enc_alpha_vec, dbcsr_type_real_4)
     tmp_p => alpha
@@ -406,7 +402,7 @@
 
   SUBROUTINE dbcsr_get_diag_s(matrix, diag, error)
 
-    TYPE(dbcsr_obj), INTENT(IN), TARGET            :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)                    :: matrix
     REAL(kind=real_4), DIMENSION(:), INTENT(INOUT), TARGET   :: diag
     TYPE(dbcsr_error_type), INTENT(INOUT)          :: error
 

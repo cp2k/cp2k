@@ -762,9 +762,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_p, col, cs, &
-                                                error_handler, ithread, &
-                                                nblks, nze, row, rs, wblk_p, &
-                                                which_wm
+                                                error_handler, ithread, nze, &
+                                                row, rs, wblk_p, which_wm
     INTEGER, DIMENSION(:), POINTER           :: tdist
     LOGICAL                                  :: count, mt, tr
     TYPE(dbcsr_data_obj)                     :: data_block
@@ -775,7 +774,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
-    nblks = matrix%nblks
     m%m = matrix
     count = .FALSE.
     IF (PRESENT (count_data)) count = count_data
@@ -1009,7 +1007,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, blk_p, error_handler, i, nwms, nze, o_blk_p, prev_row, &
-      row, smallest, smallest_col, smallest_row
+      smallest, smallest_col, smallest_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wm_blk_p
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: srt, wspecial
@@ -1096,7 +1094,6 @@ CONTAINS
     matrix%row_p(1) = 0
     blk_p = 1
     blk = 1
-    row = 1
     prev_row = 1
     smallest_row = 1
     DO WHILE (.NOT. ALL (finished))

@@ -63,12 +63,11 @@
     INTEGER                        :: l, u
     LOGICAL, PARAMETER             :: dbg = .TRUE.
     TYPE(dbcsr_error_type)         :: error
+    REAL(kind=real_8)                        :: tmp
 !   ---------------------------------------------------------------------------
 
     ! The coersion argument is needed to make this function unique
-    ! enough to use in the interface. The following line is added to
-    ! remove compiler warnings about unused arguments.
-    l = coersion
+    ! enough to use in the interface.
     IF (ASSOCIATED (area%d)) THEN
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%r_dp, 1)
@@ -105,16 +104,15 @@
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_p_d (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
     REAL(kind=real_8), DIMENSION(:), POINTER :: DATA
+    INTEGER, INTENT(IN), OPTIONAL  :: lb, ub
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_p_d', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER                                  :: l, u
-    TYPE(dbcsr_error_type)                   :: error
-
+    INTEGER                        :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -152,19 +150,16 @@
 !> \param[out] data      pointer to data
 ! *****************************************************************************
   FUNCTION dbcsr_get_data_p_2d_d (area, lb, ub) RESULT (DATA)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    INTEGER, DIMENSION(2), INTENT(IN), &
-      OPTIONAL                               :: lb, ub
-    REAL(kind=real_8), DIMENSION(:, :), &
-      POINTER                                :: DATA
+    TYPE(dbcsr_data_obj), INTENT(IN)            :: area
+    REAL(kind=real_8), DIMENSION(:,:), POINTER            :: DATA
+    INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: lb, ub
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_p_2d_d', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER, DIMENSION(2)                    :: l, u
-    TYPE(dbcsr_error_type)                   :: error
-
+    INTEGER, DIMENSION(2)          :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -222,17 +217,16 @@
 !> \param[in] ub         (optional) upper bound for pointer
 ! *****************************************************************************
   SUBROUTINE get_data_d (area, DATA, lb, ub)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    REAL(kind=real_8), DIMENSION(:), POINTER :: DATA
-    INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
+    TYPE(dbcsr_data_obj), INTENT(IN)  :: area
+    REAL(kind=real_8), DIMENSION(:), POINTER    :: DATA
+    INTEGER, INTENT(IN), OPTIONAL     :: lb, ub
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_data_d', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER                                  :: l, u
-    TYPE(dbcsr_error_type)                   :: error
-
+    INTEGER                        :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -267,19 +261,16 @@
 !> \param[in] ub         (optional) upper bound for pointer
 ! *****************************************************************************
   SUBROUTINE get_data_2d_d (area, DATA, lb, ub)
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    REAL(kind=real_8), DIMENSION(:, :), &
-      POINTER                                :: DATA
-    INTEGER, DIMENSION(2), INTENT(IN), &
-      OPTIONAL                               :: lb, ub
+    TYPE(dbcsr_data_obj), INTENT(IN)            :: area
+    REAL(kind=real_8), DIMENSION(:,:), POINTER            :: DATA
+    INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: lb, ub
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_data_2d_d', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .TRUE.
 
-    INTEGER, DIMENSION(2)                    :: l, u
-    TYPE(dbcsr_error_type)                   :: error
-
+    INTEGER, DIMENSION(2)          :: l, u
+    LOGICAL, PARAMETER             :: dbg = .TRUE.
+    TYPE(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -317,10 +308,10 @@
 !> \result encapsulated_scalar          encapsulated scalar
 ! *****************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_d (scalar) RESULT (encapsulated_scalar)
-    REAL(kind=real_8), INTENT(IN)            :: scalar
-    TYPE(dbcsr_scalar_type)                  :: encapsulated_scalar
+    REAL(kind=real_8), INTENT(IN)       :: scalar
+    TYPE(dbcsr_scalar_type)   :: encapsulated_scalar
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_real(kind=real_8)', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -339,9 +330,9 @@
 !> Merge this with dbcsr_util* upon refactoring.
 ! *****************************************************************************
   SUBROUTINE pointer_d_rank_remap2 (r2p, d1, d2, r1p)
+    INTEGER, INTENT(IN)                      :: d1, d2
     REAL(kind=real_8), DIMENSION(:, :), &
       POINTER                                :: r2p
-    INTEGER, INTENT(IN)                      :: d1, d2
     REAL(kind=real_8), DIMENSION(d1*d2), &
       TARGET                                 :: r1p
 

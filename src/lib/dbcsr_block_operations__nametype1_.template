@@ -11,8 +11,6 @@
     [type1], INTENT(IN)                :: value
     INTEGER, INTENT(IN)                :: d
 
-    INTEGER                            :: i
-
 !   ---------------------------------------------------------------------------
 
     CALL block_set_[nametype1] (d, d, block_data, value, [zero1])
@@ -27,7 +25,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    REAL(dp)                                 :: my_alpha, my_beta
+    [type1]                                  :: my_alpha, my_beta
 
 !   ---------------------------------------------------------------------------
 
@@ -56,9 +54,6 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_set_[nametype1]', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    REAL(dp)                                 :: my_alpha, my_beta
 
 !   ---------------------------------------------------------------------------
 
@@ -359,8 +354,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_[nametype1]', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-
 !   ---------------------------------------------------------------------------
 
     CALL block_2d_add_on_diag_[nametype1](m, blk, alpha)
@@ -400,8 +393,6 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_chol_inv_[nametype1]', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, info, j
 
 !   ---------------------------------------------------------------------------
 

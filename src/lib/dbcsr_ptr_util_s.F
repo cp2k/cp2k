@@ -79,14 +79,13 @@
                                                 ub_new, ub_orig, old_size,&
                                                 size_increase, error_handler
     LOGICAL                                  :: dbg, docopy = .TRUE., &
-                                                failure = .TRUE., info, spec,&
+                                                spec,&
                                                 pad
     REAL(kind=real_4), DIMENSION(:), POINTER           :: newarray
 
 !   ---------------------------------------------------------------------------
     CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
-    info = .FALSE.
 
     docopy = .TRUE.
     IF (PRESENT (nocopy)) docopy = .NOT. nocopy
@@ -98,7 +97,6 @@
     IF (PRESENT (zero_pad)) pad = zero_pad
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
-       failure = .FALSE.
        IF (spec) THEN
           CALL dbcsr_assert (lb.EQ.1, dbcsr_warning_level, dbcsr_internal_error,&
                routineN, "Special memory can only start at 1.",__LINE__,error)
@@ -207,7 +205,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: last, lb_t, s_f, s_t, start, &
-                                                timing_handle, ub_t, error_handler
+                                                ub_t, error_handler
     LOGICAL                                  :: dbg, spec
     REAL                                     :: f
 

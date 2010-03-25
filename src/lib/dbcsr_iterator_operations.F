@@ -136,8 +136,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ithread, max_c_size, &
-                                                max_r_size, max_size
+    INTEGER                                  :: ithread, max_size
     LOGICAL                                  :: share
 
 !   ---------------------------------------------------------------------------
@@ -209,8 +208,6 @@ CONTAINS
              iterator%row_size = iterator%rbs(iterator%row)
              iterator%row_offset = iterator%roff(iterator%row)
           ENDIF
-          max_r_size = iterator%max_r_size
-          max_c_size = iterator%max_c_size
        ENDIF
     ENDIF
     max_size = MAX (matrix%m%max_rbs, matrix%m%max_cbs)

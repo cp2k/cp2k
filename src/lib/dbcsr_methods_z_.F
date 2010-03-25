@@ -63,12 +63,11 @@
     INTEGER                        :: l, u
     LOGICAL, PARAMETER             :: dbg = .TRUE.
     TYPE(dbcsr_error_type)         :: error
+    COMPLEX(kind=real_8)                        :: tmp
 !   ---------------------------------------------------------------------------
 
     ! The coersion argument is needed to make this function unique
-    ! enough to use in the interface. The following line is added to
-    ! remove compiler warnings about unused arguments.
-    l = coersion
+    ! enough to use in the interface.
     IF (ASSOCIATED (area%d)) THEN
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
           l = LBOUND (area%d%c_dp, 1)

@@ -49,7 +49,7 @@ MODULE dbcsr_ptr_util
   END INTERFACE
 
   INTERFACE ensure_array_size
-     MODULE PROCEDURE ensure_array_size_i, ensure_array_size_i_2d,&
+     MODULE PROCEDURE ensure_array_size_i,&! ensure_array_size_i_2d,&
           ensure_array_size_s, ensure_array_size_d, ensure_array_size_c,&
           ensure_array_size_z
   END INTERFACE
@@ -161,15 +161,13 @@ CONTAINS
                                                 size_increase, stat, ub_new, &
                                                 ub_orig
     INTEGER, DIMENSION(:), POINTER           :: newarray
-    LOGICAL                                  :: dbg, docopy = .TRUE., &
-                                                failure = .TRUE., info, pad, &
+    LOGICAL                                  :: dbg, docopy = .TRUE., pad, &
                                                 spec
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
-    info = .FALSE.
 
     docopy = .TRUE.
     IF (PRESENT (nocopy)) docopy = .NOT. nocopy
@@ -181,9 +179,7 @@ CONTAINS
     IF (PRESENT (zero_pad)) pad = zero_pad
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
-       failure = .FALSE.
        !CPPrecondition(.NOT.docopy, dbcsr_warning_level, routineP, error, failure)
-       failure = .TRUE.
        IF (spec) THEN
           CALL dbcsr_assert (lb_new,'EQ',1, dbcsr_warning_level,&
                dbcsr_internal_error,&
@@ -267,90 +263,6 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE ensure_array_size_i
 
-
-! *****************************************************************************
-!> \brief Ensures that an array is appropriately large.
-!> \param[in,out] array       array to verify and possibly resize
-!> \param[in] lb    (optional) desired array lower bound
-!> \param[in] ub    desired array upper bound
-!> \param[in] factor          (optional) factor by which to exagerrate
-!>                            enlargements
-!> \param[in] nocopy          (optional) copy array on enlargement; default
-!>                            is to copy
-!> \param error     cp2k error
-! *****************************************************************************
-  SUBROUTINE ensure_array_size_i_2d(array, dim, lb, ub, factor, nocopy,&
-       special, error)
-    INTEGER, DIMENSION(:, :), POINTER        :: array
-    INTEGER, INTENT(IN)                      :: dim
-    INTEGER, INTENT(IN), OPTIONAL            :: lb
-    INTEGER, INTENT(IN)                      :: ub
-    REAL, INTENT(IN), OPTIONAL               :: factor
-    LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, special
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_i_2d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handler, lb_new, &
-                                                lb_orig, osize, stat, ub_new, &
-                                                ub_orig
-    INTEGER, DIMENSION(:, :), POINTER        :: newarray
-    LOGICAL                                  :: dbg, docopy = .TRUE., info
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    dbg = .FALSE.
-    info = .FALSE.
-    docopy = .TRUE.
-    IF (PRESENT (nocopy)) docopy = .NOT. nocopy
-    lb_new = 1
-    IF (PRESENT (lb)) lb_new = lb
-    !> Creates a new array if it doesn't yet exist.
-    CALL dbcsr_assert(ASSOCIATED(array), dbcsr_failure_level, dbcsr_internal_error, routineP,&
-         'cannot resize empty multi-dimensional array',__LINE__,error)
-    lb_orig = LBOUND(array,dim)
-    ub_orig = UBOUND(array,dim)
-    IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig
-    ! The existing array is big enough.
-    IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
-       CALL dbcsr_error_stop(error_handler, error)
-       RETURN
-    ENDIF
-    ! A reallocation must be performed.
-    IF (lb_orig.GT.lb_new) THEN
-       IF (PRESENT(factor)) THEN
-          lb_new = MIN(lb_orig, lb_new - NINT(REAL(lb_orig - lb_new)*factor))
-       ENDIF
-    ENDIF
-    IF (ub_orig.LT.ub) THEN
-       IF (PRESENT(factor)) THEN
-          ub_new = MAX(ub_orig, ub + NINT(REAL(ub-ub_orig)*factor))
-       ELSE
-          ub_new = ub
-       ENDIF
-    ELSE
-       ub_new = ub
-    ENDIF
-    IF(dbg) WRITE(*,*)routineP//' Resizing to bounds',lb_new,':',ub_new
-    IF(.NOT.docopy) DEALLOCATE(array)
-    CALL dbcsr_assert(dim,'EQ',1, dbcsr_failure_level, dbcsr_unimplemented_error_nr,&
-         routineP, 'Only dimension 1 can be specified.',__LINE__,error)
-    osize = SIZE(array,2)
-    ALLOCATE(newarray(lb_new:ub_new,osize), stat=stat)
-    CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
-         routineN, "new",__LINE__,error)
-    IF(docopy) THEN
-       IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
-            dbcsr_failure_level, dbcsr_internal_error, routineP,&
-            "Old extent exceeds the new one.",__LINE__,error)
-       newarray(lb_orig:ub_orig,:) = array(lb_orig:ub_orig,:)
-       DEALLOCATE(array)
-    END IF
-    array => newarray
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE ensure_array_size_i_2d
 
 ! *****************************************************************************
 !> \brief Replaces an existing pointer with a new one, freeing memory as

@@ -345,9 +345,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: tr
     REAL(KIND=dp)                            :: tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_data, send_data
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
     TYPE(dbcsr_distribution_obj)             :: target_dist
@@ -632,8 +630,7 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER                                  :: blk, col, error_handler, &
-                                                mp_group, mynode, nblks, &
-                                                numnodes, nze, p, row
+                                                mynode, nblks, nze, p, row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size, &
                                                 tmp_index
     LOGICAL                                  :: mini, tr
@@ -680,8 +677,6 @@ CONTAINS
     col_blk_size => array_data (matrix%m%col_blk_size)
     dist = dbcsr_distribution (matrix)
     mp_obj = dbcsr_distribution_mp (dist)
-    numnodes = dbcsr_mp_numnodes (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
     mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dist))
     !
     IF (mini) THEN
@@ -2118,9 +2113,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: tr
     REAL(KIND=dp)                            :: tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: send_data
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), TARGET                   :: recv_data
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_data, send_data
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
     REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
     TYPE(dbcsr_data_obj)                     :: tmp_data
@@ -2380,11 +2373,10 @@ CONTAINS
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 7
 
     CHARACTER                                :: data_type
-    INTEGER :: blk, blk_col_new, blk_col_prev_new, blk_ps, blk_row_new, blks, &
-      cnt_fnd, cnt_new, cnt_skip, col, col_int, col_offset_new, &
-      col_offset_old, col_rle, col_size, data_offset_l, dst_p, error_handler, &
-      i, meta_l, mp_group, nblkcols_total_new, nblkrows_total_new, numnodes, &
-      nze_rle, row, row_int, row_offset_new, row_offset_old, row_prev, &
+    INTEGER :: blk, blk_col_new, blk_ps, blk_row_new, blks, cnt_fnd, cnt_new, &
+      cnt_skip, col, col_int, col_offset_new, col_offset_old, col_rle, &
+      col_size, data_offset_l, dst_p, error_handler, i, meta_l, mp_group, &
+      numnodes, nze_rle, row, row_int, row_offset_new, row_offset_old, &
       row_rle, row_size, src_p, stored_col_new, stored_row_new
     INTEGER, ALLOCATABLE, DIMENSION(:) :: col_end_new, col_end_old, &
       col_start_new, col_start_old, rd_disp, recv_meta, rm_disp, row_end_new, &
@@ -2396,15 +2388,15 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: col_blk_size_new, col_blk_size_old, &
       col_dist_new, row_blk_size_new, row_blk_size_old, row_dist_new
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-    LOGICAL                                  :: found, my_keep_sparsity, &
-                                                new_meta, sym, tr, valid_block
+    LOGICAL                                  :: found, my_keep_sparsity, sym, &
+                                                tr, valid_block
     REAL(kind=dp)                            :: cs1, cs2, t_all, t_blk, &
                                                 t_blk2, t_count, t_fill, &
                                                 t_prolog, t_unpack, t_xfer1, &
                                                 t_xfer2
     TYPE(dbcsr_data_obj)                     :: buff_data, data_block, &
                                                 recv_data, send_data, src_2d
-    TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
+    TYPE(dbcsr_distribution_obj)             :: dist_new
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
 
@@ -2431,7 +2423,6 @@ CONTAINS
     data_type = matrix%m%data_type
     ! Get row and column start and end positions
     ! Old matrix
-    dist_old = dbcsr_distribution (matrix)
     row_blk_size_old => array_data (matrix%m%row_blk_size)
     col_blk_size_old => array_data (matrix%m%col_blk_size)
     ALLOCATE (row_start_old (dbcsr_nblkrows_total (matrix)),&
@@ -2456,8 +2447,6 @@ CONTAINS
          col_start_new, col_end_new)
     row_dist_new => array_data (dbcsr_distribution_row_dist (dist_new))
     col_dist_new => array_data (dbcsr_distribution_col_dist (dist_new))
-    nblkrows_total_new = dbcsr_nblkrows_total (redist)
-    nblkcols_total_new = dbcsr_nblkcols_total (redist)
     ! Create mappings
     i = dbcsr_nfullrows_total (redist)
     ALLOCATE (row_reblocks (4,i))
@@ -2520,7 +2509,6 @@ CONTAINS
     send_count(:,:) = 0
     CALL dbcsr_iterator_start (iter, matrix)
     dst_p = -1
-    new_meta = .TRUE.
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk)
        DO col_int = n_col_reblocks (1,col),&
@@ -2600,12 +2588,10 @@ CONTAINS
     CALL dbcsr_data_init (data_block)
     CALL dbcsr_data_new (data_block, data_type)
     CALL dbcsr_iterator_start (iter, matrix)
-    row_prev = 0
     dst_p = -1
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, data_block, tr, blk,&
             row_size=row_size, col_size=col_size)
-       IF (row .NE. row_prev) blk_col_prev_new = 0 ! Reset the "hint"
        !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
        DO col_int = n_col_reblocks (1,col),&
             n_col_reblocks(1,col) + n_col_reblocks(2,col)-1
@@ -2882,8 +2868,8 @@ CONTAINS
     CHARACTER                                :: data_type
     CHARACTER(len=80)                        :: ifmt
     INTEGER :: blk, blk_ps, blks, col, col_size, dst_p, error_handler, &
-      meta_l, mp_group, numnodes, nze, row, row_prev, row_size, src_p, &
-      stored_col_new, stored_row_new
+      meta_l, mp_group, numnodes, nze, row, row_size, src_p, stored_col_new, &
+      stored_row_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -2897,7 +2883,7 @@ CONTAINS
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
                                                 send_data
-    TYPE(dbcsr_distribution_obj)             :: dist_new, dist_old
+    TYPE(dbcsr_distribution_obj)             :: dist_new
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj_new
 
@@ -2920,7 +2906,6 @@ CONTAINS
     data_type = matrix%m%data_type
     ! Get row and column start and end positions
     ! Old matrix
-    dist_old = dbcsr_distribution (matrix)
     ! New matrix
     dist_new = dbcsr_distribution (redist)
     row_blk_size_new => array_data (redist%m%row_blk_size)
@@ -2964,7 +2949,6 @@ CONTAINS
     DBG 'A'
     send_count(:,:) = 0
     CALL dbcsr_iterator_start (iter, matrix)
-    row_prev = 0
     dst_p = -1
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk, tr,&

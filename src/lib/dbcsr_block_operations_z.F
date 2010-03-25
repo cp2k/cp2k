@@ -11,8 +11,6 @@
     COMPLEX(kind=real_8), INTENT(IN)                :: value
     INTEGER, INTENT(IN)                :: d
 
-    INTEGER                            :: i
-
 !   ---------------------------------------------------------------------------
 
     CALL block_set_z (d, d, block_data, value, CMPLX(0.0, 0.0, real_8))
@@ -27,7 +25,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    REAL(dp)                                 :: my_alpha, my_beta
+    COMPLEX(kind=real_8)                                  :: my_alpha, my_beta
 
 !   ---------------------------------------------------------------------------
 
@@ -56,9 +54,6 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_set_z', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    REAL(dp)                                 :: my_alpha, my_beta
 
 !   ---------------------------------------------------------------------------
 
@@ -359,8 +354,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_z', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-
 !   ---------------------------------------------------------------------------
 
     CALL block_2d_add_on_diag_z(m, blk, alpha)
@@ -400,8 +393,6 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_chol_inv_z', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, info, j
 
 !   ---------------------------------------------------------------------------
 

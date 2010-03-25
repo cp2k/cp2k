@@ -145,23 +145,23 @@ CONTAINS
                 IF (mn .GT. 0) THEN
                    SELECT CASE (matrix%m%data_type)
                    CASE (dbcsr_type_real_8)
-                      blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
-                           &               r_dp(blk_p:blk_p+mn-1))
+                      blk_cs = REAL (DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
+                           &                     r_dp(blk_p:blk_p+mn-1)),KIND=dp)
                       !CALL &
                       !     dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
                    CASE (dbcsr_type_real_4)
-                      blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
-                           &               r_sp(blk_p:blk_p+mn-1))
+                      blk_cs = REAL (DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
+                           &                     r_sp(blk_p:blk_p+mn-1)),KIND=dp)
                       !CALL &
                       !     dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
                    CASE (dbcsr_type_complex_8)
-                      blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
-                           &               c_dp(blk_p:blk_p+mn-1))
+                      blk_cs = REAL (DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
+                           &                     c_dp(blk_p:blk_p+mn-1)),KIND=dp)
                       !CALL &
                       !     dbcsr_printmat(c_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
                    CASE (dbcsr_type_complex_4)
-                      blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
-                           &               c_sp(blk_p:blk_p+mn-1))
+                      blk_cs = REAL (DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
+                           &                     c_sp(blk_p:blk_p+mn-1)),KIND=dp)
                       !CALL &
                       !     dbcsr_printmat(c_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
                    END SELECT

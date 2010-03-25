@@ -203,9 +203,9 @@ CONTAINS
           CASE(dbcsr_type_complex_4)
              CALL dbcsr_get_data (target_area, t_data_c)
              IF (noimult) THEN
-                t_data_c(1:n) = CMPLX(s_data_d(1:n), KIND=real_8)
+                t_data_c(1:n) = CMPLX(s_data_d(1:n), KIND=real_4)
              ELSE
-                t_data_c(1:n) = CMPLX(0.0, s_data_d(1:n), KIND=real_8)
+                t_data_c(1:n) = CMPLX(0.0, s_data_d(1:n), KIND=real_4)
              ENDIF
           CASE default
              CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
@@ -230,9 +230,9 @@ CONTAINS
           CASE(dbcsr_type_complex_4)
              CALL dbcsr_get_data (target_area, t_data_c)
              IF (noimult) THEN
-                t_data_c(1:n) = CMPLX(s_data_r(1:n), KIND=real_8)
+                t_data_c(1:n) = CMPLX(s_data_r(1:n), KIND=real_4)
              ELSE
-                t_data_c(1:n) = CMPLX(0.0, s_data_r(1:n), KIND=real_8)
+                t_data_c(1:n) = CMPLX(0.0, s_data_r(1:n), KIND=real_4)
              ENDIF
           CASE default
              CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
@@ -260,7 +260,7 @@ CONTAINS
              t_data_z(1:n) = s_data_z(1:n)
           CASE(dbcsr_type_complex_4)
              CALL dbcsr_get_data (target_area, t_data_c)
-             t_data_c(1:n) = CMPLX(s_data_z(1:n), KIND=real_8)
+             t_data_c(1:n) = CMPLX(s_data_z(1:n), KIND=real_4)
           CASE default
              CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
                   routineN, "Invalid data type",__LINE__,error)

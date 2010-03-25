@@ -11,8 +11,6 @@
     REAL(kind=real_8), INTENT(IN)                :: value
     INTEGER, INTENT(IN)                :: d
 
-    INTEGER                            :: i
-
 !   ---------------------------------------------------------------------------
 
     CALL block_set_d (d, d, block_data, value, 0.0_real_8)
@@ -27,7 +25,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    REAL(dp)                                 :: my_alpha, my_beta
+    REAL(kind=real_8)                                  :: my_alpha, my_beta
 
 !   ---------------------------------------------------------------------------
 
@@ -56,9 +54,6 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_set_d', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    REAL(dp)                                 :: my_alpha, my_beta
 
 !   ---------------------------------------------------------------------------
 
@@ -359,8 +354,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-
 !   ---------------------------------------------------------------------------
 
     CALL block_2d_add_on_diag_d(m, blk, alpha)
@@ -400,8 +393,6 @@
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_chol_inv_d', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, info, j
 
 !   ---------------------------------------------------------------------------
 

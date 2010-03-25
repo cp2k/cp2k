@@ -233,7 +233,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_p_area', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, csize, iw, nze, offset, &
+    INTEGER                                  :: blk, csize, iw, offset, &
                                                 rsize, stored_col, stored_row
     LOGICAL                                  :: stored_tr
     TYPE(btree_2d_data_c)                    :: data_block_c
@@ -256,13 +256,8 @@ CONTAINS
 
     CALL dbcsr_data_clear_pointer (block)
     IF(found) THEN
-       nze = rsize*csize
-       !IF(nze.eq.0) THEN
-       !   found = .FALSE.
-       !ELSE
        CALL dbcsr_data_set_pointer (block, rsize, csize, matrix%m%data_area,&
             source_lb = offset)
-       !ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        iw = 1
 !$     iw = omp_get_thread_num()+1

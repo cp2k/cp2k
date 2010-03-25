@@ -1986,7 +1986,9 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rma_put_l', &
          routineP = moduleN//':'//routineN
     INTEGER                        :: ierr
+#if !defined (__parallel)
     INTEGER(KIND=int_8), DIMENSION(:), POINTER :: win_data
+#endif
 !   ---------------------------------------------------------------------------
 #if defined(__parallel)
     t_start = m_walltime()

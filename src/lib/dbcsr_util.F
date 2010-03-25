@@ -642,8 +642,8 @@ CONTAINS
 
 !$OMP DO SCHEDULE (STATIC)
     DO i = 1, SIZE (merged)
-       array_upper(i) = ISHFT (merged(i), -32)
-       array_lower(i) = IAND (merged(i), lmask8)
+       array_upper(i) = INT (ISHFT (merged(i), -32), KIND=int_4)
+       array_lower(i) = INT (IAND (merged(i), lmask8), KIND=int_4)
     ENDDO
 !$OMP END DO
   END SUBROUTINE dbcsr_unpack_i8_2i4
@@ -759,17 +759,19 @@ CONTAINS
                 ! Calculate DDOT
                 SELECT CASE (matrix%m%data_type)
                 CASE (dbcsr_type_real_8)
-                   blk_cs = DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
-                        &               r_dp(blk_p:blk_p+mn-1))
+                   blk_cs = REAL(DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
+                        &                    r_dp(blk_p:blk_p+mn-1)), KIND=dp)
                 CASE (dbcsr_type_real_4)
-                   blk_cs = DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
-                        &               r_sp(blk_p:blk_p+mn-1))
+                   blk_cs = REAL(DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
+                        &                    r_sp(blk_p:blk_p+mn-1)), KIND=dp)
                 CASE (dbcsr_type_complex_8)
-                   blk_cs = DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
-                        &               c_dp(blk_p:blk_p+mn-1))
+                   blk_cs = REAL(DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
+                        &                    c_dp(blk_p:blk_p+mn-1)), KIND=dp)
                 CASE (dbcsr_type_complex_4)
-                   blk_cs = DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
-                        &               c_sp(blk_p:blk_p+mn-1))
+                   blk_cs = REAL(DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
+                        &                    c_sp(blk_p:blk_p+mn-1)), KIND=dp)
+                CASE default
+                   blk_cs = 0.0_dp
                 END SELECT
              ELSE
                 blk_cs = 0.0_dp

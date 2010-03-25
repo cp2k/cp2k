@@ -263,6 +263,7 @@ CONTAINS
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__, error)
+       l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,I9,A4,I9)')"ASSERTION FAILED:",&
@@ -308,6 +309,7 @@ CONTAINS
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__, error)
+       l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,L1,A,L1)')"ASSERTION FAILED:",&
@@ -347,6 +349,7 @@ CONTAINS
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             "dbcsr_char_assert", "Invalid relation specified: "//rel, __LINE__, error)
+       l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,A1,1X,A4,1X,A1)')"ASSERTION FAILED:",&
@@ -412,6 +415,7 @@ CONTAINS
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__, error)
+       l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,A,L1)')"ASSERTION FAILED:",&

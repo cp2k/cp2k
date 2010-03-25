@@ -1060,10 +1060,10 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: row_sizes
 
-    INTEGER                                  :: first, ithread, last, nlcols, &
-                                                nlrows, nrows, nthreads, rpt, &
+    INTEGER                                  :: first, ithread, last, nlrows, &
+                                                nrows, nthreads, rpt, &
                                                 size_local, size_sum, t
-    INTEGER, DIMENSION(:), POINTER           :: lcols, lrows, td
+    INTEGER, DIMENSION(:), POINTER           :: lrows, td
 
 !   ---------------------------------------------------------------------------
 
@@ -1071,9 +1071,7 @@ CONTAINS
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM()
     nrows = dbcsr_distribution_nrows (dist)
     nlrows = dbcsr_distribution_nlocal_rows (dist)
-    nlcols = dbcsr_distribution_nlocal_cols (dist)
     lrows => array_data (dbcsr_distribution_local_rows (dist))
-    lcols => array_data (dbcsr_distribution_local_cols (dist))
     !
 !$OMP SINGLE
     CALL array_release (dist%d%thread_dist)

@@ -94,7 +94,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_index_canonical', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p, col, nblks, row, &
+    INTEGER                                  :: blk, col, nblks, row, &
                                                 stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_i
     LOGICAL                                  :: dbg = .FALSE., tr
@@ -161,7 +161,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_index_triangular', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p, col, nblks, row, &
+    INTEGER                                  :: blk, col, nblks, row, &
                                                 stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_i
     LOGICAL                                  :: dbg = .FALSE., tr
@@ -1014,9 +1014,6 @@ CONTAINS
     INTEGER                                  :: i, ib, ir, istack(1:nstack), &
                                                 itemp, j, jstack, k, l
     INTEGER(kind=int_4)                      :: a, temp
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (n==0) RETURN
     DO i = 1, n

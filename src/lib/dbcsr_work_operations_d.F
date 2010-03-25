@@ -14,8 +14,8 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'tree_to_linear_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p, i, treesize, &
-         error_handler
+    INTEGER                                  :: blk, blk_p, treesize, &
+                                                error_handler
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: keys
     REAL(kind=real_8), DIMENSION(:, :), POINTER        :: block_2d

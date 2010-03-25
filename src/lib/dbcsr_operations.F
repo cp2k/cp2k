@@ -865,7 +865,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_anytype', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: data_type
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
       col_offset, error_handler, i, last_col, row_offset
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start, m_offset
@@ -893,7 +892,6 @@ CONTAINS
        CALL convert_sizes_to_offsets(array_data (matrix_a%m%col_blk_size), &
             col_start, col_end)
     ENDIF
-    data_type = dbcsr_get_data_type (matrix_a)
     !
     ! set vars
     right = .TRUE.
@@ -1698,7 +1696,6 @@ CONTAINS
 
     INTEGER                                  :: error_handler, hold, mynode, &
                                                 row, row_size, stored_row
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_size
     LOGICAL                                  :: found, tr
     TYPE(dbcsr_data_obj)                     :: buff, data_a, small_buff
 
@@ -1709,7 +1706,6 @@ CONTAINS
          dbcsr_nfullrows_total(matrix).EQ.dbcsr_nfullrows_total(matrix), &
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__,error)
 
-    row_blk_size => array_data(dbcsr_row_block_sizes(matrix))
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
 
     CALL dbcsr_work_create(matrix, work_mutable=.TRUE., error=error)
@@ -2632,7 +2628,7 @@ CONTAINS
                    DO j=1,SIZE(data_a%d%r2_sp,2)
                    DO i=1,SIZE(data_a%d%r2_sp,1)
                       norm_vector%d%r_sp(col_offset+j-1) &
-                           = norm_vector%d%r_dp(col_offset+j-1) &
+                           = norm_vector%d%r_sp(col_offset+j-1) &
                            + data_a%d%r2_sp(i,j) * data_a%d%r2_sp(i,j)
                    ENDDO
                    ENDDO
@@ -2956,7 +2952,7 @@ CONTAINS
           IF(any_sym.AND.row.NE.col) &
                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
                routineN,"Only nonsymmetric matrix so far",__LINE__,error)
-          norm = norm + fac * SUM(CONJG(data_c)*data_c)
+          norm = norm + fac * REAL( SUM(CONJG(data_c)*data_c), KIND=real_8)
        CASE (dbcsr_type_complex_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
           fac = 1.0_dp
