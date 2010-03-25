@@ -738,7 +738,7 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
    SUBROUTINE mp_alloc_mem_d(DATA, size, stat)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: DATA
     INTEGER, INTENT(IN)                      :: size
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
@@ -757,7 +757,8 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
    SUBROUTINE mp_alloc_mem_z(DATA, size, stat)
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: DATA
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: DATA
     INTEGER, INTENT(IN)                      :: size
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
@@ -776,7 +777,7 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
    SUBROUTINE mp_alloc_mem_s(DATA, size, stat)
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: DATA
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: DATA
     INTEGER, INTENT(IN)                      :: size
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
@@ -795,7 +796,8 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
    SUBROUTINE mp_alloc_mem_c(DATA, size, stat)
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: DATA
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: DATA
     INTEGER, INTENT(IN)                      :: size
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
@@ -851,7 +853,7 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_free_mem_d(DATA, stat)
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: DATA
+    REAL(KIND=real_8), DIMENSION(:), POINTER :: DATA
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
      IF (PRESENT (stat)) THEN
@@ -868,7 +870,8 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
    SUBROUTINE mp_free_mem_z(DATA, stat)
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: DATA
+    COMPLEX(KIND=real_8), DIMENSION(:), &
+      POINTER                                :: DATA
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
      IF (PRESENT (stat)) THEN
@@ -885,7 +888,7 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
   SUBROUTINE mp_free_mem_s(DATA, stat)
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: DATA
+    REAL(KIND=real_4), DIMENSION(:), POINTER :: DATA
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
      IF (PRESENT (stat)) THEN
@@ -902,7 +905,8 @@ CONTAINS
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
    SUBROUTINE mp_free_mem_c(DATA, stat)
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: DATA
+    COMPLEX(KIND=real_4), DIMENSION(:), &
+      POINTER                                :: DATA
     INTEGER, INTENT(OUT), OPTIONAL           :: stat
 
      IF (PRESENT (stat)) THEN
