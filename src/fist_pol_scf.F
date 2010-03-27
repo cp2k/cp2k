@@ -31,6 +31,7 @@ MODULE fist_pol_scf
                                              do_fist_pol_sc
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
   USE multipole_types,                 ONLY: multipole_type
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
@@ -162,13 +163,13 @@ CONTAINS
     IF (iw>0) WRITE(iw,FMT='(T5,"POL_SCF|","  Iteration",7X,"Conv.",T49,"Electrostatic & Induction Energy")')
     pol_scf: DO iter=1, max_ipol_iter
        ! Evaluate the electrostatic with Ewald schemes
-       pot_nonbond_local = 0.0_dp ! must be set to zero, not done inside eval_pol_ewald
        CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell, &
             particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo,&
             multipoles, do_correction_bonded=.TRUE., do_forces=.FALSE., &
             do_stress=.FALSE., do_efield=.TRUE., iw2=iw2, do_debug=.FALSE.,&
             atomic_kind_set=atomic_kind_set, mm_section=mm_section,&
             efield1=efield1, error=error)
+       CALL mp_sum(pot_nonbond_local,logger%para_env%group)
 
        ! compute the new dipoles and check for convergence
        ntot = 0
@@ -215,17 +216,19 @@ CONTAINS
 
     ! Now evaluate after convergence to obtain forces and converged energies
     CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell,&
-         particle_set, local_particles, vg_coulomb, pot_nonbond, thermo,&
+         particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo,&
          multipoles, do_correction_bonded=.TRUE., do_forces=.TRUE., &
          do_stress=use_virial, do_efield=.FALSE., iw2=iw2, do_debug=.FALSE.,&
          atomic_kind_set=atomic_kind_set, mm_section=mm_section,&
          forces_local=fg_coulomb, forces_glob=f_nonbond, &
          pv_local=pv_g, pv_glob=pv_nonbond, error=error)
+    pot_nonbond=pot_nonbond+pot_nonbond_local
+    CALL mp_sum(pot_nonbond_local,logger%para_env%group)
 
     IF (iw>0) THEN
       ! print the energy that is minimized (this is electrostatic + induction)
       WRITE(iw,FMT='(T5,"POL_SCF|",5X,"Final",T61,F20.10,/)') &
-        vg_coulomb + pot_nonbond + thermo%e_induction
+        vg_coulomb + pot_nonbond_local + thermo%e_induction
     END IF
 
     ! Deallocate working arrays
@@ -337,7 +340,6 @@ CONTAINS
     ! We assume that all dipoles are inducible dipoles.
     tmp_dipoles = multipoles%dipoles ! backup of dipoles
     multipoles%dipoles = 0.0_dp
-    pot_nonbond_local = 0.0_dp ! must be set to zero, not done inside eval_pol_ewald
     CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell, &
          particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo, &
          multipoles, do_correction_bonded=.TRUE., do_forces=.FALSE., &
@@ -347,7 +349,6 @@ CONTAINS
     multipoles%dipoles = tmp_dipoles ! restore backup
 
     ! Compute the electric field with the initial guess of the dipoles.
-    pot_nonbond_local = 0.0_dp ! must be set to zero, not done inside eval_pol_ewald
     CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell, &
         particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo, &
         multipoles, do_correction_bonded=.TRUE., do_forces=.FALSE., &
@@ -384,7 +385,6 @@ CONTAINS
           ! is obtained in an indirect way below. When the DEBUG flag is set, the
           ! explicit residual is computed and compared with the implicitly derived
           ! residual as a double check.
-          pot_nonbond_local = 0.0_dp ! must be set to zero, not done inside eval_pol_ewald
           CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell, &
                particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo, &
                multipoles, do_correction_bonded=.TRUE., do_forces=.FALSE., &
@@ -426,7 +426,6 @@ CONTAINS
        ! We assume that all non-zero dipoles are inducible dipoles.
        tmp_dipoles = multipoles%dipoles ! backup of dipoles
        multipoles%dipoles = conjugate
-       pot_nonbond_local = 0.0_dp ! must be set to zero, not done inside eval_pol_ewald
        CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell, &
             particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo, &
             multipoles, do_correction_bonded=.TRUE., do_forces=.FALSE., &
@@ -509,7 +508,7 @@ CONTAINS
     IF (debug_this_module) THEN
        ! Now evaluate after convergence to obtain forces and converged energies
        CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell,&
-            particle_set, local_particles, vg_coulomb, pot_nonbond, thermo,&
+            particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo,&
             multipoles, do_correction_bonded=.TRUE., do_forces=.TRUE., &
             do_stress=use_virial, do_efield=.TRUE., iw2=iw2, do_debug=.FALSE.,&
             atomic_kind_set=atomic_kind_set, mm_section=mm_section,&
@@ -543,17 +542,19 @@ CONTAINS
     ELSE
        ! Now evaluate after convergence to obtain forces and converged energies
        CALL eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env, cell,&
-            particle_set, local_particles, vg_coulomb, pot_nonbond, thermo,&
+            particle_set, local_particles, vg_coulomb, pot_nonbond_local, thermo,&
             multipoles, do_correction_bonded=.TRUE., do_forces=.TRUE., &
             do_stress=use_virial, do_efield=.FALSE., iw2=iw2, do_debug=.FALSE.,&
             atomic_kind_set=atomic_kind_set, mm_section=mm_section,&
             forces_local=fg_coulomb, forces_glob=f_nonbond, &
             pv_local=pv_g, pv_glob=pv_nonbond, error=error)
     ENDIF
+    pot_nonbond=pot_nonbond+pot_nonbond_local
+    CALL mp_sum(pot_nonbond_local, logger%para_env%group)
 
     IF (iw>0) THEN
       WRITE(iw,FMT='(T5,"POL_SCF|",5X,"Final",T61,F20.10,/)') &
-        vg_coulomb + pot_nonbond + thermo%e_induction
+        vg_coulomb + pot_nonbond_local + thermo%e_induction
     END IF
 
     ! Deallocate working arrays
@@ -596,7 +597,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    REAL(KIND=dp)                            :: vg_coulomb, pot_nonbond
+    REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb, pot_nonbond
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(multipole_type), POINTER            :: multipoles
     LOGICAL, INTENT(IN)                      :: do_correction_bonded, &
@@ -623,6 +624,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
 
+    pot_nonbond = 0.0_dp ! Initialization.. 
+    vg_coulomb  = 0.0_dp ! Initialization.. 
     SELECT CASE(ewald_type)
     CASE(do_ewald_ewald)
        CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
