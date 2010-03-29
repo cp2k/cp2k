@@ -372,12 +372,15 @@
     ENDIF
   END SUBROUTINE dbcsr_add_beta_[nametype1]
 
-  SUBROUTINE dbcsr_filter_[nametype1] (matrix, eps, method, error)
+  SUBROUTINE dbcsr_filter_[nametype1] (matrix, eps, method, use_absolute, &
+       filter_diag, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     [type1], INTENT(IN)                      :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
+    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    CALL dbcsr_filter_anytype (matrix, dbcsr_scalar(eps), method, error)
+    CALL dbcsr_filter_anytype (matrix, dbcsr_scalar(eps), method, &
+         use_absolute, filter_diag, error)
   END SUBROUTINE dbcsr_filter_[nametype1]
 
   SUBROUTINE dbcsr_set_diag_[nametype1](matrix, diag, error)
@@ -427,10 +430,11 @@
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in]    alpha_scalar scalar
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add_on_diag_[nametype1](matrix, alpha_scalar, error)
+  SUBROUTINE dbcsr_add_on_diag_[nametype1](matrix, alpha_scalar, first_row, last_row, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     [type1], INTENT(IN)                      :: alpha_scalar
+    integer, intent(in), optional            :: first_row, last_row
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CALL dbcsr_add_on_diag(matrix, dbcsr_scalar(alpha_scalar), error)
+    CALL dbcsr_add_on_diag(matrix, dbcsr_scalar(alpha_scalar), first_row, last_row, error)
   END SUBROUTINE dbcsr_add_on_diag_[nametype1]

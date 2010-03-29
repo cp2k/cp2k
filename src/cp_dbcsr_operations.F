@@ -362,9 +362,10 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_init_p
 
-  SUBROUTINE cp_dbcsr_print(matrix, nodata, matlab_format, error)
+  SUBROUTINE cp_dbcsr_print(matrix, nodata, matlab_format, variable_name, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: nodata, matlab_format
+    CHARACTER(*), INTENT(in), OPTIONAL       :: variable_name
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print', &
@@ -372,7 +373,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_print(matrix, nodata, matlab_format, dbcsr_error)
+    CALL dbcsr_print(matrix, nodata, matlab_format, variable_name, dbcsr_error)
   END SUBROUTINE cp_dbcsr_print
 
   SUBROUTINE cp_dbcsr_trace_a_d(matrix_a, trace, error)
@@ -556,10 +557,11 @@ CONTAINS
        mutable_work, replication_type, dbcsr_error)
   END SUBROUTINE cp_dbcsr_create
 
-  SUBROUTINE cp_dbcsr_filter(matrix, eps, method, error)
+  SUBROUTINE cp_dbcsr_filter(matrix, eps, method, use_absolute, filter_diag, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(dp), INTENT(IN)                     :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
+    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_filter', &
@@ -569,7 +571,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
-    CALL dbcsr_filter(matrix, eps, method, dbcsr_error)
+    CALL dbcsr_filter(matrix, eps, method, use_absolute, filter_diag, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_filter
 
@@ -624,9 +626,10 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_get_block_diag
 
-  SUBROUTINE cp_dbcsr_add_on_diag(matrix, alpha_scalar, error)
+  SUBROUTINE cp_dbcsr_add_on_diag(matrix, alpha_scalar, first_row, last_row, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(KIND=dp), INTENT(IN)                :: alpha_scalar
+    INTEGER, INTENT(in), OPTIONAL            :: first_row, last_row
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_on_diag', &
@@ -636,7 +639,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
-    CALL dbcsr_add_on_diag(matrix, alpha_scalar, dbcsr_error)
+    CALL dbcsr_add_on_diag(matrix, alpha_scalar, first_row, last_row, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_on_diag
 

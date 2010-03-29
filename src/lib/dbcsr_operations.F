@@ -55,24 +55,25 @@ MODULE dbcsr_operations
                                              mp_bcast,&
                                              mp_sum
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_data_clear_pointer, &
-       dbcsr_data_ensure_size, dbcsr_data_hold, dbcsr_data_init, &
-       dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
-       dbcsr_destroy, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
-       dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
-       dbcsr_distribution_mp, dbcsr_distribution_no_threads, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, &
-       dbcsr_init, dbcsr_is_initialized, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_may_be_dense, dbcsr_mp_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
-       dbcsr_scalar_zero, dbcsr_type_1d_to_2d, dbcsr_valid_index
+       dbcsr_col_block_offsets, dbcsr_col_block_sizes, &
+       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_hold, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_set_pointer, dbcsr_destroy, dbcsr_destroy_array, &
+       dbcsr_destroy_image_dist, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
+       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
+       dbcsr_distribution_no_threads, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
+       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_matrix_type, &
+       dbcsr_has_symmetry, dbcsr_init, dbcsr_is_initialized, &
+       dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_may_be_dense, &
+       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+       dbcsr_row_block_sizes, dbcsr_scalar, dbcsr_scalar_are_equal, &
+       dbcsr_scalar_one, dbcsr_scalar_zero, dbcsr_type_1d_to_2d, &
+       dbcsr_valid_index
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
@@ -121,7 +122,7 @@ MODULE dbcsr_operations
             dbcsr_symmetrize_block_diag, dbcsr_copy_columns
   PUBLIC :: dbcsr_sum_replicated
   PUBLIC :: dbcsr_norm, &
-            dbcsr_gershgorin_norm, dbcsr_maxabs_norm, dbcsr_frobenius_norm
+            dbcsr_gershgorin_norm, dbcsr_maxabs, dbcsr_frobenius_norm
 
 ! The interfaces for the generic routines found in the generated
 ! generic files.
@@ -196,8 +197,8 @@ MODULE dbcsr_operations
   INTERFACE dbcsr_gershgorin_norm
      MODULE PROCEDURE dbcsr_gershgorin_norm_r8
   END INTERFACE
-  INTERFACE dbcsr_maxabs_norm
-     MODULE PROCEDURE dbcsr_maxabs_norm_r8
+  INTERFACE dbcsr_maxabs
+     MODULE PROCEDURE dbcsr_maxabs_r8
   END INTERFACE
   INTERFACE dbcsr_frobenius_norm
      MODULE PROCEDURE dbcsr_frobenius_norm_r8
@@ -1686,16 +1687,18 @@ CONTAINS
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in]    alpha_scalar scalar
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add_on_diag_anytype(matrix, alpha_scalar, error)
+  SUBROUTINE dbcsr_add_on_diag_anytype(matrix, alpha_scalar, first_row, last_row, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha_scalar
+    INTEGER, INTENT(in), OPTIONAL            :: first_row, last_row
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag_anytype', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, hold, mynode, &
-                                                row, row_size, stored_row
+    INTEGER :: error_handler, hold, imax, imin, my_first_row, my_last_row, &
+      mynode, offset_beg, offset_end, row, row_size, stored_row
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_offsets
     LOGICAL                                  :: found, tr
     TYPE(dbcsr_data_obj)                     :: buff, data_a, small_buff
 
@@ -1706,7 +1709,13 @@ CONTAINS
          dbcsr_nfullrows_total(matrix).EQ.dbcsr_nfullrows_total(matrix), &
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__,error)
 
+    my_first_row = 1
+    my_last_row = dbcsr_nfullrows_total(matrix)
+    IF(PRESENT(first_row)) my_first_row = first_row
+    IF(PRESENT(last_row)) my_last_row = last_row
+
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
+    row_blk_offsets => array_data(dbcsr_col_block_offsets(matrix))
 
     CALL dbcsr_work_create(matrix, work_mutable=.TRUE., error=error)
     CALL dbcsr_data_init (buff)
@@ -1728,14 +1737,26 @@ CONTAINS
        IF(hold.EQ.mynode) THEN
           CALL dbcsr_get_block_p(matrix, stored_row, stored_row, data_a, tr,&
                found, row_size=row_size)
+          offset_beg = row_blk_offsets(row)
+          offset_end = row_blk_offsets(row+1)-1
+          IF(my_first_row.GT.offset_end.OR.my_last_row.LT.offset_beg) CYCLE
+          imin = 1
+          IF(my_first_row.gt.offset_beg) THEN
+             imin = my_first_row - offset_beg + 1
+          ENDIF
+          imax = row_size
+          IF(my_last_row.lt.offset_end) THEN
+             imax = my_last_row - offset_end + row_size
+          ENDIF
           IF(found) THEN
-             CALL block_add_on_diag(data_a, alpha_scalar, row_size, error=error)
+             CALL block_add_on_diag(data_a, alpha_scalar, row_size, &
+                  imin=imin, imax=imax, error=error)
           ELSE
              CALL dbcsr_data_set_pointer (small_buff, row_size, row_size,&
                   buff)
              CALL dbcsr_data_clear (small_buff)
              CALL block_add_on_diag (small_buff, alpha_scalar, row_size,&
-                  error=error)
+                  imin=imin, imax=imax, error=error)
              CALL dbcsr_put_block (matrix, stored_row, stored_row, small_buff)
           ENDIF
        ENDIF
@@ -2456,11 +2477,12 @@ CONTAINS
 !> \param[in] method       how the matrix is filtered 
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_filter_anytype(matrix, eps, method, error)
+  SUBROUTINE dbcsr_filter_anytype(matrix, eps, method, use_absolute, filter_diag, error)
 
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
+    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_filter_anytype', &
@@ -2469,10 +2491,10 @@ CONTAINS
     INTEGER                                  :: blk, blk_nze, col, col_size, &
                                                 error_handler, my_method, &
                                                 row, row_size
-    LOGICAL                                  :: gt0, tr
+    LOGICAL                                  :: gt0, my_filter_diag, tr
     REAL(KIND=real_4)                        :: nrm_s, sdot
     REAL(KIND=real_4), DIMENSION(:), POINTER :: data_s
-    REAL(KIND=real_8)                        :: ddot, nrm_d
+    REAL(KIND=real_8)                        :: ddot, my_absolute, nrm_d
     REAL(KIND=real_8), DIMENSION(:), POINTER :: data_d
     TYPE(dbcsr_iterator)                     :: iter
 
@@ -2481,6 +2503,11 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     my_method = dbcsr_filter_frobenius
     IF(PRESENT(method)) my_method = method
+    my_absolute = 1.0_dp
+    IF(PRESENT(use_absolute)) my_absolute = dbcsr_maxabs(matrix)
+    my_filter_diag = .TRUE.
+    IF(PRESENT(filter_diag)) my_filter_diag = filter_diag
+
     SELECT CASE (eps%data_type)
     CASE (dbcsr_type_real_4)
        gt0 = eps%r_sp .GT. 0.0_real_4
@@ -2510,7 +2537,8 @@ CONTAINS
                 !
                 ! Frobenius based
                 nrm_s = SQRT(SDOT(SIZE(data_s), data_s(1), 1, data_s(1), 1))
-                IF(nrm_s.LT.eps%r_sp) CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
+                IF(nrm_s.LT.my_absolute*eps%r_sp) &
+                     CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
              CASE DEFAULT
                 CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
                      routineN,"Only Frobenius based filtering",__LINE__,error)
@@ -2526,7 +2554,8 @@ CONTAINS
                 !
                 ! Frobenius based
                 nrm_d = SQRT(DDOT(SIZE(data_d), data_d(1), 1, data_d(1), 1))
-                IF(nrm_d.LT.eps%r_dp) CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
+                IF(nrm_d.LT.my_absolute*eps%r_dp) &
+                     CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
              CASE DEFAULT
                 CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
                      routineN,"Only Frobenius based filtering",__LINE__,error)
@@ -2583,7 +2612,7 @@ CONTAINS
 
     CASE(dbcsr_norm_maxabsnorm)
 
-       IF(PRESENT(norm_scalar)) norm_scalar = dbcsr_maxabs_norm(matrix)
+       IF(PRESENT(norm_scalar)) norm_scalar = dbcsr_maxabs(matrix)
 
     CASE(dbcsr_norm_gershgorin)
 
@@ -2846,11 +2875,11 @@ CONTAINS
 !> \param[out] norm
 !> 
 ! *****************************************************************************
-  FUNCTION dbcsr_maxabs_norm_r8(matrix) RESULT (norm)
+  FUNCTION dbcsr_maxabs_r8(matrix) RESULT (norm)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(real_8)                             :: norm
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_maxabs_norm_r8', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_maxabs_r8', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=real_4), DIMENSION(:, :), &
@@ -2897,7 +2926,7 @@ CONTAINS
     !    exported from the module timings
     CALL dmp_max(norm, dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
 
-  END FUNCTION dbcsr_maxabs_norm_r8
+  END FUNCTION dbcsr_maxabs_r8
 
 ! *****************************************************************************
 !> \brief compute a norm of a dbcsr matrix
@@ -2905,9 +2934,10 @@ CONTAINS
 !> \param[out] norm
 !> 
 ! *****************************************************************************
-  FUNCTION dbcsr_frobenius_norm_r8(matrix) RESULT (norm)
+  FUNCTION dbcsr_frobenius_norm_r8(matrix, local) RESULT (norm)
 
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    LOGICAL, INTENT(in), OPTIONAL            :: local
     REAL(KIND=real_8)                        :: norm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_frobenius_norm_r8', &
@@ -2917,8 +2947,8 @@ CONTAINS
       POINTER                                :: data_c
     COMPLEX(KIND=real_8), DIMENSION(:, :), &
       POINTER                                :: data_z
-    INTEGER                                  :: blk, col, row
-    LOGICAL                                  :: any_sym, tr
+    INTEGER                                  :: blk, col, error_handler, row
+    LOGICAL                                  :: any_sym, my_local, tr
     REAL(KIND=real_4), DIMENSION(:, :), &
       POINTER                                :: data_r
     REAL(KIND=real_8), DIMENSION(:, :), &
@@ -2928,6 +2958,11 @@ CONTAINS
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    my_local = .FALSE.
+    IF(PRESENT(local)) my_local = local
 
     any_sym = dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
               dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric
@@ -2966,8 +3001,10 @@ CONTAINS
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
-    CALL mp_sum(norm,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
+    IF(.NOT.my_local) CALL mp_sum(norm,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
     norm = SQRT(norm)
+
+    CALL dbcsr_error_stop(error_handler, error)
 
   END FUNCTION dbcsr_frobenius_norm_r8
 

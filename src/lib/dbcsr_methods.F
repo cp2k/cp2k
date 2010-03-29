@@ -104,7 +104,8 @@ MODULE dbcsr_methods
             dbcsr_data_release, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area,&
             dbcsr_data_clear_pointer, dbcsr_data_set_2d_pointer,&
-            dbcsr_data_clear_2d_pointer, dbcsr_data_ensure_size
+            dbcsr_data_clear_2d_pointer, dbcsr_data_ensure_size,&
+            dbcsr_col_block_offsets, dbcsr_row_block_offsets
   PUBLIC :: dbcsr_get_num_blocks
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
             dbcsr_get_data_p_d, dbcsr_get_data_p_z,&

@@ -329,10 +329,11 @@
     dst%d%r_sp(lb:ub) = src(lb_s:ub_s)
   END SUBROUTINE dbcsr_data_set_as
 
-  PURE SUBROUTINE block_2d_add_on_diag_s(m, blk, alpha)
+  PURE SUBROUTINE block_2d_add_on_diag_s(m, blk, alpha, imin, imax)
     INTEGER, INTENT(IN)                      :: m
     REAL(kind=real_4), INTENT(INOUT), DIMENSION(m,m)   :: blk
     REAL(kind=real_4), INTENT(IN)                      :: alpha
+    INTEGER, INTENT(IN), OPTIONAL            :: imin, imax
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_2d_add_on_diag_s', &
       routineP = moduleN//':'//routineN
@@ -341,22 +342,33 @@
 
 !   ---------------------------------------------------------------------------
 
-    FORALL (i = 1:m)
-       blk(i,i) = blk(i,i) + alpha
-    END FORALL
+    IF(PRESENT(imin).AND.PRESENT(imax)) THEN
+       FORALL (i = MAX(1,imin):MIN(m,imax))
+          blk(i,i) = blk(i,i) + alpha
+       END FORALL
+    ELSE
+       FORALL (i = 1:m)
+          blk(i,i) = blk(i,i) + alpha
+       END FORALL
+    ENDIF
   END SUBROUTINE block_2d_add_on_diag_s
 
-  PURE SUBROUTINE block_add_on_diag_s(m, blk, alpha)
+  PURE SUBROUTINE block_add_on_diag_s(m, blk, alpha, imin, imax)
     INTEGER, INTENT(IN)                      :: m
     REAL(kind=real_4), INTENT(INOUT), DIMENSION(m*m)   :: blk
     REAL(kind=real_4), INTENT(IN)                      :: alpha
+    INTEGER, INTENT(IN), OPTIONAL            :: imin, imax
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_s', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
-    CALL block_2d_add_on_diag_s(m, blk, alpha)
+    IF(PRESENT(imin).AND.PRESENT(imax)) THEN
+       CALL block_2d_add_on_diag_s(m, blk, alpha, imin, imax)
+    ELSE
+       CALL block_2d_add_on_diag_s(m, blk, alpha, 1, m)
+    ENDIF
   END SUBROUTINE block_add_on_diag_s
 
   SUBROUTINE block_2d_chol_inv_s(m, blk)

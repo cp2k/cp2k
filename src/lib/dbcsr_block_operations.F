@@ -1008,10 +1008,11 @@ CONTAINS
 !> \param[in] block_dimension  Dimension of the block
 ! *****************************************************************************
   SUBROUTINE block_add_on_diag_anytype (block_a, alpha_scalar, block_dimension,&
-       error)
+       imin, imax, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: block_a
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha_scalar
     INTEGER, INTENT(IN)                      :: block_dimension
+    INTEGER, INTENT(in), OPTIONAL            :: imin, imax
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'block_add_on_diag_anytype', &
@@ -1025,28 +1026,28 @@ CONTAINS
     SELECT CASE (dbcsr_get_data_type(block_a))
     CASE (dbcsr_type_real_4)
        CALL block_add_on_diag (&
-            block_dimension, block_a%d%r_sp, alpha_scalar%r_sp)
+            block_dimension, block_a%d%r_sp, alpha_scalar%r_sp, imin, imax)
     CASE (dbcsr_type_real_8)
        CALL block_add_on_diag (&
-            block_dimension, block_a%d%r_dp, alpha_scalar%r_dp)
+            block_dimension, block_a%d%r_dp, alpha_scalar%r_dp, imin, imax)
     CASE (dbcsr_type_complex_4)
        CALL block_add_on_diag (&
-            block_dimension, block_a%d%c_sp, alpha_scalar%c_sp)
+            block_dimension, block_a%d%c_sp, alpha_scalar%c_sp, imin, imax)
     CASE (dbcsr_type_complex_8)
        CALL block_add_on_diag (&
-            block_dimension, block_a%d%c_dp, alpha_scalar%c_dp)
+            block_dimension, block_a%d%c_dp, alpha_scalar%c_dp, imin, imax)
     CASE (dbcsr_type_real_4_2d)
        CALL block_add_on_diag (&
-            block_dimension, block_a%d%r2_sp, alpha_scalar%r_sp)
+            block_dimension, block_a%d%r2_sp, alpha_scalar%r_sp, imin, imax)
     CASE (dbcsr_type_real_8_2d)
        CALL block_add_on_diag (&
-            block_dimension, block_a%d%r2_dp, alpha_scalar%r_dp)
+            block_dimension, block_a%d%r2_dp, alpha_scalar%r_dp, imin, imax)
     CASE (dbcsr_type_complex_4_2d)
        CALL block_add_on_diag (&
-            block_dimension, block_a%d%c2_sp, alpha_scalar%c_sp)
+            block_dimension, block_a%d%c2_sp, alpha_scalar%c_sp, imin, imax)
     CASE (dbcsr_type_complex_8_2d)
        CALL block_add_on_diag (&
-            block_dimension, block_a%d%c2_dp, alpha_scalar%c_dp)
+            block_dimension, block_a%d%c2_dp, alpha_scalar%c_dp, imin, imax)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid data type!",__LINE__,error)
