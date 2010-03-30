@@ -818,9 +818,10 @@ CONTAINS
                  file_position="APPEND",&
                  unit_number=new_output_unit)
        ELSE
-         ! this should never be used by cp2k_run, but e.g. still happens, incorrectly,
-         ! on eror, writes now to fort.999 so that error messages can be recovered and fixed
-         new_output_unit=999
+         ! this unit should be negative, otherwise all processors that get a default unit 
+         ! start writing output (to the same file, adding to confusion).
+         ! error handling should be careful, asking for a local output unit if required
+         new_output_unit=-1
        ENDIF
 
        run_OK=cp2k_run(TRIM(farming_env%Job(i)%input),new_output_unit,new_group)
