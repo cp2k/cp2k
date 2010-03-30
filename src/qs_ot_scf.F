@@ -298,7 +298,7 @@ CONTAINS
     ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
     qs_ot_env(1)%etotal=energy+ener_nondiag
 
-    CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set,pscp,fscp,error=error,matrix_s=matrix_s)
+    CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set,pscp,fscp,error=error)
 
     delta           =qs_ot_env(1)%delta
     energy_only     =qs_ot_env(1)%energy_only

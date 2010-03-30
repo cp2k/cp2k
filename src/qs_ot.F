@@ -727,11 +727,10 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE qs_ot_get_derivative_ref(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
-       &                              qs_ot_env,S,error)
+       &                              qs_ot_env,error)
     TYPE(dbcsr_obj), POINTER                 :: matrix_hc, matrix_x, &
                                                 matrix_sx, matrix_gx
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(dbcsr_obj), POINTER                 :: s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref', &

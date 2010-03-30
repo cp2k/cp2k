@@ -54,7 +54,7 @@ CONTAINS
 ! (indicating that the data type for the gradient/position and minization should be separated)
 !
 ! *****************************************************************************
-SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error, matrix_s)
+SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_hc
@@ -62,7 +62,6 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error, matrix_
       POINTER                                :: aux_coeff_set
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
     TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_mini', &
       routineP = moduleN//':'//routineN
@@ -100,7 +99,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error, matrix_
            CASE("REF")
               CALL qs_ot_get_derivative_ref(matrix_hc(ispin)%matrix,&
                    &  qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx, &
-                   &  qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),matrix_s,error=error)
+                   &  qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),error=error)
            CASE DEFAULT
               CALL stop_program("ot_mini","ALGORITHM NYI")
            END SELECT
