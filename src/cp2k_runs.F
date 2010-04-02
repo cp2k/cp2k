@@ -790,29 +790,34 @@ CONTAINS
        ! generate a fresh call to cp2k_run
        IF (new_rank == 0) THEN
 
-          ! generate the output file
-           WRITE(output_file,'(A12,I5.5)') "FARMING_OUT_",i
-           CALL parser_create(my_parser,file_name=TRIM(farming_env%Job(i)%input),error=error)
-           label="&GLOBAL"
-           CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found,error=error)
-           IF (found) THEN
-              CALL create_global_section(g_section,error=error)
-              CALL section_vals_create(g_data,g_section,error=error)
-              CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-              CALL section_vals_parse(g_data,my_parser,default_units,&
-                   error=error)
-              CALL cp_unit_set_release(default_units,error=error)
-              CALL section_vals_val_get(g_data,"PROJECT",&
-                   c_val=str, error=error)
-              IF (str.NE."") output_file=TRIM(str)//".out"
-              CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
-                      c_val=str,error=error)
-              IF (str.NE."") output_file=str
-              CALL section_vals_release(g_data,error=error)
-              CALL section_release(g_section,error=error)
-           END IF
-           CALL parser_release(my_parser,error=error)
-           CALL open_file(file_name=TRIM(output_file),&
+          IF (farming_env%Job(i)%output=="") THEN
+             ! generate the output file
+             WRITE(output_file,'(A12,I5.5)') "FARMING_OUT_",i
+             CALL parser_create(my_parser,file_name=TRIM(farming_env%Job(i)%input),error=error)
+             label="&GLOBAL"
+             CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found,error=error)
+             IF (found) THEN
+                CALL create_global_section(g_section,error=error)
+                CALL section_vals_create(g_data,g_section,error=error)
+                CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
+                CALL section_vals_parse(g_data,my_parser,default_units,&
+                     error=error)
+                CALL cp_unit_set_release(default_units,error=error)
+                CALL section_vals_val_get(g_data,"PROJECT",&
+                     c_val=str, error=error)
+                IF (str.NE."") output_file=TRIM(str)//".out"
+                CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
+                        c_val=str,error=error)
+                IF (str.NE."") output_file=str
+                CALL section_vals_release(g_data,error=error)
+                CALL section_release(g_section,error=error)
+             END IF
+             CALL parser_release(my_parser,error=error)
+          ELSE
+             output_file=farming_env%Job(i)%output
+          ENDIF
+
+          CALL open_file(file_name=TRIM(output_file),&
                  file_action="WRITE",&
                  file_status="UNKNOWN",&
                  file_position="APPEND",&

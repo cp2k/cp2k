@@ -182,6 +182,8 @@ CONTAINS
               keyword_name="DIRECTORY",c_val=farming_env%Job(i)%cwd,error=error)
          CALL section_vals_val_get(jobs_section,i_rep_section=i,&
               keyword_name="INPUT_FILE_NAME",c_val=farming_env%Job(i)%input,error=error)
+         CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+              keyword_name="OUTPUT_FILE_NAME",c_val=farming_env%Job(i)%output,error=error)
 
          ! if job id is not specified the job id is the index
          CALL section_vals_val_get(jobs_section,i_rep_section=i,&

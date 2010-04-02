@@ -21,6 +21,7 @@ MODULE farming_types
   TYPE job_type
        CHARACTER(LEN=default_path_length) :: cwd                   ! the directory to go to
        CHARACTER(LEN=default_path_length) :: input                 ! the input file to use
+       CHARACTER(LEN=default_path_length) :: output                ! the output file to use
        INTEGER                            :: ID                    ! the ID of this job
        INTEGER, POINTER, DIMENSION(:)     :: dependencies          ! the dependencies of this job
        INTEGER                            :: status ! pending,running,finished
@@ -85,6 +86,7 @@ ELEMENTAL SUBROUTINE init_job_type(job)
 
     job%cwd=""
     job%input=""
+    job%output=""
     job%ID=-1
     job%status=job_pending
     NULLIFY(job%dependencies)

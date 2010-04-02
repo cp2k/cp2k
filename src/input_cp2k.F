@@ -1547,8 +1547,15 @@ CONTAINS
 
     CALL keyword_create(keyword,name="INPUT_FILE_NAME",&
          description="the filename of the input file",&
-         usage="input_file my_input.inp",&
+         usage="INPUT_FILE_NAME my_input.inp",&
          required=.TRUE.,default_lc_val="input.inp",supported_feature=.TRUE.,error=error)
+    CALL section_add_keyword(sub_section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword,name="OUTPUT_FILE_NAME",&
+         description="the filename of the output file, if not specified will use the project name in the &GLOBAL section.",&
+         usage="OUTPUT_FILE_NAME my_input.inp",&
+         required=.FALSE.,default_lc_val="",supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
