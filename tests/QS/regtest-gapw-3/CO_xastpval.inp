@@ -1,6 +1,5 @@
 &GLOBAL
-
- PROJECT      xas_COhch
+ PROJECT      xas_tpval
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -31,7 +30,6 @@
       LMAXN0       2
       LMAXN1       6
       ALPHA0_H     10
-      ALPHA0_S     10
      &END
     &MGRID
       CUTOFF       50
@@ -77,18 +75,11 @@
       ADDED_MOS     20
       &LOCALIZE
       &END
-      EMISSION
       &PRINT
         &RESTART
         &END
       &END
     &END
-##    &PRINT
-##      &MO
-##        EIGENVALUES
-##        OCCUPATION_NUMBERS
-##      &END
-##    &END
   &END SECTION DFT
   &SUBSYS
     &CELL

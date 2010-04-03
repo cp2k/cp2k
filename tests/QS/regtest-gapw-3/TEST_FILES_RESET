@@ -222,3 +222,7 @@ CO_xastpxhh.inp
 CO_xastpval.inp
 # atomic code: unrestricted calculations 
 CO_xastpxhh_loclist.inp
+#changes in xas code
+CO_xastpfh.inp
+CO_xastpxhh_loclist.inp
+CO_xastpval.inp

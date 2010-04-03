@@ -25,7 +25,6 @@
     &END PRINT
     &QS
       ALPHA0_H 10.0
-      ALPHA0_S 10.0
       EPS_DEFAULT 1.0E-8
       EPSFIT 1.0E-4
       EPSISO 1.0E-12

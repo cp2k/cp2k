@@ -62,3 +62,6 @@ CO.inp
 CO_xastphh.inp
 # GAPW rewrite 2nd step 
 CO_xastpfh.inp
+# changes in XAS code
+CO_xastphh_r.inp
+CO_xastpfh.inp

@@ -1,6 +1,5 @@
 &GLOBAL
-
- PROJECT      xas_COxfch
+ PROJECT      co_tpxfh
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -27,7 +26,6 @@
       LMAXN0       2
       LMAXN1       6
       ALPHA0_H     10
-      ALPHA0_S     10
      &END
     &MGRID
       CUTOFF       150
@@ -68,26 +66,30 @@
       MAXSTEP       20
       STATE_TYPE    1s
       STATE_SEARCH  2
-      ATOMS_LIST    1
-      ATOMS_LIST    2
+      ATOMS_LIST    1..2
       ADDED_MOS     20
       &LOCALIZE
       &END
-      EMISSION
       RESTART
       &PRINT
         &CLS_FUNCTION_CUBES
           STRIDE 2 
           CUBES_LIST 8 9 10
         &END
-      &END 
+         &PROGRAM_RUN_INFO
+         &END
+         &RESTART
+             &EACH
+               XAS_SCF 1
+             &END
+         &END
+         &XES_SPECTRUM
+         &END
+         &XAS_SPECTRUM
+         &END
+      &END
+
     &END
-##    &PRINT
-##      &MO
-##        EIGENVALUES
-##        OCCUPATION_NUMBERS
-##      &END
-##    &END
   &END SECTION DFT
   &SUBSYS
     &CELL

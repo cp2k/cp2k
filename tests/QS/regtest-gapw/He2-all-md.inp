@@ -13,7 +13,6 @@
     &END MGRID
     &QS
       ALPHA0_HARD 10
-      ALPHA0_SOFT 10
       EPS_GVG 1.0E-6
       EPS_PGF_ORB 1.0E-6
       EPSFIT 1.E-4

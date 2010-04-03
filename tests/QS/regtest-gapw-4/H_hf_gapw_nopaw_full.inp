@@ -10,7 +10,6 @@
     &END MGRID
     &QS
       ALPHA0_HARD 10.000000001
-      ALPHA0_SOFT  10.0
       METHOD GAPW
     &END QS
     &SCF

@@ -23,10 +23,10 @@
       ADDED_MOS 4
       EPS_SCF 1.0E-5
       MAX_SCF 30
-      &OT
+      &OT OFF
          ROTATION
       &END
-       &OUTER_SCF
+       &OUTER_SCF OFF
           EPS_SCF 1.0E-5
           MAX_SCF 1000
        &END

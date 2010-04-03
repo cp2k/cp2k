@@ -20,7 +20,6 @@
       LMAXN0       4
       LMAXN1       6
       ALPHA0_H     10
-      ALPHA0_S     10
       EXTRAPOLATION USE_PREV_WF
     &END QS
     &SCF

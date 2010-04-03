@@ -1,6 +1,5 @@
 &GLOBAL
-
- PROJECT      xas_COxhch
+ PROJECT      co_tpxhh 
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -31,7 +30,6 @@
       LMAXN0       2
       LMAXN1       6
       ALPHA0_H     10
-      ALPHA0_S     10
      &END
     &MGRID
       CUTOFF       50
@@ -77,9 +75,21 @@
       ADDED_MOS     20
       &LOCALIZE
       &END
-      EMISSION
-      RESTART
-      WFN_RESTART_FILE_NAME ./pippo
+##      RESTART
+##      WFN_RESTART_FILE_NAME ./co_tpxhh
+      &PRINT
+         &PROGRAM_RUN_INFO
+         &END
+         &RESTART
+             &EACH
+               XAS_SCF 1
+             &END
+         &END
+         &XES_SPECTRUM
+         &END
+         &XAS_SPECTRUM
+         &END
+      &END
     &END
   &END SECTION DFT
   &SUBSYS

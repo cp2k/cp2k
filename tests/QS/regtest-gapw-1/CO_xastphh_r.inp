@@ -1,6 +1,6 @@
 &GLOBAL
 
- PROJECT      xas_COhch
+ PROJECT      co_tphh_r
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -27,7 +27,6 @@
       LMAXN0       2
       LMAXN1       6
       ALPHA0_H     10
-      ALPHA0_S     10
      &END
     &MGRID
       CUTOFF       50
@@ -72,7 +71,6 @@
       ATOMS_LIST    1
       ATOMS_LIST    2
       ADDED_MOS     20
-      EMISSION
       &LOCALIZE
       &END
       RESTART
@@ -80,13 +78,13 @@
          &PROGRAM_RUN_INFO
          &END 
          &RESTART
-             FILENAME ./pippo
+             FILENAME ./co_tphh
              &EACH
                XAS_SCF 1
              &END
          &END 
-         &SPECTRUM
-           FILENAME ./pippo
+         &XAS_SPECTRUM
+           FILENAME ./co_tphh_r
          &END
 
       &END

@@ -1,6 +1,5 @@
 &GLOBAL
-
- PROJECT      xas_hch_igloiii
+ PROJECT      co_gapw_lsd
  IOLEVEL      MEDIUM
  RUN_TYPE     ENERGY
 &END 
@@ -31,7 +30,6 @@
       LMAXN0       2
       LMAXN1       6
       ALPHA0_H     10
-      ALPHA0_S     10
      &END
     &MGRID
       CUTOFF       50
@@ -64,21 +62,6 @@
      PERIODIC NONE
     &END POISSON
 
-    &XAS OFF
-      CONVERGENCE 0.000001
-      EPS_DIIS   0.4
-      METHOD        TP_HH
-      DIPOLE_FORM   VELOCITY
-      MAXSTEP       20
-      STATE_TYPE    1s
-      STATE_SEARCH  7
-      ATOMS_LIST    1
-      ATOMS_LIST    2
-      ADDED_MOS     0
-      &LOCALIZE
-      &END
-      EMISSION
-    &END
   &END SECTION DFT
   &SUBSYS
     &CELL
