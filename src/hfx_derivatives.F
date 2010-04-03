@@ -43,8 +43,8 @@ MODULE hfx_derivatives
        hfx_distribution, hfx_general_type, hfx_init_container, &
        hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, &
        hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
-       hfx_screening_type, hfx_task_list_type, hfx_type, log_zero, &
-       pair_list_type, pair_set_list_type
+       hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
+       log_zero, pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_truncated,&
                                              hfx_do_eval_forces
   USE input_section_types,             ONLY: section_vals_type
@@ -73,7 +73,6 @@ MODULE hfx_derivatives
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_derivatives'
 
 
-  INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
 !***
   

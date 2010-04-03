@@ -56,7 +56,7 @@ MODULE t_c_g0
  INTEGER, PARAMETER :: degree=13
  REAL(KIND=dp), PARAMETER :: target_error=      0.100000E-08
  INTEGER, PARAMETER :: nderiv_max=21
- INTEGER            :: nderiv_init=-1
+ INTEGER, SAVE      :: nderiv_init=-1
  INTEGER, SAVE      :: patches=-1
 CONTAINS
 SUBROUTINE t_c_g0_n(RES,use_gamma,R,T,NDERIV)

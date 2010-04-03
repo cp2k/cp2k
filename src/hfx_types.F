@@ -75,7 +75,7 @@ MODULE hfx_types
           hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
           pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
           hfx_pgf_image, hfx_pgf_product_list, hfx_block_range_type, &
-          alloc_containers, dealloc_containers, hfx_task_list_type
+          alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -97,6 +97,9 @@ MODULE hfx_types
                                                              2.0317_dp,&
                                                              2.1261_dp,&
                                                              2.2165_dp/)
+  
+  INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
+
 !***
 
 ! *****************************************************************************
@@ -1080,6 +1083,7 @@ MODULE hfx_types
 !$  n_threads = omp_get_max_threads()
 
     IF(x_data(1,1)%potential_parameter%potential_type == do_hfx_potential_truncated) THEN
+      init_t_c_g0_lmax = -1
       CALL free()
     END IF
     DO i_thread= 1,n_threads
