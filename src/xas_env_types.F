@@ -29,6 +29,7 @@ MODULE xas_env_types
                                              qs_loc_env_retain
   USE qs_scf_types,                    ONLY: mixing_storage_release,&
                                              mixing_storage_type
+  USE scf_control_types,               ONLY: smear_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -69,8 +70,9 @@ MODULE xas_env_types
   TYPE xas_environment_type
     INTEGER :: ref_count
     INTEGER :: iter_count
-    INTEGER :: nao,exc_state
-    INTEGER :: nvirtual,nvirtual1,nvirtual2
+    INTEGER :: nao,exc_state, xas_estate
+    INTEGER :: nexc_search, nexc_atoms
+    INTEGER :: nvirtual,nvirtual2
     INTEGER :: scf_method, mixing_method
     INTEGER :: unoccupied_max_iter
     INTEGER, DIMENSION(:), POINTER :: state_of_atom
@@ -78,7 +80,8 @@ MODULE xas_env_types
     INTEGER, DIMENSION(:), POINTER :: type_of_state
     INTEGER, DIMENSION(:), POINTER :: mykind_of_atom
     INTEGER, DIMENSION(:), POINTER :: mykind_of_kind
-    REAL(dp) :: eps_diis, p_mix, unoccupied_eps
+    INTEGER, DIMENSION(:), POINTER :: exc_atoms
+    REAL(dp) :: eps_diis, ip_energy, occ_estate, unoccupied_eps, xas_nelectron
     REAL(dp), DIMENSION(:), POINTER :: all_evals
     REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
@@ -97,27 +100,27 @@ MODULE xas_env_types
     TYPE(mixing_storage_type), POINTER :: mixing_store
     TYPE( dbcsr_obj_p_type ), DIMENSION(:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
+    TYPE(smear_type), POINTER   :: smear
 
   END TYPE xas_environment_type
 
 CONTAINS
 ! *****************************************************************************
-  SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,nvirtual1,nvirtual2,&
-             centers_wfn,atom_of_state,type_of_state,mykind_of_atom,mykind_of_kind,&
+  SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,nvirtual2,&
+             centers_wfn,atom_of_state, exc_atoms, type_of_state,mykind_of_atom,mykind_of_kind,&
              state_of_atom,spectrum,groundstate_coeff,ostrength_sm,&
              dip_fm_set,excvec_coeff,excvec_overlap,fm_work,&
              unoccupied_orbs, unoccupied_evals,unoccupied_max_iter,unoccupied_eps,&
-             all_vectors,all_evals,eps_diis,p_mix, my_gto_basis,qs_loc_env,&
-             stogto_overlap,error)
+             all_vectors,all_evals,eps_diis, my_gto_basis,qs_loc_env,&
+             stogto_overlap,occ_estate,xas_nelectron,xas_estate,nexc_atoms,nexc_search,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
     INTEGER, INTENT(OUT), OPTIONAL           :: iter_count, exc_state, nao, &
-                                                nvirtual, nvirtual1, nvirtual2
+                                                nvirtual, nvirtual2
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: centers_wfn
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_of_state, type_of_state, &
-                                                mykind_of_atom, &
-                                                mykind_of_kind, state_of_atom
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_of_state, exc_atoms, &
+      type_of_state, mykind_of_atom, mykind_of_kind, state_of_atom
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: spectrum
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -135,13 +138,16 @@ CONTAINS
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: all_vectors
     REAL(dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: all_evals
-    REAL(dp), OPTIONAL                       :: eps_diis, p_mix
+    REAL(dp), INTENT(OUT), OPTIONAL          :: eps_diis
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: my_gto_basis
     TYPE(qs_loc_env_new_type), OPTIONAL, &
       POINTER                                :: qs_loc_env
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: stogto_overlap
+    REAL(dp), INTENT(OUT), OPTIONAL          :: occ_estate, xas_nelectron
+    INTEGER, INTENT(OUT), OPTIONAL           :: xas_estate, nexc_atoms, &
+                                                nexc_search
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_xas_env', &
@@ -158,14 +164,18 @@ CONTAINS
        IF(PRESENT(exc_state)) exc_state=xas_env%exc_state
        IF(PRESENT(nao)) nao=xas_env%nao
        IF(PRESENT(nvirtual)) nvirtual=xas_env%nvirtual
-       IF(PRESENT(nvirtual1)) nvirtual1=xas_env%nvirtual1
        IF(PRESENT(nvirtual2)) nvirtual2=xas_env%nvirtual2
        IF(PRESENT(eps_diis))  eps_diis=xas_env%eps_diis
-       IF(PRESENT(p_mix))  p_mix=xas_env%p_mix
+       IF(PRESENT(xas_nelectron))  xas_nelectron=xas_env%xas_nelectron
+       IF(PRESENT(occ_estate))  occ_estate=xas_env%occ_estate
+       IF(PRESENT(xas_estate))  xas_estate=xas_env%xas_estate
+       IF(PRESENT(nexc_search))  nexc_search=xas_env%nexc_search
+       IF(PRESENT(nexc_atoms))  nexc_atoms=xas_env%nexc_atoms
        IF(PRESENT(unoccupied_eps))  unoccupied_eps=xas_env%unoccupied_eps
        IF(PRESENT(unoccupied_max_iter)) unoccupied_max_iter=xas_env%unoccupied_max_iter
        IF(PRESENT(centers_wfn)) centers_wfn=>xas_env%centers_wfn
        IF(PRESENT(atom_of_state)) atom_of_state=>xas_env%atom_of_state
+       IF(PRESENT(exc_atoms)) exc_atoms=>xas_env%exc_atoms
        IF(PRESENT(type_of_state)) type_of_state=>xas_env%type_of_state
        IF(PRESENT(state_of_atom)) state_of_atom=>xas_env%state_of_atom
        IF(PRESENT(mykind_of_atom)) mykind_of_atom=>xas_env%mykind_of_atom
@@ -189,13 +199,20 @@ CONTAINS
   END SUBROUTINE get_xas_env
 
 ! *****************************************************************************
-  SUBROUTINE set_xas_env(xas_env,iter_count,nvirtual,nvirtual1,nvirtual2, qs_loc_env,error)
+  SUBROUTINE set_xas_env(xas_env,iter_count,eps_diis,nexc_search,nexc_atoms,&
+             nvirtual,nvirtual2, ip_energy, occ_estate, qs_loc_env,&
+             xas_estate, xas_nelectron,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    INTEGER, INTENT(IN), OPTIONAL            :: iter_count, nvirtual, &
-                                                nvirtual1, nvirtual2
+    INTEGER, INTENT(IN), OPTIONAL            :: iter_count
+    REAL(dp), INTENT(IN), OPTIONAL           :: eps_diis
+    INTEGER, INTENT(IN), OPTIONAL            :: nexc_search, nexc_atoms, &
+                                                nvirtual, nvirtual2
+    REAL(dp), INTENT(IN), OPTIONAL           :: ip_energy, occ_estate
     TYPE(qs_loc_env_new_type), OPTIONAL, &
       POINTER                                :: qs_loc_env
+    INTEGER, INTENT(IN), OPTIONAL            :: xas_estate
+    REAL(dp), INTENT(IN), OPTIONAL           :: xas_nelectron
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
@@ -210,9 +227,15 @@ CONTAINS
     IF(.NOT. failure) THEN
 
       IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
+      IF (PRESENT(nexc_search)) xas_env%nexc_search = nexc_search
+      IF (PRESENT(nexc_atoms)) xas_env%nexc_atoms = nexc_search
       IF (PRESENT(nvirtual)) xas_env%nvirtual = nvirtual
-      IF (PRESENT(nvirtual1)) xas_env%nvirtual1 = nvirtual1
       IF (PRESENT(nvirtual2)) xas_env%nvirtual2 = nvirtual2
+      IF (PRESENT(eps_diis)) xas_env%eps_diis = eps_diis
+      IF (PRESENT(occ_estate)) xas_env%occ_estate = occ_estate
+      IF (PRESENT(xas_nelectron)) xas_env%xas_nelectron = xas_nelectron
+      IF (PRESENT(xas_estate)) xas_env%xas_estate = xas_estate
+      IF (PRESENT(ip_energy)) xas_env%ip_energy = ip_energy
       IF (PRESENT(qs_loc_env)) THEN
         CALL  qs_loc_env_retain(qs_loc_env, error=error)
         IF(ASSOCIATED(xas_env%qs_loc_env)) &
@@ -245,13 +268,13 @@ CONTAINS
       xas_env%ref_count=1
       xas_env%iter_count=0
       xas_env%nvirtual=0
-      xas_env%nvirtual1=0
       xas_env%nvirtual2=0
       xas_env%mixing_method=1
 
       NULLIFY(xas_env%ao_mo_fm_pools)
       NULLIFY(xas_env%my_gto_basis)
       NULLIFY(xas_env%state_of_atom, xas_env%atom_of_state)
+      NULLIFY(xas_env%exc_atoms)
       NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap)
       NULLIFY(xas_env%type_of_state,xas_env%mykind_of_atom)
       NULLIFY(xas_env%type_of_state,xas_env%mykind_of_kind)
@@ -261,6 +284,7 @@ CONTAINS
       NULLIFY(xas_env%unoccupied_evals,xas_env%unoccupied_orbs)
       NULLIFY(xas_env%stogto_overlap)
       NULLIFY(xas_env%mixing_store)
+      NULLIFY(xas_env%smear)
 
     END IF
 
@@ -293,7 +317,9 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE(xas_env%mykind_of_kind,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DEALLOCATE(xas_env%spectrum,xas_env%centers_wfn,STAT=istat)
+         DEALLOCATE(xas_env%exc_atoms,STAT=istat)
+         CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         DEALLOCATE(xas_env%centers_wfn,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          IF(ASSOCIATED(xas_env%all_evals)) THEN
            DEALLOCATE(xas_env%all_evals,STAT=istat)
@@ -367,6 +393,14 @@ CONTAINS
            CALL mixing_storage_release(xas_env%mixing_store,error=error)
          END IF
 
+         IF (ASSOCIATED(xas_env%smear)) THEN
+           IF (ASSOCIATED(xas_env%smear%list)) THEN
+              DEALLOCATE(xas_env%smear%list,stat=istat)
+              CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+           ENDIF
+           DEALLOCATE(xas_env%smear,stat=istat)          
+           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+         END IF
 
          DEALLOCATE(xas_env,STAT=istat)
          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)

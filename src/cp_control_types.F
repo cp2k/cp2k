@@ -121,12 +121,10 @@ MODULE cp_control_types
                                        quadrature
     LOGICAL                         :: lrho1_eq_lrho0
     LOGICAL                         :: alpha0_hard_from_input,&
-                                       alpha0_soft_from_input,&
                                        force_paw,&
                                        non_paw_atoms,&
                                        nopaw_as_gpw
-    REAL(KIND = dp)                 :: alpha0_hard,&
-                                       alpha0_soft
+    REAL(KIND = dp)                 :: alpha0_hard
     REAL(KIND = dp)                 :: max_rad_local
   END TYPE gapw_control_type
 
@@ -327,7 +325,6 @@ MODULE cp_control_types
                                           sic_method_id,&
                                           ref_count,&
                                           id_nr,&
-                                          xas_estate,&
                                           plus_u_method_id
      INTEGER                           :: sic_list_id
      REAL(KIND=dp)                     :: sic_scaling_a,&

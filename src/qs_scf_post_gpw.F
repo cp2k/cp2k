@@ -113,9 +113,7 @@ MODULE qs_scf_post_gpw
   USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
-                                             read_loc_section,&
-                                             set_loc_centers,&
+  USE qs_loc_control,                  ONLY: set_loc_centers,&
                                              set_loc_wfn_lists
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_molecules,                ONLY: wfc_to_molecule
@@ -124,6 +122,7 @@ MODULE qs_scf_post_gpw
                                              qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: loc_read_restart,&
                                              loc_write_restart,&
+                                             qs_loc_control_init,&
                                              qs_loc_env_init
   USE qs_mo_methods,                   ONLY: calculate_orthonormality,&
                                              calculate_subspace_eigenvalues
@@ -392,12 +391,14 @@ CONTAINS
              END DO
              do_homo=.TRUE.
              CALL qs_loc_env_create(qs_loc_env_homo,error=error)
-             CALL qs_loc_control_init(qs_loc_env_homo,dft_section,do_homo,error)
-             CALL qs_loc_init(qs_env,qs_loc_env_homo,dft_section,homo_localized,do_homo,do_mo_cubes,error=error)
-             CALL get_localization_info(qs_env,qs_loc_env_homo,dft_section,homo_localized, wf_r, wf_g,particles,&
-                  occupied_orbs,occupied_evals,marked_states,error=error)
+             CALL qs_loc_control_init(qs_loc_env_homo,dft_section,do_homo=do_homo,error=error)
+             CALL qs_loc_init(qs_env,qs_loc_env_homo,dft_section,homo_localized,do_homo,&
+                  do_mo_cubes,error=error)
+             CALL get_localization_info(qs_env,qs_loc_env_homo,dft_section,homo_localized,&
+                  wf_r, wf_g,particles,occupied_orbs,occupied_evals,marked_states,error=error)
              !write restart for localization of occupied orbitals
-             CALL loc_write_restart(qs_env,qs_loc_env_homo,localization_section,mos,homo_localized, do_homo, error=error)
+             CALL loc_write_restart(qs_env,qs_loc_env_homo,localization_section,mos,&
+                  homo_localized, do_homo, error=error)
              CALL cp_fm_vect_dealloc(homo_localized,error)
              DEALLOCATE(occupied_orbs,stat=istat)
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -420,7 +421,7 @@ CONTAINS
           IF(p_loc_lumo)THEN
              do_homo=.FALSE.
              CALL qs_loc_env_create(qs_loc_env_lumo,error=error)
-             CALL qs_loc_control_init(qs_loc_env_lumo,dft_section,do_homo,error)
+             CALL qs_loc_control_init(qs_loc_env_lumo,dft_section,do_homo=do_homo,error=error)
              min_lumos=MAX(MAXVAL(qs_loc_env_lumo%localized_wfn_control%loc_states(:,:)),nlumo)         
           END IF
  
@@ -574,7 +575,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_localization_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, ispin, mystate, &
+    INTEGER                                  :: handle, ispin, mystate, &
                                                 output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: marked_states_spin
     LOGICAL                                  :: do_homo, failure
@@ -682,7 +683,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, ks_rmpv_aux_fit, &
                                                 matrix_s
@@ -858,29 +858,8 @@ CONTAINS
   ! *****************************************************************************
   !> \brief initializes everything needed for localization of the HOMOs
   ! *****************************************************************************
-  SUBROUTINE qs_loc_control_init(qs_loc_env,dft_section,do_homo,error)
-    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(section_vals_type), POINTER         :: dft_section
-    LOGICAL                                  :: do_homo
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(section_vals_type), POINTER         :: localization_section, &
-                                                localize_section
-
-    localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
-    localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
-
-    CALL localized_wfn_control_create(qs_loc_env%localized_wfn_control,error=error)
-    qs_loc_env%localized_wfn_control%do_homo=do_homo
-    CALL read_loc_section(qs_loc_env%localized_wfn_control,localize_section,&
-         localization_section,qs_loc_env%do_localize,error=error)
-
-  END SUBROUTINE  qs_loc_control_init
-
-  SUBROUTINE qs_loc_init(qs_env,qs_loc_env,dft_section,mos_localized, do_homo,do_mo_cubes,evals,error)
+  SUBROUTINE qs_loc_init(qs_env,qs_loc_env,dft_section,mos_localized, &
+             do_homo,do_mo_cubes,evals,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -895,29 +874,29 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, homo, i, ilast_intocc, ilow, ispin, iup, n_mo(2), &
-      n_mos(2), nao, nelectron, nmo, nmoloc(2), output_unit
+      n_mos(2), nao, nelectron, nmoloc(2), nspin, output_unit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, occupation
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: input, localization_section, &
+    TYPE(section_vals_type), POINTER         :: localization_section, &
                                                 localize_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(dft_control,mos,ks_rmpv,scf_control)
-    CALL get_qs_env(qs_env,dft_control=dft_control,mos=mos,matrix_ks=ks_rmpv,scf_control=scf_control,error=error)
+    NULLIFY(mos,ks_rmpv,mos)
+    CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,&
+         error=error)
     localization_section => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
     localize_section     => section_vals_get_subs_vals(dft_section,"LOCALIZE",error=error)
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
+    nspin = SIZE(mos)
     IF (qs_loc_env%do_localize) THEN
       ! Some setup for MOs to be localized
       IF(qs_loc_env%localized_wfn_control%loc_restart) THEN
@@ -928,7 +907,7 @@ CONTAINS
          nmoloc = qs_loc_env%localized_wfn_control%nloc_states
       ELSE
          nmoloc = 0
-         DO ispin = 1,dft_control%nspins
+         DO ispin = 1,nspin
             CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,homo=homo,nao=nao,&
                  mo_coeff=mo_coeff, eigenvalues=mo_eigenvalues, occupation_numbers=occupation)
             ! Get eigenstates (only needed if not already calculated before)
@@ -1012,9 +991,9 @@ CONTAINS
          ENDDO  ! ispin
          n_mos(:)=nao-n_mo(:)
          IF(do_homo)n_mos=n_mo
-         CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mos,dft_control%nspins,error=error)
+         CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mos,nspin,error=error)
       END IF
-      CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,dft_control%nspins,error=error)
+      CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,nspin,error=error)
       IF(do_homo)THEN
          CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,qs_env,loc_coeff=mos_localized,error=error)
       END IF

@@ -87,7 +87,7 @@ MODULE qs_loc_control
   PUBLIC :: localized_wfn_control_create, &
             localized_wfn_control_release,&
             localized_wfn_control_retain,&
-            read_loc_section,&
+            read_loc_section, &
             set_loc_wfn_lists,&
             set_loc_centers
 
@@ -220,7 +220,10 @@ CONTAINS
 
     failure=.FALSE.
     my_do_xas=.FALSE.
-    IF(PRESENT(do_xas)) my_do_xas=do_xas
+    IF(PRESENT(do_xas)) THEN
+       my_do_xas=do_xas
+       CPPrecondition(PRESENT(nloc_xas),cp_failure_level,routineP,error,failure)
+    END IF
     CPPrecondition(ASSOCIATED(loc_section),cp_failure_level,routineP,error,failure)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -285,6 +288,10 @@ CONTAINS
                  localized_wfn_control%loc_states(:,1) = loc_list(:)
                  localized_wfn_control%loc_states(:,2) = loc_list(:)
                  localized_wfn_control%nloc_states(1) = n_list 
+                 IF(my_do_xas) THEN
+                   localized_wfn_control%nloc_states(2) = 0 
+                   localized_wfn_control%loc_states(:,2) = 0
+                 END IF
                  DEALLOCATE(loc_list, STAT=stat)
                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                END IF
@@ -451,8 +458,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief create the center and spread array and the file names for the output
-!> \note
-!>      would be better to get rid of globenv
 !> \par History
 !>      04.2005 created [MI]
 ! *****************************************************************************

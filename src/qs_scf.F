@@ -182,9 +182,9 @@ MODULE qs_scf
        block_krylov_diag_method_nr, broyden_mixing_new_nr, broyden_mixing_nr, &
        diag_subspace_env_create, direct_mixing_nr, general_diag_method_nr, &
        gspace_mixing_nr, krylov_space_create, mixing_storage_create, &
-       multisecant_mixing_nr, no_mixing_nr, ot_diag_method_nr, ot_method_nr, &
-       pulay_mixing_nr, qs_scf_env_type, scf_env_create, scf_env_release, &
-       special_diag_method_nr
+       mixing_storage_type, multisecant_mixing_nr, no_mixing_nr, &
+       ot_diag_method_nr, ot_method_nr, pulay_mixing_nr, qs_scf_env_type, &
+       scf_env_create, scf_env_release, special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
@@ -200,6 +200,7 @@ MODULE qs_scf
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xas_env_types,                   ONLY: xas_environment_type
   USE xas_restart,                     ONLY: xas_initialize_rho
 #include "cp_common_uses.h"
 
@@ -637,8 +638,8 @@ CONTAINS
                                               has_unit_metric,error)
              ELSE
                 CALL do_general_diag(scf_env,mos,matrix_ks,&
-                                                 matrix_s,scf_control,scf_section, &
-                                                 diis_step,use_jacobi,error)
+                                     matrix_s,scf_control,scf_section, &
+                                     diis_step,use_jacobi,error=error)
                 IF(scf_env%do_diag_sub) THEN
                   skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
                          (scf_env%iter_count==1  .OR. scf_env%iter_delta>scf_env%subspace_env%eps_diag_sub )
@@ -674,8 +675,8 @@ CONTAINS
                                      scf_control, scf_section, check_moconv_only=.TRUE., error=error)
                 END IF
                 CALL do_general_diag(scf_env,mos,matrix_ks,&
-                                                 matrix_s,scf_control,scf_section, &
-                                                 diis_step,use_jacobi,error)
+                                     matrix_s,scf_control,scf_section, &
+                                     diis_step,use_jacobi,error=error)
              ELSE
                CALL do_block_krylov_diag(scf_env,mos,matrix_ks, &
                                          scf_control, scf_section, error=error)
@@ -691,17 +692,20 @@ CONTAINS
           CASE(ot_method_nr)
              ! ***SCP
              IF ( scp_dft ) THEN
-                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
+                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
+                     qs_env%mo_derivs,energy%total, &
                      matrix_s, aux_coeff_set=aux_coeff_set, energy_only=energy_only, &
                      has_unit_metric=has_unit_metric,error=error)
              ELSEIF ( scp_nddo ) THEN
                 CALL get_scp_env ( scp_env = scp_env,  ks_scp=ks_scp, error = error )
-                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
+                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
+                     qs_env%mo_derivs,energy%total, &
                      matrix_s, pscp=pscp, fscp=ks_scp, energy_only=energy_only, &
                      has_unit_metric=has_unit_metric,error=error)
                 CALL set_scp_env ( scp_env = scp_env, pscp = pscp, error = error )
              ELSE
-                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,qs_env%mo_derivs,energy%total, &
+                CALL qs_scf_loop_do_ot(qs_env,scf_env,scf_control%smear,mos,rho,&
+                     qs_env%mo_derivs,energy%total, &
                      matrix_s, energy_only=energy_only,has_unit_metric=has_unit_metric,error=error)
              ENDIF
              ! ***SCP
@@ -979,7 +983,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(smear_type)                         :: smear
+    TYPE(smear_type), POINTER                :: smear
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
@@ -1395,14 +1399,10 @@ END SUBROUTINE qs_scf_print_summary
     ENDDO!fm->dbcsr
 
     ! this just guarantees that all mo_occupations match the eigenvalues, if smear
-    ! TO BE FIXED, right now, can't be done with xas
-    IF (.NOT. (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)) THEN
-       DO ispin=1,dft_control%nspins
-          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                                 smear=scf_control%smear,&
-                                 error=error)
-       ENDDO
-    ENDIF
+    DO ispin=1,dft_control%nspins
+       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                              smear=scf_control%smear, error=error)
+    ENDDO
 
     SELECT CASE (scf_env%method)
     CASE DEFAULT
@@ -1864,11 +1864,12 @@ CPSourceFileRef)
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE init_scf_run(scf_env, qs_env, scf_section,error)
+  SUBROUTINE init_scf_run(scf_env, qs_env, scf_section, do_xas_tp, error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_xas_tp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
@@ -1897,6 +1898,7 @@ CPSourceFileRef)
          dft_control, mos, rho)
     failure=.FALSE.
     my_transition_potential = .FALSE.
+    IF(PRESENT(do_xas_tp)) my_transition_potential = do_xas_tp
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".scfLog",error=error)
@@ -1911,14 +1913,15 @@ CPSourceFileRef)
     s_minus_half_available = .FALSE.
 
     CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
-         error=error)
+         do_xas_tp=my_transition_potential,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
          dft_control=dft_control,&
          atomic_kind_set=atomic_kind_set,&
          mos=mos,matrix_ks=matrix_ks, rho=rho, &
-         matrix_h=matrix_h,matrix_s=matrix_s, error=error)
+         matrix_h=matrix_h,matrix_s=matrix_s,&
+         error=error)
 
     ! some special checks to eliminate the first problems with restricted
     ! should move earlier I think
@@ -1929,6 +1932,13 @@ CPSourceFileRef)
        ENDIF
        CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
     ENDIF
+
+    IF((scf_env%method == ot_method_nr) .AND. &
+       (scf_control%added_mos(1)+scf_control%added_mos(2)) > 0) THEN
+       IF (output_unit>0) WRITE(output_unit,*) "OT with ADDED_MOS/=0 not implemented"
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
+
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
@@ -2017,7 +2027,6 @@ CPSourceFileRef)
        CALL outer_loop_extrapolate(qs_env,error)
     ENDIF
 
-    my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
     ! initializes rho and the mos
     IF( my_transition_potential) THEN
       ! initialize the density with the localized mos
@@ -2055,22 +2064,20 @@ CPSourceFileRef)
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,error)
+SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: do_xas_tp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_check_i_alloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, ispin, nao, &
-                                                nhistory, nmo, nrow_block, &
-                                                nvariables, stat
-    LOGICAL                                  :: failure, &
-                                                gth_potential_present, &
-                                                my_transition_potential, &
-                                                uniform_occupation
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
+    INTEGER                                  :: handle, homo, ispin, &
+                                                mixing_method, nao, nhistory, &
+                                                nmo, nrow_block, nvariables, &
+                                                stat
+    LOGICAL                                  :: failure, gth_potential_present
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2091,23 +2098,22 @@ CPSourceFileRef)
                                                 matrix_s, mo_derivs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(mixing_storage_type), POINTER       :: mixing_store
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(xas_environment_type), POINTER      :: xas_env
 
     CALL timeset(routineN,handle)
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
-            dft_control, mos, occupation_numbers, S_sm_pools, ks_env,&
+            dft_control, mos, S_sm_pools, ks_env,&
             ao_mo_fm_pools_aux_fit, matrix_ks_aux_fit, S_sm_pools_aux_fit)
     NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control, mo_coeff_aux_fit,&
-            mo_derivs_aux_fit,para_env,distribution_2d)
+            mo_derivs_aux_fit,para_env,distribution_2d,xas_env)
 
     failure=.FALSE.
-
-    my_transition_potential = .FALSE.
-    uniform_occupation = .TRUE.
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -2121,7 +2127,7 @@ CPSourceFileRef)
          atomic_kind_set=atomic_kind_set,&
          matrix_s=matrix_s,&
          distribution_2d=distribution_2d,&
-         para_env=para_env,error=error)
+         para_env=para_env, xas_env=xas_env,error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
@@ -2135,7 +2141,6 @@ CPSourceFileRef)
 
     ! very first tests for xas
 
-    my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
 !   *** finish initialization of the MOs ***
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -2167,16 +2172,11 @@ CPSourceFileRef)
              CALL array_release (col_blk_size)! fm->dbcsr
              CALL array_release (col_dist)! fm->dbcsr
           ENDIF
-          IF(my_transition_potential .AND. ispin==1) THEN
-            CALL get_mo_set(mos(ispin)%mo_set,&
-                 occupation_numbers=occupation_numbers)
-            occupation_numbers(dft_control%xas_estate) = &
-                 dft_control%xas_control%occ_estate
-            occupation_numbers(homo) = dft_control%xas_control%occ_homo
-            uniform_occupation = .FALSE.
-
+          IF(do_xas_tp .AND. ispin==1) THEN
+            CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=xas_env%smear,&
+                 xas_env=xas_env,error=error)
             CALL set_mo_set(mos(ispin)%mo_set,&
-                 uniform_occupation=uniform_occupation,error=error)
+                 uniform_occupation=.FALSE.,error=error)
           END IF
        END DO
     END IF
@@ -2194,16 +2194,11 @@ CPSourceFileRef)
                     "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                     error=error)
             END IF
-            IF(my_transition_potential .AND. ispin==1) THEN
-              CALL get_mo_set(mos_aux_fit(ispin)%mo_set,&
-                   occupation_numbers=occupation_numbers)
-              occupation_numbers(dft_control%xas_estate) = &
-                   dft_control%xas_control%occ_estate
-              occupation_numbers(homo) = dft_control%xas_control%occ_homo
-              uniform_occupation = .FALSE.
-
-              CALL set_mo_set(mos_aux_fit(ispin)%mo_set,&
-                   uniform_occupation=uniform_occupation,error=error)
+            IF(do_xas_tp .AND. ispin==1) THEN
+              CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,smear=xas_env%smear,&
+                   xas_env=xas_env,error=error)
+              CALL set_mo_set(mos(ispin)%mo_set,&
+                   uniform_occupation=.FALSE.,error=error)
             END IF
          END DO
       END IF
@@ -2395,9 +2390,15 @@ CPSourceFileRef)
     END IF
 
 !   *** allocate the mixing storage
-    IF (scf_env%mixing_method>0) THEN
-      CALL mixing_allocate(qs_env,scf_env%mixing_method,scf_env%mixing_store,&
-           dft_control%nspins,error)
+    IF(do_xas_tp) THEN
+      mixing_method = xas_env%mixing_method
+      mixing_store => xas_env%mixing_store
+    ELSE
+      mixing_method = scf_env%mixing_method
+      mixing_store => scf_env%mixing_store
+    END IF
+    IF (mixing_method>0) THEN
+      CALL mixing_allocate(qs_env,mixing_method,mixing_store,dft_control%nspins,error)
     ELSE
        NULLIFY(scf_env%p_mix_new)
     END IF
@@ -2489,7 +2490,8 @@ CPSourceFileRef)
                 CALL qs_env_reorthogonalize_vectors(qs_env, &
                      v_matrix=mo_coeff, n_col=nmo,&
                      error=error)
-                CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, smear=qs_env%scf_control%smear, error=error)
+                CALL set_mo_occupation(mo_set=qs_env%mos(ispin)%mo_set, &
+                     smear=qs_env%scf_control%smear, error=error)
              END DO
           END IF
        END IF

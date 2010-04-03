@@ -61,7 +61,10 @@ MODULE qs_loc_utils
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type
+  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
+                                             localized_wfn_control_release,&
+                                             localized_wfn_control_type,&
+                                             read_loc_section
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              qs_loc_env_new_type,&
                                              set_qs_loc_env
@@ -87,7 +90,8 @@ MODULE qs_loc_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_utils'
 
 ! *** Public ***
-  PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart, loc_read_restart
+  PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart,&
+            loc_read_restart,qs_loc_control_init
 
 CONTAINS
 
@@ -1129,6 +1133,49 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE  loc_read_restart
+
+! *****************************************************************************
+!> \brief initializes everything needed for localization of the HOMOs
+!> \par History
+!>      2009 created
+! *****************************************************************************
+  SUBROUTINE qs_loc_control_init(qs_loc_env,section,print_loc_section,do_homo,do_xas,nloc_xas,error)
+
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: section
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: print_loc_section
+    LOGICAL, INTENT(IN)                      :: do_homo
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_xas
+    INTEGER, INTENT(IN), OPTIONAL            :: nloc_xas
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_control_init', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(section_vals_type), POINTER         :: localization_section, &
+                                                localize_section
+
+    NULLIFY(localized_wfn_control, localize_section, localization_section)
+
+    localize_section     => section_vals_get_subs_vals(section,"LOCALIZE",error=error)
+    IF(PRESENT(print_loc_section)) THEN
+      localization_section => print_loc_section
+    ELSE
+      localization_section => section_vals_get_subs_vals(section,"PRINT%LOCALIZATION",error=error)
+    END IF
+
+    CALL localized_wfn_control_create(localized_wfn_control,error=error)
+    CALL set_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
+    CALL localized_wfn_control_release(localized_wfn_control,error=error)
+    CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control,error=error)
+    localized_wfn_control%do_homo=do_homo
+    CALL read_loc_section(localized_wfn_control,localize_section,&
+         localization_section,qs_loc_env%do_localize,do_xas,nloc_xas,error=error)
+
+  END SUBROUTINE  qs_loc_control_init
 
 
 END MODULE qs_loc_utils

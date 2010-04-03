@@ -275,7 +275,7 @@ CONTAINS
     
     !Properties
     IF(dft_control%do_xas_calculation) THEN
-      CALL xas(qs_env, dft_control%xas_control, error=error)
+      CALL xas(qs_env, dft_control, error=error)
     END IF
 
     CALL timestop(handle)

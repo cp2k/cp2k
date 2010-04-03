@@ -642,8 +642,7 @@ MODULE  rt_propagation_utils
        END DO
     CASE(use_rt_restart)
        CALL read_rt_mos_from_restart(mo_array,qs_env%rtp%mos_old,atomic_kind_set,particle_set,qs_env%para_env,&
-            id_nr,dft_control%multiplicity,dft_section,&
-            scp, scp_env, error)
+            id_nr,dft_control%multiplicity,dft_section, error)
     END SELECT
     
 

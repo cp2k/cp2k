@@ -27,8 +27,8 @@ MODULE xas_methods
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_set, &
-       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
+       copy_dbcsr_to_fm, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, &
+       cp_dbcsr_set, dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
        dbcsr_dist2d_to_dist, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
@@ -54,10 +54,10 @@ MODULE xas_methods
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: &
-       do_loc_none, state_loc_all, state_loc_list, state_loc_range, &
-       xas_1s_type, xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, &
-       xas_dscf, xas_scf_general, xas_tp_fh, xas_tp_hh, xas_tp_xfh, &
-       xas_tp_xhh, xes_tp_val
+       do_loc_none, state_loc_list, state_loc_range, xas_1s_type, &
+       xas_2p_type, xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, &
+       xas_scf_general, xas_tp_fh, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, &
+       xes_tp_val
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -71,12 +71,12 @@ MODULE xas_methods
                                              particle_type
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: evolt
+  USE qs_diis,                         ONLY: qs_diis_b_clear,&
+                                             qs_diis_b_create
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
-                                             localized_wfn_control_retain,&
-                                             localized_wfn_control_type,&
+  USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
   USE qs_loc_methods,                  ONLY: qs_loc_driver,&
@@ -84,7 +84,8 @@ MODULE xas_methods
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
                                              qs_loc_env_new_type,&
                                              qs_loc_env_release
-  USE qs_loc_utils,                    ONLY: qs_loc_env_init
+  USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
+                                             qs_loc_env_init
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
@@ -95,15 +96,16 @@ MODULE xas_methods
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rRc_xyz_ao
-  USE qs_scf,                          ONLY: init_scf_loop,&
-                                             init_scf_run,&
+  USE qs_scf,                          ONLY: init_scf_run,&
                                              scf_env_cleanup
   USE qs_scf_types,                    ONLY: direct_mixing_nr,&
                                              general_diag_method_nr,&
                                              mixing_storage_create,&
                                              ot_method_nr,&
                                              qs_scf_env_type
-  USE scf_control_types,               ONLY: scf_control_type
+  USE scf_control_types,               ONLY: init_smear,&
+                                             read_smear_section,&
+                                             scf_control_type
   USE termination,                     ONLY: external_control,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -151,22 +153,23 @@ CONTAINS
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE xas(qs_env, xas_control, error)
+  SUBROUTINE xas(qs_env, dft_control, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(xas_control_type)                   :: xas_control
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, iter, method0, &
-      mixing0, my_homo(2), nao, nelectron, nexc_search, nmo, nspins, &
-      output_unit, state_to_be_excited, xas_iter_count
+    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, method0, &
+      my_homo(2), my_nelectron(2), nao, nelectron, nexc_atoms, nexc_search, &
+      nmo, nspins, output_unit, state_to_be_excited
     INTEGER, DIMENSION(:), POINTER           :: state_of_atom
     LOGICAL :: ch_method_flags, converged, failure, my_uocc(2), should_stop, &
-      skip_scf, transition_potential, uocc
-    REAL(dp)                                 :: maxocc
+      skip_scf, transition_potential
+    REAL(dp)                                 :: maxocc, occ_estate, &
+                                                xas_nelectron
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuffer
@@ -181,9 +184,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, op_sm, ostrength_sm
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(localized_wfn_control_type), &
-      POINTER                                :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -192,9 +192,9 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, loc_section, &
-                                                mixing_section, &
                                                 print_loc_section, &
                                                 scf_section, xas_section
+    TYPE(xas_control_type), POINTER          :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
 
     CALL timeset(routineN,handle)
@@ -211,8 +211,8 @@ CONTAINS
 
     NULLIFY(xas_env, groundstate_coeff, ostrength_sm, op_sm)
     NULLIFY(excvec_coeff, state_of_atom, qs_loc_env, cell)
-    NULLIFY(occupation_numbers,my_localized_wfn_control,matrix_ks)
-    NULLIFY(all_vectors,state_of_atom)
+    NULLIFY(occupation_numbers,matrix_ks)
+    NULLIFY(all_vectors,state_of_atom,xas_control)
     NULLIFY(dft_section, xas_section, loc_section)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -220,6 +220,7 @@ CONTAINS
     loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
     print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
 
+    xas_control => dft_control%xas_control
     output_unit = cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".Log",error=error)
     IF (output_unit>0) THEN
@@ -244,10 +245,11 @@ CONTAINS
     END IF
 
 !   Initialize the type of calculation
-    NULLIFY(atomic_kind_set, dft_control, scf_control, mos, para_env, particle_set)
+    NULLIFY(atomic_kind_set, scf_control, mos, para_env, particle_set)
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-         cell = cell, dft_control=dft_control, scf_control=scf_control,&
-         matrix_ks=matrix_ks,mos=mos, para_env=para_env, particle_set=particle_set ,error=error)
+         cell = cell, scf_control=scf_control,&
+         matrix_ks=matrix_ks,mos=mos, para_env=para_env, &
+         particle_set=particle_set ,error=error)
 
 !   The eigenstate of the KS Hamiltonian are nedeed
     NULLIFY(mo_coeff,eigenvalues)
@@ -266,14 +268,11 @@ CONTAINS
     END IF
 
 !   Set initial occupation numbers, and store the original ones
+    my_homo = 0
+    my_nelectron = 0
     DO ispin = 1,dft_control%nspins
-      CALL get_mo_set(mos(ispin)%mo_set,nelectron=nelectron,maxocc=maxocc,&
+      CALL get_mo_set(mos(ispin)%mo_set,nelectron=my_nelectron(ispin),maxocc=maxocc,&
                       homo=my_homo(ispin),uniform_occupation=my_uocc(ispin))
-      IF (scf_control%smear%do_smear) THEN
-        homo = NINT(nelectron/maxocc)
-        uocc = .TRUE.
-        CALL set_mo_set(mos(ispin)%mo_set, homo=homo,uniform_occupation=uocc,error=error)
-      END IF
     END DO
 
     nspins = dft_control%nspins
@@ -291,21 +290,18 @@ CONTAINS
     IF(xas_control%nexc_search < 0) xas_control%nexc_search = homo
     nexc_search = xas_control%nexc_search
 
-    CALL get_xas_env(xas_env=xas_env,iter_count=xas_iter_count,&
+    CALL get_xas_env(xas_env=xas_env,&
          state_of_atom=state_of_atom,all_vectors=all_vectors,&
-         groundstate_coeff=groundstate_coeff,excvec_coeff=excvec_coeff,error=error)
+         groundstate_coeff=groundstate_coeff,excvec_coeff=excvec_coeff,&
+         nexc_atoms=nexc_atoms,occ_estate=occ_estate,xas_nelectron=xas_nelectron,error=error)
 
-    xas_iter_count =  xas_iter_count + 1
-    CALL set_xas_env(xas_env=xas_env,iter_count=xas_iter_count,error=error)
+    CALL set_xas_env(xas_env=xas_env,nexc_search=nexc_search,error=error)
 
 !   SCF for only XES using occupied core and empty homo (only one SCF)
 !   Probably better not to do the localization in this case, but only single out the
 !   core orbital for the specific atom for which the spectrum is computed
     IF(xas_control%xas_method==xes_tp_val .AND. &
                    xas_control%xes_core_occupation==1.0_dp) THEN
-      IF(.NOT.xas_control%emission) THEN
-        CALL stop_program(routineP,"CLS: emission is required")
-      END IF
       IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,/,T10,A)') &
         "START Core Level Spectroscopy Calculation for the Emission Spectrum"
       IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(T10,A,/,A)')&
@@ -313,6 +309,7 @@ CONTAINS
        " (final state of the core hole decay). Only one SCF is needed (not one per atom)"
       skip_scf = .TRUE.
 
+      CALL set_xas_env(xas_env=xas_env,xas_estate=1,error=error)
       CALL xes_scf_once(qs_env,xas_env,scf_section,converged,should_stop,error=error)
 
       IF(converged .AND. .NOT. should_stop) THEN
@@ -328,40 +325,28 @@ CONTAINS
     END IF
 
    !Define the qs_loc_env : to find centers, spread and possibly localize them
-    my_localized_wfn_control =>  xas_control%localized_wfn_control
-    CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
-    CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
-
     CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
-    IF (xas_control%localized_wfn) THEN
+    IF (qs_loc_env%do_localize) THEN
       IF(output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
               "Localize a sub-set of MOs with spin alpha,"//&
               " to better identify the core states that have to be excited"
           IF(&
-              my_localized_wfn_control%set_of_states == state_loc_range .OR. &
-              my_localized_wfn_control%set_of_states == state_loc_all) THEN
-              WRITE (UNIT=output_unit,FMT="( A , I7, A, I7)") " The sub-setcontains the states from ",&
-                  my_localized_wfn_control%lu_bound_states(1,1), " to ",&
-                  my_localized_wfn_control%lu_bound_states(2,1)  
-         ELSEIF (my_localized_wfn_control%set_of_states==state_loc_list) THEN
-              WRITE (UNIT=output_unit,FMT="( A )") " The sub-set contains the states given in the input list"
-
+              qs_loc_env%localized_wfn_control%set_of_states == state_loc_range ) THEN
+              WRITE (UNIT=output_unit,FMT="( A , I7, A, I7)") " The sub-set contains states from ",&
+                  qs_loc_env%localized_wfn_control%lu_bound_states(1,1), " to ",&
+                  qs_loc_env%localized_wfn_control%lu_bound_states(2,1)  
+         ELSEIF (qs_loc_env%localized_wfn_control%set_of_states==state_loc_list) THEN
+              WRITE (UNIT=output_unit,FMT="( A )") " The sub-set contains states given in the input list"
          END IF
 
-      END IF
-      IF(.NOT.(ASSOCIATED(qs_loc_env))) THEN
-        CALL qs_loc_env_create(qs_loc_env,error=error)
-        CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
-        CALL qs_loc_env_release(qs_loc_env,error=error)
-        CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
-        CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,&
-             qs_env,myspin=1,do_localize=xas_control%localized_wfn,error=error)
       END IF
       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
     END IF
 
-    CALL cls_assign_core_states(xas_control,xas_env,my_localized_wfn_control,&
+    ! Assign the character of the selected core states
+    ! through the overlap with atomic-like states
+    CALL cls_assign_core_states(xas_control,xas_env,qs_loc_env%localized_wfn_control,&
          qs_env,error=error)
 
     IF(skip_scf) THEN
@@ -369,11 +354,6 @@ CONTAINS
       CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nexc_search,&
              source_start=1,target_start=1)
     END IF
-
-    CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
-
-  ! If required check the character of the states of each atom
-  ! by taking the overlap with atomic-like states
 
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -384,8 +364,7 @@ CONTAINS
     IF(transition_potential) THEN
       CPPrecondition(ASSOCIATED(groundstate_coeff),cp_failure_level,routineP,error,failure)
       DO ispin = 1,nspins
-       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
-            nao=nao, nmo=nmo)
+       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
        CALL cp_fm_to_fm(mo_coeff,groundstate_coeff(ispin)%matrix,nmo,1,1)
       END DO
 
@@ -399,7 +378,7 @@ CONTAINS
          CALL p_xyz_ao(op_sm,qs_env,error=error)
       END IF
     END IF
-    ! by using td-dft case the oscillator strength should be obtained from the linear response orbitals
+    ! for td-dft-xas the oscillator strength should be obtained from the linear response orbitals
 
     ! DO SCF if required
     NULLIFY(scf_env)
@@ -407,22 +386,34 @@ CONTAINS
      ! OT cannot be used with different occupation numbers in the core
      ! Therefore in case of XAS the general_diag_method_nr is imposed
     ch_method_flags = .FALSE.
-    IF( xas_control%occ_estate .LT. 1.0_dp .AND. scf_env%method == ot_method_nr) THEN
-    CPPostcondition( xas_env%scf_method==xas_scf_general,cp_failure_level,routineP,error,failure)
+    IF( occ_estate .LT. 1.0_dp .AND. scf_env%method == ot_method_nr) THEN
+  CPPostcondition(xas_control%scf_method==xas_scf_general,cp_warning_level,routineP,error,failure)
        method0 = scf_env%method
        scf_env%method = general_diag_method_nr
-       mixing0 = scf_env%mixing_method
-       xas_env%mixing_method = direct_mixing_nr
        ch_method_flags = .TRUE.
-    ELSE
-       xas_env%mixing_method = scf_env%mixing_method 
     END IF
-    mixing_section => section_vals_get_subs_vals(xas_section,"MIXING",error=error)
-    CALL mixing_storage_create(xas_env%mixing_store, mixing_section, xas_env%mixing_method, &
-            dft_control%qs_control%cutoff, error=error)
 
-    DO iat = 1,xas_control%nexc_atoms
-      iatom = xas_control%exc_atoms(iat)
+    !some further setup depending on the mixing method
+    IF(xas_env%mixing_method>direct_mixing_nr) THEN
+      scf_env%skip_diis = .TRUE.
+      scf_env%p_mix_alpha = xas_env%mixing_store%alpha
+      IF(xas_env%mixing_store%beta==0.0_dp) THEN
+         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+              routineP,"Mixing employing the Kerker damping factor: choose BETA /= 0.0",error,failure)
+      END IF
+    END IF
+    IF (scf_env%mixing_method==direct_mixing_nr) THEN
+        scf_env%p_mix_alpha = xas_env%mixing_store%alpha
+        IF(xas_env%eps_diis<qs_env%scf_control%eps_scf) THEN
+          scf_env%skip_diis = .TRUE.
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                        "the DIIS scheme is disabled, since EPS_DIIS < EPS_SCF",&
+                        error,failure)
+        END IF
+    END IF
+
+    DO iat = 1,nexc_atoms
+      iatom = xas_env%exc_atoms(iat)
       ! determine which state has to be excited in the global list
       state_to_be_excited = state_of_atom(iat)
 
@@ -431,9 +422,7 @@ CONTAINS
            occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
       IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
-         homo = nelectron + 1
-         CPPrecondition(.NOT.(nmo<homo),cp_failure_level,routineP,error,failure)
-         CALL set_mo_set(mos(1)%mo_set, homo = homo, error=error)
+         CPPrecondition(.NOT.(nmo<(nelectron+1)),cp_failure_level,routineP,error,failure)
       END IF
       occupation_numbers(1:homo)  = 1.0_dp
       ! If the restart file for this atom exists, the mos and the
@@ -442,11 +431,11 @@ CONTAINS
       ! otherwise the number of electrons and the occupation numbers
       ! may not  be consistent
       IF(xas_control%xas_restart) THEN
-        CALL xas_read_restart(xas_control,xas_section, qs_env,iatom,&
+        CALL xas_read_restart(xas_env,xas_section, qs_env, xas_control%xas_method, iatom,&
              state_to_be_excited,error=error)
       END IF
 
-      dft_control % xas_estate  = state_to_be_excited
+      CALL set_xas_env(xas_env=xas_env,xas_estate=state_to_be_excited,error=error)
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
       CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,state_to_be_excited,&
@@ -464,23 +453,34 @@ CONTAINS
               WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
                "Start Core Level Spectroscopy Calculation with TP approach for ATOM ", iatom
               WRITE(UNIT=output_unit,FMT='(T10,A,f10.4)') "Occupation of the core orbital",&
-                xas_control%occ_estate
-              IF(homo==nelectron + 1) THEN
+                occ_estate
+              IF(xas_nelectron==nelectron) THEN
                 WRITE(UNIT=output_unit,FMT='(T10,A,f10.4)') &
-                 "Occupation of the lowest virtual orbital ",&
-                 xas_control%occ_homo
+                 "Occupation of lowest virtual orbitals to keep the same number of electrons"//&
+                 " as in the groundstate"
               END IF
             END IF
           END IF
 
           CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-                  scf_section=scf_section, error=error)
-          ! this is not standing optimally here, but for the time being retains functionality
-          CALL init_scf_loop(scf_env=scf_env,qs_env=qs_env,&
-                  scf_section=scf_section, error=error)
+               scf_section=scf_section, do_xas_tp=.TRUE., error=error)
+          ! if using mo_coeff_b then copy to fm
+          DO ispin=1,SIZE(mos)!fm->dbcsr
+            IF(mos(1)%mo_set%use_mo_coeff_b)THEN!fm->dbcsr
+            !write(*,*) routinen//' copy_dbcsr_to_fm',__LINE__
+              CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b,mos(ispin)%mo_set%mo_coeff,error=error)!fm->dbcsr
+            ENDIF!fm->dbcsr
+          ENDDO!fm->dbcsr
 
-          CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,&
-               converged,should_stop,error=error)
+          IF(.NOT.scf_env%skip_diis) THEN
+            IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN
+              CALL qs_diis_b_create(scf_env%scf_diis_buffer,nbuffer=scf_control%max_diis,error=error)
+            END IF
+            CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
+          END IF
+
+          CALL xas_do_tp_scf(dft_control,xas_env,iatom,scf_env,qs_env,&
+               xas_section,scf_section,converged,should_stop,error=error)
 
           CALL external_control(should_stop,"CLS",target_time=qs_env%target_time,& 
                start_time=qs_env%start_time,error=error)
@@ -488,7 +488,7 @@ CONTAINS
              CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
              GO TO 1000
           END IF
-          IF(iat == xas_control%nexc_atoms) THEN
+          IF(iat == nexc_atoms) THEN
              CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
           END IF
 
@@ -508,12 +508,9 @@ CONTAINS
         ! I take the excitations from lumo to nmo
       END IF
 
-      !update iteration counter
-      iter = xas_iter_count!*xas_control%each_step
-
       IF(converged) THEN
         CALL cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
-             iatom,iter,error=error)
+             iatom,error=error)
       ELSE
         IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
               "SCF with core hole NOT converged for ATOM ", iatom
@@ -535,7 +532,6 @@ CONTAINS
     ! Set back the original method for the optimize
     IF(ch_method_flags) THEN
       scf_env%method = method0
-      scf_env%mixing_method = mixing0
     END IF
 
   ! Release what has to be released
@@ -551,7 +547,7 @@ CONTAINS
             uniform_occupation=my_uocc(ispin), error=error)
     END DO
 
-    dft_control % xas_estate    = -1
+    xas_env % xas_estate    = -1
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
@@ -590,15 +586,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name_sto
-    INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, n_mo(2), &
-      n_rep, nao, natom, ncubes, nelectron, nexc_atoms, nexc_search, nj, nk, &
-      nkind, nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins, nwork
+    INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, lfomo, &
+      n_mo(2), n_rep, nao, natom, ncubes, nelectron, nexc_atoms, nexc_search, &
+      nj, nk, nkind, nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins, &
+      nvirtual, nvirtual2, nwork
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_type_tmp, &
                                                 kind_z_tmp, last_sgf
     INTEGER, DIMENSION(4, 7)                 :: ne
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, lq, nq, rbs
     LOGICAL                                  :: failure, ihavethis
-    REAL(dp)                                 :: zatom
+    REAL(dp)                                 :: eps_diis, nele, occ_estate, &
+                                                zatom
     REAL(dp), DIMENSION(:), POINTER          :: sto_zet
     TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -613,17 +611,19 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(localized_wfn_control_type), &
-      POINTER                                :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: mixing_section, &
+                                                print_loc_section, &
+                                                smear_section
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
 !------------------------------------------------------------------------------
@@ -631,53 +631,52 @@ CONTAINS
     failure=.FALSE.
 
     n_mo(1:2) = 0
-
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
 
     IF(.NOT. failure) THEN
 
       NULLIFY( atomic_kind_set, dft_control, scf_control, matrix_s, mos, mpools )
       NULLIFY( para_env, particle_set, scf_env)
-    NULLIFY(distribution_2d)
-    NULLIFY(sab_orb)
+      NULLIFY(distribution_2d,qs_loc_env)
+      NULLIFY(sab_orb)
       CALL get_qs_env(qs_env=qs_env, &
-              atomic_kind_set=atomic_kind_set, &
-              dft_control = dft_control, &
-              scf_control = scf_control, &
-              mpools=mpools,&
-              matrix_s=matrix_s, mos=mos, &
-              para_env=para_env, particle_set=particle_set,&
-              scf_env=scf_env, &
-              sab_orb=sab_orb,&
-              distribution_2d=distribution_2d,&
-              error=error)
-
+                atomic_kind_set=atomic_kind_set, &
+                dft_control = dft_control, &
+                scf_control = scf_control, &
+                mpools=mpools,&
+                matrix_s=matrix_s, mos=mos, &
+                para_env=para_env, particle_set=particle_set,&
+                scf_env=scf_env, &
+                sab_orb=sab_orb,&
+                distribution_2d=distribution_2d,&
+                error=error)
+   
       nexc_search = xas_control%nexc_search
+      IF(nexc_search < 0) THEN
+        ! ground state occupation
+        CALL get_mo_set(mos(1)%mo_set,nmo=nmo,lfomo=lfomo)
+        nexc_search = lfomo -1
+      END IF
       nexc_atoms = xas_control%nexc_atoms
-
-      xas_env%eps_diis = xas_control%eps_diis
-      IF(xas_env%eps_diis .LT. 0.0_dp) xas_env%eps_diis = scf_control%eps_diis
-      xas_env%p_mix = xas_control%p_mix
-      IF(xas_env%p_mix .LT. 0.0_dp) xas_env%p_mix = scf_env%p_mix_alpha
-      xas_env%scf_method = xas_control%scf_method
-
+      ALLOCATE(xas_env%exc_atoms(nexc_atoms),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      xas_env%exc_atoms = xas_control%exc_atoms
+      eps_diis = xas_control%eps_diis
+      IF(eps_diis .LT. 0.0_dp) eps_diis = scf_control%eps_diis
+      CALL set_xas_env(xas_env=xas_env,eps_diis=eps_diis,nexc_search=nexc_search,&
+           nexc_atoms=nexc_atoms,error=error)
+   
       CALL mpools_get(mpools, ao_mo_fm_pools= xas_env%ao_mo_fm_pools,error=error)
 
       NULLIFY(mo_coeff)
-      CALL get_mo_set(mos(1)%mo_set,nao=nao,homo=homo,nmo=nmo,mo_coeff=mo_coeff)
-      IF(nexc_search < 0) nexc_search = homo
+      CALL get_mo_set(mos(1)%mo_set,nao=nao,homo=homo,nmo=nmo,mo_coeff=mo_coeff, nelectron=nelectron)
 
-      IF(xas_control%emission) THEN
-         xas_env%nvirtual1 = nmo
-      ELSE
-         xas_env%nvirtual1 = nmo - homo
-      END IF
       IF(xas_control%added_mos .GT. 0) THEN
-         xas_env%nvirtual2 = MIN(xas_control%added_mos,nao-nmo)
+         nvirtual2 = MIN(xas_control%added_mos,nao-nmo)
          xas_env%unoccupied_eps = xas_control%eps_added
          xas_env%unoccupied_max_iter = xas_control%max_iter_added
       END IF
-      xas_env%nvirtual = xas_env%nvirtual1 +  xas_env%nvirtual2
+      nvirtual = nmo + nvirtual2
 
       n_mo(1:2) = nmo
 
@@ -695,8 +694,6 @@ CONTAINS
       ALLOCATE(xas_env%mykind_of_kind(nkind),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       xas_env%mykind_of_kind = 0
-      ALLOCATE(xas_env%spectrum(5,xas_env%nvirtual),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       ! create a new matrix structure nao x 1
       NULLIFY(tmp_fm_struct)
@@ -714,30 +711,31 @@ CONTAINS
 
       nspins = SIZE(mos,1)
 
-   ! initialize operators for the calculation of the oscillator strengts
+     ! initialize operators for the calculation of the oscillator strengts
       IF (xas_control%xas_method==xas_tp_hh) THEN
-        xas_control%occ_estate = 0.5_dp
-        xas_control%occ_homo = 1.0_dp
+       occ_estate = 0.5_dp
+       nele = REAL(nelectron,dp) - 0.5_dp
       ELSEIF(xas_control%xas_method==xas_tp_xhh) THEN
-        xas_control%occ_estate = 0.5_dp
-        xas_control%occ_homo = 0.5_dp
+       occ_estate = 0.5_dp
+       nele = REAL(nelectron,dp) 
       ELSEIF(xas_control%xas_method==xas_tp_fh) THEN
-        xas_control%occ_estate = 0.0_dp
-        xas_control%occ_homo = 1.0_dp
+       occ_estate = 0.0_dp
+       nele = REAL(nelectron,dp) - 1.0_dp
       ELSEIF(xas_control%xas_method==xas_tp_xfh) THEN
-        xas_control%occ_estate = 0.0_dp
-        xas_control%occ_homo = 1.0_dp
+       occ_estate = 0.0_dp
+       nele = REAL(nelectron,dp)
       ELSEIF(xas_control%xas_method==xes_tp_val) THEN
-        xas_control%occ_estate = xas_control%xes_core_occupation
-        xas_control%occ_homo = 1.0_dp-xas_control%xes_core_occupation
-        xas_control%emission = .TRUE.
+       occ_estate = xas_control%xes_core_occupation
+       nele = REAL(nelectron,dp)-xas_control%xes_core_occupation
       ELSEIF(xas_control%xas_method==xas_dscf) THEN
-        xas_control%occ_estate = 0.0_dp
-        xas_control%occ_homo = 1.0_dp
+       occ_estate = 0.0_dp
+       nele = REAL(nelectron,dp)
       ENDIF
+      CALL set_xas_env(xas_env=xas_env,occ_estate=occ_estate,xas_nelectron=nele,&
+          nvirtual2=nvirtual2,nvirtual=nvirtual,error=error)
 
-     ! Initialize the list of orbitals for cube files printing
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
+      ! Initialize the list of orbitals for cube files printing
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
                     "PRINT%CLS_FUNCTION_CUBES",error=error),cp_p_file)) THEN
         NULLIFY(bounds,list)
         CALL section_vals_val_get(xas_section,&
@@ -787,7 +785,7 @@ CONTAINS
       ENDIF
 
       NULLIFY(tmp_fm_struct)
-      nwork = MAX(xas_env%nvirtual,nmo)
+      nwork = nvirtual
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,ncol_global=nwork,&
            para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
       CALL cp_fm_create (xas_env%fm_work,tmp_fm_struct,error=error)
@@ -805,7 +803,7 @@ CONTAINS
   
       NULLIFY(tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=1,&
-           ncol_global=xas_env%nvirtual,para_env=para_env,&
+           ncol_global=nvirtual,para_env=para_env,&
            context=mo_coeff%matrix_struct%context,error=error)
       ALLOCATE (xas_env%dip_fm_set(2,3),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -818,33 +816,32 @@ CONTAINS
       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
   
       !Array to store all the eigenstates: occupied and the required not occupied
-      IF(xas_env%nvirtual2 .GT. 0) THEN
-        ALLOCATE(xas_env%unoccupied_evals(xas_env%nvirtual2), STAT=istat)
+      IF(nvirtual2 .GT. 0) THEN
+        ALLOCATE(xas_env%unoccupied_evals(nvirtual2), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         NULLIFY(tmp_fm_struct)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-             ncol_global=xas_env%nvirtual2,&
+             ncol_global=nvirtual2,&
              para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
         NULLIFY(xas_env%unoccupied_orbs)
         CALL cp_fm_create (xas_env%unoccupied_orbs,tmp_fm_struct,error=error)
         CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-  
       END IF
   
       NULLIFY(tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao, &
-           ncol_global=xas_env%nvirtual,&
+           ncol_global=nvirtual,&
            para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
       NULLIFY(xas_env%all_vectors)
       CALL cp_fm_create (xas_env%all_vectors,tmp_fm_struct,error=error)
       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
   
       ! Array to store all the energies needed  for the spectrum
-      ALLOCATE(xas_env%all_evals(xas_env%nvirtual), STAT=istat)
+      ALLOCATE(xas_env%all_evals(nvirtual), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
   
       IF(xas_control%dipole_form==xas_dip_len2) THEN
-         CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
+        CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
         DO i = 1,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
            CALL cp_dbcsr_init(xas_env%ostrength_sm(i)%matrix,error=error)
@@ -887,49 +884,47 @@ CONTAINS
               error=error)
          CALL dbcsr_alloc_block_from_nbl(xas_env%ostrength_sm(1)%matrix,sab_orb,error=error)
          CALL cp_dbcsr_set(xas_env%ostrength_sm(1)%matrix,0.0_dp,error=error)
-        DO i = 2,3
+         DO i = 2,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
            CALL cp_dbcsr_init(xas_env%ostrength_sm(i)%matrix,error=error)
            CALL cp_dbcsr_copy(xas_env%ostrength_sm(i)%matrix,xas_env%ostrength_sm(1)%matrix,&
                 "xas_env%ostrength_sm-"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
            CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
-        END DO
+         END DO
 
-        CALL dbcsr_distribution_release (dbcsr_dist)
-        CALL array_release (row_blk_sizes)
-
-     END IF
+         CALL dbcsr_distribution_release (dbcsr_dist)
+         CALL array_release (row_blk_sizes)
+      END IF
 
    !Define the qs_loc_env : to find centers, spread and possibly localize them
-      my_localized_wfn_control =>  xas_control%localized_wfn_control
-      CALL localized_wfn_control_retain(my_localized_wfn_control,error=error)
-      CPPrecondition(ASSOCIATED(my_localized_wfn_control),cp_failure_level,routineP,error,failure)
-      IF(.NOT. xas_control%localized_wfn) THEN
-        my_localized_wfn_control%localization_method = do_loc_none
-        nmoloc = 0
-      ELSE
-        CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron,mo_coeff=mo_coeff)
-        nmoloc = 0
-        IF(my_localized_wfn_control%set_of_states == state_loc_all) THEN
-          nmoloc(1) = nelectron
-          my_localized_wfn_control%nloc_states(1)=nelectron
-          nmoloc(2) = 0
-          my_localized_wfn_control%nloc_states(2)=0
-!        ELSEIF(my_localized_wfn_control%set_of_states == state_loc_range) THEN
-!          nmoloc(1) = nexc_search
-!          my_localized_wfn_control%nloc_states(1)=nexc_search
-!          nmoloc(2) = 0
-!          my_localized_wfn_control%nloc_states(2)=0
+      IF(.NOT.(ASSOCIATED(xas_env%qs_loc_env))) THEN
+        CALL qs_loc_env_create(qs_loc_env,error=error)
+        CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
+        CALL qs_loc_env_release(qs_loc_env,error=error)
+        CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env,error=error)
+        print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
+        CALL qs_loc_control_init(qs_loc_env,xas_section,print_loc_section,do_homo=.TRUE.,&
+             do_xas=.TRUE.,nloc_xas=nexc_search,error=error) 
+        IF(.NOT. qs_loc_env%do_localize) THEN
+          qs_loc_env%localized_wfn_control%localization_method = do_loc_none
         ELSE
-          nmoloc(1) = MIN(my_localized_wfn_control%nloc_states(1) ,nelectron)
-          nmoloc(2) = 0
+          nmoloc = qs_loc_env%localized_wfn_control%nloc_states
+          CALL set_loc_wfn_lists(qs_loc_env%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
+          CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,nspins,error=error)
+          CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,&
+          qs_env,myspin=1,do_localize=qs_loc_env%do_localize,error=error)
         END IF
       END IF
 
-      CALL set_loc_wfn_lists(xas_control%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
-      CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,error=error)
+    ! Initialize Mixing scheme
+      mixing_section => section_vals_get_subs_vals(xas_section,"MIXING",error=error)
+      CALL section_vals_val_get(mixing_section,"METHOD",i_val=xas_env%mixing_method,error=error)
+      CALL mixing_storage_create(xas_env%mixing_store, mixing_section, xas_env%mixing_method, &
+              dft_control%qs_control%cutoff, error=error)
 
-      CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
+      CALL init_smear(xas_env%smear,error)
+      smear_section => section_vals_get_subs_vals(xas_section,"SMEAR",error=error)
+      CALL read_smear_section(xas_env%smear,smear_section,error=error)
 
       !Type of state
       norb = 0
@@ -957,8 +952,8 @@ CONTAINS
       kind_type_tmp = 0
       kind_z_tmp = 0
       nk=0
-      DO iat = 1,xas_control%nexc_atoms
-        iatom = xas_control%exc_atoms(iat)
+      DO iat = 1,nexc_atoms
+        iatom = xas_env%exc_atoms(iat)
         NULLIFY(atomic_kind)
         atomic_kind =>  particle_set(iatom)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1042,24 +1037,25 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
-             iatom,iter,error)
+             iatom,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xas_section
-    INTEGER, INTENT(IN)                      :: iatom, iter
+    INTEGER, INTENT(IN)                      :: iatom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, istat, output_unit
+    INTEGER                                  :: homo, i, istat, lfomo, nabs, &
+                                                nmo, nvirtual, output_unit, &
+                                                xas_estate
     LOGICAL                                  :: append_cube, failure, length
     REAL(dp)                                 :: rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
-    REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
-    TYPE(cell_type), POINTER                 :: cell
+    REAL(dp), DIMENSION(:, :), POINTER       :: sp_ab, sp_em
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: dip_fm_set
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
@@ -1067,7 +1063,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: op_sm, ostrength_sm
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -1079,18 +1074,24 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
 
     NULLIFY(fm_work,ostrength_sm,op_sm, dip_fm_set)
-    NULLIFY(all_evals,all_vectors,excvec_coeff, spectrum)
-    NULLIFY(cell,dft_control,mos,particle_set)
+    NULLIFY(all_evals,all_vectors,excvec_coeff)
+    NULLIFY(mos,particle_set,sp_em,sp_ab)
     ALLOCATE (op_sm(3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env,cell = cell, dft_control=dft_control,&
+    CALL get_qs_env(qs_env=qs_env, &
          mos=mos,particle_set=particle_set,error=error)
 
-    CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
+    CALL get_mo_set(mos(1)%mo_set, homo=homo,lfomo=lfomo,nmo=nmo)
+    CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,xas_estate=xas_estate,&
          all_evals=all_evals,dip_fm_set=dip_fm_set,excvec_coeff=excvec_coeff,&
-         fm_work=fm_work, ostrength_sm=ostrength_sm,spectrum=spectrum,error=error)
+         fm_work=fm_work, ostrength_sm=ostrength_sm,nvirtual=nvirtual,error=error)
 
+    nabs = nvirtual -lfomo + 1
+    ALLOCATE (sp_em(6,homo),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (sp_ab(6,nabs),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
 
     IF(.NOT. failure) THEN
@@ -1106,7 +1107,7 @@ CONTAINS
            CALL rRc_xyz_ao(op_sm,qs_env,rc,order=1,minimum_image=.TRUE.,error=error)
            CALL spectrum_dip_vel(dip_fm_set,op_sm,mos,excvec_coeff,&
                 all_vectors,all_evals,fm_work,&
-                spectrum,dft_control%xas_estate,error=error)
+                sp_em,sp_ab,xas_estate,nvirtual,error=error)
            DO i = 1,SIZE(ostrength_sm,1)
               CALL cp_dbcsr_set(ostrength_sm(i)%matrix,0.0_dp,error=error)
            END DO
@@ -1117,17 +1118,20 @@ CONTAINS
            END DO
            CALL spectrum_dip_vel(dip_fm_set,op_sm,mos,excvec_coeff,&
                 all_vectors,all_evals,fm_work,&
-                spectrum,dft_control%xas_estate,error=error)
+                sp_em,sp_ab,xas_estate,nvirtual,error=error)
         END IF
       END IF
 
-      CALL get_mo_set(mos(1)%mo_set, homo=homo)
-    ! append the spectrum of this iteration to the right output file
+      CALL get_mo_set(mos(1)%mo_set, lfomo=lfomo)
+      ! writw thw spectrum, if the file exists it is appended 
       IF( .NOT. xas_control%xas_method == xas_dscf) THEN
         length = (.NOT. xas_control%dipole_form==xas_dip_vel)
-        CALL xas_write(xas_control,spectrum, dft_control%xas_estate, &
-             xas_section, homo, iatom, iter, length=length, error=error)
+        CALL xas_write(sp_em,sp_ab, xas_estate, &
+             xas_section, iatom, lfomo, length=length, error=error)
       END IF
+
+      DEALLOCATE(sp_em,STAT=istat)
+      DEALLOCATE(sp_ab,STAT=istat)
 
       IF(BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
         "PRINT%CLS_FUNCTION_CUBES",error=error),cp_p_file)) THEN
@@ -1148,7 +1152,6 @@ CONTAINS
 !> \param spectrum temporary variable contaning the spectrum for the actual atom
 !> \param xas_rootfname root of the filename where the spectrum is written
 !> \param iatom index of the excited atom
-!> \param iter iteration of the xas calculation
 !> \param ionode logical assigning the i/o node
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1158,22 +1161,23 @@ CONTAINS
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE xas_write(xas_control, spectrum, estate, xas_section, homo, iatom, iter,&
-             length, error)
+  SUBROUTINE xas_write(sp_em, sp_ab, estate, xas_section, iatom, &
+             lfomo, length, error)
 
-    TYPE(xas_control_type)                   :: xas_control
-    REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
+    REAL(dp), DIMENSION(:, :), POINTER       :: sp_em, sp_ab
     INTEGER, INTENT(IN)                      :: estate
     TYPE(section_vals_type), POINTER         :: xas_section
-    INTEGER, INTENT(IN)                      :: homo, iatom, iter
+    INTEGER, INTENT(IN)                      :: iatom, lfomo
     LOGICAL, INTENT(IN)                      :: length
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_write', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos
-    INTEGER                                  :: istate, istate0, out_sp
+    CHARACTER(LEN=default_string_length)     :: mittle_ab, mittle_em, my_act, &
+                                                my_pos
+    INTEGER                                  :: i, istate, out_sp_ab, &
+                                                out_sp_em
     LOGICAL                                  :: failure
     REAL(dp)                                 :: ene2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1186,53 +1190,47 @@ CONTAINS
     my_pos = "APPEND"
     my_act = "WRITE"
 
-    my_mittle = "at"//TRIM(ADJUSTL(cp_to_string(iatom)))
-    out_sp = cp_print_key_unit_nr(logger,xas_section,"PRINT%SPECTRUM",&
+    mittle_em = "xes_at"//TRIM(ADJUSTL(cp_to_string(iatom)))
+    out_sp_em = cp_print_key_unit_nr(logger,xas_section,"PRINT%XES_SPECTRUM",&
                extension=".spectrum", file_position=my_pos, file_action=my_act,&
-               file_form="FORMATTED", middle_name=TRIM(my_mittle), &
+               file_form="FORMATTED", middle_name=TRIM(mittle_em), &
                error=error)
 
-    IF(out_sp>0) THEN
-      WRITE(out_sp,'(A,I10)') " Iteration Step ", iter
-
-      IF(length) THEN
-        IF(xas_control%emission) THEN
-           istate0 = estate
-           DO istate = estate,SIZE(spectrum,2)
-              ene2 = spectrum(1,istate)*spectrum(1,istate)
-              WRITE(out_sp,'(I6,5F16.8)') istate, spectrum(1,istate)*evolt, &
-                    spectrum(2,istate)*ene2, spectrum(3,istate)*ene2,&
-                    spectrum(4,istate)*ene2, spectrum(5,istate)*ene2
-           END DO
-        ELSE
-           istate0 = homo
-           DO istate = 1,SIZE(spectrum,2)
-              ene2 = spectrum(1,istate)*spectrum(1,istate)
-              WRITE(out_sp,'(I6,5F16.8)') homo+istate, spectrum(1,istate)*evolt, &
-                    spectrum(2,istate)*ene2, spectrum(3,istate)*ene2,&
-                    spectrum(4,istate)*ene2, spectrum(5,istate)*ene2
-           END DO
-        END IF
-      ELSE
-        IF(xas_control%emission) THEN
-           istate0 = estate
-           DO istate = estate,SIZE(spectrum,2)
-              WRITE(out_sp,'(I6,5F16.8)') istate, spectrum(1,istate)*evolt, &
-                    spectrum(2,istate), spectrum(3,istate),&
-                    spectrum(4,istate), spectrum(5,istate)
-           END DO
-        ELSE
-           istate0 = homo
-           DO istate = 1,SIZE(spectrum,2)
-              WRITE(out_sp,'(I6,5F16.8)') homo+istate, spectrum(1,istate)*evolt, &
-                    spectrum(2,istate), spectrum(3,istate),&
-                    spectrum(4,istate), spectrum(5,istate)
-           END DO
-        END IF
-      END IF
+    IF(out_sp_em>0) THEN
+      WRITE(out_sp_em,'(A,I6,A,I6,A,I6)') " Emission spectrum for atom ", iatom,&
+             ", index of excited core MO is", estate, ", # of lines ", SIZE(sp_em,2)
+      ene2=1.0_dp
+      DO istate = estate,SIZE(sp_em,2)
+        IF(length) ene2 = sp_em(1,istate)*sp_em(1,istate)
+         WRITE(out_sp_em,'(I6,5F16.8,F10.5)') istate, sp_em(1,istate)*evolt, &
+                 sp_em(2,istate)*ene2, sp_em(3,istate)*ene2,&
+                 sp_em(4,istate)*ene2, sp_em(5,istate)*ene2,sp_em(6,istate) 
+      END DO
     END IF
-    CALL cp_print_key_finished_output(out_sp,logger,xas_section,&
-                "PRINT%SPECTRUM", error=error)
+    CALL cp_print_key_finished_output(out_sp_em,logger,xas_section,&
+                "PRINT%XES_SPECTRUM", error=error)
+
+    mittle_ab = "xas_at"//TRIM(ADJUSTL(cp_to_string(iatom)))
+    out_sp_ab = cp_print_key_unit_nr(logger,xas_section,"PRINT%XAS_SPECTRUM",&
+               extension=".spectrum", file_position=my_pos, file_action=my_act,&
+               file_form="FORMATTED", middle_name=TRIM(mittle_ab), &
+               error=error)
+
+    IF(out_sp_ab>0) THEN
+      WRITE(out_sp_ab,'(A,I6,A,I6,A,I6)') " Absorption spectrum for atom ", iatom,&
+             ", index of excited core MO is", estate, ", # of lines ", SIZE(sp_ab,2)
+      ene2=1.0_dp
+      DO i = 1,SIZE(sp_ab,2)
+        istate = lfomo -1 + i
+        IF(length) ene2 = sp_ab(1,i)*sp_ab(1,i)
+         WRITE(out_sp_ab,'(I6,5F16.8,F10.5)') istate, sp_ab(1,i)*evolt, &
+                 sp_ab(2,i)*ene2, sp_ab(3,i)*ene2,&
+                 sp_ab(4,i)*ene2, sp_ab(5,i)*ene2,sp_ab(6,i) 
+      END DO
+    END IF
+
+    CALL cp_print_key_finished_output(out_sp_ab,logger,xas_section,&
+                "PRINT%XAS_SPECTRUM", error=error)
 
   END SUBROUTINE xas_write
 
@@ -1287,8 +1285,7 @@ CONTAINS
     END IF
 
     CALL get_mo_set(mos(1)%mo_set, homo=homo)
-    istate0 = homo
-    IF(xas_control%emission) istate0 = 0
+    istate0 = 0
 
     my_pos = "REWIND"
     IF (append_cube) THEN
@@ -1327,7 +1324,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE spectrum_dip_len(fm_set,op_sm,mos,excvec,&
-             all_vectors,all_evals,fm_work,cell,spectrum,estate,error)
+             all_vectors,all_evals,fm_work,cell, sp_em, sp_ab,estate, nstate,error)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
@@ -1339,43 +1336,46 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
     TYPE(cp_fm_type), POINTER                :: fm_work
     TYPE(cell_type), POINTER                 :: cell
-    REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
-    INTEGER, INTENT(IN)                      :: estate
+    REAL(dp), DIMENSION(:, :), POINTER       :: sp_em, sp_ab
+    INTEGER, INTENT(IN)                      :: estate, nstate
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_len', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: z
-    INTEGER                                  :: homo, i, istate, j, nao, nmo, &
-                                                nvirtual
+    INTEGER                                  :: homo, i, i_abs, istate, j, &
+                                                lfomo, nao, nmo
     LOGICAL                                  :: failure
     REAL(dp)                                 :: ene_f, ene_i, imagpart, &
                                                 ra(3), realpart
-    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
+    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
+                                                occupation_numbers
 
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(fm_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(spectrum),cp_failure_level,routineP,error,failure)
-    nvirtual = SIZE(spectrum,2)
-    NULLIFY(eigenvalues)
+
+    NULLIFY(eigenvalues, occupation_numbers)
     IF(.NOT. failure) THEN
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,nao=nao, nmo=nmo, homo =homo)
+      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers,&
+           nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
       DO i=1,SIZE(fm_set,2)
         DO j = 1,SIZE(fm_set,1)
            CPPrecondition(ASSOCIATED(fm_set(j,i)%matrix),cp_failure_level,routineP,error,failure)
            CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp, error=error)
            CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-           CALL dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nvirtual,error=error)
-           CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
+           CALL dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
+           CALL cp_fm_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
                   fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=1,error=error)
         END DO
       END DO
 
+      sp_em = 0.0_dp
+      sp_ab = 0.0_dp
       ene_i = eigenvalues(estate)
-      DO istate = 1,nvirtual
+      DO istate = 1,nstate
          ene_f = all_evals(istate)
          DO i = 1,3
            CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,realpart)
@@ -1383,11 +1383,23 @@ CONTAINS
            z = CMPLX(realpart,imagpart,dp)
            ra(i) = ( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
          END DO
-         spectrum(1,istate) = ene_f - ene_i
-         spectrum(2,istate) = ra(1)*ra(1)
-         spectrum(3,istate) = ra(2)*ra(2)
-         spectrum(4,istate) = ra(3)*ra(3)
-         spectrum(5,istate) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
+         IF(istate<=homo) THEN
+           sp_em(1,istate) = ene_f - ene_i
+           sp_em(2,istate) = ra(1)*ra(1)
+           sp_em(3,istate) = ra(2)*ra(2)
+           sp_em(4,istate) = ra(3)*ra(3)
+           sp_em(5,istate) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
+           sp_em(6,istate) = occupation_numbers(istate)
+         END IF
+         IF(istate>=lfomo ) THEN
+           i_abs = istate - lfomo  + 1
+           sp_ab(1,i_abs) = ene_f - ene_i
+           sp_ab(2,i_abs) = ra(1)*ra(1)
+           sp_ab(3,i_abs) = ra(2)*ra(2)
+           sp_ab(4,i_abs) = ra(3)*ra(3)
+           sp_ab(5,i_abs) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
+           IF(istate<=nmo) sp_ab(6,i_abs) = occupation_numbers(istate)
+         END IF
       END DO
     END IF
 
@@ -1415,7 +1427,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE spectrum_dip_vel(fm_set,op_sm,mos,excvec, &
-             all_vectors,all_evals,fm_work,spectrum,estate,error)
+             all_vectors,all_evals,fm_work,sp_em, sp_ab,estate, nstate,error)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
@@ -1426,52 +1438,66 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
     TYPE(cp_fm_type), POINTER                :: fm_work
-    REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
-    INTEGER, INTENT(IN)                      :: estate
+    REAL(dp), DIMENSION(:, :), POINTER       :: sp_em, sp_ab
+    INTEGER, INTENT(IN)                      :: estate, nstate
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, istate, nao, nmo, &
-                                                nvirtual
+    INTEGER                                  :: homo, i, i_abs, istate, &
+                                                lfomo, nao, nmo
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dip(3), ene_f, ene_i
-    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
+    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
+                                                occupation_numbers
 
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(fm_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(spectrum),cp_failure_level,routineP,error,failure)
-    nvirtual = SIZE(spectrum,2)
-    NULLIFY(eigenvalues)
+    NULLIFY(eigenvalues, occupation_numbers)
 
     IF(.NOT. failure) THEN
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,nao=nao, nmo=nmo, homo =homo)
+      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,occupation_numbers=occupation_numbers,&
+           nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
 
       DO i=1,SIZE(fm_set,2)
          CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-         CALL dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual,error=error)
-         CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
+         CALL dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
+         CALL cp_fm_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
       END DO
 
+      sp_em = 0.0_dp
+      sp_ab = 0.0_dp
       ene_i = eigenvalues(estate)
 
-      DO istate = 1,nvirtual
+      DO istate = 1,nstate
          ene_f = all_evals(istate)
 
          DO i = 1,3
            CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,dip(i))
          END DO
-         spectrum(1,istate) = ene_f - ene_i
-         spectrum(2,istate) = dip(1)*dip(1)
-         spectrum(3,istate) = dip(2)*dip(2)
-         spectrum(4,istate) = dip(3)*dip(3)
-         spectrum(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+         IF(istate<=homo) THEN
+           sp_em(1,istate) = ene_f - ene_i
+           sp_em(2,istate) = dip(1)*dip(1)
+           sp_em(3,istate) = dip(2)*dip(2)
+           sp_em(4,istate) = dip(3)*dip(3)
+           sp_em(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3) 
+           sp_em(6,istate) = occupation_numbers(istate)
+         END IF
+         IF(istate>=lfomo ) THEN
+           i_abs = istate - lfomo + 1
+           sp_ab(1,i_abs) = ene_f - ene_i
+           sp_ab(2,i_abs) = dip(1)*dip(1)
+           sp_ab(3,i_abs) = dip(2)*dip(2)
+           sp_ab(4,i_abs) = dip(3)*dip(3)
+           sp_ab(5,i_abs) =  dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+           IF(istate<=nmo) sp_ab(6,i_abs) = occupation_numbers(istate)
+         END IF
 
       END DO
     END IF
@@ -1636,14 +1662,12 @@ CONTAINS
     cell%perd(1:3) = 1
 
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nao=nao, homo=homo)
-    nexc_search = xas_control%nexc_search
-    nexc_atoms  = xas_control%nexc_atoms
 
     CALL get_xas_env(xas_env=xas_env,&
          centers_wfn=centers_wfn,atom_of_state=atom_of_state,&
          mykind_of_kind=mykind_of_kind,&
          type_of_state=type_of_state, state_of_atom=state_of_atom,&
-         stogto_overlap=stogto_overlap,error=error)
+         stogto_overlap=stogto_overlap,nexc_atoms=nexc_atoms, nexc_search=nexc_search,error=error)
 
     ! scratch array for the state
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
@@ -1719,8 +1743,8 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
            "List the atoms to be excited and the relative of MOs index "
     END IF
-    DO iat = 1,xas_control%nexc_atoms
-      iatom = xas_control%exc_atoms(iat)
+    DO iat = 1,nexc_atoms
+      iatom = xas_env%exc_atoms(iat)
       state_of_atom(iat) = state_of_mytype(iatom)
       IF (output_unit>0) THEN
          WRITE(UNIT=output_unit,FMT="(T10,A,I6,T32,A,I6)") 'Atom: ',iatom ,&

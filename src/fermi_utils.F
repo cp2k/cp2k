@@ -32,18 +32,23 @@ CONTAINS
 !> \param   mu Fermi level (input)
 !> \param   T  electronic temperature
 !> \param   maxocc maximum occupation of an orbital
+!> \param   estate excited state in core level spectroscopy
+!> \param   festate occupation of the excited state in core level spectroscopy
 ! *****************************************************************************
- SUBROUTINE Fermi(f,N,kTS,e,mu,T,maxocc)
+ SUBROUTINE Fermi(f,N,kTS,e,mu,T,maxocc,estate,festate)
 
     REAL(KIND=dp), INTENT(out)               :: f(:), N, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), mu, T, maxocc
+    INTEGER, INTENT(IN)                      :: estate
+    REAL(KIND=dp), INTENT(IN)                :: festate
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Fermi', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I, Nstate
-    REAL(KIND=dp)                            :: arg, term1, term2, tmp, tmp2, &
-                                                tmp3, tmp4, tmplog
+    REAL(KIND=dp)                            :: arg, occupation, term1, &
+                                                term2, tmp, tmp2, tmp3, tmp4, &
+                                                tmplog
 
    Nstate=SIZE(e)
    kTS = 0.0_dp
@@ -51,6 +56,11 @@ CONTAINS
    ! kTS= kT*[f ln f + (1-f) ln (1-f)]
 
    DO I=1,Nstate
+       IF(i==estate) THEN
+         occupation = festate
+       ELSE
+         occupation = maxocc
+       END IF
       ! have the result of exp go to zero instead of overflowing
       IF (e(i) > mu) THEN
          arg  = -(e(i)-mu)/T
@@ -59,12 +69,12 @@ CONTAINS
          tmp4 = tmp + 1.0_dp
          tmp2 = tmp/tmp4
          tmp3 = 1.0_dp/tmp4
-         f(i) = maxocc*tmp2
+         f(i) = occupation*tmp2
          ! log(1+eps), might need to be written more accurately
          tmplog = -LOG(tmp4)
          term1= tmp2 * ( arg + tmplog )
          term2= tmp3 * tmplog
-         kTS = kTS + T*maxocc*(term1 + term2)
+         kTS = kTS + T*occupation*(term1 + term2)
       ELSE
          arg  = (e(i)-mu)/T 
          ! tmp is smaller than 1
@@ -72,11 +82,11 @@ CONTAINS
          tmp4 = tmp + 1.0_dp
          tmp2 = 1.0_dp/tmp4
          tmp3 = tmp/tmp4
-         f(i) = maxocc*tmp2
+         f(i) = occupation*tmp2
          tmplog = -LOG(tmp4)
          term1= tmp2 * tmplog
          term2= tmp3 * (arg + tmplog )
-         kTS = kTS + T*maxocc*(term1 + term2)
+         kTS = kTS + T*occupation*(term1 + term2)
       END IF
    END DO
 
@@ -98,10 +108,14 @@ CONTAINS
 !> \param   mu Fermi level (output)
 !> \param   T  electronic temperature
 !> \param   maxocc maximum occupation of an orbital
+!> \param   estate excited state in core level spectroscopy
+!> \param   festate occupation of the excited state in core level spectroscopy
 ! *****************************************************************************
- SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc) 
+ SUBROUTINE FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate) 
     REAL(KIND=dp), INTENT(OUT)               :: f(:), mu, kTS
     REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
+    INTEGER, INTENT(IN)                      :: estate
+    REAL(KIND=dp), INTENT(IN)                :: festate
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixed', &
       routineP = moduleN//':'//routineN
@@ -117,7 +131,7 @@ CONTAINS
     iter=0
     DO
       iter=iter+1
-      CALL Fermi(f,N_min,kTS,e,mu_min,T, maxocc)
+      CALL Fermi(f,N_min,kTS,e,mu_min,T, maxocc,estate,festate)
       IF (N_min>N .OR. iter>20) THEN
          mu_min=mu_min-T
       ELSE
@@ -129,7 +143,7 @@ CONTAINS
     iter=0
     DO
       iter=iter+1
-      CALL Fermi(f,N_max,kTS,e,mu_max,T, maxocc)
+      CALL Fermi(f,N_max,kTS,e,mu_max,T, maxocc,estate,festate)
       IF (N_max<N .OR. iter>20) THEN
          mu_max=mu_max+T
       ELSE
@@ -142,7 +156,7 @@ CONTAINS
     DO WHILE( mu_max-mu_min > EPSILON(mu)*MAX(1.0_dp,ABS(mu_max),ABS(mu_min)) )
        iter=iter+1
        mu_now = (mu_max+mu_min)/2.0_dp
-       CALL Fermi(f,N_now,kTS,e,mu_now,T, maxocc)
+       CALL Fermi(f,N_now,kTS,e,mu_now,T, maxocc,estate,festate)
        iter = iter + 1
        IF (N_now<=N) THEN
           mu_min = mu_now
@@ -155,7 +169,7 @@ CONTAINS
     ENDDO
 
     mu=(mu_max+mu_min)/2.0_dp
-    CALL Fermi(f,N_now,kTS,e,mu,T, maxocc)
+    CALL Fermi(f,N_now,kTS,e,mu,T, maxocc,estate,festate)
 
  END SUBROUTINE FermiFixed
 
@@ -177,9 +191,11 @@ CONTAINS
 !> \param   T  electronic temperature
 !> \param   l  typical lenght scale (~ 10 * T)
 ! *****************************************************************************
- SUBROUTINE FermiFixedDeriv(dfde,f,mu,kTS,e,N,T,maxocc,l)
+ SUBROUTINE FermiFixedDeriv(dfde,f,mu,kTS,e,N,T,maxocc,estate,festate,l)
     REAL(KIND=dp), INTENT(OUT)               :: dfde(:,:), f(:), mu, kTS
-    REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc, l
+    REAL(KIND=dp), INTENT(IN)                :: e(:), N, T, maxocc
+    INTEGER, INTENT(IN)                      :: estate
+    REAL(KIND=dp), INTENT(IN)                :: festate, l
 
     CHARACTER(len=*), PARAMETER :: routineN = 'FermiFixedDeriv', &
       routineP = moduleN//':'//routineN
@@ -205,15 +221,15 @@ CONTAINS
        ! and the symmetric finite difference 
        ex=e
        ex(i)=e(i)+h 
-       CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc)
+       CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc,estate,festate)
        dfde(:,I)=fx
        ex(i)=e(i)-h
-       CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc)
+       CALL FermiFixed(fx,mux,kTS,ex,N,T,maxocc,estate,festate)
        dfde(:,I)=(dfde(:,I)-fx)/(2.0_dp*h)
     ENDDO
     DEALLOCATE(ex,fx)
 
-    CALL FermiFixed(f,mu,kTS,e,N,T,maxocc)
+    CALL FermiFixed(f,mu,kTS,e,N,T,maxocc,estate,festate)
 
     CALL timestop(handle)
    

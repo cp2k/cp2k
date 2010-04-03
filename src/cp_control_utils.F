@@ -237,8 +237,6 @@ CPSourceFileRef,&
     dft_control%sic_scaling_a = 1.0_dp
     dft_control%sic_scaling_b = 1.0_dp
 
-    dft_control%xas_estate    = -1
-
     ! DFT+U
     dft_control%dft_plus_u    = .FALSE.
     CALL section_vals_val_get(dft_section,"PLUS_U_METHOD",i_val=method_id,error=error)
@@ -511,9 +509,6 @@ CPSourceFileRef,&
     qs_control%gapw_control%lrho1_eq_lrho0 = .FALSE.
     qs_control%gapw_control%alpha0_hard_from_input = .FALSE.
     IF(qs_control%gapw_control%alpha0_hard/=0.0_dp) qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
-    CALL section_vals_val_get(qs_section,"ALPHA0_SOFT",r_val=qs_control%gapw_control%alpha0_soft,error=error)
-    qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
-    IF(qs_control%gapw_control%alpha0_soft/=0.0_dp) qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
     CALL section_vals_val_get(qs_section,"FORCE_PAW",l_val=qs_control%gapw_control%force_paw,error=error)
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
     CALL section_vals_val_get(qs_section,"BCSR_CODE",i_val=qs_control%bcsr_code,error=error)

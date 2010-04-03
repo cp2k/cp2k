@@ -69,7 +69,8 @@ MODULE scf_control_types
             scf_c_read_parameters,&
             scf_c_release,&
             scf_c_retain,&
-            scf_c_write_parameters
+            scf_c_write_parameters,&
+            init_smear, read_smear_section
 
 ! *****************************************************************************
 !> \brief contains the parameters needed by a scf run
@@ -125,7 +126,7 @@ MODULE scf_control_types
 
   TYPE scf_control_type
     TYPE(outer_scf_control_type)          :: outer_scf
-    TYPE(smear_type)                      :: smear
+    TYPE(smear_type), POINTER             :: smear
     TYPE(diagonalization_type)            :: diagonalization
     INTEGER                               :: density_guess, mixing_method
     REAL(KIND=dp)                         :: eps_eigval,eps_scf,eps_scf_hist,&
@@ -259,12 +260,7 @@ CONTAINS
 
       ! Smearing of the MO occupations
 
-      scf_control%smear%do_smear = .FALSE.
-      scf_control%smear%method = smear_energy_window
-      scf_control%smear%electronic_temperature = 0.0_dp
-      scf_control%smear%eps_fermi_dirac = 1.0E-5_dp
-      scf_control%smear%window_size = 0.0_dp
-      NULLIFY(scf_control%smear%list)
+      NULLIFY(scf_control%smear)
 
       last_scf_c_id_nr = last_scf_c_id_nr + 1
 
@@ -334,6 +330,8 @@ CONTAINS
            DEALLOCATE(scf_control%smear%list,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         ENDIF
+        DEALLOCATE(scf_control%smear,stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         DEALLOCATE(scf_control,stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
       END IF
@@ -361,7 +359,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cholesky_flag, ialgo, stat
+    INTEGER                                  :: cholesky_flag, ialgo
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: do_mixing, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals, roks_parameter
@@ -505,32 +503,8 @@ CONTAINS
        END IF
 
        smear_section => section_vals_get_subs_vals(scf_section,"SMEAR",error=error)
-       CALL section_vals_val_get(smear_section,"_SECTION_PARAMETERS_",&
-                                 l_val=scf_control%smear%do_smear,&
-                                 error=error)
-       IF (scf_control%smear%do_smear) THEN
-          CALL section_vals_val_get(smear_section,"METHOD",&
-                                    i_val=scf_control%smear%method,&
-                                    error=error)
-          CALL section_vals_val_get(smear_section,"ELECTRONIC_TEMPERATURE",&
-                                    r_val=scf_control%smear%electronic_temperature,&
-                                    error=error)
-          CALL section_vals_val_get(smear_section,"EPS_FERMI_DIRAC",&
-                                    r_val=scf_control%smear%eps_fermi_dirac,&
-                                    error=error)
-          CALL section_vals_val_get(smear_section,"WINDOW_SIZE",&
-                                    r_val=scf_control%smear%window_size,&
-                                    error=error)
-          IF (scf_control%smear%method==smear_list) THEN
-             CALL section_vals_val_get(smear_section,"LIST",&
-                                       r_vals=r_vals,&
-                                       error=error)
-             CPPrecondition(ASSOCIATED(r_vals),cp_failure_level,routineP,error,failure)
-             ALLOCATE(scf_control%smear%list(SIZE(r_vals)),stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-             scf_control%smear%list=r_vals
-          END IF
-       END IF ! do smear
+       CALL init_smear(scf_control%smear,error)
+       CALL read_smear_section(scf_control%smear, smear_section, error)
 
        do_mixing = .FALSE.
        mixing_section => section_vals_get_subs_vals(scf_section,"MIXING",error=error)
@@ -544,11 +518,78 @@ CONTAINS
           CALL section_vals_val_get(mixing_section,"NMIXING",i_val=scf_control%nmixing,&
                                     error=error)
        END IF ! do mixing
-       
-
     END IF ! failure
 
   END SUBROUTINE scf_c_read_parameters
+
+  SUBROUTINE init_smear(smear,error)
+    TYPE(smear_type), POINTER                :: smear
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_smear', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(smear),cp_failure_level,routineP,error,failure)
+    IF(.NOT. failure) THEN
+      ALLOCATE(smear,stat=stat)
+      CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+      smear%do_smear = .FALSE.
+      smear%method = smear_energy_window
+      smear%electronic_temperature = 0.0_dp
+      smear%eps_fermi_dirac = 1.0E-5_dp
+      smear%window_size = 0.0_dp
+      NULLIFY(smear%list)
+    END IF
+  END SUBROUTINE init_smear
+
+  SUBROUTINE read_smear_section(smear,smear_section,error)
+    TYPE(smear_type), POINTER                :: smear
+    TYPE(section_vals_type), POINTER         :: smear_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_smear_section', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
+
+    failure=.FALSE.
+    NULLIFY(r_vals)
+
+    IF (.NOT.failure) THEN
+      CALL section_vals_val_get(smear_section,"_SECTION_PARAMETERS_",&
+                                l_val=smear%do_smear,&
+                                error=error)
+      IF (smear%do_smear) THEN
+         CALL section_vals_val_get(smear_section,"METHOD",&
+                                   i_val=smear%method,&
+                                   error=error)
+         CALL section_vals_val_get(smear_section,"ELECTRONIC_TEMPERATURE",&
+                                   r_val=smear%electronic_temperature,&
+                                   error=error)
+         CALL section_vals_val_get(smear_section,"EPS_FERMI_DIRAC",&
+                                   r_val=smear%eps_fermi_dirac,&
+                                   error=error)
+         CALL section_vals_val_get(smear_section,"WINDOW_SIZE",&
+                                   r_val=smear%window_size,&
+                                   error=error)
+         IF (smear%method==smear_list) THEN
+            CALL section_vals_val_get(smear_section,"LIST",&
+                                      r_vals=r_vals,&
+                                      error=error)
+            CPPrecondition(ASSOCIATED(r_vals),cp_failure_level,routineP,error,failure)
+            ALLOCATE(smear%list(SIZE(r_vals)),stat=stat)
+            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+            smear%list=r_vals
+         END IF
+      END IF ! do smear
+    END IF
+  END SUBROUTINE read_smear_section
 
 ! *****************************************************************************
 !> \brief writes out the scf parameters

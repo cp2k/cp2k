@@ -24,10 +24,6 @@ MODULE xas_control
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
-  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
-                                             localized_wfn_control_release,&
-                                             localized_wfn_control_type,&
-                                             read_loc_section
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -46,26 +42,19 @@ MODULE xas_control
     INTEGER                             :: state_type
     INTEGER                             :: xas_method
     INTEGER                             :: dipole_form
-    INTEGER                             :: lb_atom, ub_atom
     INTEGER                             :: added_mos
     INTEGER                             :: max_iter_added
     INTEGER                             :: ngauss
     INTEGER                             :: stride
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
-    LOGICAL                             :: emission
-    LOGICAL                             :: localized_wfn
+!    LOGICAL                             :: emission
     LOGICAL                             :: cubes, do_centers
     LOGICAL                             :: xas_restart
     INTEGER, DIMENSION(:), POINTER      :: list_cubes
     REAL(dp)                            :: eps_scf
     REAL(dp)                            :: eps_diis
-    REAL(dp)                            :: p_mix
     REAL(dp)                            :: eps_added
-    REAL(dp)                            :: smear
     REAL(dp)                            :: xes_core_occupation
-    REAL(dp)                            :: occ_estate, occ_homo
-    TYPE(localized_wfn_control_type), &
-      POINTER                           :: localized_wfn_control
   END TYPE xas_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'
@@ -98,27 +87,23 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ir, istat, n_rep, nex_at
-    INTEGER, DIMENSION(:), POINTER           :: bounds, list
+    INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, was_present
-    TYPE(section_vals_type), POINTER         :: loc_section, &
-                                                print_loc_section, xas_section
+    TYPE(section_vals_type), POINTER         :: xas_section
 
     failure=.FALSE.
     was_present = .FALSE.
 
-    NULLIFY(xas_section, loc_section )
+    NULLIFY(xas_section)
     xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
 
-    NULLIFY(bounds,list)
+    NULLIFY(list)
 
     CALL section_vals_val_get(xas_section,"CONVERGENCE", &
          r_val=xas_control%eps_scf,error=error)
 
     CALL section_vals_val_get(xas_section,"EPS_DIIS", &
          r_val=xas_control%eps_diis,error=error)
-
-    CALL section_vals_val_get(xas_section,"MIXING", &
-         r_val=xas_control%p_mix,error=error)
 
     CALL section_vals_val_get(xas_section,"METHOD",&
          i_val=xas_control%xas_method,error=error)
@@ -141,33 +126,17 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"STATE_SEARCH",&
          i_val=xas_control%nexc_search,error=error)
 
-    CALL section_vals_val_get(xas_section,"SMEAR", &
-         r_val=xas_control%smear,error=error)
-
     CALL section_vals_val_get(xas_section,"XES_CORE", &
          r_val=xas_control%xes_core_occupation,error=error)
-
-    CALL section_vals_val_get(xas_section,"ATOMS_LU_BOUNDS",&
-         i_vals=bounds,error=error) 
-    xas_control%lb_atom = bounds(1) 
-    xas_control%ub_atom = bounds(2) 
-    IF(xas_control%lb_atom > 0 .AND. xas_control%ub_atom > 0) THEN
-      xas_control%nexc_atoms = xas_control%ub_atom - xas_control%lb_atom + 1 
-      
-      ALLOCATE(xas_control%exc_atoms(xas_control%nexc_atoms),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DO i = 1,xas_control%nexc_atoms
-        xas_control%exc_atoms(i) = xas_control%lb_atom + (i-1)
-      END DO
-    END IF
 
 ! It should be further generalized
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       CALL section_vals_val_get(xas_section,"ATOMS_LIST",&
           n_rep_val=n_rep, error=error)
       
-      nex_at = 0
-      DO ir = 1,n_rep
+      IF(n_rep > 0) THEN
+        nex_at = 0
+        DO ir = 1,n_rep
         NULLIFY(list)
         CALL section_vals_val_get(xas_section,"ATOMS_LIST",&
              i_rep_val=ir,i_vals=list,error=error)
@@ -181,17 +150,14 @@ CONTAINS
           nex_at = nex_at + SIZE(list)
         END IF
       END DO ! ir
+      END IF
     END IF
 
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       xas_control%nexc_atoms = 1
-      xas_control%lb_atom = 1
-      xas_control%ub_atom = 1
       ALLOCATE(xas_control%exc_atoms(1),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DO i = 1,xas_control%nexc_atoms
-        xas_control%exc_atoms(i) = xas_control%lb_atom + (i-1)
-      END DO
+      xas_control%exc_atoms(1) = 1
     END IF
 
     CALL section_vals_val_get(xas_section,"ADDED_MOS",&
@@ -206,16 +172,9 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"NGAUSS",&
          i_val=xas_control%ngauss,error=error)
 
-    CALL section_vals_val_get(xas_section,"EMISSION",&
-         l_val=xas_control%emission,error=error)
+!    CALL section_vals_val_get(xas_section,"EMISSION",&
+!         l_val=xas_control%emission,error=error)
          
-    CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
-    loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
-    print_loc_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
-    CALL read_loc_section(xas_control%localized_wfn_control,loc_section,&
-         print_loc_section, xas_control%localized_wfn,do_xas=.TRUE.,&
-         nloc_xas=xas_control%nexc_search,error=error)
-
   END SUBROUTINE read_xas_control
 
 ! *****************************************************************************
@@ -307,21 +266,15 @@ CONTAINS
 
     xas_control%ref_count= 1
     xas_control%xas_method = xas_tp_hh
-    xas_control%occ_estate = 0.5_dp
-    xas_control%occ_homo = 1.0_dp
     xas_control%nexc_atoms = 1
     xas_control%nexc_search = -1
-    xas_control%lb_atom = 1
-    xas_control%ub_atom = 1
     xas_control%state_type = xas_1s_type    
     xas_control%max_scf = 150
     xas_control%eps_scf = 0.5e-6_dp
-    xas_control%localized_wfn = .FALSE. 
     xas_control%xas_restart = .FALSE. 
-    xas_control%emission = .FALSE. 
+!    xas_control%emission = .FALSE. 
     xas_control%added_mos=0
     xas_control%xes_core_occupation=1.0_dp
-    NULLIFY(xas_control%localized_wfn_control)
     NULLIFY(xas_control%exc_atoms)
     xas_control%cubes = .FALSE.
     xas_control%do_centers = .FALSE.
@@ -346,9 +299,6 @@ CONTAINS
       CPPrecondition(xas_control%ref_count>0,cp_failure_level,routineP,error,failure)
       xas_control%ref_count=xas_control%ref_count-1
       IF (xas_control%ref_count==0) THEN
-        IF (ASSOCIATED(xas_control%localized_wfn_control)) THEN
-          CALL localized_wfn_control_release(xas_control%localized_wfn_control,error=error)
-        END IF
         IF (ASSOCIATED(xas_control%exc_atoms)) THEN
           DEALLOCATE(xas_control%exc_atoms,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -487,11 +487,6 @@ CONTAINS
                             zet0_h, igrid_zet0_s, rpgf0_h,rpgf0_s, &
                             r_V0hmV0s, max_rpgf0_s, rho0_s_rs, rho0_s_gs)
 
-!MI get rid of full gapw
-! g0_s,  norm_g0l_s, zet0_s, 
-! orb_radius_3c, set_radius_3c, r_V0hmV0s,
-!  Qlm_car_h, Qlm_car_s,
-!MI get rid of full gapw
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: g0_h, vg0_h

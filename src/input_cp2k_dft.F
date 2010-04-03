@@ -2034,20 +2034,13 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ALPHA0_HARD",&
-            variants=(/"ALPHA0_H"/),&
+            variants=s2a("ALPHA0_H","ALPHA0"),&
             description="GAPW : Exponent for hard compensation charge",&
             usage="ALPHA0_HARD real", default_r_val=0.0_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="ALPHA0_SOFT",&
-            variants=(/"ALPHA0_S"/),&
-            description="GAPW : Exponent for soft compensation charge",&
-            usage="ALPHA0_SOFT real", default_r_val=0.0_dp,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="FORCE_PAW",&
             description="Use the GAPW scheme also for atoms with soft basis sets, i.e. "//&
             " the local densities are computed even if hard and soft should be equal. "//&
@@ -5436,11 +5429,11 @@ CONTAINS
             default_i_val=xas_none,&
             enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "DSCF"),&
             enum_desc=s2a(&
-            "No XAS is calculated", "Transition potential halfhole",&
-            "Transition potential fullhole", "Hole in homo for XES " , &
-            "Transition potential excited halfhole", &
-            "Transition potential excited fullhole " , &
-            "DSCF calculations for the first excited state"),&
+            "No core electron spectroscopy", "Transition potential half-hole",&
+            "Transition potential full-hole", "Hole in homo for X-ray emission only " , &
+            "Transition potential excited half-hole", &
+            "Transition potential excited full-hole " , &
+            "DSCF calculations to compute the first (core)excited state"),&
             enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xes_tp_val,xas_tp_xhh,&
             xas_tp_xfh,xas_dscf/), error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -5501,15 +5494,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="MIXING",&
-            description="fraction of new density to be mixed in"//&
-            " the xas-scf,"//&
-            "if default, the scf_control value is used",&
-            usage="MIXING 0.5",&
-            default_r_val=-1._dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="STATE_TYPE",&
             variants=(/"TYPE"/),&
             description="Type of the orbitas that are excited for the xas spectra calculation",&
@@ -5528,29 +5512,14 @@ CONTAINS
             default_i_val=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       !MK to be done: new smear section
-       CALL keyword_create(keyword, name="SMEAR",&
-            description="smearing coefficient",&
-            usage="SMEAR 0.5",&
-            default_r_val=0._dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       !MK
-       CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
-            variants=(/"AT_LU"/),&
-            description="The lower and upper index of the atoms to be excited",&
-            usage="ATOMS_LU_BOUNDS integer integer",&
-            n_var=2,default_i_vals=(/0,0/), type_of_var=integer_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       
        CALL keyword_create(keyword,name="ATOMS_LIST",&
             variants=(/"AT_LIST"/),&
             description="Indexes of the atoms to be excited"//&
             "This keyword can be repeated several times"//&
             "(useful if you have to specify many indexes).",&
-            usage="ATOMS_LIST 1 2",&
-            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+            usage="ATOMS_LIST {integer}  {integer} ..  {integer} ",&
+            n_var=-1,type_of_var=integer_t,required=.TRUE.,repeats=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5576,13 +5545,6 @@ CONTAINS
             description="Number of gto's for the expansion of the sto"//&
             "of the type given by STATE_TYPE",&
             usage="NGAUSS {integer}", default_i_val=3,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="EMISSION",&
-            description="Calculate also the emission spectrum",&
-            usage="EMISSION",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5634,8 +5596,15 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"SPECTRUM",&
-            description="Controls the dumping of the CLS output files containing the spectra",&
+       CALL cp_print_key_section_create(print_key,"XES_SPECTRUM",&
+            description="Controls the dumping of the CLS output files containing the emission spectra",&
+            print_level=low_print_level,common_iter_levels=3,filename="",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"XAS_SPECTRUM",&
+            description="Controls the dumping of the CLS output files containing the absorption spectra",&
             print_level=low_print_level,common_iter_levels=3,filename="",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -5693,6 +5662,10 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL create_mixing_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_smear_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

@@ -86,6 +86,8 @@ MODULE qs_scf_diagonalization
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xas_env_types,                   ONLY: xas_environment_type
+  USE xas_restart,                     ONLY: find_excited_core_orbital
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -110,8 +112,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE do_general_diag(scf_env,mos,matrix_ks,&
-                                         matrix_s,scf_control,scf_section,&
-                                         diis_step,use_jacobi,error)
+                             matrix_s,scf_control,scf_section,&
+                             diis_step,use_jacobi,xas_env,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -121,11 +123,13 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step, use_jacobi
+    TYPE(xas_environment_type), OPTIONAL, &
+      POINTER                                :: xas_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin
     LOGICAL                                  :: do_level_shift
-    REAL(kind=dp)                            :: diis_error
+    REAL(kind=dp)                            :: diis_error, eps_diis
 
     DO ispin=1,SIZE(matrix_ks)
       CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
@@ -133,10 +137,15 @@ CONTAINS
                          error=error)
     END DO
 
+    IF(PRESENT(xas_env) ) THEN
+       eps_diis = xas_env%eps_diis
+    ELSE
+       eps_diis = scf_control%eps_diis
+    END IF
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                          scf_control%eps_diis,scf_control%nmixing,&
+                          eps_diis,scf_control%nmixing,&
                           s_matrix=matrix_s,&
                           scf_section=scf_section,error=error)
     ELSE
@@ -147,7 +156,8 @@ CONTAINS
                       ((scf_control%density_guess == core_guess).OR.&
                        (scf_env%iter_count > 1)))
 
-    IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
+    IF ((scf_env%iter_count > 1).AND.&
+        (scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
       use_jacobi = .TRUE.
     ELSE
       use_jacobi = .FALSE.
@@ -190,14 +200,21 @@ CONTAINS
                        jacobi_threshold=scf_control%diagonalization%jacobi_threshold,&
                        error=error)
 
-      CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+      IF(PRESENT(xas_env) .AND. ispin ==1) THEN
+        CALL find_excited_core_orbital(xas_env,mos,matrix_s,error=error)
+        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                               smear=xas_env%smear,&
+                               xas_env=xas_env,error=error)
+      ELSE
+        CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
                              smear=scf_control%smear,&
                              error=error)
+      END IF
+
 
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
                                     scf_env%p_mix_new(ispin)%matrix,&
                                     error=error)
-
     END DO ! ispin
 
   END SUBROUTINE do_general_diag

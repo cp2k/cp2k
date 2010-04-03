@@ -130,8 +130,7 @@ MODULE ep_methods
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&
-                                             mo_set_p_type,&
-                                             set_mo_set
+                                             mo_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_did_change,&
@@ -1350,9 +1349,7 @@ CONTAINS
     INTEGER                                  :: handle, homo, ispin
     LOGICAL                                  :: failure, &
                                                 gth_potential_present, &
-                                                my_transition_potential, &
                                                 uniform_occupation
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -1368,15 +1365,17 @@ CONTAINS
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
+!                                                my_transition_potential, &
+
     CALL timeset(routineN,handle)
 
-    NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s,&
-         dft_control, mos, occupation_numbers, S_sm_pools, ks_env)
+    NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, dft_control, mos, &
+         S_sm_pools, ks_env)
     NULLIFY(atomic_kind_set, mo_coeff)
     logger => cp_error_get_logger(error)
     failure=.FALSE.
 
-    my_transition_potential = .FALSE.
+!    my_transition_potential = .FALSE.
     uniform_occupation = .TRUE.
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -1389,8 +1388,7 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
-         S_sm_pools=S_sm_pools,&
-         error=error)
+         S_sm_pools=S_sm_pools, error=error)
 
 
     !   *** finish initialization of the MOs ***
@@ -1405,17 +1403,17 @@ CONTAINS
                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                   error=error)
           END IF
-          IF(my_transition_potential .AND. ispin==1) THEN
-             CALL get_mo_set(mos(ispin)%mo_set,&
-                  occupation_numbers=occupation_numbers)
-             occupation_numbers(dft_control%xas_estate) = &
-                  dft_control%xas_control%occ_estate
-             occupation_numbers(homo) = dft_control%xas_control%occ_homo
-             uniform_occupation = .FALSE.
-
-             CALL set_mo_set(mos(ispin)%mo_set,&
-                  uniform_occupation=uniform_occupation,error=error)
-          END IF
+!          IF(my_transition_potential .AND. ispin==1) THEN
+!             CALL get_mo_set(mos(ispin)%mo_set,&
+!                  occupation_numbers=occupation_numbers)
+!             occupation_numbers(dft_control%xas_estate) = &
+!                  dft_control%xas_control%occ_estate
+!             occupation_numbers(homo) = dft_control%xas_control%occ_homo
+!             uniform_occupation = .FALSE.
+!
+!             CALL set_mo_set(mos(ispin)%mo_set,&
+!                  uniform_occupation=uniform_occupation,error=error)
+!          END IF
        END DO
     END IF
 

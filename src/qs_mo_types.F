@@ -74,6 +74,8 @@ MODULE qs_mo_types
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xas_env_types,                   ONLY: get_xas_env,&
+                                             xas_environment_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -456,21 +458,25 @@ CONTAINS
 !> \param   eval_deriv on entry the derivative of the KS energy wrt to the occupation number
 !>                     on exit  the derivative of the full free energy (i.e. KS and entropy) wrt to the eigenvalue 
 ! *****************************************************************************
-  SUBROUTINE set_mo_occupation(mo_set,smear,eval_deriv,error)
+  SUBROUTINE set_mo_occupation(mo_set,smear,eval_deriv,xas_env, error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(smear_type), INTENT(IN), OPTIONAL   :: smear
+    TYPE(smear_type), OPTIONAL, POINTER      :: smear
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eval_deriv
+    TYPE(xas_environment_type), OPTIONAL, &
+      POINTER                                :: xas_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, imo, nmo, nomo, stat
+    INTEGER                                  :: handle, i, i_first, imo, nmo, &
+                                                nomo, stat, xas_estate
     LOGICAL                                  :: equal_size, failure, is_large
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
-                                                lengthscale, nelec
+                                                el_count, lengthscale, nelec, &
+                                                occ_estate, xas_nelectron
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dfde
 
@@ -491,12 +497,33 @@ CONTAINS
 
     nomo = NINT(mo_set%nelectron/mo_set%maxocc)
     nmo  = SIZE(mo_set%eigenvalues)
+    xas_estate =  -1
+    occ_estate = 0.0_dp
 
     CPPrecondition((nmo >= nomo),cp_failure_level,routineP,error,failure)
     CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,error,failure)
 
     ! Initialize MO occupations
     mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
+    IF(PRESENT(xas_env) )THEN
+      CALL get_xas_env(xas_env=xas_env,occ_estate=occ_estate,xas_estate=xas_estate,&
+                  xas_nelectron=xas_nelectron,error=error)
+      mo_set%occupation_numbers(xas_estate) = occ_estate
+      el_count = 0.0_dp
+      DO i = 1,nomo
+        el_count = el_count + mo_set%occupation_numbers(i)
+        IF((el_count-xas_nelectron) >EPSILON(0.0_dp)) THEN
+          nomo = i
+          mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - &
+               (el_count-xas_nelectron)
+          EXIT
+        END IF
+      END DO 
+      IF((xas_nelectron - el_count) > EPSILON(0.0_dp) ) THEN
+        nomo = nomo + 1
+        mo_set%occupation_numbers(nomo) = xas_nelectron -  el_count
+      END IF
+    ENDIF
     ! zeros don't count as uniform
     !MK mo_set%uniform_occupation = ALL(mo_set%occupation_numbers==mo_set%maxocc)
 
@@ -513,6 +540,7 @@ CONTAINS
     ! Quick return, if no smearing information is supplied (TO BE FIXED, smear should become non-optional...)
     IF (.NOT.PRESENT(smear)) THEN
       ! there is no dependence of the energy on the eigenvalues
+      mo_set%uniform_occupation = .TRUE.
       IF (PRESENT(eval_deriv)) THEN
         eval_deriv = 0.0_dp
       END IF
@@ -531,12 +559,18 @@ CONTAINS
 
     ! Perform smearing
     IF (smear%do_smear) THEN
+      IF(PRESENT(xas_env) ) THEN
+         i_first = xas_estate + 1
+         nelec = xas_nelectron
+      ELSE
+         i_first = 1
+         nelec = REAL(mo_set%nelectron,dp)
+      END IF
       SELECT CASE (smear%method)
       CASE (smear_fermi_dirac)
-        Nelec = mo_set%nelectron
         IF (.NOT. PRESENT(eval_deriv)) THEN
           CALL FermiFixed(mo_set%occupation_numbers,mo_set%mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
-                          smear%electronic_temperature,mo_set%maxocc)
+                          smear%electronic_temperature,mo_set%maxocc,xas_estate,occ_estate)
         ELSE
           ! could be a relatively large matrix, but one could get rid of it by never storing it
           ! we only need dE/df * df/de, one could equally parallelize over entries, this could become expensive
@@ -546,7 +580,7 @@ CONTAINS
           lengthscale=10*smear%electronic_temperature
 
           CALL FermiFixedDeriv(dfde,mo_set%occupation_numbers,mo_set%mu,mo_set%kTS,mo_set%eigenvalues,Nelec, &
-                               smear%electronic_temperature,mo_set%maxocc,lengthscale)
+                               smear%electronic_temperature,mo_set%maxocc,xas_estate,occ_estate,lengthscale)
 
           ! deriv of E_{KS}-kT*S wrt to f_i
           eval_deriv=eval_deriv - mo_set%eigenvalues + mo_set%mu
@@ -558,7 +592,7 @@ CONTAINS
         END IF
 
         ! Find the lowest fractional occupied MO (LFOMO)
-        DO imo=1,nmo
+        DO imo=i_first,nmo
           IF (mo_set%occupation_numbers(imo) < mo_set%maxocc) THEN
             mo_set%lfomo = imo
             EXIT
@@ -571,7 +605,7 @@ CONTAINS
                        error,failure)
  
         ! Find the highest (fractional) occupied MO which will be now the HOMO
-        DO imo=nmo,1,-1
+        DO imo=nmo,mo_set%lfomo,-1
           IF (mo_set%occupation_numbers(imo) > smear%eps_fermi_dirac) THEN
             mo_set%homo = imo
             EXIT
@@ -583,7 +617,7 @@ CONTAINS
                        "Add more MOs for proper smearing.",error,failure)
 
         ! check that the total electron count is accurate
-        is_large=(ABS(mo_set%nelectron - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*mo_set%nelectron)
+        is_large=(ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
         CALL cp_assert(.NOT.is_large,&
                        cp_warning_level,cp_assertion_failed,routineP,&
                        "Total number of electrons is not accurate",&
@@ -605,7 +639,7 @@ CONTAINS
                        "Add more MOs for proper smearing.",error,failure)
 
         ! Find the lowest fractional occupied MO (LFOMO)
-        DO imo=1,nomo
+        DO imo=i_first,nomo
           IF (mo_set%eigenvalues(imo) > e1) THEN
             mo_set%lfomo = imo
             EXIT
@@ -1106,7 +1140,7 @@ CPSourceFileRef,&
   END SUBROUTINE read_mo_set_from_restart
 ! *****************************************************************************
   SUBROUTINE read_rt_mos_from_restart(mo_array,rt_mos,atomic_kind_set,particle_set,&
-       para_env,id_nr,multiplicity,dft_section,scp,scp_env,error)
+       para_env,id_nr,multiplicity,dft_section,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -1119,8 +1153,6 @@ CPSourceFileRef,&
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
-    LOGICAL, INTENT(IN)                      :: scp
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rt_mos_from_restart', &
@@ -1180,7 +1212,8 @@ CPSourceFileRef,&
 !>      12.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE read_mos_restart_low (mos,  para_env, particle_set, natom, rst_unit, multiplicity, xas,rt_mos, error)
+  SUBROUTINE read_mos_restart_low (mos,  para_env, particle_set, natom, rst_unit, &
+        multiplicity, rt_mos, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1189,7 +1222,6 @@ CPSourceFileRef,&
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: natom, rst_unit
     INTEGER, INTENT(in), OPTIONAL            :: multiplicity
-    LOGICAL, INTENT(IN), OPTIONAL            :: xas
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rt_mos
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1205,8 +1237,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: failure, minbas, my_xas, &
-                                                use_this
+    LOGICAL                                  :: failure, minbas, use_this
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1219,14 +1250,12 @@ CPSourceFileRef,&
     nao = mos(1)%mo_set%nao
     my_mult = 0
     IF(PRESENT(multiplicity)) my_mult = multiplicity
-    my_xas = .FALSE.
-    IF(PRESENT(xas)) my_xas = xas
     group = para_env%group
     source = para_env%source
 
     IF (para_env%ionode) THEN
        READ (rst_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
-       IF(my_xas.OR.PRESENT(rt_mos)) THEN
+       IF(PRESENT(rt_mos)) THEN
           IF (nspin_read /= nspin) THEN
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                  "To change nspin is not possible. "//&
@@ -1324,14 +1353,6 @@ CPSourceFileRef,&
              "the allocated MOs. The read MO set will be truncated!"//&
              CPSourceFileRef,&
              only_ionode=.TRUE.)
-        IF(my_xas) THEN
-           CALL cp_assert((homo==mos(ispin)%mo_set%homo),cp_warning_level,&
-                cp_assertion_failed,routineP,&
-                "The homo has changed,  you are probably using a different "//&
-                " core-hole potential."//&
-                CPSourceFileRef,&
-                only_ionode=.TRUE.)
-        END IF
         
         READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
         mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
@@ -1473,7 +1494,7 @@ CPSourceFileRef,&
         END IF
       END IF
 
-      IF(.NOT. my_xas.AND..NOT.PRESENT(rt_mos)) THEN
+      IF(.NOT.PRESENT(rt_mos)) THEN
         IF(ispin==1 .AND. nspin_read<nspin) THEN
 
           mos(ispin+1)%mo_set%homo = mos(ispin)%mo_set%homo

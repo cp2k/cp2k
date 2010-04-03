@@ -136,7 +136,7 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dedc
-    TYPE(smear_type)                         :: smear
+    TYPE(smear_type), POINTER                :: smear
     TYPE(dbcsr_obj), POINTER                 :: matrix_s
     REAL(KIND=dp)                            :: energy
     TYPE(aux_coeff_set_type), OPTIONAL, &
