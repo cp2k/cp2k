@@ -1312,6 +1312,8 @@ MODULE hfx_types
       max_shell = 0
       total_number_of_cells = 0
       ub = 1
+      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(x_data%neighbor_cells(1), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       x_data%neighbor_cells(1)%cell = 0.0_dp
