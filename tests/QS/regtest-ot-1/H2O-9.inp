@@ -13,7 +13,6 @@
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
-      ADDED_MOS 0 1
       EPS_SCF 1.0E-6
       MAX_SCF 9
       SCF_GUESS RESTART
