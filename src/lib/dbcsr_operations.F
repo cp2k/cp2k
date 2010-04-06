@@ -119,7 +119,8 @@ MODULE dbcsr_operations
             dbcsr_filter, dbcsr_scale_by_vector,&
             dbcsr_replace_blocks, dbcsr_conjg,&
             dbcsr_btriu, dbcsr_triu, dbcsr_tril,&
-            dbcsr_symmetrize_block_diag, dbcsr_copy_columns
+            dbcsr_symmetrize_block_diag, dbcsr_copy_columns,&
+            dbcsr_init_random
   PUBLIC :: dbcsr_sum_replicated
   PUBLIC :: dbcsr_norm, &
             dbcsr_gershgorin_norm, dbcsr_maxabs, dbcsr_frobenius_norm
@@ -481,9 +482,10 @@ CONTAINS
     ! differ.
     l_col = MIN (l_col, dbcsr_nfullcols_total(matrix_right))
     l_col = MIN (l_col, dbcsr_nfullcols_total(matrix_c))
-    IF (l_col .EQ. dbcsr_nfullcols_total(matrix_right) .AND. &
-         dbcsr_nfullcols_total(matrix_right) .EQ.&
-         dbcsr_nfullcols_total(matrix_c)) l_col = 0
+    IF (f_col.LE.1.AND.&
+        l_col .EQ. dbcsr_nfullcols_total(matrix_right) .AND. &
+        dbcsr_nfullcols_total(matrix_right) .EQ.&
+        dbcsr_nfullcols_total(matrix_c)) l_col = 0
     IF (f_k .EQ. 1) f_k = 0
     IF (l_k .EQ. dbcsr_nfullcols_total(matrix_left)) l_k = 0
     IF (.NOT. PRESENT(last_column) .AND.&
@@ -1771,6 +1773,62 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_on_diag_anytype
 
+  SUBROUTINE dbcsr_init_random(matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_random', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col, col_size, error_handler, &
+                                                hold, iseed(4), mynode, row, &
+                                                row_size, stored_col, &
+                                                stored_row
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: found, tr
+    REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: rnd
+    REAL(real_8), DIMENSION(:, :), POINTER   :: buff, data_d
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    row_blk_size => array_data (matrix%m%row_blk_size)
+    col_blk_size => array_data (matrix%m%col_blk_size)
+    mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
+    CALL dbcsr_work_create(matrix, work_mutable=.TRUE., error=error)
+
+    iseed(1)=4;iseed(2)=3;iseed(3)=2;iseed(4)=1! set the seed for dlarnv
+    ALLOCATE(rnd(MAXVAL(row_blk_size)*MAXVAL(col_blk_size)))
+    DO row = 1,dbcsr_nblkrows_total(matrix)
+    DO col = 1,dbcsr_nblkcols_total(matrix)
+       row_size = row_blk_size(row)
+       col_size = col_blk_size(col)
+       CALL dlarnv(1,iseed,row_size*col_size,rnd(1))
+       tr = .FALSE.
+       stored_row = row
+       stored_col = col
+       CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr, hold)
+       IF(hold.EQ.mynode) THEN
+          CALL dbcsr_get_block_p(matrix, stored_row, stored_col, data_d, tr, found)
+          IF(found) THEN
+             CALL dcopy(row_size*col_size,rnd,1,data_d,1)
+          ELSE
+             ALLOCATE(buff(row_size,col_size))
+             CALL dcopy(row_size*col_size,rnd,1,buff,1)
+             CALL dbcsr_put_block (matrix, stored_row, stored_col, buff)
+             DEALLOCATE(buff)
+          ENDIF
+       ENDIF
+    ENDDO
+    ENDDO
+    DEALLOCATE(rnd)
+
+    CALL dbcsr_finalize(matrix, error=error)
+    CALL dbcsr_error_stop(error_handler, error)
+
+  END SUBROUTINE dbcsr_init_random
+
 ! *****************************************************************************
 !> \brief get the diagonal of a dbcsr matrix
 !> \param[in] matrix    the matrix
@@ -1988,13 +2046,15 @@ CONTAINS
                dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
                nblks=matrix_a%m%nblks, data_type=new_type,&
-               special=matrix_a%m%special_memory, error=error)
+               special=matrix_a%m%special_memory, &
+               replication_type=matrix_a%m%replication_type, error=error)
        ELSE
           CALL dbcsr_create(matrix_b,'copy of '//dbcsr_name(matrix_a),&
                dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
                nblks=matrix_a%m%nblks, data_type=new_type,&
-               special=matrix_a%m%special_memory, error=error)
+               special=matrix_a%m%special_memory,&
+               replication_type=matrix_a%m%replication_type, error=error)
        ENDIF
        CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index), error=error)
        !
