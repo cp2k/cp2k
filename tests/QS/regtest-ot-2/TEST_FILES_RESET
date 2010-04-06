@@ -868,3 +868,15 @@ H2O.inp
 # Numerics 
 H2O.inp
 C_ot.inp
+#  
+H2O-1.inp
+#  
+H2O.inp
+#  
+H2_trip.inp
+#  
+C-sic-1.inp
+#  
+C-sic-2.inp
+#  
+C_ot.inp

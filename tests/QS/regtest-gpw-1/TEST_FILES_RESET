@@ -435,3 +435,7 @@ H2O-harris.inp
 H2O-MD-harris.inp
 #initial guess
 K2.inp
+#  
+h2o_dip_berry.inp
+#  
+h2o_dip_iso.inp

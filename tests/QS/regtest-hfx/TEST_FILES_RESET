@@ -301,3 +301,15 @@ CH-hfx-md-2.inp
 H2O-hfx-emd-restart.inp
 # numerics
 H2O-hfx-3.inp
+#  
+H2O-hfx-3.inp
+#  
+H2O_pw.inp
+#  
+4H2O-disk.inp
+#  
+4H2O-mix-disk-ram.inp
+#  
+4H2O-mix-disk-ram-on-the-fly.inp
+#  
+H2O-hfx-emd-restart.inp

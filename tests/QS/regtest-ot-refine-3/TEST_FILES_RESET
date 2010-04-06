@@ -121,3 +121,27 @@ h2o_ot_precond_2_mp.inp
 h2o_ot_precond_3_mp.inp
 # fm to dbcsr
 h2o_ot_precond_4_mp.inp
+#  
+h2o_ot_lwdn_on_the_fly_l1.inp
+#  
+h2o_ot_poly_on_the_fly_l1.inp
+#  
+o2_ot_lwdn_on_the_fly_l1.inp
+#  
+o2_ot_poly_on_the_fly_l1.inp
+#  
+h2o_ot_refine_3.inp
+#  
+h2o_ot_refine_4.inp
+#  
+o2_ot_refine_3.inp
+#  
+o2_ot_refine_4.inp
+#  
+h2o_ot_precond_1_mp.inp
+#  
+h2o_ot_precond_2_mp.inp
+#  
+h2o_ot_precond_3_mp.inp
+#  
+h2o_ot_precond_4_mp.inp

@@ -816,3 +816,7 @@ H2O-solv.inp
 # atomic code: unrestricted calculations 
 dynamics.inp
 H2O-ata.inp
+#  
+OH-H2O-bsse.inp
+#  
+rsgrid-dist-3.inp

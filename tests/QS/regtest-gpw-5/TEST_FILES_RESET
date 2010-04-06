@@ -252,3 +252,9 @@ c8_broy_gop.inp
 si8_pmix_otdiag.inp
 si8_pulay.inp
 si8_pulay_off.inp
+#  
+si8_pmix_otdiag.inp
+#  
+md-01.inp
+#  
+bug_ai_moments.inp

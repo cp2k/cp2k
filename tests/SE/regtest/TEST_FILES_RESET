@@ -511,3 +511,27 @@ h2o_gks_e.inp
 ice-scp-ewald.inp
 # Numerics
 ice-scp-ewald_gks.inp
+#  
+ch4-ot.inp
+#  
+h2o_lsd-ot.inp
+#  
+h2po4.inp
+#  
+geom.inp
+#  
+H2O-MNDOD.inp
+#  
+dimer.inp
+#  
+dimer2.inp
+#  
+dimer3.inp
+#  
+dimer4.inp
+#  
+h2o_gks_p.inp
+#  
+ice-scp-ewald.inp
+#  
+ice-scp-ewald_gks.inp

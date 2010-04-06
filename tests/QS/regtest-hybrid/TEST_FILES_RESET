@@ -410,3 +410,21 @@ CH3-PBE0_TC.inp
 CH3-PBE0_TC_LRC.inp
 #new type
 farming-1.inp
+#  
+Li-hybrid-rcam-b3lyp.inp
+#  
+Ne-hybrid-rcam-b3lyp.inp
+#  
+Li-hybrid-MCY3.inp
+#  
+Ne-hybrid-MCY3.inp
+#  
+H2_PW_HFX.inp
+#  
+CH4-PBE0_TC.inp
+#  
+CH3-PBE0_TC.inp
+#  
+CH3-PBE0_TC_LRC.inp
+#  
+CH4-PBE0_TC_LRC.inp

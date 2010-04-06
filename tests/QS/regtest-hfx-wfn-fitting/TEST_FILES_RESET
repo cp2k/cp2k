@@ -14,3 +14,15 @@ CH4-HSE06.inp
 CH4-PBE0.inp
 # fm to dbcsr
 CH4-PBE0_TC.inp
+#  
+CH3-HSE06.inp
+#  
+CH3-PBE0.inp
+#  
+CH3-PBE0_TC.inp
+#  
+CH4-HSE06.inp
+#  
+CH4-PBE0.inp
+#  
+CH4-PBE0_TC.inp

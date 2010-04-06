@@ -21,7 +21,7 @@
       &END
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
+      EPS_SCF 1.0E-7
       SCF_GUESS ATOMIC
       &OT
         PRECONDITIONER FULL_SINGLE_INVERSE
@@ -29,7 +29,7 @@
         N_DIIS 9
       &END
       &OUTER_SCF
-         EPS_SCF 1.0E-8
+         EPS_SCF 1.0E-7
          MAX_SCF 5
       &END
       &PRINT

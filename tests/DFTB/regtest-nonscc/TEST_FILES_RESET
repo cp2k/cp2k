@@ -60,3 +60,5 @@ MoS.inp
 n2.inp
 # bug fix DOF for linear molecules
 h2-4.inp
+#  
+n2.inp

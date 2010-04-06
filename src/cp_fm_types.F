@@ -11,7 +11,6 @@
 !> \author Matthias Krack (22.05.2001)
 ! *****************************************************************************
 MODULE cp_fm_types
-
   USE cp_array_r_utils,                ONLY: cp_2d_r_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
                                              cp_blacs_dgebs2d,&
@@ -37,6 +36,13 @@ MODULE cp_fm_types
                                              mp_recv,&
                                              mp_send,&
                                              mp_sum
+  USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
+                                             delete_rng_stream,&
+                                             get_rng_stream,&
+                                             random_numbers,&
+                                             reset_to_next_rng_substream,&
+                                             rng_stream_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -292,47 +298,73 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_init_random', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, icol, my_ncol, &
-                                                my_start_col, n
-    INTEGER, DIMENSION(4), SAVE              :: ISEED
+    INTEGER :: handle, icol_global, icol_local, irow_local, my_ncol, &
+      my_start_col, ncol_global, ncol_local, nrow_global, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
     LOGICAL, SAVE                            :: FIRST = .TRUE.
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: buff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buff
+    REAL(KIND=dp), DIMENSION(3, 2), SAVE     :: seed
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    TYPE(rng_stream_type), POINTER           :: rng
 
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
+ 
+    ! first setup a parallel rng
     IF (FIRST) THEN
-       ISEED(1)=4
-       ISEED(2)=3
-       ISEED(3)=2
-       ISEED(4)=1 ! last one has to be odd
+       seed(:,:)=RESHAPE((/1.0_dp,2.0_dp,3.0_dp,4.0_dp,5.0_dp,6.0_dp/),(/3,2/))
        FIRST=.FALSE.
     ENDIF
+    ! guarantee same seed over all tasks
+    CALL mp_bcast(seed,0,matrix%matrix_struct%para_env%group)
+ 
+    NULLIFY(rng)
+    CALL create_rng_stream(rng,"cp_fm_init_random_stream",distribution_type=UNIFORM, &
+                           extended_precision=.TRUE.,seed=seed,error=error)
 
     CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,error,failure)
+
+    CALL cp_fm_get_info(matrix,nrow_global=nrow_global,ncol_global=ncol_global, &
+                               nrow_local=nrow_local,ncol_local=ncol_local,&
+                               local_data=local_data,&
+                               row_indices=row_indices, col_indices=col_indices, error=error)
 
     my_start_col = 1
     IF (PRESENT(start_col)) my_start_col=start_col
     my_ncol = matrix%matrix_struct%ncol_global
     IF (PRESENT(ncol)) my_ncol=ncol
-    n = matrix%matrix_struct%nrow_global
-    CALL cp_assert(matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1),&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1)",&
-         error,failure)
-    ALLOCATE(buff(n,1))
-    DO icol=my_start_col, my_start_col+my_ncol-1
-       IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN
-          CALL dlarnv(1,iseed,n,buff(1,1))
-       ENDIF
-       CALL mp_bcast(buff,0,matrix%matrix_struct%para_env%group)
-       ! write(6,*) buff
-       CALL cp_fm_set_submatrix(matrix,buff,start_col=icol,error=error)
 
+    CALL cp_assert(ncol_global>=(my_start_col+my_ncol-1),&
+         cp_failure_level,cp_assertion_failed,routineP,&
+         "ncol_global>=(my_start_col+my_ncol-1)",&
+         error,failure)
+
+    ALLOCATE(buff(nrow_global))
+
+    ! each global row has its own substream, in order to reach the stream for the local col,
+    ! we just reset to the next substream
+    ! following this, we fill the full buff with random numbers, and pick those we need
+    icol_global=0
+    DO icol_local=1,ncol_local
+       CPPrecondition(col_indices(icol_local)>icol_global,cp_failure_level,routineP,error,failure)
+       DO
+         CALL reset_to_next_rng_substream(rng,error=error)
+         icol_global=icol_global+1
+         IF (icol_global==col_indices(icol_local)) EXIT
+       ENDDO
+       CALL random_numbers(buff,rng,error)
+       DO irow_local=1,nrow_local
+          local_data(irow_local,icol_local)=buff(row_indices(irow_local))
+       ENDDO
     ENDDO
-    ! write(6,*) matrix%local_data
+
     DEALLOCATE(buff)
+
+    ! store seed before deletion (unclear if this is the proper seed)
+    CALL get_rng_stream(rng,ig=seed,error=error)
+    CALL delete_rng_stream(rng,error)
 
     CALL timestop(handle)
 
