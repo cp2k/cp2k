@@ -408,3 +408,5 @@ Ne-hybrid-MCY3.inp
 CH3-PBE0_TC.inp
 # Numerics 
 CH3-PBE0_TC_LRC.inp
+#new type
+farming-1.inp
