@@ -576,7 +576,7 @@ CONTAINS
         WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "FARMING| MPI (slave) process to group correspondence:"
         DO i=0,num_slaves-1
            IF (MODULO(i,4)==0) WRITE(output_unit,*)
-           WRITE(output_unit,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO")&
+           WRITE(output_unit,FMT='(A3,I6,A3,I6,A1)',ADVANCE="NO")&
                 "  (",i," : ",group_distribution(i),")"
         END DO
         WRITE(output_unit,*)
