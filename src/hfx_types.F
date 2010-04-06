@@ -1235,14 +1235,15 @@ MODULE hfx_types
 
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=64)                        :: char_nshells
-    INTEGER :: act_idx, i, ikind, ipgf, iset, j, jkind, jpgf, jset, k, l, &
-      m(3), max_cells_old, ncells_old, nseta, nsetb, nshells, stat, &
-      total_number_of_cells
+    INTEGER :: i, idx, ikind, ipgf, iset, ishell, j, jkind, jpgf, jset, &
+      jshell, k, kshell, l, m(3), max_shell, nseta, nsetb, stat, &
+      total_number_of_cells, ub, ub_max
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb
-    LOGICAL                                  :: failure, max_shell_found
-    REAL(dp)                                 :: dist, dist_min, l_min, r(3), &
-                                                R1, R_max, s(3), x, y, z, &
-                                                Zeta1
+    LOGICAL                                  :: failure, image_cell_found, &
+                                                nothing_more_to_add
+    REAL(dp) :: cross_product(3), dist_min, distance(14), l_min, normal(3,6), &
+      P(3,14), plane_vector(3,2), point_in_plane(3), r(3), R1, R_max, s(3), &
+      x, y, z, Zeta1
     REAL(dp), DIMENSION(:, :), POINTER       :: zeta, zetb
     TYPE(hfx_cell_type), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_neighbor_cells
@@ -1306,89 +1307,244 @@ MODULE hfx_types
       END DO
   
       R_max = 2.0_dp*R_max + x_data%potential_parameter%cutoff_radius
- 
-      max_shell_found = .FALSE.
-      nshells = -1
-      ncells_old = -1
-      max_cells_old = -1
-      DO WHILE( .NOT. max_shell_found ) 
-        total_number_of_cells = 0
-        nshells = nshells + 1
-        DO i = 0,nshells
-          total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
+
+      nothing_more_to_add = .FALSE.
+      max_shell = 0
+      total_number_of_cells = 0
+      ub = 1
+      ALLOCATE(x_data%neighbor_cells(1), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      x_data%neighbor_cells(1)%cell = 0.0_dp
+      x_data%neighbor_cells(1)%cell_r = 0.0_dp
+
+      ! ** What follows is kind of a ray tracing algorithm 
+      ! ** Given a image cell (ishell, jshell, kshell) we try to figure out the
+      ! ** shortest distance of this image cell to the basic unit cell (0,0,0), i.e. the point
+      ! ** (0.0, 0.0, 0.0)
+      ! ** This is achieved by checking the 8 Corners of the cell, and, in addition, the shortest distance
+      ! ** to all 6 faces. The faces are only taken into account if the penetration point of the normal
+      ! ** to the plane defined by a face lies within this face.
+      ! ** This is very fast, because no trigonometric functions are being used
+      ! ** The points are defined as follows
+      ! **
+      ! **
+      ! **               _________________________
+      ! **              /P4____________________P8/|
+      ! **             / / ___________________/ / |
+      ! **            / / /| |               / /  |       z
+      ! **           / / / | |              / / . |      /|\  _ y 
+      ! **          / / /| | |             / / /| |       |   /|
+      ! **         / / / | | |            / / / | |       |  /
+      ! **        / / /  | | |           / / /| | |       | /
+      ! **       / /_/___| | |__________/ / / | | |       |/
+      ! **      /P2______| | |_________P6/ /  | | |       ----------> x
+      ! **      | _______| | |_________| | |  | | |
+      ! **      | | |    | | |________________| | |
+      ! **      | | |    |P3___________________P7 |
+      ! **      | | |   / / _________________  / /
+      ! **      | | |  / / /           | | |/ / /
+      ! **      | | | / / /            | | | / /
+      ! **      | | |/ / /             | | |/ /
+      ! **      | | | / /              | | ' /
+      ! **      | | |/_/_______________| |  /
+      ! **      | |____________________| | /
+      ! **      |P1_____________________P5/  
+      ! **   
+      ! **   
+  
+      DO WHILE (.NOT. nothing_more_to_add)
+        ! Calculate distances to the eight points P1 to P8
+        image_cell_found = .FALSE.
+        ALLOCATE(tmp_neighbor_cells(1:ub),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        WRITE(*,*) SIZE(tmp_neighbor_cells), ub, SIZE(x_data%neighbor_cells)
+        DO i = 1,ub-1
+          tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
         END DO
-        IF( total_number_of_cells == max_cells_old ) THEN
-          CYCLE
-        END IF
-        max_cells_old = total_number_of_cells
-        DEALLOCATE(x_data%neighbor_cells,STAT=stat)
+        ub_max = (2*max_shell+1)**3
+        DEALLOCATE(x_data%neighbor_cells, STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
+        ALLOCATE(x_data%neighbor_cells(1:ub_max), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        ALLOCATE(tmp_neighbor_cells(total_number_of_cells), STAT=stat)
+        DO i = 1,ub-1
+          x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
+        END DO
+        DO i = ub,ub_max
+          x_data%neighbor_cells(i)%cell = 0.0_dp
+          x_data%neighbor_cells(i)%cell_r = 0.0_dp
+        END DO
+  
+        DEALLOCATE(tmp_neighbor_cells, STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
    
-        m = 0
-        i = 1
-        DO WHILE(SUM(m**2)<=nshells)
-          x_data%neighbor_cells(i)%cell = REAL(m,dp)
-          CALL next_image_cell_perd(m,x_data%periodic_parameter%perd)
-          i=i+1
-        END DO
-        act_idx = 1
-        DO i = 1,SIZE(x_data%neighbor_cells)
-          dist_min = HUGE(dist_min)
+        DO ishell=-max_shell,max_shell
+        DO jshell=-max_shell,max_shell
+        DO kshell=-max_shell,max_shell
+          IF( MAX(ABS(ishell),ABS(jshell),ABS(kshell)) /= max_shell) CYCLE
+          idx = 0
           DO j=0,1
             x = -1.0_dp/2.0_dp + j*1.0_dp
             DO k=0,1
-              y = -1.0_dp/2.0_dp + k*1.0_dp 
-              DO l=0,1 
+              y = -1.0_dp/2.0_dp + k*1.0_dp
+              DO l=0,1
                 z = -1.0_dp/2.0_dp + l*1.0_dp
-                s(1) = x+x_data%neighbor_cells(i)%cell(1)
-                s(2) = y+x_data%neighbor_cells(i)%cell(2)
-                s(3) = z+x_data%neighbor_cells(i)%cell(3)
-                CALL scaled_to_real(r,s,cell)
-                dist = SQRT(SUM(r**2))
-                dist_min = MIN(dist,dist_min)
+                idx = idx + 1
+                P(1,idx) = x + ishell
+                P(2,idx) = y + jshell
+                P(3,idx) = z + kshell
+                CALL scaled_to_real(r,P(:,idx),cell)
+                distance(idx) = SQRT(SUM(r**2))
+                P(1:3,idx)=r
               END DO
             END DO
           END DO
-          IF( dist_min <= R_max) THEN
-            tmp_neighbor_cells(act_idx) = x_data%neighbor_cells(i)
-            act_idx = act_idx + 1
+          ! Now check distance to Faces and only take them into account if the base point lies within quadrilateral
+    
+          ! Face A (1342) 1 is the reference
+          idx = idx + 1
+          plane_vector(:,1) = P(:,3)-P(:,1)
+          plane_vector(:,2) = P(:,2)-P(:,1)
+          cross_product(1) = plane_vector(2,1)*plane_vector(3,2) - plane_vector(3,1)*plane_vector(2,2)
+          cross_product(2) = plane_vector(3,1)*plane_vector(1,2) - plane_vector(1,1)*plane_vector(3,2)
+          cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
+          normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
+          point_in_plane = -normal(:,1)*(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
+    
+          IF (point_is_in_quadrilateral(P(:,1),P(:,3),P(:,4),P(:,2),point_in_plane) ) THEN
+            distance(idx)=ABS(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
+          ELSE
+            distance(idx)=HUGE(distance(idx))
           END IF
+    
+          ! Face B (1562) 1 is the reference
+          idx = idx + 1
+          plane_vector(:,1) = P(:,2)-P(:,1)
+          plane_vector(:,2) = P(:,5)-P(:,1)
+          cross_product(1) = plane_vector(2,1)*plane_vector(3,2) - plane_vector(3,1)*plane_vector(2,2)
+          cross_product(2) = plane_vector(3,1)*plane_vector(1,2) - plane_vector(1,1)*plane_vector(3,2)
+          cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
+          normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
+          point_in_plane = -normal(:,1)*(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
+    
+          IF (point_is_in_quadrilateral(P(:,1),P(:,5),P(:,6),P(:,2),point_in_plane) ) THEN
+            distance(idx)=ABS(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
+          ELSE
+            distance(idx)=HUGE(distance(idx))
+          END IF
+    
+          ! Face C (5786) 5 is the reference
+          idx = idx + 1
+          plane_vector(:,1) = P(:,7)-P(:,5)
+          plane_vector(:,2) = P(:,6)-P(:,5)
+          cross_product(1) = plane_vector(2,1)*plane_vector(3,2) - plane_vector(3,1)*plane_vector(2,2)
+          cross_product(2) = plane_vector(3,1)*plane_vector(1,2) - plane_vector(1,1)*plane_vector(3,2)
+          cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
+          normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
+          point_in_plane = -normal(:,1)*(normal(1,1)*P(1,5)+normal(2,1)*P(2,5)+normal(3,1)*P(3,5))
+    
+          IF (point_is_in_quadrilateral(P(:,5),P(:,7),P(:,8),P(:,6),point_in_plane) ) THEN
+            distance(idx)=ABS(normal(1,1)*P(1,5)+normal(2,1)*P(2,5)+normal(3,1)*P(3,5))
+          ELSE
+            distance(idx)=HUGE(distance(idx))
+          END IF
+    
+          ! Face D (3784) 3 is the reference
+          idx = idx + 1
+          plane_vector(:,1) = P(:,7)-P(:,3)
+          plane_vector(:,2) = P(:,4)-P(:,3)
+          cross_product(1) = plane_vector(2,1)*plane_vector(3,2) - plane_vector(3,1)*plane_vector(2,2)
+          cross_product(2) = plane_vector(3,1)*plane_vector(1,2) - plane_vector(1,1)*plane_vector(3,2)
+          cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
+          normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
+          point_in_plane = -normal(:,1)*(normal(1,1)*P(1,3)+normal(2,1)*P(2,3)+normal(3,1)*P(3,3))
+    
+          IF (point_is_in_quadrilateral(P(:,3),P(:,7),P(:,8),P(:,4),point_in_plane) ) THEN
+            distance(idx)=ABS(normal(1,1)*P(1,3)+normal(2,1)*P(2,3)+normal(3,1)*P(3,3))
+          ELSE
+            distance(idx)=HUGE(distance(idx))
+          END IF
+    
+          ! Face E (2684) 2 is the reference
+          idx = idx + 1
+          plane_vector(:,1) = P(:,6)-P(:,2)
+          plane_vector(:,2) = P(:,4)-P(:,2)
+          cross_product(1) = plane_vector(2,1)*plane_vector(3,2) - plane_vector(3,1)*plane_vector(2,2)
+          cross_product(2) = plane_vector(3,1)*plane_vector(1,2) - plane_vector(1,1)*plane_vector(3,2)
+          cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
+          normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
+          point_in_plane = -normal(:,1)*(normal(1,1)*P(1,2)+normal(2,1)*P(2,2)+normal(3,1)*P(3,2))
+    
+          IF (point_is_in_quadrilateral(P(:,2),P(:,6),P(:,8),P(:,4),point_in_plane) ) THEN
+            distance(idx)=ABS(normal(1,1)*P(1,2)+normal(2,1)*P(2,2)+normal(3,1)*P(3,2))
+          ELSE
+            distance(idx)=HUGE(distance(idx))
+          END IF
+    
+          ! Face F (1573) 1 is the reference
+          idx = idx + 1
+          plane_vector(:,1) = P(:,5)-P(:,1)
+          plane_vector(:,2) = P(:,3)-P(:,1)
+          cross_product(1) = plane_vector(2,1)*plane_vector(3,2) - plane_vector(3,1)*plane_vector(2,2)
+          cross_product(2) = plane_vector(3,1)*plane_vector(1,2) - plane_vector(1,1)*plane_vector(3,2)
+          cross_product(3) = plane_vector(1,1)*plane_vector(2,2) - plane_vector(2,1)*plane_vector(1,2)
+          normal(:,1) = cross_product/SQRT(SUM(cross_product**2))
+          point_in_plane = -normal(:,1)*(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
+    
+          IF (point_is_in_quadrilateral(P(:,1),P(:,5),P(:,7),P(:,3),point_in_plane) )THEN
+            distance(idx)=ABS(normal(1,1)*P(1,1)+normal(2,1)*P(2,1)+normal(3,1)*P(3,1))
+          ELSE
+            distance(idx)=HUGE(distance(idx))
+          END IF
+    
+          dist_min=MINVAL(distance)
+          IF( max_shell == 0) image_cell_found=.TRUE.
+          IF(dist_min<R_max)THEN
+            total_number_of_cells = total_number_of_cells + 1
+            x_data%neighbor_cells(ub)%cell = REAL((/ishell,jshell,kshell/),dp)
+            ub = ub + 1
+            image_cell_found = .TRUE.
+          END IF
+    
         END DO
-     
-        total_number_of_cells = act_idx-1
-        IF( ncells_old == total_number_of_cells) max_shell_found = .TRUE.
-        ncells_old = total_number_of_cells
-        IF( .NOT. max_shell_found ) THEN
-          DEALLOCATE(tmp_neighbor_cells,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
+        END DO
+        END DO  
+        IF( image_cell_found) THEN
+          max_shell = max_shell + 1
+        ELSE
+          nothing_more_to_add = .TRUE.
+        END IF  
       END DO
-      DEALLOCATE(x_data%neighbor_cells,STAT=stat)
+
+      ! now remove what is not needed
+      ALLOCATE(tmp_neighbor_cells(total_number_of_cells), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DO i=1,ub-1
+        tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
+      END DO
+      DEALLOCATE(x_data%neighbor_cells, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DO i=1,total_number_of_cells
+        x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
+      END DO
+      DEALLOCATE(tmp_neighbor_cells, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
       IF(x_data%periodic_parameter%number_of_shells == do_hfx_auto_shells ) THEN 
-        ! if only the central unit cell is needed we need to take care manually
-        ! to avoid undefined cell info
-        IF(total_number_of_cells == 0) THEN
-            total_number_of_cells = 1
-            tmp_neighbor_cells(1)%cell=0
-            tmp_neighbor_cells(1)%cell_r=0
-        ENDIF
-        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        x_data%neighbor_cells(1:total_number_of_cells) = tmp_neighbor_cells(1:total_number_of_cells)
-        pbc_shells = nshells - 1
+        ! Do nothing
       ELSE
-        IF( x_data%periodic_parameter%number_of_shells < nshells - 1) THEN
+        total_number_of_cells = 0
+        DO i = 0,x_data%periodic_parameter%number_of_shells
+          total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
+        END DO
+        IF( total_number_of_cells < SIZE(x_data%neighbor_cells)) THEN
           IF( i_thread == 1) THEN
-            WRITE(char_nshells,'(I3)') nshells-1
+
+            WRITE(char_nshells,'(I3)') SIZE(x_data%neighbor_cells)
             WRITE(error_msg,'(A,A,A)') "Periodic Hartree Fock calculation requested with use "//&
                      "of a truncated potential. The number of shells to be considered "//&
-                     "might be too small. CP2K conservatively estimates to need "//TRIM(char_nshells)//" shells. "//&
+                     "might be too small. CP2K conservatively estimates to need "//TRIM(char_nshells)//" periodic images "//&
                      "Please carefully check if you get converged results."
 
             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
@@ -1401,6 +1557,9 @@ MODULE hfx_types
         DO i = 0,x_data%periodic_parameter%number_of_shells
           total_number_of_cells = total_number_of_cells + count_cells_perd(i,x_data%periodic_parameter%perd)
         END DO
+        DEALLOCATE(x_data%neighbor_cells, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
         ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         m = 0
@@ -1411,8 +1570,6 @@ MODULE hfx_types
            i=i+1
         ENDDO
       END IF
-      DEALLOCATE(tmp_neighbor_cells,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
       total_number_of_cells = 0
       IF( pbc_shells == -1 ) pbc_shells = 0
@@ -1443,7 +1600,76 @@ MODULE hfx_types
     END DO
 
     x_data%periodic_parameter%number_of_shells = pbc_shells
+
   END SUBROUTINE hfx_create_neighbor_cells
+
+  FUNCTION point_is_in_quadrilateral(A,B,C,D,P)
+    REAL(dp)                                 :: A(3), B(3), C(3), D(3), P(3)
+    LOGICAL                                  :: point_is_in_quadrilateral
+
+    REAL(dp)                                 :: dot00, dot01, dot02, dot11, &
+                                                dot12, invDenom, u, v, v0(3), &
+                                                v1(3), v2(3)
+
+    point_is_in_quadrilateral = .FALSE.
+
+
+    ! ** Check for both triangles ABC and ACD
+    ! **
+    ! **     D -------------- C
+    ! **    /                /
+    ! **   /                /
+    ! **  A----------------B
+    ! **
+    ! **
+    ! **
+
+    ! ** ABC
+    
+    v0 = D - A
+    v1 = C - A
+    v2 = P - A
+    
+    ! ** Compute dot products
+    dot00 = DOT_PRODUCT(v0, v0)
+    dot01 = DOT_PRODUCT(v0, v1)
+    dot02 = DOT_PRODUCT(v0, v2)
+    dot11 = DOT_PRODUCT(v1, v1)
+    dot12 = DOT_PRODUCT(v1, v2)
+    
+    ! ** Compute barycentric coordinates
+    invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
+    u = (dot11 * dot02 - dot01 * dot12) * invDenom
+    v = (dot00 * dot12 - dot01 * dot02) * invDenom
+    ! ** Check if point is in triangle
+    IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
+      point_is_in_quadrilateral = .TRUE.
+      RETURN
+    END IF
+    v0 = C - A
+    v1 = B - A
+    v2 = P - A
+    
+    ! ** Compute dot products
+    dot00 = DOT_PRODUCT(v0, v0)
+    dot01 = DOT_PRODUCT(v0, v1)
+    dot02 = DOT_PRODUCT(v0, v2)
+    dot11 = DOT_PRODUCT(v1, v1)
+    dot12 = DOT_PRODUCT(v1, v2)
+    
+    ! ** Compute barycentric coordinates
+    invDenom = 1 / (dot00 * dot11 - dot01 * dot01)
+    u = (dot11 * dot02 - dot01 * dot12) * invDenom
+    v = (dot00 * dot12 - dot01 * dot02) * invDenom
+    
+    ! ** Check if point is in triangle
+    IF ( (u >= 0) .AND.  (v >= 0) .AND. (u + v <= 1) ) THEN
+      point_is_in_quadrilateral = .TRUE.
+      RETURN
+    END IF
+
+  END FUNCTION point_is_in_quadrilateral
+
 
 ! *****************************************************************************
 !> \brief - This routine deletes all list entries in a container in order to
