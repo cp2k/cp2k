@@ -16,7 +16,7 @@
     &QS
     &END QS
     &SCF
-      MAX_SCF 4
+      MAX_SCF 5
       SCF_GUESS atomic
     &END SCF
     &TDDFPT
