@@ -65,15 +65,15 @@ MODULE dbcsr_operations
        dbcsr_distribution_no_threads, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_matrix_type, &
-       dbcsr_has_symmetry, dbcsr_init, dbcsr_is_initialized, &
-       dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_may_be_dense, &
-       dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_name, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_scalar, dbcsr_scalar_are_equal, &
-       dbcsr_scalar_one, dbcsr_scalar_zero, dbcsr_type_1d_to_2d, &
-       dbcsr_valid_index
+       dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_init, &
+       dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
+       dbcsr_may_be_dense, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
+       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid, dbcsr_name, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_scalar, &
+       dbcsr_scalar_are_equal, dbcsr_scalar_one, dbcsr_scalar_zero, &
+       dbcsr_type_1d_to_2d, dbcsr_valid_index
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
@@ -2012,7 +2012,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: new_type
+    CHARACTER                                :: new_type, repl_type
     INTEGER                                  :: error_handler
     LOGICAL                                  :: keep_sparse, shallow
 
@@ -2038,8 +2038,10 @@ CONTAINS
     ELSE
        IF (dbcsr_is_initialized (matrix_b)) THEN
           new_type = dbcsr_get_data_type (matrix_b)
+          repl_type = dbcsr_get_replication_type(matrix_b)
        ELSE
           new_type = dbcsr_get_data_type (matrix_a)
+          repl_type = dbcsr_get_replication_type(matrix_a)
        ENDIF
        IF(PRESENT(name)) THEN
           CALL dbcsr_create(matrix_b, name, &
@@ -2047,14 +2049,14 @@ CONTAINS
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
                nblks=matrix_a%m%nblks, data_type=new_type,&
                special=matrix_a%m%special_memory, &
-               replication_type=matrix_a%m%replication_type, error=error)
+               replication_type=repl_type, error=error)
        ELSE
           CALL dbcsr_create(matrix_b,'copy of '//dbcsr_name(matrix_a),&
                dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
                matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
                nblks=matrix_a%m%nblks, data_type=new_type,&
                special=matrix_a%m%special_memory,&
-               replication_type=matrix_a%m%replication_type, error=error)
+               replication_type=repl_type, error=error)
        ENDIF
        CALL ensure_array_size(matrix_b%m%index, ub=SIZE(matrix_a%m%index), error=error)
        !

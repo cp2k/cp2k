@@ -89,7 +89,7 @@ MODULE dbcsr_methods
             dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
             dbcsr_distribution_make_threads, dbcsr_distribution_no_threads
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
-            dbcsr_get_matrix_type, dbcsr_get_data_type,&
+            dbcsr_get_matrix_type, dbcsr_get_data_type, dbcsr_get_replication_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
             dbcsr_nblkrows_total, dbcsr_nblkcols_total, dbcsr_nfullrows_total,&
             dbcsr_nfullcols_total, dbcsr_nblkcols_local, dbcsr_nblkrows_local,&
@@ -1842,6 +1842,19 @@ CONTAINS
 
     transposed = matrix%m%transpose
   END FUNCTION dbcsr_is_transposed
+
+! *****************************************************************************
+!> \brief Returns the data type stored in the matrix
+!> \param matrix              query this matrix
+!> \param data_type           repl_type (see dbcsr_types.F for possible
+!>                            values)
+! *****************************************************************************
+  PURE FUNCTION dbcsr_get_replication_type (matrix) RESULT (repl_type)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    CHARACTER                                :: repl_type
+
+    repl_type = matrix%m%replication_type
+  END FUNCTION dbcsr_get_replication_type
 
 ! *****************************************************************************
 !> \brief Returns the data type stored in the matrix
