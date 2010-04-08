@@ -535,3 +535,5 @@ h2o_gks_p.inp
 ice-scp-ewald.inp
 #  
 ice-scp-ewald_gks.inp
+# numerics
+h2o_gks_e.inp
