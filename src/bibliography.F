@@ -1652,20 +1652,16 @@ CONTAINS
          DOI="10.1103/PhysRevA.39.3761")
 
     CALL add_reference(key=Becke1997, ISI_record=s2a(&
-         "TY  JOUR", &
-         "AU  Becke, AD", &
-         "PY  1997/11/22", &
-         "JF  Journal Of Chemical Physics", &
-         "JO  Journal Of Chemical Physics", &
-         "SN  0021-9606", &
-         "TI  Density-functional thermochemistry .", &
-         "    5. Systematic optimization of exchange-correlation functionals", &
-         "VL  107", &
-         "IS  20", &
-         "SP  8554", &
-         "EP  8560", &
-         "UR  http://link.aip.org/link/?JCP/107/8554/1",&
-         "ER  http://dx.doi.org/10.1063/1.475007"),&
+         "AU Becke, AD", &
+         "PY 1997", &
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606", &
+         "TI Density-functional thermochemistry .", &
+         "   5. Systematic optimization of exchange-correlation functionals", &
+         "VL 107", &
+         "IS 20", &
+         "SP 8554", &
+         "EP 8560"),&
          DOI="10.1063/1.475007")
 
     CALL add_reference(key=Ricci2003, ISI_record=s2a(&
