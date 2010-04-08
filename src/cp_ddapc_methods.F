@@ -494,8 +494,9 @@ CONTAINS
           Amw = Am
           CALL diamat_all(Amw, AmE,error=error)
           condition_number = MAXVAL(ABS(AmE))/MINVAL(ABS(AmE))
-          WRITE(iw,'(T3,A,3E15.9)')" Eigenvalues of Matrix A:",AmE
-          WRITE(iw,'(T3,A,3E15.9)')" Condition number:",condition_number
+          WRITE(iw,'(T3,A)')" Eigenvalues of Matrix A:"
+          WRITE(iw,'(T3,4E15.8)') AmE
+          WRITE(iw,'(T3,A,1E15.9)')" Condition number:",condition_number
           IF (condition_number > 1.0E12_dp) THEN
              WRITE (iw,FMT="(/,T2,A)")&
                   "WARNING: high condition number => possibly ill-conditioned matrix"
