@@ -562,7 +562,7 @@
                                                 row_size, blk_p,&
                                                 stored_row, stored_col,&
                                                 iw, nwms
-    LOGICAL                                  :: found, tr, do_sum
+    LOGICAL                                  :: found, tr, do_sum, tr_diff
     REAL(kind=real_8), DIMENSION(:), POINTER           :: block_1d
     TYPE(dbcsr_error_type)                   :: error
 
@@ -598,12 +598,16 @@
        offset = ABS (offset)
        ! Fix the index if the new block's transpose flag is different
        ! from the old one.
+       tr_diff = .FALSE.
        IF (matrix%m%blk_p(blk).LT.0 .NEQV. tr) THEN
+          tr_diff = .TRUE.
           matrix%m%blk_p(blk) = -matrix%m%blk_p(blk)
        ENDIF
        block_1d => pointer_view (dbcsr_get_data_p (&
             matrix%m%data_area, 0.0_real_8), offset, offset+nze-1)
        IF (do_sum) THEN
+          IF(tr_diff) &
+               block_1d = RESHAPE(TRANSPOSE(RESHAPE(block_1d,(/col_size,row_size/))),(/nze/))
           IF (PRESENT (scale)) THEN
              CALL daxpy (nze, scale, block(1:nze), 1,&
                   block_1d, 1)
