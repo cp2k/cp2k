@@ -246,21 +246,25 @@ CONTAINS
     ENDIF
 
     DO c = 1,cols
-       DO r = 1,rows
-          IF(.NOT.t) THEN
-             IF(PRESENT(variable_name)) THEN
-                WRITE(*,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
-             ELSE
-                WRITE(*,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
-             ENDIF
+    DO r = 1,rows
+       IF(.NOT.t) THEN
+          IF(ABS(matrix(r+(c-1)*rows)).GT.1e-18_real_8) THEN
+          IF(PRESENT(variable_name)) THEN
+              WRITE(*,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ELSE
-             IF(PRESENT(variable_name)) THEN
-                WRITE(*,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
-             ELSE
-                WRITE(*,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
-             ENDIF
+             WRITE(*,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ENDIF
-       ENDDO
+          ENDIF
+       ELSE
+          IF(ABS(matrix((r-1)*cols+c)).GT.1e-18_real_8) THEN
+          IF(PRESENT(variable_name)) THEN
+             WRITE(*,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
+          ELSE
+             WRITE(*,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
+          ENDIF
+          ENDIF
+       ENDIF
+    ENDDO
     ENDDO
   END SUBROUTINE dbcsr_printmat_matlab_d
 

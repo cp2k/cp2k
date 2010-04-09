@@ -33,6 +33,7 @@ MODULE dbcsr_operations
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_operations,           ONLY: checker_square_proc,&
+                                             create_bl_distribution,&
                                              dbcsr_create_image_dist,&
                                              dbcsr_find_column,&
                                              dbcsr_get_stored_coordinates
@@ -62,9 +63,10 @@ MODULE dbcsr_operations
        dbcsr_destroy_image_dist, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
        dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_no_threads, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
-       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_matrix_type, &
+       dbcsr_distribution_new, dbcsr_distribution_no_threads, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
+       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
        dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_init, &
        dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
        dbcsr_may_be_dense, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
@@ -88,7 +90,8 @@ MODULE dbcsr_operations
        dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, dbcsr_obj, &
        dbcsr_repl_full, dbcsr_repl_none, dbcsr_scalar_type, dbcsr_type, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
                                              dbcsr_set_debug,&
@@ -120,7 +123,7 @@ MODULE dbcsr_operations
             dbcsr_replace_blocks, dbcsr_conjg,&
             dbcsr_btriu, dbcsr_triu, dbcsr_tril,&
             dbcsr_symmetrize_block_diag, dbcsr_copy_columns,&
-            dbcsr_init_random
+            dbcsr_init_random, dbcsr_lanczos
   PUBLIC :: dbcsr_sum_replicated
   PUBLIC :: dbcsr_norm, &
             dbcsr_gershgorin_norm, dbcsr_maxabs, dbcsr_frobenius_norm
@@ -203,6 +206,10 @@ MODULE dbcsr_operations
   END INTERFACE
   INTERFACE dbcsr_frobenius_norm
      MODULE PROCEDURE dbcsr_frobenius_norm_r8
+  END INTERFACE
+
+  INTERFACE dbcsr_lanczos
+     MODULE PROCEDURE dbcsr_lanczos_extremal_eig
   END INTERFACE
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
@@ -3176,6 +3183,155 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_trace_a_b_d
+
+
+
+! *****************************************************************************
+!> \brief compute the extremal eigenvalues of a symmetric real matrix 
+!>        with a (simple) Lanczos approach
+!> \param[in] matrix
+!> \param[in] max_iter            maximum iteration
+!> \param[in] eps                 convergence parameter
+!> \param[out] min_eig, max_eig   approximation to the extremal eigenvalues
+!> \param[out] approx_norm_2      approximation of the 2 norm (1 < max_iter < 10)
+!> \param[out] converged          true if the iteration converged
+!> \param[inout] error
+!> 
+! *****************************************************************************
+  SUBROUTINE dbcsr_lanczos_extremal_eig(matrix, max_iter, eps, min_eig, max_eig, &
+       approx_norm_2, converged, error)
+
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(IN)                      :: max_iter
+    REAL(dp), INTENT(in), OPTIONAL           :: eps
+    REAL(dp), INTENT(out), OPTIONAL          :: min_eig, max_eig, &
+                                                approx_norm_2
+    LOGICAL, INTENT(OUT), OPTIONAL           :: converged
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_lanczos_extremal_eig', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handler, i, info, &
+                                                iwork, lwork, n
+    LOGICAL                                  :: my_converged
+    REAL(dp)                                 :: alpha, beta, max_eig_old, &
+                                                min_eig_old, my_eps, &
+                                                my_max_eig, my_min_eig, &
+                                                nrm_f, nrm_v
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work
+    REAL(dp), DIMENSION(max_iter)            :: evals
+    REAL(dp), DIMENSION(max_iter, max_iter)  :: T, T0
+    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_obj)                          :: f, v, v0
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL dbcsr_get_info(matrix,nfullrows_total=n)
+
+    CALL create_bl_distribution (col_dist, col_blk_size, 1, &
+         dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix))))
+    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix)),&
+         dbcsr_distribution_row_dist(dbcsr_distribution(matrix)), col_dist)
+
+    CALL dbcsr_init(v)
+    CALL dbcsr_create(v, 'v', dist, dbcsr_type_normal, matrix%m%row_blk_size,&
+         col_blk_size, 0, 0, error=error)
+    CALL dbcsr_finalize(v, error=error)
+
+    CALL dbcsr_init(v0)
+    CALL dbcsr_create(v0, 'v0', dist, dbcsr_type_normal, matrix%m%row_blk_size,&
+         col_blk_size, 0, 0, error=error)
+    CALL dbcsr_finalize(v0, error=error)
+
+    CALL dbcsr_init(f)
+    CALL dbcsr_create(f, 'f', dist, dbcsr_type_normal, matrix%m%row_blk_size,&
+         col_blk_size, 0, 0, error=error)
+    CALL dbcsr_finalize(f, error=error)
+
+    CALL dbcsr_distribution_release (dist)
+    CALL array_release (col_blk_size)
+    CALL array_release (col_dist)
+
+    lwork = 1+2*max_iter+100
+    ALLOCATE(work(lwork))
+
+    my_eps = 1.0e-1_dp
+    IF(PRESENT(eps)) my_eps = eps
+
+    min_eig_old = 0.0_dp
+    max_eig_old = 0.0_dp
+    T(:,:) = 0.0_dp
+    ! v = rand(n,1)
+    CALL dbcsr_init_random(v,error=error)
+    ! v = v / norm(v)
+    nrm_v = dbcsr_frobenius_norm(v)
+    CALL dbcsr_scale(v,1.0_dp/nrm_v,error=error)
+    ! f = A * v
+    CALL dbcsr_multiply('N','N',1.0_dp,matrix,v,0.0_dp,f,error=error)
+    ! alpha = f' * v
+    CALL dbcsr_trace(f,v,alpha,error=error)
+    ! f = f - alpha * v
+    CALL dbcsr_add(f,v,1.0_dp,-alpha,error=error)
+    T(1,1) = alpha
+    my_min_eig = alpha; my_max_eig = alpha
+    my_converged = .FALSE.
+    DO i = 2,max_iter
+       ! beta = norm(f)
+       beta = dbcsr_frobenius_norm(f)
+       ! v0 = v
+       CALL dbcsr_copy(v0,v,error=error)
+       ! v = f / beta
+       CALL dbcsr_add(v,f,0.0_dp,1.0_dp/beta,error=error)
+       ! f = A * v
+       CALL dbcsr_multiply('N','N',1.0_dp,matrix,v,0.0_dp,f,error=error)
+       ! f = f - beta * v0
+       CALL dbcsr_add(f,v0,1.0_dp,-beta,error=error)
+       ! alpha = f' * v
+       CALL dbcsr_trace(f,v,alpha,error=error)
+       ! f = f - alpha * v
+       CALL dbcsr_add(f,v,1.0_dp,-alpha,error=error)
+       T(i  ,i-1) = beta
+       T(i-1,i  ) = beta
+       T(i  ,i  ) = alpha
+       !
+       max_eig_old = my_max_eig; min_eig_old = my_min_eig
+       T0(:,:) = T(:,:)
+       CALL DSYEVD('N','U',i,T0(1,1),max_iter,evals(1),work(1),lwork,iwork,1,info)
+       CALL dbcsr_assert(info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
+            routineN, "DSYEVD", __LINE__, error)
+       my_max_eig = MAXVAL(evals(1:i)); my_min_eig = MINVAL(evals(1:i))
+       !write(*,*) routinen//' i',i,'max_eig',my_max_eig,' min_eig',my_min_eig
+       IF(ABS(my_max_eig-max_eig_old).LT.my_eps.AND.ABS(my_min_eig-min_eig_old).LT.my_eps) THEN
+          my_converged = .TRUE.
+          EXIT
+       ENDIF
+    ENDDO
+
+    IF(PRESENT(approx_norm_2)) THEN
+       ! norm(f,2)
+       nrm_f = dbcsr_frobenius_norm(f)
+       ! norm(T,2)
+       T0(:,:) = T(:,:)
+       CALL DSYEVD('N','U',max_iter,T0(1,1),max_iter,evals(1),work(1),lwork,iwork,1,info)
+       CALL dbcsr_assert(info.EQ.0, dbcsr_fatal_level, dbcsr_internal_error, &
+            routineN, "DSYEVD", __LINE__, error)
+       ! norm(T,2)+norm(f,2)
+       approx_norm_2 = MAXVAL(ABS(evals)) + nrm_f
+    ENDIF
+
+    IF(PRESENT(min_eig)) min_eig = my_min_eig
+    IF(PRESENT(max_eig)) max_eig = my_max_eig
+    IF(PRESENT(converged)) converged = my_converged
+
+    DEALLOCATE(work)
+    CALL dbcsr_release(v)
+    CALL dbcsr_release(v0)
+    CALL dbcsr_release(f)
+
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_lanczos_extremal_eig
 
 
 

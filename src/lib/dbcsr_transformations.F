@@ -313,16 +313,10 @@ CONTAINS
 !> \param[in] sm              input symmetric matrix
 !> \param[out] desm           desymmetrized matrix
 !> \param[in,out] error       cp2k error
-!>
-!>  THIS ROUTINE IS NOT USED ANYWHERE !
-!>  THIS ROUTINE IS NOT USED ANYWHERE !
-!>  THIS ROUTINE IS NOT USED ANYWHERE !
-!>  THIS ROUTINE IS NOT USED ANYWHERE !
-!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_desymmetrize_deep(sm, desm, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: sm
-    TYPE(dbcsr_obj), INTENT(OUT)             :: desm
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: desm
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_desymmetrize_deep', &
@@ -355,6 +349,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
+
     tstart = m_walltime ()
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -423,6 +418,7 @@ CONTAINS
     ALLOCATE (sm_disp(0:numproc-1))
     ALLOCATE (rd_disp(0:numproc-1))
     ALLOCATE (rm_disp(0:numproc-1))
+    !vw should be created before calling this procedure
     CALL dbcsr_create(desm, 'desym '//sm%m%name, sm%m%dist,&
          dbcsr_type_normal, sm%m%row_blk_size, sm%m%col_blk_size,&
          0,0, dbcsr_get_data_type(sm), special=sm%m%special_memory,&

@@ -1098,9 +1098,9 @@ CONTAINS
     CALL dbcsr_assert (submatrix_box(1) .EQ. 0,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
          "Limiting first row not supported",__LINE__,error)
-    CALL dbcsr_assert (submatrix_box(3) .EQ. 0,&
-         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Limiting first column not supported",__LINE__,error)
+!vw    CALL dbcsr_assert (submatrix_box(3) .EQ. 0,&
+!vw         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
+!vw         "Limiting first column not supported",__LINE__,error)
     CALL dbcsr_assert (submatrix_box(5) .EQ. 0,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
          "Limiting first k not supported",__LINE__,error)
@@ -1294,6 +1294,17 @@ CONTAINS
                 ELSE
                    this_right_limit = 0
                 ENDIF
+
+                IF (blk_end .LT. submat_f_col) THEN
+                   CYCLE
+                ELSEIF (blk_end .GE. submat_f_col.and. blk_start.LT. submat_f_col) THEN
+                   WRITE(*,*) routinen//' blk_end',blk_end,' submat_f_col', submat_f_col,&
+                        ' blk_start',blk_start,' submat_f_col',submat_f_col,' b_col_logical',b_col_logical
+                   ! some more work here and further with none maching col/block
+                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr,&
+                        routineN, "none maching first column/block NYI", __LINE__, error)
+                ENDIF
+
              ELSE
                 this_right_limit = 0
              ENDIF
