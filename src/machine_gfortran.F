@@ -187,6 +187,13 @@ END FUNCTION m_cputime
 
     INTEGER                                  :: stat
 
+    IF (TARGET==source) THEN
+       WRITE(6,*) "Warning: m_mov ",TRIM(TARGET)," equals ", TRIM(source)
+       RETURN
+    ENDIF
+    ! first remove target (needed on windows / mingw)
+    call unlink(TARGET)
+    ! now move 
     stat=rename(source,TARGET)
     IF (stat .NE. 0) THEN
       WRITE(6,*) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
