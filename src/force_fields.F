@@ -68,10 +68,10 @@ CONTAINS
 !> \brief 1. If reading in from external file, make sure its there first
 !>      2. Read in the force_field from the corresponding locations
 ! *****************************************************************************
-  SUBROUTINE force_field_control (atomic_kind_set,particle_set, molecule_kind_set,&
-       molecule_set, ewald_env,fist_nonbond_env, root_section,para_env, qmmm, &
-       qmmm_env, subsys_section, mm_section, shell_particle_set, core_particle_set,&
-       cell, error)
+  SUBROUTINE force_field_control(atomic_kind_set, particle_set, &
+       molecule_kind_set, molecule_set, ewald_env, fist_nonbond_env, &
+       root_section, para_env, qmmm, qmmm_env, subsys_section, mm_section, &
+       shell_particle_set, core_particle_set, cell, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

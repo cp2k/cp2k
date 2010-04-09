@@ -228,20 +228,16 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: z2
      REAL (KIND=dp) :: zbl_poly(0:5)
      REAL (KIND=dp) :: zbl_rcut(2)
-     LOGICAL        :: undef, only_pp, only_mb
+     LOGICAL        :: undef, &    ! non-bonding interaction not defined
+                       only_pp, &  ! only a pair (=two-body) potential
+                       only_mb     ! only a many-body potential
      INTEGER        :: shell_type
      CHARACTER ( LEN = default_string_length )   :: at1
      CHARACTER ( LEN = default_string_length )   :: at2
      INTEGER, POINTER, DIMENSION(:)              :: TYPE
-     TYPE ( pot_set_type), POINTER, DIMENSION(:) :: set
-     TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: pair_spline_data
-     TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: c_coul_spline_data      ! for shell-model (core-ion or core-core)
-     TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: cs_coul_spline_data     ! for shell-model (core-shell) 
-     TYPE ( spline_data_p_type ),  POINTER, DIMENSION(:) :: sc_coul_spline_data     ! for shell-model (shell-core) 
-     TYPE ( spline_factor_type),   POINTER :: spl_f
-     TYPE ( spline_factor_type),   POINTER :: spl_c
-     TYPE ( spline_factor_type),   POINTER :: spl_cs
-     TYPE ( spline_factor_type),   POINTER :: spl_sc
+     TYPE (pot_set_type), POINTER, DIMENSION(:) :: set
+     TYPE (spline_data_p_type), POINTER, DIMENSION(:) :: pair_spline_data
+     TYPE (spline_factor_type), POINTER :: spl_f
   END TYPE pair_potential_single_type
 
 ! *****************************************************************************
@@ -384,13 +380,7 @@ CONTAINS
        ALLOCATE(potparm%set(lnset), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        NULLIFY( potparm%spl_f,&
-                potparm%spl_c,&
-                potparm%spl_cs,&
-                potparm%spl_sc,&
-                potparm%pair_spline_data,&
-                potparm%c_coul_spline_data,&
-                potparm%cs_coul_spline_data,&
-                potparm%sc_coul_spline_data)
+                potparm%pair_spline_data)
        DO i = 1, lnset
           potparm%set(i)%rmin = not_initialized
           potparm%set(i)%rmax = not_initialized
@@ -435,21 +425,8 @@ CONTAINS
     potparm % rcutsq        = 0.0_dp
     IF (ASSOCIATED( potparm % pair_spline_data ))&
          CALL spline_data_p_release ( potparm % pair_spline_data ,error=error)
-    IF (ASSOCIATED( potparm % c_coul_spline_data )) &
-         CALL spline_data_p_release ( potparm % c_coul_spline_data ,error=error)
-    IF (ASSOCIATED( potparm % cs_coul_spline_data )) &
-         CALL spline_data_p_release ( potparm % cs_coul_spline_data ,error=error)
-    IF (ASSOCIATED( potparm % sc_coul_spline_data )) &
-         CALL spline_data_p_release ( potparm % sc_coul_spline_data ,error=error)
-
     IF (ASSOCIATED( potparm % spl_f ))&
          CALL spline_factor_release ( potparm % spl_f ,error=error)
-    IF (ASSOCIATED( potparm % spl_c ))&
-         CALL spline_factor_release ( potparm % spl_c ,error=error)
-    IF (ASSOCIATED( potparm % spl_cs ))&
-         CALL spline_factor_release ( potparm % spl_cs ,error=error)
-    IF (ASSOCIATED( potparm % spl_sc ))&
-         CALL spline_factor_release ( potparm % spl_sc ,error=error)
 
     DO i = 1, SIZE(potparm%type)
        potparm%set(i)%rmin = not_initialized
@@ -501,27 +478,9 @@ CONTAINS
        IF (ASSOCIATED( potparm_source % pair_spline_data )) THEN
           CALL spline_data_p_copy ( potparm_source % pair_spline_data, potparm_dest % pair_spline_data, error=error  )
        END IF
-       IF (ASSOCIATED( potparm_source % c_coul_spline_data )) THEN
-          CALL spline_data_p_copy ( potparm_source % c_coul_spline_data, potparm_dest % c_coul_spline_data, error=error  )
-       END IF
-       IF (ASSOCIATED( potparm_source % cs_coul_spline_data )) THEN
-          CALL spline_data_p_copy ( potparm_source % cs_coul_spline_data, potparm_dest % cs_coul_spline_data, error=error  )
-       END IF
-       IF (ASSOCIATED( potparm_source % sc_coul_spline_data )) THEN
-          CALL spline_data_p_copy ( potparm_source % sc_coul_spline_data, potparm_dest % sc_coul_spline_data, error=error  )
-       END IF
 
        IF (ASSOCIATED( potparm_source % spl_f )) THEN
           CALL spline_factor_copy ( potparm_source % spl_f,  potparm_dest % spl_f, error=error  )
-       END IF
-       IF (ASSOCIATED( potparm_source % spl_c )) THEN
-          CALL spline_factor_copy ( potparm_source % spl_c,  potparm_dest % spl_c, error=error  )
-       END IF
-       IF (ASSOCIATED( potparm_source % spl_cs )) THEN
-          CALL spline_factor_copy ( potparm_source % spl_cs, potparm_dest % spl_cs, error=error  )
-       END IF
-       IF (ASSOCIATED( potparm_source % spl_sc )) THEN
-          CALL spline_factor_copy ( potparm_source % spl_sc, potparm_dest % spl_sc, error=error  )
        END IF
 
        DO i = 1, SIZE(potparm_source%type)
@@ -565,22 +524,10 @@ CONTAINS
        ! At this level we expect all splines types
        ! be not allocated.. No sense add splines at this level.. in case fail!
        check = (.NOT.ASSOCIATED( potparm_source % pair_spline_data )).AND.&
-               (.NOT.ASSOCIATED( potparm_source % c_coul_spline_data )).AND.&
-               (.NOT.ASSOCIATED( potparm_source % cs_coul_spline_data )).AND.&
-               (.NOT.ASSOCIATED( potparm_source % sc_coul_spline_data )).AND.&
-               (.NOT.ASSOCIATED( potparm_source % spl_f )).AND.&
-               (.NOT.ASSOCIATED( potparm_source % spl_c )).AND.&
-               (.NOT.ASSOCIATED( potparm_source % spl_cs )).AND.&
-               (.NOT.ASSOCIATED( potparm_source % spl_sc ))
+               (.NOT.ASSOCIATED( potparm_source % spl_f ))
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
        check = (.NOT.ASSOCIATED( potparm_dest % pair_spline_data )).AND.&
-               (.NOT.ASSOCIATED( potparm_dest % c_coul_spline_data )).AND.&
-               (.NOT.ASSOCIATED( potparm_dest % cs_coul_spline_data )).AND.&
-               (.NOT.ASSOCIATED( potparm_dest % sc_coul_spline_data )).AND.&
-               (.NOT.ASSOCIATED( potparm_dest % spl_f )).AND.&
-               (.NOT.ASSOCIATED( potparm_dest % spl_c )).AND.&
-               (.NOT.ASSOCIATED( potparm_dest % spl_cs )).AND.&
-               (.NOT.ASSOCIATED( potparm_dest % spl_sc ))
+               (.NOT.ASSOCIATED( potparm_dest % spl_f ))
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
        ! Increase the size of the destination potparm (in case) and copy the new data
        size_source = SIZE(potparm_source%type)
@@ -719,13 +666,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPostcondition(ASSOCIATED(potparm),cp_failure_level,routineP,error,failure)
        CALL spline_data_p_release( potparm% pair_spline_data ,error=error)
-       CALL spline_data_p_release( potparm% c_coul_spline_data, error=error )
-       CALL spline_data_p_release( potparm% cs_coul_spline_data, error=error )
-       CALL spline_data_p_release( potparm% sc_coul_spline_data, error=error )
        CALL spline_factor_release( potparm% spl_f, error=error )
-       CALL spline_factor_release( potparm% spl_c, error=error )
-       CALL spline_factor_release( potparm% spl_cs, error=error )
-       CALL spline_factor_release( potparm% spl_sc, error=error )
        DO i = 1, SIZE(potparm%type)
           CALL pair_potential_ipbv_release     ( potparm%set(i)%ipbv, error=error )
           CALL pair_potential_lj_release       ( potparm%set(i)%lj, error=error )
@@ -1085,13 +1026,7 @@ CONTAINS
              CALL pair_potential_tersoff_create(p%pot(i)%pot%set(std_dim)%tersoff, error=error)
           END SELECT
           NULLIFY ( p%pot(i)%pot%spl_f  )
-          NULLIFY ( p%pot(i)%pot%spl_c  )
-          NULLIFY ( p%pot(i)%pot%spl_cs )
-          NULLIFY ( p%pot(i)%pot%spl_sc )
           NULLIFY ( p%pot(i)%pot%pair_spline_data )
-          NULLIFY ( p%pot(i)%pot%c_coul_spline_data )
-          NULLIFY ( p%pot(i)%pot%sc_coul_spline_data )
-          NULLIFY ( p%pot(i)%pot%cs_coul_spline_data )
        END DO
 
        IF (ASSOCIATED(work)) CALL pair_potential_p_release(work, error=error)

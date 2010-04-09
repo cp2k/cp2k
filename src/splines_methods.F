@@ -101,13 +101,11 @@ CONTAINS
 !>      2001-09-24-HAF changed interface and re-written
 !> \author unknown
 ! *****************************************************************************
-  SUBROUTINE init_spline ( spl, dx, y1a, y1b, ei_scale14, ei_cutoff14, dual)
+  SUBROUTINE init_spline(spl, dx, y1a, y1b)
 
     TYPE(spline_data_type), POINTER          :: spl
     REAL(KIND=dp), INTENT(IN)                :: dx
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b, ei_scale14, &
-                                                ei_cutoff14
-    LOGICAL, INTENT(IN), OPTIONAL            :: dual
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b
 
     INTEGER                                  :: err, i, n
     REAL(KIND=dp)                            :: p, s
@@ -118,11 +116,6 @@ CONTAINS
     spl%h    = dx
     spl%invh = 1.0_dp/dx
     spl%h26  = dx**2 / 6.0_dp
-    spl%ei_scale14  = HUGE(0.0_dp)
-    spl%ei_cutoff14 = HUGE(0.0_dp)
-    IF (PRESENT(ei_scale14 )) spl%ei_scale14  = ei_scale14
-    IF (PRESENT(ei_cutoff14)) spl%ei_cutoff14 = ei_cutoff14
-    IF (PRESENT(dual)) spl%dual = dual
     ALLOCATE (ww(1:n),STAT=err)
     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl%n )
     IF (PRESENT(y1a)) THEN
@@ -181,9 +174,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: f13 = 1.0_dp/3.0_dp
 
     INTEGER                                  :: i, output_unit
-    REAL(KIND=dp)                            :: a, b, h26, invh, &
-                                                potential_s2, x4, xx, xx0, &
-                                                y2, y2hi, y2lo, yhi, ylo, yy
+    REAL(KIND=dp)                            :: a, b, h26, invh, x4, xx, xx0, &
+                                                y2hi, y2lo, yhi, ylo, yy
 
     xx0  = 1.0_dp/xxi
     xx   = spl_f%rscale(1)*xx0
@@ -211,37 +203,7 @@ CONTAINS
     potential_s = (a*ylo + b*yhi - ((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26)*spl_f%fscale(1)
     y1 = invh*((yhi-ylo) + ((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
     y1 = 2.0_dp * y1 * x4 * spl_f%dscale(1)
-    IF (spl_p(1)%spline_data%dual) THEN
-       ! In case here we compute the non-bonded spline
-       xx   = spl_f%rscale(2)*xx0
-       IF (xx >= spl_p(2)%spline_data%xn) THEN
-          ! In case the value is not on the spline let's print a warning and give the value
-          ! for the smaller point available in the spline..
-          ! This should happen in very few cases though..
-          output_unit= cp_logger_get_default_unit_nr(logger)
-          yy = spl_p(2)%spline_data%xn-spl_p(2)%spline_data%h
-          WRITE(output_unit,FMT='(/,80("*"),/,"*",1X,"Value of r in Input =",F11.6,'//&
-               '" not in the spline range. Using =",F11.6,T80,"*",/,80("*"))')SQRT(1.0_dp/xx), SQRT(1.0_dp/yy)
-          xx = yy
-       END IF
-       x4   = xx * xx
-       h26  = spl_p(2)%spline_data%h26
-       invh = spl_p(2)%spline_data%invh
-       i = (xx-spl_p(2)%spline_data%x1)*invh + 1
-       a = (spl_p(2)%spline_data%x1-xx)*invh + REAL(i,kind=dp)
-       b = 1.0_dp - a
-       
-       ylo  = spl_p(2)%spline_data%y(i)
-       yhi  = spl_p(2)%spline_data%y(i+1)
-       y2lo = spl_p(2)%spline_data%y2(i)
-       y2hi = spl_p(2)%spline_data%y2(i+1)
-       potential_s2 = (a*ylo + b*yhi - ((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26)*spl_f%fscale(2)
-       y2 = invh*((yhi-ylo) + ((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
-       y2 = 2.0_dp * y2 * x4 * spl_f%dscale(2)
-       ! Combine the two splines..
-       potential_s = potential_s + potential_s2
-       y1 = y1 + y2
-    END IF
+
     potential_s = potential_s + spl_f%cutoff
   END FUNCTION potential_s
 

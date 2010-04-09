@@ -102,3 +102,21 @@ water_3_g3x3_ext.inp
 # bug fix for a(zero-cell)-a(non-zero-cell) interaction.
 water32_hbonds_3.inp
 water32_hbonds_4.inp
+# analytic electrostatic in Fist
+H2OFe-5_75-3.inp
+H2OFe-5_75-4.inp
+H2OFe-5_75-5.inp
+H2OFe-5_75-6.inp
+H2OFe-5_75-7.inp
+interface.inp
+nh3_4x6_ext.inp
+nh3_4x6_fixd.inp
+nh3_fixd_x.inp
+nh3_fixd_xy.inp
+nh3_fixd_y.inp
+nh3_fixd_z.inp
+nh3_r4x6_ext.inp
+nptf_ortho.inp
+water32_hbonds_3.inp
+water32_hbonds_4.inp
+water_massive.inp

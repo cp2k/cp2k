@@ -17,3 +17,7 @@
 # numerics
 2gly_IT-NEB-CV.inp
 2gly_IT-NEB-CV-res.inp
+# analytic electrostatic in Fist
+2gly_IT-NEB-CV.inp
+2gly_IT-NEB-CV-res.inp
+NEB-MIXED.inp

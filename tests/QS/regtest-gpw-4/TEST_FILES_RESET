@@ -781,3 +781,5 @@ h2o-otdiag.inp
 h2o-diag.inp
 #  
 h2o-otdiag-lsd.inp
+# analytic electrostatic in Fist
+H2-geo-4.inp

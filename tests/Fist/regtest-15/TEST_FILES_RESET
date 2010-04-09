@@ -2,3 +2,12 @@
 # just add file names for which the reference needs to be reset below, with some comment
 #
 #
+# analytic electrostatic in Fist
+metadyn1.inp
+metadyn2.inp
+metadyn3.inp
+metadyn4.inp
+metadyn5.inp
+metadyn6.inp
+metadyn7.inp
+metadyn8.inp

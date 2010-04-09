@@ -1,2 +1,10 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
+# analytic electrostatic in Fist
+gsscs-gsscs.inp
+gss-gsscs.inp
+pntcs-gsscs.inp
+pntcs-pntcs.inp
+pnt-gsscs.inp
+pnt-pntcs.inp
+pnt-pnt.inp

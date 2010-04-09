@@ -8,3 +8,13 @@ argon-gle.inp
 argon-gle_r.inp
 #
 11_exvdw_12_exei.inp
+# analytic electrostatic in Fist
+11_exvdw_11_exei.inp
+11_exvdw_12_exei.inp
+12_exvdw_12_exei.inp
+12_exvdw_12_exei_list_1_check.inp
+12_exvdw_12_exei_list_1.inp
+12_exvdw_12_exei_list_2_c.inp
+12_exvdw_12_exei_list_2.inp
+12_exvdw_12_exei_list_empty.inp
+lamol.inp

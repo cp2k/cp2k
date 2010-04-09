@@ -103,3 +103,14 @@ argon_ext.inp
 argon_ext.inp
 # adding hills energy to the total energy
 nh3-meta-1_g.inp
+# analytic electrostatic in Fist
+cf_genpot.inp
+cubane_0.inp
+cubane_15.inp
+H2O-32_PME_distr.inp
+JAC_distr.inp
+NaCl_fe.inp
+nh3-meta-1_g.inp
+uo2_buckmorse_nve.inp
+water_3_ddist_g.inp
+water_3_ddist.inp

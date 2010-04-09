@@ -35,7 +35,6 @@ MODULE ewald_environment_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE physcon,                         ONLY: angstrom
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -63,8 +62,12 @@ MODULE ewald_environment_types
     REAL (KIND=dp) :: alpha, rcut         ! ewald alpha and real-space cutoff
     REAL (KIND=dp) :: epsilon             ! tolerance for small grid (PME)
     REAL (KIND=dp) :: eps_pol             ! tolerance for convergence of induced dipoles
-    TYPE ( cp_para_env_type ), POINTER   :: para_env
-    TYPE(section_vals_type), POINTER     :: poisson_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: poisson_section
+    ! interaction cutoff is required to make the electrostatic interaction
+    ! continuous at a pair distance equal to rcut. this is ignored by the
+    ! multipole code and is otherwise only active when SCALE_CUTOFF is used.
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: interaction_cutoffs
   END TYPE ewald_environment_type
 
 ! *****************************************************************************
@@ -102,9 +105,10 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, eps_pol,  epsilon, gmax,&
-       ns_max, o_spline, group, para_env, id_nr, poisson_section, precs, &
-       rcut, do_multipoles, max_multipole, do_ipol, max_ipol_iter, error)
+  SUBROUTINE ewald_env_get(ewald_env, ewald_type, alpha, eps_pol, epsilon, &
+       gmax, ns_max, o_spline, group, para_env, id_nr, poisson_section, precs, &
+       rcut, do_multipoles, max_multipole, do_ipol, max_ipol_iter, &
+       interaction_cutoffs, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps_pol, epsilon
@@ -119,6 +123,8 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: do_multipoles
     INTEGER, INTENT(OUT), OPTIONAL           :: max_multipole, do_ipol, &
                                                 max_ipol_iter
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: interaction_cutoffs
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -147,6 +153,8 @@ CONTAINS
     IF (PRESENT(group)) group = ewald_env%para_env%group
     IF (PRESENT(para_env)) para_env => ewald_env%para_env
     IF (PRESENT(poisson_section)) poisson_section => ewald_env%poisson_section
+    IF (PRESENT(interaction_cutoffs)) interaction_cutoffs => &
+      ewald_env%interaction_cutoffs
 
   END SUBROUTINE ewald_env_get
 
@@ -157,8 +165,9 @@ CONTAINS
 !>      11/03
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, epsilon, eps_pol, &
-       gmax, ns_max, precs, o_spline, para_env, id_nr, poisson_section, error )
+  SUBROUTINE ewald_env_set(ewald_env, ewald_type, alpha, epsilon, eps_pol, &
+       gmax, ns_max, precs, o_spline, para_env, id_nr, poisson_section, &
+       interaction_cutoffs, error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER, OPTIONAL                        :: ewald_type
@@ -171,6 +180,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: id_nr
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: poisson_section
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: interaction_cutoffs
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -198,6 +209,8 @@ CONTAINS
           CALL section_vals_release(ewald_env%poisson_section,error=error)
           ewald_env%poisson_section => poisson_section
        END IF
+       IF (PRESENT(interaction_cutoffs)) ewald_env%interaction_cutoffs => &
+         interaction_cutoffs
     ENDIF
   END SUBROUTINE ewald_env_set
 
@@ -232,6 +245,7 @@ CONTAINS
        NULLIFY(ewald_env%poisson_section)
        CALL cp_para_env_retain(para_env, error=error)
        ewald_env%para_env => para_env
+       NULLIFY(ewald_env%interaction_cutoffs) ! allocated and initialized later
     END IF
   END SUBROUTINE ewald_env_create
 
@@ -289,6 +303,8 @@ CONTAINS
        IF (ewald_env%ref_count<1) THEN
           CALL cp_para_env_release ( ewald_env%para_env, error )
           CALL section_vals_release(ewald_env%poisson_section,error=error)
+          DEALLOCATE(ewald_env%interaction_cutoffs, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           DEALLOCATE (  ewald_env, stat = stat )
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        ENDIF

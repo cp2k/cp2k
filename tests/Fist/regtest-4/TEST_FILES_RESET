@@ -245,3 +245,26 @@ nh3-meta-walks_1.inp
 nh3-meta-walks_1r.inp
 nh3-meta-walks_2.inp
 nh3-meta-walks_2r.inp
+# analytic electrostatic in Fist
+acn.inp
+acn_respa.inp
+cycbut.inp
+cyhex.inp
+gly_amber.inp
+H2O-1.inp
+H2O-2-mul0.inp
+H2O-2-multi.inp
+H2O-2-multi-pw.inp
+H2O-2-ovwr.inp
+H2O-32_SPME_fp.inp
+loop.inp
+mol_amber.inp
+nh3-meta-1.inp
+nh3-meta-2.inp
+nh3-meta-walks_1.inp
+nh3-meta-walks_1r.inp
+nh3-meta-walks_2.inp
+nh3-meta-walks_2r.inp
+nh3_wat-restraint-fixd-3.inp
+nh3_wat-restraint-fixd-4.inp
+pentadiene.inp

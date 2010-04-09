@@ -39,7 +39,8 @@ MODULE fist_force
                                              get_fist_env
   USE fist_intra_force,                ONLY: force_intra_control
   USE fist_neighbor_list_control,      ONLY: list_control
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
+                                             fist_nonbond_env_type
   USE fist_nonbond_force,              ONLY: bonded_correct_gaussian,&
                                              force_nonbond
   USE fist_pol_scf,                    ONLY: fist_pol_evaluate
@@ -124,11 +125,12 @@ CONTAINS
       iparticle_kind, iparticle_local, iw, iw2, j, natoms, nlocal_particles, &
       node, nparticle_kind, nparticle_local, nshell, shell_index, stat
     LOGICAL                                  :: do_multipoles, failure, &
-                                                shell_model_ad, &
+                                                scale_cutoff, shell_model_ad, &
                                                 shell_present, use_virial
-    REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
-      pot_manybody, pot_nonbond, pot_onef, pot_opbend, pot_shell, &
-      pot_torsion, pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
+    REAL(KIND=dp) :: ei_scale14, mass, massc, masss, pot_bend, pot_bond, &
+      pot_imptors, pot_manybody, pot_nonbond, pot_onef, pot_opbend, &
+      pot_shell, pot_torsion, pot_urey_bradley, umass, vdw_scale14, &
+      vg_coulomb, xdum1, xdum2, xdum3
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: f_nonbond, f_total, &
       fcore_nonbond, fcore_total, fg_coulomb, fgcore_coulomb, &
       fgshell_coulomb, fshell_nonbond, fshell_total
@@ -173,13 +175,16 @@ CONTAINS
     iw2= cp_print_key_unit_nr(logger,mm_section,"PRINT%EWALD_INFO",&
          extension=".mmLog",error=error)
 
-    CALL get_fist_env ( fist_env, ewald_pw = ewald_pw, ewald_env = ewald_env, &
-         local_particles = local_particles, particle_set = particle_set, &
-         atomic_kind_set = atomic_kind_set, molecule_set = molecule_set, &
-         local_molecules = local_molecules, thermo = thermo, &
-         molecule_kind_set = molecule_kind_set, fist_nonbond_env = fist_nonbond_env,&
-         cell = cell, shell_model=shell_present, shell_model_ad=shell_model_ad, &
+    CALL get_fist_env(fist_env, ewald_pw=ewald_pw, ewald_env=ewald_env, &
+         local_particles=local_particles, particle_set=particle_set, &
+         atomic_kind_set=atomic_kind_set, molecule_set=molecule_set, &
+         local_molecules=local_molecules, thermo=thermo, &
+         molecule_kind_set=molecule_kind_set, fist_nonbond_env=fist_nonbond_env,&
+         cell=cell, shell_model=shell_present, shell_model_ad=shell_model_ad, &
          multipoles=multipoles, error=error)
+
+    CALL fist_nonbond_env_get(fist_nonbond_env, ei_scale14=ei_scale14, &
+         vdw_scale14=vdw_scale14, scale_cutoff=scale_cutoff, error=error)
 
     CALL ewald_env_get (ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
          do_ipol=do_ipol,error=error)
@@ -282,13 +287,17 @@ CONTAINS
             cell, pot_manybody, para_env ,error=error)
 
        ! Nonbond contribution + Manybody Forces
-       IF(shell_present) THEN
-          CALL force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond, f_nonbond, &
-               pv_nonbond, fshell_nonbond=fshell_nonbond, fcore_nonbond=fcore_nonbond, &
-               atomic_kind_set=atomic_kind_set, use_virial=use_virial, error=error)
+       IF (shell_present) THEN
+          CALL force_nonbond(fist_nonbond_env, ewald_env, particle_set, cell, &
+               pot_nonbond, f_nonbond, pv_nonbond, &
+               fshell_nonbond=fshell_nonbond, fcore_nonbond=fcore_nonbond, &
+               atomic_kind_set=atomic_kind_set, use_virial=use_virial, &
+               error=error)
        ELSE
-          CALL force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond, f_nonbond, &
-               pv_nonbond, atomic_kind_set=atomic_kind_set, use_virial=use_virial, error=error)
+          CALL force_nonbond(fist_nonbond_env, ewald_env, particle_set, cell, &
+               pot_nonbond, f_nonbond, pv_nonbond, &
+               atomic_kind_set=atomic_kind_set, use_virial=use_virial, &
+               error=error)
           CALL force_nonbond_manybody ( fist_nonbond_env, particle_set, cell, f_nonbond, pv_nonbond,&
                use_virial=use_virial, error=error)
        END IF
@@ -480,19 +489,24 @@ CONTAINS
 
     ! Get intramolecular forces
     IF ( PRESENT ( debug ) ) THEN
-       CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-            particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
-            pot_urey_bradley, pot_torsion, pot_imptors, pot_opbend, pot_onef, &
-            pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, pv_imptors, &
-            pv_opbend, pv_onef, debug%f_bond, debug%f_bend, debug%f_torsion, debug%f_ub, &
-            debug%f_imptors, debug%f_opbend, debug%f_onef, cell, use_virial, error )
+       CALL force_intra_control(molecule_set, molecule_kind_set, &
+            local_molecules, particle_set, shell_particle_set, &
+            core_particle_set, ei_scale14, vdw_scale14, scale_cutoff, &
+            pot_bond, pot_bend, pot_urey_bradley, pot_torsion, pot_imptors, &
+            pot_opbend, pot_onef, pot_shell, pv_bond, pv_bend, &
+            pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, pv_onef, &
+            debug%f_bond, debug%f_bend, debug%f_torsion, debug%f_ub, &
+            debug%f_imptors, debug%f_opbend, debug%f_onef, cell, use_virial, &
+            error)
 
     ELSE
-       CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-            particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
-            pot_urey_bradley, pot_torsion, pot_imptors, pot_opbend, pot_onef, &
-            pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, pv_imptors, &
-            pv_opbend, pv_onef, cell=cell, use_virial=use_virial, error=error)
+       CALL force_intra_control(molecule_set, molecule_kind_set, &
+            local_molecules, particle_set, shell_particle_set, &
+            core_particle_set, ei_scale14, vdw_scale14, scale_cutoff, &
+            pot_bond, pot_bend, pot_urey_bradley, pot_torsion, pot_imptors, &
+            pot_opbend, pot_onef, pot_shell, pv_bond, pv_bend, &
+            pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, pv_onef, &
+            cell=cell, use_virial=use_virial, error=error)
     ENDIF
 
     IF (iw>0) THEN
@@ -518,8 +532,9 @@ CONTAINS
     END IF
 
     ! add up all the potential energies
-    thermo%pot = pot_nonbond + pot_bond + pot_bend + pot_torsion +pot_opbend + &
+    thermo%pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_opbend + &
          pot_onef + pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
+
     CALL mp_sum ( thermo%pot, para_env%group )
     IF(shell_present) THEN
        thermo%harm_shell = pot_shell

@@ -40,9 +40,10 @@ MODULE fist_nonbond_env_types
   TYPE fist_nonbond_env_type
     INTEGER :: ref_count, id_nr, natom_types
     INTEGER :: counter, last_update, num_update
-    LOGICAL :: do_nonbonded14, do_nonbonded
+    LOGICAL :: do_nonbonded14, do_nonbonded, scale_cutoff
     CHARACTER ( len = default_string_length )   :: unit_type
-    REAL (KIND=dp)                              :: lup, aup
+    REAL (KIND=dp)                              :: lup, aup, ei_scale14, &
+                                                   vdw_scale14
     REAL (KIND=dp)                              :: long_range_correction
     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cutsq, rlist_lowsq, ij_kind_full_fac
     TYPE(fist_neighbor_type), POINTER           :: nonbonded
@@ -64,11 +65,11 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, nonbonded,&
-       rlist_cutsq, rlist_lowsq, aup, lup, r_last_update, r_last_update_pbc,&
-       rshell_last_update_pbc, rcore_last_update_pbc,cell_last_update,num_update,&
-       last_update, counter, natom_types, long_range_correction, ij_kind_full_fac,&
-       error )
+  SUBROUTINE fist_nonbond_env_get(fist_nonbond_env, potparm, nonbonded,&
+       rlist_cutsq, rlist_lowsq, aup, lup, ei_scale14, vdw_scale14, &
+       scale_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
+       rcore_last_update_pbc, cell_last_update, num_update, last_update, &
+       counter, natom_types, long_range_correction, ij_kind_full_fac, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
@@ -77,7 +78,9 @@ CONTAINS
       POINTER                                :: nonbonded
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
-    REAL(KIND=dp), OPTIONAL                  :: aup, lup
+    REAL(KIND=dp), OPTIONAL                  :: aup, lup, ei_scale14, &
+                                                vdw_scale14
+    LOGICAL, INTENT(OUT), OPTIONAL           :: scale_cutoff
     TYPE(pos_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_last_update, &
                                                 r_last_update_pbc, &
@@ -108,6 +111,10 @@ CONTAINS
          cell_last_update => fist_nonbond_env % cell_last_update
     IF ( PRESENT ( lup ) ) lup = fist_nonbond_env % lup 
     IF ( PRESENT ( aup ) ) aup = fist_nonbond_env % aup
+    IF ( PRESENT ( ei_scale14 ) ) ei_scale14 = fist_nonbond_env % ei_scale14
+    IF ( PRESENT ( vdw_scale14 ) ) vdw_scale14 = fist_nonbond_env % vdw_scale14
+    IF ( PRESENT ( scale_cutoff ) ) &
+       scale_cutoff = fist_nonbond_env % scale_cutoff
     IF ( PRESENT ( natom_types ) ) natom_types = fist_nonbond_env % natom_types
     IF ( PRESENT ( counter ) ) counter = fist_nonbond_env % counter
     IF ( PRESENT ( last_update ) ) last_update = fist_nonbond_env % last_update
@@ -125,10 +132,11 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, rlist_cutsq,&
-       rlist_lowsq, nonbonded, aup, lup, r_last_update, r_last_update_pbc,&
-       rshell_last_update_pbc, rcore_last_update_pbc, cell_last_update, num_update,&
-       last_update, counter, natom_types, long_range_correction, error )
+  SUBROUTINE fist_nonbond_env_set(fist_nonbond_env,  potparm, rlist_cutsq, &
+       rlist_lowsq, nonbonded, aup, lup, ei_scale14, vdw_scale14, &
+       scale_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
+       rcore_last_update_pbc, cell_last_update, num_update, last_update, &
+       counter, natom_types, long_range_correction, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
@@ -137,7 +145,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
     TYPE(fist_neighbor_type), OPTIONAL, &
       POINTER                                :: nonbonded
-    REAL(KIND=dp), OPTIONAL                  :: aup, lup
+    REAL(KIND=dp), OPTIONAL                  :: aup, lup, ei_scale14, &
+                                                vdw_scale14
+    LOGICAL, INTENT(IN), OPTIONAL            :: scale_cutoff
     TYPE(pos_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_last_update, &
                                                 r_last_update_pbc, &
@@ -167,6 +177,10 @@ CONTAINS
          fist_nonbond_env % cell_last_update => cell_last_update
     IF ( PRESENT ( lup ) ) fist_nonbond_env % lup = lup
     IF ( PRESENT ( aup ) ) fist_nonbond_env % aup = aup
+    IF ( PRESENT ( ei_scale14 ) ) fist_nonbond_env % ei_scale14 = ei_scale14
+    IF ( PRESENT ( vdw_scale14 ) ) fist_nonbond_env % vdw_scale14 = vdw_scale14
+    IF ( PRESENT ( scale_cutoff ) ) &
+       fist_nonbond_env % scale_cutoff = scale_cutoff
     IF ( PRESENT ( natom_types ) ) fist_nonbond_env % natom_types = natom_types
     IF ( PRESENT ( counter ) ) fist_nonbond_env % counter = counter
     IF ( PRESENT ( last_update ) ) fist_nonbond_env % last_update = last_update
@@ -184,15 +198,18 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, potparm,&
-       nonbonded14, nonbonded, verlet_skin, ewald_rcut, error)
+  SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, &
+       potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
+       vdw_scale14, scale_cutoff, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
-    REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut
+    REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut, &
+                                                ei_scale14, vdw_scale14
+    LOGICAL, INTENT(IN)                      :: scale_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
@@ -214,8 +231,9 @@ CONTAINS
     NULLIFY(fist_nonbond_env%r_last_update_pbc)
     NULLIFY(fist_nonbond_env%rshell_last_update_pbc)
     NULLIFY(fist_nonbond_env%rcore_last_update_pbc)
-    CALL init_fist_nonbond_env( fist_nonbond_env, atomic_kind_set, potparm,&
-         nonbonded14, nonbonded, verlet_skin, ewald_rcut, error)
+    CALL init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, potparm, &
+         nonbonded14, nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
+         vdw_scale14, scale_cutoff, error)
   END SUBROUTINE fist_nonbond_env_create
 
 ! *****************************************************************************
@@ -224,8 +242,9 @@ CONTAINS
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 ! *****************************************************************************
-  SUBROUTINE init_fist_nonbond_env ( fist_nonbond_env, atomic_kind_set, potparm,&
-       nonbonded14, nonbonded, verlet_skin, ewald_rcut, error)
+  SUBROUTINE init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, &
+       potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
+       vdw_scale14, scale_cutoff, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -233,7 +252,9 @@ CONTAINS
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
-    REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut
+    REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut, &
+                                                ei_scale14, vdw_scale14
+    LOGICAL, INTENT(IN)                      :: scale_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env', &
@@ -258,6 +279,9 @@ CONTAINS
     fist_nonbond_env % do_nonbonded = nonbonded
     fist_nonbond_env % lup = 0
     fist_nonbond_env % aup = 0
+    fist_nonbond_env % ei_scale14 = ei_scale14
+    fist_nonbond_env % vdw_scale14 = vdw_scale14
+    fist_nonbond_env % scale_cutoff = scale_cutoff
     fist_nonbond_env % counter = 0
     fist_nonbond_env % last_update = 0
     fist_nonbond_env % num_update = 0
@@ -283,7 +307,7 @@ CONTAINS
        DO idim = 1, natom_types
           DO jdim = idim, natom_types
              IF (use_potparm) THEN
-                fac  = potparm%pot(idim,jdim)%pot%spl_f%rscale(2)
+                fac = potparm%pot(idim,jdim)%pot%spl_f%rscale(1)
                 rcut = SQRT(potparm%pot(idim,jdim)%pot%rcutsq)
                 rcut = MAX(rcut, ewald_rcut) + verlet_skin
                 fist_nonbond_env % rlist_cutsq(idim,jdim) = rcut
@@ -292,7 +316,12 @@ CONTAINS
                 tmp  = rcut*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline
                 fist_nonbond_env%rlist_lowsq(idim,jdim) = tmp
                 fist_nonbond_env%rlist_lowsq(jdim,idim) = tmp
-                ! In case of manybody potential the NL will be full
+                ! In case of manybody potential the neighbor list will be full.
+                ! This means that for each atom pair (a,b) of the current types,
+                ! atom a is in the neighbor list of b and b is in the neighbor
+                ! list of a. ij_kind_full_fac is used to correct for the double
+                ! counting in the conventional pair potentials cause by this
+                ! situation.
                 IF (ANY(potparm%pot(idim,jdim)%pot%type==tersoff_type)) THEN
                    fist_nonbond_env%ij_kind_full_fac(idim,jdim) = 0.5_dp
                    fist_nonbond_env%ij_kind_full_fac(idim,jdim) = 0.5_dp

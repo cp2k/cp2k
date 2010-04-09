@@ -38,11 +38,11 @@ MODULE force_fields_util
        torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
   USE force_fields_all,                ONLY: &
        force_field_pack_bend, force_field_pack_bond, force_field_pack_charge, &
-       force_field_pack_impr, force_field_pack_onfo, force_field_pack_opbend, &
-       force_field_pack_pol, force_field_pack_pp, force_field_pack_ppse, &
-       force_field_pack_radius, force_field_pack_sbe, force_field_pack_shell, &
-       force_field_pack_sne, force_field_pack_tors, force_field_pack_ub, &
-       force_field_unique_bend, force_field_unique_bond, &
+       force_field_pack_eicut, force_field_pack_impr, force_field_pack_onfo, &
+       force_field_pack_opbend, force_field_pack_pol, force_field_pack_pp, &
+       force_field_pack_ppse, force_field_pack_radius, force_field_pack_sbe, &
+       force_field_pack_shell, force_field_pack_sne, force_field_pack_tors, &
+       force_field_pack_ub, force_field_unique_bend, force_field_unique_bond, &
        force_field_unique_impr, force_field_unique_onfo, &
        force_field_unique_opbend, force_field_unique_tors, &
        force_field_unique_ub
@@ -121,8 +121,7 @@ CONTAINS
     INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
     LOGICAL                                  :: do_zbl, failure, fatal, &
-                                                ignore_fatal, my_qmmm, &
-                                                shell_present
+                                                ignore_fatal, my_qmmm
     REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(charmm_info_type), POINTER          :: chm_info
@@ -130,9 +129,8 @@ CONTAINS
     TYPE(gromos_info_type), POINTER          :: gro_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_bond, potparm_nonbond
-    TYPE(spline_environment_type), POINTER :: spline_bond_env, &
-      spline_c_coul_env, spline_cs_coul_env, spline_nonbond_env, &
-      spline_sc_coul_env
+    TYPE(spline_environment_type), POINTER   :: spline_bond_env, &
+                                                spline_nonbond_env
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -276,7 +274,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded14) THEN
        NULLIFY(spline_bond_env)
-       CALL force_field_pack_sbe  (atomic_kind_set, ff_type, qmmm_env, iw, Ainfo,&
+       CALL force_field_pack_sbe(atomic_kind_set, ff_type, qmmm_env, iw, Ainfo,&
             chm_info, inp_info, gro_info, amb_info, potparm_bond, ewald_env, &
             spline_bond_env, iw2, iw3, iw4, error)
        ! Give information if any 1-4 is missing.. continue calculation..
@@ -293,42 +291,41 @@ CONTAINS
     ! 19. Set spline_nonbond_env
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded) THEN
-       CALL force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env, ewald_env, &
+       CALL force_field_pack_sne(atomic_kind_set, ff_type, qmmm_env, &
             fatal, iw, Ainfo, chm_info, inp_info, gro_info, amb_info, &
-            potparm_nonbond, error)
+            potparm_nonbond, ewald_env, error)
        ! Give information and abort if any pair potential spline is missing..
        CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
        ! 19.(a) create the pair potential spline environment
        !--------------------------------------------------------------------------
-       NULLIFY(spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env, &
-            spline_sc_coul_env)
+       NULLIFY(spline_nonbond_env)
        CALL section_vals_val_get(mm_section,"FORCEFIELD%ZBL_SCATTERING",l_val=do_zbl,error=error)
-       CALL force_field_pack_ppse (atomic_kind_set, ewald_env, ff_type, iw2, iw3,&
-            iw4, spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env,&
-            spline_sc_coul_env, potparm_nonbond, do_zbl, error)
+       CALL force_field_pack_ppse(atomic_kind_set, ff_type, iw2, iw3, iw4, &
+            spline_nonbond_env, potparm_nonbond, do_zbl, error)
        !--------------------------------------------------------------------------
        ! 19.(b) Setup of the pair potential spline environment (Evtl. Core/Shell)
        !--------------------------------------------------------------------------
-       CALL force_field_pack_pp (atomic_kind_set, spline_nonbond_env, spline_c_coul_env,&
-            spline_cs_coul_env, spline_sc_coul_env, potparm_nonbond, shell_present,&
-            error)
+       CALL force_field_pack_pp (atomic_kind_set, spline_nonbond_env, &
+            potparm_nonbond, error)
     END IF
     ! Create non bond environment
     CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
     CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
             r_val=verlet_skin,error=error)
-    CALL fist_nonbond_env_create (fist_nonbond_env, atomic_kind_set, potparm_nonbond,&
-         ff_type%nonbonded14, ff_type%nonbonded, verlet_skin, ewald_rcut, error )
+    CALL fist_nonbond_env_create (fist_nonbond_env, atomic_kind_set, &
+         potparm_nonbond, ff_type%nonbonded14, ff_type%nonbonded, verlet_skin, &
+         ewald_rcut, ff_type%ei_scale14, ff_type%vdw_scale14, &
+         ff_type%scale_cutoff, error)
+    !-----------------------------------------------------------------------------
+    ! 20. Compute the electrostatic interaction cutoffs
+    !-----------------------------------------------------------------------------
+    CALL force_field_pack_eicut(atomic_kind_set, ff_type, potparm_nonbond, &
+         ewald_env, error)
 
     ! Release all spline_environments
     IF (ff_type%nonbonded) THEN
        CALL spline_env_release (spline_nonbond_env,error)
-       IF(shell_present) THEN
-          CALL spline_env_release (spline_c_coul_env, error)
-          CALL spline_env_release (spline_cs_coul_env,error)
-          CALL spline_env_release (spline_sc_coul_env,error)
-       END IF
     END IF
     IF (ff_type%nonbonded14) THEN
        CALL spline_env_release (spline_bond_env,error)

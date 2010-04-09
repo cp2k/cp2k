@@ -167,3 +167,9 @@ h2_dbg_0.inp
 h2_dbg_1.inp
 #  
 zwitt.inp
+# analytic electrostatic in Fist
+mol_CSVR_gen1.inp
+mol_CSVR_gen2.inp
+mol_CSVR_gen3.inp
+mol.inp
+mol_sph_cut.inp

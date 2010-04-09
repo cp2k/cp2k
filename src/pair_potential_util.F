@@ -11,12 +11,9 @@
 ! *****************************************************************************
 MODULE pair_potential_util
 
-  USE erf_fn,                          ONLY: erf,&
-                                             erfc
   USE f77_blas
   USE fparser,                         ONLY: EvalErrType,&
                                              evalf
-  USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, ea_type, ft_type, gp_type, gw_type, ip_type, &
@@ -34,17 +31,17 @@ MODULE pair_potential_util
   REAL(KIND=dp), PARAMETER, PRIVATE    :: MIN_HICUT_VALUE=1.0E-15_dp,&
                                           DEFAULT_HICUT_VALUE=1.0E3_dp
 
-  PUBLIC :: ener_coul, ener_pot, zbl_matching_polinomial
+  PUBLIC :: ener_pot, ener_zbl, zbl_matching_polinomial
 
 CONTAINS
 
 ! *****************************************************************************
 !> \brief Evaluates the nonbond potential energy for the implemented FF kinds
 ! *****************************************************************************
-  FUNCTION ener_pot ( pot, r, energy_cutoff, vdw_scale14 ) RESULT(value)
+  FUNCTION ener_pot(pot, r, energy_cutoff) RESULT(value)
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
-    REAL(KIND=dp), INTENT(IN)                :: r, energy_cutoff, vdw_scale14
+    REAL(KIND=dp), INTENT(IN)                :: r, energy_cutoff
     REAL(KIND=dp)                            :: value
 
     INTEGER                                  :: i, index, j, n
@@ -58,11 +55,11 @@ CONTAINS
        IF ((pot%set(j)%rmax /= not_initialized).AND.( r >= pot%set(j)%rmax )) CYCLE
        ! If within limits let's compute the potential...
        IF (pot%type(j)==lj_charmm_type) THEN
-          lvalue = vdw_scale14 * &
+          lvalue = &
                4.0_dp*pot%set(j)%lj%epsilon*(pot%set(j)%lj%sigma12*r**(-12)-pot%set(j)%lj% &
                sigma6*r**(-6))
        ELSE IF (pot%type(j)==lj_type) THEN
-          lvalue = vdw_scale14 * pot%set(j)%lj%epsilon* &
+          lvalue = pot%set(j)%lj%epsilon* &
                (pot%set(j)%lj%sigma12*r**(-12)-pot%set(j)%lj%sigma6*r**(-6))
        ELSE IF (pot%type(j)==ip_type) THEN
           lvalue = 0._dp
@@ -131,63 +128,15 @@ CONTAINS
   END FUNCTION ener_pot
 
 ! *****************************************************************************
-!> \brief Evaluates the Coulomb electrostatic energy
-! *****************************************************************************
-  FUNCTION ener_coul(pot, e_cutoff_coul, fac, r, ewald_type, alpha, my_do_14,&
-                     mm_radius, zbl)
-
-    TYPE(pair_potential_single_type), &
-      POINTER                                :: pot
-    REAL(KIND=dp), INTENT(IN)                :: e_cutoff_coul, fac, r
-    INTEGER, INTENT(IN)                      :: ewald_type
-    REAL(KIND=dp), INTENT(IN)                :: alpha
-    LOGICAL, INTENT(IN)                      :: my_do_14
-    REAL(KIND=dp), INTENT(IN)                :: mm_radius
-    LOGICAL, INTENT(IN), OPTIONAL            :: zbl
-    REAL(KIND=dp)                            :: ener_coul
-
-    LOGICAL                                  :: my_zbl
-
-    my_zbl = .FALSE.
-    IF(PRESENT(zbl)) my_zbl = zbl
-
-    ener_coul= 0.0_dp
-    IF (.NOT. my_do_14) THEN
-       IF (mm_radius > 0.0_dp) THEN
-          IF (ewald_type == do_ewald_none) THEN
-             ener_coul = fac*erf(r/mm_radius)/r - e_cutoff_coul
-          ELSE
-             ener_coul = fac*(erf(r/mm_radius) - erf(alpha*r))/r - e_cutoff_coul
-          END IF
-       ELSE
-          IF (ewald_type == do_ewald_none) THEN
-             ener_coul = fac/r - e_cutoff_coul
-          ELSE
-             ener_coul = fac*erfc(alpha*r)/r - e_cutoff_coul
-          END IF
-       END IF
-
-       IF (my_zbl) THEN
-          ener_coul = ener_coul + ener_zbl(pot, r, alpha)
-       END IF
-    ELSE
-       ! to avoid a large number of points in the spline generation
-       ! we evaluate the 1-4 interactions analytically..
-       ener_coul = 0.0_dp
-    ENDIF
-
-  END FUNCTION ener_coul
-
-! *****************************************************************************
 !> \brief Evaluates the ZBL scattering potential, very short range
 !>        Only shell-model for interactions among pairs without repulsive term
 !> \author i soliti ignoti
 ! *****************************************************************************
-  FUNCTION ener_zbl ( pot, r, alpha )
+  FUNCTION ener_zbl(pot, r)
 
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
-    REAL(KIND=dp), INTENT(IN)                :: r, alpha
+    REAL(KIND=dp), INTENT(IN)                :: r
     REAL(KIND=dp)                            :: ener_zbl
 
     REAL(KIND=dp)                            :: au, fac, x
@@ -214,23 +163,25 @@ CONTAINS
 !>        Only shell-model for interactions among pairs without repulsive term
 !> \author i soliti ignoti
 ! *****************************************************************************
-    SUBROUTINE zbl_matching_polinomial(pot, rc1,rc2)
+    SUBROUTINE zbl_matching_polinomial(pot, rcov1, rcov2, z1, z2)
 
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
-    REAL(KIND=dp), INTENT(IN)                :: rc1, rc2
+    REAL(KIND=dp), INTENT(IN)                :: rcov1, rcov2, z1, z2
 
     REAL(KIND=dp)                            :: au, d1, d2, dd1, dd2, fac, &
                                                 v1, v2, x, x1, x2
 
-      pot%zbl_rcut(1) = (rc1+rc2)*(1.0_dp-0.2_dp)*bohr
-      pot%zbl_rcut(2) = (rc1+rc2)*bohr
+      pot%zbl_rcut(1) = (rcov1+rcov2)*(1.0_dp-0.2_dp)*bohr
+      pot%zbl_rcut(2) = (rcov1+rcov2)*bohr
       x1=pot%zbl_rcut(1)
       x2=pot%zbl_rcut(2)
+      pot%z1 = z1
+      pot%z2 = z2
 
-      au = 0.88534_dp*bohr/(pot%z1**0.23_dp+pot%z2**0.23_dp)
+      au = 0.88534_dp*bohr/(z1**0.23_dp+z2**0.23_dp)
       x = x1/au
-      fac = pot%z1*pot%z2/evolt
+      fac = z1*z2/evolt
       v1  = fac / x1 * ( 0.1818_dp * EXP(-3.2_dp*x) + 0.5099_dp * EXP(-0.9423_dp*x) + &
           0.2802_dp * EXP(-0.4029_dp*x) + 0.02817_dp * EXP(-0.2016_dp*x))
       d1  = fac / x1 /au *(-3.2_dp*0.1818_dp * EXP(-3.2_dp*x) -0.9423_dp * 0.5099_dp * EXP(-0.9423_dp*x)&

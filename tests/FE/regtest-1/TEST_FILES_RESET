@@ -18,3 +18,7 @@ Solv_alch_chng_simpl.inp
 Solv_alch_chng_dist.inp
 Solv_alch_chng.inp
 Solv_alch_chng_simpl.inp
+# analytic electrostatic in Fist
+Solv_alch_chng_dist.inp
+Solv_alch_chng.inp
+Solv_alch_chng_simpl.inp

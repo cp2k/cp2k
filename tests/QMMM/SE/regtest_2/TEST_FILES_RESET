@@ -148,3 +148,6 @@ Si_tersoff_qmmm.inp
 Si_tersoff_qmmm.inp
 #  
 Si_tersoff_qmmm.inp
+# analytic electrostatic in Fist
+nh3_g4x6_excl_mm.inp
+nh3_g4x6_excl_qm.inp

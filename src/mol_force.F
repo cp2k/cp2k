@@ -203,7 +203,6 @@ CONTAINS
        g1 = (b32*d12*d32-dist*d32*id12*b12)*denom*fscalar
        g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom*fscalar
        g3 = (b12*d12*d32-dist*id32*d12*b32)*denom*fscalar
-       !print *, energy
        ! 2) bend-stretch term
        disp12 = d12 - r012
        disp32 = d32 - r032

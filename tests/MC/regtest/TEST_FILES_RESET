@@ -41,3 +41,9 @@ GEMC_swap_box1.inp
 GEMC_swap_box1.inp
 #NL PP rewrite 
 MC_QS.inp 
+# analytic electrostatic in Fist
+canonical_bias.inp
+GEMC_NpT_box1.inp
+GEMC_NVT_box1.inp
+GEMC_swap_box1.inp
+virial.inp

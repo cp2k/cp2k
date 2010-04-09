@@ -177,3 +177,22 @@ H2O-1-GENPOT.inp
 N3dye_vib_bfgs.inp
 # adding hills energy to the total energy
 argon_GENPOT_fcc-ql.inp
+# analytic electrostatic in Fist
+H2O-1-GENPOT-2.inp
+H2O-1-GENPOT.inp
+H2OFe-5_75.inp
+I3.inp
+JAC_gen.inp
+JAC.inp
+JAC_us.inp
+liquid.inp
+N3dye_geoopt.inp
+N3dye_vib_bfgs2.inp
+N3dye_vib_bfgs.inp
+N3dye_vib_inv_atoms.inp
+N3dye_vib_restart_vec2.inp
+N3dye_vib_restart_vec3.inp
+N3dye_vib_restart_vec4.inp
+N3dye_vib_restart_vec.inp
+wat125.inp
+water_tip4p.inp

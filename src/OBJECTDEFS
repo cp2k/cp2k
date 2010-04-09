@@ -399,6 +399,7 @@ OBJECTS_GENERIC =\
  orbital_symbols.o\
  orbital_transformation_matrices.o\
  pair_potential.o\
+ pair_potential_coulomb.o\
  pair_potential_types.o\
  pair_potential_util.o\
  parallel_rng_types.o\

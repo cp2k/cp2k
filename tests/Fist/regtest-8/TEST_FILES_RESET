@@ -37,3 +37,8 @@ G87_2.inp
 G87.inp
 G96_ei_scale.inp
 G96.inp
+# analytic electrostatic in Fist
+G87_2.inp
+G87.inp
+G96_ei_scale.inp
+G96.inp

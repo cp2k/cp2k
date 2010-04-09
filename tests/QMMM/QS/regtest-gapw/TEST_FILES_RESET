@@ -60,3 +60,6 @@ H2O-qmmm-hfx.inp
 H2O-qmmm-hfx.inp
 #bug fix screening force
 H2O-qmmm-hfx.inp
+# analytic electrostatic in Fist
+C11H24-qmmmgapw-gauss-0.inp
+H2O-qmmm-hfx.inp

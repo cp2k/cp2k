@@ -11,6 +11,7 @@
 ! *****************************************************************************
 MODULE fist_intra_force
 
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -53,12 +54,13 @@ CONTAINS
 !>      none
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecules,&
-       particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
+  SUBROUTINE force_intra_control(molecule_set, molecule_kind_set, &
+       local_molecules, particle_set, shell_particle_set, core_particle_set, &
+       ei_scale14, vdw_scale14, scale_cutoff, pot_bond, pot_bend, &
        pot_urey_bradley, pot_torsion, pot_imp_torsion, pot_opbend, pot_onef, &
-       pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, pv_imp_torsion, &
-       pv_opbend, pv_onef, f_bond, f_bend, f_torsion, f_ub, f_imptor, f_opbend, &
-       f_onef, cell, use_virial, error )
+       pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, &
+       pv_imp_torsion, pv_opbend, pv_onef, f_bond, f_bend, f_torsion, f_ub, &
+       f_imptor, f_opbend, f_onef, cell, use_virial, error)
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -66,6 +68,8 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : ), &
                                                 shell_particle_set( : ), &
                                                 core_particle_set( : )
+    REAL(KIND=dp), INTENT(IN)                :: ei_scale14, vdw_scale14
+    LOGICAL, INTENT(IN)                      :: scale_cutoff
     REAL(KIND=dp), INTENT(INOUT) :: pot_bond, pot_bend, pot_urey_bradley, &
       pot_torsion, pot_imp_torsion, pot_opbend, pot_onef, pot_shell
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -89,7 +93,8 @@ CONTAINS
       nbends, nbonds, nimptors, nkind, nmol_per_kind, nonefs, nopbends, &
       nshell, ntorsions, nub
     REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
-      id32, is32, ism, isn, r0, rab2, rinv, rinv2, s32, sm, sn, theta
+      id32, is32, ism, isn, qeff_a, qeff_b, rab2, rab2_max, rinv, rinv2, s32, &
+      sm, sn, theta
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, k1, k2, k3, &
                                                 k4, rij, t12, t32, t34, t41, &
@@ -108,6 +113,8 @@ CONTAINS
     TYPE(spline_factor_type), POINTER        :: spl_f
     TYPE(torsion_type), POINTER              :: torsion_list( : )
     TYPE(ub_type), POINTER                   :: ub_list( : )
+
+! TODO REMOVE THIS
 
     CALL timeset ( routineN, handle )
     NULLIFY(logger)
@@ -484,15 +491,33 @@ CONTAINS
              spl_p => onef_list ( ionef ) % onfo_kind % spl_p
              spl_f => onef_list ( ionef ) % onfo_kind % spl_f
              IF (.NOT.ASSOCIATED(spl_p)) CYCLE
-             ! LJ contribution
-             energy = potential_s ( spl_p, rab2, fscalar, spl_f, logger )
-             pot_onef = pot_onef + energy
+             rab2_max = 1.0_dp/spl_f%rscale(1)/spl_p(1)%spline_data%x1
+             fscalar = 0.0_dp
+             IF ((vdw_scale14 > 0).AND.(rab2 <= rab2_max)) THEN
+                ! VDW contribution
+                energy = potential_s(spl_p, rab2, fscalar, spl_f, logger)
+                pot_onef = pot_onef + vdw_scale14*energy
+                fscalar = fscalar*vdw_scale14
+             END IF
+
              ! EI contribution
-             rinv2 = 1.0_dp/rab2
-             rinv  = SQRT(rinv2)
-             pot_onef = pot_onef + (spl_p(1)%spline_data%ei_scale14 * rinv - &
-                                    spl_p(1)%spline_data%ei_cutoff14)*spl_f%fscale(1)
-             fscalar  = fscalar + (spl_p(1)%spline_data%ei_scale14 * rinv2 * rinv)*spl_f%fscale(1)
+             ! TODO: THIS WILL DISSAPEAR SOON. IGNORE UGLY MESS FOR NOW.
+             ! DO NOT FIX THE BUG THAT THE MM_RADIUS IS FORGOTTEN HERE.
+             IF ((ei_scale14 > 0).AND.(rab2 <= rab2_max)) THEN
+                CALL get_atomic_kind(particle_set(index_a)%atomic_kind, qeff=qeff_a)
+                CALL get_atomic_kind(particle_set(index_b)%atomic_kind, qeff=qeff_b)
+                rinv2 = 1.0_dp/rab2
+                rinv  = SQRT(rinv2)
+                IF (scale_cutoff) THEN
+                   energy = qeff_a*qeff_b*ei_scale14*(rinv-1.0_dp/SQRT(rab2_max))
+                ELSE
+                   energy = qeff_a*qeff_b*ei_scale14*rinv
+                END IF
+                pot_onef = pot_onef + energy
+                fscalar = fscalar + qeff_a*qeff_b*ei_scale14*rinv*rinv2
+             END IF
+
+             ! add forces
              particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) -rij(1) * fscalar
              particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) -rij(2) * fscalar
              particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) -rij(3) * fscalar

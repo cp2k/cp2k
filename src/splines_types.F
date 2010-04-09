@@ -40,10 +40,9 @@ MODULE splines_types
 ! *****************************************************************************
   TYPE spline_data_type
      INTEGER :: ref_count, id_nr
-     LOGICAL                 :: dual
      REAL (KIND=dp), POINTER :: y  ( : )    ! the function values y(x)
      REAL (KIND=dp), POINTER :: y2 ( : )    ! the 2nd derivative via interpolation
-     INTEGER               :: n             ! dimension of above arrays
+     INTEGER                 :: n           ! dimension of above arrays
      ! not used if uniform increments
      REAL (KIND=dp)          :: h           ! uniform increment of x if applicable
      REAL (KIND=dp)          :: invh        ! inverse of h
@@ -51,8 +50,6 @@ MODULE splines_types
      ! 1/6 otherwise
      REAL (KIND=dp)          :: x1          ! starting x value if uniform incr.
      REAL (KIND=dp)          :: xn          ! end x value if uniform incr.
-     ! used only for 1-4 bond_splines
-     REAL (KIND=dp)          :: ei_scale14, ei_cutoff14
   END TYPE spline_data_type
 
 ! *****************************************************************************
@@ -74,7 +71,7 @@ MODULE splines_types
 
 ! *****************************************************************************
   TYPE spline_factor_type
-     REAL(KIND=dp) :: rcutsq_f, cutoff_e, cutoff_n, cutoff
+     REAL(KIND=dp) :: rcutsq_f, cutoff
      REAL(KIND=dp), DIMENSION(:), POINTER :: rscale
      REAL(KIND=dp), DIMENSION(:), POINTER :: fscale
      REAL(KIND=dp), DIMENSION(:), POINTER :: dscale
@@ -263,12 +260,10 @@ CONTAINS
 !>      2001-09-19-HAF added this doc entry and changed formatting
 !> \author unknown
 ! *****************************************************************************
-  SUBROUTINE spline_env_create ( spline_env, ntype, ntab_in, array_double_allocation, error )
+  SUBROUTINE spline_env_create ( spline_env, ntype, ntab_in, error )
     TYPE(spline_environment_type), POINTER   :: spline_env
     INTEGER, INTENT(IN)                      :: ntype
     INTEGER, INTENT(IN), OPTIONAL            :: ntab_in
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: array_double_allocation
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_create', &
@@ -302,9 +297,6 @@ CONTAINS
        DO i = 1, ntab
           NULLIFY (spline_env%spl_pp( i )%spl_p)
           isize = 1
-          IF (PRESENT(array_double_allocation)) THEN
-             IF (ANY(array_double_allocation==i)) isize = 2
-          END IF
           ALLOCATE(spline_env%spl_pp(i)%spl_p(isize), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO j = 1, SIZE(spline_env%spl_pp(i)%spl_p)
@@ -375,14 +367,11 @@ CONTAINS
        spline_data_dest%ref_count = spline_data_source%ref_count
        spline_data_dest%id_nr     = spline_data_source%id_nr
        spline_data_dest%n         = spline_data_source%n
-       spline_data_dest%dual      = spline_data_source%dual
        spline_data_dest%h         = spline_data_source%h
        spline_data_dest%invh      = spline_data_source%invh
        spline_data_dest%h26       = spline_data_source%h26
        spline_data_dest%x1        = spline_data_source%x1
        spline_data_dest%xn        = spline_data_source%xn
-       spline_data_dest%ei_scale14  = spline_data_source%ei_scale14
-       spline_data_dest%ei_cutoff14 = spline_data_source%ei_cutoff14
        IF (ASSOCIATED(spline_data_source%y)) THEN
           ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -418,7 +407,6 @@ CONTAINS
        spline_data%ref_count=1
        last_spline_data_id_nr=last_spline_data_id_nr+1
        spline_data%id_nr = last_spline_data_id_nr
-       spline_data%dual  = .FALSE.
        NULLIFY ( spline_data % y )
        NULLIFY ( spline_data % y2 )
     END IF
@@ -476,18 +464,16 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(spline_factor),cp_failure_level,routineP,error,failure) 
     ALLOCATE(spline_factor, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(spline_factor%rscale(2),stat=stat)
+    ALLOCATE(spline_factor%rscale(1),stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(spline_factor%fscale(2),stat=stat)
+    ALLOCATE(spline_factor%fscale(1),stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(spline_factor%dscale(2),stat=stat)
+    ALLOCATE(spline_factor%dscale(1),stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     spline_factor%rscale = 1.0_dp
     spline_factor%fscale = 1.0_dp
     spline_factor%dscale = 1.0_dp
     spline_factor%rcutsq_f = 1.0_dp
-    spline_factor%cutoff_e = 0.0_dp
-    spline_factor%cutoff_n = 0.0_dp
     spline_factor%cutoff   = 0.0_dp
   END SUBROUTINE spline_factor_create 
 
@@ -520,8 +506,6 @@ CONTAINS
        spline_factor_dest%fscale = spline_factor_source%fscale
        spline_factor_dest%dscale = spline_factor_source%dscale
        spline_factor_dest%rcutsq_f = spline_factor_source%rcutsq_f 
-       spline_factor_dest%cutoff_e = spline_factor_source%cutoff_e
-       spline_factor_dest%cutoff_n = spline_factor_source%cutoff_n
        spline_factor_dest%cutoff   = spline_factor_source%cutoff
     END IF
   END SUBROUTINE spline_factor_copy

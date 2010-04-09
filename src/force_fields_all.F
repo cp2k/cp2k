@@ -18,6 +18,7 @@ MODULE force_fields_all
   USE atoms_input,                     ONLY: read_shell_coord_input
   USE cell_types,                      ONLY: cell_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_env_set,&
                                              ewald_environment_type
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
@@ -53,6 +54,7 @@ MODULE force_fields_all
                                              molecule_type
   USE pair_potential,                  ONLY: get_nonbond_storage,&
                                              spline_nonbond_control
+  USE pair_potential_coulomb,          ONLY: potential_coulomb
   USE pair_potential_types,            ONLY: &
        ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh, nosh_sh, &
        pair_potential_lj_create, pair_potential_pp_create, &
@@ -107,7 +109,8 @@ MODULE force_fields_all
             force_field_pack_onfo,&
             force_field_pack_sne,&
             force_field_pack_ppse,&
-            force_field_pack_pp
+            force_field_pack_pp,&
+            force_field_pack_eicut
 
 CONTAINS
 
@@ -2117,10 +2120,9 @@ CPSourceFileRef,&
   SUBROUTINE force_field_pack_radius(atomic_kind_set, iw, subsys_section, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
-      INTENT(IN), POINTER                    :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(section_vals_type), INTENT(IN), &
-      POINTER                                :: subsys_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_radius', &
@@ -2135,14 +2137,14 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: kind_section
 
     CALL timeset(routineN,handle)
+
     kind_section => section_vals_get_subs_vals(subsys_section,"KIND",error=error)
     CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
 
-    DO i=1,SIZE(atomic_kind_set)
+    DO i = 1, SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            fist_potential=fist_potential,&
-                            name=kind_name)
+       CALL get_atomic_kind(atomic_kind=atomic_kind, &
+            fist_potential=fist_potential, name=kind_name)
        CALL uppercase(kind_name)
        found = .FALSE.
 
@@ -2150,7 +2152,7 @@ CPSourceFileRef,&
        ! MM_RADIUS field if it is present. In case the kind section is never
        ! encountered, the mm_radius remains zero.
        mm_radius = 0.0_dp
-       DO i_rep=1,n_rep
+       DO i_rep = 1, n_rep
           CALL section_vals_val_get(kind_section, "_SECTION_PARAMETERS_",&
             c_val=inp_kind_name, i_rep_section=i_rep, error=error)
           CALL uppercase(inp_kind_name)
@@ -2165,7 +2167,6 @@ CPSourceFileRef,&
        END DO
 
        CALL set_potential(potential=fist_potential, mm_radius=mm_radius)
-       !CALL set_atomic_kind(atomic_kind=atomic_kind,fist_potential=fist_potential)
     END DO
     CALL timestop(handle)
   END SUBROUTINE force_field_pack_radius
@@ -2177,10 +2178,9 @@ CPSourceFileRef,&
   SUBROUTINE force_field_pack_pol(atomic_kind_set, iw, inp_info, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
-      INTENT(IN), POINTER                    :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: iw
-    TYPE(input_info_type), INTENT(IN), &
-      POINTER                                :: inp_info
+    TYPE(input_info_type), POINTER           :: inp_info
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_pol', &
@@ -2421,9 +2421,9 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Set spline_bond_env, use for ONFO interaction
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_sbe  (atomic_kind_set, ff_type, qmmm_env,&
-       iw, Ainfo,  chm_info, inp_info, gro_info, amb_info, potparm_bond,&
-       ewald_env, spline_bond_env, iw2, iw3, iw4, error)
+  SUBROUTINE force_field_pack_sbe(atomic_kind_set, ff_type, qmmm_env, iw, &
+       Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_bond, ewald_env, &
+       spline_bond_env, iw2, iw3, iw4, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2449,12 +2449,12 @@ CPSourceFileRef,&
                                                 name_atm_b, name_atm_b_local
     INTEGER                                  :: handle2, i, ii, ikind, j, jj, &
                                                 jkind, k, match_names, n
-    LOGICAL :: allocate_spline_bond_env, do_multipoles, failure, found, &
-      found_a, found_b, only_qm, use_qmmm_ff
+    LOGICAL                                  :: allocate_spline_bond_env, &
+                                                failure, found, found_a, &
+                                                found_b, only_qm, use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon0, epsilon_a, &
-                                                epsilon_b, ewald_rcut, &
-                                                ewald_rcut2, rmin, rmin2_a, &
-                                                rmin2_b
+                                                epsilon_b, ewald_rcut, rmin, &
+                                                rmin2_a, rmin2_b
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
@@ -2464,10 +2464,8 @@ CPSourceFileRef,&
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     allocate_spline_bond_env = .FALSE.
-    CALL ewald_env_get(ewald_env,rcut=ewald_rcut,do_multipoles=do_multipoles,error=error)
-    IF (do_multipoles) ewald_rcut = 0.0_dp
-    ewald_rcut2 = ewald_rcut**2
     NULLIFY(pot)
+    CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
     CALL timeset(routineN,handle2)
     CALL pair_potential_pp_create (potparm_bond, SIZE(atomic_kind_set), error)
     DO i=1,SIZE(atomic_kind_set)
@@ -2696,7 +2694,7 @@ CPSourceFileRef,&
                                        type_name="Spline_Bond_Env",&
                                        array=Ainfo,&
                                        error=error)
-             CALL pair_potential_single_clean( pot ,error=error)
+             CALL pair_potential_single_clean(pot, error=error)
              pot%type       = nn_type
              pot%at1        = name_atm_a
              pot%at2        = name_atm_b
@@ -2705,27 +2703,24 @@ CPSourceFileRef,&
           END IF
           ! If defined global RCUT let's use it
           IF(ff_type%rcut_nb>0.0_dp) THEN
-             pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+             pot%rcutsq = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
           ! Cutoff is defined always as the maximum between the FF and Ewald
-          pot%rcutsq = MAX(pot%rcutsq, ewald_rcut2)
+          pot%rcutsq = MAX(pot%rcutsq, ewald_rcut*ewald_rcut)
           IF (only_qm) THEN
-             CALL pair_potential_single_clean( pot ,error=error)
+             CALL pair_potential_single_clean(pot, error=error)
           END IF
        END DO  ! atom kind j
     END DO  ! atom kind i
 
     ! Allocate Spline Bond Env
     CALL get_nonbond_storage(spline_bond_env, potparm_bond, atomic_kind_set, &
-          ei_scale14=ff_type%ei_scale14, vdw_scale14=ff_type%vdw_scale14,&
-          do_14=.TRUE., ewald_env=ewald_env, scale_cutoff=ff_type%scale_cutoff,&
-          error=error)
-    CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
-         atomic_kind_set , ewald_env, ei_scale14=ff_type%ei_scale14, &
-         vdw_scale14=ff_type%vdw_scale14, eps_spline=ff_type%eps_spline, &
+         scale_cutoff=ff_type%scale_cutoff, error=error)
+    CALL spline_nonbond_control(spline_bond_env, potparm_bond, &
+         atomic_kind_set, eps_spline=ff_type%eps_spline, &
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
-         do_14=.TRUE., scale_cutoff=ff_type%scale_cutoff, error=error)
+         scale_cutoff=ff_type%scale_cutoff, error=error)
 
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
@@ -2743,8 +2738,8 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Pack in ONFO information needed for the force_field
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_onfo  (particle_set, molecule_kind_set, molecule_set,&
-       iw, potparm_bond, error)
+  SUBROUTINE force_field_pack_onfo(particle_set, molecule_kind_set, &
+       molecule_set, iw, potparm_bond, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -2816,15 +2811,14 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Pack in spline nonbond env the information needed for the force_field
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env, ewald_env,&
-       fatal, iw, Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond,&
-       error)
+  SUBROUTINE force_field_pack_sne(atomic_kind_set, ff_type, qmmm_env, fatal, &
+       iw, Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond, &
+       ewald_env, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
     LOGICAL                                  :: fatal
     INTEGER                                  :: iw
     CHARACTER(LEN=default_string_length), &
@@ -2834,6 +2828,7 @@ CPSourceFileRef,&
     TYPE(gromos_info_type), POINTER          :: gro_info
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_sne', &
@@ -2843,12 +2838,10 @@ CPSourceFileRef,&
                                                 name_atm_b, name_atm_b_local
     INTEGER                                  :: handle2, i, ii, j, jj, k, &
                                                 match_names
-    LOGICAL                                  :: do_multipoles, failure, &
-                                                found, is_a_shell, &
+    LOGICAL                                  :: failure, found, is_a_shell, &
                                                 is_b_shell, only_qm, &
                                                 use_qmmm_ff
-    REAL(KIND=dp)                            :: epsilon0, ewald_rcut, &
-                                                ewald_rcut2, rmin
+    REAL(KIND=dp)                            :: epsilon0, ewald_rcut, rmin
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
@@ -2857,18 +2850,15 @@ CPSourceFileRef,&
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     NULLIFY(pot)
-    CALL ewald_env_get(ewald_env,rcut=ewald_rcut,do_multipoles=do_multipoles,error=error)
-    IF (do_multipoles) ewald_rcut = 0.0_dp
-    ewald_rcut2 = ewald_rcut**2
-
+    CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
     CALL pair_potential_pp_create ( potparm_nonbond, SIZE(atomic_kind_set),error )
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local,&
-           shell_active=is_a_shell)
+       CALL get_atomic_kind(atomic_kind=atomic_kind, name=name_atm_a_local, &
+            shell_active=is_a_shell)
        DO j=i,SIZE(atomic_kind_set)
           atomic_kind => atomic_kind_set(j)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_b_local,&
+          CALL get_atomic_kind(atomic_kind=atomic_kind, name=name_atm_b_local, &
                shell_active=is_b_shell)
           found = .FALSE.
           name_atm_a = name_atm_a_local
@@ -3125,10 +3115,11 @@ CPSourceFileRef,&
           END IF
           ! If defined global RCUT let's use it
           IF(ff_type%rcut_nb>0.0_dp) THEN
-             pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+             pot%rcutsq = ff_type%rcut_nb*ff_type%rcut_nb
           END IF
           ! Cutoff is defined always as the maximum between the FF and Ewald
-          pot%rcutsq = MAX(pot%rcutsq, ewald_rcut2)
+          pot%rcutsq = MAX(pot%rcutsq, ewald_rcut*ewald_rcut)
+          ! Set the shell type
           IF((is_a_shell .AND. .NOT. is_b_shell) .OR. (is_b_shell .AND. .NOT. is_a_shell)) THEN
              pot%shell_type  = nosh_sh
           ELSE IF (is_a_shell .AND. is_b_shell) THEN
@@ -3137,7 +3128,7 @@ CPSourceFileRef,&
              pot%shell_type  = nosh_nosh
           END IF
           IF (only_qm) THEN
-             CALL pair_potential_single_clean( pot ,error=error)
+             CALL pair_potential_single_clean(pot, error=error)
           END IF
        END DO  ! jkind
     END DO   ! ikind
@@ -3147,19 +3138,14 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief create the pair potential spline environment
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_ppse (atomic_kind_set, ewald_env, ff_type, &
-       iw2, iw3, iw4, spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env,&
-       spline_sc_coul_env, potparm_nonbond, do_zbl, error)
+  SUBROUTINE force_field_pack_ppse(atomic_kind_set, ff_type, iw2, iw3, iw4, &
+       spline_nonbond_env, potparm_nonbond, do_zbl, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     INTEGER                                  :: iw2, iw3, iw4
-    TYPE(spline_environment_type), POINTER   :: spline_nonbond_env, &
-                                                spline_c_coul_env, &
-                                                spline_cs_coul_env, &
-                                                spline_sc_coul_env
+    TYPE(spline_environment_type), POINTER   :: spline_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
     LOGICAL, INTENT(IN)                      :: do_zbl
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -3168,34 +3154,18 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle2
-    LOGICAL                                  :: failure, shell_present
+    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle2)
     failure = .FALSE.
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
-    IF(shell_present) THEN
-      CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
-           spline_c_coul_env=spline_c_coul_env, spline_cs_coul_env=spline_cs_coul_env,&
-           spline_sc_coul_env=spline_sc_coul_env, do_14=.FALSE., do_zbl=do_zbl, ewald_env=ewald_env, &
-           scale_cutoff=ff_type%scale_cutoff, error=error)
-      CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
-           atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
-           max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-           emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,do_zbl=do_zbl,&
-           scale_cutoff=ff_type%scale_cutoff, spline_c_coul=spline_c_coul_env, &
-           spline_cs_coul=spline_cs_coul_env, spline_sc_coul=spline_sc_coul_env, error=error)
-    ELSE
-      CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
-      do_14=.FALSE., do_zbl=do_zbl, ewald_env=ewald_env, scale_cutoff=ff_type%scale_cutoff,&
-      error=error)
-      NULLIFY (spline_c_coul_env,spline_cs_coul_env,spline_sc_coul_env)
-      CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
-           atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
-           max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-           emax_spline=ff_type%emax_spline, iw=iw2,&
-           iw2=iw3,iw3=iw4,do_zbl=do_zbl,&
-           scale_cutoff=ff_type%scale_cutoff, error=error)
-    END IF
+    CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, &
+         atomic_kind_set, do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, &
+         error=error)
+    CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
+         atomic_kind_set, eps_spline=ff_type%eps_spline, &
+         max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
+         do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, error=error)
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_ppse
@@ -3203,17 +3173,13 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Setup the pair potential spline environment
 ! *****************************************************************************
-  SUBROUTINE  force_field_pack_pp (atomic_kind_set, spline_nonbond_env, spline_c_coul_env,&
-       spline_cs_coul_env, spline_sc_coul_env, potparm_nonbond, shell_present, error)
+  SUBROUTINE  force_field_pack_pp(atomic_kind_set, spline_nonbond_env, &
+       potparm_nonbond, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(spline_environment_type), POINTER   :: spline_nonbond_env, &
-                                                spline_c_coul_env, &
-                                                spline_cs_coul_env, &
-                                                spline_sc_coul_env
+    TYPE(spline_environment_type), POINTER   :: spline_nonbond_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
-    LOGICAL                                  :: shell_present
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_pp', &
@@ -3229,7 +3195,6 @@ CPSourceFileRef,&
     failure = .FALSE.
 
     nkinds = SIZE(atomic_kind_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, shell_present=shell_present)
 
     DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
@@ -3242,54 +3207,86 @@ CPSourceFileRef,&
           CALL spline_data_p_retain ( spl_p, error )
           CALL spline_data_p_release ( potparm_nonbond%pot(ikind,jkind)%pot%pair_spline_data, error )
           potparm_nonbond%pot(ikind,jkind)%pot%pair_spline_data => spl_p
-
-          IF(shell_present) THEN
-             !---------------------------------------
-             ! 2nd: The ion-core or core-core contribution (only shell-model)
-             !---------------------------------------
-             n = spline_c_coul_env % spltab ( ikind, jkind )
-             IF (n>0) THEN
-                spl_p => spline_c_coul_env%spl_pp(n)%spl_p
-                ! do i,j
-                IF ( ASSOCIATED(spl_p) ) THEN
-                   CALL spline_data_p_retain( spl_p, error )
-                   CALL spline_data_p_release(potparm_nonbond%pot( ikind,jkind)%pot%c_coul_spline_data, error )
-                   potparm_nonbond%pot ( ikind, jkind )%pot % c_coul_spline_data => spl_p
-                ENDIF
-             END IF
-             !---------------------------------------
-             ! 3rd: The core-shell contribution (only shell-model)
-             !---------------------------------------
-             n = spline_cs_coul_env % spltab ( ikind, jkind )
-             IF (n>0) THEN
-                spl_p => spline_cs_coul_env%spl_pp(n)%spl_p
-                ! do i,j
-                IF ( ASSOCIATED(spl_p) ) THEN
-                   CALL spline_data_p_retain(spl_p, error )
-                   CALL spline_data_p_release(potparm_nonbond%pot(ikind,jkind)%pot%cs_coul_spline_data, error )
-                   potparm_nonbond%pot ( ikind, jkind )%pot % cs_coul_spline_data => spl_p
-                ENDIF
-             END IF
-             !---------------------------------------
-             ! 4th: The core-shell contribution (only shell-model)
-             !---------------------------------------
-             n = spline_sc_coul_env % spltab ( ikind, jkind )
-             IF (n>0) THEN
-                spl_p => spline_sc_coul_env%spl_pp(n)%spl_p
-                ! do i,j
-                IF ( ASSOCIATED(spl_p) ) THEN
-                   CALL spline_data_p_retain (spl_p, error )
-                   CALL spline_data_p_release(potparm_nonbond%pot(ikind,jkind)%pot%sc_coul_spline_data, error )
-                   potparm_nonbond%pot(ikind,jkind)%pot%sc_coul_spline_data => spl_p
-                ENDIF
-             END IF
-          END IF  ! shell_present
        END DO
     END DO
 
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_pp
+
+! *****************************************************************************
+!> \brief Compute the electrostatic interaction cutoffs
+!> \author Toon.Verstraelen@gmail.com
+! *****************************************************************************
+  SUBROUTINE force_field_pack_eicut(atomic_kind_set, ff_type, &
+      potparm_nonbond, ewald_env, error)
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(force_field_type), INTENT(IN)       :: ff_type
+    TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_eicut', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ewald_type, handle, i1, i2, &
+                                                nkinds, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, mm_radius1, &
+                                                mm_radius2, rcut2, &
+                                                rcut2_ewald, tmp
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: interaction_cutoffs
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    CALL timeset(routineN,handle)
+    failure = .FALSE.
+
+    tmp = 0.0_dp
+    nkinds = SIZE(atomic_kind_set)
+    ! allocate the array with interaction cutoffs for the electrostatics, used
+    ! to make the electrostatic interaction continuous at ewald_env%rcut
+    ALLOCATE(interaction_cutoffs(3,nkinds,nkinds), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    interaction_cutoffs = 0.0_dp
+
+    ! compute the interaction cutoff if SCALE_CUTOFF is active
+    IF (ff_type%scale_cutoff) THEN
+       CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type, &
+            rcut=rcut2_ewald)
+       rcut2_ewald = rcut2_ewald*rcut2_ewald
+       DO i1 = 1, nkinds
+          atomic_kind => atomic_kind_set(i1)
+          CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius1)
+          DO i2 = 1, nkinds
+             rcut2=rcut2_ewald
+             IF (ASSOCIATED(potparm_nonbond)) THEN
+                rcut2 = MAX(potparm_nonbond%pot(i1,i2)%pot%rcutsq, rcut2_ewald)
+             END IF
+             IF (rcut2 > 0) THEN
+                atomic_kind => atomic_kind_set(i2)
+                CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius2)
+                ! cutoff for core-core
+                interaction_cutoffs(1,i1,i2) = potential_coulomb(rcut2, tmp, &
+                  1.0_dp, ewald_type, alpha, 0.0_dp, 0.0_dp)
+                ! cutoff for core-shell, core-ion, shell-core or ion-core
+                interaction_cutoffs(2,i1,i2) = potential_coulomb(rcut2, tmp, &
+                  1.0_dp, ewald_type, alpha, mm_radius1, 0.0_dp)
+                ! cutoff for shell-shell or ion-ion
+                mm_radius2 = SQRT(mm_radius1*mm_radius1+mm_radius2*mm_radius2)
+                interaction_cutoffs(3,i1,i2) = potential_coulomb(rcut2, tmp, &
+                  1.0_dp, ewald_type, alpha, mm_radius2, 0.0_dp)
+             END IF
+          END DO
+       END DO
+    END IF
+
+    CALL ewald_env_set(ewald_env, interaction_cutoffs=interaction_cutoffs)
+
+    CALL timestop(handle)
+  END SUBROUTINE force_field_pack_eicut
 
 ! *****************************************************************************
 !> \brief Issues on screen a warning when repetitions are present in the

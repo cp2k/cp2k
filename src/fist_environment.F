@@ -31,7 +31,6 @@ MODULE fist_environment
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE ewald_environment_types,         ONLY: ewald_env_create,&
-                                             ewald_env_get,&
                                              ewald_env_release,&
                                              ewald_env_set,&
                                              ewald_environment_type,&
@@ -254,7 +253,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_multipoles
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -312,8 +310,6 @@ CONTAINS
     ! Possibly Initialize the multipole environment
     CALL create_multipole_type(multipoles, particle_set, subsys_section, ewald_env, error)
     CALL cp_subsys_set(subsys, multipoles=multipoles, error=error)
-
-    CALL ewald_env_get(ewald_env, do_multipoles=do_multipoles, error=error)
 
     ! Set the fist_env
     CALL set_fist_env ( fist_env = fist_env, subsys = subsys, error = error )

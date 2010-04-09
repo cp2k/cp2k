@@ -379,16 +379,19 @@ CONTAINS
 !> \brief Get attributes of an atomic kind.
 !> \author MK (02.01.2002)
 ! *****************************************************************************
-  SUBROUTINE get_atomic_kind(atomic_kind,all_potential,fist_potential,&
-       gth_potential,kg_potential,se_parameter,dftb_parameter,aux_basis_set,&
-       aux_fit_basis_set,orb_basis_set,geminal_basis_set,&
-       element_symbol,name,mass,kind_number,natom,atom_list,alpha_core_charge,&
-       ccore_charge,core_charge,alpha_scp,I_scp,core_charge_radius,ncgf,nsgf,rcov,z,zeff,qeff,apol,&
-       soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
-       hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
-       max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
-       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id,npgf,&
-       bs_occupation,no_optimize,addel,laddel,naddel,orbitals,max_scf,eps_scf,smear)
+  SUBROUTINE get_atomic_kind(atomic_kind, all_potential, fist_potential,&
+       gth_potential, kg_potential, se_parameter, dftb_parameter, &
+       aux_basis_set, aux_fit_basis_set, orb_basis_set, geminal_basis_set, &
+       element_symbol, name, mass, kind_number, natom, atom_list, &
+       alpha_core_charge, ccore_charge, core_charge, alpha_scp, I_scp, &
+       core_charge_radius, ncgf, nsgf, rcov, z, zeff, qeff, apol, mm_radius, &
+       soft_basis_set, elec_conf, hard_basis_set, paw_proj_set, softb, &
+       paw_atom,qm_atom, hard_radius, hard0_radius, max_rad_local, &
+       gpw_type_forced, harmonics, max_iso_not0, max_s_harm, grid_atom, &
+       ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active, &
+       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id, &
+       npgf, bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
+       max_scf, eps_scf, smear)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -422,7 +425,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcov
     INTEGER, INTENT(OUT), OPTIONAL           :: z
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff, apol
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff, apol, mm_radius
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: soft_basis_set
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
@@ -661,6 +664,13 @@ CONTAINS
              CALL get_potential(potential=atomic_kind%fist_potential,apol=apol)
           ELSE
              apol = -HUGE(0.0_dp)
+          END IF
+       END IF
+       IF (PRESENT(mm_radius)) THEN
+          IF (ASSOCIATED(atomic_kind%fist_potential)) THEN
+             CALL get_potential(potential=atomic_kind%fist_potential,mm_radius=mm_radius)
+          ELSE
+             mm_radius = -HUGE(0.0_dp)
           END IF
        END IF
        IF (PRESENT(soft_basis_set)) soft_basis_set => atomic_kind%soft_basis_set

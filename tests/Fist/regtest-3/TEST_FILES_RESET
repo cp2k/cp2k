@@ -116,3 +116,23 @@ silicon_cluster_4.inp
 silicon_cluster_5.inp
 silicon_cluster_6.inp
 silicon_cluster.inp
+# analytic electrostatic in Fist
+ace_ala_nme-ambconn.inp
+ace_ala_nme-amber.inp
+ace_ala_nme.inp
+al2o3.inp
+al2o3-res.inp
+NaCl-H2O.inp
+NaCl.inp
+nh3_4x6.inp
+nh3_4x6_npt.inp
+nh3_dist.inp
+nh3_dist_npt.inp
+silicon_cluster_2.inp
+silicon_cluster_3.inp
+silicon_cluster_4.inp
+silicon_cluster_5.inp
+silicon_cluster_6.inp
+silicon_cluster.inp
+water_2_TS_CG.inp
+water_2_TS.inp

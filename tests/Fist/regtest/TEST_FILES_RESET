@@ -492,3 +492,31 @@ water_hbonds_dist.inp
 # numerics
 H2OandI-dangchang.inp
 H2O-dimer-dangchang.inp
+# analytic electrostatic in Fist
+butane.inp
+deca_ala2.inp
+deca_ala2_xyz.inp
+deca_ala2_xyz_pdb.inp
+deca_ala3.inp
+deca_ala4.inp
+deca_ala5.inp
+deca_ala_avg2.inp
+deca_ala_include.inp
+deca_ala.inp
+deca_ala_noavg.inp
+deca_ala_reftraj2.inp
+deca_ala_reftraj3.inp
+deca_ala_reftraj.inp
+# analytic electrostatic in Fist
+gmax.inp
+h2o-32-g3x3-mult.inp
+h2po4.inp
+multi_frag_check.inp
+multi_frag.inp
+multipole_charge_check.inp
+multi_psf.inp
+pot_input.inp
+TNF2.inp
+water_2.inp
+water_2_rescaleF.inp
+water32_hbonds_2.inp

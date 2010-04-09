@@ -31,6 +31,7 @@ MODULE fist_nonbond_force
   USE mathconstants,                   ONLY: oorootpi
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
+  USE pair_potential_coulomb,          ONLY: potential_coulomb
   USE pair_potential_types,            ONLY: nosh_nosh,&
                                              nosh_sh,&
                                              pair_potential_pp_type,&
@@ -38,7 +39,8 @@ MODULE fist_nonbond_force
                                              sh_sh,&
                                              tersoff_type
   USE particle_types,                  ONLY: particle_type
-  USE shell_potential_types,           ONLY: shell_kind_type
+  USE shell_potential_types,           ONLY: get_shell,&
+                                             shell_kind_type
   USE splines_methods,                 ONLY: potential_s
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_factor_type
@@ -62,11 +64,12 @@ CONTAINS
 !> \brief Calculates the force and the potential of the minimum image, and
 !>      the pressure tensor
 ! *****************************************************************************
-  SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond,&
-       f_nonbond, pv_nonbond, fshell_nonbond, fcore_nonbond, &
-       atomic_kind_set, use_virial, error )
+  SUBROUTINE force_nonbond(fist_nonbond_env, ewald_env, particle_set, cell, &
+       pot_nonbond, f_nonbond, pv_nonbond, fshell_nonbond, fcore_nonbond, &
+       atomic_kind_set, use_virial, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set
     TYPE(cell_type), POINTER                 :: cell
@@ -82,16 +85,17 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: a_kind, atom_a, atom_b, b_kind, handle, i, iend, igrp, ikind, &
-      ilist, ipair, istart, jkind, nkinds, npairs, shell_a, shell_b, &
+    INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ilist, &
+      ipair, istart, kind_a, kind_b, nkinds, npairs, shell_a, shell_b, &
       shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: all_terms, do_shell, failure, &
-                                                full_nl, shell_present, &
-                                                swap_ab
-    REAL(KIND=dp) :: energy, fac, fac_kind, fscalar, ptens11, ptens12, &
-      ptens13, ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, rab2, &
-      rab2_com, rab2_max
+    LOGICAL                                  :: all_terms, do_multipoles, &
+                                                failure, full_nl, &
+                                                shell_present
+    REAL(KIND=dp) :: alpha, energy, fac, fac_kind, fscalar, mm_radius, &
+      mm_radius_a, mm_radius_b, ptens11, ptens12, ptens13, ptens21, ptens22, &
+      ptens23, ptens31, ptens32, ptens33, qcore_a, qcore_b, qeff_a, qeff_b, &
+      qshell_a, qshell_b, rab2, rab2_com, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, fr, rab, rab_cc, &
                                                 rab_com, rab_cs, rab_sc, &
                                                 rab_ss
@@ -99,6 +103,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 4)           :: rab_list
     REAL(KIND=dp), DIMENSION(4)              :: rab2_list
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ij_kind_full_fac
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: ei_interaction_cutoffs
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -109,21 +116,24 @@ CONTAINS
                                                 r_last_update_pbc, &
                                                 rcore_last_update_pbc, &
                                                 rshell_last_update_pbc
+    TYPE(shell_kind_type), POINTER           :: shell_kind
     TYPE(spline_data_p_type), DIMENSION(:), &
-      POINTER                                :: c_spline_data, &
-                                                cs_spline_data, &
-                                                sc_spline_data, spline_data
-    TYPE(spline_factor_type), POINTER        :: spl_c, spl_cs, spl_f, spl_sc
+      POINTER                                :: spline_data
+    TYPE(spline_factor_type), POINTER        :: spl_f
 
     CALL timeset ( routineN, handle )
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    NULLIFY(pot, c_spline_data, cs_spline_data, sc_spline_data, rshell_last_update_pbc)
-    NULLIFY(spl_f, spl_c, spl_cs, spl_sc, ij_kind_full_fac)
-    CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, potparm = potparm,&
-         r_last_update=r_last_update, r_last_update_pbc=r_last_update_pbc,natom_types = nkinds,&
-         rshell_last_update_pbc=rshell_last_update_pbc,rcore_last_update_pbc=rcore_last_update_pbc,&
+    NULLIFY(pot, rshell_last_update_pbc, spl_f, ij_kind_full_fac)
+    CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, &
+         potparm=potparm, r_last_update=r_last_update, &
+         r_last_update_pbc=r_last_update_pbc,natom_types=nkinds, &
+         rshell_last_update_pbc=rshell_last_update_pbc, &
+         rcore_last_update_pbc=rcore_last_update_pbc, &
          ij_kind_full_fac=ij_kind_full_fac, error=error)
+    CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type, &
+         do_multipoles=do_multipoles, &
+         interaction_cutoffs=ei_interaction_cutoffs)
 
     ! Initializing the potential energy, pressure tensor and force
     pot_nonbond        = 0.0_dp
@@ -153,51 +163,59 @@ CONTAINS
        Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
           istart   = neighbor_kind_pair%grp_kind_start(igrp)
           iend     = neighbor_kind_pair%grp_kind_end(igrp)
-          ikind    = neighbor_kind_pair%ij_kind(1,igrp)
-          jkind    = neighbor_kind_pair%ij_kind(2,igrp)
-          fac_kind = ij_kind_full_fac(ikind, jkind)
-          pot     => potparm%pot(ikind,jkind)%pot
+          kind_a   = neighbor_kind_pair%ij_kind(1,igrp)
+          kind_b   = neighbor_kind_pair%ij_kind(2,igrp)
+          fac_kind = ij_kind_full_fac(kind_a, kind_b)
+          pot     => potparm%pot(kind_a,kind_b)%pot
           full_nl  = ANY(pot%type==tersoff_type)
-          ! In case we have manybody potentials only they will be handled in the manybody routine...
+          ! In case we have only manybody potentials, this pair of atom types 
+          ! can be ignored here.
           IF (pot%only_mb) CYCLE
           ! Setup spline_data set
           spl_f       => pot%spl_f
           spline_data => pot%pair_spline_data
           shell_type  =  pot%shell_type 
           IF(shell_type/=nosh_nosh) THEN
-             c_spline_data => pot%c_coul_spline_data
-             spl_c         => pot%spl_c
+             CPPrecondition(.NOT.do_multipoles,cp_failure_level,routineP,error,failure)
              CPPostcondition(shell_present,cp_failure_level,routineP,error,failure)
-             do_shell = .TRUE.
-          ELSE
-             c_spline_data => pot%pair_spline_data
-             spl_c         => pot%spl_f
-             do_shell = .FALSE.
           END IF
-          IF(shell_type==sh_sh) THEN
-             cs_spline_data => pot%cs_coul_spline_data
-             sc_spline_data => pot%sc_coul_spline_data
-             spl_cs         => pot%spl_cs
-             spl_sc         => pot%spl_sc
+          IF (.NOT.do_multipoles) THEN
+             ! electrostatic parameters for atom a
+             atomic_kind => atomic_kind_set(kind_a)
+             CALL get_atomic_kind(atomic_kind, qeff=qeff_a, &
+                  mm_radius=mm_radius_a, shell=shell_kind)
+             IF (ASSOCIATED(shell_kind)) THEN
+                CALL get_shell(shell=shell_kind, charge_core=qcore_a, &
+                               charge_shell=qshell_a, error=error)
+             ELSE
+                qcore_a = qeff_a
+                qshell_a = HUGE(0.0_dp)
+             END IF
+             ! electrostatic parameters for atom b
+             atomic_kind => atomic_kind_set(kind_b)
+             CALL get_atomic_kind(atomic_kind, qeff=qeff_b, &
+                  mm_radius=mm_radius_b, shell=shell_kind)
+             IF (ASSOCIATED(shell_kind)) THEN
+                CALL get_shell(shell=shell_kind, charge_core=qcore_b, &
+                               charge_shell=qshell_b, error=error)
+             ELSE
+                qcore_b = qeff_b
+                qshell_b = HUGE(0.0_dp)
+             END IF
+             ! combine parameters
+             mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
           END IF
           rab2_max = pot%rcutsq
           Pairs: DO ipair = istart, iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
              fac    = fac_kind
+
              IF ((.NOT.full_nl).AND.(atom_a==atom_b)) fac = fac*0.5_dp
-             IF (do_shell) THEN
+             IF (shell_type/=nosh_nosh) THEN
+                ! do shell
                 all_terms = .TRUE.
-                a_kind  = particle_set(atom_a)%atomic_kind%kind_number
-                b_kind  = particle_set(atom_b)%atomic_kind%kind_number
-                swap_ab = (b_kind>a_kind)
-                IF (swap_ab) THEN
-                   cs_spline_data => pot%sc_coul_spline_data
-                   sc_spline_data => pot%cs_coul_spline_data
-                   spl_cs         => pot%spl_sc
-                   spl_sc         => pot%spl_cs
-                END IF
-                IF(shell_type==sh_sh) THEN
+                IF (shell_type==sh_sh) THEN
                    shell_a = particle_set(atom_a)%shell_index
                    shell_b = particle_set(atom_b)%shell_index
                    rab_cc =  rcore_last_update_pbc(shell_b)%r -  rcore_last_update_pbc(shell_a)%r
@@ -208,7 +226,7 @@ CONTAINS
                    rab_list(1:3,2) = rab_cs(1:3)+cell_v(1:3)
                    rab_list(1:3,3) = rab_sc(1:3)+cell_v(1:3)
                    rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
-                ELSEIF(shell_type==nosh_sh .AND. particle_set(atom_a)%shell_index/=0) THEN
+                ELSE IF (shell_type==nosh_sh .AND. particle_set(atom_a)%shell_index/=0) THEN
                    shell_a = particle_set(atom_a)%shell_index
                    shell_b = 0
                    rab_cc = r_last_update_pbc(atom_b)%r -  rcore_last_update_pbc(shell_a)%r
@@ -219,7 +237,7 @@ CONTAINS
                    rab_list(1:3,2) = 0.0_dp
                    rab_list(1:3,3) = 0.0_dp
                    rab_list(1:3,4) = rab_ss(1:3)+cell_v(1:3)
-                ELSEIF(shell_type==nosh_sh .AND. particle_set(atom_b)%shell_index/=0) THEN
+                ELSE IF (shell_type==nosh_sh .AND. particle_set(atom_b)%shell_index/=0) THEN
                    shell_b = particle_set(atom_b)%shell_index
                    shell_a = 0
                    rab_cc =  rcore_last_update_pbc(shell_b)%r - r_last_update_pbc(atom_a)%r
@@ -241,23 +259,44 @@ CONTAINS
                 END DO Check_terms
                 rab_com  = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
              ELSE
+                ! not do shell
                 rab_cc   = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
                 rab_com  = rab_cc
              END IF
              rab_com  = rab_com + cell_v
              rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
-             IF (do_shell) THEN
+             IF (shell_type/=nosh_nosh) THEN
+                ! do shell
                 IF (rab2_com <= rab2_max .AND. all_terms) THEN
                    ! SHELL MODEL
                    ! core-core or core-ion/ion-core: Coulomb only
                    rab = rab_list(:,1)
                    rab2 = rab2_list(1)
-                   energy =  potential_s (c_spline_data,rab2,fscalar, spl_c, logger)
+                   fscalar = 0.0_dp
+                   IF (shell_a == 0) THEN
+                      ! atom a is a plain ion and can have mm_radius_a > 0
+                      energy = potential_coulomb(rab2, fscalar, &
+                               qeff_a*qcore_b, ewald_type, alpha, &
+                               mm_radius_a, &
+                               ei_interaction_cutoffs(2, kind_a, kind_b))
+                   ELSE IF (shell_b == 0) THEN
+                      ! atom b is a plain ion and can have mm_radius_b > 0
+                      energy = potential_coulomb(rab2, fscalar, &
+                               qcore_a*qeff_b, ewald_type, alpha, &
+                               mm_radius_b, &
+                               ei_interaction_cutoffs(2, kind_b, kind_a))
+                   ELSE
+                      ! core-core interaction is always pure point charge
+                      energy = potential_coulomb(rab2, fscalar, &
+                               qcore_a*qcore_b, ewald_type, alpha, 0.0_dp, &
+                               ei_interaction_cutoffs(1, kind_a, kind_b))
+                   END IF
                    pot_nonbond = pot_nonbond + energy*fac
                    fscalar = fscalar*fac
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
                    fr(3) = fscalar*rab(3)
+
                    IF(shell_a /= 0 ) THEN
                       fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
                       fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
@@ -268,7 +307,7 @@ CONTAINS
                       f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
                       CPPostcondition(shell_b/=0,cp_failure_level,routineP,error,failure)
                    END IF
-                   
+
                    IF(shell_b /= 0 ) THEN
                       fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
                       fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
@@ -279,6 +318,7 @@ CONTAINS
                       f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
                       CPPostcondition(shell_a/=0,cp_failure_level,routineP,error,failure)
                    END IF
+
                    IF (use_virial) THEN
                       pv_com(1,1) = rab(1) * fr(1)
                       pv_com(1,2) = rab(1) * fr(2)
@@ -291,11 +331,15 @@ CONTAINS
                       pv_com(3,3) = rab(3) * fr(3)
                    END IF
           
-                   IF(shell_type==sh_sh) THEN
+                   IF (shell_type==sh_sh) THEN
                       ! shell-shell : VDW + Coulomb
                       rab  = rab_list(:,4)
                       rab2 = rab2_list(4)
-                      energy =  potential_s (spline_data,rab2,fscalar,spl_f,logger)
+                      energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
+                      pot_nonbond = pot_nonbond + energy*fac
+                      energy = potential_coulomb(rab2, fscalar, &
+                               qshell_a*qshell_b, ewald_type, alpha, mm_radius, &
+                               ei_interaction_cutoffs(3, kind_a, kind_b))
                       pot_nonbond = pot_nonbond + energy*fac
                       fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
@@ -322,7 +366,12 @@ CONTAINS
                       ! core-shell : Coulomb only
                       rab  = rab_list(:,2)
                       rab2 = rab2_list(2)
-                      energy =  potential_s (cs_spline_data,rab2,fscalar,spl_cs,logger)
+                      fscalar = 0.0_dp
+                      ! swap kind_a and kind_b to get the right cutoff
+                      energy = potential_coulomb(rab2, fscalar, &
+                               qcore_a*qshell_b, ewald_type, alpha, mm_radius_b, &
+                               ei_interaction_cutoffs(2, kind_b, kind_a))
+                      fscalar = fscalar * fac
                       pot_nonbond = pot_nonbond + energy*fac
                       fscalar = fscalar*fac
                       fr(1) = fscalar*rab(1)
@@ -349,7 +398,10 @@ CONTAINS
                       ! shell-core : Coulomb only
                       rab  = rab_list(:,3)
                       rab2 = rab2_list(3)
-                      energy =  potential_s (sc_spline_data,rab2,fscalar,spl_sc,logger)
+                      fscalar = 0.0_dp
+                      energy = potential_coulomb(rab2, fscalar, &
+                               qshell_a*qcore_b, ewald_type, alpha, mm_radius_a, &
+                               ei_interaction_cutoffs(2, kind_a, kind_b))
                       pot_nonbond = pot_nonbond + energy*fac
                       fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
@@ -372,31 +424,57 @@ CONTAINS
                          pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
                          pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
                       END IF
-                   ELSEIF(shell_type==nosh_sh) THEN
-                      ! shell-ion or ion-shell : VDW + Coulomb
+                   ELSE IF ((shell_type==nosh_sh) .AND. (shell_a==0)) THEN
+                      ! ion-shell : VDW + Coulomb
                       rab = rab_list(:,4)
                       rab2 = rab2_list(4)
-                      energy =  potential_s (spline_data,rab2,fscalar,spl_f,logger)
+                      energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
+                      pot_nonbond = pot_nonbond + energy*fac
+                      energy = potential_coulomb(rab2, fscalar, &
+                               qeff_a*qshell_b, ewald_type, alpha, mm_radius, &
+                               ei_interaction_cutoffs(3, kind_a, kind_b))
                       pot_nonbond = pot_nonbond + energy*fac
                       fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
-                      IF(shell_a/=0) THEN
-                         fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
-                         fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
-                         fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-                         f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                         f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                         f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                      ELSE
-                         f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-                         f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-                         f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
-                         fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
-                         fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
-                         fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
+                      f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
+                      f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
+                      f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+                      fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
+                      fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
+                      fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
+                      IF (use_virial) THEN
+                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
                       END IF
+                   ELSE IF ((shell_type==nosh_sh) .AND. (shell_b==0)) THEN
+                      ! shell-ion : VDW + Coulomb
+                      rab = rab_list(:,4)
+                      rab2 = rab2_list(4)
+                      energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
+                      pot_nonbond = pot_nonbond + energy*fac
+                      energy = potential_coulomb(rab2, fscalar, &
+                               qshell_a*qeff_b, ewald_type, alpha, mm_radius, &
+                               ei_interaction_cutoffs(3, kind_a, kind_b))
+                      pot_nonbond = pot_nonbond + energy*fac
+                      fscalar = fscalar * fac
+                      fr(1) = fscalar*rab(1)
+                      fr(2) = fscalar*rab(2)
+                      fr(3) = fscalar*rab(3)
+                      fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
+                      fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
+                      fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
+                      f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+                      f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+                      f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
                       IF (use_virial) THEN
                          pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
                          pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
@@ -420,29 +498,21 @@ CONTAINS
                       ptens23 = ptens23 + pv_com(2,3)
                       ptens33 = ptens33 + pv_com(3,3)
                    END IF
-                   ! Let's restore the proper order to save time...
-                   IF (swap_ab) THEN
-                      cs_spline_data => pot%cs_coul_spline_data
-                      sc_spline_data => pot%sc_coul_spline_data
-                      spl_cs         => pot%spl_cs
-                      spl_sc         => pot%spl_sc
-                   END IF
-                ELSE
-                   IF (swap_ab) THEN
-                      cs_spline_data => pot%cs_coul_spline_data
-                      sc_spline_data => pot%sc_coul_spline_data
-                      spl_cs         => pot%spl_cs
-                      spl_sc         => pot%spl_sc
-                   END IF
                 END IF
              ELSE
                 IF (rab2_com <= rab2_max) THEN
                    ! NO SHELL MODEL...
-                   ! Ion-Ion : no shell model
+                   ! Ion-Ion: no shell model, VDW + coulomb
                    rab  = rab_com
                    rab2 = rab2_com
-                   energy =  potential_s(c_spline_data,rab2,fscalar,spl_c,logger)
+                   energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
                    pot_nonbond = pot_nonbond + energy*fac
+                   IF (.NOT.do_multipoles) THEN
+                      energy = potential_coulomb(rab2, fscalar, qeff_a*qeff_b, &
+                               ewald_type, alpha, mm_radius, &
+                               ei_interaction_cutoffs(3, kind_a, kind_b))
+                      pot_nonbond = pot_nonbond + energy*fac
+                   END IF
                    fscalar = fscalar*fac
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
@@ -480,7 +550,6 @@ CONTAINS
        pv_nonbond(3,2) = pv_nonbond(3,2) + ptens32
        pv_nonbond(3,3) = pv_nonbond(3,3) + ptens33
     END IF
-
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond
 
