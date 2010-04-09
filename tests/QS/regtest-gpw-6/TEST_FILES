@@ -1,0 +1,28 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+#mixing procedures nr. 2
+si8_noort_broy_wc_jacobi_all.inp   23
+si8_noort_broy_wc_jacobi_ene2.inp   23
+si8_noort_broy_wc_jacobi_ene1.inp   23
+si8_noort_broy_wc_direct_ene.inp   23
+#
+si8_lsd_broy_stm.inp      1
+si8_lsd_broy_wc_ene.inp     23
+si8_lsd_broy_wc.inp      23
+si8_lsd_broy_wc_rst.inp     23
+si8_lsd_broy_wc_list.inp     23
+si8_lsd_broy_wc_list_rst.inp   23
+#
+c8_kerker.inp       1
+c8_pmix.inp         1
+c8_pmix_gapw.inp    1
+c8_kerker_gapw.inp  1
+#
+c8_broy.inp          1
+c8_broy_gop.inp      1
+c8_broy_gapw.inp     1
+c8_broy_gapw_gop.inp 1
