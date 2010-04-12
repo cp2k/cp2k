@@ -751,7 +751,7 @@ CONTAINS
     IF (output_unit>0) THEN
        WRITE(output_unit,'(T2,A)') "Process idle times [s] at the end of the run"
        DO i=0,para_env%num_pe-1
-         WRITE(output_unit,FMT='(A2,I4,A3,F8.3,A1)',ADVANCE="NO")&
+         WRITE(output_unit,FMT='(A2,I6,A3,F8.3,A1)',ADVANCE="NO")&
                 " (",i," : ",waittime(i),")"
          IF (MOD(i+1,4)==0) WRITE(output_unit,'(A)') ""
        ENDDO
