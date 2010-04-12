@@ -1077,7 +1077,7 @@ CONTAINS
     keep_sparsity = .FALSE.
     IF (PRESENT (retain_sparsity)) THEN
        !WRITE(*,*)routineN//" Retaining sparsity!"
-       keep_sparsity = .TRUE.
+       keep_sparsity = retain_sparsity
     END IF
     product_is_symmetric = product%symmetry
     ithread = 0 ; nthreads = 1
