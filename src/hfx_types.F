@@ -1359,7 +1359,6 @@ MODULE hfx_types
         image_cell_found = .FALSE.
         ALLOCATE(tmp_neighbor_cells(1:ub),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        WRITE(*,*) SIZE(tmp_neighbor_cells), ub, SIZE(x_data%neighbor_cells)
         DO i = 1,ub-1
           tmp_neighbor_cells(i) = x_data%neighbor_cells(i)
         END DO
