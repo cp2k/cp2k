@@ -100,6 +100,7 @@ MODULE dbcsr_methods
             dbcsr_name, dbcsr_may_be_dense,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
             dbcsr_is_transposed
+  PUBLIC :: dbcsr_get_data_size_used
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area,&
@@ -2028,6 +2029,46 @@ CONTAINS
     ENDIF
   END FUNCTION get_data_size_matrix
 
+
+! *****************************************************************************
+!> \brief Count actual data storage used for matrix
+!> \param[in] matrix          Count data of this matrix
+!> \param[in,out] error       Error
+!> \result data_size          Data size used by matrix
+! *****************************************************************************
+  FUNCTION dbcsr_get_data_size_used (matrix) RESULT (data_size)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER                                  :: data_size
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size_used', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, blk_p, col, nze, row
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
+
+!type(dbcsr_iterator_type) :: iter
+!   ---------------------------------------------------------------------------
+
+    row_blk_sizes = array_data (dbcsr_row_block_sizes (matrix))
+    col_blk_sizes = array_data (dbcsr_col_block_sizes (matrix))
+    data_size = 0
+    DO row = 1, matrix%m%nblkrows_total
+       DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)
+          col = matrix%m%col_i(blk)
+          blk_p = ABS (matrix%m%blk_p(blk))
+          nze = row_blk_sizes(row) * col_blk_sizes(col)
+          data_size = MAX (data_size, blk_p + nze-1)
+       ENDDO
+    ENDDO
+    !call dbcsr_iterator_start (iter, matrix)
+    !data_size = 0
+    !do while (dbcsr_iterator_blocks_left (iter))
+    !   call dbcsr_iterator_next_block (iter, row, col, blk, &
+    !        blk_p=blk_p, row_size=row_size, col_size=col_size)
+    !   data_size = MAX (data_size, blk_p + row_size*col_size-1)
+    !enddo
+    !call dbcsr_iterator_stop (iter)
+  END FUNCTION dbcsr_get_data_size_used
 
 
 ! *****************************************************************************

@@ -44,9 +44,9 @@ MODULE dbcsr_iterator_operations
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
 
-  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_next_block,&
-            dbcsr_iterator_stop, dbcsr_iterator_blocks_left,&
-            iterator_next_2d_block_d
+  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_seek
+
+  PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
 
 
   INTERFACE dbcsr_iterator_next_block
@@ -136,7 +136,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ithread, max_size
+    INTEGER                                  :: max_size
     LOGICAL                                  :: share
 
 !   ---------------------------------------------------------------------------
@@ -185,31 +185,24 @@ CONTAINS
     ELSE
        NULLIFY (iterator%tdist)
     ENDIF
-    IF (matrix%m%nblks .GE. 1) THEN
-       iterator%row = 1
-       iterator%pos = 1
-       IF (.NOT. iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
-       IF (iterator%row .GT. 0) THEN
-          IF (iterator%transpose) THEN
-             iterator%row_size = iterator%cbs(iterator%row)
-             iterator%row_offset = iterator%coff(iterator%row)
-          ELSE
-             iterator%row_size = iterator%rbs(iterator%row)
-             iterator%row_offset = iterator%roff(iterator%row)
-          ENDIF
-       ENDIF
-    ENDIF
+    CALL dbcsr_iterator_seek (iterator, 1)
+    !IF (matrix%m%nblks .GE. 1) THEN
+    !   iterator%row = 1
+    !   iterator%pos = 1
+    !   IF (.NOT. iterator%shared) THEN
+    !      CALL find_proper_position(iterator%pos,&
+    !           iterator%row, iterator%nblks, iterator%nblkrows_total,&
+    !           iterator%blk_p, iterator%row_p)
+    !   ELSE
+    !      ithread = 0
+!$  !      ithread = OMP_GET_THREAD_NUM()
+    !      CALL find_proper_position(iterator%pos,&
+    !           iterator%row, iterator%nblks, iterator%nblkrows_total,&
+    !           iterator%blk_p, iterator%row_p,&
+    !           tdist=iterator%tdist, tid=ithread)
+    !   ENDIF
+    !   CALL update_row_info (iterator)
+    !ENDIF
     max_size = MAX (matrix%m%max_rbs, matrix%m%max_cbs)
     CALL dbcsr_data_init(iterator%buffer_2d)
     CALL dbcsr_data_new(iterator%buffer_2d,&
@@ -278,7 +271,7 @@ CONTAINS
 !> \brief Finds the row to which the current block belongs
 !>
 !> If there is no valid block, pos is set to 0
-!> \param[in pos             current position
+!> \param[in] pos            current position
 !> \param[in,out] row        input: current row; output: the row corresponding
 !>                           to the position
 !> \param[in] maxrows        maxmimum row
@@ -396,6 +389,45 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE update_row_info
+
+! *****************************************************************************
+!> \brief Places the iterator to the desired row.
+!> \param[in,out] iterator     the iterator
+!> \param[in] row              seek to this row
+! *****************************************************************************
+  SUBROUTINE dbcsr_iterator_seek (iterator, row)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+    INTEGER, INTENT(in)                      :: row
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_seek', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ithread
+
+!   ---------------------------------------------------------------------------
+
+    IF (iterator%nblks .GT. 0) THEN
+       iterator%row = row
+       iterator%pos = iterator%row_p(row)+1
+       IF (.NOT.iterator%shared) THEN
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p)
+       ELSE
+          ithread = 0
+!$        ithread = OMP_GET_THREAD_NUM()
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p,&
+               tdist=iterator%tdist, tid=ithread)
+       ENDIF
+       CALL update_row_info (iterator)
+    ELSE
+       iterator%row = 0
+       iterator%pos = 0
+    ENDIF
+  END SUBROUTINE dbcsr_iterator_seek
+
 
 ! *****************************************************************************
 !> \brief Gets the index information of the next block, no data.

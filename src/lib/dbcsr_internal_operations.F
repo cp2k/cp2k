@@ -80,7 +80,6 @@ MODULE dbcsr_internal_operations
 
   PUBLIC :: dbcsr_mult_m_e_e
 
-
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
 #define DBGI IF (info) WRITE(*,*)routineN//" ",
@@ -1873,7 +1872,6 @@ CONTAINS
        val = n2
     ENDIF
   END FUNCTION select_n_or_t
-
 
 
 #include "dbcsr_internal_operations_d.F"

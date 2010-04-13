@@ -54,7 +54,8 @@ MODULE dbcsr_index_operations
   PUBLIC :: make_dense_index, make_undense_index
   ! Working with DBCSR and linear indices
   PUBLIC :: dbcsr_make_dbcsr_index, dbcsr_sort_indices,&
-            dbcsr_sort_many_indices, merge_index_arrays
+            dbcsr_sort_many_indices, merge_index_arrays,&
+            dbcsr_expand_row_index
   ! Index array manipulation
   PUBLIC :: dbcsr_addto_index_array, dbcsr_clearfrom_index_array,&
             dbcsr_repoint_index
@@ -210,8 +211,10 @@ CONTAINS
     ENDIF
   END SUBROUTINE make_index_triangular
 
-
-  SUBROUTINE dbcsr_make_dbcsr_index (row_p, row_i, nrows, nblks)
+! *****************************************************************************
+!> \brief Collapses a row_p index
+! *****************************************************************************
+  PURE SUBROUTINE dbcsr_make_dbcsr_index (row_p, row_i, nrows, nblks)
     INTEGER, INTENT(in)                      :: nrows, nblks
     INTEGER, DIMENSION(1:nrows+1), &
       INTENT(out)                            :: row_p
@@ -241,6 +244,21 @@ CONTAINS
     ENDDO
   END SUBROUTINE dbcsr_make_dbcsr_index
 
+! *****************************************************************************
+!> \brief Expands a row_p index
+! *****************************************************************************
+  PURE SUBROUTINE dbcsr_expand_row_index (row_p, row_i, nrows, nblks)
+    INTEGER, INTENT(in)                      :: nrows, nblks
+    INTEGER, DIMENSION(1:nrows+1), &
+      INTENT(IN)                             :: row_p
+    INTEGER, DIMENSION(1:nblks), INTENT(out) :: row_i
+
+    INTEGER                                  :: row
+
+    DO row = 1, nrows
+       row_i(row_p(row)+1 : row_p(row+1)) = row
+    ENDDO
+  END SUBROUTINE dbcsr_expand_row_index
 
 ! *****************************************************************************
 !> \brief Adds data to the index. Incleases the index size when neccessary.
@@ -1001,6 +1019,7 @@ CONTAINS
        ENDDO
     ENDIF
   END SUBROUTINE merge_index_arrays
+
 
   SUBROUTINE sort ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n

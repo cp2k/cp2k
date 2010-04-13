@@ -27,23 +27,31 @@ MODULE dbcsr_block_access
                                              btree_add_z => btree_add,&
                                              btree_get_z => btree_find
   USE dbcsr_block_operations,          ONLY: dbcsr_block_copy,&
-                                             dbcsr_block_transpose
+                                             dbcsr_block_transpose,&
+                                             dbcsr_data_clear
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_block_index,&
                                              dbcsr_get_stored_block_info,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling
+  USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
+                                             dbcsr_clearfrom_index_array,&
+                                             dbcsr_expand_row_index,&
+                                             dbcsr_make_dbcsr_index,&
+                                             dbcsr_sort_indices
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_column_size, dbcsr_blk_row_size, dbcsr_data_clear_pointer, &
        dbcsr_data_ensure_size, dbcsr_data_set_pointer, dbcsr_get_data_p, &
-       dbcsr_get_data_type, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
+       dbcsr_get_data_size_used, dbcsr_get_data_type, dbcsr_get_num_blocks, &
+       dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_nblkrows_total, &
        dbcsr_use_mutable, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: addto_array,&
                                              pointer_view
   USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_type_complex_4, &
-       dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
+       dbcsr_data_obj, dbcsr_obj, dbcsr_scalar_type, dbcsr_slot_blk_p, &
+       dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
+       dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_real_4, dbcsr_type_real_4_2d, &
        dbcsr_type_real_8, dbcsr_type_real_8_2d
   USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
@@ -66,7 +74,8 @@ MODULE dbcsr_block_access
   PUBLIC :: dbcsr_get_block, dbcsr_get_block_p,&
             dbcsr_put_block, dbcsr_remove_block
 
-  PUBLIC :: dbcsr_reserve_block2d, dbcsr_get_tmp_block2d
+  PUBLIC :: dbcsr_reserve_block2d, dbcsr_get_tmp_block2d, &
+            dbcsr_reserve_blocks
 
 
   INTERFACE dbcsr_get_block
@@ -427,6 +436,106 @@ CONTAINS
     END SELECT
   END SUBROUTINE dbcsr_put_block_area
 
+
+! *****************************************************************************
+!> \brief Inserts block reservations into a matrix, avoiding the work matrix.
+!> \par Data
+!>      No data can be specified; instead, space is reserved and zeroed. To
+!>      add data, call dbcsr_put_block afterwards.
+!> \param[in,out] matrix      Matrix into which blocks should be added.
+!> \param[in] rows            Rows of the blocks to add
+!> \param[in] columns         Columns of the blocks to add
+!> \param[in,out] error       Error
+! *****************************************************************************
+  SUBROUTINE dbcsr_reserve_blocks(matrix, rows, columns, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rows, columns
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_blocks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, blk_p, data_size, &
+                                                nblkrows, nblks_added, &
+                                                nblks_old, new_data_sizes, nze
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: new_blk_p, new_col_i, &
+                                                new_row_i
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_assert (SIZE(rows), "EQ", SIZE(columns), dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "Size of rows and columns array must match.", __LINE__, error=error)
+    ! Get current data size
+    data_size = dbcsr_get_data_size_used (matrix)
+    nblks_added = SIZE(rows)
+    nblks_old = dbcsr_get_num_blocks (matrix)
+    nblkrows = dbcsr_nblkrows_total(matrix)
+    CALL dbcsr_assert (SIZE(rows) .GT. 0, "IMP",&
+         nblkrows .GT. 0, dbcsr_fatal_level,&
+         dbcsr_internal_error, routineN,&
+         "Can not add blocks to matrix with no rows.", __LINE__, error=error)
+    ! Ensure that rows are sorted.
+    DO blk = 2, nblks_added
+       IF (rows(blk) .LT. rows(blk-1)) &
+            CALL dbcsr_assert (rows(blk) .GE. rows(blk-1), dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Rows must be ordered", __LINE__, error=error)
+    ENDDO
+    ! Adjust the index.
+    ALLOCATE (new_row_i (nblks_old + nblks_added))
+    !allocate (new_row_p (nblks_old (matrix)+1))
+    ALLOCATE (new_col_i (nblks_old + nblks_added))
+    ALLOCATE (new_blk_p (nblks_old + nblks_added))
+    CALL dbcsr_expand_row_index(matrix%m%row_p, new_row_i,&
+         nblkrows, nblks_old+nblks_added)
+    new_col_i(1:nblks_old) = matrix%m%col_i(1:nblks_old)
+    new_blk_p(1:nblks_old) = matrix%m%blk_p(1:nblks_old)
+    new_data_sizes = 0
+    blk_p = data_size + 1   ! New blocks start at the end of the old
+    DO blk = 1, nblks_added
+       new_row_i(nblks_old + blk) = rows(blk)
+       new_col_i(nblks_old + blk) = columns(blk)
+       new_blk_p(nblks_old + blk) = blk_p
+       nze = dbcsr_blk_row_size (matrix, rows(blk)) &
+            * dbcsr_blk_column_size (matrix, columns(blk))
+       blk_p = blk_p + nze
+    ENDDO
+    ! Sort the indices
+    CALL dbcsr_sort_indices (nblks_old + nblks_added, &
+         new_row_i, new_col_i, new_blk_p)
+    ! Write the new index
+    matrix%m%nblks = matrix%m%nblks + nblks_added
+    matrix%m%nze = matrix%m%nze + (blk_p)-(data_size+1)
+    matrix%m%index(dbcsr_slot_nblks) = matrix%m%nblks
+    matrix%m%index(dbcsr_slot_nze) = matrix%m%index(dbcsr_slot_nze)
+    CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_col_i)
+    CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_blk_p)
+    CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_col_i, new_col_i,&
+         extra=SIZE(new_blk_p), error=error)
+    CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_blk_p, new_blk_p,&
+         error=error)
+    CALL dbcsr_make_dbcsr_index (matrix%m%row_p, new_row_i, nblkrows,&
+         nblks_old + nblks_added)
+    ! Resize data area to fit the new blocks.
+    CALL dbcsr_data_ensure_size (matrix%m%data_area,&
+         data_size = blk_p-1, error=error)
+    ! Zero the new data blocks.
+    CALL dbcsr_data_clear (matrix%m%data_area, lb=data_size+1, ub=blk_p-1)
+    !IF (dbcsr_nblkrows_total (matrix) .GE. 1) THEN
+    !   new_row_p(1) = 0
+    !ENDIF
+    !prev_row = 0
+    !cumm_cols_added = 0
+    !do blk = 1, nblks_added
+    !   row = rows(blk)
+    !   if (row .eq. prev_row) CYCLE
+    !   new_row_p(prev_row+1:row) &
+    !        = matrix%m%row_p(prev_row+1:row) + cum_cols_added
+    !   ncols = COUNT (rows(:) .EQ. row)
+    !   cumm_cols_added = cumm_cols_added + ncols
+    !enddo
+  END SUBROUTINE dbcsr_reserve_blocks
 
 
 #include "dbcsr_block_access_d.F"
