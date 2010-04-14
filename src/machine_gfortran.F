@@ -192,7 +192,7 @@ END FUNCTION m_cputime
        RETURN
     ENDIF
     ! first remove target (needed on windows / mingw)
-    call unlink(TARGET)
+    CALL unlink(TARGET)
     ! now move 
     stat=rename(source,TARGET)
     IF (stat .NE. 0) THEN
