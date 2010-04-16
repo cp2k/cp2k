@@ -17,7 +17,8 @@ MODULE dbcsr_mp_operations
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
-  USE dbcsr_message_passing,           ONLY: mp_alltoall,&
+  USE dbcsr_message_passing,           ONLY: mp_allgather,&
+                                             mp_alltoall,&
                                              mp_irecv,&
                                              mp_isend,&
                                              mp_type_descriptor_type,&
@@ -50,6 +51,7 @@ MODULE dbcsr_mp_operations
   PUBLIC :: hybrid_alltoall_s1, hybrid_alltoall_d1,&
             hybrid_alltoall_c1, hybrid_alltoall_z1,&
             hybrid_alltoall_i1
+  PUBLIC :: dbcsr_allgatherv
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
   ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype
@@ -365,6 +367,43 @@ CONTAINS
     END SELECT
   END SUBROUTINE dbcsr_irecv_any
 
+! *****************************************************************************
+!> \brief Allgather of encapsulated data
+!> \sa mp_allgatherv_dv
+! *****************************************************************************
+  SUBROUTINE dbcsr_allgatherv(send_data, recv_data, recv_count, recv_displ, gid)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: send_data
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: recv_data
+    INTEGER, DIMENSION(:), INTENT(IN)        :: recv_count, recv_displ
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_allgatherv', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
+
+    CALL dbcsr_assert (dbcsr_get_data_type (send_data), "EQ",&
+         dbcsr_get_data_type (recv_data), dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN, "Data type mismatch", __LINE__,&
+         error=error)
+    SELECT CASE (dbcsr_get_data_type(send_data))
+    CASE (dbcsr_type_real_4)
+       CALL mp_allgather(send_data%d%r_sp, recv_data%d%r_sp,&
+       recv_count, recv_displ, gid)
+    CASE (dbcsr_type_real_8)
+       CALL mp_allgather(send_data%d%r_dp, recv_data%d%r_dp,&
+       recv_count, recv_displ, gid)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_allgather(send_data%d%c_sp, recv_data%d%c_sp,&
+       recv_count, recv_displ, gid)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_allgather(send_data%d%c_dp, recv_data%d%c_dp,&
+       recv_count, recv_displ, gid)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type", __LINE__, error=error)
+    END SELECT
+  END SUBROUTINE dbcsr_allgatherv
 
 
 #include "dbcsr_mp_operations_d.F"

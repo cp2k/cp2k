@@ -78,7 +78,8 @@ MODULE dbcsr_methods
             dbcsr_mp_myprow, dbcsr_mp_mypcol, dbcsr_mp_pgrid_equal,&
             dbcsr_mp_get_coordinates,&
             dbcsr_mp_my_row_group, dbcsr_mp_my_col_group,&
-            dbcsr_mp_has_subgroups, dbcsr_mp_get_process, dbcsr_mp_grid_setup
+            dbcsr_mp_has_subgroups, dbcsr_mp_get_process,&
+            dbcsr_mp_grid_setup, dbcsr_mp_grid_remove
   PUBLIC :: dbcsr_distribution_new, dbcsr_distribution_hold,&
             dbcsr_distribution_release, dbcsr_distribution_init
   PUBLIC :: dbcsr_distribution_mp, dbcsr_distribution_processor,&
@@ -603,12 +604,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sets up MPI cartesian process grid
 !> \param[in,out] mp_env      multiprocessor environment
+!> \param[in] force           (optional) force creation of subcommunicators
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mp_grid_setup(mp_env)
+  SUBROUTINE dbcsr_mp_grid_setup(mp_env, force)
     TYPE(dbcsr_mp_obj), INTENT(INOUT)        :: mp_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: force
 
     INTEGER                                  :: ndims, tmp_group
     INTEGER, DIMENSION(2)                    :: dims, my_pos
+    LOGICAL                                  :: should_make
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -617,7 +621,13 @@ CONTAINS
 !     dbcsr_fatal_level, dbcsr_internal_error, "mp_grid_setup",&
 !     "Subcommunicators should be turned off")
 
-    IF (.NOT. mp_env%mp%subgroups_defined .AND. use_subcommunicators) THEN
+    IF (PRESENT (force)) THEN
+       should_make = use_subcommunicators .OR. force
+    ELSE
+       should_make = use_subcommunicators
+    ENDIF
+
+    IF (.NOT. mp_env%mp%subgroups_defined .AND. should_make) THEN
        ! KG workaround.
        ! This will be deleted (replaced by code in mp_new).
        ndims = 2
@@ -638,6 +648,19 @@ CONTAINS
        mp_env%mp%subgroups_defined = .TRUE.
     ENDIF
   END SUBROUTINE dbcsr_mp_grid_setup
+
+! *****************************************************************************
+!> \brief Removes an MPI cartesian process grid
+!> \param[in,out] mp_env      multiprocessor environment
+! *****************************************************************************
+  SUBROUTINE dbcsr_mp_grid_remove (mp_env)
+    TYPE(dbcsr_mp_obj), INTENT(INOUT)        :: mp_env
+
+    IF (mp_env%mp%subgroups_defined) THEN
+       CALL mp_comm_free (mp_env%mp%prow_group)
+       CALL mp_comm_free (mp_env%mp%pcol_group)
+    ENDIF
+  END SUBROUTINE dbcsr_mp_grid_remove
 
 ! *****************************************************************************
 !> \brief Locks the DBCSR data structure for modification.
@@ -705,10 +728,7 @@ CONTAINS
     IF (ASSOCIATED (mp_env%mp)) THEN
        mp_env%mp%refcount = mp_env%mp%refcount - 1
        IF (mp_env%mp%refcount .LE. 0) THEN
-          IF (mp_env%mp%subgroups_defined) THEN
-             CALL mp_comm_free (mp_env%mp%prow_group)
-             CALL mp_comm_free (mp_env%mp%pcol_group)
-          ENDIF
+          CALL dbcsr_mp_grid_remove (mp_env)
           ! KG workaround
           !CALL mp_comm_free (mp_env%mp%mp_group)
           DEALLOCATE (mp_env%mp%pgrid)

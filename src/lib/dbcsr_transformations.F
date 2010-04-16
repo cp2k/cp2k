@@ -47,7 +47,8 @@ MODULE dbcsr_transformations
   USE dbcsr_kinds,                     ONLY: dp,&
                                              sp
   USE dbcsr_machine,                   ONLY: m_walltime
-  USE dbcsr_message_passing,           ONLY: mp_alltoall
+  USE dbcsr_message_passing,           ONLY: mp_allgather,&
+                                             mp_alltoall
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_data_clear_pointer, &
        dbcsr_data_ensure_size, dbcsr_data_hold, dbcsr_data_init, &
@@ -62,13 +63,16 @@ MODULE dbcsr_transformations
        dbcsr_distribution_nrows, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, &
-       dbcsr_init, dbcsr_is_initialized, dbcsr_mp_group, dbcsr_mp_mynode, &
+       dbcsr_init, dbcsr_is_initialized, dbcsr_mp_grid_remove, &
+       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
+       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_total, &
        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
        dbcsr_release, dbcsr_row_block_sizes, dbcsr_type_1d_to_2d, &
        dbcsr_uses_special_memory, dbcsr_valid_index
-  USE dbcsr_mp_operations,             ONLY: hybrid_alltoall_c1,&
+  USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
+                                             hybrid_alltoall_c1,&
                                              hybrid_alltoall_d1,&
                                              hybrid_alltoall_i1,&
                                              hybrid_alltoall_s1,&
@@ -77,11 +81,11 @@ MODULE dbcsr_transformations
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_meta_size, &
-       dbcsr_mp_obj, dbcsr_obj, dbcsr_repl_full, dbcsr_repl_none, &
-       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblks, dbcsr_slot_nze, &
-       dbcsr_slot_row_p, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_normal, &
-       dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_mp_obj, dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, &
+       dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
+       dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_type, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: &
        convert_sizes_to_offsets, dbcsr_checksum, dbcsr_pack_meta, &
        dbcsr_set_debug, dbcsr_unpack_meta, global_offsets_to_local, &
@@ -2078,41 +2082,59 @@ CONTAINS
   END SUBROUTINE make_undense_data
 
 
-
-
-
 ! *****************************************************************************
 !> \brief Replicates a DBCSR on all processors.
 !> \param[in,out] matrix      matrix to replicate
+!> \param[in,out] error       error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_replicate_all(matrix, error)
+  SUBROUTINE dbcsr_replicate_all (matrix, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replicate_all', &
+    CALL dbcsr_replicate (matrix, replicate_rows = .TRUE.,&
+         replicate_columns=.TRUE., error=error)
+  END SUBROUTINE dbcsr_replicate_all
+
+
+! *****************************************************************************
+!> \brief Replicates a DBCSR matrix among process rows and columns
+!> \param[in,out] matrix      matrix to replicate
+!> \param[in] replicate_rows  Row should be replicated among all
+!>                            processors
+!> \param[in] replicate_columns  Column should be replicated among
+!>                               all processors
+!> \param[in,out] error       error
+!> \par Direction definition
+!>      Row replication means that all processors in a process grid sharing
+!>      the same row get the data of the entire row. (In a 1-column grid the
+!>      operation has no effect.) Similar logic applies to column replication.
+! *****************************************************************************
+  SUBROUTINE dbcsr_replicate (matrix, replicate_rows, replicate_columns, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    LOGICAL, INTENT(IN)                      :: replicate_rows, &
+                                                replicate_columns
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replicate', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER :: blk, blk_l, blk_ps, blks, col, dst_p, error_handler, mp_group, &
-      numnodes, nze, row, src_p, stored_col, stored_row
+    CHARACTER                                :: data_type, rep_type
+    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, &
+      error_handler, mp_group, mynode, mypcol, myprow, nblks, numnodes, nze, &
+      row, row_size, smp, src_p, stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
-                                                sd_disp, sdp, send_meta, &
-                                                sm_disp, smp
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count, &
-                                                total_recv_count, &
-                                                total_send_count
+                                                send_meta
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count
+    INTEGER, DIMENSION(2)                    :: send_count
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist, &
                                                 tmp_index
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: had_subcomms, rep_all, tr
     REAL(KIND=dp)                            :: tstart, tstop
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_data, send_data
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
-    TYPE(dbcsr_data_obj)                     :: tmp_data
+    TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
+                                                send_data, tmp_data
     TYPE(dbcsr_distribution_obj)             :: target_dist
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj
@@ -2126,25 +2148,22 @@ CONTAINS
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix not initialized.",__LINE__,error)
-    CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
-         dbcsr_warning_level, dbcsr_caller_error, routineN,&
-         "Replicating a non-distributed matrix makes no sense.",__LINE__,error)
-    SELECT CASE (matrix%m%data_type)
-    CASE (dbcsr_type_real_8)
-       CALL dbcsr_get_data (matrix%m%data_area, r_dp)
-    CASE (dbcsr_type_real_4)
-       CALL dbcsr_get_data (matrix%m%data_area, r_sp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__,error)
-    CASE (dbcsr_type_complex_8)
-       CALL dbcsr_get_data (matrix%m%data_area, c_dp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__,error)
-    CASE (dbcsr_type_complex_4)
-       CALL dbcsr_get_data (matrix%m%data_area, c_sp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__,error)
-    END SELECT
+    !CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
+    !     dbcsr_warning_level, dbcsr_caller_error, routineN,&
+    !     "Replicating a non-distributed matrix makes no sense.",__LINE__,error)
+    IF (rep_all) THEN
+       rep_type = dbcsr_repl_full
+    ELSEIF (replicate_rows .AND. .NOT. replicate_columns) THEN
+       rep_type = dbcsr_repl_row
+    ELSEIF (replicate_columns .AND. .NOT. replicate_rows) THEN
+       rep_type = dbcsr_repl_col
+    ELSE
+       rep_type = dbcsr_repl_none
+       CALL dbcsr_assert(replicate_rows, "OR", replicate_columns, &
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Some replication must be specified", __LINE__, error=error)
+    ENDIF
+    data_type = dbcsr_get_data_type (matrix)
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
     target_dist = matrix%m%dist
@@ -2153,13 +2172,9 @@ CONTAINS
     mp_obj = dbcsr_distribution_mp (target_dist)
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     numnodes = dbcsr_mp_numnodes (mp_obj)
-    mp_group = dbcsr_mp_group (mp_obj)
-    DBGV 'row_dist', row_dist
-    DBGV 'col_dist', col_dist
-    DBG 'row, col maxval:', MAXVAL(row_dist), MAXVAL(col_dist)
-    DBG 'blacs2mpi',blacs2mpi
-    DBG 'blacs2mpi LB',LBOUND(blacs2mpi)
-    DBG 'blacs2mpi UB',UBOUND(blacs2mpi)
+    mynode = dbcsr_mp_mynode (mp_obj)
+    myprow = dbcsr_mp_myprow (mp_obj)
+    mypcol = dbcsr_mp_mypcol (mp_obj)
     CALL dbcsr_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows',__LINE__,error)
@@ -2176,129 +2191,137 @@ CONTAINS
             dbcsr_warning_level, dbcsr_wrong_args_error, routineN,&
             'Range of col distribution not equal to processor cols',__LINE__,error)
     ENDIF
-    ALLOCATE (send_count(2, 0:numnodes-1))
+    ! Define the number of nodes with which I will communicate. Also
+    ! setup row and column communicators.
+    had_subcomms = dbcsr_mp_has_subgroups (mp_obj)
+    SELECT CASE (rep_type)
+    CASE (dbcsr_repl_full)
+       numnodes = dbcsr_mp_numnodes (mp_obj)
+       mp_group = dbcsr_mp_group (mp_obj)
+    CASE (dbcsr_repl_row)
+       numnodes = dbcsr_mp_npcols (mp_obj)
+       CALL dbcsr_mp_grid_setup (mp_obj, force=.TRUE.)
+       mp_group = dbcsr_mp_my_row_group (mp_obj)
+    CASE (dbcsr_repl_col)
+       numnodes = dbcsr_mp_nprows (mp_obj)
+       CALL dbcsr_mp_grid_setup (mp_obj, force=.TRUE.)
+       mp_group = dbcsr_mp_my_col_group (mp_obj)
+    CASE (dbcsr_repl_none)
+       numnodes = 1
+       mp_group = dbcsr_mp_group (mp_obj)
+    END SELECT
+    CALL dbcsr_assert (rep_type.EQ.dbcsr_repl_row &
+         .OR. rep_type.EQ.dbcsr_repl_col,&
+         "IMP", dbcsr_mp_has_subgroups (mp_obj), dbcsr_fatal_level,&
+         dbcsr_unimplemented_error_nr, routineN,&
+         "Only full replication supported when subcommunicators are turned off.",&
+         __LINE__, error=error)
     ALLOCATE (recv_count(2, 0:numnodes-1))
-    ALLOCATE (total_send_count(2, 0:numnodes-1))
-    ALLOCATE (total_recv_count(2, 0:numnodes-1))
-    ALLOCATE (sdp(0:numnodes-1))
-    ALLOCATE (sd_disp(0:numnodes-1))
-    ALLOCATE (smp(0:numnodes-1))
-    ALLOCATE (sm_disp(0:numnodes-1))
     ALLOCATE (rd_disp(0:numnodes-1))
     ALLOCATE (rm_disp(0:numnodes-1))
     CALL dbcsr_init (replicated)
-    CALL dbcsr_create(replicated, 'Replicated '//matrix%m%name, matrix%m%dist,&
+    CALL dbcsr_create(replicated, 'Replicated '//TRIM(matrix%m%name),&
+         matrix%m%dist,&
          dbcsr_type_normal, matrix%m%row_blk_size, matrix%m%col_blk_size,&
          0, 0, matrix%m%data_type, special=matrix%m%special_memory,&
-         replication_type=dbcsr_repl_full, error=error)
-    ! Count initial sizes for sending.
-    DBG 'A'
-    send_count(:,:) = 0
+         replication_type=rep_type, error=error)
+    ! Count initial sizes for sending. Also, ensure that blocks are on their
+    ! home processors.
+    DBG 'A', " ", rep_type, dbcsr_mp_nprows(mp_obj), dbcsr_mp_npcols(mp_obj)
+    send_count(1:2) = 0
     CALL dbcsr_iterator_start (iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
-       nze = SIZE(r_dp)
-       DO dst_p = 0, numnodes-1
-          send_count(1, dst_p) = send_count(1, dst_p) + 1
-          send_count(2, dst_p) = send_count(2, dst_p) + nze
-       END DO
+       CALL dbcsr_iterator_next_block (iter, row, col, &
+            row_size=row_size, col_size=col_size, blk=blk)
+       !tr = .FALSE.
+       !CALL dbcsr_get_stored_coordinates (matrix, row, col, tr, dst_p)
+       !CALL dbcsr_assert (dst_p, "EQ", mynode, dbcsr_fatal_level,&
+       !     dbcsr_wrong_args_error, routineN, &
+       !     "Matrix is not correctly distributed. Call dbcsr_redistribute.",&
+       !     __LINE__, error=error)
+       nze = row_size * col_size
+       send_count(1) = send_count(1) + 1
+       send_count(2) = send_count(2) + nze
     ENDDO
     CALL dbcsr_iterator_stop (iter)
     DBG 'B'
-    CALL mp_alltoall(send_count, recv_count, 2, mp_group)
+    ! Exchange how much data others have.
+    CALL mp_allgather (send_count(1:2), recv_count, mp_group)
     DBG 'C'
     DBG 'send counts',send_count
     DBG 'recv counts',recv_count
-    ! Allocate data structures needed for data exchange.
-    ALLOCATE (recv_data(SUM(recv_count(2, :))))
-    ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :))))
-    ALLOCATE (send_data(SUM(send_count(2, :))))
-    ALLOCATE (send_meta(metalen*SUM(send_count(1, :))))
-    DBG 'send data len',SIZE (send_data)
+    CALL dbcsr_data_init (recv_data)
+    nze = SUM (recv_count(2, :))
+    nblks = SUM (recv_count(1, :))
+    CALL dbcsr_data_new (recv_data, data_type=data_type, data_size=nze)
+    ! send_data should have the correct size
+    CALL dbcsr_data_init (send_data)
+    IF (send_count(2) .EQ. 0) THEN
+       CALL dbcsr_data_new (send_data, data_type=data_type, data_size=0)
+    ELSE
+       CALL dbcsr_data_new (send_data, data_type=data_type)
+       send_data = pointer_view (send_data, matrix%m%data_area, 1, send_count(2))
+    ENDIF
+    ALLOCATE (recv_meta(metalen * nblks))
+    ALLOCATE (send_meta(metalen * send_count(1)))
+    recv_meta(:) = 0
     DBG 'send meta len',SIZE (send_meta)
-    DBG 'recv data len',SIZE (recv_data)
     DBG 'recv meta len',SIZE (recv_meta)
     ! Fill in the meta data structures and copy the data.
-    DO dst_p = 0, numnodes-1
-       total_send_count(1, dst_p) = send_count (1, dst_p)
-       total_send_count(2, dst_p) = send_count (2, dst_p)
-       total_recv_count(1, dst_p) = recv_count (1, dst_p)
-       total_recv_count(2, dst_p) = recv_count (2, dst_p)
-    ENDDO
-    sd_disp = -1 ; sm_disp = -1
     rd_disp = -1 ; rm_disp = -1
-    sd_disp(0) = 1 ; sm_disp(0) = 1
     rd_disp(0) = 1 ; rm_disp(0) = 1
     DO dst_p = 1, numnodes-1
-       sm_disp(dst_p) = sm_disp(dst_p-1)&
-                        + metalen*total_send_count(1, dst_p-1)
-       sd_disp(dst_p) = sd_disp(dst_p-1)&
-                        + total_send_count(2, dst_p-1)
        rm_disp(dst_p) = rm_disp(dst_p-1)&
-                        + metalen*total_recv_count(1, dst_p-1)
+                        + metalen*recv_count(1, dst_p-1)
        rd_disp(dst_p) = rd_disp(dst_p-1)&
-                        + total_recv_count(2, dst_p-1)
+                        + recv_count(2, dst_p-1)
     ENDDO
-    !DO dst_p = 0, numnodes-1
-    !      sm_disp (dst_p) = sm_disp (dst_p) + metalen*send_count(1, dst_p)
-    !      sd_disp (dst_p) = sd_disp (dst_p) + send_count(2, dst_p)
-    !      rm_disp (dst_p) = rm_disp (dst_p) + metalen*recv_count(1, dst_p)
-    !      rd_disp (dst_p) = rd_disp (dst_p) + recv_count(2, dst_p)
-    !ENDDO
-    sdp(:) = sd_disp
-    smp(:) = sm_disp
-    DBG 'send disps data',sd_disp
-    DBG 'send disps meta',sm_disp
     DBG 'recv disps data',rd_disp
     DBG 'recv disps meta',rm_disp
-    DBG 'D'
+    DBG 'D ', data_type
+    CALL dbcsr_data_init (data_block)
+    CALL dbcsr_data_new (data_block, data_type=data_type)
     CALL dbcsr_iterator_start (iter, matrix)
+    smp = 1
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
-       nze = SIZE(r_dp)
-       DO dst_p = 0, numnodes-1
-          send_meta(smp(dst_p)+1) = col
-          IF (.NOT. tr) THEN
-             send_meta(smp(dst_p)) = row
-             send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                  r_dp(:)
-          ELSE
-             send_meta(smp(dst_p)) = -row ! Mark block transposed
-             send_data(sdp(dst_p):sdp(dst_p)+nze-1) =&
-                  r_dp(:)
-          ENDIF
-          smp(dst_p) = smp(dst_p) + metalen
-          sdp(dst_p) = sdp(dst_p) + nze
-       END DO
+       CALL dbcsr_iterator_next_block (iter, row, col, blk,&
+            transposed=tr, blk_p=blk_p)
+       IF (tr) row = -row
+       send_meta(smp+0) = row
+       send_meta(smp+1) = col
+       smp = smp + metalen
     ENDDO
     CALL dbcsr_iterator_stop (iter)
+    CALL dbcsr_data_clear_pointer (data_block)
+    CALL dbcsr_data_release (data_block)
     ! Exchange the data and metadata structures.
-    DBG 'E'
-    CALL mp_alltoall(send_data(:), total_send_count(2,:), sd_disp(:)-1,&
-         recv_data(:), total_recv_count(2,:), rd_disp(:)-1, mp_group)
-    DBG 'F'
-    DBG 'send_meta',send_meta
-    CALL mp_alltoall(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
-         recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_group)
-    DBG 'recv_meta',recv_meta
-    DBG 'G'
+    CALL mp_allgather (send_meta, recv_meta, metalen*recv_count(1,:),&
+         rm_disp-1, mp_group)
+    CALL dbcsr_allgatherv (send_data, recv_data, recv_count(2,:),&
+         rd_disp-1, mp_group)
+    ! Release the send buffer. If it had a non-zero size then it was a
+    ! pointer into the regular matrix and the data pointer should be
+    ! cleared and not deallocated.
+    IF (send_count(2) .NE. 0) THEN
+       CALL dbcsr_data_clear_pointer (send_data)
+    ENDIF
+    CALL dbcsr_data_release (send_data)
+    !
     ! Now fill in the data.
     CALL dbcsr_work_create(replicated,&
             SUM(recv_count(1,:)),&
             SUM(recv_count(2,:)), n=1, error=error)
-    !DBG 'send disps data',sd_disp
-    !DBG 'send disps meta',sm_disp
-    !DBG 'recv disps data',rd_disp
-    !DBG 'recv disps meta',rm_disp
-    !blk_p = 1
-    !blk = 1
+    CALL dbcsr_data_hold (recv_data)
+    CALL dbcsr_data_release (replicated%m%wms(1)%data_area)
+    replicated%m%wms(1)%data_area = recv_data
     blk_ps = 1
     blks = 1
     DO src_p = 0, numnodes-1
        nze = recv_count(2, src_p)
-       CALL dbcsr_data_set (replicated%m%wms(1)%data_area, blk_ps, nze,&
-            recv_data, rd_disp(src_p))
+       !CALL dbcsr_data_set (replicated%m%wms(1)%data_area, blk_ps, nze,&
+       !     recv_data, rd_disp(src_p))
        DO blk_l = 1, recv_count(1, src_p)
+          IF (dbg) WRITE(*,*)"src_p, blk_l", src_p, blk_l
           stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
           stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
           DBG 'blk: p',blks,src_p,'; row, col',&
@@ -2318,19 +2341,21 @@ CONTAINS
     replicated%m%wms(1)%datasize = blk_ps - 1
     DBG 'Finalizing normalization'
     CALL dbcsr_finalize(replicated, resort=.TRUE., reshuffle=.TRUE., error=error)
+    !
+    ! Remove communicators if they were forcibly created.
+    IF (had_subcomms .AND.&
+         (rep_type .EQ. dbcsr_repl_row .OR. rep_type .EQ. dbcsr_repl_col)) THEN
+       CALL dbcsr_mp_grid_remove (mp_obj)
+    ENDIF
     tstop = m_walltime ()
     DBG 'time:',tstop-tstart
-    DEALLOCATE(send_count)
     DEALLOCATE(recv_count)
-    DEALLOCATE(sdp); DEALLOCATE(sd_disp)
-    DEALLOCATE(smp); DEALLOCATE(sm_disp)
     DEALLOCATE(rd_disp)
     DEALLOCATE(rm_disp)
-    DEALLOCATE(recv_data)
+    CALL dbcsr_data_release (recv_data)
     DEALLOCATE(recv_meta)
-    DEALLOCATE(send_data)
     DEALLOCATE(send_meta)
-    matrix%m%replication_type = dbcsr_repl_full
+    matrix%m%replication_type = replicated%m%replication_type
     ! Now replace the data and index
     tmp_data = matrix%m%data_area
     matrix%m%data_area = replicated%m%data_area
@@ -2344,7 +2369,7 @@ CONTAINS
     CALL dbcsr_release (replicated)
     DBG 'Done replicating'
     CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_replicate_all
+  END SUBROUTINE dbcsr_replicate
 
 
 ! *****************************************************************************
