@@ -285,6 +285,7 @@ CONTAINS
                                                 my_target_time, t1, t2, &
                                                 time_check
     TYPE(cp_logger_type), POINTER            :: logger
+    REAL(KIND=dp), SAVE                      :: t_last_file_check=0.0_dp
 
     CALL timeset(routineN,handle)
 
@@ -298,66 +299,72 @@ CONTAINS
     exit_fname_level = TRIM(logger%iter_info%project_name)//"."//TRIM(exit_gname_level)
 
     IF (logger%para_env%source==logger%para_env%mepos) THEN
-       ! allows for halting execution for a while
-       ! this is useful to copy a consistent snapshot of the output
-       ! while a simulation is running
-       INQUIRE (FILE="WAIT",EXIST=should_wait)
-       IF (should_wait) THEN
-          CALL open_file(file_name="WAITING",file_status="UNKNOWN",&
-               file_form="FORMATTED",file_action="WRITE",&
-               unit_number=unit_number)
-          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-               "*** waiting till the file WAIT has been removed ***"
-          DO
-             ! sleep a bit (to save the file system)
-             t1=m_walltime()
-             DO I=1,100000000
-                t2=m_walltime()
-                IF (t2-t1>1.0_dp) EXIT
+       ! files will only be checked every 20 seconds, or if the clock wraps/does not exist,
+       ! otherwise 64 waters on 64 cores can spend up to 10% of time here, on lustre
+       t1=m_walltime()
+       IF (t1>t_last_file_check+20.0_dp .OR. t1 <= t_last_file_check) THEN
+          t_last_file_check=t1
+          ! allows for halting execution for a while
+          ! this is useful to copy a consistent snapshot of the output
+          ! while a simulation is running
+          INQUIRE (FILE="WAIT",EXIST=should_wait)
+          IF (should_wait) THEN
+             CALL open_file(file_name="WAITING",file_status="UNKNOWN",&
+                  file_form="FORMATTED",file_action="WRITE",&
+                  unit_number=unit_number)
+             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                  "*** waiting till the file WAIT has been removed ***"
+             DO
+                ! sleep a bit (to save the file system)
+                t1=m_walltime()
+                DO I=1,100000000
+                   t2=m_walltime()
+                   IF (t2-t1>1.0_dp) EXIT
+                ENDDO
+                ! and ask again
+                INQUIRE (FILE="WAIT",EXIST=should_wait)
+                IF (.NOT.should_wait) EXIT
              ENDDO
-             ! and ask again
-             INQUIRE (FILE="WAIT",EXIST=should_wait)
-             IF (.NOT.should_wait) EXIT
-          ENDDO
-          CALL close_file(unit_number=unit_number,file_status="DELETE")
+             CALL close_file(unit_number=unit_number,file_status="DELETE")
+          ENDIF
+          ! EXIT control sequence
+          ! Check for <PROJECT_NAME>.EXIT_<FLAG>
+          IF (.NOT.should_stop) THEN
+             INQUIRE (FILE=exit_fname_level,EXIST=should_stop)
+             IF (should_stop) THEN
+                CALL open_file(file_name=exit_fname_level,unit_number=unit_number)
+                CALL close_file(unit_number=unit_number,file_status="DELETE")
+                WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                     "*** "//flag//" run terminated by external request ***"
+             END IF
+          END IF
+          ! Check for <PROJECT_NAME>.EXIT
+          IF (.NOT.should_stop) THEN
+             INQUIRE (FILE=exit_fname,EXIST=should_stop)
+             IF(should_stop) THEN
+                WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                     "*** "//TRIM(flag)//" run terminated by external request ***"
+             ENDIF
+          END IF
+          ! Check for EXIT_<FLAG>
+          IF (.NOT.should_stop) THEN
+             INQUIRE (FILE=exit_gname_level,EXIST=should_stop)
+             IF (should_stop) THEN
+                CALL open_file(file_name=exit_gname_level,unit_number=unit_number)
+                CALL close_file(unit_number=unit_number,file_status="DELETE")
+                WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                     "*** "//flag//" run terminated by external request ***"
+             END IF
+          END IF
+          ! Check for EXIT
+          IF (.NOT.should_stop) THEN
+             INQUIRE (FILE=exit_gname,EXIST=should_stop)
+             IF(should_stop) THEN
+                WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                     "*** "//TRIM(flag)//" run terminated by external request ***"
+             ENDIF
+          END IF
        ENDIF
-       ! EXIT control sequence
-       ! Check for <PROJECT_NAME>.EXIT_<FLAG>
-       IF (.NOT.should_stop) THEN
-          INQUIRE (FILE=exit_fname_level,EXIST=should_stop)
-          IF (should_stop) THEN
-             CALL open_file(file_name=exit_fname_level,unit_number=unit_number)
-             CALL close_file(unit_number=unit_number,file_status="DELETE")
-             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                  "*** "//flag//" run terminated by external request ***"
-          END IF
-       END IF
-       ! Check for <PROJECT_NAME>.EXIT
-       IF (.NOT.should_stop) THEN
-          INQUIRE (FILE=exit_fname,EXIST=should_stop)
-          IF(should_stop) THEN
-             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                  "*** "//TRIM(flag)//" run terminated by external request ***"
-          ENDIF
-       END IF
-       ! Check for EXIT_<FLAG>
-       IF (.NOT.should_stop) THEN
-          INQUIRE (FILE=exit_gname_level,EXIST=should_stop)
-          IF (should_stop) THEN
-             CALL open_file(file_name=exit_gname_level,unit_number=unit_number)
-             CALL close_file(unit_number=unit_number,file_status="DELETE")
-             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                  "*** "//flag//" run terminated by external request ***"
-          END IF
-       END IF
-       ! Check for EXIT
-       IF (.NOT.should_stop) THEN
-          INQUIRE (FILE=exit_gname,EXIST=should_stop)
-          IF(should_stop) THEN
-             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-                  "*** "//TRIM(flag)//" run terminated by external request ***"
-          ENDIF
-       END IF
 
        IF(PRESENT(target_time)) THEN
           my_target_time = target_time
