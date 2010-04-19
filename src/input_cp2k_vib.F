@@ -321,7 +321,7 @@ CONTAINS
        CALL keyword_create(keyword, name="INVOLVED_ATOMS",&
             description="Specifies the list of atoms on which the tracked eigenvector should have the highest value "//&
             "similar to looking for the vibration of a set of atoms",&
-            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            usage="INVOLVED_ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
