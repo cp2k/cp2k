@@ -284,8 +284,8 @@ CONTAINS
     REAL(KIND=dp)                            :: my_start_time, &
                                                 my_target_time, t1, t2, &
                                                 time_check
+    REAL(KIND=dp), SAVE                      :: t_last_file_check = 0.0_dp
     TYPE(cp_logger_type), POINTER            :: logger
-    REAL(KIND=dp), SAVE                      :: t_last_file_check=0.0_dp
 
     CALL timeset(routineN,handle)
 
