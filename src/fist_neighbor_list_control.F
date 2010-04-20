@@ -82,7 +82,7 @@ CONTAINS
       nparticle_local, nshell, num_update, output_unit, stat
     LOGICAL :: build_from_scratch, failure, geo_check, shell_adiabatic, &
       shell_present, update_neighbor_lists
-    LOGICAL, DIMENSION(:, :), POINTER        :: pot_type
+    LOGICAL, DIMENSION(:, :), POINTER        :: full_nl
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
                                                 verlet_skin
     REAL(KIND=dp), DIMENSION(3)              :: dr, rab, s, s2r
@@ -134,6 +134,8 @@ CONTAINS
     CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%GEO_CHECK",&
          l_val=geo_check,error=error)
     IF (ASSOCIATED(r_last_update)) THEN
+       ! Determine the maximum of the squared displacement, compared to
+       ! r_last_update.
        CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
             r_val=verlet_skin,error=error)
        dr2_max = 0.0_dp
@@ -151,6 +153,7 @@ CONTAINS
        
        CALL mp_max(dr2_max,para_env%group)
        
+       ! If the maximum distplacement is too large, ...
        IF (dr2_max > 0.25_dp*verlet_skin**2.OR.build_from_scratch) THEN
           DO iparticle=1,nparticle
              r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
@@ -158,6 +161,7 @@ CONTAINS
           update_neighbor_lists = .TRUE.
        END IF
     ELSE
+       ! There is no r_last_update to compare with. Neighbor lists from scratch.
        ALLOCATE (r_last_update(nparticle),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO iparticle=1,nparticle
@@ -172,7 +176,7 @@ CONTAINS
        IF (force_update) update_neighbor_lists = .TRUE.
     END IF
     
-    ! Update the rlast_update_pbc
+    ! Allocate the r_last_update_pbc, rshell_last_update_pbc, rcore_last_update_pbc
     IF (.NOT.ASSOCIATED(r_last_update_pbc)) THEN
        ALLOCATE (r_last_update_pbc(nparticle),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -188,20 +192,22 @@ CONTAINS
     
     ! update the neighbor lists
     IF (update_neighbor_lists) THEN
-       ALLOCATE(pot_type(nparticle_kind,nparticle_kind),stat=stat)
+       ! determine which pairs of atom kinds need full neighbor lists. Full
+       ! means that atom a is in the neighbor list of atom b and vice versa.
+       ALLOCATE(full_nl(nparticle_kind,nparticle_kind),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF (ASSOCIATED(potparm)) THEN
           DO ikind = 1, nparticle_kind
              DO jkind = ikind, nparticle_kind
-                pot_type(ikind, jkind) = .FALSE.
+                full_nl(ikind, jkind) = .FALSE.
                 IF (ANY(potparm%pot(ikind, jkind)%pot%type==tersoff_type)) THEN
-                   pot_type(ikind, jkind) = .TRUE.
+                   full_nl(ikind, jkind) = .TRUE.
                 END IF
-                pot_type(jkind, ikind) = pot_type(ikind, jkind)
+                full_nl(jkind, ikind) = full_nl(ikind, jkind)
              END DO
           END DO
        ELSE
-          pot_type = .FALSE.
+          full_nl = .FALSE.
        END IF
        CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
                                       local_particles,cell,rlist_cutsq,rlist_lowsq,&
@@ -209,7 +215,7 @@ CONTAINS
                                       build_from_scratch=build_from_scratch,&
                                       geo_check=geo_check,&
                                       mm_section=mm_section,&
-                                      pot_type=pot_type,&
+                                      full_nl=full_nl,&
                                       error=error)
        
        CALL cell_release(cell_last_update,error=error)
@@ -250,10 +256,12 @@ CONTAINS
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,mm_section,&
             "PRINT%NEIGHBOR_LISTS",error=error)
-       DEALLOCATE(pot_type,stat=stat)
+       DEALLOCATE(full_nl,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
+    ! Store particle positions after the last update, translated to the
+    ! primitive cell, in r_last_update_pbc.
     DO iparticle=1,nparticle
        rab = r_last_update(iparticle)%r
        IF (cell%orthorhombic) THEN
@@ -275,6 +283,7 @@ CONTAINS
           rab(3) = + cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
        END IF
        r_last_update_pbc(iparticle )%r=particle_set(iparticle)%r+rab
+       ! Use the same translation for core and shell.
        ishell = particle_set(iparticle)%shell_index
        IF(ishell/=0) THEN
           rshell_last_update_pbc(ishell )%r =  rab + shell_particle_set(ishell)%r(:)

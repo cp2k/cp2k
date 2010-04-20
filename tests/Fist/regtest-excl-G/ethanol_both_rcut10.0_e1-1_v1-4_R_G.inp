@@ -1,0 +1,224 @@
+# The expected energy for this input is -0.0294065540954.
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT_NAME ethanol_both_rcut10.0_e1-1_v1-4_R_G
+  RUN_TYPE energy
+&END GLOBAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+   &FORCEFIELD
+     &SPLINE
+       EMAX_SPLINE 200.0
+       EMAX_ACCURACY 100.0
+       EPS_SPLINE 1.0E-8
+       RCUT_NB 10.0
+       R0_NB 0.8
+       #UNIQUE_SPLINE T
+     &END SPLINE
+     &BOND
+       ATOMS C H
+       K 0.0
+       R0 1.0
+     &END BOND
+     &BOND
+       ATOMS C C
+       K 0.0
+       R0 1.0
+     &END BOND
+     &BOND
+       ATOMS C O
+       K 0.0
+       R0 1.0
+     &END BOND
+     &BOND
+       ATOMS O H
+       K 0.0
+       R0 1.0
+     &END BOND
+     &BEND
+       ATOMS C O H
+       K 0.0
+       THETA0 1.0
+     &END BEND
+     &BEND
+       ATOMS O C H
+       K 0.0
+       THETA0 1.0
+     &END BEND
+     &BEND
+       ATOMS C C H
+       K 0.0
+       THETA0 1.0
+     &END BEND
+     &BEND
+       ATOMS C C O
+       K 0.0
+       THETA0 1.0
+     &END BEND
+     &BEND
+       ATOMS H C H
+       K 0.0
+       THETA0 1.0
+     &END BEND
+&CHARGE
+ATOM O
+CHARGE -0.4
+&END CHARGE
+&CHARGE
+ATOM H
+CHARGE 0.1
+&END CHARGE
+&CHARGE
+ATOM C
+CHARGE -0.1
+&END CHARGE
+     EI_SCALE14 1.0
+     VDW_SCALE14 1.0
+     SCALE_CUTOFF F
+&NONBONDED
+&GENPOT
+ATOMS H H
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.00380879917604 2.31204899506
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS C H
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.00932961451403 2.92956277419
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS C C
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.0228527950562 3.71200526729
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS O H
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.0107729109022 2.76596119741
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS O C
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.0263881347549 3.50470815112
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS O O
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.0304703934083 3.30898755256
+VARIABLES r
+&END GENPOT
+&END NONBONDED
+&NONBONDED14
+&GENPOT
+ATOMS H H
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.00380879917604 1.61843429654
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS C H
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.00932961451403 2.05069394193
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS C C
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.0228527950562 2.59840368711
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS O H
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.0107729109022 1.93617283818
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS O C
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.0263881347549 2.45329570578
+VARIABLES r
+&END GENPOT
+&GENPOT
+ATOMS O O
+FUNCTION 4*epsilon*((sigma/(r+sigma))**12 - (sigma/(r+sigma))**6)
+PARAMETERS epsilon sigma
+VALUES 0.0304703934083 2.31629128679
+VARIABLES r
+&END GENPOT
+&END NONBONDED14
+   &END FORCEFIELD
+   &POISSON
+     PERIODIC NONE
+     POISSON_SOLVER ANALYTIC
+     &EWALD
+       EWALD_TYPE NONE
+       ALPHA 0.3
+       GMAX 25
+       O_SPLINE 6
+
+     &END EWALD
+    &END POISSON
+    &PRINT
+      &NEIGHBOR_LISTS
+        FILENAME __STD_OUT__
+      &END NEIGHBOR_LISTS
+      &FF_INFO
+      &END FF_INFO
+      &EWALD_INFO
+      &END EWALD_INFO
+    &END PRINT
+  &END MM
+   &SUBSYS
+&KIND O
+  MM_RADIUS 2.1
+&END KIND
+&KIND H
+  MM_RADIUS 0.5
+&END KIND
+&KIND C
+  MM_RADIUS 1.5
+&END KIND
+     &CELL
+       ABC 8.0 8.0 8.0
+       PERIODIC NONE
+     &END CELL
+     &COORD
+         C     -1.601187     1.908357     0.000095
+         C     -0.071160     1.693609    -0.000569
+         O      0.545930     2.985531     0.001638
+         H     -2.126633     0.949947     0.000481
+         H     -1.913125     2.468411     0.885351
+         H     -1.913931     2.468140    -0.885049
+         H      0.251446     1.147873    -0.889479
+         H      0.251769     1.144685     0.886258
+         H      1.501101     2.889364     0.001274
+     &END COORD
+     &TOPOLOGY
+       &GENERATE
+         CREATE_MOLECULES T
+       &END GENERATE
+       EXCLUDE_EI 1-1
+       EXCLUDE_VDW 1-4
+
+
+     &END TOPOLOGY
+   &END SUBSYS
+ &END FORCE_EVAL

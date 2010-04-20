@@ -30,7 +30,16 @@ MODULE fist_neighbor_list_types
      INTEGER, POINTER, DIMENSION(:)    :: grp_kind_start, grp_kind_end
      INTEGER                           :: cell_vector(3), npairs
      INTEGER                           :: ngrp_kind
-     REAL(dp)                          :: rmax
+     REAL(KIND=dp)                     :: rmax
+     ! The exclude_* arrays are flags that mark corresponding pairs in 'list'
+     ! for exclusion for certain types of interactions. To keep the size of
+     ! these arrays small, pairs that must be excluded are moved to beginning
+     ! of the array 'list'. nexclude is the number of elements in exclude_*
+     ! that is effectively used. This way one does not have to reallocate the
+     ! exclude_* arrays for every new exclusion.
+     LOGICAL, POINTER, DIMENSION(:)    :: exclude_ei
+     LOGICAL, POINTER, DIMENSION(:)    :: exclude_vdw
+     INTEGER                           :: nexclude
   END TYPE neighbor_kind_pairs_type
 
 ! *****************************************************************************
@@ -89,6 +98,14 @@ CONTAINS
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
           END DO
           DEALLOCATE(fist_neighbor%neighbor_kind_pairs, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -137,6 +154,9 @@ CONTAINS
              list_size = SIZE(new_pairs(i)%list)
              ALLOCATE(new_pairs(i)%id_kind(list_size),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(new_pairs(i)%exclude_ei(0),stat=stat)
+             ALLOCATE(new_pairs(i)%exclude_vdw(0),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
                      new_pairs(i)%grp_kind_end)
@@ -154,6 +174,14 @@ CONTAINS
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
           ENDDO
@@ -183,6 +211,10 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           NULLIFY(fist_neighbor%neighbor_kind_pairs(i)%ij_kind,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
@@ -195,6 +227,7 @@ CONTAINS
        fist_neighbor%neighbor_kind_pairs(i)%list=HUGE(0)
        fist_neighbor%neighbor_kind_pairs(i)%id_kind=HUGE(0)
        fist_neighbor%neighbor_kind_pairs(i)%cell_vector=HUGE(0)
+       fist_neighbor%neighbor_kind_pairs(i)%nexclude = 0
     ENDDO
     CALL timestop ( handle )
   END SUBROUTINE fist_neighbor_init
@@ -206,11 +239,13 @@ CONTAINS
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, exclusion_list,&
-       particle_set, rab, added, id_kind, is_full, cell, error)
+  SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
+       list_exclude_ei, list_exclude_vdw, particle_set, rab, added, id_kind, &
+       is_full, cell, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
-    INTEGER, DIMENSION(:), POINTER           :: exclusion_list
+    INTEGER, DIMENSION(:), POINTER           :: list_exclude_ei, &
+                                                list_exclude_vdw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -224,47 +259,97 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER :: eps_default = EPSILON(0.0_dp)*1.0E4_dp
 
-    INTEGER                                  :: new_size, old_size, stat
+    INTEGER                                  :: new_npairs, nexclude, npairs, &
+                                                old_npairs, stat
     INTEGER, DIMENSION(:), POINTER           :: new_id_kind
     INTEGER, DIMENSION(:, :), POINTER        :: new_list
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: ex_ei, ex_vdw, failure, local
     REAL(KIND=dp), DIMENSION(3)              :: rabc
 
-    IF (ANY(exclusion_list==atom_b).AND.(.NOT.is_full)) THEN
-       ! Given an exclusion list only atoms connected within the shortest
-       ! periodic replica are assumed to be connected...
-       rabc  = pbc(particle_set(atom_b)%r - particle_set(atom_a)%r, cell)
-       IF ((ALL(ABS(rab-rabc)<eps_default))) THEN
-          added = .FALSE.
-          RETURN
-       END IF
+    ex_ei = ANY(list_exclude_ei==atom_b)
+    ex_vdw = ANY(list_exclude_vdw==atom_b)
+    local = .FALSE.
+    IF (ex_ei.OR.ex_vdw) THEN
+       ! check if this pair could correspond to a local interaction (bond, bend,
+       ! or torsion) to which the exclusion lists apply.
+       !
+       ! rab is the relative vector that may include some cell vectors. rabc is
+       ! the 'shortest' possible relative vector, i.e. cell vectors are
+       ! subtracted. When they are the same, rab corresponds to a local
+       ! interaction and the exclusion lists must be taken into account. This
+       ! check is only done if ex_ei and ex_vdw are .TRUE. to save some time.
+       rabc = pbc(rab, cell)
+       IF ((ALL(ABS(rab-rabc)<eps_default))) local = .TRUE.
+    END IF
+
+    ! In some cases the pair can be completely omitted.
+    IF (local.AND.ex_ei.AND.ex_vdw.AND.(.NOT.is_full)) THEN
+       added = .FALSE.
+       RETURN
     END IF
     added = .TRUE.
-    old_size=SIZE(neighbor_kind_pair%list,2)
 
-    IF (old_size==neighbor_kind_pair%npairs) THEN
+    ! If the interaction is not local, disable exclusion
+    IF (.NOT.local) THEN
+       ex_ei = .FALSE.
+       ex_vdw = .FALSE.
+    END IF
+
+    ! If exclusions matter, store the flags
+    IF (ex_ei.OR.ex_vdw) THEN
+       ! Allocate more memory for the exclusions if necessary.
+       nexclude = neighbor_kind_pair%nexclude
+       IF (nexclude==SIZE(neighbor_kind_pair%exclude_ei)) THEN
+          CALL reallocate(neighbor_kind_pair%exclude_ei, 1, INT(5+1.2*nexclude))
+          CALL reallocate(neighbor_kind_pair%exclude_vdw, 1, INT(5+1.2*nexclude))
+       END IF
+       nexclude = nexclude + 1
+       neighbor_kind_pair%exclude_ei(nexclude) = ex_ei
+       neighbor_kind_pair%exclude_vdw(nexclude) = ex_vdw
+       neighbor_kind_pair%nexclude = nexclude
+    ELSE
+       nexclude = HUGE(0)
+    END IF
+
+    ! Allocate more memory for the pair list if necessary.
+    old_npairs=SIZE(neighbor_kind_pair%list,2)
+    IF (old_npairs==neighbor_kind_pair%npairs) THEN
        failure = .FALSE.
-       new_size=INT(5+1.2*old_size) ! just a choice that will also grow for zero size arrays
+       ! just a choice that will also grow for zero size arrays:
+       new_npairs = INT(5+1.2*old_npairs)
        ! Pair Atoms Info
-       ALLOCATE(new_list(2,new_size),stat=stat)
+       ALLOCATE(new_list(2,new_npairs),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
-       new_list(1:2,1:old_size)=neighbor_kind_pair%list(1:2,1:old_size)
+       new_list(1:2,1:old_npairs)=neighbor_kind_pair%list(1:2,1:old_npairs)
        DEALLOCATE(neighbor_kind_pair%list,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        neighbor_kind_pair%list=>new_list
        ! Kind Info
-       ALLOCATE(new_id_kind(new_size),stat=stat)
+       ALLOCATE(new_id_kind(new_npairs),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
-       new_id_kind(1:old_size)=neighbor_kind_pair%id_kind(1:old_size)
+       new_id_kind(1:old_npairs)=neighbor_kind_pair%id_kind(1:old_npairs)
        DEALLOCATE(neighbor_kind_pair%id_kind,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        neighbor_kind_pair%id_kind=>new_id_kind
     ENDIF
     
-    neighbor_kind_pair%npairs=neighbor_kind_pair%npairs+1
-    neighbor_kind_pair%list(1,neighbor_kind_pair%npairs)=atom_a
-    neighbor_kind_pair%list(2,neighbor_kind_pair%npairs)=atom_b
-    neighbor_kind_pair%id_kind(neighbor_kind_pair%npairs)=id_kind
+    ! Store the pair ...
+    npairs = neighbor_kind_pair%npairs + 1
+    IF ((ex_ei.OR.ex_vdw).AND.(npairs>nexclude)) THEN
+       ! ... after the previous pair that had exclusion flags.
+       neighbor_kind_pair%list(1,npairs) = neighbor_kind_pair%list(1,nexclude)
+       neighbor_kind_pair%list(2,npairs) = neighbor_kind_pair%list(2,nexclude)
+       neighbor_kind_pair%id_kind(npairs) = neighbor_kind_pair%id_kind(nexclude)
+       neighbor_kind_pair%list(1,nexclude) = atom_a
+       neighbor_kind_pair%list(2,nexclude) = atom_b
+       neighbor_kind_pair%id_kind(nexclude) = id_kind
+    ELSE
+       ! ... at the end of the list.
+       neighbor_kind_pair%list(1,npairs) = atom_a
+       neighbor_kind_pair%list(2,npairs) = atom_b
+       neighbor_kind_pair%id_kind(npairs) = id_kind
+    END IF
+    neighbor_kind_pair%npairs = npairs
   END SUBROUTINE fist_neighbor_add
 
 END MODULE fist_neighbor_list_types

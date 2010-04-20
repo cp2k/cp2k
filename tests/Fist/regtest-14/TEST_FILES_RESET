@@ -18,3 +18,10 @@ argon-gle_r.inp
 12_exvdw_12_exei_list_2.inp
 12_exvdw_12_exei_list_empty.inp
 lamol.inp
+# different ei and vdw exclusion lists started working
+11_exvdw_12_exei.inp
+12_exvdw_12_exei_list_1_check.inp
+12_exvdw_12_exei_list_1.inp
+12_exvdw_12_exei_list_2_c.inp
+12_exvdw_12_exei_list_2.inp
+

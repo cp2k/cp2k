@@ -79,7 +79,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,local_particles,&
        cell,r_max, r_minsq, nonbonded,para_env,build_from_scratch,geo_check,mm_section,&
-       pot_type,error)
+       full_nl,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -94,7 +94,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: build_from_scratch, geo_check
     TYPE(section_vals_type), POINTER         :: mm_section
     LOGICAL, DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: pot_type
+      POINTER                                :: full_nl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists', &
@@ -108,7 +108,7 @@ CONTAINS
                                                 present_local_particles, &
                                                 print_subcell_grid
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
-    LOGICAL, DIMENSION(:, :), POINTER        :: my_pot_type
+    LOGICAL, DIMENSION(:, :), POINTER        :: my_full_nl
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
@@ -134,13 +134,13 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (skip_kind(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ! Pot_type
-    IF (PRESENT(pot_type)) THEN
-       my_pot_type => pot_type
+    ! full_nl
+    IF (PRESENT(full_nl)) THEN
+       my_full_nl => full_nl
     ELSE
-       ALLOCATE(my_pot_type(nkind,nkind),STAT=stat)
+       ALLOCATE(my_full_nl(nkind,nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       my_pot_type = .FALSE.
+       my_full_nl = .FALSE.
     END IF
     ! Initialize the local data structures
     maxatom_local = 0
@@ -185,7 +185,7 @@ CONTAINS
     ! Build the nonbonded neighbor lists
     CALL build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
          print_subcell_grid,output_unit,r_max,r_minsq, geo_check,"NONBONDED",&
-         skip_kind,my_pot_type,error)
+         skip_kind,my_full_nl,error)
 
     ! Sort the list according kinds for each cell
     CALL sort_neighbor_lists(nonbonded, nkind, error)
@@ -222,10 +222,10 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-    IF (PRESENT(pot_type)) THEN
-       NULLIFY(my_pot_type)
+    IF (PRESENT(full_nl)) THEN
+       NULLIFY(my_full_nl)
     ELSE
-       DEALLOCATE(my_pot_type,STAT=stat)
+       DEALLOCATE(my_full_nl,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     DEALLOCATE (atom,STAT=stat)
@@ -564,19 +564,21 @@ CONTAINS
                    j1  = nkind - j1 + 1
                    id_kind = nkind00-(j1*(j1+1)/2)+i1
                    ! Store the pair
-                   CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b,&
-                        exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
-                        particle_set=particle_set, rab=rab, added=added, id_kind=id_kind,&
-                        is_full=is_full,cell=cell,error=error)
+                   CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
+                        list_exclude_ei=particle_set(atom_a)%list_exclude_ei, &
+                        list_exclude_vdw=particle_set(atom_a)%list_exclude_vdw, &
+                        particle_set=particle_set, rab=rab, added=added, &
+                        id_kind=id_kind, is_full=is_full, cell=cell, error=error)
                    ! This is to handle properly when interaction radius is larger than cell size
                    IF ((atom_a==atom_b).AND.(ik_start==0)) THEN
                       invcellmap = cellmap(-b_pi,-b_pj,-b_pk)
                       inv_neighbor_kind_pair => nonbonded%neighbor_kind_pairs(invcellmap)
                       rab = rab - 2.0_dp * cell_v
-                      CALL fist_neighbor_add(inv_neighbor_kind_pair, atom_a, atom_b,&
-                           exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
-                           particle_set=particle_set, rab=rab, added=added, id_kind=id_kind,&
-                           is_full=is_full,cell=cell,error=error) 
+                      CALL fist_neighbor_add(inv_neighbor_kind_pair, atom_a, atom_b, &
+                           list_exclude_ei=particle_set(atom_a)%list_exclude_ei, &
+                           list_exclude_vdw=particle_set(atom_a)%list_exclude_vdw, &
+                           particle_set=particle_set, rab=rab, added=added, &
+                           id_kind=id_kind, is_full=is_full, cell=cell, error=error)
                    END IF
                    ! Check for too close hits
                    IF (added) THEN
@@ -771,48 +773,61 @@ CONTAINS
 
     INTEGER                                  :: handle, iab, id_kind, ikind, &
                                                 ipair, jkind, max_alloc_size, &
-                                                npairs, stat, tmp
+                                                nexclude, npairs, stat, tmp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indj
     INTEGER, DIMENSION(:), POINTER           :: work
-    INTEGER, DIMENSION(:, :), POINTER        :: ab_work
+    INTEGER, DIMENSION(:, :), POINTER        :: list_copy
     LOGICAL                                  :: failure
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
     failure = .FALSE.
     NULLIFY(neighbor_kind_pair)
     CALL timeset(routineN,handle)
-    max_alloc_size = nkinds*(nkinds+1)/2
-    ALLOCATE(indj(max_alloc_size),stat=stat)
+    ! define a lookup table to get jkind for a given id_kind
+    ALLOCATE(indj(nkinds*(nkinds+1)/2),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     id_kind = 0
-    Ext_Loop: DO jkind = 1, nkinds
+    DO jkind = 1, nkinds
        DO ikind = jkind, nkinds
           id_kind = id_kind + 1
           indj(id_kind)=jkind
        END DO
-    END DO Ext_Loop
+    END DO
+    ! loop over all nlists and sort the pairs within each list.
     DO iab=1, nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
        npairs = neighbor_kind_pair%npairs
+       nexclude = neighbor_kind_pair%nexclude
        IF (npairs/=0) THEN 
-          ALLOCATE(work(1:npairs),stat=stat)
+          ! 1) Sort the atom pairs by id_kind. Atoms with exclusion flags are
+          !    not touched.
+          ALLOCATE(work(1:npairs-nexclude),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(ab_work(2,1:npairs),stat=stat)
+          ALLOCATE(list_copy(2,1:npairs-nexclude),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO ipair = 1, npairs
-             ab_work(1,ipair) = neighbor_kind_pair%list(1,ipair)
-             ab_work(2,ipair) = neighbor_kind_pair%list(2,ipair)
-          END DO
-          CALL sort(neighbor_kind_pair%id_kind,npairs,work)
-          ! Remap atoms
-          DO ipair = 1, npairs
-             tmp = work(ipair)
-             neighbor_kind_pair%list(1,ipair) = ab_work(1,tmp)
-             neighbor_kind_pair%list(2,ipair) = ab_work(2,tmp)
+          ! Copy of the pair list is required to perform the permutation below
+          ! correctly.
+          list_copy = neighbor_kind_pair%list(:,nexclude+1:npairs)
+          CALL sort(neighbor_kind_pair%id_kind(nexclude+1:npairs),npairs-nexclude,work)
+          ! Reorder atoms using the same permutation that was used to sort
+          ! the array id_kind.
+          DO ipair = nexclude+1, npairs
+             tmp = work(ipair-nexclude)
+             neighbor_kind_pair%list(1,ipair) = list_copy(1,tmp)
+             neighbor_kind_pair%list(2,ipair) = list_copy(2,tmp)
           END DO
           DEALLOCATE(work,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(ab_work,stat=stat)
+          DEALLOCATE(list_copy,stat=stat)
+          ! 2) determine the intervals (groups) in the pair list that correspond
+          !    to a certain id_kind. also store the corresponding ikind and
+          !    jkind. Note that this part does not assume ikind to be sorted,
+          !    but it only makes sense when contiguous blobs of the same ikind
+          !    are present.
+          ! Allocate sufficient memory in case all pairs of atom kinds are
+          ! present, and also provide storage for the pairs with exclusion
+          ! flags, which are unsorted.
+          max_alloc_size = nkinds*(nkinds+1)/2 + nexclude
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (ASSOCIATED(neighbor_kind_pair%grp_kind_start)) THEN
              DEALLOCATE(neighbor_kind_pair%grp_kind_start,stat=stat)
@@ -832,32 +847,36 @@ CONTAINS
           END IF
           ALLOCATE(neighbor_kind_pair%ij_kind(2,max_alloc_size),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! Start the first interval.
           ipair = 1 
           neighbor_kind_pair%ngrp_kind = 1
           neighbor_kind_pair%grp_kind_start(neighbor_kind_pair%ngrp_kind)=ipair
-          jkind = indj(neighbor_kind_pair%id_kind(ipair))
+          ! Get ikind and jkind corresponding to id_kind.
+          id_kind = neighbor_kind_pair%id_kind(ipair)
+          jkind = indj(id_kind)
           tmp   = nkinds - jkind
-          ikind = nkinds + neighbor_kind_pair%id_kind(ipair) - max_alloc_size +&
-               (tmp*(tmp+1)/2)
+          ikind = nkinds + id_kind - nkinds*(nkinds+1)/2 + (tmp*(tmp+1)/2)
           neighbor_kind_pair%ij_kind(1,neighbor_kind_pair%ngrp_kind) = ikind
           neighbor_kind_pair%ij_kind(2,neighbor_kind_pair%ngrp_kind) = jkind
-          ! Define groups
+          ! Define the remaining intervals.
           DO ipair = 2, npairs
              IF (neighbor_kind_pair%id_kind(ipair)/=neighbor_kind_pair%id_kind(ipair-1)) THEN
                 neighbor_kind_pair%grp_kind_end(neighbor_kind_pair%ngrp_kind) = ipair-1
                 neighbor_kind_pair%ngrp_kind = neighbor_kind_pair%ngrp_kind + 1
                 neighbor_kind_pair%grp_kind_start(neighbor_kind_pair%ngrp_kind)=ipair
-                ! 
-                jkind = indj(neighbor_kind_pair%id_kind(ipair))
+                ! Get ikind and jkind corresponding to id_kind.
+                id_kind = neighbor_kind_pair%id_kind(ipair)
+                jkind = indj(id_kind)
                 tmp   = nkinds - jkind
-                ikind = nkinds + neighbor_kind_pair%id_kind(ipair) - max_alloc_size +&
-                     (tmp*(tmp+1)/2)
+                ikind = nkinds + id_kind - nkinds*(nkinds+1)/2 + (tmp*(tmp+1)/2)
                 neighbor_kind_pair%ij_kind(1,neighbor_kind_pair%ngrp_kind) = ikind
                 neighbor_kind_pair%ij_kind(2,neighbor_kind_pair%ngrp_kind) = jkind
              END IF
           END DO
+          ! Finish the last interval.
           neighbor_kind_pair%grp_kind_end(neighbor_kind_pair%ngrp_kind) = npairs
-          ! Get the real size..
+          ! Reduce the grp arrays to the actual size because not all pairs of
+          ! atom types have to be present in this pair list.
           CALL reallocate(neighbor_kind_pair%grp_kind_start,1,neighbor_kind_pair%ngrp_kind)
           CALL reallocate(neighbor_kind_pair%grp_kind_end,  1,neighbor_kind_pair%ngrp_kind)
           CALL reallocate(neighbor_kind_pair%ij_kind,   1,2,1,neighbor_kind_pair%ngrp_kind)

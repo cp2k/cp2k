@@ -1,0 +1,70 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+ethanol_both_rcut10.0_e1-1_v1-1___G.inp 11
+ethanol_both_rcut10.0_e1-1_v1-1_R_G.inp 11
+ethanol_both_rcut10.0_e1-1_v1-1_RSG.inp 11
+ethanol_both_rcut10.0_e1-1_v1-1__SG.inp 11
+ethanol_both_rcut10.0_e1-1_v1-2___G.inp 11
+ethanol_both_rcut10.0_e1-1_v1-2_R_G.inp 11
+ethanol_both_rcut10.0_e1-1_v1-2_RSG.inp 11
+ethanol_both_rcut10.0_e1-1_v1-2__SG.inp 11
+ethanol_both_rcut10.0_e1-1_v1-3___G.inp 11
+ethanol_both_rcut10.0_e1-1_v1-3_R_G.inp 11
+ethanol_both_rcut10.0_e1-1_v1-3_RSG.inp 11
+ethanol_both_rcut10.0_e1-1_v1-3__SG.inp 11
+ethanol_both_rcut10.0_e1-1_v1-4___G.inp 11
+ethanol_both_rcut10.0_e1-1_v1-4_R_G.inp 11
+ethanol_both_rcut10.0_e1-1_v1-4_RSG.inp 11
+ethanol_both_rcut10.0_e1-1_v1-4__SG.inp 11
+ethanol_both_rcut10.0_e1-2_v1-1___G.inp 11
+ethanol_both_rcut10.0_e1-2_v1-1_R_G.inp 11
+ethanol_both_rcut10.0_e1-2_v1-1_RSG.inp 11
+ethanol_both_rcut10.0_e1-2_v1-1__SG.inp 11
+ethanol_both_rcut10.0_e1-2_v1-2___G.inp 11
+ethanol_both_rcut10.0_e1-2_v1-2_R_G.inp 11
+ethanol_both_rcut10.0_e1-2_v1-2_RSG.inp 11
+ethanol_both_rcut10.0_e1-2_v1-2__SG.inp 11
+ethanol_both_rcut10.0_e1-2_v1-3___G.inp 11
+ethanol_both_rcut10.0_e1-2_v1-3_R_G.inp 11
+ethanol_both_rcut10.0_e1-2_v1-3_RSG.inp 11
+ethanol_both_rcut10.0_e1-2_v1-3__SG.inp 11
+ethanol_both_rcut10.0_e1-2_v1-4___G.inp 11
+ethanol_both_rcut10.0_e1-2_v1-4_R_G.inp 11
+ethanol_both_rcut10.0_e1-2_v1-4_RSG.inp 11
+ethanol_both_rcut10.0_e1-2_v1-4__SG.inp 11
+ethanol_both_rcut10.0_e1-3_v1-1___G.inp 11
+ethanol_both_rcut10.0_e1-3_v1-1_R_G.inp 11
+ethanol_both_rcut10.0_e1-3_v1-1_RSG.inp 11
+ethanol_both_rcut10.0_e1-3_v1-1__SG.inp 11
+ethanol_both_rcut10.0_e1-3_v1-2___G.inp 11
+ethanol_both_rcut10.0_e1-3_v1-2_R_G.inp 11
+ethanol_both_rcut10.0_e1-3_v1-2_RSG.inp 11
+ethanol_both_rcut10.0_e1-3_v1-2__SG.inp 11
+ethanol_both_rcut10.0_e1-3_v1-3___G.inp 11
+ethanol_both_rcut10.0_e1-3_v1-3_R_G.inp 11
+ethanol_both_rcut10.0_e1-3_v1-3_RSG.inp 11
+ethanol_both_rcut10.0_e1-3_v1-3__SG.inp 11
+ethanol_both_rcut10.0_e1-3_v1-4___G.inp 11
+ethanol_both_rcut10.0_e1-3_v1-4_R_G.inp 11
+ethanol_both_rcut10.0_e1-3_v1-4_RSG.inp 11
+ethanol_both_rcut10.0_e1-3_v1-4__SG.inp 11
+ethanol_both_rcut10.0_e1-4_v1-1___G.inp 11
+ethanol_both_rcut10.0_e1-4_v1-1_R_G.inp 11
+ethanol_both_rcut10.0_e1-4_v1-1_RSG.inp 11
+ethanol_both_rcut10.0_e1-4_v1-1__SG.inp 11
+ethanol_both_rcut10.0_e1-4_v1-2___G.inp 11
+ethanol_both_rcut10.0_e1-4_v1-2_R_G.inp 11
+ethanol_both_rcut10.0_e1-4_v1-2_RSG.inp 11
+ethanol_both_rcut10.0_e1-4_v1-2__SG.inp 11
+ethanol_both_rcut10.0_e1-4_v1-3___G.inp 11
+ethanol_both_rcut10.0_e1-4_v1-3_R_G.inp 11
+ethanol_both_rcut10.0_e1-4_v1-3_RSG.inp 11
+ethanol_both_rcut10.0_e1-4_v1-3__SG.inp 11
+ethanol_both_rcut10.0_e1-4_v1-4___G.inp 11
+ethanol_both_rcut10.0_e1-4_v1-4_R_G.inp 11
+ethanol_both_rcut10.0_e1-4_v1-4_RSG.inp 11
+ethanol_both_rcut10.0_e1-4_v1-4__SG.inp 11

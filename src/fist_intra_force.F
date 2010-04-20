@@ -16,7 +16,8 @@ MODULE fist_intra_force
                                              pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_ff_harmonic
+  USE input_constants,                 ONLY: do_ewald_none,&
+                                             do_ff_harmonic
   USE kinds,                           ONLY: dp
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
@@ -32,6 +33,7 @@ MODULE fist_intra_force
        ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
+  USE pair_potential_coulomb,          ONLY: potential_coulomb
   USE particle_types,                  ONLY: particle_type
   USE splines_methods,                 ONLY: potential_s
   USE splines_types,                   ONLY: spline_data_p_type,&
@@ -93,8 +95,8 @@ CONTAINS
       nbends, nbonds, nimptors, nkind, nmol_per_kind, nonefs, nopbends, &
       nshell, ntorsions, nub
     REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
-      id32, is32, ism, isn, qeff_a, qeff_b, rab2, rab2_max, rinv, rinv2, s32, &
-      sm, sn, theta
+      id32, is32, ism, isn, mm_radius, mm_radius_a, mm_radius_b, qeff_a, &
+      qeff_b, rab2, rab2_max, s32, sm, sn, theta
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, k1, k2, k3, &
                                                 k4, rij, t12, t32, t34, t41, &
@@ -113,8 +115,6 @@ CONTAINS
     TYPE(spline_factor_type), POINTER        :: spl_f
     TYPE(torsion_type), POINTER              :: torsion_list( : )
     TYPE(ub_type), POINTER                   :: ub_list( : )
-
-! TODO REMOVE THIS
 
     CALL timeset ( routineN, handle )
     NULLIFY(logger)
@@ -502,19 +502,19 @@ CONTAINS
 
              ! EI contribution
              ! TODO: THIS WILL DISSAPEAR SOON. IGNORE UGLY MESS FOR NOW.
-             ! DO NOT FIX THE BUG THAT THE MM_RADIUS IS FORGOTTEN HERE.
+             ! One remaining error is that the do_ewald_none and alpha=0.0 are
+             ! hard-wired here. Solution is to do ei14 in fist_force_nonbond.F
              IF ((ei_scale14 > 0).AND.(rab2 <= rab2_max)) THEN
-                CALL get_atomic_kind(particle_set(index_a)%atomic_kind, qeff=qeff_a)
-                CALL get_atomic_kind(particle_set(index_b)%atomic_kind, qeff=qeff_b)
-                rinv2 = 1.0_dp/rab2
-                rinv  = SQRT(rinv2)
+                CALL get_atomic_kind(particle_set(index_a)%atomic_kind, qeff=qeff_a, mm_radius=mm_radius_a)
+                CALL get_atomic_kind(particle_set(index_b)%atomic_kind, qeff=qeff_b, mm_radius=mm_radius_b)
+                mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
+                energy = potential_coulomb(rab2, fscalar, qeff_a*qeff_b*ei_scale14,&
+                            do_ewald_none, 0.0_dp, mm_radius, 0.0_dp)
                 IF (scale_cutoff) THEN
-                   energy = qeff_a*qeff_b*ei_scale14*(rinv-1.0_dp/SQRT(rab2_max))
-                ELSE
-                   energy = qeff_a*qeff_b*ei_scale14*rinv
+                   energy = energy - potential_coulomb(rab2_max, mm_radius_a,&
+                            qeff_a*qeff_b*ei_scale14, do_ewald_none, 0.0_dp, mm_radius, 0.0_dp)
                 END IF
                 pot_onef = pot_onef + energy
-                fscalar = fscalar + qeff_a*qeff_b*ei_scale14*rinv*rinv2
              END IF
 
              ! add forces

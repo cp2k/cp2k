@@ -243,3 +243,6 @@ uo2_shell_nvt_shnosemass_r.inp
 uo2_shell_nvt_shnose_r.inp
 uo2_shell_nvt_tkind_1.inp
 uo2_shell_nvt_tkind.inp
+# Fixed a typo in fist_nonbond_force
+uo2_nvt-1.inp
+uo2_nvt.inp

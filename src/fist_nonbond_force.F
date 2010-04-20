@@ -89,7 +89,8 @@ CONTAINS
       ipair, istart, kind_a, kind_b, nkinds, npairs, shell_a, shell_b, &
       shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: all_terms, do_multipoles, &
+    LOGICAL                                  :: all_terms, do_ei, &
+                                                do_multipoles, do_vdw, &
                                                 failure, full_nl, &
                                                 shell_present
     REAL(KIND=dp) :: alpha, energy, fac, fac_kind, fscalar, mm_radius, &
@@ -210,8 +211,16 @@ CONTAINS
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
              fac    = fac_kind
-
              IF ((.NOT.full_nl).AND.(atom_a==atom_b)) fac = fac*0.5_dp
+             ! decide which interactions to compute
+             do_ei = (.NOT. do_multipoles)
+             do_vdw = .TRUE.
+             IF (ipair <= neighbor_kind_pair%nexclude) THEN
+                do_ei = do_ei .AND. (.NOT. neighbor_kind_pair%exclude_ei(ipair))
+                do_vdw = .NOT. neighbor_kind_pair%exclude_vdw(ipair)
+             END IF
+
+             ! compute the relative vector(s) for this pair
              IF (shell_type/=nosh_nosh) THEN
                 ! do shell
                 all_terms = .TRUE.
@@ -265,58 +274,61 @@ CONTAINS
              END IF
              rab_com  = rab_com + cell_v
              rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
+
+             ! compute the interactions
              IF (shell_type/=nosh_nosh) THEN
                 ! do shell
                 IF (rab2_com <= rab2_max .AND. all_terms) THEN
-                   ! SHELL MODEL
-                   ! core-core or core-ion/ion-core: Coulomb only
-                   rab = rab_list(:,1)
-                   rab2 = rab2_list(1)
-                   fscalar = 0.0_dp
-                   IF (shell_a == 0) THEN
-                      ! atom a is a plain ion and can have mm_radius_a > 0
-                      energy = potential_coulomb(rab2, fscalar, &
-                               qeff_a*qcore_b, ewald_type, alpha, &
-                               mm_radius_a, &
-                               ei_interaction_cutoffs(2, kind_a, kind_b))
-                   ELSE IF (shell_b == 0) THEN
-                      ! atom b is a plain ion and can have mm_radius_b > 0
-                      energy = potential_coulomb(rab2, fscalar, &
-                               qcore_a*qeff_b, ewald_type, alpha, &
-                               mm_radius_b, &
-                               ei_interaction_cutoffs(2, kind_b, kind_a))
-                   ELSE
-                      ! core-core interaction is always pure point charge
-                      energy = potential_coulomb(rab2, fscalar, &
-                               qcore_a*qcore_b, ewald_type, alpha, 0.0_dp, &
-                               ei_interaction_cutoffs(1, kind_a, kind_b))
-                   END IF
-                   pot_nonbond = pot_nonbond + energy*fac
-                   fscalar = fscalar*fac
-                   fr(1) = fscalar*rab(1)
-                   fr(2) = fscalar*rab(2)
-                   fr(3) = fscalar*rab(3)
+                   IF (do_ei) THEN
+                      ! core-core or core-ion/ion-core: Coulomb only
+                      rab = rab_list(:,1)
+                      rab2 = rab2_list(1)
+                      fscalar = 0.0_dp
+                      IF (shell_a == 0) THEN
+                         ! atom a is a plain ion and can have mm_radius_a > 0
+                         energy = potential_coulomb(rab2, fscalar, &
+                                  qeff_a*qcore_b, ewald_type, alpha, &
+                                  mm_radius_a, &
+                                  ei_interaction_cutoffs(2, kind_a, kind_b))
+                      ELSE IF (shell_b == 0) THEN
+                         ! atom b is a plain ion and can have mm_radius_b > 0
+                         energy = potential_coulomb(rab2, fscalar, &
+                                  qcore_a*qeff_b, ewald_type, alpha, &
+                                  mm_radius_b, &
+                                  ei_interaction_cutoffs(2, kind_b, kind_a))
+                      ELSE
+                         ! core-core interaction is always pure point charge
+                         energy = potential_coulomb(rab2, fscalar, &
+                                  qcore_a*qcore_b, ewald_type, alpha, 0.0_dp, &
+                                  ei_interaction_cutoffs(1, kind_a, kind_b))
+                      END IF
+                      pot_nonbond = pot_nonbond + energy*fac
+                      fscalar = fscalar*fac
+                      fr(1) = fscalar*rab(1)
+                      fr(2) = fscalar*rab(2)
+                      fr(3) = fscalar*rab(3)
 
-                   IF(shell_a /= 0 ) THEN
-                      fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
-                      fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
-                      fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
-                   ELSE
-                      f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-                      f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-                      f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
-                      CPPostcondition(shell_b/=0,cp_failure_level,routineP,error,failure)
-                   END IF
+                      IF(shell_a /= 0 ) THEN
+                         fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
+                         fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
+                         fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
+                      ELSE
+                         f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
+                         f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
+                         f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+                         CPPostcondition(shell_b/=0,cp_failure_level,routineP,error,failure)
+                      END IF
 
-                   IF(shell_b /= 0 ) THEN
-                      fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
-                      fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
-                      fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
-                   ELSE
-                      f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                      f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                      f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                      CPPostcondition(shell_a/=0,cp_failure_level,routineP,error,failure)
+                      IF(shell_b /= 0 ) THEN
+                         fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
+                         fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
+                         fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
+                      ELSE
+                         f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
+                         f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
+                         f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+                         CPPostcondition(shell_a/=0,cp_failure_level,routineP,error,failure)
+                      END IF
                    END IF
 
                    IF (use_virial) THEN
@@ -335,12 +347,19 @@ CONTAINS
                       ! shell-shell : VDW + Coulomb
                       rab  = rab_list(:,4)
                       rab2 = rab2_list(4)
-                      energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
-                      pot_nonbond = pot_nonbond + energy*fac
-                      energy = potential_coulomb(rab2, fscalar, &
-                               qshell_a*qshell_b, ewald_type, alpha, mm_radius, &
-                               ei_interaction_cutoffs(3, kind_a, kind_b))
-                      pot_nonbond = pot_nonbond + energy*fac
+                      fscalar = 0.0_dp
+                      energy = 0.0_dp
+                      IF (do_vdw) THEN
+                         energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
+                         pot_nonbond = pot_nonbond + energy*fac
+                      END IF
+                      IF (do_ei) THEN
+                         ! note that potential_coulomb increments fscalar
+                         energy = potential_coulomb(rab2, fscalar, &
+                                  qshell_a*qshell_b, ewald_type, alpha, mm_radius, &
+                                  ei_interaction_cutoffs(3, kind_a, kind_b))
+                         pot_nonbond = pot_nonbond + energy*fac
+                      END IF
                       fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
@@ -362,78 +381,86 @@ CONTAINS
                          pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
                          pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
                       END IF
-          
-                      ! core-shell : Coulomb only
-                      rab  = rab_list(:,2)
-                      rab2 = rab2_list(2)
-                      fscalar = 0.0_dp
-                      ! swap kind_a and kind_b to get the right cutoff
-                      energy = potential_coulomb(rab2, fscalar, &
-                               qcore_a*qshell_b, ewald_type, alpha, mm_radius_b, &
-                               ei_interaction_cutoffs(2, kind_b, kind_a))
-                      fscalar = fscalar * fac
-                      pot_nonbond = pot_nonbond + energy*fac
-                      fscalar = fscalar*fac
-                      fr(1) = fscalar*rab(1)
-                      fr(2) = fscalar*rab(2)
-                      fr(3) = fscalar*rab(3)
-                      fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
-                      fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
-                      fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
-                      fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
-                      fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
-                      fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
-                      IF (use_virial) THEN
-                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                      END IF
-                      
-                      ! shell-core : Coulomb only
-                      rab  = rab_list(:,3)
-                      rab2 = rab2_list(3)
-                      fscalar = 0.0_dp
-                      energy = potential_coulomb(rab2, fscalar, &
-                               qshell_a*qcore_b, ewald_type, alpha, mm_radius_a, &
-                               ei_interaction_cutoffs(2, kind_a, kind_b))
-                      pot_nonbond = pot_nonbond + energy*fac
-                      fscalar = fscalar * fac
-                      fr(1) = fscalar*rab(1)
-                      fr(2) = fscalar*rab(2)
-                      fr(3) = fscalar*rab(3)
-                      fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
-                      fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
-                      fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-                      fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
-                      fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
-                      fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
-                      IF (use_virial) THEN
-                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+
+                      IF (do_ei) THEN
+                         ! core-shell : Coulomb only
+                         rab  = rab_list(:,2)
+                         rab2 = rab2_list(2)
+                         fscalar = 0.0_dp
+                         ! swap kind_a and kind_b to get the right cutoff
+                         energy = potential_coulomb(rab2, fscalar, &
+                                  qcore_a*qshell_b, ewald_type, alpha, mm_radius_b, &
+                                  ei_interaction_cutoffs(2, kind_b, kind_a))
+                         pot_nonbond = pot_nonbond + energy*fac
+                         fscalar = fscalar * fac
+                         fr(1) = fscalar*rab(1)
+                         fr(2) = fscalar*rab(2)
+                         fr(3) = fscalar*rab(3)
+                         fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
+                         fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
+                         fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
+                         fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
+                         fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
+                         fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
+                         IF (use_virial) THEN
+                            pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                            pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                            pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                            pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                            pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                            pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                            pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                            pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                            pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                         END IF
+
+                         ! shell-core : Coulomb only
+                         rab  = rab_list(:,3)
+                         rab2 = rab2_list(3)
+                         fscalar = 0.0_dp
+                         energy = potential_coulomb(rab2, fscalar, &
+                                  qshell_a*qcore_b, ewald_type, alpha, mm_radius_a, &
+                                  ei_interaction_cutoffs(2, kind_a, kind_b))
+                         pot_nonbond = pot_nonbond + energy*fac
+                         fscalar = fscalar * fac
+                         fr(1) = fscalar*rab(1)
+                         fr(2) = fscalar*rab(2)
+                         fr(3) = fscalar*rab(3)
+                         fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
+                         fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
+                         fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
+                         fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
+                         fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
+                         fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
+                         IF (use_virial) THEN
+                            pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+                            pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+                            pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+                            pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+                            pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+                            pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+                            pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+                            pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+                            pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
+                         END IF
                       END IF
                    ELSE IF ((shell_type==nosh_sh) .AND. (shell_a==0)) THEN
                       ! ion-shell : VDW + Coulomb
                       rab = rab_list(:,4)
                       rab2 = rab2_list(4)
-                      energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
-                      pot_nonbond = pot_nonbond + energy*fac
-                      energy = potential_coulomb(rab2, fscalar, &
-                               qeff_a*qshell_b, ewald_type, alpha, mm_radius, &
-                               ei_interaction_cutoffs(3, kind_a, kind_b))
-                      pot_nonbond = pot_nonbond + energy*fac
+                      energy = 0.0_dp
+                      fscalar = 0.0_dp
+                      IF (do_vdw) THEN
+                         energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
+                         pot_nonbond = pot_nonbond + energy*fac
+                      END IF
+                      IF (do_ei) THEN
+                         ! note that potential_coulomb increments fscalar
+                         energy = potential_coulomb(rab2, fscalar, &
+                                  qeff_a*qshell_b, ewald_type, alpha, mm_radius, &
+                                  ei_interaction_cutoffs(3, kind_a, kind_b))
+                         pot_nonbond = pot_nonbond + energy*fac
+                      END IF
                       fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
@@ -459,12 +486,19 @@ CONTAINS
                       ! shell-ion : VDW + Coulomb
                       rab = rab_list(:,4)
                       rab2 = rab2_list(4)
-                      energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
-                      pot_nonbond = pot_nonbond + energy*fac
-                      energy = potential_coulomb(rab2, fscalar, &
-                               qshell_a*qeff_b, ewald_type, alpha, mm_radius, &
-                               ei_interaction_cutoffs(3, kind_a, kind_b))
-                      pot_nonbond = pot_nonbond + energy*fac
+                      energy = 0.0_dp
+                      fscalar = 0.0_dp
+                      IF (do_vdw) THEN
+                         energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
+                         pot_nonbond = pot_nonbond + energy*fac
+                      END IF
+                      IF (do_ei) THEN
+                         ! note that potential_coulomb increments fscalar
+                         energy = potential_coulomb(rab2, fscalar, &
+                                  qshell_a*qeff_b, ewald_type, alpha, mm_radius, &
+                                  ei_interaction_cutoffs(3, kind_a, kind_b))
+                         pot_nonbond = pot_nonbond + energy*fac
+                      END IF
                       fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
@@ -505,9 +539,14 @@ CONTAINS
                    ! Ion-Ion: no shell model, VDW + coulomb
                    rab  = rab_com
                    rab2 = rab2_com
-                   energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
-                   pot_nonbond = pot_nonbond + energy*fac
-                   IF (.NOT.do_multipoles) THEN
+                   energy = 0.0_dp
+                   fscalar = 0.0_dp
+                   IF (do_vdw) THEN
+                      energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
+                      pot_nonbond = pot_nonbond + energy*fac
+                   END IF
+                   IF (do_ei) THEN
+                      ! note that potential_coulomb increments fscalar
                       energy = potential_coulomb(rab2, fscalar, qeff_a*qeff_b, &
                                ewald_type, alpha, mm_radius, &
                                ei_interaction_cutoffs(3, kind_a, kind_b))

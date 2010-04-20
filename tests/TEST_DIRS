@@ -96,3 +96,5 @@ FE/regtest-2
 ATOM/regtest-2
 NEB/regtest-3
 Fist/regtest-gauss
+Fist/regtest-excl-G
+Fist/regtest-excl-R

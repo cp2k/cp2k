@@ -387,6 +387,12 @@ CONTAINS
           ikind   = neighbor_kind_pair%ij_kind(1,igrp)
           jkind   = neighbor_kind_pair%ij_kind(2,igrp)
           Pairs: DO ipair = istart, iend
+             ! skip pairs that are excluded for electrostatics
+             IF (ipair <= neighbor_kind_pair%nexclude) THEN
+                IF (neighbor_kind_pair%exclude_ei(ipair)) THEN
+                   CYCLE
+                END IF
+             END IF
              fac_ij = 1.0_dp
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
