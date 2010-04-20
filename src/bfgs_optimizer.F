@@ -51,7 +51,8 @@ MODULE bfgs_optimizer
                                              section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              dp
-  USE machine,                         ONLY: m_flush
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE termination,                     ONLY: external_control
@@ -96,7 +97,8 @@ CONTAINS
     LOGICAL                                  :: conv, failure, hesrest, &
                                                 ionode, should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
-                                                pred, rad, rat, step
+                                                pred, rad, rat, step, t_diff, &
+                                                t_now, t_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dg, dr, dx, eigval, gold, &
                                                 work, xold
     REAL(KIND=dp), ALLOCATABLE, &
@@ -114,6 +116,7 @@ CONTAINS
     logger       => cp_error_get_logger(error)
     para_env     => force_env%para_env
     root_section => force_env%root_section
+    t_old=m_walltime()
 
     CALL timeset(routineN,handle)
     print_key    => section_vals_get_subs_vals(geo_section,"BFGS%RESTART", error=error)
@@ -192,7 +195,10 @@ CONTAINS
 
     ! Print info at time 0
     emin = etot
-    CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, its=iter_nr, error=error)
+    t_now=m_walltime()
+    t_diff=t_now-t_old
+    t_old=t_now
+    CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, its=iter_nr, used_time=t_diff, error=error)
     DO its = iter_nr+1, maxiter
        CALL cp_iterate(logger%iter_info,last=(its==maxiter),error=error)
        CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=its,error=error)
@@ -268,9 +274,12 @@ CONTAINS
        IF(should_stop) EXIT
 
        ! Some IO and Convergence check
+       t_now=m_walltime()
+       t_diff=t_now-t_old
+       t_old=t_now
        CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit,&
             eold, emin, wildcard, gopt_param, ndf, dr, g, conv, ediff, pred, rat,&
-            step, rad, error)
+            step, rad, used_time=t_diff, error=error)
 
        IF (conv.OR.(its==maxiter)) EXIT
        IF (etot < emin) emin = etot

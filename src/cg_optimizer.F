@@ -28,6 +28,7 @@ MODULE cg_optimizer
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_walltime
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -116,13 +117,14 @@ CONTAINS
     LOGICAL                                  :: conv, failure, &
                                                 Fletcher_Reeves, should_stop
     REAL(KIND=dp)                            :: emin, eold, opt_energy, &
-                                                res_lim
+                                                res_lim, t_diff, t_now, t_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: root_section
 
     CALL timeset(routineN,handle)
+    t_old=m_walltime()
     NULLIFY(logger,g, h, xi)
     root_section => force_env%root_section
     logger       => cp_error_get_logger(error)
@@ -153,7 +155,10 @@ CONTAINS
        CALL cp_iterate(logger%iter_info,increment=0,iter_nr_out=iter_nr,error=error)
        ! Main Loop
        wildcard = "   SD"
-       CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, its=iter_nr, error=error)
+       t_now=m_walltime()
+       t_diff=t_now-t_old
+       t_old=t_now
+       CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, used_time=t_diff, its=iter_nr, error=error)
        eold = opt_energy
        DO its = iter_nr+1, maxiter
           CALL cp_iterate(logger%iter_info,last=(its==maxiter),error=error)
@@ -170,9 +175,12 @@ CONTAINS
           IF(should_stop) EXIT
           
           ! Some IO and Convergence check
+          t_now=m_walltime()
+          t_diff=t_now-t_old
+          t_old=t_now
           CALL gopt_f_io(gopt_env, force_env, root_section, its, opt_energy,&
                output_unit, eold, emin, wildcard, gopt_param, SIZE(x0), x0-xold, xi, conv, &
-               error=error)
+               used_time=t_diff,error=error)
           eold = opt_energy
           emin = MIN(emin, opt_energy)
 

@@ -682,7 +682,7 @@ CPSourceFileRef,&
              ! Some IO and Convergence check
              CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, &
                   its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param,&
-                  error=error)
+                  used_time=0.0_dp, error=error) ! needs proper timing...
              
              ! Check convergence
              IF (is_master) CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&

@@ -142,12 +142,13 @@ CONTAINS
 !> \brief Handles the Output during an optimization run 
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, its, error)
+  SUBROUTINE gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, its, used_time, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     INTEGER, INTENT(IN)                      :: output_unit
     REAL(KIND=dp)                            :: opt_energy
     CHARACTER(LEN=5)                         :: wildcard
     INTEGER, INTENT(IN)                      :: its
+    REAL(KIND=dp)                            :: used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_init', &
@@ -159,18 +160,20 @@ CONTAINS
     CASE(default_ts_method_id,default_minimization_method_id)
        ! Geometry Optimization (Minimization and Transition State Search)
        IF (.NOT.gopt_env%dimer_rotation) THEN
-          CALL write_cycle_infos(output_unit,it=its,etot=opt_energy,wildcard=wildcard,error=error)
+          CALL write_cycle_infos(output_unit,it=its,etot=opt_energy,wildcard=wildcard, &
+                                 used_time=used_time, error=error)
        ELSE
           CALL write_rot_cycle_infos(output_unit,it=its,etot=opt_energy,dimer_env=gopt_env%dimer_env,&
-               wildcard=wildcard)
+               wildcard=wildcard, used_time=used_time)
        END IF
     CASE(default_cell_method_id)
        ! Cell Optimization
        pres_int = gopt_env%cell_env%pres_int
        CALL write_cycle_infos(output_unit,it=its,etot=opt_energy,pres_int=pres_int,wildcard=wildcard,&
-                              error=error)
+                              used_time=used_time, error=error)
     CASE(default_shellcore_method_id)
-       CALL write_cycle_infos(output_unit,it=its,etot=opt_energy,wildcard=wildcard,error=error)
+       CALL write_cycle_infos(output_unit,it=its,etot=opt_energy,wildcard=wildcard, &
+                              used_time=used_time, error=error)
     END SELECT
 
   END SUBROUTINE gopt_f_io_init
@@ -181,7 +184,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE gopt_f_io(gopt_env, force_env, root_section, its, opt_energy,&
        output_unit, eold, emin, wildcard, gopt_param, ndf, dx, xi, conv, ediff, pred, rat,&
-       step, rad, error)
+       step, rad, used_time, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -198,6 +201,7 @@ CONTAINS
       POINTER                                :: xi
     LOGICAL, OPTIONAL                        :: conv
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad
+    REAL(KIND=dp)                            :: used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io', &
@@ -214,7 +218,7 @@ CONTAINS
           CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
           CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
-               pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard,error=error)
+               pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard,used_time=used_time,error=error)
           ! Possibly check convergence
           IF (PRESENT(conv)) THEN 
              CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
@@ -227,7 +231,7 @@ CONTAINS
           CALL write_restart(force_env=force_env,root_section=root_section,&
                error=error)
           CALL write_rot_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin,gopt_env%dimer_env,&
-               wildcard)
+               used_time=used_time, wildcard=wildcard)
           ! Possibly check convergence
           IF (PRESENT(conv)) THEN 
              CPPostcondition(ASSOCIATED(gopt_env%dimer_env),cp_failure_level,routineP,error,failure)
@@ -243,7 +247,7 @@ CONTAINS
             motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
        CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
             pred=pred,rat=rat,step=step,rad=rad,emin=emin,pres_int=pres_int,wildcard=wildcard,&
-            error=error)
+            used_time=used_time, error=error)
        ! Possibly check convergence
        IF (PRESENT(conv)) THEN 
           CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
@@ -253,7 +257,7 @@ CONTAINS
        END IF
     CASE(default_shellcore_method_id)
           CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
-               pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard,error=error)
+               pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard, used_time=used_time, error=error)
           ! Possibly check convergence
           IF (PRESENT(conv)) THEN
              CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
@@ -298,13 +302,14 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,&
-       pres_int,wildcard,error)
+       pres_int,wildcard,used_time, error)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
     REAL(KIND=dp), INTENT(IN)                :: etot
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad, &
                                                 emin, pres_int
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
+    REAL(KIND=dp), INTENT(IN)                :: used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
@@ -355,6 +360,8 @@ CONTAINS
                   "              NO"
           END IF
        END IF
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.3)")&
+                  " Used time                  = ",used_time
        IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
     END IF
   END SUBROUTINE write_cycle_infos
@@ -363,12 +370,13 @@ CONTAINS
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino]
 !> \data  01.2008
 ! *****************************************************************************
-  SUBROUTINE write_rot_cycle_infos(output_unit,it,etot,ediff,emin,dimer_env,wildcard)
+  SUBROUTINE write_rot_cycle_infos(output_unit,it,etot,ediff,emin,dimer_env,used_time,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
     REAL(KIND=dp), INTENT(IN)                :: etot
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, emin
     TYPE(dimer_env_type), POINTER            :: dimer_env
+    REAL(KIND=dp)                            :: used_time
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rot_cycle_infos', &
@@ -398,6 +406,8 @@ CONTAINS
                   "              NO"
           END IF
        END IF
+       WRITE(UNIT=output_unit,FMT="(T2,A,F20.3)")&
+                  " Used time                  = ",used_time
        IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
     END IF
   END SUBROUTINE write_rot_cycle_infos
