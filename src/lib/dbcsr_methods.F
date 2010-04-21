@@ -2069,8 +2069,8 @@ CONTAINS
 !type(dbcsr_iterator_type) :: iter
 !   ---------------------------------------------------------------------------
 
-    row_blk_sizes = array_data (dbcsr_row_block_sizes (matrix))
-    col_blk_sizes = array_data (dbcsr_col_block_sizes (matrix))
+    row_blk_sizes => array_data (dbcsr_row_block_sizes (matrix))
+    col_blk_sizes => array_data (dbcsr_col_block_sizes (matrix))
     data_size = 0
     DO row = 1, matrix%m%nblkrows_total
        DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)

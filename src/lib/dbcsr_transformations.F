@@ -2131,7 +2131,7 @@ CONTAINS
                                                 row_blk_size, row_dist, &
                                                 tmp_index
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: had_subcomms, rep_all, tr
+    LOGICAL                                  :: had_subcomms, tr
     REAL(KIND=dp)                            :: tstart, tstop
     TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
                                                 send_data, tmp_data
@@ -2151,7 +2151,7 @@ CONTAINS
     !CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
     !     dbcsr_warning_level, dbcsr_caller_error, routineN,&
     !     "Replicating a non-distributed matrix makes no sense.",__LINE__,error)
-    IF (rep_all) THEN
+    IF (replicate_rows .AND. replicate_columns) THEN
        rep_type = dbcsr_repl_full
     ELSEIF (replicate_rows .AND. .NOT. replicate_columns) THEN
        rep_type = dbcsr_repl_row
