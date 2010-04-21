@@ -894,6 +894,11 @@ CONTAINS
 !> \note Used in local multiply
 !>
 !> Assumes they are both pre-sorted
+!> \par Added sizes
+!>      added_size_offset and added_sizes can be optionally
+!>      specified. This is meant for cases where the added blocks may
+!>      be duplicates of existing blocks. In this way it is possible
+!>      to recalculate new block pointers to avoid wasted space.
 !> \param[in,out] new_row_i, new_col_i, new_blk_p      merged result
 !> \param[in] new_size                  size of merged index
 !> \param[in,out] old_row_i, old_col_i, old_blk_p      current index
@@ -901,10 +906,19 @@ CONTAINS
 !> \param[in] add_ip                    index to add into the current index
 !> \param[in] add_size                  size of index to add into the current
 !>                                      index
+!> \param[in] added_size_offset         (optional) specify base of added sizes
+!> \param[in] added_sizes               (optional) specify sizes of added
+!>                                      blocks
+!> \param[out] added_size               (optional) counts number of sizes of
+!>                                      added blocks
+!> \param[out] added_nblks              (optional) actual number of new
+!>                                      elements
+!> \param[in,out] error                 error
 ! *****************************************************************************
   SUBROUTINE merge_index_arrays (new_row_i, new_col_i, new_blk_p, new_size,&
        old_row_i, old_col_i, old_blk_p, old_size,&
-       add_ip, add_size, new_blk_d, old_blk_d, error)
+       add_ip, add_size, new_blk_d, old_blk_d,&
+       added_size_offset, added_sizes, added_size, added_nblks, error)
     INTEGER, INTENT(IN)                      :: new_size
     INTEGER, DIMENSION(new_size), &
       INTENT(OUT)                            :: new_blk_p, new_col_i, &
@@ -919,10 +933,18 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: new_blk_d
     INTEGER, DIMENSION(old_size), &
       INTENT(IN), OPTIONAL                   :: old_blk_d
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: added_size_offset
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: added_sizes
+    INTEGER, INTENT(OUT), OPTIONAL           :: added_size, added_nblks
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    INTEGER                                  :: add_blk, i, merge_from_whom, &
-                                                new_blk, old_blk
+    CHARACTER(len=*), PARAMETER :: routineN = 'merge_index_arrays', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: add_blk, bp, i, &
+                                                merge_from_whom, new_blk, &
+                                                old_blk
     LOGICAL                                  :: multidata
 
     DEBUG_HEADER
@@ -932,6 +954,12 @@ CONTAINS
     CALL dbcsr_assert(old_size+add_size .EQ. new_size, &
          dbcsr_warning_level, dbcsr_internal_error ,"merge_arrays",&
          "Mismatch of new and old size",__LINE__,error)
+    CALL dbcsr_assert (PRESENT (added_size_offset), "EQV",&
+         PRESENT (added_sizes), dbcsr_fatal_level, dbcsr_wrong_args_error,&
+         routineN, "Must specify a set of arguments", __LINE__, error=error)
+    CALL dbcsr_assert (PRESENT (added_sizes), "EQV", PRESENT (added_size),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error,&
+         routineN, "Must specify a set of arguments", __LINE__, error=error)
     IF (dbg) THEN
        WRITE (*,*) " Old array", old_size
        DO i = 1, old_size
@@ -942,6 +970,11 @@ CONTAINS
           WRITE(*,'(I7,2X,I7,2X,I7)')add_ip (1:3, i)
        ENDDO
     ENDIF
+    IF (PRESENT (added_nblks)) added_nblks = 0
+    IF (PRESENT (added_size)) THEN
+       added_size = 0
+       bp = added_size_offset
+    ENDIF
     IF (add_size .GT. 0) THEN
        old_blk = 1
        add_blk = 1
@@ -951,13 +984,18 @@ CONTAINS
           new_col_i(1:add_size) = add_ip(2, 1:add_size)
           new_blk_p(1:add_size) = add_ip(3, 1:add_size)
           !IF (multidata) new_blk_d(1:add_size) = add_ip(4, 1:add_size)
+          IF (PRESENT (added_nblks)) added_nblks = add_size
+          IF (PRESENT (added_size)) added_size = SUM (added_sizes)
        ELSE
           DO WHILE (new_blk .LE. new_size)
              merge_from_whom = 0
              IF (old_blk .LE. old_size .AND. add_blk .LE. add_size) THEN
                 IF (add_ip(1, add_blk) .EQ. old_row_i(old_blk)&
                      .AND.add_ip(2, add_blk) .EQ. old_col_i(old_blk)) THEN
-                   !WRITE(*,*)"Duplicate block! addblk", add_blk, "oldblk", old_blk
+                   IF (dbg) THEN
+                      WRITE(*,*)"Duplicate block! addblk",&
+                           add_blk, "oldblk", old_blk
+                   ENDIF
                 ENDIF
                 ! Rows come first
                 IF (add_ip(1, add_blk) .LT. old_row_i(old_blk)) THEN
@@ -965,12 +1003,20 @@ CONTAINS
                 ELSEIF (add_ip(1, add_blk) .GT. old_row_i(old_blk)) THEN
                    merge_from_whom = 1
                 ELSE ! Same rows, so now come the columns
-                   IF (add_ip(2, add_blk) .LE. old_col_i(old_blk)) THEN
+                   IF (add_ip(2, add_blk) .LT. old_col_i(old_blk)) THEN
                       ! Merges from the add array
                       merge_from_whom = 2
-                   ELSE
+                   ELSEIF (add_ip(2, add_blk) .GT. old_col_i(old_blk)) THEN
                       ! Merges from the old array
                       merge_from_whom = 1
+                   ELSE
+                      ! Merge from old array and skip one in the new array
+                      IF (dbg) THEN
+                         WRITE(*,*)"Duplicate, keeping old",&
+                         add_ip(1, add_blk), add_ip(2, add_blk)
+                      ENDIF
+                      merge_from_whom = 1
+                      add_blk = add_blk + 1
                    ENDIF
                 ENDIF
              ELSE
@@ -992,6 +1038,12 @@ CONTAINS
                 new_col_i(new_blk) = add_ip(2, add_blk)
                 new_blk_p(new_blk) = add_ip(3, add_blk)
                 !IF (multidata) new_blk_d(new_blk) = add_ip(4, add_blk)
+                IF (PRESENT (added_nblks)) added_nblks = added_nblks + 1
+                IF (PRESENT (added_sizes)) THEN
+                   new_blk_p(new_blk) = bp
+                   bp = added_sizes(add_blk)
+                   added_size = added_size + added_sizes(add_blk)
+                ENDIF
                 add_blk = add_blk + 1
              CASE (1)
                 ! Merges from the old array

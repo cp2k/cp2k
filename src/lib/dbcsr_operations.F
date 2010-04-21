@@ -23,7 +23,8 @@ MODULE dbcsr_operations
                                              dbcsr_blas_scal
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block,&
-                                             dbcsr_remove_block
+                                             dbcsr_remove_block,&
+                                             dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: block_add_on_diag,&
                                              dbcsr_block_partial_copy,&
                                              dbcsr_block_transpose,&
@@ -67,15 +68,15 @@ MODULE dbcsr_operations
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-       dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
-       dbcsr_may_be_dense, dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_name, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_row_block_sizes, dbcsr_scalar, &
-       dbcsr_scalar_are_equal, dbcsr_scalar_one, dbcsr_scalar_zero, &
-       dbcsr_type_1d_to_2d, dbcsr_valid_index
+       dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &
+       dbcsr_init, dbcsr_is_initialized, dbcsr_max_col_size, &
+       dbcsr_max_row_size, dbcsr_may_be_dense, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
+       dbcsr_scalar_zero, dbcsr_type_1d_to_2d, dbcsr_valid_index
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
@@ -116,8 +117,9 @@ MODULE dbcsr_operations
 
   PUBLIC :: dbcsr_multiply,&
             dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
-            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy, dbcsr_get_diag, &
-            dbcsr_set_diag, &
+            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy,&
+            dbcsr_copy_submatrix,&
+            dbcsr_get_diag, dbcsr_set_diag, &
             dbcsr_get_block_diag, dbcsr_hadamard_product, &
             dbcsr_filter, dbcsr_scale_by_vector,&
             dbcsr_replace_blocks, dbcsr_conjg,&
@@ -2362,6 +2364,152 @@ CONTAINS
        ENDIF
     ENDIF
   END FUNCTION pos_relation
+
+
+! *****************************************************************************
+!> \brief Copy a submatrix.
+!> \param[inout] matrix_b       target DBCSR matrix
+!> \param[in]    matrix_a       source DBCSR matrix
+!> \param[in]    name           (optional) name of the new matrix
+!> \param[in]    block_row_bounds     (optional) rows to extract (array of
+!>                                    size 2 holding the lower and upper
+!>                                    inclusive bounds)
+!> \param[in]    block_column_bounds  (optional) columns to extract (array of
+!>                                    size 2 holding the lower and upper
+!>                                    inclusive bounds)
+!> \param[in]    shallow_data   (optional) shallow data copy
+!> \param[in,out] error         cp2k error
+! *****************************************************************************
+  SUBROUTINE dbcsr_copy_submatrix(matrix_b, matrix_a, name,&
+       block_row_bounds, block_column_bounds, &
+       shallow_data, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
+    INTEGER, DIMENSION(2), INTENT(IN), &
+      OPTIONAL                               :: block_row_bounds, &
+                                                block_column_bounds
+    LOGICAL, INTENT(IN), OPTIONAL            :: shallow_data
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_submatrix', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: new_type, repl_type
+    INTEGER                                  :: blk_p, col, error_handler, &
+                                                nblocks, new_blk, old_blk, row
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blkp_list, col_list, row_list
+    LOGICAL                                  :: shallow, tr
+    TYPE(dbcsr_data_obj)                     :: data_block
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (PRESENT (shallow_data)) THEN
+       shallow = shallow_data
+    ELSE
+       shallow = .FALSE.
+    ENDIF
+    ! Verify assumptions.
+    IF (PRESENT (block_row_bounds)) THEN
+       CALL dbcsr_assert (SIZE(block_row_bounds), "EQ", 2, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Size of bounds specifier must be 2", __LINE__, error=error)
+    ENDIF
+    IF (PRESENT (block_column_bounds)) THEN
+       CALL dbcsr_assert (SIZE(block_column_bounds), "EQ", 2,&
+            dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Size of bounds specifier must be 2", __LINE__, error=error)
+    ENDIF
+    IF (dbcsr_is_initialized (matrix_b)) THEN
+       new_type = dbcsr_get_data_type (matrix_b)
+       repl_type = dbcsr_get_replication_type(matrix_b)
+    ELSE
+       new_type = dbcsr_get_data_type (matrix_a)
+       repl_type = dbcsr_get_replication_type(matrix_a)
+    ENDIF
+    ! Setup target matrix
+    IF(PRESENT(name)) THEN
+       CALL dbcsr_create(matrix_b, name, &
+            dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
+            matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
+            nblks=matrix_a%m%nblks, data_type=new_type,&
+            special=matrix_a%m%special_memory, &
+            replication_type=repl_type, error=error)
+    ELSE
+       CALL dbcsr_create(matrix_b,'submatrix copy of '//TRIM(dbcsr_name(matrix_a)),&
+            dbcsr_distribution (matrix_a), dbcsr_get_matrix_type (matrix_a),&
+            matrix_a%m%row_blk_size, matrix_a%m%col_blk_size,&
+            nblks=matrix_a%m%nblks, data_type=new_type,&
+            special=matrix_a%m%special_memory,&
+            replication_type=repl_type, error=error)
+    ENDIF
+    CALL dbcsr_finalize(matrix_b, error=error)
+    IF (.NOT. shallow) THEN
+       ! Non-shallow copy uses the standard iterator on the source and
+       ! block put on the target.
+       CALL dbcsr_data_init (data_block)
+       CALL dbcsr_data_new (data_block, dbcsr_get_data_type (matrix_a))
+       CALL dbcsr_iterator_start (iter, matrix_a)
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block (iter, row, col, data_block, tr)
+          ! Only keep the block if they are within the specified bounds.
+          IF (PRESENT (block_row_bounds)) THEN
+             IF (row .LT. block_row_bounds(1)) CYCLE
+             IF (row .GT. block_row_bounds(2)) CYCLE
+          ENDIF
+          IF (PRESENT (block_column_bounds)) THEN
+             IF (col .LT. block_column_bounds(1)) CYCLE
+             IF (col .GT. block_row_bounds(2)) CYCLE
+          ENDIF
+          CALL dbcsr_put_block (matrix_b, row, col, data_block, transposed=tr)
+       END DO
+       CALL dbcsr_iterator_stop (iter)
+       CALL dbcsr_data_clear_pointer (data_block)
+       CALL dbcsr_data_release (data_block)
+       CALL dbcsr_finalize (matrix_b, error=error)
+    ELSE
+       ! For the shallow copy the source matrix data is referenced.
+       CALL dbcsr_data_release (matrix_b%m%data_area)
+       matrix_b%m%data_area = matrix_a%m%data_area
+       CALL dbcsr_data_hold (matrix_b%m%data_area)
+       nblocks = dbcsr_get_num_blocks (matrix_a) ! High estimate.
+       ! Shallow copy goes through source's data blocks and inserts
+       ! the only the ones corresponding to the submatrix specifier
+       ! into the target. Block pointers must remain the same as in
+       ! the source.
+       ALLOCATE (row_list(nblocks), col_list(nblocks), blkp_list(nblocks))
+       !
+       CALL dbcsr_iterator_start (iter, matrix_a)
+       new_blk = 1
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block (iter, row, col,&
+               blk=old_blk, blk_p=blk_p)
+          ! Only keep the block if they are within the specified bounds.
+          IF (PRESENT (block_row_bounds)) THEN
+             IF (row .LT. block_row_bounds(1)) CYCLE
+             IF (row .GT. block_row_bounds(2)) CYCLE
+          ENDIF
+          IF (PRESENT (block_column_bounds)) THEN
+             IF (col .LT. block_column_bounds(1)) CYCLE
+             IF (col .GT. block_row_bounds(2)) CYCLE
+          ENDIF
+          row_list(new_blk) = row
+          col_list(new_blk) = col
+          blkp_list(new_blk) = blk_p
+          new_blk = new_blk + 1
+       ENDDO
+       new_blk = new_blk - 1
+       CALL dbcsr_iterator_stop (iter)
+       CALL dbcsr_reserve_blocks (matrix_b, row_list(1:new_blk),&
+            col_list(1:new_blk), blkp_list(1:new_blk), error=error)
+    ENDIF
+    !
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_copy_submatrix
+
 
 
 ! *****************************************************************************
