@@ -20,12 +20,12 @@ MODULE bfgs_optimizer
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_get_submatrix,&
+                                             cp_fm_read_unformatted,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_write_unformatted
   USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -53,8 +53,7 @@ MODULE bfgs_optimizer
                                              dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -101,8 +100,6 @@ CONTAINS
                                                 t_now, t_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dg, dr, dx, eigval, gold, &
                                                 work, xold
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: hessian_restart
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_hes
@@ -206,42 +203,28 @@ CONTAINS
 
        ! Hessian update/restarting
        IF (((its-iter_nr) == 1).AND.hesrest) THEN
-          stat = 0
-          ALLOCATE(hessian_restart(ndf,ndf),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF(ionode)THEN
              CALL section_vals_val_get(geo_section,"BFGS%RESTART_FILE_NAME",c_val=hes_filename,&
                   error=error)
              CALL open_file(file_name=hes_filename,file_status="OLD",&
                   file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
-             READ(UNIT=hesunit_read,IOSTAT=stat) hessian_restart
-             CALL close_file(unit_number=hesunit_read)
           END IF
-          CALL mp_sum(stat,para_env%group)
+          CALL cp_fm_read_unformatted(hess_mat,hesunit_read,error)
+          IF (ionode) CALL close_file(unit_number=hesunit_read)
+       ELSE
+          IF( (its-iter_nr) > 1 ) THEN
+            DO indf = 1, ndf
+               dx(indf) = x0(indf) - xold(indf)
+               dg(indf) =  g(indf) - gold(indf)
+            END DO
 
-          IF (stat /= 0) THEN
-             IF (output_unit>0) WRITE(UNIT=output_unit,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
-             conv = .TRUE.
-          ELSE
-             IF (output_unit>0)  WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-                  "*** Initial Hessian has been restarted successfully ***"
-          END IF
-          CALL mp_bcast(hessian_restart,para_env%source,para_env%group)
-          CALL cp_fm_set_submatrix(hess_mat,hessian_restart,error=error)
-          DEALLOCATE(hessian_restart,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ELSE IF( (its-iter_nr) > 1 ) THEN
-          DO indf = 1, ndf
-             dx(indf) = x0(indf) - xold(indf)
-             dg(indf) =  g(indf) - gold(indf)
-          END DO
+            CALL bfgs(ndf,dx,dg,hess_mat,work,para_env,error)
 
-          CALL bfgs(ndf,dx,dg,hess_mat,work,para_env,error)
-
-          !Possibly dump the Hessian file
-           IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file))THEN
-           CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
-           ENDIF
+            !Possibly dump the Hessian file
+            IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file))THEN
+               CALL write_bfgs_hessian(geo_section,ndf,hess_mat,logger,error)
+            ENDIF
+          ENDIF
        END IF
 
        ! Setting the present positions & gradients as old
@@ -818,29 +801,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_bfgs_hessian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, hesunit, istat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    INTEGER                                  :: handle, hesunit
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     hesunit = cp_print_key_unit_nr(logger,geo_section,"BFGS%RESTART",&
            extension=".Hessian",file_form="UNFORMATTED",file_action="WRITE",&
            file_position="REWIND",error=error)
 
-    ALLOCATE(vecbuffer(ndf,ndf),stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL cp_fm_write_unformatted(hess_mat,hesunit,error)
 
-    CALL cp_fm_get_submatrix(hess_mat,vecbuffer,error=error)
-
-    IF(hesunit>0)THEN
-      WRITE (UNIT=hesunit) vecbuffer
-    END IF
     CALL cp_print_key_finished_output(hesunit,logger,geo_section,"BFGS%RESTART", error=error)
 
-    DEALLOCATE(vecbuffer,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   
   END SUBROUTINE write_bfgs_hessian

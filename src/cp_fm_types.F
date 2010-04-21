@@ -79,7 +79,8 @@ MODULE cp_fm_types
             cp_fm_to_fm,&              ! copy (parts of) a fm to a fm
             cp_fm_vectorsnorm,&          ! compute the norm of the column-vectors
             cp_fm_to_fm_submat,&          ! copy (parts of) a fm to a fm
-            cp_fm_write_unformatted     ! copy (parts of) a fm to a fm
+            cp_fm_write_unformatted,&   ! writes a full matrix to an open unit
+            cp_fm_read_unformatted      ! reads a full matrix from an open unit
 
   INTERFACE cp_fm_to_fm
     MODULE PROCEDURE cp_fm_to_fm_matrix, &  ! a full matrix
@@ -1699,9 +1700,68 @@ CPSourceFileRef,&
    DO j=1,ncol_global
       WRITE (unit) fm%local_data(:,j)
    END DO
+
 #endif
 
    CALL timestop(handle)
  END SUBROUTINE cp_fm_write_unformatted
+
+ SUBROUTINE cp_fm_read_unformatted(fm,unit,error)
+    TYPE(cp_fm_type), POINTER                :: fm
+    INTEGER                                  :: unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_read_unformatted', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, j, k, max_block, &
+                                                n_cols, ncol_global, &
+                                                nrow_global, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuf
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
+   CALL timeset(routineN,handle)
+   failure=.FALSE.
+
+   CALL cp_fm_get_info(fm, nrow_global=nrow_global,ncol_global=ncol_global,ncol_block=max_block,&
+        para_env=para_env,error=error)
+
+
+#if defined(__SCALAPACK)
+
+   ! the parallel case could be made more efficient (see cp_fm_write_unformatted)
+
+   ALLOCATE(vecbuf(nrow_global,max_block),stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+   DO j=1,ncol_global,max_block
+
+      n_cols=MIN(max_block,ncol_global-j+1)
+      IF (para_env%mepos==0) THEN
+         DO k=1,n_cols
+            READ(unit) vecbuf(:,k)
+         ENDDO
+      ENDIF
+      CALL mp_bcast(vecbuf,0,para_env%group)
+      CALL cp_fm_set_submatrix(fm,vecbuf,start_row=1,start_col=j,n_cols=n_cols,error=error)
+
+   ENDDO
+
+   DEALLOCATE(vecbuf,stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+#else
+
+   DO j=1,ncol_global
+      READ (unit) fm%local_data(:,j)
+   END DO
+
+#endif
+
+    CALL timestop(handle)
+
+ END SUBROUTINE cp_fm_read_unformatted
+
 
 END MODULE cp_fm_types

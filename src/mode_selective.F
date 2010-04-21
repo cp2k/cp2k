@@ -493,7 +493,10 @@ CONTAINS
        ALLOCATE(tmplist(ncoord),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       READ(UNIT=hesunit,IOSTAT=stat) ms_vib%hes_bfgs
+       ! should use the cp_fm_read_unformatted... 
+       DO i=1,ncoord
+          READ(UNIT=hesunit,IOSTAT=stat) ms_vib%hes_bfgs(:,i)
+       ENDDO
        CALL close_file(hesunit)
        IF (stat /= 0) THEN
           WRITE(6,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
