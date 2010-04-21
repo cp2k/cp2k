@@ -872,9 +872,9 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: my_middle
-    INTEGER                                  :: handle, ispin, istat, &
-                                                max_block, nao, nloc, nmo, &
-                                                output_unit, rst_unit
+    INTEGER                                  :: handle, ispin, max_block, &
+                                                nao, nloc, nmo, output_unit, &
+                                                rst_unit
     LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
