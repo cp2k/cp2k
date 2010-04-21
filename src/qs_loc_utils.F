@@ -876,7 +876,6 @@ CONTAINS
                                                 max_block, nao, nloc, nmo, &
                                                 output_unit, rst_unit
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -942,14 +941,9 @@ CONTAINS
              END IF
            END IF
    
-           ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
            CALL cp_fm_write_unformatted(mo_coeff,rst_unit,error)
    
-           DEALLOCATE (vecbuffer,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
          END DO
-   
    
          CALL cp_print_key_finished_output(rst_unit,logger,section,&
                     "LOC_RESTART", error=error)
