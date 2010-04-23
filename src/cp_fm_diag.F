@@ -16,15 +16,28 @@ MODULE cp_fm_diag
 
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinit
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_release
   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
                                              cp_fm_upper_to_full
-  USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE cp_para_env,                     ONLY: cp_para_env_create,&
+                                             cp_para_env_release
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE message_passing,                 ONLY: mp_bcast
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_comm_free,&
+                                             mp_comm_split,&
+                                             mp_sync
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -62,12 +75,185 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd', &
       routineP = moduleN//':'//routineN
 
+    INTEGER :: fake_descriptor(9), handle, info, istat, liwork, lwork, &
+      mepos_old, n, ngroups, nmo, num_pe_new, num_pe_old, subgroup
+    INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
+                                                group_partition, iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fake_local_data(1,1)
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_new
+    TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
+    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_new
+
+! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+
+    n = matrix%matrix_struct%nrow_global
+    ALLOCATE(eig(n), STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+#if defined(__SCALAPACK)
+
+    ! first figure out the optimal number of cpus
+    ! this is pure heuristics, based on rosa timings
+    ! that demonstrate that timings go up sharply if too many tasks are used
+    ! we take a multiple of 4, and approximately n/60
+    num_pe_old=matrix%matrix_struct%para_env%num_pe
+    num_pe_new=((n+60*4-1)/(60*4))*4
+    para_env=>matrix%matrix_struct%para_env
+    mepos_old=para_env%mepos
+
+    ! if the optimal is smaller than num_pe, we will redistribute the input matrix
+    ! it seems sensible to refactor redistributing matrices as this might be useful elsewhere
+    IF (num_pe_new<num_pe_old) THEN
+
+
+       ! split comm, the first num_pe_new tasks will do the work
+       ALLOCATE(group_distribution(0:num_pe_old-1))
+       ALLOCATE(group_partition(0:1))
+       group_partition=(/num_pe_new,num_pe_old-num_pe_new/)
+       CALL mp_comm_split(comm=para_env%group,sub_comm=subgroup,&
+                          ngroups=ngroups,group_distribution=group_distribution,&
+                          n_subgroups=2, group_partition=group_partition)
+
+       IF (group_distribution(mepos_old)==0) THEN
+
+          ! create para_env, might need a proper error, bound to this para_env
+          NULLIFY(para_env_new)
+          CALL cp_para_env_create(para_env_new,subgroup,error=error)
+          ! test a sync
+          CALL mp_sync(para_env_new%group)
+
+          ! create blacs, should inherit the preferences for the layout and so on, from the higher level
+          NULLIFY(blacs_env_new)
+          CALL cp_blacs_env_create(blacs_env=blacs_env_new, para_env=para_env_new, error=error)
+
+          ! create new matrix
+          NULLIFY(fm_struct_new)
+          CALL cp_fm_struct_create(fmstruct=fm_struct_new, para_env=para_env_new, context=blacs_env_new,&
+                                   nrow_global=n, ncol_global=n, error=error)
+          CALL cp_fm_create(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat", error=error)
+          CALL cp_fm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec", error=error)
+
+          ! redistribute old
+          CALL pdgemr2d(n,n,matrix%local_data(1,1),1,1,matrix%matrix_struct%descriptor, &
+                        matrix_new%local_data(1,1),1,1,matrix_new%matrix_struct%descriptor, &
+                        matrix%matrix_struct%context%group)
+
+          ! call scalapack
+          CALL cp_fm_syevd_base(matrix_new,eigenvectors_new,eig,error)
+
+          ! redistribute results
+          CALL pdgemr2d(n,n,eigenvectors_new%local_data(1,1),1,1,eigenvectors_new%matrix_struct%descriptor, &
+                        eigenvectors%local_data(1,1),1,1,eigenvectors%matrix_struct%descriptor, &
+                        eigenvectors%matrix_struct%context%group)
+
+          ! free stuff
+          CALL cp_fm_struct_release(fm_struct_new,error=error)
+          CALL cp_fm_release(matrix_new,error=error)
+          CALL cp_fm_release(eigenvectors_new,error=error)
+          CALL cp_blacs_env_release(blacs_env_new,error=error)
+          CALL cp_para_env_release(para_env_new,error=error)
+
+       ELSE
+          ! these tasks must help redistribute (they own part of the data),
+          ! but need fake 'new' data, and their descriptor must indicate this with -1
+          ! see also scalapack comments on pdgemr2d
+          fake_descriptor=-1
+          CALL pdgemr2d(n,n,matrix%local_data(1,1),1,1,matrix%matrix_struct%descriptor, &
+                        fake_local_data(1,1),1,1,fake_descriptor, &
+                        matrix%matrix_struct%context%group)
+
+          CALL pdgemr2d(n,n,fake_local_data(1,1),1,1,fake_descriptor, &
+                        eigenvectors%local_data(1,1),1,1,eigenvectors%matrix_struct%descriptor, &
+                        eigenvectors%matrix_struct%context%group)
+
+          ! free stuff
+          CALL mp_comm_free(subgroup)
+       ENDIF
+ 
+       ! finally, also the eigenvalues need to end up on the non-group member tasks
+       CALL mp_bcast(eig,0,para_env%group)
+
+       ! free more stuff
+       DEALLOCATE(group_distribution,group_partition)
+
+    ELSE
+
+        CALL cp_fm_syevd_base(matrix,eigenvectors,eig,error)
+
+    ENDIF
+
+#else
+
+    !if using CXML, LWORK must be at least 1 + 5*N + 2*N*lg N + 3*N**2,
+    ! where lg( N ) = smallest integer k such that 2**k >= N
+    ! for n=4 with my lapack (linux) I need to add 50 to the value of
+    ! lwork. 5000 seems to work in IRIX
+    ! unfortunately query is not supported. I did not test n dependence [fawzi]
+    lwork = MAX(1 + 6*n + 2*n**2 + 5000,1+5*n+2*n*20+3*n**2)
+    liwork = 5*n + 3
+
+    ALLOCATE(work(lwork),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "work",lwork*dp_size)
+    ALLOCATE(iwork(liwork),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "iwork",liwork*int_size)
+    m => matrix%local_data
+    CALL dsyevd('V','U', n, m(1,1), n, eig(1), work(1), lwork, iwork(1), liwork, info)
+
+    IF (info /= 0) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "Matrix diagonalization failed")
+    END IF
+
+    CALL cp_fm_to_fm(matrix,eigenvectors,error=error)
+
+    DEALLOCATE (iwork,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "iwork")
+    DEALLOCATE (work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "work")
+#endif
+   
+    nmo = SIZE(eigenvalues,1)
+    IF (SIZE(eigenvalues,1) > n) THEN
+      eigenvalues(1:n) = eig(1:n)
+    ELSE
+      eigenvalues(1:nmo) = eig(1:nmo)
+    END IF
+
+    DEALLOCATE (eig,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "eig")
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_fm_syevd
+
+  SUBROUTINE cp_fm_syevd_base(matrix,eigenvectors,eig,error)
+
+    TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:)              :: eig
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd_base', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, info, istat, liwork, &
-                                                lwork, mypcol, myprow, n, nmo
+                                                lwork, mypcol, myprow, n
     INTEGER, DIMENSION(9)                    :: descm, descv
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -76,20 +262,17 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+#if defined(__SCALAPACK)
+
     failure = .FALSE.
 
+    n = matrix%matrix_struct%nrow_global
+    m => matrix%local_data
     context => matrix%matrix_struct%context
     myprow = context%mepos(1)
     mypcol = context%mepos(2)
-    n = matrix%matrix_struct%nrow_global
-    nmo = SIZE(eigenvalues,1)
-    ALLOCATE(eig(n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    m => matrix%local_data
-
-#if defined(__SCALAPACK)
     descm(:) = matrix%matrix_struct%descriptor(:)
+
     v => eigenvectors%local_data
     descv(:) = eigenvectors%matrix_struct%descriptor(:)
 
@@ -124,56 +307,24 @@ CONTAINS
     CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
                  work(1),lwork,iwork(1),liwork,info)
 
-#else
-
-#if defined(__DEC)
-    !if using CXML, LWORK must be at least 1 + 5*N + 2*N*lg N + 3*N**2,
-    ! where lg( N ) = smallest integer k such that 2**k >= N
-    lwork=1+5*n+2*n*20+3*n**2
-    liwork = 5*n + 2
-#else
-    ! for n=4 with my lapack (linux) I need to add 50 to the value of
-    ! lwork. 5000 seems to work in IRIX
-    ! unfortunately query is not supported. I did not test n dependence [fawzi]
-    lwork = 1 + 6*n + 2*n**2 + 5000
-    liwork = 5*n + 3
-#endif
-    ALLOCATE(work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "work",lwork*dp_size)
-    ALLOCATE(iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork",liwork*int_size)
-    CALL dsyevd('V','U', n, m(1,1), n, eig(1), work(1), lwork, iwork(1), liwork, info)
-    CALL cp_fm_to_fm(matrix,eigenvectors,error=error)
-#endif
-
-
     IF (info /= 0) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "Matrix diagonalization failed")
     END IF
 
-    IF (SIZE(eigenvalues,1) > n) THEN
-      eigenvalues(1:n) = eig(1:n)
-    ELSE
-      eigenvalues(1:nmo) = eig(1:nmo)
-    END IF
-
-    DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "iwork")
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work")
 
-    DEALLOCATE (eig,STAT=istat)
+    DEALLOCATE (iwork,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "eig")
+                                     "work")
+
+#endif
 
     CALL timestop(handle)
 
-  END SUBROUTINE cp_fm_syevd
+  END SUBROUTINE cp_fm_syevd_base
 
 ! *****************************************************************************
 !> \brief   compute eigenvalues and optionally eigenvectors of a real symmetric matrix using scalapack.
