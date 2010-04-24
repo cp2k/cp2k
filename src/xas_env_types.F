@@ -228,7 +228,7 @@ CONTAINS
 
       IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
       IF (PRESENT(nexc_search)) xas_env%nexc_search = nexc_search
-      IF (PRESENT(nexc_atoms)) xas_env%nexc_atoms = nexc_search
+      IF (PRESENT(nexc_atoms)) xas_env%nexc_atoms = nexc_atoms
       IF (PRESENT(nvirtual)) xas_env%nvirtual = nvirtual
       IF (PRESENT(nvirtual2)) xas_env%nvirtual2 = nvirtual2
       IF (PRESENT(eps_diis)) xas_env%eps_diis = eps_diis
