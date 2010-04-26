@@ -141,7 +141,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    share = .TRUE.
+    share = .FALSE.
 !$  share = omp_get_num_threads() .GT. 1
     IF (PRESENT (shared)) share = shared
     ! Only allow sharing if there's a distribution defined.
