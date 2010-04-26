@@ -338,6 +338,7 @@ OBJECTS_GENERIC =\
  lapack.o\
  lazy.o\
  lebedev.o\
+ lgrid_types.o\
  library_tests.o\
  linear_systems.o\
  lowdin.o\

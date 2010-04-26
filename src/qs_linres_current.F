@@ -72,6 +72,7 @@ MODULE qs_linres_current
   USE kinds,                           ONLY: default_path_length,&
                                              dp,&
                                              int_8
+  USE lgrid_types,                     ONLY: lgrid_type
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing
@@ -92,8 +93,7 @@ MODULE qs_linres_current
                                              REALSPACE,&
                                              pw_p_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
-                                             density_rs2pw,&
-                                             lgrid_type
+                                             density_rs2pw
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_atom_current,          ONLY: calculate_jrho_atom,&

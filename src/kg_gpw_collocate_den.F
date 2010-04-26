@@ -36,6 +36,7 @@ MODULE kg_gpw_collocate_den
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE lgrid_types,                     ONLY: lgrid_type
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -43,8 +44,7 @@ MODULE kg_gpw_collocate_den
   USE pw_methods,                      ONLY: pw_integrate_function
   USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
-                                             density_rs2pw,&
-                                             lgrid_type
+                                             density_rs2pw
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&

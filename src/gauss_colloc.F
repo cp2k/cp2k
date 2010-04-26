@@ -15,6 +15,7 @@ MODULE gauss_colloc
   USE d3_poly
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE lgrid_types,                     ONLY: lgrid_type
 #include "cp_common_uses.h"
 
 IMPLICIT NONE
@@ -378,7 +379,7 @@ END FUNCTION
 !> \param error type to control the error handling
 ! *****************************************************************************
 SUBROUTINE collocGauss(h,h_inv,grid,poly,alphai,posi,max_r2,&
-        periodic,gdim,local_bounds,local_shift,poly_shift,scale,error)
+        periodic,gdim,local_bounds,local_shift,poly_shift,scale,lgrid,error)
     REAL(dp), DIMENSION(0:2, 0:2), &
       INTENT(in)                             :: h, h_inv
     REAL(dp), DIMENSION(0:, 0:, 0:), &
@@ -397,6 +398,7 @@ SUBROUTINE collocGauss(h,h_inv,grid,poly,alphai,posi,max_r2,&
     REAL(dp), DIMENSION(0:2), INTENT(in), &
       OPTIONAL                               :: poly_shift
     REAL(dp), INTENT(in), OPTIONAL           :: scale
+    TYPE(lgrid_type), INTENT(inout), OPTIONAL :: lgrid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'collocGauss', &

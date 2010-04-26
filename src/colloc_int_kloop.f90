@@ -83,7 +83,16 @@
                     p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*REAL(k,dp)
                 END DO
-                IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))+p_v*res_k
+#if defined(FM_FLAT_GRID)
+                grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
+#else
+                IF ( PRESENT ( lgrid ) ) THEN
+                  ig = lgrid%ldim * ithread + ii * ndim(2) * ndim(1) + ij * ndim(2) + ik + 1
+                  lgrid%r(ig)=lgrid%r(ig) + p_v*res_k
+                ELSE
+                  grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
+                END IF
+#endif
 #endif
 
                 res_k=res_k*kk_coeffn
@@ -127,7 +136,16 @@
                     p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*k
                 END DO
-                IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))+p_v*res_k
+#if defined(FM_FLAT_GRID)
+                grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
+#else
+                IF ( PRESENT ( lgrid ) ) THEN
+                  ig = lgrid%ldim * ithread + ii * ndim(2) * ndim(1) + ij * ndim(2) + ik + 1
+                  lgrid%r(ig)=lgrid%r(ig) + p_v*res_k
+                ELSE
+                  grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
+                END IF
+#endif
 #endif
                 ik=ik-1
             END DO
@@ -167,7 +185,16 @@
                     p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*REAL(k,dp)
                 END DO
-                IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))+p_v*res_k
+#if defined(FM_FLAT_GRID)
+                grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
+#else
+                IF ( PRESENT ( lgrid ) ) THEN
+                  ig = lgrid%ldim * ithread + ii * ndim(2) * ndim(1) + ij * ndim(2) + ik + 1
+                  lgrid%r(ig)=lgrid%r(ig) + p_v*res_k
+                ELSE
+                  grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
+                END IF
+#endif
 #endif
 
                 res_k=res_k*kk_coeffn
@@ -209,7 +236,16 @@
                     p_v=p_v+poly_k(kgrad)*p_kk
                     p_kk=p_kk*k
                 END DO
-                IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))+p_v*res_k
+#if defined(FM_FLAT_GRID)
+                grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
+#else
+                IF ( PRESENT ( lgrid ) ) THEN
+                  ig = lgrid%ldim * ithread + ii * ndim(2) * ndim(1) + ij * ndim(2) + ik + 1
+                  lgrid%r(ig)=lgrid%r(ig) + p_v*res_k
+                ELSE
+                  grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
+                END IF
+#endif
 #endif
                 ik=ik-1
             END DO

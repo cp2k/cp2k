@@ -69,6 +69,8 @@ MODULE qs_collocate_density
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_8
+  USE lgrid_types,                     ONLY: lgrid_p_type,&
+                                             lgrid_type
   USE mathconstants,                   ONLY: fac,&
                                              pi,&
                                              twopi
@@ -137,20 +139,6 @@ MODULE qs_collocate_density
             collocate_pgf_product_rspace,&
             collocate_atomic_charge_density,&
             density_rs2pw
-
-! *** Public type ***
-
-! *****************************************************************************
-  TYPE lgrid_type
-     INTEGER :: ldim
-     REAL(dp), DIMENSION(:), POINTER :: r
-  END TYPE lgrid_type
-
-  TYPE lgrid_p_type
-     TYPE(lgrid_type), POINTER :: l
-  END TYPE lgrid_p_type
-
-  PUBLIC :: lgrid_type
 
   INTEGER :: debug_count=0
 
@@ -2820,10 +2808,17 @@ CONTAINS
         IF (BTEST(subpatch_pattern,0)) local_s(1)=local_s(1)-rsgrid%desc%border
         IF (BTEST(subpatch_pattern,2)) local_s(2)=local_s(2)-rsgrid%desc%border
         IF (BTEST(subpatch_pattern,4)) local_s(3)=local_s(3)-rsgrid%desc%border
-        CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
+        IF ( PRESENT ( lgrid ) ) THEN
+          CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
+            grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
+            periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
+            lgrid=lgrid,error=error)
+        ELSE
+          CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
             error=error)
+        END IF
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         
     END SUBROUTINE
@@ -2849,10 +2844,17 @@ CONTAINS
         rShifted(3)=rp(3)+cell%hmat(3,1)*local_shift(1)&
              +cell%hmat(3,2)*local_shift(2)&
              +cell%hmat(3,3)*local_shift(3)
-        CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
+        IF ( PRESENT ( lgrid ) ) THEN
+          CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
+            grid=grid,poly=poly_d3,alphai=zetp,posi=rShifted,max_r2=radius*radius,&
+            periodic=periodic,gdim=ng,local_bounds=local_b,&
+            lgrid=lgrid,error=error)
+        ELSE
+          CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rShifted,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,&
             error=error)
+        END IF
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
  
     END SUBROUTINE

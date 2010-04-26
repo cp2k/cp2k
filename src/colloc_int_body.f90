@@ -4,7 +4,7 @@
       ijShift, iJump, ik, ikShift, ikShift2, ikstart, ikstart2, iend,iend2,&
       imax, imax1, imin, imin1, istart, istart2, j, jend, jJump, jmax, jmax1, jmin, &
       jmin1, jstart, k, kend, kend2, kgrad, kJump, kmax, kmax1, kmin, kmin1, &
-      kstart, kstart2, max_j, stat,size_jk,size_k,size_ijk
+      kstart, kstart2, max_j, stat,size_jk,size_k,size_ijk,ig,ithread,nthread
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: k_bounds
     INTEGER, DIMENSION(0:2)                  :: cellShift, l_shift, l_ub, &
                                                 ndim, period, shiftPos,ldim2
@@ -47,7 +47,19 @@
 #define IF_FLAT(x,y) y
 #endif
 
+!$  INTEGER :: omp_get_thread_num, omp_get_num_threads
+
+    ithread = 0
+!$  ithread = omp_get_thread_num()
+
+    nthread = 1
+!$  nthread = omp_get_num_threads()
+
     failure=.FALSE.
+#ifdef FM_FLAT_GRID
+    CPPrecondition(nthread==1,cp_failure_level,routineP,error,failure)
+#endif
+
     k_bounds_alloc=.FALSE.
     poly_alloc=.FALSE.
 #ifndef  FMG_INTEGRATE_FULL
