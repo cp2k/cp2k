@@ -124,8 +124,9 @@ CONTAINS
                                                 check_forces, do_task(3), &
                                                 failure
     LOGICAL, DIMENSION(3, 3)                 :: my_task
-    REAL(KIND=dp)                            :: e_bonded, e_rspace, &
-                                                e_rspace_t, energy_glob_t
+    REAL(KIND=dp)                            :: e_bonded, e_bonded_t, &
+                                                e_rspace, e_rspace_t, &
+                                                energy_glob_t
     REAL(KIND=dp), DIMENSION(:), POINTER     :: efield0_lr, efield0_sr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1_lr, efield1_sr, &
                                                 efield2_lr, efield2_sr
@@ -225,6 +226,7 @@ CONTAINS
     END IF
 
     e_rspace = 0.0_dp
+    e_bonded = 0.0_dp
     IF (.NOT.debug_g_space) THEN
        ! Compute the Real Space (Short-Range) part of the Ewald sum
        CALL ewald_multipole_SR (nonbond_env, ewald_env, cell, e_rspace, my_task,&
@@ -235,7 +237,6 @@ CONTAINS
        IF (do_correction_bonded) THEN
           ! If we request for the bonded correction we store in the SR part of the fields array
           ! also the contribution coming from the correction.. 
-          e_bonded = 0.0_dp
           CALL ewald_multipole_bonded (atomic_kind_set, local_particles, particle_set,&
                ewald_env, cell, e_bonded, my_task, do_forces, do_efield, do_stress,&
                radii, charges, dipoles, quadrupoles, forces_glob, pv_glob,&
@@ -263,10 +264,12 @@ CONTAINS
     CALL ewald_env_get (ewald_env, group=group, error=error)
     energy_glob_t = energy_glob
     e_rspace_t    = e_rspace
+    e_bonded_t    = e_bonded
     CALL mp_sum(energy_glob_t, group)
     CALL mp_sum(e_rspace_t, group)
+    CALL mp_sum(e_bonded_t, group)
     ! Print some info about energetics
-    CALL ewald_multipole_print (iw, energy_local, energy_glob_t, e_rspace_t, e_self, e_neut)
+    CALL ewald_multipole_print (iw, energy_local, e_rspace_t, e_bonded_t, e_self, e_neut)
 
     ! Gather the components of the potential, fields and electrostatic field gradients
     IF (do_efield) THEN
@@ -1143,11 +1146,11 @@ CONTAINS
 ! *****************************************************************************
 !> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
 ! *****************************************************************************
-  SUBROUTINE ewald_multipole_print(iw, e_gspace, e_nonbond, e_rspace, e_self, e_neut)
+  SUBROUTINE ewald_multipole_print(iw, e_gspace, e_rspace, e_bonded, e_self, e_neut)
 
     INTEGER, INTENT(IN)                      :: iw
-    REAL(KIND=dp), INTENT(IN)                :: e_gspace, e_nonbond, &
-                                                e_rspace, e_self, e_neut
+    REAL(KIND=dp), INTENT(IN)                :: e_gspace, e_rspace, e_bonded, &
+                                                e_self, e_neut
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_print', &
       routineP = moduleN//':'//routineN
@@ -1159,14 +1162,14 @@ CONTAINS
             '[hartree]', '= ', e_gspace
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' INITIAL RSPACE ENERGY', &
             '[hartree]', '= ', e_rspace
-       WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' INITIAL NONBONDED ENERGY', &
-            '[hartree]', '= ', e_nonbond-e_rspace
+       WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' BONDED CORRECTION', &
+            '[hartree]', '= ', e_bonded
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' SELF ENERGY CORRECTION', &
             '[hartree]', '= ', e_self
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' NEUTRALIZ. BCKGR. ENERGY', &
             '[hartree]', '= ', e_neut
        WRITE ( iw, '( A, A, T35, A, T56, E25.15 )' ) ' TOTAL ELECTROSTATIC EN.', &
-            '[hartree]', '= ', e_rspace+e_gspace+e_self+e_neut
+            '[hartree]', '= ', e_rspace+e_bonded+e_gspace+e_self+e_neut
        WRITE ( iw, '( A, A )' ) ' *********************************', &
             '**********************************************'
     END IF

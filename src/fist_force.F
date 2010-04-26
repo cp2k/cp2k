@@ -464,8 +464,11 @@ CONTAINS
                   use_virial=use_virial, error=error)
           END IF
        END IF
-       CALL ewald_print (iw2, pot_nonbond, vg_coulomb, thermo%e_self, thermo%e_neut,&
-            thermo%e_bonded)
+       IF (.NOT. do_multipoles) THEN
+          ! Multipole code has its own printing routine.
+          CALL ewald_print (iw2, pot_nonbond, vg_coulomb, thermo%e_self, thermo%e_neut,&
+               thermo%e_bonded)
+       END IF
     ELSE
        IF (use_virial) THEN
           pv_g  = 0.0_dp
