@@ -67,14 +67,14 @@ How to compile CP2K code
      Conventionally, 'sopt' stands for serial, while 'popt' stands for parallel.
 
      You'll need to modify one of these to match your system's settings.
-     You can now build CP2K using these settings:
+     You can now build CP2K using these settings (where -j N allows for a parallel build using N processes):
      
      > cd cp2k/makefiles
-     > make -j=N ARCH=architecture VERSION=version
+     > make -j N ARCH=architecture VERSION=version
      e.g.
-     > make -j=N ARCH=Linux-x86-64-g95 VERSION=sopt
+     > make -j N ARCH=Linux-x86-64-g95 VERSION=sopt
      as a short-cut, you can build several version of the code at once
-     > make -j=N ARCH=Linux-x86-64-g95 sopt popt ssmp psmp
+     > make -j N ARCH=Linux-x86-64-g95 sopt popt ssmp psmp
 
      An executable should appear in cp2k/exe/*
 
