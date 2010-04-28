@@ -36,6 +36,10 @@
       &OT
       &END OT
     &END SCF
+    &DENSITY_FITTING
+       MIN_RADIUS 0.6
+       NUM_GAUSS  1
+    &END
     &XC
       &XC_FUNCTIONAL Pade
       &END XC_FUNCTIONAL
