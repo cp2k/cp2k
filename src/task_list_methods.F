@@ -60,6 +60,7 @@ MODULE task_list_methods
                                              rs_grid_locate_rank,&
                                              rs_grid_release,&
                                              rs_grid_reorder_ranks
+  USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -85,6 +86,8 @@ CONTAINS
 ! *****************************************************************************
 !> \par History
 !>      01.2008 factored out of calculate_rho_elec [Joost VandeVondele]
+!>      04.2010 divides tasks into grid levels and atom pairs for integrate/collocate [Iain Bethune]
+!>              (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
 !> \param reorder_rs_grid_ranks Flag that indicates if this routine should
 !>        or should not overwrite the rs descriptor (see comment below)
 !> \note  If this routine is called several times with different task lists,
@@ -93,17 +96,12 @@ CONTAINS
 !>        of performing a new optimization by leaving the rank order in 
 !>        its current state.
 ! *****************************************************************************
-  SUBROUTINE generate_qs_task_list(qs_env, tasks, dist_ab, ntasks, atom_pair_send, atom_pair_recv,&
+  SUBROUTINE generate_qs_task_list(qs_env, task_list,&
                                    reorder_rs_grid_ranks, soft_valid, basis_set_id, error)
                                    
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER(kind=int_8), DIMENSION(:, :), &
-      POINTER                                :: tasks
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab
-    INTEGER                                  :: ntasks
-    INTEGER(kind=int_8), DIMENSION(:), &
-      POINTER                                :: atom_pair_send, atom_pair_recv
+    TYPE(task_list_type), POINTER            :: task_list
     LOGICAL, INTENT(IN)                      :: reorder_rs_grid_ranks
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
@@ -115,9 +113,10 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, curr_tasks, handle, i, iatom, ikind, ilist, inode, jatom, &
-      jkind, maxpgf, maxset, my_basis_set_id, natoms, nkind, nlist, nnode, &
-      nseta, nsetb, stat
+    INTEGER :: ab, curr_tasks, handle, i, iatom, iatom_old, igrid_level, &
+      igrid_level_old, ikind, ilist, inode, ipair, ipgf, iset, jatom, &
+      jatom_old, jkind, jpgf, jset, maxpgf, maxset, my_basis_set_id, natoms, &
+      nkind, nlist, nnode, nseta, nsetb, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     LOGICAL                                  :: failure, my_soft
@@ -218,16 +217,16 @@ CONTAINS
     END DO
 
     ! free the atom_pair lists if allocated
-    IF (ASSOCIATED(atom_pair_send)) DEALLOCATE(atom_pair_send)
-    IF (ASSOCIATED(atom_pair_recv)) DEALLOCATE(atom_pair_recv)
+    IF (ASSOCIATED(task_list%atom_pair_send)) DEALLOCATE(task_list%atom_pair_send)
+    IF (ASSOCIATED(task_list%atom_pair_recv)) DEALLOCATE(task_list%atom_pair_recv)
 
     ! construct a list of all tasks
-    IF (.NOT.ASSOCIATED(tasks)) THEN
-       CALL reallocate(tasks,1,6,1,max_tasks)
-       CALL reallocate(dist_ab,1,3,1,max_tasks)
+    IF (.NOT.ASSOCIATED(task_list%tasks)) THEN
+       CALL reallocate(task_list%tasks,1,6,1,max_tasks)
+       CALL reallocate(task_list%dist_ab,1,3,1,max_tasks)
     ENDIF
-    ntasks = 0
-    curr_tasks = SIZE(tasks,2)
+    task_list%ntasks = 0
+    curr_tasks = SIZE(task_list%tasks,2)
 
     loop_ikind: DO ikind=1,nkind
 
@@ -302,7 +301,8 @@ CONTAINS
                 CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                      neighbor=jatom, r=rab(:))
 
-                CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_rho,dft_control,cube_info,gridlevel_info,cell,&
+                CALL task_list_inner_loop(task_list%tasks, task_list%dist_ab, task_list%ntasks, curr_tasks, &
+                                  rs_rho,dft_control,cube_info,gridlevel_info,cell,&
                                   iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
                                   la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
 
@@ -319,10 +319,91 @@ CONTAINS
     END DO loop_ikind
 
     ! redistribute the task list so that all tasks map on the local rs grids
-    CALL distribute_tasks (rs_rho,ntasks, natoms,&
-            maxset,maxpgf, tasks, rval=dist_ab, atom_pair_send=atom_pair_send,&
-            atom_pair_recv=atom_pair_recv, symmetric=.TRUE., &
+    CALL distribute_tasks (rs_rho,task_list%ntasks, natoms,&
+            maxset,maxpgf, task_list%tasks, rval=task_list%dist_ab, atom_pair_send=task_list%atom_pair_send,&
+            atom_pair_recv=task_list%atom_pair_recv, symmetric=.TRUE., &
             reorder_rs_grid_ranks=reorder_rs_grid_ranks, error=error)
+
+    ! Now we have the final list of tasks, setup the task_list with the
+    ! data needed for the loops in integrate_v/calculate_rho
+
+    IF (ASSOCIATED(task_list%taskstart)) DEALLOCATE(task_list%taskstart)
+    IF (ASSOCIATED(task_list%taskstop)) DEALLOCATE(task_list%taskstop)
+    IF (ASSOCIATED(task_list%npairs)) DEALLOCATE(task_list%npairs)
+
+    ! First, count the number of unique atom pairs per grid level
+
+    ALLOCATE(task_list%npairs(SIZE(rs_rho)), STAT=stat)
+    IF (stat/=0) CALL stop_memory(routineN,"npairs")
+    
+    iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1
+    ipair = 0
+    task_list%npairs = 0
+
+    DO i=1,task_list%ntasks
+      CALL int2pair(task_list%tasks(3,i),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+      IF (igrid_level .NE. igrid_level_old) THEN
+        IF (igrid_level_old .NE. -1) THEN
+          task_list%npairs(igrid_level_old) = ipair
+        END IF
+        ipair = 1
+
+        igrid_level_old = igrid_level
+        iatom_old = iatom
+        jatom_old = jatom
+      ELSE IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+        ipair = ipair + 1
+        iatom_old = iatom
+        jatom_old = jatom
+      END IF
+    END DO
+    ! Take care of the last iteration
+    IF (task_list%ntasks /= 0) THEN
+      task_list%npairs(igrid_level) = ipair
+    END IF
+
+    ! Second, for each atom pair, find the indices in the task list
+    ! of the first and last task
+
+    ! Array sized for worst case 
+    ALLOCATE(task_list%taskstart(MAXVAL(task_list%npairs),SIZE(rs_rho)), STAT=stat)
+    IF (stat/=0) CALL stop_memory(routineN,"taskstart")
+    ALLOCATE(task_list%taskstop(MAXVAL(task_list%npairs),SIZE(rs_rho)), STAT=stat)
+    IF (stat/=0) CALL stop_memory(routineN,"taskstop")
+
+    iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1
+    ipair = 0
+    task_list%taskstart = 0 
+    task_list%taskstop = 0
+
+    DO i=1,task_list%ntasks
+      CALL int2pair(task_list%tasks(3,i),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+      IF (igrid_level .NE. igrid_level_old) THEN
+        IF (igrid_level_old .NE. -1) THEN
+          task_list%taskstop(ipair,igrid_level_old) = i - 1
+        END IF
+        ipair = 1
+        task_list%taskstart(ipair,igrid_level) = i
+ 
+        igrid_level_old = igrid_level
+        iatom_old = iatom
+        jatom_old = jatom
+      ELSE IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+        ipair = ipair + 1
+        task_list%taskstart(ipair,igrid_level) = i
+        task_list%taskstop(ipair-1,igrid_level) = i - 1
+  
+        iatom_old = iatom
+        jatom_old = jatom
+      END IF 
+    END DO
+    ! Take care of the last iteration
+    IF (task_list%ntasks /= 0) THEN
+      task_list%taskstop(ipair,igrid_level) = task_list%ntasks
+    END IF
+
+    ! And cleanup
+
     IF (ASSOCIATED(rs_rho)) THEN
       DO i=1, SIZE(rs_rho)
         CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)

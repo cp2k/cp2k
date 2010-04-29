@@ -25,8 +25,10 @@ MODULE task_list_types
   TYPE task_list_type
     INTEGER(kind=int_8), DIMENSION(:, :), POINTER :: tasks
     REAL(KIND=dp), DIMENSION(:, :), POINTER       :: dist_ab
-    INTEGER(kind=int_8), DIMENSION(:), POINTER                :: atom_pair_send, atom_pair_recv
+    INTEGER(kind=int_8), DIMENSION(:), POINTER    :: atom_pair_send, atom_pair_recv
     INTEGER                                       :: ntasks
+    INTEGER, DIMENSION(:,:),POINTER               :: taskstart,taskstop
+    INTEGER, DIMENSION(:),POINTER                 :: npairs
   END TYPE task_list_type
 
   PUBLIC :: task_list_type
@@ -58,6 +60,9 @@ SUBROUTINE allocate_task_list(task_list,error)
   NULLIFY(task_list%dist_ab)
   NULLIFY(task_list%atom_pair_send)
   NULLIFY(task_list%atom_pair_recv)
+  NULLIFY(task_list%taskstart)
+  NULLIFY(task_list%taskstop)
+  NULLIFY(task_list%npairs)
   task_list%ntasks=0
 END SUBROUTINE allocate_task_list
 
@@ -92,6 +97,19 @@ SUBROUTINE deallocate_task_list(task_list,error)
      DEALLOCATE(task_list%atom_pair_recv,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ENDIF
+  IF (ASSOCIATED(task_list%taskstart)) THEN
+     DEALLOCATE(task_list%taskstart,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ENDIF
+  IF (ASSOCIATED(task_list%taskstop)) THEN
+     DEALLOCATE(task_list%taskstop,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ENDIF
+  IF (ASSOCIATED(task_list%npairs)) THEN
+     DEALLOCATE(task_list%npairs,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ENDIF
+
   DEALLOCATE(task_list,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 END SUBROUTINE deallocate_task_list

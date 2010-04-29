@@ -46,14 +46,17 @@ MODULE qs_integrate_potential
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_d32cp2k
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
+  USE dbcsr_dist_operations
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_make_threads,&
+                                             dbcsr_distribution_no_threads,&
                                              dbcsr_get_matrix_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_obj
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE gauss_colloc,                    ONLY: integrateGaussFull
-  USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
-                                             gridlevel_info_type
+  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
                                              spline3_pbc_interp,&
                                              use_aux_fit_basis_set,&
@@ -110,6 +113,8 @@ MODULE qs_integrate_potential
   PRIVATE
 
   INTEGER :: debug_count=0
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential'
 
@@ -490,6 +495,9 @@ CONTAINS
 !>     this argument is optional
 !>     derivatives of these matrix elements with respect to the ionic
 !>     coordinates can be computed as well
+!> \par History
+!>      IAB (29-Apr-2010): Added OpenMP parallelisation to task loop
+!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
 ! *****************************************************************************
   SUBROUTINE integrate_v_rspace(v_rspace, p, h,qs_env,calculate_forces,compute_tau,gapw,&
        matrix_dv, basis_set_id, error)
@@ -512,18 +520,18 @@ CONTAINS
                                                 max_tasks = 3000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, iatom_new, &
-      iatom_old, idir, igrid_level, ikind, ikind_old, ilevel, ipgf, ipgf_new, &
-      iset, iset_new, iset_old, itask, ithread, jatom, jatom_new, jatom_old, &
-      jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, maxco, &
-      maxpgf, maxset, maxsgf_set, my_basis_set_id, na1, na2, natom, nb1, nb2, &
-      ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, sgfa, sgfb, &
-      stat
+    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, idir, &
+      igrid_level, ikind, ikind_old, ilevel, ipair, ipgf, ipgf_new, iset, &
+      iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, jpgf, &
+      jpgf_new, jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, &
+      my_basis_set_id, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nseta, &
+      nsetb, nthread, offs_dv, sgfa, sgfb, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: block_touched
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -532,8 +540,8 @@ CONTAINS
       found, h_duplicated, has_dv, map_consistent, my_compute_tau, my_gapw, &
       new_set_pair_coming, p_duplicated, pab_required, scatter, tr, &
       use_subpatch, use_virial
-    REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
-                                                kind_radius_b, rab2, zetp
+    REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
+                                                zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
                                                 rab_inv, rb
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
@@ -554,6 +562,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
+    TYPE(dbcsr_distribution_obj), POINTER    :: dist
     TYPE(dbcsr_obj), POINTER                 :: deltap, dh
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: ddv
@@ -574,6 +583,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
     TYPE(virial_type), POINTER               :: virial
+
+!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     failure=.FALSE.
     NULLIFY(pw_env, rs_descs, tasks, dist_ab)
@@ -634,7 +645,6 @@ CONTAINS
     dist_ab=>task_list%dist_ab
     atom_pair_send=>task_list%atom_pair_send
     atom_pair_recv=>task_list%atom_pair_recv
-    ntasks=task_list%ntasks
 
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs,error=error)
@@ -714,8 +724,6 @@ CONTAINS
        END IF
     END IF
 
-    CALL cp_dbcsr_work_create(dh,work_mutable=.TRUE.,error=error)
-
     p_duplicated = .FALSE.
     IF ( pab_required ) THEN
        deltap => p%matrix
@@ -731,8 +739,10 @@ CONTAINS
        END IF
     END IF
 
-    !   *** Allocate work storage ***
     nthread = 1
+!$  nthread = omp_get_max_threads()
+
+    !   *** Allocate work storage ***
     NULLIFY ( pabt, habt, workt )
     CALL reallocate(habt,1,maxco,1,maxco,0,nthread)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread)
@@ -781,7 +791,27 @@ CONTAINS
         CALL distribute_matrix (rs_v, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
     ENDIF
 
+    IF (debug_this_module) &
+      ALLOCATE(block_touched(natom,natom))
+
+!$omp parallel default(none), &
+!$omp shared(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
+!$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,has_dv,ddv,deltap,use_virial), &
+!$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
+!$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
+!$omp shared(gridlevel_info,task_list,failure,block_touched,nthread), &
+!$omp private(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
+!$omp private(ikind_old,jkind_old,iatom,jatom,iset,jset,ikind,jkind,ilevel,ipgf,jpgf), &
+!$omp private(brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
+!$omp private(rpgfa,set_radius_a,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
+!$omp private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,tr,found,error,atom_a,atom_b), &
+!$omp private(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
+!$omp private(dv_block,p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
+!$omp private(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
+!$omp private(iset_new,jset_new,ipgf_new,jpgf_new,idir,dist)
+
     ithread = 0
+!$  ithread = omp_get_thread_num()
     work => workt(:,:,ithread)
     hab => habt(:,:,ithread)
     IF (has_dv) THEN
@@ -790,25 +820,50 @@ CONTAINS
     END IF
     IF (pab_required) THEN
        pab => pabt(:,:,ithread)
-    ENDIF
-    IF (has_dv) THEN
-       hdab => hdabt(:,:,:,ithread)
-       hadb => hadbt(:,:,:,ithread)
     END IF
 
-    iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1 
+    iset_old = -1 ; jset_old = -1 
     ikind_old = -1 ; jkind_old = -1
 
-    loop_tasks: DO itask = 1, ntasks
+
+    ! Here we loop over gridlevels first, finalising the matrix after each grid level is
+    ! completed.  On each grid level, we loop over atom pairs, which will only access
+    ! a single block of each matrix, so with OpenMP, each matrix block is only touched
+    ! by a single thread for each grid level
+    loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
+
+    CALL cp_dbcsr_work_create(dh,work_mutable=.TRUE.,n=nthread,error=error)
+    dist => dh%m%dist
+    CALL dbcsr_distribution_make_threads(dist)
+    IF (has_dv) THEN
+      DO idir=1,3
+        CALL cp_dbcsr_work_create(ddv(idir)%matrix,work_mutable=.TRUE.,n=nthread,error=error)
+        dist => ddv(idir)%matrix%m%dist
+        CALL dbcsr_distribution_make_threads(dist)
+      END DO
+    END IF
+!$omp barrier
+
+    IF (debug_this_module) THEN
+!$omp single
+      block_touched = -1
+!$omp end single
+!$omp flush
+    END IF
+
+!$omp do schedule (dynamic, MAX(1,task_list%npairs(igrid_level)/(nthread*50)))
+    loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
+    loop_tasks: DO itask = task_list%taskstart(ipair,igrid_level), task_list%taskstop(ipair,igrid_level)
 
        CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
 
-       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN 
+       ! At the start of a block of tasks, get atom data (and kind data, if needed)
+       IF (itask .EQ. task_list%taskstart(ipair,igrid_level) ) THEN 
 
           ikind = particle_set(iatom)%atomic_kind%kind_number
           jkind = particle_set(jatom)%atomic_kind%kind_number
 
-          IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r,cell)
+          ra(:) = pbc(particle_set(iatom)%r,cell)
 
           IF (iatom <= jatom) THEN
              brow = iatom
@@ -858,7 +913,6 @@ CONTAINS
              END SELECT
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
-                  kind_radius=kind_radius_b,&
                   lmax=lb_max,&
                   lmin=lb_min,&
                   npgf=npgfb,&
@@ -870,11 +924,21 @@ CONTAINS
                   zet=zetb)          
 
           ENDIF
+
+          IF (debug_this_module) THEN
+!$omp critical (block_touched)
+            IF ((block_touched(brow,bcol).NE.ithread) .AND. (block_touched(brow,bcol).NE. -1) ) THEN
+              CALL stop_program("Block has been modified by another thread", "Exiting...")
+            END IF
+            block_touched(brow,bcol) = ithread
+!$omp end critical (block_touched)
+          END IF
+
           NULLIFY(h_block)
           CALL dbcsr_get_block_p(dh,brow,bcol,h_block,tr,found)
-
-          IF (.NOT.ASSOCIATED(h_block)) &
+          IF (.NOT.ASSOCIATED(h_block)) THEN
                CALL dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
+          END IF
           IF (has_dv) THEN
              DO idir=1,3
                 CALL dbcsr_get_block_p(matrix=ddv(idir)%matrix,&
@@ -904,8 +968,6 @@ CONTAINS
              my_virial_b = 0.0_dp
           ENDIF
 
-          iatom_old = iatom
-          jatom_old = jatom
           ikind_old = ikind
           jkind_old = jkind
 
@@ -971,7 +1033,6 @@ CONTAINS
        rb(3) = ra(3) + rab(3)
        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
        dab=SQRT(rab2)
-       igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
        na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
        na2 = ipgf*ncoset(la_max(iset))
@@ -1082,15 +1143,12 @@ CONTAINS
 
        new_set_pair_coming=.FALSE.
        atom_pair_done = .FALSE.
-       IF (itask<ntasks)  THEN
-          CALL int2pair(tasks(3,itask+1),ilevel,iatom_new,jatom_new,iset_new,jset_new,ipgf_new,jpgf_new,natom,maxset,maxpgf)
-          IF (iatom_new .NE. iatom .OR. jatom_new .NE. jatom .OR. iset_new .NE. iset .OR. jset_new .NE. jset) THEN
+       IF (itask < task_list%taskstop(ipair,igrid_level))  THEN
+          CALL int2pair(tasks(3,itask+1),ilevel,iatom,jatom,iset_new,jset_new,ipgf_new,jpgf_new,natom,maxset,maxpgf)
+          IF (iset_new .NE. iset .OR. jset_new .NE. jset) THEN
              new_set_pair_coming=.TRUE.
           ENDIF
-          IF(iatom_new .NE. iatom .OR. jatom_new .NE. jatom ) THEN
-             atom_pair_done = .TRUE.
-          ENDIF
-       ELSE 
+       ELSE
           ! do not forget the last block
           new_set_pair_coming=.TRUE.
           atom_pair_done = .TRUE.
@@ -1144,6 +1202,7 @@ CONTAINS
        END IF
 
        IF (atom_pair_done) THEN
+!$omp critical(force)
           IF (calculate_forces) THEN
              force(ikind)%rho_elec(:,atom_a) =&
                   force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
@@ -1159,20 +1218,37 @@ CONTAINS
                    virial%pv_virial = virial%pv_virial + 2.0_dp*my_virial_b
                 END IF
              END IF
-
           END IF
-
+!$omp end critical (force)
        ENDIF
-
     END DO loop_tasks
+    END DO loop_pairs
+!$omp end do
 
     CALL cp_dbcsr_finalize(dh, error=error)
 
     IF (has_dv) THEN
        DO idir=1,3
-          CALL dbcsr_add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
+         CALL cp_dbcsr_finalize(ddv(idir)%matrix, error=error)
        END DO
     ENDIF
+
+    END DO loop_gridlevels
+
+    dist => dh%m%dist
+    CALL dbcsr_distribution_no_threads(dist)
+    IF (has_dv) THEN
+      DO idir=1,3
+        dist => ddv(idir)%matrix%m%dist
+        CALL dbcsr_distribution_no_threads(dist)
+      END DO
+    END IF
+
+!$omp end parallel
+!$omp barrier
+
+    IF (debug_this_module) &
+      DEALLOCATE(block_touched)
 
     IF ( h_duplicated ) THEN
        ! Reconstruct H matrix if using distributed RS grids
