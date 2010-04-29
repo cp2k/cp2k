@@ -120,3 +120,9 @@ CH_PBE_HOLE_T_C_LR_1.0.inp
 CH_GV09_1.0.inp
 #  
 H2O_GV09_1.0.inp
+# Reset for numerics after OpenMP changes
+CH_BeckeRoussel_R_1.0.inp
+#
+CH_PBE_HOLE_T_C_LR_1.0.inp
+#
+CH_GV09_1.0.inp
