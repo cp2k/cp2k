@@ -619,9 +619,9 @@ CONTAINS
        WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
        WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
        IF(shell_present .AND. shell_model_ad) THEN
-          WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES "
+          WRITE(iw,'(A)')" FIST:: (2) SHELL TOTAL FORCES (1) + ELECTROSTATIC FORCES "
           WRITE(iw,'(3f15.9)')((fshell_total ( j, i ),j=1,3), i = 1, nshell)
-          WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
+          WRITE(iw,'(A)')" FIST:: (2) CORE TOTAL FORCES (1) + ELECTROSTATIC FORCES"
           WRITE(iw,'(3f15.9)')((fcore_total ( j, i ),j=1,3), i = 1, nshell)
        END IF
     END IF
