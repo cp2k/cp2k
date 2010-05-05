@@ -192,6 +192,7 @@ MODULE atom_types
     REAL(KIND=dp)                                 :: etot
     REAL(KIND=dp)                                 :: eband
     REAL(KIND=dp)                                 :: ekin
+    REAL(KIND=dp)                                 :: epot
     REAL(KIND=dp)                                 :: ecore
     REAL(KIND=dp)                                 :: elsd
     REAL(KIND=dp)                                 :: epseudo
@@ -327,7 +328,6 @@ CONTAINS
                    "# point radial grid < 0",error,failure)
     CALL create_grid_atom(basis%grid,ngp,1,1,quadtype)
     basis%grid%nr = ngp
-
     basis%geometrical = .FALSE.
     basis%aval  = 0._dp
     basis%cval  = 0._dp
@@ -945,10 +945,10 @@ CONTAINS
     SELECT CASE (zval)
       CASE DEFAULT
         CPPrecondition(.FALSE., cp_failure_level, routineP, error, failure)
-      CASE (1)   ! this is from the general geometrical basis
-        cval = 2.6_dp
+      CASE (1)   ! this is from the general geometrical basis and extended
+        cval = 2.0_dp
         aval = 0.016_dp
-        ngto(0) = 10
+        ngto(0) = 20
       CASE (2)
         cval = 2.14774520_dp
         aval = 0.04850670_dp

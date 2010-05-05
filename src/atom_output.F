@@ -156,6 +156,8 @@ CONTAINS
                                    "    Total Energy ::",atom%energy%etot
     WRITE(iw,'(T36,A,T61,F20.12)') "     Band Energy ::",atom%energy%eband
     WRITE(iw,'(T36,A,T61,F20.12)') "  Kinetic Energy ::",atom%energy%ekin
+    WRITE(iw,'(T36,A,T61,F20.12)') "Potential Energy ::",atom%energy%epot
+    WRITE(iw,'(T36,A,T61,F20.12)') "   Virial (-V/T) ::",-atom%energy%epot/atom%energy%ekin
     WRITE(iw,'(T36,A,T61,F20.12)') "     Core Energy ::",atom%energy%ecore
     IF(atom%energy%exc /= 0._dp) &
       WRITE(iw,'(T36,A,T61,F20.12)') "       XC Energy ::",atom%energy%exc
@@ -237,28 +239,36 @@ CONTAINS
       CASE (GTO_BASIS)
         IF ( atom_basis%geometrical ) THEN
           WRITE(iw,'(/," ",21("*"),A,22("*"))') " Geometrical Gaussian Type Orbitals "
-          WRITE(iw,'(A,F15.8,T47,A,F10.5,/)') " Initial exponent:",atom_basis%aval,&
-                " Proportionality factor:",atom_basis%cval
+          WRITE(iw,'(A,F15.8,T41,A,F15.8)') " Initial exponent: ",atom_basis%aval,&
+                " Proportionality factor: ",atom_basis%cval
         ELSE
           WRITE(iw,'(/," ",21("*"),A,21("*"))') " Uncontracted Gaussian Type Orbitals "
         END IF
-        IF ( atom_basis%nbas(0) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
-                          " s Exponents: ",(atom_basis%am(i,0),i=1,atom_basis%nbas(0))
-        IF ( atom_basis%nbas(1) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
-                          " p Exponents: ",(atom_basis%am(i,1),i=1,atom_basis%nbas(1))
-        IF ( atom_basis%nbas(2) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
-                          " d Exponents: ",(atom_basis%am(i,2),i=1,atom_basis%nbas(2))
-        IF ( atom_basis%nbas(3) > 0 ) WRITE(iw,'(A,20(T17,4F16.5,/))') &
-                          " f Exponents: ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
+        IF ( atom_basis%nbas(0) > 0 ) THEN
+          WRITE(iw,'(/,T2,A,(T30,I5,T51,F30.8))') &
+           "s Exponents: ",(i,atom_basis%am(i,0),i=1,atom_basis%nbas(0))
+        END IF
+        IF ( atom_basis%nbas(1) > 0 ) THEN
+          WRITE(iw,'(/,T2,A,(T30,I5,T51,F30.8))') &
+           "p Exponents: ",(i,atom_basis%am(i,1),i=1,atom_basis%nbas(1))
+        END IF
+        IF ( atom_basis%nbas(2) > 0 ) THEN
+          WRITE(iw,'(/,T2,A,(T30,I5,T51,F30.8))') &
+           "d Exponents: ",(i,atom_basis%am(i,2),i=1,atom_basis%nbas(2))
+        END IF
+        IF ( atom_basis%nbas(3) > 0 ) THEN
+          WRITE(iw,'(/,T2,A,(T30,I5,T51,F30.8))') &
+           "f Exponents: ",(i,atom_basis%am(i,3),i=1,atom_basis%nbas(3))
+        END IF
         WRITE(iw,'(" ",79("*"))')
       CASE (CGTO_BASIS)
         WRITE(iw,'(/," ",22("*"),A,22("*"))') " Contracted Gaussian Type Orbitals "
         DO l=0,3
           IF ( atom_basis%nbas(l) > 0 ) THEN
-            IF (l==0) WRITE(iw,'(A)') " s Funtions"
-            IF (l==1) WRITE(iw,'(A)') " p Funtions"
-            IF (l==2) WRITE(iw,'(A)') " d Funtions"
-            IF (l==3) WRITE(iw,'(A)') " f Funtions"
+            IF (l==0) WRITE(iw,'(A)') " s Functions"
+            IF (l==1) WRITE(iw,'(A)') " p Functions"
+            IF (l==2) WRITE(iw,'(A)') " d Functions"
+            IF (l==3) WRITE(iw,'(A)') " f Functions"
             DO i=1,atom_basis%nprim(l)
               WRITE(iw,'(F15.6,5(T21,6F10.6,/))') &
                   atom_basis%am(i,l),(atom_basis%cm(i,j,l),j=1,atom_basis%nbas(l))

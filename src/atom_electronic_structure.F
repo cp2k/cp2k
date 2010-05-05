@@ -302,6 +302,9 @@ CONTAINS
       ! Total energy
       atom%energy%etot = atom%energy%ecore + atom%energy%ecoulomb + atom%energy%eexchange + atom%energy%exc
 
+      ! Potential energy
+      atom%energy%epot = atom%energy%etot - atom%energy%ekin
+
       ! Total HF/KS matrix
       fmat%op = hcore%op + jmat%op + kmat%op + xcmat%op
 
@@ -636,6 +639,9 @@ CONTAINS
      
       ! Total energy
       atom%energy%etot = atom%energy%ecore + atom%energy%ecoulomb + atom%energy%eexchange + atom%energy%exc
+
+      ! Potential energy
+      atom%energy%epot = atom%energy%etot - atom%energy%ekin
 
       ! Total HF/KS matrix
       fmata%op = hcore%op + hlsd%op + jmat%op + kmata%op + xcmata%op
