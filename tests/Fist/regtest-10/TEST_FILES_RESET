@@ -64,3 +64,7 @@ nh3-meta-3.inp
 nh3-meta-4.inp
 water_2_angvel_zero_001.inp
 water_2_angvel_zero_002.inp
+# position along the path normalized
+2gly_mtd_rprmsd.inp
+2gly_mtd_dprmsd.inp
+2gly_mtd_rp_dp_rmsd.inp
