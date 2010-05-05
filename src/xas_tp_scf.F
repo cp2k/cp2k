@@ -202,13 +202,14 @@ CONTAINS
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
-            FMT="(/,T3,A,T9,A,T36,A,T49,A,T68,A,/,T3,A)")&
-            "Step","Update method","Time","Convergence","Total energy",&
+            FMT="(/,T3,A,T12,A,T31,A,T40,A,T60,A,T75,A/,T3,A)")&
+            "Step","Update method","Time","Convergence","Total energy","Change",&
             REPEAT("-",77)
     END IF
 
     !   *** SCF loop ***
 
+    energy%tot_old = 0.0_dp
     scf_loop: DO
        CALL timeset(routineN//"_inner_loop",handle2)
 
@@ -269,6 +270,7 @@ CONTAINS
                energy%total-energy%tot_old
 
        END IF
+       energy%tot_old = energy%total
 
        ! ** convergence check
        CALL external_control(should_stop,"XASSCF",target_time=qs_env%target_time,&

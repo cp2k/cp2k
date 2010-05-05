@@ -517,6 +517,7 @@ CONTAINS
           istart=FLOOR(MIN(RANGE(1),RANGE(2))/colvar%reaction_path_param%step_size)
           colvar%reaction_path_param%function_bounds(1)=istart
           colvar%reaction_path_param%function_bounds(2)=iend
+          colvar%reaction_path_param%nr_frames= 2 !iend - istart + 1
           ALLOCATE(colvar%reaction_path_param%f_vals(ncol,istart:iend),stat=stat)
           CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
           CALL section_vals_val_get(path_section,"VARIABLE",c_vals=my_par,i_rep_val=1,error=error)
@@ -565,7 +566,8 @@ CONTAINS
              v_count=0
              kk=rec_eval_grid(iw1,ncol,colvar%reaction_path_param%f_vals,v_count,&
                   grid_point,grid_sp,colvar%reaction_path_param%step_size,istart,&
-                  iend,s1v,s1,p_bounds,colvar%reaction_path_param%lambda,ifunc=ifunc)
+                  iend,s1v,s1,p_bounds,colvar%reaction_path_param%lambda,ifunc=ifunc,&
+                  nconf=colvar%reaction_path_param%nr_frames)
              DEALLOCATE(grid_sp,stat=stat)
              CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
              DEALLOCATE(p_range,stat=stat)
@@ -3092,7 +3094,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iend, ii, istart, j, k, &
-                                                ncolv, stat
+                                                ncolv, nconf, stat
     LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, step_size
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s1, ss_vals
@@ -3103,6 +3105,7 @@ CPSourceFileRef,&
     istart=colvar%reaction_path_param%function_bounds(1)
     iend=colvar%reaction_path_param%function_bounds(2)
 
+    nconf=colvar%reaction_path_param%nr_frames
     step_size=colvar%reaction_path_param%step_size
     ncolv=colvar%reaction_path_param%n_components 
     lambda=colvar%reaction_path_param%lambda
@@ -3142,7 +3145,8 @@ CPSourceFileRef,&
        END DO
     END DO
 
-    colvar%ss=s1(1)/s1(2)
+    colvar%ss=s1(1)/s1(2)/REAL(nconf-1,dp)
+
     ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
@@ -3151,7 +3155,7 @@ CPSourceFileRef,&
        DO j=1,colvar%reaction_path_param%colvar_p(i)%colvar%n_atom_s
           ii=ii+1
           fi(:,ii)=colvar%reaction_path_param%colvar_p(i)%colvar%dsdr(:,j)*lambda*(ds1(i,1) &
-               /s1(2)-colvar%ss*ds1(i,2)/s1(2))*2.0_dp
+               /s1(2)/REAL(nconf-1,dp)-colvar%ss*ds1(i,2)/s1(2))*2.0_dp
        END DO
     END DO
 
@@ -3257,7 +3261,8 @@ CPSourceFileRef,&
        DO iat  = 1,rmsd_atom
          i = iatom(iat)
          ii = (i-1)*3
-         vec_dif(iat) = (riat(1,iat)-r(ii+1))**2+(riat(2,iat)-r(ii+2))**2+(riat(3,iat)-r(ii+3))**2
+         vec_dif(iat) = (riat(1,iat)-r(ii+1))**2+(riat(2,iat)-r(ii+2))**2&
+                       +(riat(3,iat)-r(ii+3))**2
          sum_exp =  sum_exp + vec_dif(iat) 
        END DO
        s1v(1,ik) = REAL(ik-1,dp)*EXP(-lambda*sum_exp)
@@ -3290,9 +3295,9 @@ CPSourceFileRef,&
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
     DO iat = 1,rmsd_atom
-      fi(1,iat) = 2.0_dp*lambda/s1(2)*REAL(nconf-1,dp)*(ds1(1,iat,1) - ds1(1,iat,2)*s1(1)/s1(2))
-      fi(2,iat) = 2.0_dp*lambda/s1(2)*REAL(nconf-1,dp)*(ds1(2,iat,1) - ds1(2,iat,2)*s1(1)/s1(2))
-      fi(3,iat) = 2.0_dp*lambda/s1(2)*REAL(nconf-1,dp)*(ds1(3,iat,1) - ds1(3,iat,2)*s1(1)/s1(2))
+      fi(1,iat) = 2.0_dp*lambda/s1(2)/REAL(nconf-1,dp)*(ds1(1,iat,1) - ds1(1,iat,2)*s1(1)/s1(2))
+      fi(2,iat) = 2.0_dp*lambda/s1(2)/REAL(nconf-1,dp)*(ds1(2,iat,1) - ds1(2,iat,2)*s1(1)/s1(2))
+      fi(3,iat) = 2.0_dp*lambda/s1(2)/REAL(nconf-1,dp)*(ds1(3,iat,1) - ds1(3,iat,2)*s1(1)/s1(2))
       CALL put_derivative(colvar,iat,fi(:,iat))
     END DO
 
@@ -3903,7 +3908,7 @@ CPSourceFileRef,&
 !> \author fschiff
 ! *****************************************************************************
   RECURSIVE FUNCTION rec_eval_grid(iw1,ncol,f_vals,v_count,&
-       gp,grid_sp,step_size,istart,iend,s1v,s1,p_bounds,lambda,ifunc) RESULT(k)
+       gp,grid_sp,step_size,istart,iend,s1v,s1,p_bounds,lambda,ifunc,nconf) RESULT(k)
     INTEGER                                  :: iw1, ncol
     REAL(dp), DIMENSION(:, :), POINTER       :: f_vals
     INTEGER                                  :: v_count
@@ -3914,16 +3919,16 @@ CPSourceFileRef,&
     REAL(dp), DIMENSION(:), POINTER          :: s1
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     REAL(dp)                                 :: lambda
-    INTEGER                                  :: ifunc, k
+    INTEGER                                  :: ifunc, nconf
 
-    INTEGER                                  :: count1, i
+    INTEGER                                  :: count1, i, k
 
     k=1
     IF(v_count.LT.ncol)THEN
        count1=v_count+1
        DO i=p_bounds(1,count1),p_bounds(2,count1)
           gp(count1)=REAL(i,KIND=dp)*grid_sp(count1)
-          k=rec_eval_grid(iw1,ncol,f_vals,count1,gp,grid_sp,step_size,istart,iend,s1v,s1,p_bounds,lambda,ifunc)
+          k=rec_eval_grid(iw1,ncol,f_vals,count1,gp,grid_sp,step_size,istart,iend,s1v,s1,p_bounds,lambda,ifunc,nconf)
        END DO
     ELSE IF(v_count==ncol .AND. ifunc==1)THEN
        DO i=istart,iend
@@ -3934,7 +3939,7 @@ CPSourceFileRef,&
        DO i=1,2
           s1(i)=accurate_sum(s1v(i,:))
        END DO
-       WRITE(iw1, '(5F10.5)')gp(:),s1(1)/s1(2)
+       WRITE(iw1, '(5F10.5)')gp(:),s1(1)/s1(2)/REAL(nconf-1,dp)
     ELSE IF(v_count==ncol .AND. ifunc==2)THEN
        DO i=istart,iend
           s1v(1,i)=EXP(-lambda*DOT_PRODUCT(gp(:)-f_vals(:,i),gp(:)-f_vals(:,i)))

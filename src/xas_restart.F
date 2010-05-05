@@ -42,11 +42,13 @@ MODULE xas_restart
   USE message_passing,                 ONLY: mp_bcast
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_gspace_mixing,                ONLY: mixing_init
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              set_mo_occupation,&
                                              wfn_restart_file_name
+  USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE string_utilities,                ONLY: xstring
@@ -377,6 +379,8 @@ CPSourceFileRef,&
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom
     TYPE(xas_environment_type), POINTER      :: xas_env
 
     CALL timeset(routineN,handle)
@@ -401,6 +405,12 @@ CPSourceFileRef,&
     END DO
 
     CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
+
+    IF(xas_env%mixing_method>1) THEN
+       CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom,error=error)
+       CALL mixing_init(xas_env%mixing_method,qs_env%rho,xas_env%mixing_store,&
+                           qs_env%para_env,rho_atom=rho_atom,error=error)
+    END IF
 
     CALL timestop(handle)
 

@@ -1412,9 +1412,9 @@ CPSourceFileRef)
        colvar_out%hydronium_param%i_hydrogens      = colvar_in%hydronium_param%i_oxygens + my_offset
     CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
        colvar_out%reaction_path_param%dist_rmsd = colvar_in%reaction_path_param%dist_rmsd
+       colvar_out%reaction_path_param%nr_frames = colvar_in%reaction_path_param%nr_frames
        IF(colvar_in%reaction_path_param%dist_rmsd) THEN
          colvar_out%reaction_path_param%align_frames = colvar_in%reaction_path_param%align_frames
-         colvar_out%reaction_path_param%nr_frames = colvar_in%reaction_path_param%nr_frames
          colvar_out%reaction_path_param%subset = colvar_in%reaction_path_param%subset
          NULLIFY(colvar_out%reaction_path_param%i_rmsd)
          NULLIFY(colvar_out%reaction_path_param%r_ref)

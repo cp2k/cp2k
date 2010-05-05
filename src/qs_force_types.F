@@ -36,8 +36,6 @@ MODULE qs_force_types
                                          rho_elec,&
                                          vhxc_atom,&
                                          g0s_Vh_elec,&
-                                         hartree_2c,&
-                                         hartree_3c,&
                                          kg_gpw_ekin_mol,&
                                          repulsive,&
                                          dispersion,&
@@ -135,14 +133,6 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%g0s_Vh_elec(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineP,"qs_force(ikind)%g0s_Vh_elec",3*n*dp_size)
-      END IF
-      ALLOCATE (qs_force(ikind)%hartree_2c(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineP,"qs_force(ikind)%hartree_2c",3*n*dp_size)
-      END IF
-      ALLOCATE (qs_force(ikind)%hartree_3c(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineP,"qs_force(ikind)%hartree_3c",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -296,20 +286,6 @@ CONTAINS
         END IF
       END IF
 
-      IF (ASSOCIATED(qs_force(ikind)%hartree_2c)) THEN
-        DEALLOCATE (qs_force(ikind)%hartree_2c,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineP,"qs_force%hartree_2c")
-        END IF
-      END IF
-
-      IF (ASSOCIATED(qs_force(ikind)%hartree_3c)) THEN
-        DEALLOCATE (qs_force(ikind)%hartree_3c,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineP,"qs_force%hartree_3c")
-        END IF
-      END IF
-
       IF (ASSOCIATED(qs_force(ikind)%kg_gpw_ekin_mol)) THEN
         DEALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol,STAT=istat)
         IF (istat /= 0) THEN
@@ -426,8 +402,6 @@ CONTAINS
       qs_force(ikind)%rho_elec(:,:) = 0.0_dp
       qs_force(ikind)%vhxc_atom(:,:) = 0.0_dp
       qs_force(ikind)%g0s_Vh_elec(:,:) = 0.0_dp
-      qs_force(ikind)%hartree_2c(:,:) = 0.0_dp
-      qs_force(ikind)%hartree_3c(:,:) = 0.0_dp
       qs_force(ikind)%kg_gpw_ekin_mol(:,:) = 0.0_dp
       qs_force(ikind)%repulsive(:,:) = 0.0_dp
       qs_force(ikind)%dispersion(:,:) = 0.0_dp
@@ -499,8 +473,6 @@ CONTAINS
         qs_force_output(ikind)%vhxc_atom(:,:) = qs_force_input(ikind)%vhxc_atom(:,:)
         qs_force_output(ikind)%g0s_Vh_elec(:,:) = &
            qs_force_input(ikind)%g0s_Vh_elec(:,:)
-        qs_force_output(ikind)%hartree_2c(:,:) = qs_force_input(ikind)%hartree_2c(:,:)
-        qs_force_output(ikind)%hartree_3c(:,:) = qs_force_input(ikind)%hartree_3c(:,:)
         qs_force_output(ikind)%kg_gpw_ekin_mol(:,:) = &
            qs_force_input(ikind)%kg_gpw_ekin_mol(:,:)
         qs_force_output(ikind)%repulsive(:,:) = &

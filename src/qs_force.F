@@ -392,8 +392,6 @@ CONTAINS
           CALL mp_sum(force(ikind)%rho_elec,para_env%group)
           CALL mp_sum(force(ikind)%vhxc_atom,para_env%group)
           CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
-          CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
-          CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
           CALL mp_sum(force(ikind)%fock_4c,para_env%group)
           CALL mp_sum(force(ikind)%hfx_ri,para_env%group)
           CALL mp_sum(force(ikind)%repulsive,para_env%group)
@@ -412,8 +410,6 @@ CONTAINS
                force(ikind)%rho_elec(:,:) +&
                force(ikind)%vhxc_atom(:,:) +&
                force(ikind)%g0s_Vh_elec(:,:) +&
-               force(ikind)%hartree_2c(:,:) +&
-               force(ikind)%hartree_3c(:,:) +&
                force(ikind)%fock_4c(:,:) +&
                force(ikind)%hfx_ri(:,:) +&
                force(ikind)%repulsive(:,:)  +&
@@ -631,8 +627,6 @@ CONTAINS
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"     vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
                   iatom,ikind,"   g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),&
-                  iatom,ikind,"    hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),&
-                  iatom,ikind,"    hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
                   iatom,ikind,"    dispersion",qs_force(ikind)%dispersion(1:3,i),&
                   iatom,ikind,"       fock_4c",qs_force(ikind)%fock_4c(1:3,i),&

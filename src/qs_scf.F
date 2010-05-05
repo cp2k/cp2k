@@ -1179,9 +1179,7 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
          IF(gapw) THEN
            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&
               "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
-              "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
-              "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
-              "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
+              "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
          END IF
          IF(gapw_xc) THEN
            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T56,F25.14))")&

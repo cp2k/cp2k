@@ -72,7 +72,8 @@ MODULE qs_gspace_mixing
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gspace_mixing'
 
   PUBLIC :: gspace_mixing, broyden_mixing, broyden_mixing_new, gmix_potential_only, &
-            gspace_density_mixing, mixing_allocate, mixing_init, pulay_mixing, self_consistency_check
+            gspace_density_mixing, mixing_allocate, mixing_init,&
+            pulay_mixing, self_consistency_check
 
 CONTAINS
 
@@ -1967,6 +1968,14 @@ CONTAINS
 
  END SUBROUTINE mixing_allocate
 
+! *****************************************************************************
+!> \brief  initialiation needed when gspace mixing is used
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2009 created [MI]
+!> \author MI
+! *****************************************************************************
  SUBROUTINE mixing_init(mixing_method,rho,mixing_store,para_env,rho_atom,error)
     INTEGER, INTENT(IN)                      :: mixing_method
     TYPE(qs_rho_type), POINTER               :: rho
