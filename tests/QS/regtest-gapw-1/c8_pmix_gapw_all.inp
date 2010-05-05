@@ -1,0 +1,77 @@
+&GLOBAL
+  PROJECT  c8_pmix_gapw_all
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+  FLUSH_SHOULD_FLUSH
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &PRINT
+    &FORCES ON
+    &END
+  &END
+  &DFT
+    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    LSD
+    &MGRID
+      NGRIDS 4
+      CUTOFF 100
+    &END MGRID
+    &QS
+      METHOD GAPW
+      MAP_CONSISTENT
+      EXTRAPOLATION PS
+      EXTRAPOLATION_ORDER 2
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF   500
+      EPS_SCF 5.0e-2
+      EPS_DIIS 5.0e-4
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA 0.05
+      &END
+      ADDED_MOS   20 20
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MO
+        &EACH
+          QS_SCF 100
+        &END
+        EIGENVALUES
+        OCCUPATION_NUMBERS
+      &END
+##      &MO_CUBES
+##        NHOMO  64
+##        NLUMO 20
+##        WRITE_CUBE F
+##      &END
+    &END
+  &END DFT
+
+  &SUBSYS
+    &CELL
+       ABC   5.42858871335 5.42858871335 5.42858871335
+    &END CELL
+
+    &KIND  C
+      BASIS_SET  6-31Gxx
+      POTENTIAL  ALL
+    &END
+
+    &TOPOLOGY
+      COORD_FILE_NAME ./C_8.xyz 
+      COORDINATE XYZ
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+
+  &END SUBSYS
+&END FORCE_EVAL
+

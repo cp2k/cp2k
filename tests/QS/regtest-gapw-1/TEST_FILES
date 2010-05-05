@@ -9,3 +9,8 @@ CO.inp             1
 CO_xastphh.inp     1
 CO_xastphh_r.inp     1
 CO_xastpfh.inp     1
+# density mixing
+c8_pmix_gapw_all.inp   1
+c8_pmix_gapw_all_xashh.inp   1
+c8_broy_gapw_all.inp   1
+c8_broy_gapw_all_xashh.inp   1
