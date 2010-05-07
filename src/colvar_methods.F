@@ -3919,9 +3919,9 @@ CPSourceFileRef,&
     REAL(dp), DIMENSION(:), POINTER          :: s1
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     REAL(dp)                                 :: lambda
-    INTEGER                                  :: ifunc, nconf
+    INTEGER                                  :: ifunc, nconf, k
 
-    INTEGER                                  :: count1, i, k
+    INTEGER                                  :: count1, i
 
     k=1
     IF(v_count.LT.ncol)THEN
