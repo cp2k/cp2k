@@ -3,3 +3,7 @@ pc-222.inp                2
 check_ex_14.inp          11
 test_ex_14.inp           11
 si_muc_cell_opt.inp       7
+H2O2_auto_excl.inp       11
+H2O2_topo_excl.inp       11
+SF6_auto_excl.inp        11
+SF6_topo_excl.inp        11

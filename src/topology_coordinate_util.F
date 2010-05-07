@@ -58,14 +58,14 @@ MODULE topology_coordinate_util
 
   PRIVATE
   PUBLIC :: topology_coordinate_pack
-  
+
 CONTAINS
-    
+
 ! *****************************************************************************
 !> \brief Take info readin from different file format and stuff it into
 !>      compatible data structure in cp2k
 !> \par History
-!>      Teodoro Laino - modified in order to optimize the list of molecules 
+!>      Teodoro Laino - modified in order to optimize the list of molecules
 !>                      to build the exclusion lists
 ! *****************************************************************************
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
@@ -96,12 +96,14 @@ CONTAINS
       DIMENSION(:), POINTER                  :: element
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
-    INTEGER :: counter, dim0, dim1, dim2, dim3, first, handle, handle2, i, &
-      iatom, ikind, iw, j, k, last, method_name_id, n, natom, position, stat
+    INTEGER :: atom_i, atom_j, counter, dim0, dim1, dim2, dim3, first, &
+      handle, handle2, i, iatom, ikind, iw, j, k, last, method_name_id, n, &
+      natom, position, stat
     INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist
-    LOGICAL :: check, do_center, explicit, failure, found, my_qmmm, &
+    INTEGER, DIMENSION(:, :), POINTER        :: pairs
+    LOGICAL :: autogen, check, do_center, explicit, failure, found, my_qmmm, &
       present_12_excl_ei_list, present_12_excl_vdw_list
     REAL(KIND=dp)                            :: bounds(2,3), cdims(3), &
                                                 dims(3), qeff, vec(3)
@@ -125,18 +127,18 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     topology_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY",error=error)
     CALL timeset(routineN,handle)
-        
+
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm=qmmm
     atom_info => topology%atom_info
     conn_info => topology%conn_info
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 1. Determine topology%[natom_type,atom_names] and save mass(natom_type) 
-    !    and element(natom_type) 
+    ! 1. Determine topology%[natom_type,atom_names] and save mass(natom_type)
+    !    and element(natom_type)
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_1',handle2)
     counter=0
@@ -206,7 +208,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 2. Allocate the data structure for the atomic kind information 
+    ! 2. Allocate the data structure for the atomic kind information
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_2',handle2)
     NULLIFY(atomic_kind_set)
@@ -272,7 +274,7 @@ CONTAINS
           END IF
        END DO
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END IF 
+    END IF
     CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
@@ -292,9 +294,9 @@ CONTAINS
              iatomlist(counter)=j
           END IF
        END DO
-       IF(iw>0) THEN 
+       IF(iw>0) THEN
           WRITE(iw,'(A,I6,A)') "      Atomic kind ",i," contains particles"
-          DO J=1,SIZE(iatomlist)  
+          DO J=1,SIZE(iatomlist)
              IF (MOD(J,5).EQ.0) THEN ! split long lines
                 WRITE(iw,'(I12)') iatomlist(J)
              ELSE
@@ -328,7 +330,7 @@ CONTAINS
 
     bounds(1,3) = MINVAL(atom_info%r(3,:))
     bounds(2,3) = MAXVAL(atom_info%r(3,:))
-    
+
     dims     = bounds(2,:)-bounds(1,:)
     cdims(1) = topology%cell%hmat(1,1)
     cdims(2) = topology%cell%hmat(2,2)
@@ -381,7 +383,7 @@ CPSourceFileRef,&
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 8. Fill in the particle_set%list_exclude_vdw 
+    ! 8. Fill in the particle_set%list_exclude_vdw
     ! 9. Fill in the particle_set%list_exclude_ei
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_89',handle2)
@@ -437,6 +439,8 @@ CPSourceFileRef,&
     END IF
 
 
+    CALL section_vals_val_get(topology_section, "AUTOGEN_EXCLUDE_LISTS", &
+         l_val=autogen, error=error)
     ! Reorder bends
     ALLOCATE(ex_bend_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -444,11 +448,50 @@ CPSourceFileRef,&
        ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
-    N = 0
-    IF(ASSOCIATED(conn_info%theta_a)) THEN
-      N = SIZE(conn_info%theta_a)
-      CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
+    IF (autogen) THEN
+       ! Construct autogenerated 1-3 pairs, i.e. all possible 1-3 pairs instead
+       ! of only the bends that are present in the topology.
+       ALLOCATE(pairs(0,2),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       N = 0
+       DO iatom = 1, natom
+          DO i = 1, SIZE(ex_bond_list(iatom)%array1)
+             ! a neighboring atom of iatom:
+             atom_i = ex_bond_list(iatom)%array1(i)
+             DO j = 1, i-1
+                ! another neighboring atom of iatom
+                atom_j = ex_bond_list(iatom)%array1(j)
+                ! It is only a true bend if there is no shorter path.
+                ! No need to check if i and j correspond to the same atom.
+                ! Check if i and j are not involved in a bond:
+                check = .FALSE.
+                DO counter = 1, SIZE(ex_bond_list(atom_i)%array1)
+                  IF (ex_bond_list(atom_i)%array1(counter) == atom_j) THEN
+                     check = .TRUE.
+                     EXIT
+                  END IF
+                END DO
+                IF (check) CYCLE
+                ! Add the genuine 1-3 pair
+                N = N + 1
+                IF (SIZE(pairs,dim=1)<=N) THEN
+                   CALL reallocate(pairs, 1, N+5, 1, 2)
+                END IF
+                pairs(N,1) = atom_i
+                pairs(N,2) = atom_j
+             END DO
+          END DO
+       END DO
+       CALL reorder_structure(ex_bend_list, pairs(:,1), pairs(:,2), N, error)
+       DEALLOCATE(pairs,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       IF (ASSOCIATED(conn_info%theta_a)) THEN
+          N = SIZE(conn_info%theta_a)
+          CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
+       END IF
     END IF
+
     ! Reorder onfo
     ALLOCATE(ex_onfo_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -456,11 +499,60 @@ CPSourceFileRef,&
        ALLOCATE(ex_onfo_list(I)%array1(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
-    N = 0
-    IF(ASSOCIATED(conn_info%onfo_a)) THEN
-      N = SIZE(conn_info%onfo_a)
-      CALL reorder_structure(ex_onfo_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
+    IF (autogen) THEN
+       ! Construct autogenerated 1-4 pairs, i.e. all possible 1-4 pairs instead
+       ! of only the onfo's that are present in the topology.
+       ALLOCATE(pairs(0,2),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       N = 0
+       DO iatom = 1, natom
+          DO i = 1, SIZE(ex_bond_list(iatom)%array1)
+             ! a neighboring atom of iatom:
+             atom_i = ex_bond_list(iatom)%array1(i)
+             DO j = 1, SIZE(ex_bend_list(iatom)%array1)
+                ! a next neighboring atom of iatom:
+                atom_j = ex_bend_list(iatom)%array1(j)
+                ! It is only a true onfo if there is no shorter path.
+                ! check if i and j are not the same atom
+                IF (atom_i==atom_j) CYCLE
+                ! check if i and j are not involved in a bond
+                check = .FALSE.
+                DO counter = 1, SIZE(ex_bond_list(atom_i)%array1)
+                  IF (ex_bond_list(atom_i)%array1(counter) == atom_j) THEN
+                     check = .TRUE.
+                     EXIT
+                  END IF
+                END DO
+                IF (check) CYCLE
+                ! check if i and j are not involved in a bend
+                check = .FALSE.
+                DO counter = 1, SIZE(ex_bend_list(atom_i)%array1)
+                  IF (ex_bend_list(atom_i)%array1(counter) == atom_j) THEN
+                     check = .TRUE.
+                     EXIT
+                  END IF
+                END DO
+                IF (check) CYCLE
+                ! Add the true onfo.
+                N = N + 1
+                IF (SIZE(pairs,dim=1)<=N) THEN
+                   CALL reallocate(pairs, 1, N+5, 1, 2)
+                END IF
+                pairs(N,1) = atom_i
+                pairs(N,2) = atom_j
+             END DO
+          END DO
+       END DO
+       CALL reorder_structure(ex_onfo_list, pairs(:,1), pairs(:,2), N, error)
+       DEALLOCATE(pairs,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       IF(ASSOCIATED(conn_info%onfo_a)) THEN
+          N = SIZE(conn_info%onfo_a)
+          CALL reorder_structure(ex_onfo_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
+       END IF
     END IF
+
     !
     DO iatom = 1, SIZE(particle_set)
        !  Setup exclusion list for VDW : always exclude itself
@@ -562,7 +654,7 @@ CPSourceFileRef,&
           CPPostcondition(ANY(list==ex_onfo_list(iatom)%array1(i)),cp_failure_level,routineP,error,failure)
           CPPostcondition(ANY(list2==ex_onfo_list(iatom)%array1(i)),cp_failure_level,routineP,error,failure)
        END DO
-       IF (iw>0) THEN 
+       IF (iw>0) THEN
           IF (ASSOCIATED(list)) &
                WRITE(iw,*)"exclusion list_vdw :: ",&
                "atom num :",iatom,"exclusion list ::",&
@@ -740,5 +832,5 @@ CPSourceFileRef,&
     END SELECT
 
   END SUBROUTINE setup_exclusion_list
-  
+
 END MODULE topology_coordinate_util

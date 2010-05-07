@@ -1603,6 +1603,24 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="AUTOGEN_EXCLUDE_LISTS",&
+            description="When True, the exclude lists are solely based on"//&
+                        " the bond data in the topology. The (minimal)"//&
+                        " number of bonds between two atoms is used to"//&
+                        " determine if the atom pair is added to an"//&
+                        " exclusion list. When False, 1-2 exclusion is based"//&
+                        " on bonds in the topology, 1-3 exclusion is based"//&
+                        " on bonds and bends in the topology, 1-4 exclusion"//&
+                        " is based on bonds, bends and dihedrals in the"//&
+                        " topology. This implies that a missing dihedral in"//&
+                        " the topology will cause the corresponding 1-4 pair"//&
+                        " not to be in the exclusion list, in case 1-4"//&
+                        " exclusion is requested for VDW or EI interactions.",&
+            usage="AUTOGEN_EXCLUDE_LISTS logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MULTIPLE_UNIT_CELL",&
             description="Specifies the numbers of repetition in space (X, Y, Z) of the defined cell, "//&
             "assuming it as a unit cell. This keyword affects only the coordinates specification. The same keyword "//&

@@ -1,0 +1,85 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM O
+        CHARGE -0.2
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.2
+      &END CHARGE
+      &BOND
+        ATOMS H O
+        KIND HARMONIC
+        K 0.0
+        R0 1.0
+      &END BOND
+      &BOND
+        ATOMS O O
+        KIND HARMONIC
+        K 1.0
+        R0 1.0
+      &END BOND
+      &BEND
+        ATOMS H O O
+        KIND HARMONIC
+        K 0.0
+        THETA0 1.0
+      &END BEND
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS H H
+          EPSILON 0.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H O
+          EPSILON 0.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS O O
+          EPSILON 0.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC NONE
+      &EWALD
+        EWALD_TYPE NONE
+        ALPHA .36
+        GMAX 51
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+        H  3.864   0.681   0.493
+        O  3.537   1.423   0.000
+        O  2.160   1.188   0.000
+        H  1.832   1.930   0.493
+    &END COORD
+    &TOPOLOGY
+      EXCLUDE_VDW 1-4
+      EXCLUDE_EI 1-4
+      &GENERATE
+        CREATE_MOLECULES
+        &TORSION REMOVE
+          ATOMS 1 2 3 4
+        &END TORSION
+      &END GENERATE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT mol
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
