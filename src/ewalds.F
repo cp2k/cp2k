@@ -260,30 +260,38 @@ CONTAINS
                                                 nparticle_kind, &
                                                 nparticle_local
     LOGICAL                                  :: is_shell
-    REAL(KIND=dp)                            :: alpha, q, q_self, q_sum, &
-                                                qcore, qshell
+    REAL(KIND=dp)                            :: alpha, mm_radius, q, q_neutg, &
+                                                q_self, q_sum, qcore, qshell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
     CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, &
          alpha = alpha, group = group ,error=error)
+    q_neutg = 0.0_dp
     q_self = 0.0_dp
     q_sum = 0.0_dp
     nparticle_kind = SIZE ( atomic_kind_set )
     DO iparticle_kind=1,nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q,&
-            shell_active=is_shell,shell=shell)
+       CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius, &
+            qeff=q, shell_active=is_shell, shell=shell)
        nparticle_local = local_particles%n_el(iparticle_kind)
        IF(is_shell) THEN
           CALL get_shell(shell=shell, charge_core=qcore, charge_shell=qshell, error=error)
           ! MI: the core-shell ES interaction, when core and shell belong to the same ion, is excluded
-          !     in the nonbond correction term. Therefore, here the self interaction is comuped entirely 
+          !     in the nonbond correction term. Therefore, here the self interaction is computed entirely
           q_self = q_self + qcore*qcore*nparticle_local + qshell*qshell*nparticle_local
           q_sum  = q_sum + qcore*nparticle_local + qshell*nparticle_local
+          IF (mm_radius > 0) THEN
+             ! the core is always a point charge
+             q_neutg = q_neutg + qshell*mm_radius**2
+          END IF
        ELSE
           q_self = q_self + q*q*nparticle_local
           q_sum  = q_sum + q*nparticle_local
+          IF (mm_radius > 0) THEN
+             q_neutg = q_neutg + q*mm_radius**2
+          END IF
        END IF
     END DO
 
@@ -294,7 +302,7 @@ CONTAINS
     e_self = 0.0_dp
     IF ( ewald_type /= do_ewald_none) THEN
        e_self = -q_self *  alpha * oorootpi
-       e_neut = -q_sum ** 2 * pi / ( 2.0_dp * alpha ** 2 * cell % deth)
+       e_neut = -q_sum*pi/(2.0_dp*cell%deth)*(q_sum/alpha**2 - q_neutg)
     END IF
 
   END SUBROUTINE ewald_self

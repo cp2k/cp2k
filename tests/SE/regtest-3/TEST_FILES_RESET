@@ -182,3 +182,5 @@ O2.inp
 N3_rp_md.inp
 N3_rp_dp_md.inp
 N3-rp_colvar.inp
+# numerics
+SiO2_lr_quad.inp

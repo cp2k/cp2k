@@ -501,9 +501,6 @@ CONTAINS
              END IF
 
              ! EI contribution
-             ! TODO: THIS WILL DISSAPEAR SOON. IGNORE UGLY MESS FOR NOW.
-             ! One remaining error is that the do_ewald_none and alpha=0.0 are
-             ! hard-wired here. Solution is to do ei14 in fist_force_nonbond.F
              IF ((ei_scale14 > 0).AND.(rab2 <= rab2_max)) THEN
                 CALL get_atomic_kind(particle_set(index_a)%atomic_kind, qeff=qeff_a, mm_radius=mm_radius_a)
                 CALL get_atomic_kind(particle_set(index_b)%atomic_kind, qeff=qeff_b, mm_radius=mm_radius_b)

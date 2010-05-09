@@ -239,7 +239,7 @@ CONTAINS
           ! also the contribution coming from the correction.. 
           CALL ewald_multipole_bonded (atomic_kind_set, local_particles, particle_set,&
                ewald_env, cell, e_bonded, my_task, do_forces, do_efield, do_stress,&
-               radii, charges, dipoles, quadrupoles, forces_glob, pv_glob,&
+               charges, dipoles, quadrupoles, forces_glob, pv_glob,&
                efield0_sr, efield1_sr, efield2_sr, error)
           energy_glob = energy_glob + e_bonded 
        END IF
@@ -256,8 +256,9 @@ CONTAINS
             efield2_lr, error)
 
        ! Self-Interactions corrections
-       CALL ewald_multipole_self (ewald_env, cell, local_particles, e_self, e_neut, my_task,&
-            do_efield, charges, dipoles, quadrupoles, efield0_lr, efield1_lr, efield2_lr, error)
+       CALL ewald_multipole_self (ewald_env, cell, local_particles, e_self, &
+            e_neut, my_task, do_efield, radii, charges, dipoles, quadrupoles, &
+            efield0_lr, efield1_lr, efield2_lr, error)
     END IF
 
     ! Sumup energy contributions for possible IO
@@ -452,7 +453,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 05.2009 
 ! *****************************************************************************
   SUBROUTINE ewald_multipole_bonded (atomic_kind_set, local_particles, particle_set, &
-       ewald_env, cell, energy, task, do_forces, do_efield, do_stress, radii, charges, &
+       ewald_env, cell, energy, task, do_forces, do_efield, do_stress, charges, &
        dipoles, quadrupoles, forces, pv, efield0, efield1, efield2, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -465,7 +466,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: do_forces, do_efield, &
                                                 do_stress
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: radii, charges
+      POINTER                                :: charges
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -486,11 +487,10 @@ CONTAINS
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure, &
                                                 force_eval
-    REAL(KIND=dp) :: alpha, beta, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, &
-      fac_ij, ir, irab2, ptens11, ptens12, ptens13, ptens21, ptens22, &
-      ptens23, ptens31, ptens32, ptens33, r, rab2, radius, tij, tmp, tmp1, &
-      tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, &
-      tmp_ij, tmp_ji
+    REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, fac_ij, ir, &
+      irab2, ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, &
+      ptens32, ptens33, r, rab2, tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, &
+      tmp21, tmp22, tmp23, tmp31, tmp32, tmp33, tmp_ij, tmp_ji
     REAL(KIND=dp), DIMENSION(0:5)            :: f
     REAL(KIND=dp), DIMENSION(3)              :: dp_i, dp_j, ef1_i, ef1_j, fr, &
                                                 rab, tij_a
@@ -526,21 +526,6 @@ CONTAINS
              rab    = particle_set (atom_b)%r-particle_set(atom_a)%r
              rab = pbc(rab, cell)
              rab2   = rab(1)**2 + rab(2)**2 + rab(3)**2
-             IF (PRESENT(radii)) THEN
-               radius = SQRT(radii(atom_a)*radii(atom_a) + radii(atom_b)*radii(atom_b))
-             ELSE
-               radius = 0.0_dp
-             END IF
-             IF (radius > 0.0_dp) THEN
-               beta = 1.0_dp/radius
-#define SCREENED_COULOMB_GAUSS
-#define STORE_ENERGY
-#define STORE_FORCES
-#include "ewalds_multipole_sr.f90"
-#undef STORE_FORCES
-#undef STORE_ENERGY
-#undef SCREENED_COULOMB_GAUSS
-             ELSE
 #define SCREENED_COULOMB_ERF
 #define STORE_ENERGY
 #define STORE_FORCES
@@ -548,7 +533,6 @@ CONTAINS
 #undef STORE_FORCES
 #undef STORE_ENERGY
 #undef SCREENED_COULOMB_ERF
-            END IF
           END DO excl
        END DO atom
     END DO kinds
@@ -1005,9 +989,9 @@ CONTAINS
 !>     when using multipoles
 !> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
 ! *****************************************************************************
-  SUBROUTINE ewald_multipole_self (ewald_env, cell, local_particles, e_self, e_neut,&
-       task, do_efield, charges, dipoles, quadrupoles, efield0, efield1, efield2,&
-       error)
+  SUBROUTINE ewald_multipole_self (ewald_env, cell, local_particles, e_self, &
+       e_neut, task, do_efield, radii, charges, dipoles, quadrupoles, efield0, &
+       efield1, efield2, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -1015,7 +999,7 @@ CONTAINS
     LOGICAL, DIMENSION(3, 3), INTENT(IN)     :: task
     LOGICAL, INTENT(IN)                      :: do_efield
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: charges
+      POINTER                                :: radii, charges
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dipoles
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -1034,9 +1018,9 @@ CONTAINS
                                                 iparticle_local, j, &
                                                 nparticle_local
     LOGICAL                                  :: do_efield0, do_efield1, &
-                                                do_efield2
+                                                do_efield2, lradii
     REAL(KIND=dp) :: alpha, ch_qu_self, ch_qu_self_tmp, dipole_self, fac1, &
-      fac2, fac3, fac4, q, q_self, q_sum, qu_qu_self
+      fac2, fac3, fac4, q, q_neutg, q_self, q_sum, qu_qu_self, radius
 
     CALL ewald_env_get ( ewald_env, ewald_type=ewald_type, alpha=alpha,&
          group=group, error=error)
@@ -1053,6 +1037,9 @@ CONTAINS
     fac2        = 6.0_dp*(f23**2)*(alpha**3)*oorootpi
     fac3        = (2.0_dp*oorootpi)*f23*alpha**3
     fac4        = (4.0_dp*oorootpi)*f415*alpha**5
+    lradii      = PRESENT(radii)
+    radius      = 0.0_dp
+    q_neutg     = 0.0_dp
     DO iparticle_kind=1,SIZE(local_particles%n_el)
        nparticle_local = local_particles%n_el(iparticle_kind)
        DO iparticle_local=1,nparticle_local
@@ -1060,6 +1047,10 @@ CONTAINS
           IF (ANY(task(1,:))) THEN
              ! Charge - Charge
              q = charges(iparticle)
+             IF (lradii) radius = radii(iparticle)
+             IF (radius>0) THEN
+                q_neutg = q_neutg + q*radius**2
+             END IF
              q_self = q_self + q*q
              q_sum  = q_sum  + q
              ! Potential
@@ -1117,6 +1108,7 @@ CONTAINS
        END DO
     END DO
 
+    CALL mp_sum (q_neutg, group)
     CALL mp_sum (q_self, group)
     CALL mp_sum (q_sum, group)
     CALL mp_sum (dipole_self, group)
@@ -1124,8 +1116,8 @@ CONTAINS
     CALL mp_sum (qu_qu_self, group)
 
     e_self = -(q_self+f23*(dipole_self-f23*ch_qu_self+f415*qu_qu_self*alpha**2)*alpha**2)*alpha*oorootpi
-    fac1   = pi/(2.0_dp * alpha ** 2 * cell % deth)
-    e_neut = -q_sum**2 * fac1
+    fac1 = pi/(2.0_dp*cell%deth)
+    e_neut = -q_sum*fac1*(q_sum/alpha**2 - q_neutg)
 
     ! Correcting Potential for the neutralizing background charge
     DO iparticle_kind=1,SIZE(local_particles%n_el)
@@ -1133,10 +1125,14 @@ CONTAINS
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
           IF (ANY(task(1,:))) THEN
-             q = charges(iparticle)
              ! Potential energy
              IF (do_efield0) THEN
-                efield0(  iparticle) = efield0(  iparticle) - 2.0_dp*ABS(q_sum)*SIGN(1.0_dp,q)*fac1
+                efield0(  iparticle) = efield0(  iparticle) - q_sum*2.0_dp*fac1/alpha**2
+                IF (lradii) radius = radii(iparticle)
+                IF (radius>0) THEN
+                   q = charges(iparticle)
+                   efield0(  iparticle) = efield0(  iparticle) + fac1*radius**2*(q_sum+q)
+                END IF
              END IF
           END IF
        END DO

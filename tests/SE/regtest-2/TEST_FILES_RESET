@@ -363,3 +363,5 @@ stp6.inp
 scan_zn_1w_cp2k.inp
 #  
 zn_1w_debug.inp
+# numerics
+H2O-32.inp

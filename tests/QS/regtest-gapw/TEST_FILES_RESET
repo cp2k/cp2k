@@ -303,3 +303,5 @@ Na_atom.inp
 H2S-gapw-ot.inp
 #  
 H2S-gapw-gop-ot.inp
+# numerics
+Be_GAPW.inp
