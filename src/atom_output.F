@@ -157,7 +157,9 @@ CONTAINS
     WRITE(iw,'(T36,A,T61,F20.12)') "     Band Energy ::",atom%energy%eband
     WRITE(iw,'(T36,A,T61,F20.12)') "  Kinetic Energy ::",atom%energy%ekin
     WRITE(iw,'(T36,A,T61,F20.12)') "Potential Energy ::",atom%energy%epot
-    WRITE(iw,'(T36,A,T61,F20.12)') "   Virial (-V/T) ::",-atom%energy%epot/atom%energy%ekin
+    IF (atom%energy%ekin /= 0.0_dp) THEN
+       WRITE(iw,'(T36,A,T61,F20.12)') "   Virial (-V/T) ::",-atom%energy%epot/atom%energy%ekin
+    END IF
     WRITE(iw,'(T36,A,T61,F20.12)') "     Core Energy ::",atom%energy%ecore
     IF(atom%energy%exc /= 0._dp) &
       WRITE(iw,'(T36,A,T61,F20.12)') "       XC Energy ::",atom%energy%exc
