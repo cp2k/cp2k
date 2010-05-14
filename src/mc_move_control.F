@@ -404,50 +404,52 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
     CALL timeset(routineN,handle)
 
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_bond      ',&
+    WRITE(unit,1000) nnstep,' bias_bond      ',&
       moves%bias_bond%successes,moves%bias_bond%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_angle      ',&
+    WRITE(unit,1000) nnstep,' bias_angle      ',&
       moves%bias_angle%successes,moves%bias_angle%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_dihedral      ',&
+    WRITE(unit,1000) nnstep,' bias_dihedral      ',&
       moves%bias_dihedral%successes,moves%bias_dihedral%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_trans      ',&
+    WRITE(unit,1000) nnstep,' bias_trans      ',&
       moves%bias_trans%successes,moves%bias_trans%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bias_rot      ',&
+    WRITE(unit,1000) nnstep,' bias_rot      ',&
       moves%bias_rot%successes,moves%bias_rot%attempts
 
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' bond      ',&
+    WRITE(unit,1000) nnstep,' bond      ',&
       moves%bond%successes,moves%bond%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' angle     ',&
+    WRITE(unit,1000) nnstep,' angle     ',&
       moves%angle%successes,moves%angle%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' dihedral     ',&
+    WRITE(unit,1000) nnstep,' dihedral     ',&
       moves%dihedral%successes,moves%dihedral%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' trans     ',&
+    WRITE(unit,1000) nnstep,' trans     ',&
       moves%trans%successes,moves%trans%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' rot       ',&
+    WRITE(unit,1000) nnstep,' rot       ',&
       moves%rot%successes,moves%rot%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' swap      ',&
+    WRITE(unit,1000) nnstep,' swap      ',&
       moves%swap%successes,moves%swap%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' grown     ',&
+    WRITE(unit,1001) nnstep,' grown     ',&
       moves%grown
-    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' empty_swap     ',&
+    WRITE(unit,1001) nnstep,' empty_swap     ',&
       moves%empty
-    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' empty_conf     ',&
+    WRITE(unit,1001) nnstep,' empty_conf     ',&
       moves%empty_conf
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' volume    ',&
+    WRITE(unit,1000) nnstep,' volume    ',&
       moves%volume%successes,moves%volume%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' avbmc_inin  ',&
+    WRITE(unit,1000) nnstep,' avbmc_inin  ',&
       moves%avbmc_inin%successes,moves%avbmc_inin%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' avbmc_inout  ',&
+    WRITE(unit,1000) nnstep,' avbmc_inout  ',&
       moves%avbmc_inout%successes,moves%avbmc_inout%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' avbmc_outin  ',&
+    WRITE(unit,1000) nnstep,' avbmc_outin  ',&
       moves%avbmc_outin%successes,moves%avbmc_outin%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' avbmc_outout ',&
+    WRITE(unit,1000) nnstep,' avbmc_outout ',&
       moves%avbmc_outout%successes,moves%avbmc_outout%attempts
-    WRITE(unit,'(I6,2X,A,2X,I6)') nnstep,' empty_avbmc     ',&
+    WRITE(unit,1001) nnstep,' empty_avbmc     ',&
       moves%empty_avbmc
-    WRITE(unit,'(I6,2X,A,2X,I6,2X,I6)') nnstep,' Quickstep ',&
+    WRITE(unit,1000) nnstep,' Quickstep ',&
       moves%quickstep%successes,moves%quickstep%attempts
 
+1000 FORMAT(I10,2X,A,2X,I10,2X,I10)
+1001 FORMAT(I10,2X,A,2X,I10)
 ! end the timing
       CALL timestop(handle)
 

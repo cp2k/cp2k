@@ -510,6 +510,16 @@ CONTAINS
                   rng_stream,error=error)
           END SELECT
 
+! update all the pointers here, because otherwise we may pass wrong information when we're making a bias environment
+          DO ibox=1,nboxes
+             CALL force_env_get(force_env(ibox)%force_env,&
+                  subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
+                  error=error)
+             CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
+             CALL cp_subsys_get(oldsys(ibox)%subsys,&
+                  particles=particles_old(ibox)%list, error=error)
+          ENDDO
+
           ! we need a new biasing environment now, if we're into that sort of thing
           IF(lbias) THEN
              DO ibox=1,nboxes
@@ -533,9 +543,16 @@ CONTAINS
                    ENDDO
                 ENDDO
 
+! need to find out what the cell lengths are
+                CALL force_env_get(force_env(ibox)%force_env,&
+                     subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,&
+                     error=error)
+                CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
+
                 CALL get_mc_par(mc_par(ibox)%mc_par,&
                      mc_bias_file=mc_bias_file)
                 nchains_box=> nchains(:,ibox)
+
                 CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                      r_old(:,:,ibox),atom_names_box(:),nunits_tot(ibox),&
                      para_env,abc(:,ibox),nchains_box,mc_bias_file,&
@@ -556,6 +573,7 @@ CONTAINS
                 CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
              ENDDO
           ENDIF
+
        ELSEIF ( rand .LT. pmswap) THEN
 
           ! try a swap move
