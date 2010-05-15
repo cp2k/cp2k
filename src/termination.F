@@ -285,6 +285,7 @@ CONTAINS
                                                 my_target_time, t1, t2, &
                                                 time_check
     REAL(KIND=dp), SAVE                      :: t_last_file_check = 0.0_dp
+    LOGICAL, SAVE                            :: check_always=.FALSE.
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -301,8 +302,10 @@ CONTAINS
     IF (logger%para_env%source==logger%para_env%mepos) THEN
        ! files will only be checked every 20 seconds, or if the clock wraps/does not exist,
        ! otherwise 64 waters on 64 cores can spend up to 10% of time here, on lustre
+       ! however, if should_stop has been true, we should always check
+       ! (at each level scf, md, ... the file must be there to guarantee termination)
        t1=m_walltime()
-       IF (t1>t_last_file_check+20.0_dp .OR. t1 <= t_last_file_check) THEN
+       IF (t1>t_last_file_check+20.0_dp .OR. t1 <= t_last_file_check .OR. check_always) THEN
           t_last_file_check=t1
           ! allows for halting execution for a while
           ! this is useful to copy a consistent snapshot of the output
@@ -390,6 +393,8 @@ CONTAINS
        END IF
     END IF
     CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)
+
+    check_always=should_stop
 
     CALL timestop(handle)
 
