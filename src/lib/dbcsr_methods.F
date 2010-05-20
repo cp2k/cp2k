@@ -1078,7 +1078,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_make_threads(dist, row_sizes)
     TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT), VOLATILE                :: dist
+      INTENT(INOUT)                          :: dist
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: row_sizes
 
@@ -1144,7 +1144,7 @@ CONTAINS
 
   SUBROUTINE dbcsr_distribution_no_threads(dist)
     TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT), VOLATILE                :: dist
+      INTENT(INOUT)                          :: dist
 
 !   ---------------------------------------------------------------------------
 
