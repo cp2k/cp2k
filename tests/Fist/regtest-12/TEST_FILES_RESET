@@ -120,3 +120,5 @@ nptf_ortho.inp
 water32_hbonds_3.inp
 water32_hbonds_4.inp
 water_massive.inp
+# bug fix
+argon_opt_cell_ks.inp

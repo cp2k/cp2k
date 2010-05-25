@@ -291,10 +291,10 @@ CPSourceFileRef,&
     IF (my_keep_angles) THEN
        ! If we want to keep the angles constant we have to project out the
        ! components of the cell angles
-       norm_b        = SQRT(DOT_PRODUCT(cell%hmat(:,2),cell%hmat(:,2)))
+       norm_b        = DOT_PRODUCT(cell%hmat(:,2),cell%hmat(:,2))
        norm          = DOT_PRODUCT(cell%hmat(1:2,2),gradient(2:3))
        gradient(2:3) = cell%hmat(1:2,2)/norm_b*norm
-       norm_c        = SQRT(DOT_PRODUCT(cell%hmat(:,3),cell%hmat(:,3)))
+       norm_c        = DOT_PRODUCT(cell%hmat(:,3),cell%hmat(:,3))
        norm          = DOT_PRODUCT(cell%hmat(1:3,3),gradient(4:6))
        gradient(4:6) = cell%hmat(1:3,3)/norm_c*norm
        !  retain an exact orthorhombic cell

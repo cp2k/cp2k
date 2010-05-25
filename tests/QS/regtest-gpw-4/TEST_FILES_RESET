@@ -785,3 +785,6 @@ h2o-otdiag-lsd.inp
 H2-geo-4.inp
 # Reset for numerics after OpenMP changes
 spin_restraint.inp
+# bug fix
+cell-1.inp
+cell-2.inp

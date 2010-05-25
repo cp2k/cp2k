@@ -47,3 +47,5 @@ GEMC_NpT_box1.inp
 GEMC_NVT_box1.inp
 GEMC_swap_box1.inp
 virial.inp
+# bug fix
+GEMC_NVT_box1.inp
