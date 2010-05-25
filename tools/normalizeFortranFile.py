@@ -230,7 +230,7 @@ def findWord(word,text,options=re.IGNORECASE):
     """Returns the position of word in text or -1 if not found.
     A match is valid only if it is a whole word (i.e. findWord('try','retry')
     returns false)"""
-    wordRe=re.compile("(?<![a-zA-Z_0-9])"+word+"(?![a-zA-Z_0-9])|(?<=[0-9.]_)"+word+"(?![a-zA-Z_0-9])",options)
+    wordRe=re.compile("(?<![a-zA-Z_0-9%])"+word+"(?![a-zA-Z_0-9])|(?<=[0-9.]_)"+word+"(?![a-zA-Z_0-9])",options)
     m=wordRe.search(text)
     if m:
         pos=m.span()[0]
