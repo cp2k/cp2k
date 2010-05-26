@@ -619,6 +619,9 @@ CONTAINS
     CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type, error=error)
     IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    ELSE
+      NULLIFY(dispersion_env%c6ab,dispersion_env%maxci,dispersion_env%r0ab,dispersion_env%rcov,&
+              dispersion_env%r2r4)
     END IF
     CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
 

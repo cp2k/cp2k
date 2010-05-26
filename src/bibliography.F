@@ -55,7 +55,7 @@ MODULE bibliography
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
-             Ceriotti2009,Guidon2009,BarducBus2008
+             Ceriotti2009,Guidon2009,BarducBus2008,Grimme2010
 
 CONTAINS
 
@@ -1563,6 +1563,30 @@ CONTAINS
          "UT ISI:000241477200003",&
          "ER"),&
          DOI="10.1002/jcc.20495")
+
+    CALL add_reference(key=Grimme2010,ISI_record=s2a(&
+         "PT J",&
+         "AU Grimme, S",&
+         "   Antony, J",&
+         "   Ehrlich, S",&
+         "   Krieg, H",&
+         "AF Grimme, Stefan",&
+         "   Antony, Jens",&
+         "   Ehrlich, Stephan",&
+         "   Krieg, Helge",&
+         "TI A consistent and accurate ab initio parametrization of density",&
+         "   functional dispersion correction (DFT-D) for the 94 elements H-Pu",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD APR 21",&
+         "PY 2010",&
+         "VL 132",&
+         "IS 15",&
+         "AR 154104",&
+         "DI 10.1063/1.3382344",&
+         "UT ISI:000276971500005",&
+         "ER"),&
+         DOI="10.1063/1.3382344")
 
     CALL add_reference(key=Branduardi2007,ISI_record=s2a(&
          "PT J",&

@@ -128,6 +128,7 @@ MODULE qs_environment
   USE qs_dftb_parameters,              ONLY: qs_dftb_param_init
   USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_type
   USE qs_dispersion_pairpot,           ONLY: qs_dispersion_pairpot_init,&
+                                             qs_scaling_dftd3,&
                                              qs_scaling_init,&
                                              write_dispersion
   USE qs_dispersion_types,             ONLY: qs_dispersion_type
@@ -373,11 +374,11 @@ CONTAINS
       maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, &
       n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
-    LOGICAL                                  :: all_potential_present, &
-                                                explicit, harris_flag, &
-                                                nometric, was_present
+    LOGICAL :: all_potential_present, exfun, explicit, failure = .FALSE., &
+      harris_flag, nometric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
+    REAL(dp), POINTER                        :: scal(:)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -767,21 +768,54 @@ CONTAINS
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       ALLOCATE(dispersion_env,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dispersion_env",1)
+      ! set general defaults
+      dispersion_env%doabc=.FALSE.
+      NULLIFY(dispersion_env%c6ab,dispersion_env%maxci,dispersion_env%r0ab,dispersion_env%rcov,&
+              dispersion_env%r2r4)
       NULLIFY(vdw_section,xc_fun_section)
       vdw_section =>  section_vals_get_subs_vals(dft_section,"XC%vdw_potential",error=error)
       xc_fun_section => section_vals_get_subs_vals(dft_section,"XC%XC_FUNCTIONAL",error=error)
       CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type, error=error)
       IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
         CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%TYPE", c_val=dispersion_env%pp_type, error=error)
-        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%EXP_PRE", r_val=dispersion_env%exp_pre, error=error)
-        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%SCALING" ,explicit=explicit,error=error)
-        IF ( .NOT. explicit ) THEN
-          CALL qs_scaling_init(dispersion_env%scaling,dft_section,error)
+        IF ( TRIM(dispersion_env%pp_type) == "DFTD2" ) THEN
+          ! functional parameters for Grimme D2 type
+          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%EXP_PRE", r_val=dispersion_env%exp_pre, error=error)
+          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%SCALING" ,explicit=explicit,error=error)
+          IF ( .NOT. explicit ) THEN
+            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
+            CPPostcondition(exfun,cp_failure_level,routineP,error,failure)
+            CALL qs_scaling_init(dispersion_env%scaling,vdw_section,error)
+          ELSE
+            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%SCALING", r_val=dispersion_env%scaling, error=error)
+          END IF
         ELSE
-          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%SCALING", r_val=dispersion_env%scaling, error=error)
+          dispersion_env%exp_pre=0._dp
+          dispersion_env%scaling=0._dp
+        END IF
+        IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
+          ! functional parameters for Grimme DFT-D3 type
+          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%EPS_CN", r_val=dispersion_env%eps_cn, error=error)
+          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%D3_SCALING" ,explicit=explicit,error=error)
+          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%CALCULATE_C9_TERM" ,l_val=dispersion_env%doabc,error=error)
+          IF ( .NOT. explicit ) THEN
+            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
+            CPPostcondition(exfun,cp_failure_level,routineP,error,failure)
+            CALL qs_scaling_dftd3(dispersion_env%s6,dispersion_env%sr6,dispersion_env%s8,vdw_section,error)
+          ELSE
+            CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%D3_SCALING", r_vals=scal, error=error)
+            dispersion_env%s6  =scal(1)
+            dispersion_env%sr6 =scal(2)
+            dispersion_env%s8  =scal(3)
+          END IF
+        ELSE
+          dispersion_env%s6=0._dp
+          dispersion_env%sr6=0._dp
+          dispersion_env%s8=0._dp
+          dispersion_env%eps_cn=0._dp
         END IF
         CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%R_CUTOFF", r_val=dispersion_env%rc_disp, error=error)
-        CALL qs_dispersion_pairpot_init(atomic_kind_set,vdw_section,para_env,error)
+        CALL qs_dispersion_pairpot_init(atomic_kind_set,dispersion_env,vdw_section,para_env,error)
       END IF
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
     END IF

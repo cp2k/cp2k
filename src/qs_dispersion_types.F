@@ -9,7 +9,6 @@
 ! *****************************************************************************
 MODULE qs_dispersion_types
 
-  USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
 #include "cp_common_uses.h"
@@ -21,14 +20,30 @@ MODULE qs_dispersion_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_types'
 
 ! *****************************************************************************
-  INTEGER, PARAMETER                       :: grimme_pp = 1
+  INTEGER, PARAMETER                       :: dftd2_pp = 1
+  INTEGER, PARAMETER                       :: dftd3_pp = 2
 
   TYPE qs_dispersion_type
     INTEGER                                :: TYPE
     CHARACTER (LEN=default_string_length)  :: pp_type
+    CHARACTER (LEN=default_string_length)  :: ref_functional
     REAL(KIND=dp)                          :: scaling
     REAL(KIND=dp)                          :: rc_disp
     REAL(KIND=dp)                          :: exp_pre
+    !DFT-D3 global parameters
+    INTEGER                                :: max_elem !elements parametrized
+    INTEGER                                :: maxc     !max coordination number references per element
+    REAL(KIND=dp)                          :: k1,k2,k3 !ad hoc parameters
+    REAL(KIND=dp)                          :: alp      !ad hoc parameters
+    REAL(KIND=dp)                          :: s6,s8,sr6!scaling parameters
+    REAL(KIND=dp)                          :: eps_cn
+    LOGICAL                                :: doabc    !neglect C9 terms
+    REAL(KIND=dp),DIMENSION(:,:,:,:,:), POINTER &
+                                           :: c6ab
+    INTEGER,DIMENSION(:),POINTER           :: maxci
+    REAL(KIND=dp),DIMENSION(:,:), POINTER  :: r0ab
+    REAL(KIND=dp),DIMENSION(:), POINTER    :: rcov     !covalent radii
+    REAL(KIND=dp),DIMENSION(:), POINTER    :: r2r4     !atomic <r^2>/<r^4> values
   END TYPE qs_dispersion_type
 
   TYPE qs_atom_dispersion_type
@@ -41,7 +56,7 @@ MODULE qs_dispersion_types
 ! *****************************************************************************
 
   PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type
-  PUBLIC :: grimme_pp
+  PUBLIC :: dftd2_pp, dftd3_pp
 
 ! *****************************************************************************
 

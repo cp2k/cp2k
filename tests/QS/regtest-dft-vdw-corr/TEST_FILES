@@ -4,3 +4,16 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 ch4-ch4-gpw-vdw.inp         11
+#
+dftd2_t1.inp                33
+dftd2_t2.inp                33
+dftd2_t3.inp                33
+dftd2_t4.inp                33
+dftd3_t1.inp                33
+dftd3_t2.inp                33
+dftd3_t3.inp                33
+dftd3_t4.inp                33
+dftd3_t5.inp                33
+dftd3_t6.inp                33
+dftd3_t7.inp                33
+dftd3_t8.inp                33

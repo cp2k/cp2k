@@ -820,3 +820,5 @@ H2O-ata.inp
 OH-H2O-bsse.inp
 #  
 rsgrid-dist-3.inp
+#
+ghost_overlap_vdw.inp

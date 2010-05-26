@@ -12,8 +12,8 @@
 MODULE input_cp2k_xc 
   USE bibliography,                    ONLY: &
        Becke1988, Becke1997, BeckeRoussel1989, Goedecker1996, Grimme2006, &
-       Heyd2004, Lee1988, Ortiz1994, Perdew1981, Perdew1996, Proynov2007, &
-       Tao2003, Vosko1980, Zhang1998
+       Grimme2010, Heyd2004, Lee1988, Ortiz1994, Perdew1981, Perdew1996, &
+       Proynov2007, Tao2003, Vosko1980, Zhang1998
   USE f77_blas
   USE input_constants
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
@@ -783,23 +783,29 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword,name="R_CUTOFF",&
             description="Range of potential. The cutoff will be 2 times this value",&
-            usage="R_CUTOFF 12.0", default_r_val=12.0_dp,required=.FALSE.,&
+            usage="R_CUTOFF 24.0", default_r_val=20.0_dp,required=.FALSE.,&
             unit_str="angstrom",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="TYPE",&
-            description="Type of potential.",&
-            citations=(/grimme2006/),&
-            usage="TYPE GRIMME", &
-            enum_c_vals=s2a("GRIMME"),&
-            enum_i_vals=(/ vdw_pairpot_grimme /),&
-            default_i_val=vdw_pairpot_grimme, error=error)
+            description="Type of potential. DFTD2 and DFTD3 are the Grimme D2 and D3 methods respectively.",&
+            citations=(/grimme2006,grimme2010/),&
+            usage="TYPE DFTD2", &
+            enum_c_vals=s2a("DFTD2","DFTD3"),&
+            enum_i_vals=(/ vdw_pairpot_dftd2, vdw_pairpot_dftd3 /),&
+            default_i_val=vdw_pairpot_dftd3, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="PARAMETER_FILE_NAME",&
             description="Name of the parameter file, may include a path",&
             usage="PARAMETER_FILE_NAME <FILENAME>",required=.FALSE.,&
             default_lc_val="DISPERSION_PARAMETERS",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="REFERENCE_FUNCTIONAL",&
+            description="Use parameters for this specific density functional",&
+            usage="REFERENCE_FUNCTIONAL <functional>",required=.FALSE.,&
+            type_of_var=char_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="SCALING",&
@@ -809,14 +815,32 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="EXP_PRE",&
-            description="Prefactor in exponential damping factor (Grimme potential)",&
+            description="Prefactor in exponential damping factor (DFT-D2 potential)",&
             usage="EXP_PRE 20.", default_r_val=20._dp,required=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="EPS_CN",&
+            description="Cutoff value for coordination number function (DFT-D3 method)",&
+            usage="EPS_CN 1.e-6_dp", default_r_val=1.e-6_dp,required=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,name="D3_SCALING",&
+            description="XC Functional dependent scaling parameters (s6,sr6,s8) for the DFT-D3 method,"//&
+                        "  if set to zero CP2K attempts"//&
+                        " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.",&
+            usage="D3_SCALING 1.0 1.0 1.0", n_var=3, default_r_vals=(/0.0_dp,0.0_dp,0.0_dp/),required=.FALSE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="CALCULATE_C9_TERM",&
+            description="Calculate C9 terms in DFT-D3 model",&
+            usage="CALCULATE_C9_TERM", default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        ! parameter specification atom by atom
        CALL keyword_create(keyword, name="ATOMPARM",&
             description="Specifies parameters for atom types (in atomic units). If "//&
-            "not provided default parameters are used (GRIMME).",&
+            "not provided default parameters are used (DFT-D2).",&
             usage="ATOMPARM <ELEMENT> <C6_parameter> <vdw_radii>", required=.FALSE., &
             repeats=.TRUE., n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)

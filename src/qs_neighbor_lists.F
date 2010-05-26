@@ -149,8 +149,8 @@ CONTAINS
       gth_potential_present, mic, molecule_only, nmr, paw_atom, &
       paw_atom_present, rho0_present
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
-      aux_present, oce_present, orb_present, ppl_present, ppnl_present, &
-      Qlm_present, semi_present
+      aux_present, default_present, oce_present, orb_present, ppl_present, &
+      ppnl_present, Qlm_present, semi_present
     REAL(dp)                                 :: alpha, r_skin, subcells, &
                                                 unit_conv
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
@@ -176,8 +176,9 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
-      sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_lrc, sab_orb, &
-      sab_scp, sab_vdw, sac_3c, sac_ae, sac_ppl, sap_oce, sap_ppnl, sbc_3c
+      sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_lrc, &
+      sab_orb, sab_scp, sab_vdw, sac_3c, sac_ae, sac_ppl, sap_oce, sap_ppnl, &
+      sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -216,6 +217,7 @@ CONTAINS
     NULLIFY (sbc_3c)
     NULLIFY (sab_all)
     NULLIFY (sab_vdw)
+    NULLIFY (sab_cn)
     NULLIFY (sab_aux_fit)
     NULLIFY (sab_aux_fit_vs_orb)
     NULLIFY (sab_scp)
@@ -270,6 +272,7 @@ CONTAINS
                     sac_ae=sac_ae,&
                     sac_ppl=sac_ppl,&
                     sab_vdw=sab_vdw,&
+                    sab_cn=sab_cn,&
                     sap_ppnl=sap_ppnl,&
                     sap_oce=sap_oce,&
                     sab_2c=sab_2c,&
@@ -294,7 +297,7 @@ CONTAINS
 
     ALLOCATE (atom(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (orb_present(nkind),STAT=stat)
+    ALLOCATE (orb_present(nkind),default_present(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (aux_fit_present(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -926,8 +929,9 @@ CONTAINS
                                       rcdisp=c_radius(ikind),error=error)
           END DO
 
+          default_present=.TRUE.
           CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
-               unit_conv,unit_str,output_unit,orb_present,orb_present,&
+               unit_conv,unit_str,output_unit,default_present,default_present,&
                c_radius,c_radius,name="DISPERSION",subcells=subcells,&
                error=error)
           ! Put the generated neighbor lists into the QS environment
@@ -944,14 +948,26 @@ CONTAINS
        IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
           ALLOCATE (c_radius(nkind),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          c_radius(:) = dispersion_env%rc_disp
+          c_radius(:) = 0.5_dp*dispersion_env%rc_disp
+          default_present=.TRUE. !include all atoms in vdW (even without basis)
 
           CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&
-               unit_conv,unit_str,output_unit,orb_present,orb_present,&
+               unit_conv,unit_str,output_unit,default_present,default_present,&
                c_radius,c_radius,name="DISPERSION",subcells=subcells,&
                error=error)
           ! Put the generated neighbor lists into the QS environment
           CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
+
+          IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
+             ! Build the neighbor lists for coordination numbers as needed by the DFT-D3 method
+             c_radius(:) = 10.0_dp !hard wired
+             CALL build_neighbor_lists(sab_cn,atom,cell,0._dp,maxatom_local,&
+                unit_conv,unit_str,output_unit,default_present,default_present,&
+                c_radius,c_radius,name="COORDINATION",subcells=subcells,&
+                error=error)
+             ! Put the generated neighbor lists into the QS environment
+             CALL set_qs_env(qs_env=qs_env,sab_cn=sab_cn,error=error)
+          END IF
 
           DEALLOCATE (c_radius,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1037,7 +1053,7 @@ CONTAINS
 
     DEALLOCATE (atom,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (orb_present,STAT=stat)
+    DEALLOCATE (orb_present,default_present,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (orb_radius,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

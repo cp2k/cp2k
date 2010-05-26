@@ -19,7 +19,8 @@
       &vdW_POTENTIAL
          DISPERSION_FUNCTIONAL PAIR_POTENTIAL
          &PAIR_POTENTIAL
-            TYPE GRIMME
+            TYPE DFTD2
+            SCALING 1.0e0
          &END PAIR_POTENTIAL
       &END vdW_POTENTIAL
     &END XC
