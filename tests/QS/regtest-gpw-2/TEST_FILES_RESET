@@ -657,3 +657,25 @@ H2O_meta_langevin.inp
 Au13ico_mtd.inp
 #  
 Au12_rmsd_mtd.inp
+# Update of atomic weights 
+H2-vib.inp
+H2O-2.inp
+H2O-3.inp
+H2O-4.inp
+H2O-meta_kinds.inp
+H2O-meta.inp
+H2O-meta_res0.inp
+H2O-meta_res1.inp
+H2O-meta_res2.inp
+H2O-meta_res3.inp
+H2O-meta_coord.inp
+H2O-meta_coord_1.inp
+H2O-meta_coord_2.inp
+hcn_md.inp
+hcn_meta_coord.inp
+hcn_meta_chaincoord.inp
+hcn_meta_chaincoord_kind.inp
+H2O_meta_pop.inp
+H2O_meta_langevin.inp
+Au13ico_mtd.inp
+Au12_rmsd_mtd.inp

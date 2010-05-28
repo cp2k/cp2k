@@ -173,3 +173,10 @@ mol_CSVR_gen2.inp
 mol_CSVR_gen3.inp
 mol.inp
 mol_sph_cut.inp
+# Update of atomic weights 
+water_3.inp
+h2_dbg_0.inp
+h2_dbg_1.inp
+water_3_NOwalls.inp
+water_3_walls.inp
+water_3_walls_q.inp

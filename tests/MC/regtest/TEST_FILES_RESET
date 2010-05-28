@@ -49,3 +49,6 @@ GEMC_swap_box1.inp
 virial.inp
 # bug fix
 GEMC_NVT_box1.inp
+# Update of atomic weights 
+MC_QS.inp
+MC_KG.inp

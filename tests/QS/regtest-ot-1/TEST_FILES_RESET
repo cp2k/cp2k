@@ -650,3 +650,19 @@ vib-mixed.inp
 dip-mixed.inp
 #  
 vib-int-mixed.inp
+# Update of atomic weights 
+H2O.inp
+H2O-OT-1.inp
+H2O-OT-2.inp
+H2O-OT-3.inp
+H2O-OT-4.inp
+H2O-OT-5.inp
+H2O-OT-ASPC-1.inp
+H2O-OT-ASPC-2.inp
+H2O-OT-ASPC-3.inp
+H2O-OT-ASPC-4.inp
+H2O-OT-ASPC-5.inp
+H2O-OT-ASPC-6.inp
+H2O-bs_input.inp
+vib-mixed.inp
+vib-int-mixed.inp

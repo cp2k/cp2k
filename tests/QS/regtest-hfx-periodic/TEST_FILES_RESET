@@ -62,3 +62,6 @@ CH3-trunc-auto-md.inp
 # bug fix screening on forces
 H2O-trunc-auto-md.inp
 CH3-trunc-auto-md.inp
+# Update of atomic weights 
+H2O-trunc-auto-md.inp
+CH3-trunc-auto-md.inp

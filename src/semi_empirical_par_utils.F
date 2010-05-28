@@ -16,7 +16,6 @@ MODULE semi_empirical_par_utils
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac
   USE mathlib,                         ONLY: binomial
-  USE periodic_table,                  ONLY: nelem
   USE physcon,                         ONLY: bohr,&
                                              evolt
   USE semi_empirical_int_arrays,       ONLY: int_ij,&
@@ -31,7 +30,7 @@ MODULE semi_empirical_par_utils
 
   PRIVATE
 
-! *** Global parameters ***
+  INTEGER, PARAMETER, PRIVATE :: nelem = 106
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_par_utils'
 

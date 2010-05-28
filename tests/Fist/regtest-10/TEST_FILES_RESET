@@ -68,3 +68,10 @@ water_2_angvel_zero_002.inp
 2gly_mtd_rprmsd.inp
 2gly_mtd_dprmsd.inp
 2gly_mtd_rp_dp_rmsd.inp
+# Update of atomic weights 
+water_2_angvel_zero_000.inp
+water_2_angvel_zero_001.inp
+water_2_angvel_zero_002.inp
+c60_pl_pl_angl1_restr.inp
+c60_pl_pl_angl2_restr.inp
+c60_meta_lagr.inp

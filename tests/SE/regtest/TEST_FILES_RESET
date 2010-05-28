@@ -539,3 +539,6 @@ ice-scp-ewald_gks.inp
 h2o_gks_e.inp
 # numerics
 ice-scp-ewald.inp
+# Update of atomic weights 
+h2op_2.inp
+h2po4.inp

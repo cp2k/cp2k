@@ -751,3 +751,14 @@ He2_ddapc_constraint-2.inp
 #  
 He2_ddapc_constraint-3.inp
 #  
+# Update of atomic weights 
+C2H4.inp
+He2_ddapc_constraint.inp
+He2_ddapc_constraint-2.inp
+He2_ddapc_constraint-3.inp
+He2_none_full_all.inp
+He2_none_full_single.inp
+He2_none_full_inverse.inp
+sic_ddapc_rt.inp
+He2_ddapc_constraint-4.inp
+H2-BECKE-MD.inp

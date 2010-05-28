@@ -172,3 +172,13 @@ wfn_mix_loc-1.inp
 wfn_mix_loc_mark-1.inp
 #  
 H2O_excit_emd.inp
+# Update of atomic weights 
+H2-emd.inp
+H2plus-emd-1.inp
+H2plus-emd.inp
+H2-emd_EM.inp
+H2-emd_ETRS_PADE.inp
+H2-emd_restart.inp
+H2-emd_restart-1.inp
+H2-emd-efield.inp
+H2O_excit_emd.inp

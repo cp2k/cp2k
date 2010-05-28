@@ -122,3 +122,35 @@ water32_hbonds_4.inp
 water_massive.inp
 # bug fix
 argon_opt_cell_ks.inp
+# Update of atomic weights 
+water_3_dist_2.inp
+water_3_dist_3.inp
+water32_hbonds_3.inp
+water32_hbonds_4.inp
+water_3_dist_startC.inp
+H2O-fixd-rest.inp
+H2O-fixd-rest-2.inp
+H2O-restraint_1.inp
+H2O-restraint_2.inp
+ethene_colv3.inp
+nh3_4x6_fixd.inp
+water_3_g3x3_fxd.inp
+mfi.inp
+water_3_dist_inter.inp
+water_3_dist_inter2.inp
+water_3_dist_mix.inp
+H2O-constr_1_ext.inp
+H2O-restraint_1_ext.inp
+nh3_4x6_ext.inp
+nh3_r4x6_ext.inp
+water_3_g3x3_ext.inp
+water_3_rg3x3_ext.inp
+water_3_dist_2_restr.inp
+interface.inp
+nh3_fixd_x.inp
+nh3_fixd_xy.inp
+nh3_fixd_y.inp
+nh3_fixd_z.inp
+bonded-1.inp
+bonded-2.inp
+bonded-3.inp

@@ -822,3 +822,15 @@ OH-H2O-bsse.inp
 rsgrid-dist-3.inp
 #
 ghost_overlap_vdw.inp
+# Update of atomic weights 
+He2H-bloechl-md.inp
+H2O-bloechl.inp
+H2O-bloechl-Spl.inp
+H2O-bloechl-restraint.inp
+H2O-langevin-1.inp
+H2O-langevin-2.inp
+H2O-ref-1.inp
+H2O-ref-2.inp
+H2O-ata.inp
+H2O-solv.inp
+rsgrid-dist-2.inp

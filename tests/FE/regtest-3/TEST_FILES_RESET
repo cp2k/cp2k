@@ -16,3 +16,6 @@ Solv_alch_chng_res.inp
 # analytic electrostatic in Fist
 Solv_alch_chng.inp
 Solv_alch_chng_res.inp
+# Update of atomic weights 
+Solv_alch_chng.inp
+Solv_alch_chng_res.inp

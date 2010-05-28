@@ -63,3 +63,5 @@ H2O-qmmm-hfx.inp
 # analytic electrostatic in Fist
 C11H24-qmmmgapw-gauss-0.inp
 H2O-qmmm-hfx.inp
+# Update of atomic weights 
+H2O-qmmm-hfx.inp

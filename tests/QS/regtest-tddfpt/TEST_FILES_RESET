@@ -89,3 +89,5 @@ NO_tddfpt-t-3.inp
 H2O_tddfpt-s-1.inp
 # numerics
 NO_tddfpt-s-1.inp
+# Update of atomic weights 
+H2O_tddfpt-s-1.inp

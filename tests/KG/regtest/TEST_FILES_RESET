@@ -172,3 +172,11 @@ nai-4.inp
 nai-5.inp
 # fm to dbcsr
 nai-1.inp
+# Update of atomic weights 
+h2o.inp
+h2o-2.inp
+nai-1.inp
+nai-2.inp
+nai-4.inp
+nai-5.inp
+kg_gpw_2H2O_md.inp

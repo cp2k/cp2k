@@ -47,8 +47,7 @@ MODULE semi_empirical_parameters
                                              do_method_pnnl,&
                                              do_method_rm1
   USE kinds,                           ONLY: dp
-  USE periodic_table,                  ONLY: nelem,&
-                                             ptable
+  USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: evolt,&
                                              kcalmol
   USE semi_empirical_par_utils,        ONLY: calpar,&
@@ -62,12 +61,12 @@ MODULE semi_empirical_parameters
 
   PRIVATE
 
-! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_parameters'
+
+  INTEGER, PARAMETER, PRIVATE :: nelem = 106
 
   REAL(KIND=dp), DIMENSION(0:nelem,0:nelem) :: xab_pm6, aab_pm6
 
-! *** Public subroutines ***
   PUBLIC :: mndo_default_parameter,&
             am1_default_parameter, &
             rm1_default_parameter,&
@@ -683,7 +682,7 @@ CONTAINS
        sep%gpp              =   9.8303165_dp
        sep%gp2              =   8.9291355_dp
        sep%hsp              =   0.5999908_dp
-    CASE (84:106)
+    CASE (84:nelem)
     END SELECT
     ! In case overwrite with MNDO-d parameters
     IF (itype==do_method_mndod) CALL  mndod_default_parameter(sep, z, error)
@@ -1492,7 +1491,7 @@ CONTAINS
        sep%gpp   =    7.3000000_dp
        sep%gp2   =    6.5000000_dp
        sep%hsp   =    1.3000000_dp
-    CASE (83:106)
+    CASE (83:nelem)
     END SELECT
     ! Finalize parameters for the element
     CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
@@ -1703,7 +1702,7 @@ CONTAINS
          sep%hsp   =    1.41602940_dp
          sep%fn1(1) = -0.08147724_dp; sep%fn2(1) = 1.56065072_dp; sep%fn3(1) = 2.00002063_dp
          sep%fn1(2) =  0.05914991_dp; sep%fn2(2) = 5.76111270_dp; sep%fn3(2) = 2.20488800_dp
-      CASE (80:106)
+      CASE (80:nelem)
     END SELECT
     ! Finalize parameters for the element
     CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
@@ -2497,7 +2496,7 @@ CONTAINS
        !     Data (GuesP1(91,J),J=1,10)/10*0.0e0_dp/
        !     Data (GuesP2(91,J),J=1,10)/10*0.0e0_dp/
        !     Data (GuesP3(91,J),J=1,10)/10*0.0e0_dp/
-    CASE (92:106)
+    CASE (92:nelem)
     END SELECT
     ! Finalize parameters for the element
     CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)
@@ -3843,7 +3842,7 @@ CONTAINS
        sep%gpp         =    8.389442_dp
        sep%gp2         =    7.724219_dp
        sep%hsp         =    0.295606_dp
-    CASE(84:106)
+    CASE(84:nelem)
     END SELECT
     ! Finalize parameters for the element
     CALL valence_electrons(sep, extended_basis_set=.TRUE., error=error)
@@ -4224,7 +4223,7 @@ CONTAINS
        sep%pre(2)           =   -0.012825_dp
        sep%d(1)             =    1.994299_dp
        sep%d(2)             =    2.263417_dp
-    CASE (54:106)
+    CASE (54:nelem)
     END SELECT
     ! Finalize parameters for the element
     CALL valence_electrons(sep, extended_basis_set=.FALSE., error=error)

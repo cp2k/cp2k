@@ -365,3 +365,8 @@ scan_zn_1w_cp2k.inp
 zn_1w_debug.inp
 # numerics
 H2O-32.inp
+# Update of atomic weights 
+h2o_meta.inp
+hcl.inp
+hcl_ot.inp
+hcl_z.inp

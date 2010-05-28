@@ -258,3 +258,7 @@ si8_pmix_otdiag.inp
 md-01.inp
 #  
 bug_ai_moments.inp
+# Update of atomic weights 
+si8_pulay_md.inp
+H2O-meta-mindisp.inp
+md-01.inp

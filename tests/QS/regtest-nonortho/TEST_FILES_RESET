@@ -162,3 +162,7 @@ graphite2.inp
 graphite3.inp
 #  
 graphite-lumo.inp
+# Update of atomic weights 
+graphite.inp
+graphite2.inp
+graphite3.inp

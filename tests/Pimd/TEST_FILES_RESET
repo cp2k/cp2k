@@ -29,3 +29,7 @@ h2o_pint.inp
 # helium-related changes
 h2o_pint.inp
 h2o_pint_fist.inp
+# Update of atomic weights 
+h2o_pint.inp
+h2o_pint_fist.inp
+water-in-helium.inp

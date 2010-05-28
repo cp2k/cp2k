@@ -788,3 +788,18 @@ spin_restraint.inp
 # bug fix
 cell-1.inp
 cell-2.inp
+# Update of atomic weights 
+H2O-5.inp
+H2O-debug-2.inp
+H2O-debug-3.inp
+H2O-debug-4.inp
+C2H4-meta.inp
+test-pdb.inp
+spin_restraint.inp
+H2O-meta_g.inp
+H2O-meta_hydro.inp
+H2O-7.inp
+H2O-9.inp
+basis_none_1.inp
+basis_none_2.inp
+H2O-extpot.inp

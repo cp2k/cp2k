@@ -305,3 +305,5 @@ H2S-gapw-ot.inp
 H2S-gapw-gop-ot.inp
 # numerics
 Be_GAPW.inp
+# Update of atomic weights 
+He2-all-md.inp
