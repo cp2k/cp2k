@@ -38,3 +38,6 @@ dftd3_t7.inp
 # change test field
 dftd3_t6.inp
 dftd3_t7.inp
+# fix input error
+dftd2_t3.inp
+dftd3_t3.inp

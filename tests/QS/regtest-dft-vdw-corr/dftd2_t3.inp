@@ -42,7 +42,6 @@
   &SUBSYS
     &CELL
       ABC 3.0 3.0 3.0
-      PERIODIC NONE
     &END
     &COORD
        SCALED
