@@ -257,7 +257,7 @@ CONTAINS
           array(lb_new:lb_orig-1) = 0
        ENDIF
     ELSEIF (pad) THEN
-       array(:) = 0
+       newarray(:) = 0
     END IF
     array => newarray
     CALL dbcsr_error_stop(error_handler, error)

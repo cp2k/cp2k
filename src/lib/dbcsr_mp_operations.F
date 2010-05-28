@@ -17,13 +17,9 @@ MODULE dbcsr_mp_operations
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
-  USE dbcsr_message_passing,           ONLY: mp_allgather,&
-                                             mp_alltoall,&
-                                             mp_irecv,&
-                                             mp_isend,&
-                                             mp_type_descriptor_type,&
-                                             mp_type_make,&
-                                             mp_waitall
+  USE dbcsr_message_passing,           ONLY: &
+       mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_recv, mp_send, &
+       mp_type_descriptor_type, mp_type_make, mp_waitall
   USE dbcsr_methods,                   ONLY: &
        dbcsr_get_data_type, dbcsr_mp_get_process, dbcsr_mp_grid_setup, &
        dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
@@ -52,6 +48,7 @@ MODULE dbcsr_mp_operations
             hybrid_alltoall_c1, hybrid_alltoall_z1,&
             hybrid_alltoall_i1
   PUBLIC :: dbcsr_allgatherv
+  PUBLIC :: dbcsr_send_any, dbcsr_recv_any
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
   ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype
@@ -310,6 +307,33 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Blocking send of encapsulated data.
+!> \sa mp_send_iv
+! *****************************************************************************
+  SUBROUTINE dbcsr_send_any(msgin,dest,tag,comm, error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
+    INTEGER, INTENT(IN)                      :: dest, tag, comm
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_send_any', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE (dbcsr_get_data_type (msgin))
+    CASE (dbcsr_type_real_4)
+       CALL mp_send (msgin%d%r_sp, dest, tag, comm)
+    CASE (dbcsr_type_real_8)
+       CALL mp_send (msgin%d%r_dp, dest, tag, comm)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_send (msgin%d%c_sp, dest, tag, comm)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_send (msgin%d%c_dp, dest, tag, comm)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__, error=error)
+    END SELECT
+  END SUBROUTINE dbcsr_send_any
+
+! *****************************************************************************
 !> \brief Non-blocking send of encapsulated data.
 !> \sa mp_isend_iv
 ! *****************************************************************************
@@ -339,12 +363,43 @@ CONTAINS
   END SUBROUTINE dbcsr_isend_any
 
 ! *****************************************************************************
+!> \brief Blocking recv of encapsulated data.
+!> \sa mp_recv_iv
+! *****************************************************************************
+  SUBROUTINE dbcsr_recv_any(msgin,source,tag, comm, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: msgin
+    INTEGER, INTENT(IN)                      :: source, tag, comm
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_recv_any', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: io_comm, io_source, io_tag
+
+    io_source = source ; io_comm = comm; io_tag = tag
+    
+    SELECT CASE (dbcsr_get_data_type (msgin))
+    CASE (dbcsr_type_real_4)
+       CALL mp_recv (msgin%d%r_sp, io_source, io_tag, io_comm)
+    CASE (dbcsr_type_real_8)
+       CALL mp_recv (msgin%d%r_dp, io_source, io_tag, io_comm)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_recv (msgin%d%c_sp, io_source, io_tag, io_comm)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_recv (msgin%d%c_dp, io_source, io_tag, io_comm)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__, error=error)
+    END SELECT
+  END SUBROUTINE dbcsr_recv_any
+
+! *****************************************************************************
 !> \brief Non-blocking recv of encapsulated data.
 !> \sa mp_irecv_iv
 ! *****************************************************************************
-  SUBROUTINE dbcsr_irecv_any(msgin,dest,comm,request,tag, error)
+  SUBROUTINE dbcsr_irecv_any(msgin,source,comm,request,tag, error)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: msgin
-    INTEGER, INTENT(IN)                      :: dest, comm
+    INTEGER, INTENT(IN)                      :: source, comm
     INTEGER, INTENT(OUT)                     :: request
     INTEGER, INTENT(IN), OPTIONAL            :: tag
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -354,18 +409,19 @@ CONTAINS
 
     SELECT CASE (dbcsr_get_data_type (msgin))
     CASE (dbcsr_type_real_4)
-       CALL mp_irecv (msgin%d%r_sp, dest, comm, request, tag)
+       CALL mp_irecv (msgin%d%r_sp, source, comm, request, tag)
     CASE (dbcsr_type_real_8)
-       CALL mp_irecv (msgin%d%r_dp, dest, comm, request, tag)
+       CALL mp_irecv (msgin%d%r_dp, source, comm, request, tag)
     CASE (dbcsr_type_complex_4)
-       CALL mp_irecv (msgin%d%c_sp, dest, comm, request, tag)
+       CALL mp_irecv (msgin%d%c_sp, source, comm, request, tag)
     CASE (dbcsr_type_complex_8)
-       CALL mp_irecv (msgin%d%c_dp, dest, comm, request, tag)
+       CALL mp_irecv (msgin%d%c_dp, source, comm, request, tag)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect data type", __LINE__, error=error)
     END SELECT
   END SUBROUTINE dbcsr_irecv_any
+
 
 ! *****************************************************************************
 !> \brief Allgather of encapsulated data

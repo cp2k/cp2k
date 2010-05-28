@@ -14,13 +14,20 @@
 ! *****************************************************************************
 MODULE dbcsr_internal_operations
   USE array_types,                     ONLY: array_data
+  USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
+                                             dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
   USE dbcsr_dist_operations,           ONLY: checker_tr
   USE dbcsr_error_handling
-  USE dbcsr_index_operations,          ONLY: dbcsr_repoint_index,&
+  USE dbcsr_index_operations,          ONLY: dbcsr_expand_row_index,&
+                                             dbcsr_repoint_index,&
                                              merge_index_arrays
   USE dbcsr_io,                        ONLY: all_print,&
                                              dbcsr_print
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
   USE dbcsr_kinds,                     ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -42,13 +49,14 @@ MODULE dbcsr_internal_operations
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_destroy_array, &
        dbcsr_distribution, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_init, dbcsr_mp_grid_setup, &
-       dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
-       dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_nfullcols_local, dbcsr_nfullrows_local, &
-       dbcsr_row_block_sizes, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
-       dbcsr_scalar_one, dbcsr_scalar_zero
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_init, &
+       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
+       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_row_block_sizes, &
+       dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
+       dbcsr_scalar_zero, dbcsr_valid_index
 
 !$ USE dbcsr_methods, ONLY: dbcsr_distribution_thread_dist
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
@@ -59,7 +67,8 @@ MODULE dbcsr_internal_operations
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_mp_obj, dbcsr_obj, &
        dbcsr_scalar_type, dbcsr_type, dbcsr_type_complex_4, &
-       dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8,&
+       dbcsr_iterator
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_set_debug
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -79,6 +88,9 @@ MODULE dbcsr_internal_operations
 
 
   PUBLIC :: dbcsr_mult_m_e_e
+  PUBLIC :: dbcsr_insert_blocks
+
+
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
@@ -1872,6 +1884,68 @@ CONTAINS
        val = n2
     ENDIF
   END FUNCTION select_n_or_t
+
+
+! *****************************************************************************
+!> \brief Adds blocks to a matrix
+!>
+!>        Existing blocks are replaced (overwritten).
+!> \param[in,out] matrix_a   DBCSR matrix into which blocks are added
+!> \param[in] matrix_b       DBCSR matrix from which blocks are added
+!> \param[in,out] error      error
+! *****************************************************************************
+  SUBROUTINE dbcsr_insert_blocks(matrix_a, matrix_b, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_insert_blocks', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: data_type_b
+    INTEGER                                  :: blk, col, error_handler, &
+                                                nblkrows, nblks, row
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: b_row_i
+    LOGICAL                                  :: tr
+    TYPE(dbcsr_data_obj)                     :: data_block
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    ! Checks for validity
+    CALL dbcsr_assert (dbcsr_valid_index (matrix_a),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Target matrix A must be valid.", __LINE__, error)
+    CALL dbcsr_assert (dbcsr_valid_index (matrix_b),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Source matrix B must be valid.", __LINE__, error)
+    ! Reserve the blocks to be added
+    nblks = dbcsr_get_num_blocks (matrix_b)
+    nblkrows = dbcsr_nblkrows_total (matrix_b)
+    ALLOCATE (b_row_i(nblks))
+    CALL dbcsr_expand_row_index (matrix_b%m%row_p, b_row_i, nblkrows, nblks)
+    CALL dbcsr_reserve_blocks (matrix_a, b_row_i, matrix_b%m%col_i, error=error)
+    DEALLOCATE (b_row_i)
+    ! Prepare data structures
+    data_type_b = dbcsr_get_data_type (matrix_b)
+    ! Now add the blocks
+    CALL dbcsr_data_init (data_block)
+    CALL dbcsr_data_new (data_block, data_type_b)
+    CALL dbcsr_iterator_start(iter, matrix_b)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
+       CALL dbcsr_put_block(matrix_a, row, col, data_block, tr,&
+            summation=.FALSE.)
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_data_clear_pointer (data_block)
+    CALL dbcsr_data_release (data_block)
+    !
+    CALL dbcsr_finalize (matrix_a, error=error)
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_insert_blocks
+
 
 
 #include "dbcsr_internal_operations_d.F"

@@ -64,7 +64,7 @@ MODULE dbcsr_util
             nfull_elements
   PUBLIC :: swap, sgn
   ! math routines
-  PUBLIC :: gcd, lcm
+  PUBLIC :: gcd, lcm, ceil_log2
 
   INTERFACE swap
      MODULE PROCEDURE iswap, bswap
@@ -696,6 +696,28 @@ CONTAINS
     END IF
   END FUNCTION lcm
 
+
+! *****************************************************************************
+!> \brief Calculates the ceiling of a log base 2 for integers
+!> \note Should be careful for highest integer values.
+!> \param[in] lv    Value for which to calculate the function
+!> \result cl2      Result of function on lv
+! *****************************************************************************
+  ELEMENTAL FUNCTION ceil_log2 (lv) RESULT (cl2)
+    INTEGER, INTENT(IN)                      :: lv
+    INTEGER                                  :: cl2
+
+    INTEGER                                  :: bit
+
+    bit = 0
+    DO WHILE (ISHFT(1, bit) .LT. lv .AND. bit .LT. BIT_SIZE(lv))
+       bit = bit + 1
+    ENDDO
+    bit = bit-1
+    ! Set to zero if lv is too big.
+    IF (bit .EQ. BIT_SIZE(lv)-2) bit = 0
+    cl2 = bit+1
+  END FUNCTION ceil_log2
 
 ! *****************************************************************************
 !> \brief Calculates the checksum of a DBCSR matrix.

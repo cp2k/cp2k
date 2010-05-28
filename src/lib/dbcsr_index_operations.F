@@ -1041,7 +1041,7 @@ CONTAINS
                 IF (PRESENT (added_nblks)) added_nblks = added_nblks + 1
                 IF (PRESENT (added_sizes)) THEN
                    new_blk_p(new_blk) = bp
-                   bp = added_sizes(add_blk)
+                   bp = bp + added_sizes(add_blk)
                    added_size = added_size + added_sizes(add_blk)
                 ENDIF
                 add_blk = add_blk + 1

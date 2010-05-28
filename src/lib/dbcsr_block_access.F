@@ -464,9 +464,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_blocks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk, blk_p, data_size_new, data_size_old, nblkrows, &
-      nblks_actual_added, nblks_added, nblks_new, nblks_old, new_data_sizes, &
-      nze
+    INTEGER :: blk, blk_p, data_size_new, data_size_old, error_handler, &
+      nblkrows, nblks_actual_added, nblks_added, nblks_new, nblks_old, &
+      new_data_sizes, nze
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: added_sizes, new_blk_p, &
                                                 new_col_i, new_row_i, &
                                                 old_row_i
@@ -474,6 +474,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set (routineN, error_handler, error)
     CALL dbcsr_assert (SIZE(rows), "EQ", SIZE(columns), dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN,&
          "Size of rows and columns array must match.", __LINE__, error=error)
@@ -563,6 +564,7 @@ CONTAINS
                lb=data_size_old+1, ub=matrix%m%nze)
        ENDIF
     ENDIF
+    CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_reserve_blocks
 
 
