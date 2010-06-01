@@ -279,8 +279,6 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
 
-    INTEGER                                  :: offset
-
 !   ---------------------------------------------------------------------------
 
     stored_row = row
@@ -289,9 +287,7 @@ CONTAINS
     CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_column,&
          transpose)
     CALL get_stored_block_info_type(matrix, stored_row, stored_column,&
-         found, block_number, offset)
-    IF (PRESENT (data_offset)) data_offset = offset
-    transpose = offset .LT. 0
+         found, block_number, data_offset=data_offset, transposed=transpose)
   END SUBROUTINE get_block_index_type
 
 ! *****************************************************************************
