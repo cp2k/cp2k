@@ -349,12 +349,6 @@ CONTAINS
        s6  = 1.000_dp
        sr6 = 1.261_dp
        s8  = 1.703_dp
-    CASE ("BLYP")
-       ! S. Grimme, J. Antony, S. Ehrlich, and H. Krieg
-       ! J. Chem. Phys. 132,154104 (2010); doi:10.1063/1.3382344
-       s6  = 1.000_dp
-       sr6 = 1.139_dp
-       s8  = 1.683_dp
     CASE ("B97-D")
        ! S. Grimme, J. Antony, S. Ehrlich, and H. Krieg
        ! J. Chem. Phys. 132,154104 (2010); doi:10.1063/1.3382344
@@ -366,6 +360,12 @@ CONTAINS
        s6  = 1.000_dp
        sr6 = 1.370_dp
        s8  = 1.442_dp
+    CASE ("BLYP")
+       ! S. Grimme, J. Antony, S. Ehrlich, and H. Krieg
+       ! J. Chem. Phys. 132,154104 (2010); doi:10.1063/1.3382344
+       s6  = 1.000_dp
+       sr6 = 1.094_dp
+       s8  = 1.682_dp
     CASE ("BP86")
        ! S. Grimme, J. Antony, S. Ehrlich, and H. Krieg
        ! J. Chem. Phys. 132,154104 (2010); doi:10.1063/1.3382344
@@ -427,7 +427,7 @@ CONTAINS
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.223_dp
-       s8  = 0.219_dp
+       s8  = 1.219_dp
     CASE ("B3PW91") 
        ! Not yet published
        s6  = 1.000_dp
@@ -453,7 +453,7 @@ CONTAINS
        s6  = 1.000_dp
        sr6 = 1.417_dp
        s8  = 0.000_dp
-    CASE ("M05N") 
+    CASE ("M05") 
        ! Not yet published
        s6  = 1.000_dp
        sr6 = 1.373_dp
