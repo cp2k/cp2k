@@ -290,6 +290,8 @@ CONTAINS
                       averages%virial%pv_constraint = RESHAPE(tmp,(/3,3/))
                       CALL section_vals_val_get(restart_section,"AVE_PV_XC",r_vals=tmp,error=error)
                       averages%virial%pv_xc = RESHAPE(tmp,(/3,3/))
+                      CALL section_vals_val_get(restart_section,"AVE_PV_FOCK_4C",r_vals=tmp,error=error)
+                      averages%virial%pv_fock_4c = RESHAPE(tmp,(/3,3/))
                    END IF
                 END IF
                 ! Colvars
@@ -336,6 +338,7 @@ CONTAINS
                    averages%virial%pv_kinetic    = virial%pv_kinetic
                    averages%virial%pv_constraint = virial%pv_constraint
                    averages%virial%pv_xc         = virial%pv_xc
+                   averages%virial%pv_fock_4c    = virial%pv_fock_4c
                 END IF
              END IF
              ! Colvars
@@ -370,6 +373,7 @@ CONTAINS
                    CALL get_averages(averages%virial%pv_kinetic,virial%pv_kinetic,delta_t,error)
                    CALL get_averages(averages%virial%pv_constraint,virial%pv_constraint,delta_t,error)
                    CALL get_averages(averages%virial%pv_xc,virial%pv_xc,delta_t,error)
+                   CALL get_averages(averages%virial%pv_fock_4c,virial%pv_fock_4c,delta_t,error)
                 END IF
              END IF
              ! Colvars
@@ -422,7 +426,8 @@ CONTAINS
                      "AVE_PV_VIR",averages%virial%pv_virial,itimes,&
                      "AVE_PV_KIN",averages%virial%pv_kinetic,itimes,&
                      "AVE_PV_CNSTR",averages%virial%pv_constraint,itimes,&
-                     "AVE_PV_XC",averages%virial%pv_xc,itimes
+                     "AVE_PV_XC",averages%virial%pv_xc,itimes,&
+                     "AVE_PV_FOCK_4C",averages%virial%pv_fock_4c,itimes
              END IF
           END IF
           DO i = 1, nint

@@ -1124,6 +1124,7 @@ CONTAINS
        CALL mp_sum(virials(iforce_eval)%virial%pv_kinetic, force_env%para_env%group)
        CALL mp_sum(virials(iforce_eval)%virial%pv_virial, force_env%para_env%group)
        CALL mp_sum(virials(iforce_eval)%virial%pv_xc, force_env%para_env%group)
+       CALL mp_sum(virials(iforce_eval)%virial%pv_fock_4c, force_env%para_env%group)
        CALL mp_sum(virials(iforce_eval)%virial%pv_constraint, force_env%para_env%group)
        !Transfer results
        source = 0
@@ -1329,6 +1330,7 @@ CONTAINS
        virial_mix%pv_kinetic    = virial_mix%pv_kinetic + factor*virials(iforce_eval)%virial%pv_kinetic
        virial_mix%pv_virial     = virial_mix%pv_virial + factor*virials(iforce_eval)%virial%pv_virial
        virial_mix%pv_xc         = virial_mix%pv_xc + factor*virials(iforce_eval)%virial%pv_xc
+       virial_mix%pv_fock_4c    = virial_mix%pv_fock_4c + factor*virials(iforce_eval)%virial%pv_fock_4c
        virial_mix%pv_constraint = virial_mix%pv_constraint + factor*virials(iforce_eval)%virial%pv_constraint
     END IF
     ! Deallocate map_index array

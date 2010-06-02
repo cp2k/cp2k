@@ -147,6 +147,7 @@ CONTAINS
     TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
+    LOGICAL                                  :: use_virial
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -372,10 +373,10 @@ CONTAINS
           DO ispin=1,nspin
              mo_set => mos(ispin)%mo_set
              CALL get_mo_set(mo_set=mo_set,mo_coeff=mo_coeff) 
-
+             use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
              CALL calc_mixed_overlap_force(qs_env, para_env, ispin, admm_env, mo_coeff, &
                                            matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger, &
-                                           iw, error)
+                                           iw, use_virial, error)
           END DO
        END IF
 
@@ -455,6 +456,9 @@ CONTAINS
              DO dir=1, 3
                 virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) - energy%exc  &
                      - 2.0_dp*energy%hartree
+                IF( dft_control%do_admm ) THEN
+                  virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) - energy%exc_aux_fit
+                END IF
                 ! The factor 2 is a hack. It compensates the plus sign in h_stress/pw_poisson_solve.
                 ! The sign in pw_poisson_solve is correct for FIST, but not for QS.
                 ! There should be a more elegant solution to that...
@@ -593,7 +597,7 @@ CONTAINS
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-                  iatom,ikind,"overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
+                  iatom,ikind,"  overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
                   iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
@@ -617,7 +621,7 @@ CONTAINS
              i = atom_of_kind(iatom)
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-                  iatom,ikind,"overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
+                  iatom,ikind,"  overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
                   iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
                   iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
@@ -673,7 +677,7 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT=fmtstr2)&
                   iatom,ikind,"  all_potential",qs_force(ikind)%all_potential(1:3,i),&
                   iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
-                  iatom,ikind,"overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
+                  iatom,ikind,"   overlap_admm",qs_force(ikind)%overlap_admm(1:3,i),&
                   iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"      repulsive",qs_force(ikind)%repulsive(1:3,i),&
                   iatom,ikind,"     dispersion",qs_force(ikind)%dispersion(1:3,i),&

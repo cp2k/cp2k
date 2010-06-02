@@ -14,6 +14,8 @@
 ! *****************************************************************************
 MODULE hfx_libint_interface
 
+  USE cell_types,                      ONLY: cell_type,&
+                                             real_to_scaled
   USE f77_blas
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE hfx_contraction_methods,         ONLY: contract
@@ -271,7 +273,9 @@ MODULE hfx_libint_interface
                                 s_offset_a, s_offset_b, s_offset_c, s_offset_d,&
                                 nl_a, nl_b, nl_c, nl_d, nsoa, nsob, nsoc, nsod,&
                                 sphi_a, sphi_b, sphi_c, sphi_d,&
-                                work,work2,work_forces,buffer1,buffer2,primitives_tmp)
+                                work,work2,work_forces,buffer1,buffer2,primitives_tmp,&
+                                use_virial, work_virial, work2_virial, primitives_tmp_virial,&
+                                primitives_virial, cell, tmp_max_all_virial)
     
     TYPE(lib_deriv)                          :: deriv
     INTEGER, INTENT(IN)                      :: nproducts
@@ -299,15 +303,22 @@ MODULE hfx_libint_interface
       work_forces(ncoa*ncob*ncoc*ncod,12)
     REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod) :: buffer1, buffer2
     REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b&
-      , nsoc*nl_c, nsod*nl_d, 12)            :: primitives_tmp
+      , nsoc*nl_c, nsod*nl_d)                :: primitives_tmp
+    LOGICAL, INTENT(IN)                      :: use_virial
+    REAL(dp) :: work_virial(ncoa*ncob*ncoc*ncod,12,3), &
+      work2_virial(ncoa,ncob,ncoc,ncod,12,3)
+    REAL(dp), DIMENSION(nsoa*nl_a, nsob*nl_b&
+      , nsoc*nl_c, nsod*nl_d)                :: primitives_tmp_virial
+    REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc,&
+      nsgfd, 12, 3)                          :: primitives_virial
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(dp)                                 :: tmp_max_all_virial
 
-    INTEGER                                  :: a_mysize(1), i, j, k, l, &
+    INTEGER                                  :: a_mysize(1), i, j, k, l, m, &
                                                 m_max, mysize, n, p1, p2, p3, &
                                                 p4, perm_case
-    REAL(dp)                                 :: A(3), AB(3), B(3), C(3), &
-                                                CD(3), D(3), P(3), Q(3), Rho, &
-                                                RhoInv, tmp_max, W(3), &
-                                                ZetapEtaInv
+    REAL(dp) :: A(3), AB(3), B(3), C(3), CD(3), D(3), P(3), Q(3), Rho, &
+      RhoInv, scoord(12), tmp_max, tmp_max_virial, W(3), ZetapEtaInv
     TYPE(prim_data), TARGET                  :: prim
 
     m_max = n_a+n_b+n_c+n_d
@@ -317,6 +328,13 @@ MODULE hfx_libint_interface
 
     work = 0.0_dp
     work2 = 0.0_dp
+
+    IF( use_virial ) THEN
+      work_virial = 0.0_dp
+      work2_virial = 0.0_dp
+    END IF
+
+   
     perm_case = 1
     IF(n_a<n_b) THEN
       perm_case = perm_case + 1
@@ -327,6 +345,7 @@ MODULE hfx_libint_interface
     IF(n_a+n_b > n_c+n_d) THEN
       perm_case = perm_case + 4
     END IF
+
     SELECT CASE(perm_case)
       CASE(1)
         DO i = 1,nproducts
@@ -364,7 +383,21 @@ MODULE hfx_libint_interface
             END DO
           END DO
           neris = neris + 12 * mysize
+          IF( use_virial ) THEN
+            CALL real_to_scaled(scoord(1:3),A,cell)
+            CALL real_to_scaled(scoord(4:6),B,cell)
+            CALL real_to_scaled(scoord(7:9),C,cell)
+            CALL real_to_scaled(scoord(10:12),D,cell)
+            DO k=1,12
+              DO j=1,mysize
+                DO m=1,3
+                  work_virial(j,k,m) = work_virial(j,k,m) + work_forces(j,k)*scoord(INT((k-1)/3)*3+m)
+                END DO
+              END DO
+            END DO
+          END IF
         END DO
+
         DO n = 1,12
           tmp_max = 0.0_dp
           DO i = 1,mysize
@@ -372,7 +405,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
-!          IF(tmp_max<eps_schwarz) CYCLE
 
           DO i = 1,ncoa
             p1 = (i-1) *ncob
@@ -388,6 +420,31 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
+        IF( use_virial ) THEN
+          DO n=1,12
+            tmp_max_virial = 0.0_dp
+            DO i = 1,mysize
+              tmp_max_virial = MAX(tmp_max_virial, &
+                               ABS(work_virial(i,n,1)), ABS(work_virial(i,n,2)), ABS(work_virial(i,n,3)))
+            END DO
+            tmp_max_virial = tmp_max_virial * max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial,tmp_max_virial)
+
+            DO i = 1,ncoa
+              p1 = (i-1) *ncob
+              DO j = 1,ncob
+                p2 = (p1 + j-1)*ncoc
+                DO k = 1,ncoc
+                  p3 = (p2 + k-1)*ncod
+                  DO l = 1,ncod
+                    p4 = p3 + l
+                    work2_virial(i,j,k,l,full_perm1(n),1:3) = work_virial(p4,n,1:3)
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
       CASE(2)
         DO i = 1,nproducts
           A = pgf_product_list(i)%ra
@@ -424,6 +481,20 @@ MODULE hfx_libint_interface
             END DO
           END DO
           neris = neris + 12 * mysize
+          IF( use_virial ) THEN
+            CALL real_to_scaled(scoord(1:3),B,cell)
+            CALL real_to_scaled(scoord(4:6),A,cell)
+            CALL real_to_scaled(scoord(7:9),C,cell)
+            CALL real_to_scaled(scoord(10:12),D,cell)
+            DO k=1,12
+              DO j=1,mysize
+                DO m=1,3
+                  work_virial(j,k,m) = work_virial(j,k,m) + work_forces(j,k)*scoord(INT((k-1)/3)*3+m)
+                END DO
+              END DO
+            END DO
+          END IF
+
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -432,7 +503,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
-!          IF(tmp_max<eps_schwarz) CYCLE
 
           DO j = 1,ncob
             p1 = (j-1)*ncoa
@@ -448,6 +518,31 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
+        IF( use_virial ) THEN
+          DO n = 1,12
+            tmp_max_virial = 0.0_dp
+            DO i = 1,mysize
+              tmp_max_virial = MAX(tmp_max_virial, &
+                               ABS(work_virial(i,n,1)), ABS(work_virial(i,n,2)), ABS(work_virial(i,n,3)))
+            END DO
+            tmp_max_virial = tmp_max_virial * max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial,tmp_max_virial)
+
+            DO j = 1,ncob
+              p1 = (j-1)*ncoa
+              DO i = 1,ncoa
+                p2 = (p1 + i-1)*ncoc
+                DO k = 1,ncoc
+                  p3 = (p2 + k-1)*ncod
+                  DO l = 1,ncod
+                    p4 = p3 + l
+                    work2_virial(i,j,k,l,full_perm2(n),1:3) = work_virial(p4,n,1:3)
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
       CASE(3)
         DO i = 1,nproducts
           A = pgf_product_list(i)%ra
@@ -484,6 +579,20 @@ MODULE hfx_libint_interface
             END DO
           END DO
           neris = neris + 12 * mysize
+          IF( use_virial ) THEN
+            CALL real_to_scaled(scoord(1:3),A,cell)
+            CALL real_to_scaled(scoord(4:6),B,cell)
+            CALL real_to_scaled(scoord(7:9),D,cell)
+            CALL real_to_scaled(scoord(10:12),C,cell)
+            DO k=1,12
+              DO j=1,mysize
+                DO m=1,3
+                  work_virial(j,k,m) = work_virial(j,k,m) + work_forces(j,k)*scoord(INT((k-1)/3)*3+m)
+                END DO
+              END DO
+            END DO
+          END IF
+
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -492,7 +601,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
-!          IF(tmp_max<eps_schwarz) CYCLE
 
           DO i = 1,ncoa
             p1 = (i-1)*ncob
@@ -508,6 +616,31 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
+        IF( use_virial ) THEN
+          DO n = 1,12 
+            tmp_max_virial = 0.0_dp
+            DO i = 1,mysize
+              tmp_max_virial = MAX(tmp_max_virial, &
+                               ABS(work_virial(i,n,1)), ABS(work_virial(i,n,2)), ABS(work_virial(i,n,3)))
+            END DO
+            tmp_max_virial = tmp_max_virial * max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial,tmp_max_virial)
+
+            DO i = 1,ncoa
+              p1 = (i-1)*ncob
+              DO j = 1,ncob
+                p2 = (p1 + j-1)*ncod
+                DO l = 1,ncod
+                  p3 = (p2 + l-1) * ncoc
+                  DO k = 1,ncoc
+                    p4 = p3+k
+                    work2_virial(i,j,k,l,full_perm3(n),1:3) = work_virial(p4,n,1:3)
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
       CASE(4)
         DO i = 1,nproducts
           A = pgf_product_list(i)%ra
@@ -544,6 +677,20 @@ MODULE hfx_libint_interface
             END DO
           END DO
           neris = neris + 12 * mysize
+          IF( use_virial ) THEN
+            CALL real_to_scaled(scoord(1:3),B,cell)
+            CALL real_to_scaled(scoord(4:6),A,cell)
+            CALL real_to_scaled(scoord(7:9),D,cell)
+            CALL real_to_scaled(scoord(10:12),C,cell)
+            DO k=1,12
+              DO j=1,mysize
+                DO m=1,3
+                  work_virial(j,k,m) = work_virial(j,k,m) + work_forces(j,k)*scoord(INT((k-1)/3)*3+m)
+                END DO
+              END DO
+            END DO
+          END IF
+
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -552,7 +699,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
-!          IF(tmp_max<eps_schwarz) CYCLE
 
           DO j = 1,ncob
             p1 = (j-1)*ncoa
@@ -568,6 +714,31 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
+        IF( use_virial ) THEN
+          DO n = 1,12
+            tmp_max_virial = 0.0_dp
+            DO i = 1,mysize
+              tmp_max_virial = MAX(tmp_max_virial, &
+                               ABS(work_virial(i,n,1)), ABS(work_virial(i,n,2)), ABS(work_virial(i,n,3)))
+            END DO
+            tmp_max_virial = tmp_max_virial * max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial,tmp_max_virial)
+
+            DO j = 1,ncob
+              p1 = (j-1)*ncoa
+              DO i = 1,ncoa
+                p2 = (p1 + i-1)*ncod
+                DO l = 1,ncod
+                  p3 = (p2 + l-1)*ncoc
+                  DO k = 1,ncoc
+                    p4 = p3 + k
+                    work2_virial(i,j,k,l,full_perm4(n),1:3) = work_virial(p4,n,1:3)
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
       CASE(5)
         DO i = 1,nproducts
           A = pgf_product_list(i)%ra
@@ -604,6 +775,20 @@ MODULE hfx_libint_interface
             END DO
           END DO
           neris = neris + 12 * mysize
+          IF( use_virial ) THEN
+            CALL real_to_scaled(scoord(1:3),C,cell)
+            CALL real_to_scaled(scoord(4:6),D,cell)
+            CALL real_to_scaled(scoord(7:9),A,cell)
+            CALL real_to_scaled(scoord(10:12),B,cell)
+            DO k=1,12
+              DO j=1,mysize
+                DO m=1,3
+                  work_virial(j,k,m) = work_virial(j,k,m) + work_forces(j,k)*scoord(INT((k-1)/3)*3+m)
+                END DO
+              END DO
+            END DO
+          END IF
+
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -612,7 +797,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
-!          IF(tmp_max<eps_schwarz) CYCLE
 
           DO k = 1,ncoc
             p1 = (k-1)*ncod
@@ -628,6 +812,31 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
+        IF( use_virial ) THEN
+          DO n = 1,12
+            tmp_max_virial = 0.0_dp
+            DO i = 1,mysize
+              tmp_max_virial = MAX(tmp_max_virial, &
+                               ABS(work_virial(i,n,1)), ABS(work_virial(i,n,2)), ABS(work_virial(i,n,3)))
+            END DO
+            tmp_max_virial = tmp_max_virial * max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial,tmp_max_virial)
+
+            DO k = 1,ncoc
+              p1 = (k-1)*ncod
+              DO l = 1,ncod
+                p2 = (p1 + l-1)*ncoa
+                DO i = 1,ncoa
+                  p3 = (p2 + i-1)*ncob
+                  DO j = 1,ncob
+                    p4 = p3+j
+                    work2_virial(i,j,k,l,full_perm5(n),1:3) = work_virial(p4,n,1:3)
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
       CASE(6)
         DO i = 1,nproducts
           A = pgf_product_list(i)%ra
@@ -664,6 +873,20 @@ MODULE hfx_libint_interface
             END DO
           END DO
           neris = neris + 12 * mysize
+          IF( use_virial ) THEN
+            CALL real_to_scaled(scoord(1:3),C,cell)
+            CALL real_to_scaled(scoord(4:6),D,cell)
+            CALL real_to_scaled(scoord(7:9),B,cell)
+            CALL real_to_scaled(scoord(10:12),A,cell)
+            DO k=1,12
+              DO j=1,mysize
+                DO m=1,3
+                  work_virial(j,k,m) = work_virial(j,k,m) + work_forces(j,k)*scoord(INT((k-1)/3)*3+m)
+                END DO
+              END DO
+            END DO
+          END IF
+
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -672,7 +895,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
-!          IF(tmp_max<eps_schwarz) CYCLE
 
           DO k = 1,ncoc
             p1 = (k-1)*ncod
@@ -688,6 +910,31 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
+        IF( use_virial ) THEN 
+          DO n = 1,12
+            tmp_max_virial = 0.0_dp
+            DO i = 1,mysize
+              tmp_max_virial = MAX(tmp_max_virial, &
+                               ABS(work_virial(i,n,1)), ABS(work_virial(i,n,2)), ABS(work_virial(i,n,3)))
+            END DO
+            tmp_max_virial = tmp_max_virial * max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial,tmp_max_virial)
+
+            DO k = 1,ncoc
+              p1 = (k-1)*ncod
+              DO l = 1,ncod
+                p2 = (p1 + l-1)*ncob
+                DO j = 1,ncob
+                  p3 = (p2 + j-1)*ncoa
+                  DO i = 1,ncoa
+                    p4 = p3+i
+                    work2_virial(i,j,k,l,full_perm6(n),1:3) = work_virial(p4,n,1:3)
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
       CASE(7)
         DO i = 1,nproducts
           A = pgf_product_list(i)%ra
@@ -724,6 +971,20 @@ MODULE hfx_libint_interface
             END DO
           END DO
           neris = neris + 12 * mysize
+          IF( use_virial ) THEN
+            CALL real_to_scaled(scoord(1:3),D,cell)
+            CALL real_to_scaled(scoord(4:6),C,cell)
+            CALL real_to_scaled(scoord(7:9),A,cell)
+            CALL real_to_scaled(scoord(10:12),B,cell)
+            DO k=1,12
+              DO j=1,mysize
+                DO m=1,3
+                  work_virial(j,k,m) = work_virial(j,k,m) + work_forces(j,k)*scoord(INT((k-1)/3)*3+m)
+                END DO
+              END DO
+            END DO
+          END IF
+
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -732,7 +993,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
-!          IF(tmp_max<eps_schwarz) CYCLE
 
           DO l = 1,ncod
             p1 = (l-1)*ncoc
@@ -748,6 +1008,31 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
+        IF( use_virial ) THEN
+          DO n = 1,12
+            tmp_max_virial = 0.0_dp
+            DO i = 1,mysize
+              tmp_max_virial = MAX(tmp_max_virial, &
+                               ABS(work_virial(i,n,1)), ABS(work_virial(i,n,2)), ABS(work_virial(i,n,3)))
+            END DO
+            tmp_max_virial = tmp_max_virial * max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial,tmp_max_virial)
+
+            DO l = 1,ncod
+              p1 = (l-1)*ncoc
+              DO k = 1,ncoc
+                p2 = (p1 + k-1) * ncoa
+                DO i = 1,ncoa
+                  p3 = (p2 + i-1) *ncob
+                  DO j = 1,ncob
+                    p4 = p3+j
+                    work2_virial(i,j,k,l,full_perm7(n),1:3) = work_virial(p4,n,1:3)
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
       CASE(8)
         DO i = 1,nproducts
           A = pgf_product_list(i)%ra
@@ -784,6 +1069,20 @@ MODULE hfx_libint_interface
             END DO
           END DO
           neris = neris + 12 * mysize
+          IF( use_virial ) THEN
+            CALL real_to_scaled(scoord(1:3),D,cell)
+            CALL real_to_scaled(scoord(4:6),C,cell)
+            CALL real_to_scaled(scoord(7:9),B,cell)
+            CALL real_to_scaled(scoord(10:12),A,cell)
+            DO k=1,12
+              DO j=1,mysize
+                DO m=1,3
+                  work_virial(j,k,m) = work_virial(j,k,m) + work_forces(j,k)*scoord(INT((k-1)/3)*3+m)
+                END DO
+              END DO
+            END DO
+          END IF
+
         END DO
         DO n = 1,12
           tmp_max = 0.0_dp
@@ -792,7 +1091,6 @@ MODULE hfx_libint_interface
           END DO
           tmp_max = tmp_max * max_contraction
           tmp_max_all = MAX(tmp_max_all, tmp_max)
-!          IF(tmp_max<eps_schwarz) CYCLE
 
           DO l = 1,ncod
             p1 = (l-1)*ncoc
@@ -808,30 +1106,84 @@ MODULE hfx_libint_interface
             END DO
           END DO
         END DO
+        IF( use_virial ) THEN
+          DO n = 1,12
+            tmp_max_virial = 0.0_dp
+            DO i = 1,mysize
+              tmp_max_virial = MAX(tmp_max_virial, &
+                               ABS(work_virial(i,n,1)), ABS(work_virial(i,n,2)), ABS(work_virial(i,n,3)))
+            END DO
+            tmp_max_virial = tmp_max_virial * max_contraction
+            tmp_max_all_virial = MAX(tmp_max_all_virial,tmp_max_virial)
+
+            DO l = 1,ncod
+              p1 = (l-1)*ncoc
+              DO k = 1,ncoc
+                p2 = (p1 + k-1) * ncob
+                DO j = 1,ncob
+                  p3 = (p2 + j-1) * ncoa
+                  DO i = 1,ncoa
+                    p4 = p3 + i
+                    work2_virial(i,j,k,l,full_perm8(n),1:3) = work_virial(p4,n,1:3)
+                  END DO
+                END DO
+              END DO
+            END DO
+          END DO
+        END IF
     END SELECT
+    
+    IF( .NOT. use_virial) THEN
+      IF( tmp_max_all < eps_schwarz ) RETURN
+    END IF
 
-    IF( tmp_max_all < eps_schwarz ) RETURN
+    IF( tmp_max_all >= eps_schwarz ) THEN
+      DO i = 1,12
+        primitives_tmp(:,:,:,:) = 0.0_dp
+        CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&
+                      n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(1,1,1,1,i),&
+                      sphi_a, &
+                      sphi_b, &
+                      sphi_c, &
+                      sphi_d, &
+                      primitives_tmp(1,1,1,1), &
+                      buffer1, buffer2)
+    
+        primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
+                   s_offset_b+1:s_offset_b+nsob*nl_b,&
+                   s_offset_c+1:s_offset_c+nsoc*nl_c,&
+                   s_offset_d+1:s_offset_d+nsod*nl_d,i) = &
+        primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
+                   s_offset_b+1:s_offset_b+nsob*nl_b,&
+                   s_offset_c+1:s_offset_c+nsoc*nl_c,&
+                   s_offset_d+1:s_offset_d+nsod*nl_d,i) + primitives_tmp(:,:,:,:) 
+      END DO
+    END IF
 
-    DO i = 1,12
-      primitives_tmp(:,:,:,:,i) = 0.0_dp
-      CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&
-                    n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2(1,1,1,1,i),&
-                    sphi_a, &
-                    sphi_b, &
-                    sphi_c, &
-                    sphi_d, &
-                    primitives_tmp(1,1,1,1,i), &
-                    buffer1, buffer2)
-  
-      primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
-                 s_offset_b+1:s_offset_b+nsob*nl_b,&
-                 s_offset_c+1:s_offset_c+nsoc*nl_c,&
-                 s_offset_d+1:s_offset_d+nsod*nl_d,i) = &
-      primitives(s_offset_a+1:s_offset_a+nsoa*nl_a,&
-                 s_offset_b+1:s_offset_b+nsob*nl_b,&
-                 s_offset_c+1:s_offset_c+nsoc*nl_c,&
-                 s_offset_d+1:s_offset_d+nsod*nl_d,i) + primitives_tmp(:,:,:,:,i) 
-    END DO
+    IF( use_virial .AND. tmp_max_all_virial >= eps_schwarz ) THEN
+      DO i = 1,12
+        DO m=1,3
+          primitives_tmp_virial(:,:,:,:) = 0.0_dp
+          CALL contract(ncoa, ncob, ncoc, ncod, nsoa, nsob, nsoc, nsod,&
+                        n_a, n_b, n_c, n_d, nl_a, nl_b, nl_c, nl_d, work2_virial(1,1,1,1,i,m),&
+                        sphi_a, &
+                        sphi_b, &
+                        sphi_c, &
+                        sphi_d, &
+                        primitives_tmp_virial(1,1,1,1), &
+                        buffer1, buffer2)
+      
+          primitives_virial(s_offset_a+1:s_offset_a+nsoa*nl_a,&
+                     s_offset_b+1:s_offset_b+nsob*nl_b,&
+                     s_offset_c+1:s_offset_c+nsoc*nl_c,&
+                     s_offset_d+1:s_offset_d+nsod*nl_d,i,m) = &
+          primitives_virial(s_offset_a+1:s_offset_a+nsoa*nl_a,&
+                     s_offset_b+1:s_offset_b+nsob*nl_b,&
+                     s_offset_c+1:s_offset_c+nsoc*nl_c,&
+                     s_offset_d+1:s_offset_d+nsod*nl_d,i,m) + primitives_tmp_virial(:,:,:,:) 
+        END DO
+      END DO
+    END IF
 
   END SUBROUTINE evaluate_deriv_eri
 
@@ -1429,8 +1781,6 @@ MODULE hfx_libint_interface
       tmp_max = max_contraction*ABS(work(1))
       IF( tmp_max < eps_schwarz ) RETURN
     END IF
-
-
 
     IF( tmp_max < eps_schwarz ) RETURN
       primitives_tmp = 0.0_dp

@@ -75,7 +75,8 @@ MODULE hfx_types
           hfx_reset_memory_usage_counter, pair_list_type, pair_list_element_type, &
           pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list, &
           hfx_pgf_image, hfx_pgf_product_list, hfx_block_range_type, &
-          alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax
+          alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
+          hfx_create_neighbor_cells
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -148,6 +149,8 @@ MODULE hfx_types
     LOGICAL                                  :: do_periodic             !! periodic ?
     INTEGER                                  :: perd(3)                 !! x,xy,xyz,...
     INTEGER                                  :: mode
+    REAL(dp)                                 :: R_max_stress
+    INTEGER                                  :: number_of_shells_from_input
   END TYPE
 
 ! *****************************************************************************
@@ -797,6 +800,7 @@ MODULE hfx_types
         IF(actual_x_data%periodic_parameter%do_periodic) THEN
           hf_pbc_section => section_vals_get_subs_vals(hfx_section,"PERIODIC",i_rep_section=irep, error=error)
           CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
+          actual_x_data%periodic_parameter%number_of_shells_from_input = pbc_shells
           ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, cell, i_thread, error=error)
@@ -1242,8 +1246,8 @@ MODULE hfx_types
     LOGICAL                                  :: failure, image_cell_found, &
                                                 nothing_more_to_add
     REAL(dp) :: cross_product(3), dist_min, distance(14), l_min, normal(3,6), &
-      P(3,14), plane_vector(3,2), point_in_plane(3), r(3), R1, R_max, s(3), &
-      x, y, z, Zeta1
+      P(3,14), plane_vector(3,2), point_in_plane(3), r(3), R1, R_max, &
+      R_max_stress, s(3), x, y, z, Zeta1
     REAL(dp), DIMENSION(:, :), POINTER       :: zeta, zetb
     TYPE(hfx_cell_type), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_neighbor_cells
@@ -1599,8 +1603,15 @@ MODULE hfx_types
       s = x_data%neighbor_cells(i)%cell(:)
       CALL scaled_to_real(x_data%neighbor_cells(i)%cell_r,s,cell)
     END DO
-
     x_data%periodic_parameter%number_of_shells = pbc_shells
+
+    R_max_stress = 0.0_dp
+    DO i=1,SIZE(x_data%neighbor_cells)
+      R_max_stress = MAX(R_max_stress, MAXVAL(ABS(x_data%neighbor_cells(i)%cell_r(:))))
+    END DO
+    
+    R_max_stress = R_max_stress + ABS(MAXVAL(cell%hmat(:,:)))
+    x_data%periodic_parameter%R_max_stress = R_max_stress
 
   END SUBROUTINE hfx_create_neighbor_cells
 

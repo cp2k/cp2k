@@ -50,9 +50,9 @@ MODULE hfx_energy_potential
   USE hfx_types,                       ONLY: &
        alloc_containers, dealloc_containers, hfx_basis_info_type, &
        hfx_basis_type, hfx_cache_type, hfx_cell_type, hfx_container_type, &
-       hfx_distribution, hfx_general_type, hfx_init_container, &
-       hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, &
-       hfx_pgf_product_list, hfx_potential_type, &
+       hfx_create_neighbor_cells, hfx_distribution, hfx_general_type, &
+       hfx_init_container, hfx_load_balance_type, hfx_memory_type, &
+       hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, &
        hfx_reset_memory_usage_counter, hfx_screen_coeff_type, &
        hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
        log_zero, pair_list_type, pair_set_list_type
@@ -270,7 +270,7 @@ MODULE hfx_energy_potential
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
     REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl
     TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::rho_ao
-    INTEGER::ii
+    INTEGER::ii,pbc_shells_dummy
     REAL(dp), DIMENSION(:), POINTER          :: p_work
 
 #if defined(__USE_PAT)
@@ -402,7 +402,18 @@ MODULE hfx_energy_potential
 !$OMP END MASTER
 !$OMP BARRIER
 
+
+
     do_periodic = actual_x_data%periodic_parameter%do_periodic
+
+    IF( do_periodic ) THEN
+      ! ** Rebuild neighbor lists in case the cell has changed (i.e. NPT MD)
+      actual_x_data%periodic_parameter%number_of_shells = actual_x_data%periodic_parameter%mode
+      CALL hfx_create_neighbor_cells(actual_x_data, actual_x_data%periodic_parameter%number_of_shells_from_input,&
+                                     cell, i_thread, &
+                                     error)
+    END IF
+
 
     screening_parameter    = actual_x_data%screening_parameter
     potential_parameter    = actual_x_data%potential_parameter
@@ -858,7 +869,7 @@ MODULE hfx_energy_potential
                               shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, &
                               kind_of, basis_parameter, shm_initial_p, shm_pmax_atom, i_thread, n_threads, &
                               cell, do_p_screening, actual_x_data%map_atom_to_kind_atom, &
-                              nkind, hfx_do_eval_energy, error)
+                              nkind, hfx_do_eval_energy, use_virial=.FALSE., error=error)
         actual_x_data%b_first_load_balance_energy = .FALSE.
       ELSE
         CALL hfx_update_load_balance(actual_x_data,para_env, &
@@ -1639,7 +1650,6 @@ MODULE hfx_energy_potential
 !$OMP END MASTER
 !$OMP BARRIER
 
-
     DEALLOCATE(primitive_integrals,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP BARRIER
@@ -2162,6 +2172,7 @@ MODULE hfx_energy_potential
         CALL build_pgf_product_list(nneighbors3, pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
                                     nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
                                     potential_parameter, max_l, do_periodic)
+
         s_offset_a = 0
         DO la = la_min,la_max
           s_offset_b = 0

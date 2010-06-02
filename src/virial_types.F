@@ -28,7 +28,8 @@ MODULE virial_types
                                            pv_virial, &
                                            pv_kinetic, &
                                            pv_constraint, &
-                                           pv_xc
+                                           pv_xc, &
+                                           pv_fock_4c
      LOGICAL                            :: pv_availability,&
                                            pv_calculate,&
                                            pv_numer,&
@@ -56,6 +57,7 @@ CONTAINS
     virial_out % pv_kinetic = virial_in % pv_kinetic  
     virial_out % pv_virial = virial_in % pv_virial 
     virial_out % pv_xc = virial_in % pv_xc 
+    virial_out % pv_fock_4c = virial_in % pv_fock_4c 
     virial_out % pv_constraint = virial_in % pv_constraint 
     virial_out % pv_availability = virial_in % pv_availability
     virial_out % pv_calculate = virial_in % pv_calculate
@@ -91,6 +93,10 @@ CONTAINS
           ! Symmetrize XC
           virial%pv_xc(j,i) = (virial%pv_xc(i,j) + virial%pv_xc(j,i))*0.5_dp
           virial%pv_xc(i,j) =  virial%pv_xc(j,i)
+          ! Symmetrize HFX
+          virial%pv_fock_4c(j,i) = (virial%pv_fock_4c(i,j) + virial%pv_fock_4c(j,i))*0.5_dp
+          virial%pv_fock_4c(i,j) =  virial%pv_fock_4c(j,i)
+
           ! Symmetrize constraints
           virial%pv_constraint(j,i) = (virial%pv_constraint(i,j) + virial%pv_constraint(j,i))*0.5_dp
           virial%pv_constraint(i,j) =  virial%pv_constraint(j,i)
@@ -117,6 +123,7 @@ CONTAINS
     virial % pv_kinetic = 0.0_dp 
     virial % pv_virial = 0.0_dp 
     virial % pv_xc = 0.0_dp 
+    virial % pv_fock_4c = 0.0_dp 
     virial % pv_constraint = 0.0_dp 
     IF ( my_reset ) THEN
        virial % pv_availability = .FALSE.
@@ -127,12 +134,13 @@ CONTAINS
   END SUBROUTINE  zero_virial
 
 ! *****************************************************************************
-  SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
+  SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_xc, pv_fock_4c, pv_constraint, &
        pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
 
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
-                                                pv_constraint, pv_kinetic
+                                                pv_fock_4c, pv_constraint, &
+                                                pv_kinetic
     LOGICAL, OPTIONAL                        :: pv_availability, &
                                                 pv_calculate, pv_numer, &
                                                 pv_diagonal
@@ -143,6 +151,7 @@ CONTAINS
     IF ( PRESENT ( pv_total ) ) virial % pv_total = pv_total
     IF ( PRESENT ( pv_virial ) ) virial % pv_virial = pv_virial
     IF ( PRESENT ( pv_xc ) ) virial % pv_xc = pv_xc
+    IF ( PRESENT ( pv_fock_4c ) ) virial % pv_fock_4c = pv_fock_4c
     IF ( PRESENT ( pv_constraint ) ) virial % pv_constraint = pv_constraint
     IF ( PRESENT ( pv_kinetic ) ) virial % pv_kinetic = pv_kinetic
     IF ( PRESENT ( pv_availability ) ) virial % pv_availability = pv_availability
@@ -153,12 +162,13 @@ CONTAINS
   END SUBROUTINE virial_set
 
 ! *****************************************************************************
-  SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
+  SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_fock_4c, pv_constraint, &
        pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
 
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
-                                                pv_constraint, pv_kinetic
+                                                pv_fock_4c, pv_constraint, &
+                                                pv_kinetic
     LOGICAL, OPTIONAL                        :: pv_availability, &
                                                 pv_calculate, pv_numer, &
                                                 pv_diagonal
@@ -169,6 +179,7 @@ CONTAINS
     IF ( PRESENT ( pv_total ) ) pv_total = virial % pv_total
     IF ( PRESENT ( pv_virial ) ) pv_virial = virial % pv_virial
     IF ( PRESENT ( pv_xc ) ) pv_xc = virial % pv_xc
+    IF ( PRESENT ( pv_fock_4c ) ) pv_fock_4c = virial % pv_fock_4c
     IF ( PRESENT ( pv_constraint ) ) pv_constraint = virial % pv_constraint
     IF ( PRESENT ( pv_kinetic ) ) pv_kinetic = virial % pv_kinetic 
     IF ( PRESENT ( pv_availability ) ) pv_availability = virial % pv_availability 

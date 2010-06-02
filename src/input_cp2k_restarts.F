@@ -656,6 +656,11 @@ CONTAINS
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
              buffer = RESHAPE(averages%virial%pv_xc,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_XC",r_vals_ptr=buffer,error=error)
+
+             ALLOCATE(buffer(9),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+             buffer = RESHAPE(averages%virial%pv_fock_4c,(/9/))
+             CALL section_vals_val_set(work_section,"AVE_PV_FOCK_4C",r_vals_ptr=buffer,error=error)
           END IF
           ! Colvars averages
           IF (SIZE(averages%avecolvar)>0) THEN

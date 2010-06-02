@@ -34,7 +34,7 @@ MODULE qs_ks_methods
        cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
        dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
        dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, &
-       dbcsr_sm_fm_multiply
+       dbcsr_sm_fm_multiply, cp_dbcsr_set_diag
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD,&
                                              qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -670,14 +670,16 @@ CONTAINS
           ! *** associates v_rspace_new if the xc potential needs to be computed.
           ! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
           IF( dft_control%do_admm ) THEN
-             
             xc_section => admm_env%xc_section_aux
-             
+
             CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
                                vxc_rho=v_rspace_new_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=energy%exc_aux_fit, &
                                just_energy=just_energy, gapw_xc=gapw_xc, basis_set_id=use_aux_fit_basis_set,&
                                error=error)
-            
+            IF (use_virial .AND. calculate_forces) THEN
+              virial%pv_virial = virial%pv_virial - virial%pv_xc 
+              ! ** virial%pv_xc will be zeroed in the xc routines
+            END IF
           END IF
 
 
@@ -686,9 +688,11 @@ CONTAINS
           ELSE
             xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
           END IF
+
           CALL qs_vxc_create(qs_env=qs_env, xc_section=xc_section, &
                vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
                just_energy=just_energy, gapw_xc=gapw_xc, error=error)
+
           IF (gapw .OR. gapw_xc) THEN
              CALL calculate_vxc_atom(qs_env,just_energy,error)
           END IF
@@ -707,7 +711,7 @@ CONTAINS
 
        IF (use_virial .AND. calculate_forces) THEN
           virial%pv_virial = virial%pv_virial - virial%pv_xc 
-          virial%pv_calculate = .FALSE.
+!          virial%pv_calculate = .FALSE.
        ENDIF
        
        ! *** Initialize the auxiliary ks matrix to zero if required
@@ -721,6 +725,7 @@ CONTAINS
           DO ispin = 1,nspins
              CALL cp_dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp,error=error)
           END DO
+
           CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
           !! set hf exchange energy to zero
           energy%ex = 0.0_dp
@@ -761,9 +766,8 @@ CONTAINS
                          END DO
                       END IF
                       IF( calculate_forces ) THEN
-                         CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                          CALL derivatives_four_center(qs_env, qs_env%rho_aux_fit, hfx_sections, &
-                                                      para_env, irep, error=error)
+                                                      para_env, irep, use_virial, error=error)
                       END IF
                    ELSE
                       IF ( .NOT. hfx_treat_lsd_in_core ) THEN
@@ -778,9 +782,8 @@ CONTAINS
                          END DO
                       END IF
                       IF( calculate_forces ) THEN
-                         CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                          CALL derivatives_four_center(qs_env, rho, hfx_sections, &
-                                                      para_env, irep, error=error)
+                                                      para_env, irep, use_virial, error=error)
                       END IF
                    END IF
                 ELSE
@@ -806,6 +809,10 @@ CONTAINS
              CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
                   1.0_dp,1.0_dp,error=error)
           END DO
+          IF (use_virial .AND. calculate_forces) THEN
+             virial%pv_virial = virial%pv_virial - virial%pv_fock_4c 
+             virial%pv_calculate = .FALSE.
+          ENDIF
        END IF
 
        !! If we perform adiabatic rescaling we are now able to rescale the xc-potential
@@ -840,9 +847,9 @@ CONTAINS
                 IF( calculate_forces ) THEN
                    CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                    !! we also have to scale the forces!!!!
-                   CALL derivatives_four_center(qs_env, rho, hfx_sections, para_env, 1,&
+                   CALL derivatives_four_center(qs_env, rho, hfx_sections, para_env, 1, use_virial, &
                                                 adiabatic_rescale_factor=scale_dEx1, error=error)
-                   CALL derivatives_four_center(qs_env, rho, hfx_sections, para_env, 2,&
+                   CALL derivatives_four_center(qs_env, rho, hfx_sections, para_env, 2, use_virial, &
                                                 adiabatic_rescale_factor=scale_dEx2, error=error)
                 END IF
 
@@ -941,6 +948,7 @@ CONTAINS
                       ks_env%v_hartree_rspace%pw%cr3d
 
                  ! add the hartree part due to v_rspace
+
                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                       p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                       qs_env=qs_env, &
@@ -1020,6 +1028,7 @@ CONTAINS
 
                   ! Compute matrix elements of V_HXC including nuclear force information through matrix_dv
                   IF (ASSOCIATED(matrix_dv)) THEN
+
                      CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                           p=my_rho(ispin),h=ks_matrix(ispin),&
                           qs_env=qs_env, &
@@ -1063,6 +1072,7 @@ CONTAINS
                     my_rho => rho%rho_ao
                  END IF
                  IF (ASSOCIATED(matrix_dv)) THEN
+
                     CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
                          p=my_rho(ispin),h=ks_matrix(ispin),&
                          qs_env=qs_env, &
@@ -1070,6 +1080,7 @@ CONTAINS
                          gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
                          error=error)
                  ELSE
+
                     CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
                          p=my_rho(ispin),h=ks_matrix(ispin),&
                          qs_env=qs_env, &

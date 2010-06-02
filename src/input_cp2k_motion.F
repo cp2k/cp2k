@@ -1840,6 +1840,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="AVE_PV_FOCK_4C",&
+            description="PV XC average",usage="AVE_PV_FOCK_4C <REAL> .. <REAL>",&
+            type_of_var=real_t, n_var=9, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="AVE_COLVARS",&
             description="COLVARS averages",usage="AVE_COLVARS <REAL> .. <REAL>",&
             type_of_var=real_t, n_var=-1, error=error)

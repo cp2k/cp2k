@@ -63,6 +63,7 @@ MODULE hfx_derivatives
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -98,13 +99,14 @@ MODULE hfx_derivatives
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE derivatives_four_center(qs_env,rho, hfx_section, para_env, & 
-                                     irep, adiabatic_rescale_factor, error)
+                                     irep, use_virial, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: irep
+    LOGICAL                                  :: use_virial
     REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -126,9 +128,10 @@ MODULE hfx_derivatives
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
     LOGICAL                                  :: do_periodic, failure, &
                                                 screen_pmat_forces
-    REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, eps_schwarz, &
-      fac, hf_fraction, max_contraction_val, max_val1, max_val2, &
-      my_adiabatic_rescale_factor, pmax_entry, ra(3), rb(3), rc(3), rd(3), &
+    REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, &
+      cartesian_estimate_virial, eps_schwarz, fac, hf_fraction, &
+      max_contraction_val, max_val1, max_val2, my_adiabatic_rescale_factor, &
+      pmax_entry, ra(3), rb(3), rc(3), rd(3), spherical_estimate_virial, &
       symm_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
@@ -244,6 +247,14 @@ MODULE hfx_derivatives
 
     TYPE(dbcsr_obj_p_type), POINTER, DIMENSION(:) :: rho_ao
     INTEGER::ii
+    REAL(dp), DIMENSION(:), ALLOCATABLE      :: ede_work_virial, ede_work2_virial,&
+                                                ede_primitives_tmp_virial
+    REAL(dp), ALLOCATABLE, DIMENSION(:), &
+      TARGET                                 :: primitive_forces_virial
+    TYPE(virial_type), POINTER               :: virial
+    REAL(dp)                                 :: tmp_virial(3,3)
+    INTEGER                                  :: k,j
+    
 
     rho_ao=>rho%rho_ao
 
@@ -251,7 +262,7 @@ MODULE hfx_derivatives
                     cell=cell, error=error)
     !! One atom systems have no contribution to forces
     IF( SIZE(particle_set,1) == 1) THEN
-      RETURN
+      IF( .NOT. use_virial ) RETURN
     END IF
 
     CALL timeset(routineN,handle)
@@ -287,7 +298,7 @@ MODULE hfx_derivatives
 
     
     !! get force array
-    CALL get_qs_env(qs_env=qs_env, force=force, error=error)
+    CALL get_qs_env(qs_env=qs_env, force=force, virial=virial, error=error)
 
     my_adiabatic_rescale_factor = 1.0_dp
     IF(PRESENT(adiabatic_rescale_factor)) THEN
@@ -311,6 +322,7 @@ MODULE hfx_derivatives
 !$OMP                                  shm_is_assoc_atomic_block,&
 !$OMP                                  shm_number_of_p_entries,&
 !$OMP                                  force,&
+!$OMP                                  virial,&
 !$OMP                                  my_adiabatic_rescale_factor,&
 !$OMP                                  shm_neris_total,&
 !$OMP                                  shm_neris_onthefly,&
@@ -373,6 +385,8 @@ MODULE hfx_derivatives
     IF( eps_schwarz < 0.0_dp) THEN
       log10_eps_schwarz = log_zero
     ELSE
+      !! ** make eps_schwarz tighter in case of a stress calculation
+      IF( use_virial ) eps_schwarz = eps_schwarz / actual_x_data%periodic_parameter%R_max_stress
       log10_eps_schwarz = LOG10(eps_schwarz) 
     END IF
     screen_pmat_forces =  screening_parameter%do_p_screening_forces
@@ -522,7 +536,7 @@ MODULE hfx_derivatives
                               load_balance_parameter, kind_of, basis_parameter,shm_initial_p, &
                               shm_pmax_atom, i_thread, n_threads,&
                               cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
-                              nkind, hfx_do_eval_forces, error)
+                              nkind, hfx_do_eval_forces, use_virial, error)
         actual_x_data%b_first_load_balance_forces = .FALSE.
       ELSE
         CALL hfx_update_load_balance(actual_x_data, para_env, &
@@ -604,8 +618,22 @@ MODULE hfx_derivatives
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ede_buffer2(ncos_max**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(ede_primitives_tmp(nsgf_max**4*12),STAT=stat) ! XXXXX could be wrong
+    ALLOCATE(ede_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF( use_virial ) THEN
+      ALLOCATE(primitive_forces_virial(12*nsgf_max**4*3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      primitive_forces_virial=0.0_dp
+      ALLOCATE(ede_work_virial(ncos_max**4*12*3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(ede_work2_virial(ncos_max**4*12*3),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(ede_primitives_tmp_virial(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      tmp_virial = 0.0_dp
+    END IF
+   
 
     !! Start caluclating integrals of the form (ab|cd) or (ij|kl)
     !! In order to do so, there is a main four-loop structre that takes into account the two symmetries
@@ -909,7 +937,7 @@ MODULE hfx_derivatives
             latom=list_kl%elements(i_list_kl)%pair(2)
 
             !All four centers equivalent => zero-contribution
-            IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE 
+!VIIRAL            IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE 
             IF( .NOT. (katom+latom<=iatom+jatom) )  CYCLE
             IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
 
@@ -1206,7 +1234,8 @@ MODULE hfx_derivatives
                                sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set,&
                                ede_work,ede_work2,ede_work_forces, &
                                ede_buffer1,ede_buffer2,ede_primitives_tmp, &
-                               nimages,do_periodic)
+                               nimages,do_periodic,use_virial, ede_work_virial, ede_work2_virial, &
+                               ede_primitives_tmp_virial, primitive_forces_virial, cartesian_estimate_virial)
     
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
                   neris_total = neris_total + nints
@@ -1222,14 +1251,24 @@ MODULE hfx_derivatives
                                         use_disk_storage, max_val_memory, error)
                     END IF
                   END IF
-
-                  IF(cartesian_estimate<eps_schwarz) CYCLE 
+                
+                  IF( .NOT. use_virial ) THEN
+                    IF(cartesian_estimate<eps_schwarz) CYCLE 
+                  END IF
 
                   !! Compress the array for storage
                   spherical_estimate = 0.0_dp
                   DO i=1,nints
                     spherical_estimate = MAX(spherical_estimate,ABS(primitive_forces(i)))
                   END DO
+
+                  IF( use_virial ) THEN
+                    spherical_estimate_virial = 0.0_dp
+                    DO i=1,3*nints
+                      spherical_estimate_virial = MAX(spherical_estimate_virial, ABS(primitive_forces_virial(i)))
+                    END DO
+                  END IF
+
                   IF(spherical_estimate == 0.0_dp) spherical_estimate = TINY(spherical_estimate)
                   estimate_to_store_int = EXPONENT(spherical_estimate)
                   estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
@@ -1240,7 +1279,9 @@ MODULE hfx_derivatives
                                                       use_disk_storage, max_val_memory, error)
                   END IF
                   spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
-                  IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
+                  IF( .NOT. use_virial ) THEN
+                    IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
+                  END IF
                   IF(.NOT.buffer_overflow) THEN
                     nbits = EXPONENT(ANINT(spherical_estimate*pmax_entry/eps_storage)) + 1 
                     buffer_left = nints
@@ -1288,19 +1329,38 @@ MODULE hfx_derivatives
                                                offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
                                                atomic_offset_ad, atomic_offset_ac)
                 END IF
-                DO coord = 1,12
-                  T2 => primitive_forces((coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1:&
-                                          coord*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
+                IF( spherical_estimate*pmax_entry >= eps_schwarz ) THEN
+                  DO coord = 1,12
+                    T2 => primitive_forces((coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1:&
+                                            coord*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
 
-                  CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                     pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
-                                     T2, force, forces_map, coord)
-                  IF( nspins == 2 ) THEN
                     CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                       pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
+                                       pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
                                        T2, force, forces_map, coord)
-                  END IF
-                END DO !coord
+                    IF( nspins == 2 ) THEN
+                      CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                         pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
+                                         T2, force, forces_map, coord)
+                    END IF
+                  END DO !coord
+                END IF
+                IF (use_virial .AND. spherical_estimate_virial*pmax_entry >=eps_schwarz ) THEN
+                  DO coord = 1,12
+                    DO i=1,3
+                      T2 => primitive_forces_virial(((i-1)*12+coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1:&
+                                              ((i-1)*12+coord)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
+                      CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                         pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
+                                         T2, tmp_virial, coord, i)
+                      IF( nspins == 2 ) THEN
+                        CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                           pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
+                                           T2, tmp_virial, coord, i) 
+                      END IF
+                    END DO
+                  END DO !coord
+                END IF
+
               END DO !i_set_list_kl
             END DO !i_set_list_ij
           END DO !i_list_kl
@@ -1313,6 +1373,16 @@ MODULE hfx_derivatives
 !$OMP END MASTER
     END DO  !bin
 
+    IF ( use_virial ) THEN
+       DO i = 1, 3
+          DO j = 1, 3
+             DO k = 1, 3
+                !$OMP ATOMIC
+                virial%pv_fock_4c(i,j) = virial%pv_fock_4c(i,j) + tmp_virial(i,k)*cell%hmat(j,k)
+             END DO
+          END DO
+       END DO
+    END IF
 
 !$OMP BARRIER
     !! Get some number about ERIS
@@ -1524,7 +1594,9 @@ MODULE hfx_derivatives
                      sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext,&
                      ede_work,ede_work2,ede_work_forces, &
                      ede_buffer1,ede_buffer2,ede_primitives_tmp, &
-                     nimages, do_periodic)
+                     nimages, do_periodic, use_virial, ede_work_virial, &
+                     ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial,&
+                     cart_estimate_virial)
 
     TYPE(lib_deriv)                          :: deriv
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
@@ -1564,13 +1636,20 @@ MODULE hfx_derivatives
                                                 ede_buffer2, &
                                                 ede_primitives_tmp
     INTEGER, DIMENSION(*)                    :: nimages
-    LOGICAL, INTENT(IN)                      :: do_periodic
+    LOGICAL, INTENT(IN)                      :: do_periodic, use_virial
+    REAL(dp), DIMENSION(*)                   :: ede_work_virial, &
+                                                ede_work2_virial, &
+                                                ede_primitives_tmp_virial
+    REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc,&
+      nsgfd, 12, 3)                          :: primitive_integrals_virial
+    REAL(dp)                                 :: cart_estimate_virial
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, &
       max_l, ncoa, ncob, ncoc, ncod, nelements_ij, nelements_kl, nneighbors3, &
       nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
       s_offset_a, s_offset_b, s_offset_c, s_offset_d
-    REAL(dp)                                 :: EtaInv, tmp_max, Zeta_A, &
+    REAL(dp)                                 :: EtaInv, tmp_max, &
+                                                tmp_max_virial, Zeta_A, &
                                                 Zeta_B, Zeta_C, Zeta_D, &
                                                 ZetaInv
 
@@ -1585,6 +1664,10 @@ MODULE hfx_derivatives
 
     cart_estimate = 0.0_dp
     primitive_integrals = 0.0_dp
+    IF( use_virial ) THEN
+      primitive_integrals_virial = 0.0_dp
+      cart_estimate_virial = 0.0_dp
+    END IF
     neris_tmp = 0_int_8
     max_l = la_max + lb_max + lc_max + ld_max + 1
     DO list_ij = 1,nelements_ij
@@ -1628,8 +1711,8 @@ MODULE hfx_derivatives
                 ncod = nco(ld)
                 nsgfld = nsgfl_d(ld)
                 nsod = nso(ld)
-
                 tmp_max = 0.0_dp
+                tmp_max_virial = 0.0_dp
                 CALL evaluate_deriv_eri(deriv, nproducts, pgf_product_list,  &
                                         la, lb, lc ,ld,&
                                         ncoa,ncob,ncoc,ncod,&
@@ -1644,8 +1727,11 @@ MODULE hfx_derivatives
                                         sphi_c_ext(1,lc+1,kpgf), &
                                         sphi_d_ext(1,ld+1,lpgf), &
                                         ede_work,ede_work2,ede_work_forces, &
-                                        ede_buffer1,ede_buffer2,ede_primitives_tmp)
+                                        ede_buffer1,ede_buffer2,ede_primitives_tmp, use_virial,&
+                                        ede_work_virial, ede_work2_virial, ede_primitives_tmp_virial, &
+                                        primitive_integrals_virial, cell, tmp_max_virial)
                 cart_estimate = MAX(tmp_max,cart_estimate)
+                IF( use_virial ) cart_estimate_virial = MAX(tmp_max_virial, cart_estimate_virial)
                 s_offset_d = s_offset_d + nsod*nsgfld
               END DO !ld
               s_offset_c = s_offset_c + nsoc*nsgflc
@@ -1865,6 +1951,58 @@ MODULE hfx_derivatives
           temp4
 
   END SUBROUTINE update_forces
+
+! *****************************************************************************
+!> \brief This routine updates the virial using bufferd density matrices
+!> \param ma_max, mb_max, mc_max, md_max: Size of matrix blocks
+!> \param pbd, pbc, pad, pac buffers that will contain P(b,d), P(b,c) ...
+!> \param fac mulitplication factor (spin, symmetry)
+!> \param prim primitve forces
+!> \param force storage loacation for forces
+!> \param forces_map index table
+!> \param coord which of the 12 coords to be updated
+!> \par History
+!>      03.2009 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
+  SUBROUTINE update_virial(ma_max, mb_max, mc_max, md_max, &
+                           pbd, pbc, pad, pac, fac, &
+                           prim, tmp_virial, coord, l)
+
+    INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
+    REAL(dp), DIMENSION(*), INTENT(IN)       :: pbd, pbc, pad, pac
+    REAL(dp), INTENT(IN)                     :: fac
+    REAL(dp), DIMENSION(ma_max*mb_max*mc_max&
+      *md_max), INTENT(IN)                   :: prim
+    REAL(dp)                                 :: tmp_virial(3,3)
+    INTEGER, INTENT(IN)                      :: coord, l
+
+    INTEGER                                  :: i, j, ma, mb, mc, md, p_index
+    REAL(dp)                                 :: temp1, temp2, temp3, temp4
+
+    p_index = 0
+    temp4 = 0.0_dp
+    DO md = 1,md_max
+      DO mc = 1,mc_max
+        DO mb = 1,mb_max
+          temp1 = pbc((mc-1)*mb_max+mb) * fac
+          temp3 = pbd((md-1)*mb_max+mb) * fac
+          DO ma = 1,ma_max
+            p_index = p_index + 1
+            temp2 = temp1 * pad((md-1)*ma_max+ma) + &
+                    temp3 * pac((mc-1)*ma_max+ma)
+            temp4 = temp4 + temp2 * prim(p_index)
+          END DO !ma
+        END DO !mb
+      END DO !mc
+    END DO !md
+
+    j = l
+    i = MOD(coord-1,3)+1
+    tmp_virial(i,j) = tmp_virial(i,j) - temp4
+  END SUBROUTINE update_virial
+
+
 
 #include "hfx_get_pmax_val.h"
 

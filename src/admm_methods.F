@@ -96,6 +96,8 @@ MODULE admm_methods
        neighbor_node_type, next
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_pair_force
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1075,7 +1077,7 @@ MODULE admm_methods
 ! *****************************************************************************
   SUBROUTINE calc_mixed_overlap_force(qs_env, para_env, ispin, admm_env, mo_coeff,  &
                                       matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, logger,&
-                                      iw, error)
+                                      iw, use_virial, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1087,6 +1089,7 @@ MODULE admm_methods
                                                 matrix_s_aux_fit_vs_orb
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER                                  :: iw
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_mixed_overlap_force', &
@@ -1188,15 +1191,15 @@ MODULE admm_methods
     CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s,keep_sparsity=.TRUE.,&
          error=error)
 
-    ! *** This can be done in one call w_total = w_alpha + w_beta
 
+    ! *** This can be done in one call w_total = w_alpha + w_beta
     CALL calc_overlap_force_general(qs_env,para_env,matrix_w_s,&
                                    use_aux_fit_basis_set, use_aux_fit_basis_set, qs_env%sab_aux_fit_asymm, &
-                                   do_symmetric=.FALSE., error=error)
+                                   do_symmetric=.FALSE., use_virial=use_virial, error=error)
 
     CALL calc_overlap_force_general(qs_env,para_env,matrix_w_q,&
                                     use_aux_fit_basis_set, use_orb_basis_set, qs_env%sab_aux_fit_vs_orb, &
-                                    do_symmetric=.FALSE., error=error)
+                                    do_symmetric=.FALSE., use_virial=use_virial, error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",error=error),cp_p_file)) THEN
@@ -1248,7 +1251,7 @@ MODULE admm_methods
 ! *****************************************************************************
   SUBROUTINE calc_overlap_force_general(qs_env,para_env,matrix_w,&
                                         basis_set_id_a, basis_set_id_b, sab_orb, &
-                                        do_symmetric, error)
+                                        do_symmetric, use_virial, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1256,7 +1259,7 @@ MODULE admm_methods
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    LOGICAL, INTENT(IN)                      :: do_symmetric
+    LOGICAL, INTENT(IN)                      :: do_symmetric, use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_overlap_force_general', &
@@ -1298,6 +1301,7 @@ MODULE admm_methods
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -1319,6 +1323,7 @@ MODULE admm_methods
                     neighbor_list_id=neighbor_list_id,&
                     force=force,&
                     distribution_2d=distribution_2d,&
+                    virial=virial,&
                     error=error)
 
     nkind = SIZE(atomic_kind_set)
@@ -1484,7 +1489,8 @@ MODULE admm_methods
                 ncob = npgfb(jset)*ncoset(lb_max(jset))
                 sgfb = first_sgfb(1,jset)
                 IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
-                  IF ( iatom /= jatom ) THEN
+
+!                  IF ( iatom /= jatom ) THEN
                     ! *** Decontract W matrix block ***
                     IF( do_symmetric ) THEN
                       IF (iatom <= jatom) THEN
@@ -1520,11 +1526,17 @@ MODULE admm_methods
                     IF( do_symmetric ) THEN
                       force(ikind)%overlap_admm(:,atom_a)=force(ikind)%overlap_admm(:,atom_a) - 2.0_dp*force_a(:)
                       force(jkind)%overlap_admm(:,atom_b)=force(jkind)%overlap_admm(:,atom_b) + 2.0_dp*force_a(:)
+                      IF( use_virial ) THEN
+                         CALL virial_pair_force ( virial%pv_virial, 1.0_dp, force_a, rab, error)
+                      END IF
                     ELSE
                       force(ikind)%overlap_admm(:,atom_a)=force(ikind)%overlap_admm(:,atom_a) - force_a(:)
                       force(jkind)%overlap_admm(:,atom_b)=force(jkind)%overlap_admm(:,atom_b) + force_a(:)
+                      IF( use_virial ) THEN
+                         CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_a, rab, error)
+                      END IF
                     END IF
-                  END IF
+!                  END IF
                 END IF
               END DO
               nrow = nrow + ncoa
@@ -1596,7 +1608,6 @@ MODULE admm_methods
 
     CALL section_vals_duplicate(xc_section,admm_env%xc_section_aux,error=error)
     CALL section_vals_duplicate(xc_section,admm_env%xc_section_primary,error=error)
-
     !** Now modify the auxiliary basis
     !** First remove all functionals
     xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_aux,"XC_FUNCTIONAL",error=error)
@@ -1780,7 +1791,7 @@ MODULE admm_methods
     END SELECT
 
 
-    IF( 0==1 ) THEN
+    IF( 1==0 ) THEN
       WRITE(*,*) "primary"
       xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary,"XC_FUNCTIONAL",error=error)
       ifun = 0

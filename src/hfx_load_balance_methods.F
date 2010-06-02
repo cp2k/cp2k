@@ -124,7 +124,8 @@ MODULE hfx_load_balance_methods
                           is_assoc_atomic_block_global, do_periodic,&
                           load_balance_parameter, kind_of, basis_parameter, pmax_set, &
                           pmax_atom, i_thread, n_threads, cell, &
-                          do_p_screening, map_atom_to_kind_atom, nkind, eval_type, error)
+                          do_p_screening, map_atom_to_kind_atom, nkind, eval_type, &
+                          use_virial, error)
     TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz
     TYPE(particle_type), DIMENSION(:), &
@@ -148,6 +149,7 @@ MODULE hfx_load_balance_methods
     LOGICAL, INTENT(IN)                      :: do_p_screening
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
     INTEGER, INTENT(IN)                      :: nkind, eval_type
+    LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_load_balance', &
@@ -240,7 +242,7 @@ MODULE hfx_load_balance_methods
                        kind_of, basis_parameter, pmax_set, pmax_atom, &
                        cell, &
                        do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                       log10_eps_schwarz, log_2, coeffs_kind_max0)
+                       log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial)
   
       total_block_self_cost = 0
   
@@ -286,7 +288,7 @@ MODULE hfx_load_balance_methods
                                                 kind_of, basis_parameter, pmax_set, pmax_atom, &
                                                 cell, &
                                                 do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                                                log10_eps_schwarz, log_2, coeffs_kind_max0)
+                                                log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial)
             current_block_id = current_block_id + 1
             tmp_blocks(current_block_id)%istart = new_jatom_start
             tmp_blocks(current_block_id)%iend = new_jatom_end
@@ -299,7 +301,7 @@ MODULE hfx_load_balance_methods
                                                 kind_of, basis_parameter, pmax_set, pmax_atom, &
                                                 cell, &
                                                 do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                                                log10_eps_schwarz, log_2, coeffs_kind_max0)
+                                                log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial)
           ELSE
             tmp_blocks(current_block_id)%istart = iatom_start
             tmp_blocks(current_block_id)%iend = iatom_end
@@ -480,7 +482,7 @@ MODULE hfx_load_balance_methods
                                               kind_of, basis_parameter, pmax_set, pmax_atom, &
                                               cell, &
                                               do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                                              log10_eps_schwarz, log_2, coeffs_kind_max0)
+                                              log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial)
 
       END DO ! atom_block
       nbins = load_balance_parameter%nbins
@@ -547,7 +549,7 @@ MODULE hfx_load_balance_methods
                                               kind_of, basis_parameter, pmax_set, pmax_atom, &
                                               cell, &
                                               do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                                              log10_eps_schwarz, log_2, coeffs_kind_max0)
+                                              log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial)
 
 
         IF( current_cost >= cost_per_bin) THEN
@@ -1281,7 +1283,7 @@ MODULE hfx_load_balance_methods
                                kind_of, basis_parameter, pmax_set, pmax_atom,&
                                cell, &
                                do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                               log10_eps_schwarz, log_2, coeffs_kind_max0)
+                               log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial)
 
     TYPE(pair_list_type)                     :: list_ij, list_kl
     TYPE(pair_set_list_type), DIMENSION(:)   :: set_list_ij, set_list_kl
@@ -1306,6 +1308,7 @@ MODULE hfx_load_balance_methods
     INTEGER, INTENT(IN)                      :: nkind, eval_type
     REAL(dp)                                 :: log10_eps_schwarz, log_2, &
                                                 coeffs_kind_max0
+    LOGICAL, INTENT(IN)                      :: use_virial
     INTEGER(int_8)                           :: estimate_block_cost
 
     INTEGER :: i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, &
@@ -1353,7 +1356,9 @@ MODULE hfx_load_balance_methods
         IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
     
         IF( eval_type == hfx_do_eval_forces) THEN
-          IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
+          IF( .NOT. use_virial ) THEN
+            IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
+          END IF
         END IF
 
         i_set_list_kl_start=list_kl%elements(i_list_kl)%set_bounds(1)
@@ -1541,7 +1546,7 @@ MODULE hfx_load_balance_methods
                          kind_of, basis_parameter, pmax_set, pmax_atom, &
                          cell, &
                          do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                         log10_eps_schwarz, log_2, coeffs_kind_max0)
+                         log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: natom, block_size, nblock
@@ -1568,6 +1573,7 @@ MODULE hfx_load_balance_methods
     INTEGER, INTENT(IN)                      :: nkind, eval_type
     REAL(dp)                                 :: log10_eps_schwarz, log_2, &
                                                 coeffs_kind_max0
+    LOGICAL, INTENT(IN)                      :: use_virial
 
     INTEGER                                  :: atom_block, i, iatom_block, &
                                                 iatom_end, iatom_start, &
@@ -1601,7 +1607,7 @@ MODULE hfx_load_balance_methods
                                            kind_of, basis_parameter, pmax_set, pmax_atom, &
                                            cell, &
                                            do_p_screening, map_atom_to_kind_atom, nkind, eval_type,&
-                                           log10_eps_schwarz, log_2, coeffs_kind_max0)
+                                           log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial)
 
     END DO
   END SUBROUTINE init_blocks
