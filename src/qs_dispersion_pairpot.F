@@ -568,7 +568,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
                                                 periodic
-    LOGICAL                                  :: debugx = .FALSE., debug, debugall, &
+    LOGICAL, PARAMETER                       :: debugx = .FALSE.
+    LOGICAL                                  :: debug, debugall, &
                                                 failure, ghost_a, ghost_b, &
                                                 ghost_c, is000, use_virial
     REAL(KIND=dp) :: alp6, alp8, ang, c6, c6a, c6b, c8, c9, cc6ab, cc6bc, &
@@ -610,10 +611,11 @@ CONTAINS
 
     NULLIFY (atomic_kind_set,sab_vdw)
 
+    failure = .FALSE.
     CALL get_qs_env(qs_env=qs_env, energy=energy, atomic_kind_set=atomic_kind_set,&
          cell=cell, virial=virial, dft_control=dft_control,para_env=para_env,&
          dispersion_env=dispersion_env,error=error)
-    debugall = debug
+    debugall = debugx
     debug = debugx .AND. para_env%ionode
 
     energy%dispersion = 0._dp
