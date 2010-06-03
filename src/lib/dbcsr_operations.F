@@ -71,6 +71,7 @@ MODULE dbcsr_operations
        dbcsr_distribution_new, dbcsr_distribution_no_threads, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
+       dbcsr_get_data_size_referenced, dbcsr_get_data_size_used, &
        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
        dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &
        dbcsr_init, dbcsr_is_initialized, dbcsr_max_col_size, &
@@ -574,7 +575,6 @@ CONTAINS
 !$  i = omp_get_num_threads()
 !$omp end single nowait
 !$omp end parallel
-    !@@@
     IF (dbg) THEN
        WRITE(*,*)routineN//" Matrices ", dbcsr_get_matrix_type(matrix_a),&
             dbcsr_get_matrix_type(matrix_b), dbcsr_get_matrix_type(matrix_c)
@@ -2396,7 +2396,7 @@ CONTAINS
           IF (dbcsr_get_data_type(matrix_a) .EQ. dbcsr_get_data_type(matrix_b))&
                THEN
              CALL dbcsr_data_copyall (matrix_b%m%data_area,&
-                  matrix_a%m%data_area)
+                  matrix_a%m%data_area, error=error)
           ELSE
              CALL dbcsr_data_convert (matrix_b%m%data_area,&
                   matrix_a%m%data_area, drop_real=keep_imaginary)
@@ -2490,7 +2490,7 @@ CONTAINS
                .EQ. dbcsr_get_data_size (dst_data), dbcsr_fatal_level,&
                dbcsr_internal_error, routineN, "Block sizes not equal!",__LINE__,error)
           IF (src_tr .EQV. dst_tr) THEN
-             CALL dbcsr_data_copyall (dst_data, src_data)
+             CALL dbcsr_data_copyall (dst_data, src_data, error=error)
              !dst_r_dp(:) = src_r_dp(:)
           ELSE
              rs = row_size

@@ -193,6 +193,7 @@ MODULE dbcsr_types
 !> \var r_dp        stores real values in double precision
 !> \var c_sp        stores complex values in single precision
 !> \var c_dp        stores complex values in double precision
+!> \var ref_size    last data element in array actually referenced
 !> \var refcount    reference counter for current structure
 !> \var special     these data are specially-allocated
 !> \var data_type   which of the data types is actually used
@@ -206,6 +207,7 @@ MODULE dbcsr_types
      REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: r2_dp
      COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: c2_sp
      COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: c2_dp
+     INTEGER                                  :: ref_size
      INTEGER                                  :: refcount
      LOGICAL                                  :: special
      CHARACTER                                :: data_type

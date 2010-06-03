@@ -101,7 +101,8 @@ MODULE dbcsr_methods
             dbcsr_name, dbcsr_may_be_dense,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
             dbcsr_is_transposed
-  PUBLIC :: dbcsr_get_data_size_used
+  PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced,&
+            dbcsr_set_data_size_referenced
   PUBLIC :: dbcsr_data_init, dbcsr_get_data, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_get_data_size,&
             dbcsr_data_set_pointer, dbcsr_data_area,&
@@ -160,6 +161,19 @@ MODULE dbcsr_methods
 
   INTERFACE dbcsr_get_data_size
      MODULE PROCEDURE get_data_size_area, get_data_size_matrix
+  END INTERFACE
+
+  INTERFACE dbcsr_get_data_size_used
+     MODULE PROCEDURE get_data_size_ref_area
+     MODULE PROCEDURE dbcsr_get_data_size_used
+  END INTERFACE
+
+  INTERFACE dbcsr_get_data_size_referenced
+     MODULE PROCEDURE get_data_size_ref_area, get_data_size_ref_matrix
+  END INTERFACE
+
+  INTERFACE dbcsr_set_data_size_referenced
+     MODULE PROCEDURE set_data_size_ref_area
   END INTERFACE
 
   INTERFACE dbcsr_data_set_pointer
@@ -1624,6 +1638,9 @@ CONTAINS
                   routineN, "Invalid data type.",__LINE__,error)
           END SELECT
        ENDIF
+       CALL dbcsr_set_data_size_referenced (area, data_size)
+    ELSE
+       CALL dbcsr_set_data_size_referenced (area, 0)
     ENDIF
     area%d%data_type = data_type
   END SUBROUTINE dbcsr_data_new
@@ -1799,6 +1816,18 @@ CONTAINS
     ENDIF
     area%d%refcount = area%d%refcount + 1
   END SUBROUTINE dbcsr_data_hold
+
+! *****************************************************************************
+!> \brief Sets the referenced size of the data area
+!> \param[in,out] data_area  area for which to set referenced data size
+!> \param[in]                set referenced data size to this value
+! *****************************************************************************
+  SUBROUTINE set_data_size_ref_area (data_area, referenced_size)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: data_area
+    INTEGER, INTENT(IN)                      :: referenced_size
+
+    data_area%d%ref_size = referenced_size
+  END SUBROUTINE set_data_size_ref_area
 
 ! *****************************************************************************
 !> \brief Returns the data area
@@ -2049,6 +2078,34 @@ CONTAINS
     ENDIF
   END FUNCTION get_data_size_matrix
 
+! *****************************************************************************
+!> \brief Get actual data storage used for matrix
+!> \param[in] area            Count data of this matrix
+!> \result data_size          Data size used by matrix
+! *****************************************************************************
+  PURE FUNCTION get_data_size_ref_area (area) RESULT (data_size_referenced)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: area
+    INTEGER                                  :: data_size_referenced
+
+    IF (ASSOCIATED (area%d)) THEN
+       data_size_referenced = area%d%ref_size
+    ELSE
+       data_size_referenced = 0
+    ENDIF
+  END FUNCTION get_data_size_ref_area
+
+
+! *****************************************************************************
+!> \brief Get actual data storage used for matrix
+!> \param[in] matrix          Count data of this matrix
+!> \result data_size          Data size used by matrix
+! *****************************************************************************
+  PURE FUNCTION get_data_size_ref_matrix (matrix) RESULT (data_size_referenced)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER                                  :: data_size_referenced
+
+    data_size_referenced = dbcsr_get_data_size_referenced (matrix%m%data_area)
+  END FUNCTION get_data_size_ref_matrix
 
 ! *****************************************************************************
 !> \brief Count actual data storage used for matrix
@@ -2056,8 +2113,9 @@ CONTAINS
 !> \param[in,out] error       Error
 !> \result data_size          Data size used by matrix
 ! *****************************************************************************
-  FUNCTION dbcsr_get_data_size_used (matrix) RESULT (data_size)
+  FUNCTION dbcsr_get_data_size_used (matrix, error) RESULT (data_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER                                  :: data_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size_used', &
@@ -2065,10 +2123,12 @@ CONTAINS
 
     INTEGER                                  :: blk, blk_p, col, nze, row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
+    INTEGER                                  :: error_handle
 
 !type(dbcsr_iterator_type) :: iter
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set (routineN, error_handle, error)
     row_blk_sizes => array_data (dbcsr_row_block_sizes (matrix))
     col_blk_sizes => array_data (dbcsr_col_block_sizes (matrix))
     data_size = 0
@@ -2088,6 +2148,10 @@ CONTAINS
     !   data_size = MAX (data_size, blk_p + row_size*col_size-1)
     !enddo
     !call dbcsr_iterator_stop (iter)
+    CALL dbcsr_assert (data_size, "EQ", dbcsr_get_data_size_referenced(matrix),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Inconsistent declared data size.", __LINE__, error=error)
+    CALL dbcsr_error_stop (error_handle, error)
   END FUNCTION dbcsr_get_data_size_used
 
 
@@ -2340,6 +2404,11 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
+    CALL dbcsr_set_data_size_referenced (area, rsize*csize)
+    !@@@d
+    CALL dbcsr_assert (dbcsr_get_data_size_referenced (area), "EQ",&
+         dbcsr_get_data_size (area), dbcsr_fatal_level, dbcsr_internal_error,&
+         routineN, "Size mismatch", __LINE__, error)
   END SUBROUTINE set_data_area_area
 
 
@@ -2348,7 +2417,7 @@ CONTAINS
 !>
 !> The data area must have been previously setup with dbcsr_data_new.
 !> \param[inout] area         data area
-!> \param[in] data_size       (optional) allocate this much data
+!> \param[in] data_size       allocate this much data
 !> \param[in] nocopy          (optional) do not keep potentially existing data,
 !>                            default is to keep it
 !> \param[in] zero_pad        (optional) pad new data with zeros
@@ -2356,7 +2425,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad, factor, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    INTEGER, INTENT(IN), OPTIONAL            :: data_size
+    INTEGER, INTENT(IN)                      :: data_size
     LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, zero_pad
     REAL, INTENT(IN), OPTIONAL               :: factor
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
@@ -2441,6 +2510,7 @@ CONTAINS
             dbcsr_unimplemented_error_nr, routineN,&
             "Invalid data type are supported",__LINE__,error)
     END SELECT
+    CALL dbcsr_set_data_size_referenced (area, data_size)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_data_ensure_size
 

@@ -48,7 +48,9 @@ MODULE dbcsr_work_operations
        dbcsr_init, dbcsr_is_initialized, dbcsr_modify_lock, &
        dbcsr_modify_unlock, dbcsr_mutable_destroy, dbcsr_mutable_init, &
        dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_uses_special_memory, &
-       dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_valid_index, dbcsr_wm_use_mutable,&
+       dbcsr_get_data_size_referenced, dbcsr_get_data_size_used,&
+       dbcsr_set_data_size_referenced, dbcsr_get_data_size_used
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
@@ -487,6 +489,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
+
 !$omp single
     ! Remove the cached pre-distributed images.
     IF (ASSOCIATED (matrix%m%predistributed)) THEN
@@ -839,9 +842,11 @@ CONTAINS
           IF (mt .AND. which_wm .NE. ithread+1+offset) CYCLE
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
                dbcsr_get_data_size (matrix%data_area), error=error)
-          CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%data_area)
+          CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%data_area,&
+               error=error)
           IF (count) THEN
              wm(which_wm)%datasize = nze
+             CALL dbcsr_set_data_size_referenced(wm(which_wm)%data_area, nze)
           ELSE
              wm(which_wm)%datasize = dbcsr_get_data_size (wm(which_wm)%data_area)
           ENDIF
@@ -1007,7 +1012,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, blk_p, error_handler, i, nwms, nze, o_blk_p, prev_row, &
-      smallest, smallest_col, smallest_row
+      smallest, smallest_col, smallest_row, referenced
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wm_blk_p
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: srt, wspecial
@@ -1059,13 +1064,6 @@ CONTAINS
           ENDIF
        ENDIF
     ENDDO
-    ! Do not let the matrix data size be too big.
-    IF (dbcsr_get_data_size(matrix%data_area) .GT. 2*matrix%nze) THEN
-       CALL dbcsr_data_release(matrix%data_area)
-       CALL dbcsr_data_new (matrix%data_area, matrix%data_type,&
-            special_memory=matrix%special_memory)
-       srt = .TRUE.
-    ENDIF
     IF (.NOT. srt) THEN
        CALL dbcsr_data_release (matrix%data_area)
        matrix%data_area = matrix%wms(1)%data_area
@@ -1096,6 +1094,7 @@ CONTAINS
     blk = 1
     prev_row = 1
     smallest_row = 1
+    referenced = 0
     DO WHILE (.NOT. ALL (finished))
        ! Find the (still-valid) source block that has the smallest column in
        ! the smallest row. Start with any valid source block.
@@ -1134,6 +1133,9 @@ CONTAINS
           matrix%blk_p(blk) = SIGN (blk_p, o_blk_p)
           CALL dbcsr_data_set (matrix%data_area, ABS(blk_p), nze,&
                matrix%wms(smallest)%data_area, ABS(o_blk_p))
+          referenced = MAX (referenced, ABS(blk_p)+nze-1)
+       ELSE
+          referenced = MAX (referenced, ABS(o_blk_p)+nze-1)
        ENDIF
        IF (smallest_row .GT. prev_row) THEN
           matrix%row_p(prev_row+1:smallest_row) = blk-1
@@ -1147,6 +1149,7 @@ CONTAINS
     ENDDO
     matrix%row_p(smallest_row+1:matrix%nblkrows_total+1) = blk-1
     matrix%nze = blk_p - 1
+    CALL dbcsr_set_data_size_referenced (matrix%data_area, referenced)
     IF (.NOT. srt .AND. ASSOCIATED (matrix%wms(1)%blk_p)) THEN
        matrix%blk_p(1:matrix%wms(1)%lastblk)&
             = matrix%wms(1)%blk_p(1:matrix%wms(1)%lastblk)

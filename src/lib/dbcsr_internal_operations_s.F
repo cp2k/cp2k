@@ -53,6 +53,9 @@
           do_resize = .TRUE.
        ENDIF
     ENDDO
+    IF (maxs .GT. dbcsr_get_data_size_referenced (product_data_area)) THEN
+       CALL dbcsr_set_data_size_referenced (product_data_area, maxs)
+    ENDIF
     IF (do_resize) THEN
        CALL dbcsr_data_ensure_size (product_data_area,&
             maxs, factor=resize_factor, error=error)

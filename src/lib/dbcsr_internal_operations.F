@@ -56,7 +56,8 @@ MODULE dbcsr_internal_operations
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_row_block_sizes, &
        dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
-       dbcsr_scalar_zero, dbcsr_valid_index
+       dbcsr_scalar_zero, dbcsr_valid_index, dbcsr_set_data_size_referenced,&
+       dbcsr_get_data_size_referenced
 
 !$ USE dbcsr_methods, ONLY: dbcsr_distribution_thread_dist
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
@@ -339,6 +340,8 @@ CONTAINS
             dbcsr_nfullrows_local (product_matrix)&
             *dbcsr_nfullcols_local (product_matrix)),error=error)
             !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%nfullcols_local))
+       CALL dbcsr_set_data_size_referenced (product_matrix%m%wms(i)%data_area,&
+            product_matrix%m%wms(i)%datasize)
        CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
        CALL ensure_array_size(product_matrix%m%wms(i)%col_i,&
@@ -354,7 +357,7 @@ CONTAINS
     DO left_row_image = 1, left_row_nimages
        DO left_col_image = 1, left_col_nimages
           my_sizes(idata, left_row_image, left_col_image) &
-               = dbcsr_get_data_size (&
+               = dbcsr_get_data_size_referenced (&
                left_set%mats(left_row_image, left_col_image)%m%data_area)
           my_sizes(imeta, left_row_image, left_col_image) = SIZE (&
                left_set%mats(left_row_image, left_col_image)%m%index)
@@ -363,7 +366,7 @@ CONTAINS
     DO right_row_image = 1, right_row_nimages
        DO right_col_image = 1, right_col_nimages
           my_sizes(idata+2, right_row_image, right_col_image) &
-               = dbcsr_get_data_size (&
+               = dbcsr_get_data_size_referenced (&
                right_set%mats(right_row_image, right_col_image)%m%data_area)
           my_sizes(imeta+2, right_row_image, right_col_image) = SIZE (&
                right_set%mats(right_row_image, right_col_image)%m%index)

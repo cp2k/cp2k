@@ -485,7 +485,7 @@ CONTAINS
             __LINE__, error=error)
     ENDIF
     ! Get current data size
-    data_size_old = dbcsr_get_data_size_used (matrix)
+    data_size_old = dbcsr_get_data_size_used (matrix, error=error)
     nblks_added = SIZE(rows)
     nblks_old = dbcsr_get_num_blocks (matrix)
     nblkrows = dbcsr_nblkrows_total(matrix)

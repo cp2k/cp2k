@@ -30,7 +30,8 @@ MODULE dbcsr_util
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_get_data_size, &
-       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_valid_index
+       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_valid_index,&
+       dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_magic_number, dbcsr_meta_size, &
        dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
@@ -835,6 +836,7 @@ CONTAINS
 
     INTEGER :: bc, blk, blk_p, br, dbg, error_handler, i, mb, mn, n, &
       n_full_blocks_total, n_have_blocks_local, n_have_blocks_total, prev_br
+    INTEGER :: data_size_allocated, data_size_used, data_size_referenced
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm
     REAL(KIND=dp)                            :: sparsity_total
@@ -930,6 +932,7 @@ CONTAINS
        WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%m%nze,'data size',&
             dbcsr_get_data_size(m%m%data_area)
     ENDIF
+    data_size_referenced = dbcsr_get_data_size_referenced (m)
     !This tends to be too verbose and usually untrue for symmetric
     !matrices.
     !CALL dbcsr_assert(dbcsr_get_data_size(m%m%data_area), "GE", m%m%nze,&
@@ -979,12 +982,20 @@ CONTAINS
           blk_p = m%m%blk_p(blk)
           mn = mb*n
           !CALL dbcsr_assert(dbg,blk_p.GT.0, r, 'Block pointer is negative')
-          CALL dbcsr_assert(blk_p, "LE", m%m%nze,&
+          !CALL dbcsr_assert(blk_p, "LE", m%m%nze,&
+          !     dbcsr_warning_level, dbcsr_internal_error, r,&
+          !     'Block pointer too large',__LINE__,error)
+          !CALL dbcsr_assert(blk_p+mn-1, "LE", m%m%nze,&
+          !     dbcsr_warning_level, dbcsr_internal_error, r,&
+          !     'Block extends too far',__LINE__,error)
+          CALL dbcsr_assert (blk_p, "LE", data_size_referenced,&
                dbcsr_warning_level, dbcsr_internal_error, r,&
-               'Block pointer too large',__LINE__,error)
-          CALL dbcsr_assert(blk_p+mn-1, "LE", m%m%nze,&
+               "Block pointer pointso outside of declared referenced area",&
+               __LINE__, error)
+          CALL dbcsr_assert (blk_p+mn-1, "LE", data_size_referenced,&
                dbcsr_warning_level, dbcsr_internal_error, r,&
-               'Block extends too far',__LINE__,error)
+               "Block extends outside of declared referenced area",&
+               __LINE__, error)
        ENDDO
        prev_br = br
     ENDDO

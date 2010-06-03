@@ -14,6 +14,7 @@
 ! *****************************************************************************
 MODULE dbcsr_data_operations
 
+  USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy
   USE dbcsr_block_operations,          ONLY: dbcsr_block_transpose,&
                                              dbcsr_data_set
   USE dbcsr_error_handling
@@ -21,7 +22,9 @@ MODULE dbcsr_data_operations
                                              real_8
   USE dbcsr_methods,                   ONLY: dbcsr_data_hold,&
                                              dbcsr_get_data,&
-                                             dbcsr_get_data_size
+                                             dbcsr_get_data_size,&
+                                             dbcsr_set_data_size_referenced,&
+                                             dbcsr_get_data_size_referenced
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -63,31 +66,27 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Copies a data area, deep by default.
-!> \param[inout] target_area     target data area
-!> \param[in]    source_area     source data area
-!> \param[in]    shallow      shallow copy (default is deep)
+!> \param[in,out] target_area     target data area
+!> \param[in]     source_area     source data area
+!> \param[in]     shallow         shallow copy (default is deep)
+!> \param[in,out] error           error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_copyall (target_area, source_area, shallow)
+  SUBROUTINE dbcsr_data_copyall (target_area, source_area, shallow, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: target_area
     TYPE(dbcsr_data_obj), INTENT(IN)         :: source_area
     LOGICAL, INTENT(IN), OPTIONAL            :: shallow
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copyall', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=real_4), DIMENSION(:), &
-      POINTER                                :: s_data_c, t_data_c
-    COMPLEX(KIND=real_8), DIMENSION(:), &
-      POINTER                                :: s_data_z, t_data_z
-    INTEGER                                  :: n
+    INTEGER                                  :: n, error_handle
     LOGICAL                                  :: shallow_copy
-    REAL(KIND=real_4), DIMENSION(:), POINTER :: s_data_r, t_data_r
-    REAL(KIND=real_8), DIMENSION(:), POINTER :: s_data_d, t_data_d
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_warning_level,&
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__,error)
     CALL dbcsr_assert (source_area%d%refcount .GT. 0, dbcsr_warning_level,&
          dbcsr_caller_error, routineN, "Attempt to copy unheld data",__LINE__,error)
@@ -97,44 +96,17 @@ CONTAINS
        target_area = source_area
        CALL dbcsr_data_hold (target_area)
     ELSE
-       IF (.NOT. ASSOCIATED (source_area%d)) THEN
-          RETURN
+       CALL dbcsr_assert (ASSOCIATED (target_area%d), dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN, "Target area does not exist.",&
+            __LINE__, error=error)
+       CALL dbcsr_set_data_size_referenced(target_area,&
+            dbcsr_get_data_size_referenced(source_area))
+       n = dbcsr_get_data_size_referenced (source_area)
+       IF (n .GT. 0) THEN
+          CALL dbcsr_blas_copy (n, source_area, 1, target_area, 1)
        ENDIF
-       SELECT CASE (source_area%d%data_type)
-          CASE (dbcsr_type_real_8)
-             n = dbcsr_get_data_size (source_area)
-             IF (n .GT. 0) THEN
-                CALL dbcsr_get_data (target_area, t_data_d)
-                CALL dbcsr_get_data (source_area, s_data_d)
-                t_data_d(1:n) = s_data_d(1:n)
-             ENDIF
-          CASE (dbcsr_type_real_4)
-             n = dbcsr_get_data_size (source_area)
-             IF (n .GT. 0) THEN
-                CALL dbcsr_get_data (target_area, t_data_r)
-                CALL dbcsr_get_data (source_area, s_data_r)
-                t_data_r(1:n) = s_data_r(1:n)
-             ENDIF
-          CASE (dbcsr_type_complex_8)
-             n = dbcsr_get_data_size (source_area)
-             IF (n .GT. 0) THEN
-                CALL dbcsr_get_data (target_area, t_data_z)
-                CALL dbcsr_get_data (source_area, s_data_z)
-                t_data_z(1:n) = s_data_z(1:n)
-             ENDIF
-          CASE (dbcsr_type_complex_4)
-             n = dbcsr_get_data_size (source_area)
-             IF (n .GT. 0) THEN
-                CALL dbcsr_get_data (target_area, t_data_c)
-                CALL dbcsr_get_data (source_area, s_data_c)
-                t_data_c(1:n) = s_data_c(1:n)
-             ENDIF
-          CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__,error)
-          END SELECT
     ENDIF
-    ! If we're releasing the last reference, then free the memory.
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_data_copyall
 
 ! *****************************************************************************
