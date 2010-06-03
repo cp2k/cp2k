@@ -618,7 +618,7 @@ MODULE hfx_derivatives
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ede_buffer2(ncos_max**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(ede_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
+    ALLOCATE(ede_primitives_tmp(nsgf_max**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF( use_virial ) THEN
@@ -629,9 +629,20 @@ MODULE hfx_derivatives
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(ede_work2_virial(ncos_max**4*12*3),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(ede_primitives_tmp_virial(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
+      ALLOCATE(ede_primitives_tmp_virial(nsgf_max**4),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       tmp_virial = 0.0_dp
+    ELSE
+      ! dummy allocation
+      ALLOCATE(primitive_forces_virial(1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      primitive_forces_virial=0.0_dp
+      ALLOCATE(ede_work_virial(1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(ede_work2_virial(1),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(ede_primitives_tmp_virial(1),STAT=stat) 
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
    
 
@@ -1551,7 +1562,13 @@ MODULE hfx_derivatives
     DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    DEALLOCATE(primitive_forces_virial, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     DEALLOCATE(ede_work, ede_work2, ede_work_forces, ede_buffer1, ede_buffer2, ede_primitives_tmp, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(ede_work_virial, ede_work2_virial, ede_primitives_tmp_virial, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE(nimages, STAT=stat)
