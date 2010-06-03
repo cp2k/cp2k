@@ -47,10 +47,9 @@ MODULE dbcsr_work_operations
        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_num_blocks, &
        dbcsr_init, dbcsr_is_initialized, dbcsr_modify_lock, &
        dbcsr_modify_unlock, dbcsr_mutable_destroy, dbcsr_mutable_init, &
-       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_uses_special_memory, &
-       dbcsr_valid_index, dbcsr_wm_use_mutable,&
-       dbcsr_get_data_size_referenced, dbcsr_get_data_size_used,&
-       dbcsr_set_data_size_referenced, dbcsr_get_data_size_used
+       dbcsr_mutable_new, dbcsr_mutable_release, &
+       dbcsr_set_data_size_referenced, dbcsr_uses_special_memory, &
+       dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
@@ -1012,7 +1011,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, blk_p, error_handler, i, nwms, nze, o_blk_p, prev_row, &
-      smallest, smallest_col, smallest_row, referenced
+      referenced, smallest, smallest_col, smallest_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wm_blk_p
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: srt, wspecial

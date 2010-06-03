@@ -71,7 +71,6 @@ MODULE dbcsr_operations
        dbcsr_distribution_new, dbcsr_distribution_no_threads, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_size_referenced, dbcsr_get_data_size_used, &
        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
        dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &
        dbcsr_init, dbcsr_is_initialized, dbcsr_max_col_size, &

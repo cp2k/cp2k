@@ -34,7 +34,7 @@ MODULE qs_ks_methods
        cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
        dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
        dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, &
-       dbcsr_sm_fm_multiply, cp_dbcsr_set_diag
+       dbcsr_sm_fm_multiply
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD,&
                                              qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&

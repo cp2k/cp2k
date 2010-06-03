@@ -23,8 +23,8 @@ MODULE dbcsr_data_operations
   USE dbcsr_methods,                   ONLY: dbcsr_data_hold,&
                                              dbcsr_get_data,&
                                              dbcsr_get_data_size,&
-                                             dbcsr_set_data_size_referenced,&
-                                             dbcsr_get_data_size_referenced
+                                             dbcsr_get_data_size_referenced,&
+                                             dbcsr_set_data_size_referenced
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -80,7 +80,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copyall', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n, error_handle
+    INTEGER                                  :: error_handle, n
     LOGICAL                                  :: shallow_copy
 
 !   ---------------------------------------------------------------------------

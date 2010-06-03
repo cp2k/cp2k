@@ -30,8 +30,8 @@ MODULE dbcsr_util
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_get_data_size, &
-       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_valid_index,&
-       dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
+       dbcsr_get_data_size_referenced, dbcsr_has_symmetry, dbcsr_mp_group, &
+       dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_magic_number, dbcsr_meta_size, &
        dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
@@ -834,9 +834,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_verify_matrix', &
       r = moduleN//':'//routineN
 
-    INTEGER :: bc, blk, blk_p, br, dbg, error_handler, i, mb, mn, n, &
-      n_full_blocks_total, n_have_blocks_local, n_have_blocks_total, prev_br
-    INTEGER :: data_size_allocated, data_size_used, data_size_referenced
+    INTEGER :: bc, blk, blk_p, br, data_size_referenced, dbg, error_handler, &
+      i, mb, mn, n, n_full_blocks_total, n_have_blocks_local, &
+      n_have_blocks_total, prev_br
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm
     REAL(KIND=dp)                            :: sparsity_total

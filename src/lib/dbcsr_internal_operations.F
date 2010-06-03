@@ -48,7 +48,8 @@ MODULE dbcsr_internal_operations
        dbcsr_data_ensure_size, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_destroy_array, &
        dbcsr_distribution, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_distribution_mp, dbcsr_get_data_size, &
+       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
        dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_init, &
        dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
        dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
@@ -56,8 +57,7 @@ MODULE dbcsr_internal_operations
        dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_row_block_sizes, &
        dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
-       dbcsr_scalar_zero, dbcsr_valid_index, dbcsr_set_data_size_referenced,&
-       dbcsr_get_data_size_referenced
+       dbcsr_scalar_zero, dbcsr_set_data_size_referenced, dbcsr_valid_index
 
 !$ USE dbcsr_methods, ONLY: dbcsr_distribution_thread_dist
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&

@@ -2121,9 +2121,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_data_size_used', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, blk_p, col, nze, row
+    INTEGER                                  :: blk, blk_p, col, &
+                                                error_handle, nze, row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
-    INTEGER                                  :: error_handle
 
 !type(dbcsr_iterator_type) :: iter
 !   ---------------------------------------------------------------------------

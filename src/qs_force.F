@@ -117,7 +117,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: failure, gapw, harris_flag, &
-                                                obasis
+                                                obasis, use_virial
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -147,7 +147,6 @@ CONTAINS
     TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
-    LOGICAL                                  :: use_virial
 
     CALL timeset(routineN,handle)
     failure = .FALSE.

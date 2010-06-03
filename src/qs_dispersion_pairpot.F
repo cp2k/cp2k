@@ -560,6 +560,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: debugx = .FALSE.
 
     INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, iab, &
       iatom, icx, icy, icz, ikind, ilist, inode, istat, jatom, jkind, katom, &
@@ -568,10 +569,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
                                                 periodic
-    LOGICAL, PARAMETER                       :: debugx = .FALSE.
-    LOGICAL                                  :: debug, debugall, &
-                                                failure, ghost_a, ghost_b, &
-                                                ghost_c, is000, use_virial
+    LOGICAL                                  :: debug, debugall, failure, &
+                                                ghost_a, ghost_b, ghost_c, &
+                                                is000, use_virial
     REAL(KIND=dp) :: alp6, alp8, ang, c6, c6a, c6b, c8, c9, cc6ab, cc6bc, &
       cc6ca, cnab, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, &
       dcc6bcc, dcc6caa, dcc6cac, dcnab, dd, de6, de8, de91, de921, de922, &
