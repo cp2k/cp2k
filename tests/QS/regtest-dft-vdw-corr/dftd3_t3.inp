@@ -36,7 +36,7 @@
             PARAMETER_FILE_NAME ../dftd3.dat
             REFERENCE_FUNCTIONAL PBE
             CALCULATE_C9_TERM T
-            R_CUTOFF 20.
+            R_CUTOFF 7.
          &END PAIR_POTENTIAL
       &END vdW_POTENTIAL
     &END XC

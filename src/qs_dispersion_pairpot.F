@@ -886,8 +886,8 @@ CONTAINS
                          e6tot = e6tot - e6
                          e8tot = e8tot - e8
                          IF(calculate_forces) THEN
-                            de6 = s6*c6/r6*(dfdab6-6._dp*fdab6/dr)
-                            de8 = s8*c8/r8*(dfdab8-8._dp*fdab8/dr)
+                            de6 = -s6*c6/r6*(dfdab6-6._dp*fdab6/dr)
+                            de8 = -s8*c8/r8*(dfdab8-8._dp*fdab8/dr)
                             fdij(:) = (de6+de8) * rij(:)/dr * fac
                             atom_a = atom_of_kind(iatom)
                             atom_b = atom_of_kind(jatom)
@@ -897,10 +897,10 @@ CONTAINS
                                CALL virial_pair_force ( virial%pv_virial, -1._dp, fdij, rij, error)
                             END IF
                             ! forces from the r-dependence of the coordination numbers
-                            dc6a = s6*fac*dc6a*fdab6/r6
-                            dc6b = s6*fac*dc6b*fdab6/r6
-                            dc8a = s8*fac*dc8a*fdab8/r8
-                            dc8b = s8*fac*dc8b*fdab8/r8
+                            dc6a = -s6*fac*dc6a*fdab6/r6
+                            dc6b = -s6*fac*dc6b*fdab6/r6
+                            dc8a = -s8*fac*dc8a*fdab8/r8
+                            dc8b = -s8*fac*dc8b*fdab8/r8
                             DO i=1,dcnum(iatom)%neighbors
                               katom=dcnum(iatom)%nlist(i)
                               kkind=kind_of(katom)
@@ -989,8 +989,8 @@ CONTAINS
                                           IF(calculate_forces) THEN
                                             rab = rb-ra; rbc = rc-rb; rca = ra-rc
                                             de91 = s9*fac*dfdabc*c9*ang/r2abc**1.50d0
-                                            de91 = de91/3._dp*rabc - 3._dp*e9
-                                            dea = s9*fac*fdabc*c9/r2abc**2.50d0 *0.75_dp
+                                            de91 = -de91/3._dp*rabc - 3._dp*e9
+                                            dea = -s9*fac*fdabc*c9/r2abc**2.50d0 *0.75_dp
                                             fdij(:) = de91*rab(:)/r2ab
                                             fdij(:) = fdij(:) - dea*s1*s2*s3 * rab(:)/r2ab
                                             fdij(:) = fdij(:) + dea*(s2*s3+s1*s3-s1*s2) * rab(:)
@@ -1024,7 +1024,7 @@ CONTAINS
                                               lkind=kind_of(latom)
                                               rik = dcnum(iatom)%rik(:,i)
                                               drk = SQRT(SUM(rik(:)**2))
-                                              fdik(:) = de921*dcnum(iatom)%dvals(i)*rik(:)/drk
+                                              fdik(:) = -de921*dcnum(iatom)%dvals(i)*rik(:)/drk
                                               atom_d = atom_of_kind(latom)
                                               force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) - fdik(:)
                                               force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
@@ -1037,7 +1037,7 @@ CONTAINS
                                               lkind=kind_of(latom)
                                               rik = dcnum(jatom)%rik(:,i)
                                               drk = SQRT(SUM(rik(:)**2))
-                                              fdik(:) = de922*dcnum(jatom)%dvals(i)*rik(:)/drk
+                                              fdik(:) = -de922*dcnum(jatom)%dvals(i)*rik(:)/drk
                                               atom_d = atom_of_kind(latom)
                                               force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) - fdik(:)
                                               force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
@@ -1054,7 +1054,7 @@ CONTAINS
                                               lkind=kind_of(latom)
                                               rik = dcnum(jatom)%rik(:,i)
                                               drk = SQRT(SUM(rik(:)**2))
-                                              fdik(:) = de921*dcnum(jatom)%dvals(i)*rik(:)/drk
+                                              fdik(:) = -de921*dcnum(jatom)%dvals(i)*rik(:)/drk
                                               atom_d = atom_of_kind(latom)
                                               force(jkind)%dispersion(:,atom_b) = force(jkind)%dispersion(:,atom_b) - fdik(:)
                                               force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
@@ -1067,7 +1067,7 @@ CONTAINS
                                               lkind=kind_of(latom)
                                               rik = dcnum(katom)%rik(:,i)
                                               drk = SQRT(SUM(rik(:)**2))
-                                              fdik(:) = de922*dcnum(katom)%dvals(i)*rik(:)/drk
+                                              fdik(:) = -de922*dcnum(katom)%dvals(i)*rik(:)/drk
                                               atom_d = atom_of_kind(latom)
                                               force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) - fdik(:)
                                               force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
@@ -1084,7 +1084,7 @@ CONTAINS
                                               lkind=kind_of(latom)
                                               rik = dcnum(katom)%rik(:,i)
                                               drk = SQRT(SUM(rik(:)**2))
-                                              fdik(:) = de921*dcnum(katom)%dvals(i)*rik(:)/drk
+                                              fdik(:) = -de921*dcnum(katom)%dvals(i)*rik(:)/drk
                                               atom_d = atom_of_kind(latom)
                                               force(kkind)%dispersion(:,atom_c) = force(kkind)%dispersion(:,atom_c) - fdik(:)
                                               force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)
@@ -1097,7 +1097,7 @@ CONTAINS
                                               lkind=kind_of(latom)
                                               rik = dcnum(iatom)%rik(:,i)
                                               drk = SQRT(SUM(rik(:)**2))
-                                              fdik(:) = de922*dcnum(iatom)%dvals(i)*rik(:)/drk
+                                              fdik(:) = -de922*dcnum(iatom)%dvals(i)*rik(:)/drk
                                               atom_d = atom_of_kind(latom)
                                               force(ikind)%dispersion(:,atom_a) = force(ikind)%dispersion(:,atom_a) - fdik(:)
                                               force(lkind)%dispersion(:,atom_d) = force(lkind)%dispersion(:,atom_d) + fdik(:)

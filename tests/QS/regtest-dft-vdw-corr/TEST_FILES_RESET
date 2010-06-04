@@ -41,3 +41,9 @@ dftd3_t7.inp
 # fix input error
 dftd2_t3.inp
 dftd3_t3.inp
+# fix force error
+dftd3_t3.inp
+dftd3_t5.inp
+dftd3_t6.inp
+dftd3_t7.inp
+dftd3_t8.inp
