@@ -1,0 +1,68 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    BASIS_SET_FILE_NAME ../GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    &MGRID
+      CUTOFF 300
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      MAX_SCF 20
+      &OUTER_SCF
+        MAX_SCF 20
+        EPS_SCF 1.0E-6
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE 
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-6
+          SCREEN_ON_INITIAL_P FALSE
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 0.5
+          T_C_G_DATA ../t_c_g.dat
+        &END
+        &MEMORY
+          MAX_MEMORY 10
+        &END
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+    C  0.1  0.2  0.3 
+    H  0.5  0.6  0.7 
+    H  -0.5  -0.6  -0.7 
+    H  0.5 -0.5 0.5 
+    &END COORD
+    &KIND H
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+  &END SUBSYS
+  STRESS_TENSOR ANALYTICAL
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT CH3-stress
+  PRINT_LEVEL MEDIUM 
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
