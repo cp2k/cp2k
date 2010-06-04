@@ -2358,7 +2358,7 @@ CONTAINS
           replicated%m%wms(1)%blk_p(blks) = stored_blk_p + offset
           nze = row_blk_size(stored_row)&
                * col_blk_size(stored_col)
-          blk_ps = MAX (blk_ps, stored_blk_p + nze + offset)
+          blk_ps = MAX (blk_ps, ABS(stored_blk_p) + nze + offset)
           blks = blks + 1
        ENDDO
     ENDDO
