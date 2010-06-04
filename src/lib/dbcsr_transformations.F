@@ -62,15 +62,16 @@ MODULE dbcsr_transformations
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_no_threads, &
        dbcsr_distribution_nrows, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, &
-       dbcsr_init, dbcsr_is_initialized, dbcsr_mp_grid_remove, &
-       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
-       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
-       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_row_block_sizes, dbcsr_type_1d_to_2d, &
-       dbcsr_uses_special_memory, dbcsr_valid_index
+       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
+       dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_init, &
+       dbcsr_is_initialized, dbcsr_mp_grid_remove, dbcsr_mp_grid_setup, &
+       dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
+       dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
+       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+       dbcsr_row_block_sizes, dbcsr_type_1d_to_2d, dbcsr_uses_special_memory, &
+       dbcsr_valid_index, dbcsr_set_data_size_referenced
   USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
                                              hybrid_alltoall_c1,&
                                              hybrid_alltoall_d1,&
@@ -89,7 +90,7 @@ MODULE dbcsr_transformations
   USE dbcsr_util,                      ONLY: &
        convert_sizes_to_offsets, dbcsr_checksum, dbcsr_pack_meta, &
        dbcsr_set_debug, dbcsr_unpack_meta, global_offsets_to_local, &
-       nfull_elements, sgn, swap
+       nfull_elements, sgn, swap, dbcsr_verify_matrix
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
@@ -2103,26 +2104,30 @@ CONTAINS
 !>                            processors
 !> \param[in] replicate_columns  Column should be replicated among
 !>                               all processors
+!> \param[in] restrict_source    (optional) Send only from this node
+!>                               (ignores blocks on other nodes)
 !> \param[in,out] error       error
 !> \par Direction definition
 !>      Row replication means that all processors in a process grid sharing
 !>      the same row get the data of the entire row. (In a 1-column grid the
 !>      operation has no effect.) Similar logic applies to column replication.
 ! *****************************************************************************
-  SUBROUTINE dbcsr_replicate (matrix, replicate_rows, replicate_columns, error)
+  SUBROUTINE dbcsr_replicate (matrix, replicate_rows, replicate_columns,&
+       restrict_source, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     LOGICAL, INTENT(IN)                      :: replicate_rows, &
                                                 replicate_columns
+    INTEGER, INTENT(IN), OPTIONAL            :: restrict_source
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replicate', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 2
+    INTEGER, PARAMETER                       :: debug_level = 0, metalen = 3
 
     CHARACTER                                :: data_type, rep_type
     INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, &
       error_handler, mp_group, mynode, mypcol, myprow, nblks, numnodes, nze, &
-      row, row_size, smp, src_p, stored_col, stored_row
+      row, row_size, smp, src_p, stored_blk_p, stored_col, stored_row, offset
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 send_meta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count
@@ -2131,7 +2136,8 @@ CONTAINS
                                                 row_blk_size, row_dist, &
                                                 tmp_index
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: had_subcomms, tr
+    LOGICAL                                  :: had_subcomms, &
+                                                i_am_restricted, rest_src, tr
     REAL(KIND=dp)                            :: tstart, tstop
     TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
                                                 send_data, tmp_data
@@ -2198,17 +2204,21 @@ CONTAINS
     CASE (dbcsr_repl_full)
        numnodes = dbcsr_mp_numnodes (mp_obj)
        mp_group = dbcsr_mp_group (mp_obj)
+       mynode = dbcsr_mp_mynode (mp_obj)
     CASE (dbcsr_repl_row)
        numnodes = dbcsr_mp_npcols (mp_obj)
        CALL dbcsr_mp_grid_setup (mp_obj, force=.TRUE.)
        mp_group = dbcsr_mp_my_row_group (mp_obj)
+       mynode = dbcsr_mp_mypcol (mp_obj)
     CASE (dbcsr_repl_col)
        numnodes = dbcsr_mp_nprows (mp_obj)
        CALL dbcsr_mp_grid_setup (mp_obj, force=.TRUE.)
        mp_group = dbcsr_mp_my_col_group (mp_obj)
+       mynode = dbcsr_mp_myprow (mp_obj)
     CASE (dbcsr_repl_none)
        numnodes = 1
        mp_group = dbcsr_mp_group (mp_obj)
+       mynode = 0
     END SELECT
     CALL dbcsr_assert (rep_type.EQ.dbcsr_repl_row &
          .OR. rep_type.EQ.dbcsr_repl_col,&
@@ -2216,6 +2226,15 @@ CONTAINS
          dbcsr_unimplemented_error_nr, routineN,&
          "Only full replication supported when subcommunicators are turned off.",&
          __LINE__, error=error)
+    !
+    IF (PRESENT (restrict_source)) THEN
+       rest_src = .TRUE.
+       i_am_restricted = mynode .NE. restrict_source
+    ELSE
+       rest_src = .FALSE.
+       i_am_restricted = .FALSE.
+    ENDIF
+    !
     ALLOCATE (recv_count(2, 0:numnodes-1))
     ALLOCATE (rd_disp(0:numnodes-1))
     ALLOCATE (rm_disp(0:numnodes-1))
@@ -2230,19 +2249,22 @@ CONTAINS
     DBG 'A', " ", rep_type, dbcsr_mp_nprows(mp_obj), dbcsr_mp_npcols(mp_obj)
     send_count(1:2) = 0
     CALL dbcsr_iterator_start (iter, matrix)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, &
-            row_size=row_size, col_size=col_size, blk=blk)
-       !tr = .FALSE.
-       !CALL dbcsr_get_stored_coordinates (matrix, row, col, tr, dst_p)
-       !CALL dbcsr_assert (dst_p, "EQ", mynode, dbcsr_fatal_level,&
-       !     dbcsr_wrong_args_error, routineN, &
-       !     "Matrix is not correctly distributed. Call dbcsr_redistribute.",&
-       !     __LINE__, error=error)
-       nze = row_size * col_size
-       send_count(1) = send_count(1) + 1
-       send_count(2) = send_count(2) + nze
-    ENDDO
+    IF (.NOT. i_am_restricted) THEN
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block (iter, row, col, &
+               row_size=row_size, col_size=col_size, blk=blk)
+          !tr = .FALSE.
+          !CALL dbcsr_get_stored_coordinates (matrix, row, col, tr, dst_p)
+          !CALL dbcsr_assert (dst_p, "EQ", mynode, dbcsr_fatal_level,&
+          !     dbcsr_wrong_args_error, routineN, &
+          !     "Matrix is not correctly distributed. Call dbcsr_redistribute.",&
+          !     __LINE__, error=error)
+          nze = row_size * col_size
+          send_count(1) = send_count(1) + 1
+          send_count(2) = send_count(2) + nze
+       ENDDO
+       send_count(2) = dbcsr_get_data_size_referenced (matrix)
+    ENDIF
     CALL dbcsr_iterator_stop (iter)
     DBG 'B'
     ! Exchange how much data others have.
@@ -2283,14 +2305,16 @@ CONTAINS
     CALL dbcsr_data_new (data_block, data_type=data_type)
     CALL dbcsr_iterator_start (iter, matrix)
     smp = 1
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, blk,&
-            transposed=tr, blk_p=blk_p)
-       IF (tr) row = -row
-       send_meta(smp+0) = row
-       send_meta(smp+1) = col
-       smp = smp + metalen
-    ENDDO
+    IF (.NOT. i_am_restricted) THEN
+       DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block (iter, row, col, blk,&
+               transposed=tr, blk_p=blk_p)
+          send_meta(smp+0) = row
+          send_meta(smp+1) = col
+          send_meta(smp+2) = blk_p
+          smp = smp + metalen
+       ENDDO
+    ENDIF
     CALL dbcsr_iterator_stop (iter)
     CALL dbcsr_data_clear_pointer (data_block)
     CALL dbcsr_data_release (data_block)
@@ -2320,22 +2344,25 @@ CONTAINS
        nze = recv_count(2, src_p)
        !CALL dbcsr_data_set (replicated%m%wms(1)%data_area, blk_ps, nze,&
        !     recv_data, rd_disp(src_p))
+       offset = rd_disp(src_p) - 1
        DO blk_l = 1, recv_count(1, src_p)
           IF (dbg) WRITE(*,*)"src_p, blk_l", src_p, blk_l
           stored_row = recv_meta(rm_disp(src_p)+metalen*(blk_l-1))
           stored_col = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+1)
+          stored_blk_p = recv_meta(rm_disp(src_p)+metalen*(blk_l-1)+2)
           DBG 'blk: p',blks,src_p,'; row, col',&
                stored_row,stored_col,&
-               '; blk_ps',blk_ps
-          replicated%m%wms(1)%row_i(blks) = ABS(stored_row)
+               '; blk_p',blk_p
+          replicated%m%wms(1)%row_i(blks) = stored_row
           replicated%m%wms(1)%col_i(blks) = stored_col
-          replicated%m%wms(1)%blk_p(blks) = SIGN(blk_ps, stored_row)
-          nze = row_blk_size(ABS(stored_row))&
+          replicated%m%wms(1)%blk_p(blks) = stored_blk_p + offset
+          nze = row_blk_size(stored_row)&
                * col_blk_size(stored_col)
-          blk_ps = blk_ps + nze
+          blk_ps = MAX (blk_ps, stored_blk_p + nze + offset)
           blks = blks + 1
        ENDDO
     ENDDO
+    CALL dbcsr_set_data_size_referenced (replicated%m%wms(1)%data_area, blk_ps - 1)
     !
     replicated%m%wms(1)%lastblk = blks - 1
     replicated%m%wms(1)%datasize = blk_ps - 1
@@ -2368,6 +2395,7 @@ CONTAINS
     matrix%m%nblks = replicated%m%nblks
     CALL dbcsr_release (replicated)
     DBG 'Done replicating'
+    call dbcsr_verify_matrix (matrix, error=error)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_replicate
 
