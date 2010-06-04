@@ -261,7 +261,8 @@ CONTAINS
     CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME",&
          description="Name of the basis set file, may include a path",&
          usage="BASIS_SET_FILE_NAME <FILENAME>",&
-         default_lc_val="BASIS_SET",error=error)
+         type_of_var=char_t,repeats=.TRUE.,&
+         default_c_vals=(/"BASIS_SET"/),n_var=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
