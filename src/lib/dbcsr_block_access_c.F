@@ -360,7 +360,7 @@
                                                 stored_row, stored_col, &
                                                 iw, nwms
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: found, gift, tr
+    LOGICAL                                  :: found, gift, tr, sym_tr
     COMPLEX(kind=real_4), DIMENSION(:,:), POINTER         :: original_block
     TYPE(dbcsr_error_type)                   :: error
 
@@ -383,7 +383,8 @@
     ELSE
        tr = .FALSE.
     ENDIF
-    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, tr)
+    sym_tr = .FALSE.
+    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, sym_tr)
     !@@@
     !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
     !     cp_caller_error, routineN, "Work matrices not prepared")
@@ -562,7 +563,8 @@
                                                 row_size, blk_p,&
                                                 stored_row, stored_col,&
                                                 iw, nwms
-    LOGICAL                                  :: found, tr, do_sum, tr_diff
+    LOGICAL                                  :: found, tr, do_sum, tr_diff,&
+                                                sym_tr
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: block_1d
     TYPE(dbcsr_error_type)                   :: error
 
@@ -581,8 +583,8 @@
     col_size = dbcsr_blk_column_size(matrix, col)
     IF (tr) CALL swap (row_size, col_size)
 
-    stored_row = row ; stored_col = col
-    CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, tr)
+    stored_row = row ; stored_col = col; sym_tr = .FALSE.
+    CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, sym_tr)
     nze = row_size*col_size
     !
     ! check for 0 block

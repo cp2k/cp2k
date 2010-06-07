@@ -179,7 +179,7 @@ CONTAINS
 ! SM-compatible way
 
     IF (PRESENT (processor)) THEN
-       IF ((matrix%symmetry .AND. checker_tr(row, column)) .NEQV. transpose) THEN
+       IF (matrix%symmetry .AND. checker_tr(row, column)) THEN
           ! The transposed way.
           processor = dbcsr_distribution_processor (matrix%dist, column, row)
        ELSE

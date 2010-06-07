@@ -70,8 +70,8 @@ MODULE dbcsr_transformations
        dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
        dbcsr_mp_pgrid, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_type_1d_to_2d, dbcsr_uses_special_memory, &
-       dbcsr_valid_index, dbcsr_set_data_size_referenced
+       dbcsr_row_block_sizes, dbcsr_set_data_size_referenced, &
+       dbcsr_type_1d_to_2d, dbcsr_uses_special_memory, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
                                              hybrid_alltoall_c1,&
                                              hybrid_alltoall_d1,&
@@ -89,8 +89,8 @@ MODULE dbcsr_transformations
        dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: &
        convert_sizes_to_offsets, dbcsr_checksum, dbcsr_pack_meta, &
-       dbcsr_set_debug, dbcsr_unpack_meta, global_offsets_to_local, &
-       nfull_elements, sgn, swap, dbcsr_verify_matrix
+       dbcsr_set_debug, dbcsr_unpack_meta, dbcsr_verify_matrix, &
+       global_offsets_to_local, nfull_elements, sgn, swap
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
@@ -2127,7 +2127,7 @@ CONTAINS
     CHARACTER                                :: data_type, rep_type
     INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, &
       error_handler, mp_group, mynode, mypcol, myprow, nblks, numnodes, nze, &
-      row, row_size, smp, src_p, stored_blk_p, stored_col, stored_row, offset
+      offset, row, row_size, smp, src_p, stored_blk_p, stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 send_meta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count
@@ -2395,7 +2395,7 @@ CONTAINS
     matrix%m%nblks = replicated%m%nblks
     CALL dbcsr_release (replicated)
     DBG 'Done replicating'
-    call dbcsr_verify_matrix (matrix, error=error)
+    CALL dbcsr_verify_matrix (matrix, error=error)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_replicate
 
@@ -2929,7 +2929,7 @@ CONTAINS
                                                 col_dist_new, &
                                                 row_blk_size_new, row_dist_new
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-    LOGICAL                                  :: tr
+    LOGICAL                                  :: sym_tr, tr
     TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
                                                 send_data
     TYPE(dbcsr_distribution_obj)             :: dist_new
@@ -3002,8 +3002,9 @@ CONTAINS
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk, tr,&
             row_size=row_size, col_size=col_size)
+       sym_tr = .FALSE.
        CALL dbcsr_get_stored_coordinates (redist%m,&
-            row, col, tr, dst_p)
+            row, col, sym_tr, dst_p)
        IF (dbg) WRITE(*,*)routinen//" Sending",row,col,"to",dst_p
        nze = row_size*col_size
        send_count(1, dst_p) = send_count(1, dst_p) + 1
@@ -3063,8 +3064,9 @@ CONTAINS
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, data_block, tr, blk)
        !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
+       sym_tr = .FALSE.
        CALL dbcsr_get_stored_coordinates (redist%m,&
-            row, col, tr, dst_p)
+            row, col, sym_tr, dst_p)
        smp(dst_p) = smp(dst_p) + metalen
        IF (tr) THEN
           send_meta(smp(dst_p)) = -row
