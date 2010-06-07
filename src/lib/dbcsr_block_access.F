@@ -483,9 +483,11 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Size of rows and block pointecs arrays must match.",&
             __LINE__, error=error)
+       data_size_old = 0
+    ELSE
+       ! Get current data size
+       data_size_old = dbcsr_get_data_size_used (matrix, error=error)
     ENDIF
-    ! Get current data size
-    data_size_old = dbcsr_get_data_size_used (matrix, error=error)
     nblks_added = SIZE(rows)
     nblks_old = dbcsr_get_num_blocks (matrix)
     nblkrows = dbcsr_nblkrows_total(matrix)
