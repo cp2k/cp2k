@@ -62,15 +62,15 @@ MODULE dbcsr_transformations
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_no_threads, &
        dbcsr_distribution_nrows, dbcsr_distribution_release, &
        dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_size, &
-       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_mp_grid_remove, dbcsr_mp_grid_setup, &
-       dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
-       dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_set_data_size_referenced, &
+       dbcsr_get_data_size_referenced, dbcsr_get_data_size_used, &
+       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_has_symmetry, &
+       dbcsr_init, dbcsr_is_initialized, dbcsr_mp_grid_remove, &
+       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
+       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_set_data_size_referenced, &
        dbcsr_type_1d_to_2d, dbcsr_uses_special_memory, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
                                              hybrid_alltoall_c1,&
@@ -148,11 +148,14 @@ CONTAINS
 !> \param[in] transpose_index           (optional) transpose the index
 !>                                      (default=yes) or turn it into BCSC
 !> \param[in] use_distribution          (optional) use this distribution
+!> \param[in] redistribute              (optional) redistributes the matrix;
+!>                                      default is .TRUE. unless shallow or
+!>                                      transpose_distribution are set.
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_new_transposed (transposed, normal, shallow_data_copy,&
        transpose_data, transpose_distribution, transpose_index,&
-       use_distribution, error)
+       use_distribution, redistribute, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: transposed
     TYPE(dbcsr_obj), INTENT(IN)              :: normal
     LOGICAL, INTENT(IN), OPTIONAL            :: shallow_data_copy, &
@@ -161,6 +164,7 @@ CONTAINS
                                                 transpose_index
     TYPE(dbcsr_distribution_obj), &
       INTENT(IN), OPTIONAL                   :: use_distribution
+    LOGICAL, INTENT(IN), OPTIONAL            :: redistribute
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
@@ -168,8 +172,8 @@ CONTAINS
 
     INTEGER                                  :: error_handler, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
-    LOGICAL                                  :: shallow, tr_blocks, tr_dist, &
-                                                tr_index
+    LOGICAL                                  :: redist, shallow, tr_blocks, &
+                                                tr_dist, tr_index
     TYPE(dbcsr_distribution_obj)             :: new_dist
     TYPE(dbcsr_obj)                          :: t2
 
@@ -232,7 +236,8 @@ CONTAINS
          reservation=normal%m%nblks, error=error)
     CALL dbcsr_repoint_index (transposed%m)
     IF (.NOT. shallow) THEN
-       CALL dbcsr_data_ensure_size (transposed%m%data_area, normal%m%nze,&
+       CALL dbcsr_data_ensure_size (transposed%m%data_area,&
+            dbcsr_get_data_size_used(normal, error=error),&
             nocopy=.TRUE., error=error)
     ENDIF
     !
@@ -298,8 +303,12 @@ CONTAINS
     !
     IF (tr_index) DEALLOCATE (blk_p)
     !
-    ! Redistribute if mpgrid was not transposed
-    IF (.NOT. tr_dist .AND. .NOT. shallow) THEN
+    IF (PRESENT (redistribute)) THEN
+       redist = .TRUE.
+    ELSE
+       redist = .NOT. tr_dist .AND. .NOT. shallow
+    ENDIF
+    IF (redist) THEN
        !write (*,*)routineN//" redistributing"
        CALL dbcsr_init (t2)
        CALL dbcsr_create (t2, transposed%m%name, transposed%m%dist,&
