@@ -1687,7 +1687,7 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: data_ptr
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_obj), POINTER                 :: mat_comm
-    TYPE(dbcsr_obj), TARGET                  :: mat_recv, mat_send
+    TYPE(dbcsr_obj), TARGET                  :: mat_recv
 
 !   ---------------------------------------------------------------------------
 
@@ -1752,7 +1752,6 @@ CONTAINS
          __LINE__, error=error)
     !
     ! Send/receive buffer setup
-    CALL dbcsr_init (mat_send)
     CALL dbcsr_init (mat_recv)
     CALL dbcsr_create (reduced, "Reduced "//matrix%m%name,&
          dbcsr_distribution (matrix), dbcsr_get_matrix_type (matrix),&
@@ -1842,6 +1841,7 @@ CONTAINS
     ENDDO log_steps
     CALL dbcsr_data_clear_pointer (data_ptr)
     CALL dbcsr_data_release (data_ptr)
+    CALL dbcsr_release (mat_recv)
     IF (dbg .AND. (mynode .EQ. reduction_target)) THEN
        cs2 = dbcsr_checksum (reduced, local=.TRUE., error=error)
        IF (ABS(cs1) .GT. comp_eps) THEN
