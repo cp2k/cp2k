@@ -433,7 +433,6 @@ CONTAINS
        use_dense_mult = dbcsr_may_be_dense (matrix_left, make_dense_occ_thresh)&
             .AND. dbcsr_may_be_dense (matrix_right, make_dense_occ_thresh)
     ENDIF
-    ab_dense = use_dense_mult
     ! Submatrix selection
     f_row = 1
     l_row = dbcsr_nfullrows_total(matrix_c)
@@ -635,6 +634,7 @@ CONTAINS
           m2s_left => left_set
        ENDIF
     ENDIF
+    ab_dense = use_dense_mult
     IF (.NOT. right_set_given) THEN
        ALLOCATE (m2s_right)
        CALL dbcsr_make_images (matrix_right, m2s_right, rdist_right,&
