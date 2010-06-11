@@ -367,8 +367,9 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="gle",&
-            description="paramameters of the gle thermostat",&
+       CALL section_create(section,name="GLE",&
+            description="paramameters of the gle thermostat. This section can be generated "//&
+                        " from http://gle4md.berlios.de/compose.php?page=matrix ",&
             citations=(/Ceriotti2009/),required=.NOT.coupled_thermostat,error=error)
 
        NULLIFY(keyword, subsection)
