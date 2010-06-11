@@ -18,13 +18,11 @@ MODULE dbcsr_index_operations
   USE dbcsr_dist_operations,           ONLY: get_stored_canonical
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: int_4
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_local_cols,&
-                                             dbcsr_distribution_local_rows,&
-                                             dbcsr_distribution_ncols,&
-                                             dbcsr_distribution_nlocal_cols,&
-                                             dbcsr_distribution_nlocal_rows,&
-                                             dbcsr_distribution_nrows,&
-                                             dbcsr_wm_use_mutable
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
@@ -49,7 +47,7 @@ MODULE dbcsr_index_operations
 
   ! Index transformations
   PUBLIC :: dbcsr_make_index_canonical, make_index_triangular,&
-            transpose_index_local
+            transpose_index_local, dbcsr_order_matrix_index
   ! Dense/Sparse
   PUBLIC :: make_dense_index, make_undense_index
   ! Working with DBCSR and linear indices
@@ -596,6 +594,62 @@ CONTAINS
     ENDDO
   END SUBROUTINE dbcsr_sort_many_indices
 
+! *****************************************************************************
+!> \brief Sorts the index of a DBCSR
+!> \par Description
+!>      Sorts the row and column indices so that the rows monotonically
+!>      increase and the columns monotonically increase within each row.
+!> \param[in,out] matrix      matrix for which to sort
+!> \param[in,out] error       error
+! *****************************************************************************
+  SUBROUTINE dbcsr_order_matrix_index(matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_order_matrix_index', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, first_blk, i, &
+                                                last_blk, ncols, row, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: buff, permutation
+    INTEGER, DIMENSION(:), POINTER           :: blk_p, col_i, full_blk_p, &
+                                                full_col_i, full_row_p
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+
+    full_row_p => matrix%m%row_p
+    full_col_i => matrix%m%col_i
+    full_blk_p => matrix%m%blk_p
+!test!$OMP PARALLEL DEFAULT (none) &
+!test!$OMP PRIVATE (permutation, buff, stat, &
+!test!$             row, first_blk, last_blk, ncols, &
+!test!$             col_i, blk_p, i) &
+!test!$OMP SHARED (matrix, full_row_p, full_col_i, full_blk_p)
+    ALLOCATE (permutation(dbcsr_nblkcols_total (matrix)), stat=stat)
+    ALLOCATE (buff(dbcsr_nblkcols_total (matrix)), stat=stat)
+    ! Goes through all rows and sorts the column in each row. It also
+    ! reorders the blk_p correspondingly.
+!$test!$OMP DO
+    DO row = 1, dbcsr_nblkrows_total (matrix)
+       first_blk = full_row_p(row)+1
+       last_blk = full_row_p(row+1)
+       ncols = last_blk - first_blk + 1
+       col_i => full_col_i(first_blk : last_blk)
+       blk_p => full_blk_p(first_blk : last_blk)
+       permutation(1:ncols) = (/ (i, i=1,ncols) /)
+       buff(1:ncols) = blk_p(1:ncols)
+       CALL sort(col_i, ncols, permutation)
+       DO i = 1, ncols
+          blk_p(i) = buff(permutation(i))
+       ENDDO
+    ENDDO
+!$test!OMP END DO NOWAIT
+    DEALLOCATE (permutation, buff)
+!test!$OMP END PARALLEL
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_order_matrix_index
 
 
 ! *****************************************************************************
