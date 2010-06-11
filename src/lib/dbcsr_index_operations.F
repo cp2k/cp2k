@@ -55,7 +55,8 @@ MODULE dbcsr_index_operations
   ! Working with DBCSR and linear indices
   PUBLIC :: dbcsr_make_dbcsr_index, dbcsr_sort_indices,&
             dbcsr_sort_many_indices, merge_index_arrays,&
-            dbcsr_expand_row_index
+            dbcsr_expand_row_index,&
+            dbcsr_count_row_index, dbcsr_build_row_index
   ! Index array manipulation
   PUBLIC :: dbcsr_addto_index_array, dbcsr_clearfrom_index_array,&
             dbcsr_repoint_index
@@ -259,6 +260,51 @@ CONTAINS
        row_i(row_p(row)+1 : row_p(row+1)) = row
     ENDDO
   END SUBROUTINE dbcsr_expand_row_index
+
+
+! *****************************************************************************
+!> \brief Counts columns-per-row count from row index array, in-place.
+!> \param[in] nrows           number of rows
+!> \param[in,out] rows        the row_p index (input); the count of the number
+!>                            of columns per row (output)
+! *****************************************************************************
+  PURE SUBROUTINE dbcsr_count_row_index (rows, nrows)
+    INTEGER, INTENT(IN)                      :: nrows
+    INTEGER, DIMENSION(1:nrows+1), &
+      INTENT(INOUT)                          :: rows
+
+    INTEGER                                  :: row
+
+    DO row = 1, nrows
+       rows(row) = rows(row+1) - rows(row)
+    ENDDO
+    rows(nrows+1) = 0
+  END SUBROUTINE dbcsr_count_row_index
+
+! *****************************************************************************
+!> \brief Builds row index array from a columns-per-row count, in-place.
+!> \param[in] nrows           number of rows
+!> \param[in,out] rows        count of the number of colums per row (input);
+!>                            the row_p index (output)
+! *****************************************************************************
+  PURE SUBROUTINE dbcsr_build_row_index (rows, nrows)
+    INTEGER, INTENT(IN)                      :: nrows
+    INTEGER, DIMENSION(1:nrows+1), &
+      INTENT(INOUT)                          :: rows
+
+    INTEGER                                  :: o, old_count, row
+
+    old_count = rows(1)
+    rows(1) = 0
+    IF (nrows .GE. 1) THEN
+       DO row = 2, nrows+1
+          o = rows(row)
+          rows(row) = rows(row-1) + old_count
+          old_count = o
+       ENDDO
+    ENDIF
+  END SUBROUTINE dbcsr_build_row_index
+
 
 ! *****************************************************************************
 !> \brief Adds data to the index. Incleases the index size when neccessary.
