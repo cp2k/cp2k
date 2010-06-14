@@ -1964,6 +1964,7 @@ CONTAINS
 !$OMP SHARED (error,&
 !$OMP         dense_data, matrix, &
 !$OMP         mktr, jrows, jcols, &
+!$OMP         row_blk_offsets, col_blk_offsets,&
 !$OMP         nfullrows, nfullcols)
        CALL dbcsr_data_init (block)
        CALL dbcsr_data_new (block,&
