@@ -23,7 +23,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize
+                                                nze, rsize, pos
     REAL(kind=real_8), DIMENSION(:), POINTER :: rbp
 
 !   ---------------------------------------------------------------------------
@@ -49,19 +49,7 @@
        block => rbp(bp:bp+nze-1)
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
-       iterator%pos = iterator%pos+1
-       IF (.NOT. iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
+       CALL iterator_advance (iterator)
        CALL update_row_info (iterator)
     ELSE
        row = 0
@@ -99,7 +87,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize
+                                                nze, rsize, pos
     REAL(kind=real_8), DIMENSION(:), POINTER :: lin_blk_p, rbp
 
 !   ---------------------------------------------------------------------------
@@ -141,19 +129,7 @@
 #endif /* __PTR_RANK_REMAP || !__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION */
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
-       iterator%pos = iterator%pos+1
-       IF (.NOT.iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
+       CALL iterator_advance (iterator)
        CALL update_row_info (iterator)
     ELSE
        row = 0

@@ -86,9 +86,10 @@ MODULE dbcsr_methods
             dbcsr_distribution_nrows, dbcsr_distribution_ncols,&
             dbcsr_distribution_row_dist, dbcsr_distribution_col_dist,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nlocal_cols,&
-            dbcsr_distribution_local_rows, dbcsr_distribution_local_cols,&
-            dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
-            dbcsr_distribution_make_threads, dbcsr_distribution_no_threads
+            dbcsr_distribution_local_rows, dbcsr_distribution_local_cols
+  PUBLIC :: dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
+            dbcsr_distribution_make_threads, dbcsr_distribution_no_threads,&
+            dbcsr_distribution_num_threads
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
             dbcsr_get_matrix_type, dbcsr_get_data_type, dbcsr_get_replication_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
@@ -942,6 +943,8 @@ CONTAINS
        ENDDO
        CALL array_new (dist%d%local_cols, ld, gift=.TRUE.)
     ENDIF
+    dist%d%num_threads = 1
+!$  dist%d%num_threads = OMP_GET_MAX_THREADS()
     CALL array_nullify (dist%d%thread_dist)
     !WRITE(*,*)' row_dist', array_data(dist%d%row_dist)
     !WRITE(*,*)' col_dist', array_data(dist%d%col_dist)
@@ -1085,6 +1088,15 @@ CONTAINS
     has_thread_dist = array_exists (dist%d%thread_dist)
   END FUNCTION dbcsr_distribution_has_threads
 
+  PURE FUNCTION dbcsr_distribution_num_threads(dist) RESULT (num_threads)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    INTEGER                                  :: num_threads
+
+!   ---------------------------------------------------------------------------
+
+    num_threads = dist%d%num_threads
+  END FUNCTION dbcsr_distribution_num_threads
+
 ! *****************************************************************************
 !> \brief Creates a distribution for threads
 !> \param[in,out] dist   Add thread distribution to this distribution
@@ -1092,24 +1104,56 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_make_threads(dist, row_sizes)
     TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
+      INTENT(INOUT), TARGET                  :: dist
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: row_sizes
+
+    TYPE(dbcsr_distribution_obj), POINTER    :: dist_p
+
+!   ---------------------------------------------------------------------------
+
+    dist_p => dist
+!$  IF (.NOT. OMP_IN_PARALLEL ()) THEN
+!$OMP PARALLEL
+!$     CALL make_threads (dist_p, row_sizes=row_sizes)
+!$OMP END PARALLEL
+!$  ELSE
+       CALL make_threads (dist_p, row_sizes=row_sizes)
+!$  ENDIF
+  END SUBROUTINE dbcsr_distribution_make_threads
+
+! *****************************************************************************
+!> \brief Creates a distribution for threads
+!> \param[in,out] dist   Add thread distribution to this distribution
+!> \param[in] row_sizes  (optional) row block sizes
+! *****************************************************************************
+  SUBROUTINE make_threads(dist, row_sizes)
+    TYPE(dbcsr_distribution_obj), POINTER    :: dist
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: row_sizes
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_threads', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: first, ithread, last, nlrows, &
                                                 nrows, nthreads, rpt, &
                                                 size_local, size_sum, t
     INTEGER, DIMENSION(:), POINTER           :: lrows, td
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     ithread = 0 ; nthreads = 1
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM()
+!$  CALL dbcsr_assert (dist%d%num_threads, "EQ", nthreads,&
+!$     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+!$     "Thread number has changed", __LINE__, error=error)
     nrows = dbcsr_distribution_nrows (dist)
     nlrows = dbcsr_distribution_nlocal_rows (dist)
     lrows => array_data (dbcsr_distribution_local_rows (dist))
     !
 !$OMP SINGLE
+    dist%d%num_threads = nthreads
     CALL array_release (dist%d%thread_dist)
     ALLOCATE (td(nrows))
     CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
@@ -1154,7 +1198,8 @@ CONTAINS
        ENDIF
     ENDIF
 !$OMP BARRIER
-  END SUBROUTINE dbcsr_distribution_make_threads
+  END SUBROUTINE make_threads
+
 
   SUBROUTINE dbcsr_distribution_no_threads(dist)
     TYPE(dbcsr_distribution_obj), &

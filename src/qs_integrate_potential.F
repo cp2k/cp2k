@@ -48,8 +48,7 @@ MODULE qs_integrate_potential
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_dist_operations
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_make_threads,&
-                                             dbcsr_distribution_no_threads,&
+                                             dbcsr_distribution_has_threads,&
                                              dbcsr_get_matrix_type
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_obj
@@ -537,9 +536,9 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
-      found, h_duplicated, has_dv, map_consistent, my_compute_tau, my_gapw, &
-      new_set_pair_coming, p_duplicated, pab_required, scatter, tr, &
-      use_subpatch, use_virial
+      found, h_duplicated, had_thread_dist, has_dv, map_consistent, &
+      my_compute_tau, my_gapw, new_set_pair_coming, p_duplicated, &
+      pab_required, scatter, tr, use_subpatch, use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
@@ -808,7 +807,8 @@ CONTAINS
 !$omp private(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
 !$omp private(dv_block,p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$omp private(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
-!$omp private(iset_new,jset_new,ipgf_new,jpgf_new,idir,dist)
+!$omp private(iset_new,jset_new,ipgf_new,jpgf_new,idir,dist), &
+!$omp private(had_thread_dist)
 
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -833,13 +833,18 @@ CONTAINS
     loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
 
     CALL cp_dbcsr_work_create(dh,work_mutable=.TRUE.,n=nthread,error=error)
-    dist => dh%m%dist
-    CALL dbcsr_distribution_make_threads(dist)
+!$  dist => dh%m%dist
+!$  CALL cp_assert (dbcsr_distribution_has_threads(dist), cp_fatal_level,&
+!$       cp_internal_error, routineN, "No thread distribution defined.",&
+!$       error=error)
     IF (has_dv) THEN
       DO idir=1,3
         CALL cp_dbcsr_work_create(ddv(idir)%matrix,work_mutable=.TRUE.,n=nthread,error=error)
-        dist => ddv(idir)%matrix%m%dist
-        CALL dbcsr_distribution_make_threads(dist)
+!$      dist => ddv(idir)%matrix%m%dist
+!$      CALL cp_assert (dbcsr_distribution_has_threads(dist),&
+!$           cp_fatal_level, cp_internal_error, routineN,&
+!$           "No thread distribution defined.",&
+!$           error=error)
       END DO
     END IF
 !$omp barrier
@@ -1234,15 +1239,6 @@ CONTAINS
     ENDIF
 
     END DO loop_gridlevels
-
-    dist => dh%m%dist
-    CALL dbcsr_distribution_no_threads(dist)
-    IF (has_dv) THEN
-      DO idir=1,3
-        dist => ddv(idir)%matrix%m%dist
-        CALL dbcsr_distribution_no_threads(dist)
-      END DO
-    END IF
 
 !$omp end parallel
 !$omp barrier

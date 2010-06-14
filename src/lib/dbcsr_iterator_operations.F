@@ -13,20 +13,17 @@
 !  - 2010-02-18 Moved from dbcsr_operations and dbcsr_methods
 ! *****************************************************************************
 MODULE dbcsr_iterator_operations
-  USE array_types,                     ONLY: array_data,&
-                                             array_size
+  USE array_types,                     ONLY: array_data
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
-  USE dbcsr_methods,                   ONLY: dbcsr_data_hold,&
-                                             dbcsr_data_init,&
-                                             dbcsr_data_new,&
-                                             dbcsr_data_release,&
-                                             dbcsr_data_set_pointer,&
-                                             dbcsr_distribution_thread_dist,&
-                                             dbcsr_get_data_p,&
-                                             dbcsr_get_data_type
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_set_pointer, dbcsr_distribution, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_num_threads, &
+       dbcsr_distribution_thread_dist, dbcsr_get_data_p, dbcsr_get_data_type
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
+                                             dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
                                              dbcsr_obj,&
                                              dbcsr_scalar_type
@@ -42,6 +39,8 @@ MODULE dbcsr_iterator_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_iterator_operations'
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
+
+  INTEGER, PRIVATE, POINTER, SAVE      :: common_int_pointer
 
 
   PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_seek
@@ -116,38 +115,119 @@ CONTAINS
 !> \brief Sets up an iterator
 !> \param[out] iterator   the iterator
 !> \param[in] matrix      DBCSR matrix
-!> \param[in] shared      (optional) Threads do not iterator through
-!>                        the same matrix in a multi-threaded
-!>                        environment; default is TRUE. if the
-!>                        threaded distribution is defined.
+!> \param[in] shared      (optional) The matrix is shared between several
+!>                        iterators. Default is .TRUE.
+!> \param[in] dynamic     (optional) Threads are given blocks regardless of
+!>                        the thread distribution; default is .FALSE.
+!> \param[in] dynamic_byrows  (optional) Threads are given blocks regardless
+!>                            of the thread distribution, but still grouped
+!>                            by rows; default is .FALSE.
 !> \param[in] contiguous_pointers  (optional) Whether returned pointers need
 !>                                 to be contiguous; default is FALSE.
 !>
+!> \par Contiguous pointers
 !> Contiguous pointers may incur reallocation penalties but enable quick
 !> passing of arrays to routines with unspecified interfaces (i.e., direct
 !> calls to BLACS or MPI).
+!> \par Threading
+!>      The TYPE(dbcsr_iterator) variable should be thread-private.
+!> \par 
+!>      The iterator has several modes of operation when used with
+!>      OpenMP. Two options can be set to influence the behavior.
+!> \par Threading: shared vs. non-shared
+!>      The "shared" flag specifies that several threads will be
+!>      iterating through the same matrix.
+!>      - Sharing is the default when called from an active parallel
+!>        region. In the shared mode no two threads will receive the
+!>        same block; i.e., the work is split among the threads.
+!>      - If each (or one) thread needs to iterator through all blocks
+!>        then shared should be set to .FALSE.. (E.g., when called
+!>        from an enclosing MASTER region or when each thread has its
+!>        own matrix.)
+!> \par Threading in shared mode
+!>      When in shared mode there are three possibilities to select
+!>      how the blocks are distributed to the threads.
+!>      <DL>
+!>      <DT>Thread distribution</DT>
+!>      <DD>The default is to use the thread distribution. The thread
+!>          distribution statically maps rows to threads and should be
+!>          used whenever retaining a consistent mapping among
+!>          subsequent iterations is important.</DD>
+!>      <DT>Dynamic scheduling</DT>
+!>      <DD>If the dynamic flag is .TRUE., then blocks are given to
+!>          threads dynamically. By default the assignment is grouped
+!>          by rows (to minimize synchronization); however, if the
+!>          dynamic_byrows flag is .FALSE. then every block is
+!>          assigned dynamically.</DD></DL
 ! *****************************************************************************
-  SUBROUTINE dbcsr_iterator_start (iterator, matrix, shared,&
-       contiguous_pointers)
+  SUBROUTINE dbcsr_iterator_start (iterator, matrix, shared, dynamic,&
+       dynamic_byrows, contiguous_pointers)
     TYPE(dbcsr_iterator), INTENT(OUT)        :: iterator
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: shared, contiguous_pointers
+    LOGICAL, INTENT(IN), OPTIONAL            :: shared, dynamic, &
+                                                dynamic_byrows, &
+                                                contiguous_pointers
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: max_size
-    LOGICAL                                  :: share
+    TYPE(dbcsr_distribution_obj)             :: dist
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    share = .FALSE.
-!$  share = omp_get_num_threads() .GT. 1
-    IF (PRESENT (shared)) share = shared
-    ! Only allow sharing if there's a distribution defined.
-    share = share .AND.&
-         array_size (dbcsr_distribution_thread_dist (matrix%m%dist)) .GT. 0
-    iterator%shared = share
+    iterator%shared = .TRUE.
+!$  iterator%shared = omp_in_parallel()
+!$  CALL dbcsr_assert (omp_in_parallel(), "IMP", PRESENT (shared),&
+!$       dbcsr_warning_level, dbcsr_caller_error, routineN,&
+!$       "SHARED must be specified in OMP invocation.", __LINE__, error)
+    IF (PRESENT (shared)) iterator%shared = shared
+    iterator%dynamic = .TRUE.
+!$  iterator%dynamic = .FALSE.
+!$  IF (PRESENT (dynamic)) iterator%dynamic = dynamic
+    IF (PRESENT (dynamic_byrows)) THEN
+       iterator%dynamic_byrows = dynamic_byrows
+       IF (iterator%dynamic_byrows) iterator%dynamic = .TRUE.
+    ELSE
+       iterator%dynamic_byrows = iterator%dynamic
+       !$iterator%dynamic_byrows = iterator%dynamic
+    ENDIF
+!$  IF (.NOT.iterator%shared) THEN
+!$     iterator%dynamic = .FALSE.
+!$  ENDIF
+    dist = dbcsr_distribution (matrix)
+!$  CALL dbcsr_assert (dbcsr_distribution_has_threads(dist),&
+!$       dbcsr_warning_level, dbcsr_internal_error, routineN,&
+!$       "Thread distribution should be defined for OpenMP.",&
+!$       __LINE__, error=error)
+    CALL dbcsr_assert (.NOT.iterator%dynamic, "IMP",&
+         dbcsr_distribution_has_threads(dist),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Thread distribution must be defined for non-dynamic iterator.",&
+         __LINE__, error=error)
+!$  IF (omp_in_parallel ()) &
+!$     CALL dbcsr_assert (omp_get_num_threads(), "EQ",&
+!$          dbcsr_distribution_num_threads(dist),&
+!$          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+!$          "Number of threads has changed!", __LINE__, error=error)
+    !Synchronize the positions
+    NULLIFY (iterator%common_pos)
+    IF (iterator%dynamic) THEN
+       !$OMP BARRIER
+       !$OMP MASTER
+       ALLOCATE (iterator%common_pos)
+       common_int_pointer => iterator%common_pos
+       common_int_pointer = 0
+       !$OMP FLUSH (common_int_pointer)
+       !$OMP END MASTER
+       !$OMP BARRIER
+       IF (.NOT. ASSOCIATED (iterator%common_pos)) THEN
+          iterator%common_pos => common_int_pointer
+       ENDIF
+       !$OMP BARRIER
+    ENDIF
+    !
     IF (PRESENT (contiguous_pointers)) THEN
        iterator%contiguous_pointers = contiguous_pointers
     ELSE
@@ -170,8 +250,6 @@ CONTAINS
     iterator%max_r_size = matrix%m%max_rbs
     iterator%max_c_size = matrix%m%max_cbs
 
-    ! Can't do that because fortran forces us lose the matrix reference.
-    !CALL dbcsr_hold (matrix)
     iterator%row_p => matrix%m%row_p
     iterator%col_i => matrix%m%col_i
     iterator%blk_p => matrix%m%blk_p
@@ -180,29 +258,12 @@ CONTAINS
     CALL dbcsr_data_hold (iterator%data_area)
 !$omp end critical
     iterator%row_size = 0
-    IF (iterator%shared) THEN
-       iterator%tdist => array_data (dbcsr_distribution_thread_dist (matrix%m%dist))
+    IF (.NOT. iterator%dynamic) THEN
+       iterator%tdist => array_data (dbcsr_distribution_thread_dist (dist))
     ELSE
        NULLIFY (iterator%tdist)
     ENDIF
     CALL dbcsr_iterator_seek (iterator, 1)
-    !IF (matrix%m%nblks .GE. 1) THEN
-    !   iterator%row = 1
-    !   iterator%pos = 1
-    !   IF (.NOT. iterator%shared) THEN
-    !      CALL find_proper_position(iterator%pos,&
-    !           iterator%row, iterator%nblks, iterator%nblkrows_total,&
-    !           iterator%blk_p, iterator%row_p)
-    !   ELSE
-    !      ithread = 0
-!$  !      ithread = OMP_GET_THREAD_NUM()
-    !      CALL find_proper_position(iterator%pos,&
-    !           iterator%row, iterator%nblks, iterator%nblkrows_total,&
-    !           iterator%blk_p, iterator%row_p,&
-    !           tdist=iterator%tdist, tid=ithread)
-    !   ENDIF
-    !   CALL update_row_info (iterator)
-    !ENDIF
     max_size = MAX (matrix%m%max_rbs, matrix%m%max_cbs)
     CALL dbcsr_data_init(iterator%buffer_2d)
     CALL dbcsr_data_new(iterator%buffer_2d,&
@@ -233,6 +294,15 @@ CONTAINS
 !$omp critical
     CALL dbcsr_data_release (iterator%data_area)
 !$omp end critical
+    IF (iterator%dynamic) THEN
+       !$OMP BARRIER
+       !$OMP MASTER
+       common_int_pointer => iterator%common_pos
+       DEALLOCATE (common_int_pointer)
+       !$OMP END MASTER
+       !$OMP BARRIER
+       NULLIFY (iterator%common_pos)
+    ENDIF
   END SUBROUTINE dbcsr_iterator_stop
 
 
@@ -372,6 +442,78 @@ CONTAINS
   END SUBROUTINE find_proper_position
 
 ! *****************************************************************************
+!> \brief Advances to the next block
+!> \param[in,out] iterator     the iterator
+! *****************************************************************************
+  SUBROUTINE iterator_advance (iterator)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+
+    INTEGER                                  :: ithread, my_old_row, next_row
+    LOGICAL                                  :: advance, jumped_row
+
+!   ---------------------------------------------------------------------------
+
+    ithread = 0
+!$  ithread = omp_get_thread_num()
+    IF (iterator%dynamic .AND. iterator%shared) THEN
+       IF (iterator%dynamic_byrows) THEN
+          ! The idea is to advance in this thread's row. If it gets bumped
+          ! into the next row, then we have to find the correct one.
+          advance = .TRUE.
+          DO WHILE (advance)
+             iterator%pos = iterator%pos + 1
+             my_old_row = iterator%row
+             CALL find_proper_position(iterator%pos,&
+                  iterator%row, iterator%nblks, iterator%nblkrows_total,&
+                  iterator%blk_p, iterator%row_p)
+             jumped_row = iterator%row .GT. my_old_row
+             advance = .FALSE.
+             !$OMP CRITICAL
+             IF (jumped_row) THEN
+                next_row = MAX(iterator%common_pos+1, iterator%row) &
+                     - iterator%common_pos
+                !$OMP ATOMIC
+                iterator%common_pos = iterator%common_pos+next_row
+                iterator%row = iterator%common_pos
+                IF (iterator%row .GT. iterator%nblkrows_total) THEN
+                   iterator%pos = iterator%nblks+1
+                ELSE
+                   iterator%pos = iterator%row_p(iterator%row)
+                ENDIF
+                advance = .TRUE.
+             ENDIF
+             !$OMP END CRITICAL
+          ENDDO
+       ELSE
+          !$OMP CRITICAL
+          !$OMP ATOMIC
+          iterator%common_pos = iterator%common_pos + 1
+          CALL find_proper_position(iterator%common_pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p)
+          ! This seems to be the most efficient way
+          iterator%pos = iterator%common_pos
+          !$OMP ATOMIC
+          iterator%common_pos = MAX(iterator%common_pos, 0)
+          !$OMP END CRITICAL
+       ENDIF
+    ELSEIF (iterator%shared) THEN
+       iterator%pos = iterator%pos+1
+       ithread = 0
+!$     ithread = OMP_GET_THREAD_NUM()
+       CALL find_proper_position(iterator%pos,&
+            iterator%row, iterator%nblks, iterator%nblkrows_total,&
+            iterator%blk_p, iterator%row_p,&
+            tdist=iterator%tdist, tid=ithread)
+    ELSE
+       iterator%pos = iterator%pos+1
+       CALL find_proper_position(iterator%pos,&
+            iterator%row, iterator%nblks, iterator%nblkrows_total,&
+            iterator%blk_p, iterator%row_p)
+    ENDIF
+  END SUBROUTINE iterator_advance
+
+! *****************************************************************************
 !> \brief Updates the row info stored in the iterator
 !> \note Added to handle the complexity introduced with the transpose
 !> \param[in,out] iterator     the iterator
@@ -402,25 +544,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_seek', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ithread
-
 !   ---------------------------------------------------------------------------
 
     IF (iterator%nblks .GT. 0) THEN
        iterator%row = row
-       iterator%pos = iterator%row_p(row)+1
-       IF (.NOT.iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
+       ! This line is replaced because iterator_advance increments the block
+       ! number
+       !iterator%pos = iterator%row_p(row)+1
+       iterator%pos = iterator%row_p(row)  ! +1-1
+       CALL iterator_advance (iterator)
        CALL update_row_info (iterator)
     ELSE
        iterator%row = 0
@@ -453,7 +585,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_index', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bp, ithread
+    INTEGER                                  :: bp
 
 !   ---------------------------------------------------------------------------
 
@@ -472,23 +604,7 @@ CONTAINS
           IF (PRESENT (blk_p)) blk_p = bp
           IF (PRESENT (transposed)) transposed = bp .LT. 0
        ENDIF
-       iterator%pos = iterator%pos+1
-       IF (.NOT.iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
-       !CALL find_first_valid_block (iterator%pos, iterator%nblks,&
-       !     iterator%blk_p)
-       !CALL find_proper_row (iterator%pos, iterator%row,&
-       !     iterator%nblkrows_total, iterator%row_p)
+       CALL iterator_advance (iterator)
        CALL update_row_info (iterator)
     ELSE
        row = 0
@@ -522,8 +638,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_area_block', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize
+    INTEGER                                  :: blk_p, bp, csize, nze, rsize
 
 !   ---------------------------------------------------------------------------
 
@@ -548,19 +663,7 @@ CONTAINS
             source_lb=bp)
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
-       iterator%pos = iterator%pos+1
-       IF (.NOT. iterator%shared) THEN
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
-       ELSE
-          ithread = 0
-!$        ithread = OMP_GET_THREAD_NUM()
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p,&
-               tdist=iterator%tdist, tid=ithread)
-       ENDIF
+       CALL iterator_advance (iterator)
        CALL update_row_info (iterator)
     ELSE
        row = 0

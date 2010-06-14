@@ -913,7 +913,7 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: received_data_area, &
                                                 recv_data_area, send_data_area
     TYPE(dbcsr_distribution_obj)             :: old_dist, target_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
+    TYPE(dbcsr_error_type)                   :: dbcsr_error, t_error
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj
     TYPE(dbcsr_type)                         :: sm
@@ -1004,9 +1004,28 @@ CONTAINS
     ALLOCATE (rm_disp(0:numproc-1))
     ithread = 0
     nthreads = 1
-    release_td = .NOT.dbcsr_distribution_has_threads (old_dist)
+    release_td = .FALSE.
+!$  IF (.NOT. dbcsr_distribution_has_threads (old_dist)) THEN
+!$     CALL dbcsr_distribution_make_threads (old_dist)
+!$     release_td = .TRUE.
+!$  ENDIF
+!$  CALL dbcsr_assert (dbcsr_distribution_has_threads (old_dist),&
+!$       dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+!$       "Thread distribution not defined", __LINE__, error=error)
+    DO row_img = 1, nrow_images
+       DO col_img = 1, ncol_images
+          CALL dbcsr_init (ums%mats(row_img, col_img))
+          CALL dbcsr_create(ums%mats(row_img, col_img), "imaged "//sm%name,&
+               target_dist,&
+               dbcsr_type_normal, sm%row_blk_size, sm%col_blk_size,&
+               0,0, sm%data_type, special=special, error=dbcsr_error)
+          ums%mats(row_img, col_img)%m%negate_real = sm%negate_real
+          ums%mats(row_img, col_img)%m%negate_imaginary = sm%negate_imaginary
+          ums%mats(row_img, col_img)%m%transpose = sm%transpose
+       ENDDO
+    ENDDO
 !$omp parallel default (none) &
-!$omp private (ithread,&
+!$omp private (ithread, t_error, &
 !$omp          row_img, col_img, iter,&
 !$omp          myt_send_count, myt_total_send_count, &
 !$omp          prev_dst_p, dst_p, same_dst_p, &
@@ -1014,7 +1033,7 @@ CONTAINS
 !$omp          prev_blk_p, blk_p, tr, data_p, stored_blk_p, &
 !$omp          prow, pcol, vcol, vrow, i, j, nze, bp, sm_pos, sd_pos,&
 !$omp          lsmp, lsdp) &
-!$omp shared (nthreads, dbcsr_error, dbg, nocopy, release_td,&
+!$omp shared (nthreads, dbcsr_error, dbg, nocopy, release_td, &
 !$omp         nrow_images, ncol_images, &
 !$omp         ums, sm, ism, target_dist, special, predist, predistribute, &
 !$omp         old_dist, &
@@ -1028,24 +1047,14 @@ CONTAINS
 !$omp         recv_data_area, received_data_area, &
 !$omp         blk_ps, blks, nsymmetries)
 !$  ithread = omp_get_thread_num()
-!$  IF (release_td) THEN
+!$  IF (release_td) THEN !@@@
+!$     CALL dbcsr_assert (.NOT.release_td, dbcsr_fatal_level, dbcsr_internal_error,&
+!$     routineN, "No thread distribution defined", __LINE__, error=dbcsr_error)
 !$     CALL dbcsr_distribution_make_threads (old_dist)
 !$  ENDIF
     ! Create and allocate the imaged matrices.
 !$omp single
 !$  nthreads = omp_get_num_threads()
-    DO row_img = 1, nrow_images
-       DO col_img = 1, ncol_images
-          CALL dbcsr_init (ums%mats(row_img, col_img))
-          CALL dbcsr_create(ums%mats(row_img, col_img), "imaged "//sm%name,&
-               target_dist,&
-               dbcsr_type_normal, sm%row_blk_size, sm%col_blk_size,&
-               0,0, sm%data_type, special=special, error=dbcsr_error)
-          ums%mats(row_img, col_img)%m%negate_real = sm%negate_real
-          ums%mats(row_img, col_img)%m%negate_imaginary = sm%negate_imaginary
-          ums%mats(row_img, col_img)%m%transpose = sm%transpose
-       ENDDO
-    ENDDO
     ! C
 !$omp end single nowait
     ALLOCATE (myt_send_count(2, nrow_images, ncol_images, 0:numproc-1))
@@ -1056,7 +1065,7 @@ CONTAINS
 !$omp end single nowait
     prev_dst_p = -1
     ! Count sizes for sending.
-    CALL dbcsr_iterator_start(iter, ism)
+    CALL dbcsr_iterator_start(iter, ism, shared=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk)
        DO symmetry_i = 1, nsymmetries
@@ -1206,11 +1215,14 @@ CONTAINS
     CALL dbcsr_data_hold(received_data_area)
     !received_data_area%d%r_dp => recv_data
 !$omp end single
+    t_error = dbcsr_error
 !$omp do
     DO row_img = 1, nrow_images
        DO col_img = 1, ncol_images
+!$omp parallel num_threads(1)
           CALL dbcsr_work_create(ums%mats(row_img, col_img),&
-               SUM(recv_count(1,row_img,col_img,:)), n=1, error=dbcsr_error)
+               SUM(recv_count(1,row_img,col_img,:)), n=1, error=t_error)
+!$omp end parallel
 !$omp critical
           CALL dbcsr_data_hold (received_data_area)
 !$omp end critical
@@ -1220,7 +1232,7 @@ CONTAINS
     ENDDO
     prev_dst_p = -1
     ! Copies metadata and actual data to be sent into the send buffers.
-    CALL dbcsr_iterator_start(iter, ism)
+    CALL dbcsr_iterator_start(iter, ism, shared=.TRUE.)
     prev_blk_p = 0
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, blk, blk_p=blk_p)
@@ -1918,8 +1930,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_col, blk_row, col_offset, col_size, row_offset, row_size, &
-      target_cs, target_offset, target_rs, tco, tro
+    INTEGER :: blk_col, blk_row, col_offset, col_size, error_handle, &
+      row_offset, row_size, target_cs, target_offset, target_rs, tco, tro
     LOGICAL                                  :: jcols, jrows, mktr, tr
     TYPE(dbcsr_data_obj)                     :: block, dense2d
     TYPE(dbcsr_error_type)                   :: error
@@ -1927,6 +1939,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set (routineN, error_handle, error)
     CALL dbcsr_assert (dbcsr_get_data_size (dense_data), 'GE',&
          nfullrows*nfullcols,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -1944,17 +1957,23 @@ CONTAINS
     CALL dbcsr_data_clear (dense_data)
     IF (dbcsr_get_data_size(matrix%m%data_area) .GT. 0&
          .AND. nfullrows .GT. 0 .AND. nfullcols .GT. 0) THEN
+!$OMP PARALLEL DEFAULT(none) &
+!$OMP PRIVATE (block, iter, dense2d, &
+!$OMP         target_rs, target_cs, blk_row, blk_col, tr, row_size, col_size,&
+!$OMP         row_offset, col_offset, tro, tco, target_offset) &
+!$OMP SHARED (error,&
+!$OMP         dense_data, matrix, &
+!$OMP         mktr, jrows, jcols, &
+!$OMP         nfullrows, nfullcols)
        CALL dbcsr_data_init (block)
        CALL dbcsr_data_new (block,&
          dbcsr_type_1d_to_2d(dbcsr_get_data_type(dense_data)))
        CALL dbcsr_data_init (dense2d)
        CALL dbcsr_data_new (dense2d, dbcsr_type_1d_to_2d(dbcsr_get_data_type(dense_data)))
-       !CALL dbcsr_data_set_pointer (dense2d, rsize=nfullrows, csize=nfullcols,&
-       !     pointee=dense_data)
        target_rs = nfullrows
        target_cs = nfullcols
        IF (mktr) CALL swap (target_rs, target_cs)
-       CALL dbcsr_iterator_start (iter, matrix)
+       CALL dbcsr_iterator_start (iter, matrix, dynamic=.TRUE., shared=.TRUE.)
        DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block (iter, blk_row, blk_col, block, tr,&
                row_size=row_size, col_size=col_size)
@@ -2021,7 +2040,9 @@ CONTAINS
        CALL dbcsr_data_release (block)
        CALL dbcsr_data_clear_pointer (dense2d)
        CALL dbcsr_data_release (dense2d)
+!$OMP END PARALLEL
     ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE make_dense_data
 
 ! *****************************************************************************
@@ -2055,6 +2076,13 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Dense data too small",__LINE__,error)
     IF (dbcsr_get_data_size(matrix%m%data_area) .GT. 0) THEN
+!$OMP PARALLEL DEFAULT(none) &
+!$OMP PRIVATE (block, dense2d, iter,&
+!$OMP          blk_row, blk_col, tr,&
+!$OMP          row_size, col_size, row_offset, col_offset) &
+!$OMP SHARED (error,&
+!$OMP         matrix, dense_data, &
+!$OMP         nfullrows, nfullcols, row_blk_offsets, col_blk_offsets)
        CALL dbcsr_data_clear (matrix%m%data_area)
        CALL dbcsr_data_init (block)
        CALL dbcsr_data_new (block,&
@@ -2064,7 +2092,7 @@ CONTAINS
             dbcsr_type_1d_to_2d (dbcsr_get_data_type(dense_data)))
        CALL dbcsr_data_set_pointer (dense2d, rsize=nfullrows, csize=nfullcols,&
             pointee=dense_data)
-       CALL dbcsr_iterator_start (iter, matrix)
+       CALL dbcsr_iterator_start (iter, matrix, dynamic=.TRUE., shared=.TRUE.)
        DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block (iter, blk_row, blk_col, block, tr,&
                row_size=row_size, col_size=col_size)
@@ -2088,6 +2116,7 @@ CONTAINS
        CALL dbcsr_data_release (block)
        CALL dbcsr_data_clear_pointer (dense2d)
        CALL dbcsr_data_release (dense2d)
+!$OMP END PARALLEL
     ENDIF
   END SUBROUTINE make_undense_data
 

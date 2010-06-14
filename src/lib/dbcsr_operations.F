@@ -66,23 +66,23 @@ MODULE dbcsr_operations
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_set_pointer, dbcsr_destroy, dbcsr_destroy_array, &
        dbcsr_destroy_image_dist, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_no_threads, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-       dbcsr_get_num_blocks, dbcsr_get_replication_type, dbcsr_has_symmetry, &
-       dbcsr_init, dbcsr_is_initialized, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_may_be_dense, dbcsr_mp_grid_setup, &
-       dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
-       dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_name, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_row_block_sizes, dbcsr_scalar, &
-       dbcsr_scalar_are_equal, dbcsr_scalar_one, dbcsr_scalar_zero, &
-       dbcsr_type_1d_to_2d, dbcsr_valid_index
+       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
+       dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_no_threads, dbcsr_distribution_release, &
+       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
+       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_init, &
+       dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
+       dbcsr_may_be_dense, dbcsr_mp_grid_setup, dbcsr_mp_group, &
+       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
+       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
+       dbcsr_scalar_zero, dbcsr_type_1d_to_2d, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
                                              dbcsr_send_any
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
@@ -338,7 +338,8 @@ CONTAINS
                                                 f_row, i, l_col, l_k, l_row
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, left_set_given, &
-      new_left, new_right, product_reindex, right_set_given, use_dense_mult
+      new_left, new_right, product_reindex, release_tdist, right_set_given, &
+      use_dense_mult
     REAL(KIND=dp)                            :: cs
     TYPE(array_i1d_obj) :: old_product_col_blk_offsets, &
       old_product_col_blk_sizes, old_product_row_blk_offsets, &
@@ -564,10 +565,18 @@ CONTAINS
        CALL dbcsr_distribution_hold (old_product_distribution)
        CALL dbcsr_make_dense (product_matrix, error=error)
     ENDIF
-!$omp parallel default (none) shared (product_matrix, error, i)
     ! The thread distribution must reflect the current (possibly
     ! dense) distribution
-    CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
+    !CALL dbcsr_assert (dbcsr_distribution_has_threads(product_matrix%m%dist),&
+    !     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+    !     "Thread distribution not defined.", __LINE__, error=error)
+    IF (.NOT. dbcsr_distribution_has_threads(product_matrix%m%dist)) THEN
+       release_tdist = .TRUE.
+       CALL dbcsr_distribution_make_threads (product_matrix%m%dist)
+    ELSE
+       release_tdist = .FALSE.
+    ENDIF
+!$omp parallel default (none) shared (product_matrix, error, i)
 !$omp single
     i = 1
 !$  i = omp_get_num_threads()
@@ -690,7 +699,9 @@ CONTAINS
     !
     IF (new_left) CALL dbcsr_release (matrix_left)
     IF (new_right) CALL dbcsr_release (matrix_right)
-    CALL dbcsr_distribution_no_threads (product_matrix%m%dist)
+    IF (release_tdist) THEN
+       CALL dbcsr_distribution_no_threads (product_matrix%m%dist)
+    ENDIF
     ! The index of the product matrix is reset to the CP2K form if it
     ! was previously set to the canonical form.
     IF (product_reindex) THEN

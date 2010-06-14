@@ -100,7 +100,6 @@ MODULE dbcsr_types
      INTEGER                            :: mynode, numnodes, myprow, mypcol
      INTEGER                            :: mp_group
      INTEGER, DIMENSION(:,:), POINTER   :: pgrid
-     INTEGER                            :: numthreads
      INTEGER                            :: refcount
      LOGICAL                            :: subgroups_defined
      INTEGER                            :: prow_group, pcol_group
@@ -127,6 +126,7 @@ MODULE dbcsr_types
 !> \var local_cols            list of columns local to the processor grid
 !>                            column
 !> \var thread_dist           thread distribution (of the rows)
+!> \var numthreads            number of threads in the environment
 !> \var mp_env                mulitprocessor environment on which the
 !>                            distribution is based
 !> \var refcount              reference counter
@@ -136,6 +136,7 @@ MODULE dbcsr_types
      TYPE(array_i1d_obj)               :: row_dist, col_dist
      TYPE(array_i1d_obj)               :: local_rows, local_cols
      TYPE(array_i1d_obj)               :: thread_dist
+     INTEGER                           :: num_threads
      TYPE(dbcsr_mp_obj)                :: mp_env
      INTEGER                           :: refcount
   END TYPE dbcsr_distribution_type
@@ -258,6 +259,11 @@ MODULE dbcsr_types
 !> \var roff, coff       Pointer to row and column offset array
 !> \var contiguous_pointers   Whether pointers to data should be contiguous
 !>                            in memory.
+!> \var shared           Iterators share matrix
+!> \var dynamic          Ignores the thread distribution (FCFS by block)
+!> \var dynamic_byrows   Ignores the thread distribution (FCFS by row)
+!> \var common_pos       Position when in mixed mode (row or block
+!>                       depending in dynamic_byrows
 ! *****************************************************************************
   TYPE dbcsr_iterator
      !TYPE(dbcsr_obj)                               :: matrix
@@ -269,7 +275,9 @@ MODULE dbcsr_types
      INTEGER                                        :: pos, row, row_size, &
           row_offset
      INTEGER, DIMENSION(:), POINTER :: rbs, cbs, roff, coff
-     LOGICAL            :: contiguous_pointers, shared, transpose
+     LOGICAL            :: contiguous_pointers, transpose
+     LOGICAL            :: shared, dynamic, dynamic_byrows
+     INTEGER, POINTER   :: common_pos
      ! Copies from the matrix.
      INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
      INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p, tdist

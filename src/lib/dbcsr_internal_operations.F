@@ -47,17 +47,18 @@ MODULE dbcsr_internal_operations
        dbcsr_col_block_sizes, dbcsr_data_clear_pointer, &
        dbcsr_data_ensure_size, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_destroy_array, &
-       dbcsr_distribution, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_get_data_size, &
-       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_init, &
-       dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
-       dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
-       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_local, dbcsr_nfullrows_local, dbcsr_row_block_sizes, &
-       dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
-       dbcsr_scalar_zero, dbcsr_set_data_size_referenced, dbcsr_valid_index
+       dbcsr_distribution, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+       dbcsr_get_data_size, dbcsr_get_data_size_referenced, &
+       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_init, dbcsr_mp_grid_setup, dbcsr_mp_group, &
+       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_local, dbcsr_nfullrows_local, &
+       dbcsr_row_block_sizes, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
+       dbcsr_scalar_one, dbcsr_scalar_zero, dbcsr_set_data_size_referenced, &
+       dbcsr_valid_index
 
 !$ USE dbcsr_methods, ONLY: dbcsr_distribution_thread_dist
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
@@ -1105,6 +1106,9 @@ CONTAINS
     right_col_blk_offset => array_data (right%col_blk_offset)
     product_col_blk_offset => array_data (product%col_blk_offset)
 !$  NULLIFY (product_thread_dist)    
+!$  CALL dbcsr_assert (dbcsr_distribution_has_threads (product%dist),&
+!$       dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+!$       "Missing thread distribution.", __LINE__, error=error)
 !$  product_thread_dist => array_data (&
 !$       dbcsr_distribution_thread_dist (product%dist))
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
@@ -1171,7 +1175,7 @@ CONTAINS
     DO a_row_l = 1, left%nblkrows_local
        a_row_logical = left_local_rows (a_row_l)
 !$     IF (product_thread_dist(a_row_logical) .ne. ithread) CYCLE
-       IF (dbg) WRITE(*,*)routineN//" A row", a_row_logical
+       IF (dbg) WRITE(*,*)ithread,routineN//" A row", a_row_logical
        blk_start = left_row_blk_offset(a_row_logical)
        blk_end = left_row_blk_offset(a_row_logical+1)-1
        blk_size = left_row_blk_offset(a_row_logical+1) - blk_start
@@ -1207,12 +1211,12 @@ CONTAINS
        ENDDO
        size_c_blk_ps = 0
        ! Fill in the c_blk_ps array
-       IF (dbg) WRITE(*,*)routineN//" old_blk, old_size, old_row_begin_blk",&
+       IF (dbg) WRITE(*,*)ithread,routineN//" old_blk, old_size, old_row_begin_blk",&
             old_blk,old_size,old_row_begin_blk
        IF (old_blk .LE. old_size) THEN
           ! Old index
           DO WHILE (product%wms(ithread+1)%row_i(old_blk) .LE. a_row_logical) ! EQ
-             DBG "Adding c_blk_ps column",&
+             IF (dbg) WRITE(*,*)ithread,routineN//" Adding c_blk_ps column",&
                   product%wms(ithread+1)%col_i(old_blk),&
                   product%wms(ithread+1)%blk_p(old_blk)
              c_col_logical = product%wms(ithread+1)%col_i(old_blk)
@@ -1228,7 +1232,7 @@ CONTAINS
           ENDDO
        ENDIF
        IF (dbg) THEN
-          WRITE(*,*)routineN//" c_blk_ps="
+          WRITE(*,*)ithread,routineN//" c_blk_ps="
           WRITE(*,'(10(1X,I7))')c_blk_ps
        ENDIF
        c_row_logical = a_row_logical
@@ -1239,7 +1243,7 @@ CONTAINS
           ENDIF
           old_blk = old_row_begin_blk
           a_col_logical = left%col_i(a_blk)
-          IF (dbg) WRITE(*,*)routineN//" A col", a_col_logical,";",a_row_logical
+          IF (dbg) WRITE(*,*)ithread,routineN//" A col", a_col_logical,";",a_row_logical
           blk_start = left_col_blk_offset (a_col_logical)
           blk_end = left_col_blk_offset (a_col_logical+1)-1
           IF (limit_k) THEN
@@ -1415,7 +1419,7 @@ CONTAINS
                      stack_p,&
                      stack_p_a, stack_p_b, stack_p_c)
              ENDIF
-             IF (dbg) WRITE(*,*)routineN//"  After merge, stack pointer is at",stack_p
+             !IF (dbg) WRITE(*,*)routineN//"  After merge, stack pointer is at",stack_p
              flush_stack = (stack_p .GE. dgemm_stack_size-1)
              IF (flush_stack) THEN
                 !IF (dbg) WRITE(*,*)routineN//" Processing stack at", stack_p

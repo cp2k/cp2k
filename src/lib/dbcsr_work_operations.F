@@ -43,7 +43,8 @@ MODULE dbcsr_work_operations
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_destroy_array, dbcsr_destroy_image_dist, &
-       dbcsr_distribution_hold, dbcsr_distribution_release, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
+       dbcsr_distribution_make_threads, dbcsr_distribution_release, &
        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_num_blocks, &
        dbcsr_init, dbcsr_is_initialized, dbcsr_modify_lock, &
        dbcsr_modify_unlock, dbcsr_mutable_destroy, dbcsr_mutable_init, &
@@ -64,6 +65,7 @@ MODULE dbcsr_work_operations
        dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_work_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
+                                             dbcsr_checksum,&
                                              dbcsr_set_debug,&
                                              dbcsr_unpack_i8_2i4,&
                                              dbcsr_verify_matrix,&
@@ -241,6 +243,10 @@ CONTAINS
 
     matrix%m%dist = dist
     CALL dbcsr_distribution_hold (matrix%m%dist)
+!$  IF (.NOT. dbcsr_distribution_has_threads (matrix%m%dist)) THEN
+!$     CALL dbcsr_distribution_make_threads (matrix%m%dist,&
+!$          array_data(matrix%m%row_blk_size))
+!$  ENDIF
     ! Set up some data.
     CALL meta_from_dist (new_meta, dist, row_blk_size, col_blk_size)
     matrix%m%nblkrows_total  = new_meta(dbcsr_slot_nblkrows_total )
@@ -541,7 +547,7 @@ CONTAINS
 !$        ENDDO
 !$     ENDIF
        IF (nwms .EQ. 1) THEN
-          ! Count the data that is must actually be added. This
+          ! Count the data that must actually be added. This
           ! prevents the finalized matrix from having unused space.
           CALL dbcsr_add_wm_from_matrix (matrix, new_nwms=nwms,&
                error=error)
@@ -658,6 +664,10 @@ CONTAINS
     matrix%m%valid = .TRUE.
     IF (dbg) CALL dbcsr_verify_matrix (matrix, error=error)
 !$omp end single
+!$OMP MASTER
+    IF (dbg) WRITE(*,*)routineN//" Checksum",&
+         dbcsr_checksum (matrix, error=error, local=.TRUE.), matrix%m%name
+!$OMP END MASTER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_finalize
 
@@ -1010,8 +1020,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_merge_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk, blk_p, error_handler, i, nwms, nze, o_blk_p, prev_row, &
-      referenced, smallest, smallest_col, smallest_row
+    INTEGER                                  :: blk, blk_p, i, nwms, nze, &
+                                                o_blk_p, prev_row, &
+                                                referenced, smallest, &
+                                                smallest_col, smallest_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wm_blk_p
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: srt, wspecial
@@ -1022,7 +1034,7 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    !CALL dbcsr_error_set(routineN, error_handler, error)
     srt = .FALSE.
     IF (PRESENT (sort_data)) srt = sort_data
     rbs => array_data (matrix%row_blk_size)
@@ -1156,7 +1168,7 @@ CONTAINS
     IF (dbg) WRITE(*,*)routineP//'row_p=',matrix%row_p(:)
     IF (dbg) WRITE(*,*)routineP//'col_i=',matrix%col_i(:)
     IF (dbg) WRITE(*,*)routineP//'blk_p=',matrix%blk_p(:)
-    CALL dbcsr_error_stop(error_handler, error)
+    !CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_merge_data
 
 
