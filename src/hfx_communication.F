@@ -117,7 +117,7 @@ MODULE hfx_communication
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     i=1
-    CALL dbcsr_iterator_start(iter, rho)
+    CALL dbcsr_iterator_start(iter, rho, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
 
@@ -279,7 +279,7 @@ MODULE hfx_communication
     CALL mp_sync(para_env%group)
 
     i = 1
-    CALL dbcsr_iterator_start(iter, ks_matrix)
+    CALL dbcsr_iterator_start(iter, ks_matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
 
@@ -495,7 +495,7 @@ MODULE hfx_communication
     !
     ! count number_of_p_blocks and number_of_p_entries
     !
-    CALL dbcsr_iterator_start(iter, matrix)
+    CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
        ikind = kind_of(iatom)
@@ -524,7 +524,7 @@ MODULE hfx_communication
     buffer_in=0
     ibuf=0
 
-    CALL dbcsr_iterator_start(iter, matrix)
+    CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
 
@@ -613,7 +613,6 @@ IF( ASSOCIATED(map_atoms_to_cpus) ) THEN
       END DO
     END DO
     block_offset(ncpu+1) = offset
-
     set_offset = 0
     DO ikind=1,nkind
       nseta = basis_parameter(ikind)%nset
