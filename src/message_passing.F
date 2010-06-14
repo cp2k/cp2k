@@ -473,8 +473,21 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: mp_comm
 #if defined(__parallel)
     INTEGER                                  :: ierr
-    CALL mpi_init ( ierr )
-    IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init @ mp_world_init" )
+!$  INTEGER                                  :: provided_tsl
+
+!   For now we call mpi_init instead of mpi_init_thread
+!$  IF (.TRUE.) THEN
+       CALL mpi_init ( ierr )
+       IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init @ mp_world_init" )
+!$  ELSE
+!$OMP MASTER
+!$     CALL mpi_init_thread (MPI_THREAD_MULTIPLE, provided_tsl, ierr)
+!$     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_init_thread @ mp_world_init" )
+!$     IF (provided_tsl .LT. MPI_THREAD_FUNNELED) THEN
+!$        CALL mp_stop (0, "Inadequate level of thread support is provided.")
+!$     ENDIF
+!$OMP END MASTER
+!$  ENDIF
     CALL mpi_errhandler_set ( MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr )
     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_errhandler_set @ mp_world_init" )
     mp_comm = MPI_COMM_WORLD
