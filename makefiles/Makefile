@@ -234,7 +234,14 @@ endif
 # a hack to first compile the src/lib/ stuff before files from src/
 # otherwise we have missing dependencies
 #
-$(OBJECTS): $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
+ifneq ($(HACKLIBDEP),yes)
+LIB_OBJECTS = $(LIB3_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE)
+else
+LIB_OBJECTS =
+endif
+
+$(OBJECTS): $(LIB_OBJECTS)
+
 
 $(LIB_CP2K_ARCHIVE): $(OBJECTS)
 	$(AR) $(LIB_CP2K_ARCHIVE) $?
