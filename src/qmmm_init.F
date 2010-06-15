@@ -879,6 +879,7 @@ CPSourceFileRef,&
           IF (PRESENT(qm_atom_index)) THEN
              CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index,&
                   error=error)
+             CPPostcondition(ALL(qm_atom_index/=mm_index),cp_failure_level,routineP,error,failure)
              qm_atom_index(num_qm_atom_tot:num_qm_atom_tot )  = mm_index
              num_qm_atom_tot = num_qm_atom_tot + 1
           END IF
