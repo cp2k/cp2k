@@ -156,6 +156,7 @@ CONTAINS
        IF (atom_bond_list(i)%array1(j)<=i) CYCLE
        CALL generate_molname_low(atom_bond_list(i)%array1(j), atom_bond_list, molname,&
                                  label_molname, error)
+       atom_bond_list(i)%array1(j)=-1
     END DO
   END SUBROUTINE generate_molname_low
 
