@@ -1311,7 +1311,6 @@ MODULE hfx_types
       END DO
   
       R_max = 2.0_dp*R_max + x_data%potential_parameter%cutoff_radius
-
       nothing_more_to_add = .FALSE.
       max_shell = 0
       total_number_of_cells = 0
@@ -1502,7 +1501,9 @@ MODULE hfx_types
           END IF
     
           dist_min=MINVAL(distance)
-          IF( max_shell == 0) image_cell_found=.TRUE.
+          IF( max_shell == 0) THEN
+            image_cell_found=.TRUE.
+          END IF
           IF(dist_min<R_max)THEN
             total_number_of_cells = total_number_of_cells + 1
             x_data%neighbor_cells(ub)%cell = REAL((/ishell,jshell,kshell/),dp)
@@ -1519,7 +1520,6 @@ MODULE hfx_types
           nothing_more_to_add = .TRUE.
         END IF  
       END DO
-
       ! now remove what is not needed
       ALLOCATE(tmp_neighbor_cells(total_number_of_cells), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1528,11 +1528,22 @@ MODULE hfx_types
       END DO
       DEALLOCATE(x_data%neighbor_cells, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DO i=1,total_number_of_cells
-        x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
-      END DO
+      ! If we only need the supercell, total_number_of_cells is still 0, repair
+      IF( total_number_of_cells == 0 ) THEN
+        total_number_of_cells = 1
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO i=1,total_number_of_cells
+          x_data%neighbor_cells(i)%cell = 0.0_dp
+          x_data%neighbor_cells(i)%cell_r = 0.0_dp
+        END DO
+      ELSE
+        ALLOCATE(x_data%neighbor_cells(total_number_of_cells), STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO i=1,total_number_of_cells
+          x_data%neighbor_cells(i) = tmp_neighbor_cells(i)
+        END DO
+      END IF
       DEALLOCATE(tmp_neighbor_cells, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -1609,7 +1620,6 @@ MODULE hfx_types
     DO i=1,SIZE(x_data%neighbor_cells)
       R_max_stress = MAX(R_max_stress, MAXVAL(ABS(x_data%neighbor_cells(i)%cell_r(:))))
     END DO
-    
     R_max_stress = R_max_stress + ABS(MAXVAL(cell%hmat(:,:)))
     x_data%periodic_parameter%R_max_stress = R_max_stress
 
