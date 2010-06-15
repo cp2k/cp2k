@@ -808,7 +808,7 @@ CONTAINS
 !$omp private(dv_block,p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$omp private(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
 !$omp private(iset_new,jset_new,ipgf_new,jpgf_new,idir,dist), &
-!$omp private(had_thread_dist)
+!$omp private(had_thread_dist,itask)
 
     ithread = 0
 !$  ithread = omp_get_thread_num()

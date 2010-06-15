@@ -1555,7 +1555,7 @@ CONTAINS
 
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
 !$omp parallel do default(none) __COLLAPSE2 &
-!$omp             private(ixx,ir,iy,iz) &
+!$omp             private(ixx,ir,iy,iz,ix) &
 !$omp             shared(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb) 
     DO ip = 0, np - 1
        DO ix = 1, nx
@@ -1631,7 +1631,7 @@ CONTAINS
 
     nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
 !$omp parallel do default(none) __COLLAPSE2 &
-!$omp             private(ip, ixx, ir, iy, iz) &
+!$omp             private(ip, ixx, ir, iy, iz, ix) &
 !$omp             shared(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr)
     DO ip = 0, np - 1
        DO ix = 1, nx
@@ -1825,7 +1825,7 @@ CONTAINS
     my_id = 0
 
 !$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(tb,2))), &
-!$omp          private(my_id,num_threads,lb,ub,ipr,jj,ip,ir,jz,jy), &
+!$omp          private(my_id,num_threads,lb,ub,ipr,jj,ip,ir,jz,jy,jx), &
 !$omp          shared(tb,np,p2p,bo,rs_pos,nray,yzp,alltoall_sgl,zcor,myz,tq,rq,nz)
 !$  num_threads = omp_get_num_threads()
 !$  my_id = omp_get_thread_num()

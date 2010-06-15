@@ -1032,7 +1032,7 @@ CONTAINS
 !$omp          row, col, blk, symmetry_i, stored_row, stored_col, &
 !$omp          prev_blk_p, blk_p, tr, data_p, stored_blk_p, &
 !$omp          prow, pcol, vcol, vrow, i, j, nze, bp, sm_pos, sd_pos,&
-!$omp          lsmp, lsdp) &
+!$omp          lsmp, lsdp, t) &
 !$omp shared (nthreads, dbcsr_error, dbg, nocopy, release_td, &
 !$omp         nrow_images, ncol_images, &
 !$omp         ums, sm, ism, target_dist, special, predist, predistribute, &
