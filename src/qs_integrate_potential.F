@@ -931,12 +931,12 @@ CONTAINS
           ENDIF
 
           IF (debug_this_module) THEN
-!$omp critical (block_touched)
+!$omp critical (block_touched_critical)
             IF ((block_touched(brow,bcol).NE.ithread) .AND. (block_touched(brow,bcol).NE. -1) ) THEN
               CALL stop_program("Block has been modified by another thread", "Exiting...")
             END IF
             block_touched(brow,bcol) = ithread
-!$omp end critical (block_touched)
+!$omp end critical (block_touched_critical)
           END IF
 
           NULLIFY(h_block)
@@ -1207,7 +1207,7 @@ CONTAINS
        END IF
 
        IF (atom_pair_done) THEN
-!$omp critical(force)
+!$omp critical(force_critical)
           IF (calculate_forces) THEN
              force(ikind)%rho_elec(:,atom_a) =&
                   force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
@@ -1224,7 +1224,7 @@ CONTAINS
                 END IF
              END IF
           END IF
-!$omp end critical (force)
+!$omp end critical (force_critical)
        ENDIF
     END DO loop_tasks
     END DO loop_pairs
