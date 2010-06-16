@@ -1176,7 +1176,7 @@ CONTAINS
                 zeff = 0.0_dp
                 zeff_correction = 0.0_dp
              END IF
-             nelectron = nelectron + atomic_kind_set(ikind)%natom*INT(zeff-zeff_correction)
+             nelectron = nelectron + atomic_kind_set(ikind)%natom*NINT(zeff-zeff_correction)
           END IF
           IF (PRESENT(npgf)) THEN
              SELECT CASE (my_basis_set_id)

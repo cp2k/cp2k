@@ -855,7 +855,7 @@ CONTAINS
            zeff = 0.0_dp
            zeff_correction = 0.0_dp
         END IF
-        nelectron = nelectron + INT(zeff-zeff_correction)
+        nelectron = nelectron + NINT(zeff-zeff_correction)
 
         IF (ASSOCIATED(orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf)
