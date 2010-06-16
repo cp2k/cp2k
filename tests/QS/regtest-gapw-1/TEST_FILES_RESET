@@ -65,3 +65,7 @@ CO_xastpfh.inp
 # changes in XAS code
 CO_xastphh_r.inp
 CO_xastpfh.inp
+# reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
+c8_broy_gapw_all_xashh.inp
+c8_pmix_gapw_all.inp
+c8_pmix_gapw_all_xashh.inp

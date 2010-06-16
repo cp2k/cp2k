@@ -542,3 +542,7 @@ ice-scp-ewald.inp
 # Update of atomic weights 
 h2op_2.inp
 h2po4.inp
+# reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
+h2po4.inp
+ice-scp-ewald_gks.inp
+st.inp

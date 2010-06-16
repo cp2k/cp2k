@@ -193,3 +193,10 @@ gly_noangvel.inp
 N3_rp_md.inp
 N3_dp_md.inp
 N3_rp_dp_md.inp
+# reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
+Co_complex.inp
+LM-KSDO-D.inp
+N3-rp_colvar.inp
+N3_rp_md.inp
+SiO2.inp
+SiO2_lr_quad.inp

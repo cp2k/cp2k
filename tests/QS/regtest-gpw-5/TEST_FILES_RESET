@@ -262,3 +262,12 @@ bug_ai_moments.inp
 si8_pulay_md.inp
 H2O-meta-mindisp.inp
 md-01.inp
+# reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
+si8_broy_kry.inp
+si8_broy_kry_r.inp
+si8_broy_wc_crazy.inp
+si8_broy_wc.inp
+si8_pulay.inp
+si8_pulay_inverse.inp
+si8_pulay_off.inp
+si8_pulay_reduce.inp

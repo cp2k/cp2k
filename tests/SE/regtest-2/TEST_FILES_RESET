@@ -370,3 +370,5 @@ h2o_meta.inp
 hcl.inp
 hcl_ot.inp
 hcl_z.inp
+# reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
+H2O-32.inp

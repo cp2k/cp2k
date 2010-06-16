@@ -90,3 +90,7 @@ cu2cl6_m3_std.inp
 cu2cl6_m1_clp6cud9.inp
 #  
 cu2cl6_m3_clp6cud9.inp
+# reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
+cu2cl6_m1_clp6cud9.inp
+cu2cl6_m1_std.inp
+cu2cl6_m3_std.inp

@@ -679,3 +679,6 @@ H2O_meta_pop.inp
 H2O_meta_langevin.inp
 Au13ico_mtd.inp
 Au12_rmsd_mtd.inp
+# reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
+Au12_rmsd_mtd.inp
+Au13ico_mtd.inp
