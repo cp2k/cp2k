@@ -105,7 +105,6 @@
   END SUBROUTINE get_block2d_diagonal_s
 
 
-
 ! *****************************************************************************
 !> \brief Copies a block subset
 !> \see block_partial_copy_a
@@ -138,29 +137,170 @@
           dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
                 = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
        END FORALL
-       !DO col = 1, ncol
-       !   DO row = 1, nrow
-       !      dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
-       !    = src(src_offset+src_r_lb+row + (src_c_lb+col-1)*src_rs)
-       !   ENDDO
-       !ENDDO
     ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
        FORALL (col = 0:ncol-1, row=0:nrow-1)
-          dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_rs) &
+          dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_cs) &
               = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
        END FORALL
     ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
        FORALL (col = 0:ncol-1, row=0:nrow-1)
           dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
-             = src(src_offset+src_c_lb+col+(src_r_lb+row-1)*src_rs)
+             = src(src_offset+src_c_lb+col+(src_r_lb+row-1)*src_cs)
        END FORALL
     ELSEIF (dst_tr .AND. src_tr) THEN
        FORALL (col = 0:ncol-1, row=0:nrow-1)
-          dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_rs)&
-             = src(src_offset + src_c_lb+col+(src_r_lb+row-1)*src_rs)
+          dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_cs)&
+             = src(src_offset + src_c_lb+col+(src_r_lb+row-1)*src_cs)
        END FORALL
     ENDIF
   END SUBROUTINE block_partial_copy_s
+
+! *****************************************************************************
+!> \brief Copies a block subset
+!> \see block_partial_copy_a
+! *****************************************************************************
+  SUBROUTINE block_partial_copy_1d2d_s(dst, dst_rs, dst_cs, dst_tr,&
+       src, src_rs, src_cs, src_tr,&
+       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+       dst_offset)
+    REAL(kind=real_4), DIMENSION(:), &
+      INTENT(INOUT)                          :: dst
+    INTEGER, INTENT(IN)                      :: dst_rs, dst_cs
+    INTEGER, INTENT(IN)                      :: dst_offset
+    LOGICAL                                  :: dst_tr
+    REAL(kind=real_4), DIMENSION(:,:), &
+      INTENT(IN)                             :: src
+    INTEGER, INTENT(IN)                      :: src_rs, src_cs
+    LOGICAL                                  :: src_tr
+    INTEGER, INTENT(IN)                      :: dst_r_lb, dst_c_lb, src_r_lb, &
+                                                src_c_lb, nrow, ncol
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_partial_copy_1d2d_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col, row
+
+!   ---------------------------------------------------------------------------
+! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
+    IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
+                = src(src_r_lb+row, src_c_lb+col)
+       END FORALL
+    ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_cs) &
+              = src(src_r_lb+row, src_c_lb+col)
+       END FORALL
+    ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_offset+dst_r_lb+row + (dst_c_lb+col-1)*dst_rs) &
+             = src(src_c_lb+col, src_r_lb+row)
+       END FORALL
+    ELSEIF (dst_tr .AND. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_offset+dst_c_lb+col + (dst_r_lb+row-1)*dst_cs)&
+             = src(src_c_lb+col, src_r_lb+row)
+       END FORALL
+    ENDIF
+  END SUBROUTINE block_partial_copy_1d2d_s
+! *****************************************************************************
+!> \brief Copies a block subset
+!> \see block_partial_copy_a
+! *****************************************************************************
+  SUBROUTINE block_partial_copy_2d1d_s(dst, dst_rs, dst_cs, dst_tr,&
+       src, src_rs, src_cs, src_tr,&
+       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+       src_offset)
+    REAL(kind=real_4), DIMENSION(:,:), &
+      INTENT(INOUT)                          :: dst
+    INTEGER, INTENT(IN)                      :: dst_rs, dst_cs
+    INTEGER, INTENT(IN)                      :: src_offset
+    LOGICAL                                  :: dst_tr
+    REAL(kind=real_4), DIMENSION(:), &
+      INTENT(IN)                             :: src
+    INTEGER, INTENT(IN)                      :: src_rs, src_cs
+    LOGICAL                                  :: src_tr
+    INTEGER, INTENT(IN)                      :: dst_r_lb, dst_c_lb, src_r_lb, &
+                                                src_c_lb, nrow, ncol
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_partial_copy_2d1d_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col, row
+
+!   ---------------------------------------------------------------------------
+! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
+    IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_r_lb+row, dst_c_lb+col) &
+                = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
+       END FORALL
+    ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_c_lb+col, dst_r_lb+row) &
+              = src(src_offset+src_r_lb+row+(src_c_lb+col-1)*src_rs)
+       END FORALL
+    ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_r_lb+row, dst_c_lb+col) &
+             = src(src_offset+src_c_lb+col+(src_r_lb+row-1)*src_cs)
+       END FORALL
+    ELSEIF (dst_tr .AND. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_c_lb+col, dst_r_lb+row)&
+             = src(src_offset + src_c_lb+col+(src_r_lb+row-1)*src_cs)
+       END FORALL
+    ENDIF
+  END SUBROUTINE block_partial_copy_2d1d_s
+! *****************************************************************************
+!> \brief Copies a block subset
+!> \see block_partial_copy_a
+! *****************************************************************************
+  SUBROUTINE block_partial_copy_2d2d_s(dst, dst_rs, dst_cs, dst_tr,&
+       src, src_rs, src_cs, src_tr,&
+       dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+    REAL(kind=real_4), DIMENSION(:,:), &
+      INTENT(INOUT)                          :: dst
+    INTEGER, INTENT(IN)                      :: dst_rs, dst_cs
+    LOGICAL                                  :: dst_tr
+    REAL(kind=real_4), DIMENSION(:,:), &
+      INTENT(IN)                             :: src
+    INTEGER, INTENT(IN)                      :: src_rs, src_cs
+    LOGICAL                                  :: src_tr
+    INTEGER, INTENT(IN)                      :: dst_r_lb, dst_c_lb, src_r_lb, &
+                                                src_c_lb, nrow, ncol
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_partial_copy_2d2d_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col, row
+
+!   ---------------------------------------------------------------------------
+! Factors out the 4 combinations to remove branches from the inner loop. rs is the logical row size so it always remains the leading dimension.
+    IF (.NOT. dst_tr .AND. .NOT. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_r_lb+row, dst_c_lb+col) &
+                = src(src_r_lb+row, src_c_lb+col)
+       END FORALL
+    ELSEIF (dst_tr .AND. .NOT. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_c_lb+col, dst_r_lb+row) &
+              = src(src_r_lb+row, src_c_lb+col)
+       END FORALL
+    ELSEIF (.NOT. dst_tr .AND. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_r_lb+row, dst_c_lb+col) &
+             = src(src_c_lb+col, src_r_lb+row)
+       END FORALL
+    ELSEIF (dst_tr .AND. src_tr) THEN
+       FORALL (col = 0:ncol-1, row=0:nrow-1)
+          dst(dst_c_lb+col, dst_r_lb+row)&
+             = src(src_c_lb+col, src_r_lb+row)
+       END FORALL
+    ENDIF
+  END SUBROUTINE block_partial_copy_2d2d_s
+
 
 ! *****************************************************************************
 !> \brief Copy and transpose block.
@@ -202,6 +342,46 @@
 
     extent_out = RESHAPE(extent_in, (/rows, columns/))
   END SUBROUTINE block_copy_2d1d_s
+
+! *****************************************************************************
+!> \brief Copy a block
+!> \param[out] extent_out     output matrix in the form of a 1-d array
+!> \param[in] extent_in       input matrix in the form of a 1-d array
+!> \param[in] rows, columns   input matrix size
+! *****************************************************************************
+  PURE SUBROUTINE block_copy_1d1d_s(extent_out, extent_in,&
+       rows, columns)
+    INTEGER, INTENT(IN)                           :: rows, columns
+    REAL(kind=real_4), DIMENSION(rows*columns), INTENT(OUT) :: extent_out
+    REAL(kind=real_4), DIMENSION(rows*columns), INTENT(IN)  :: extent_in
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_1d1d_s', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    extent_out(:) = extent_in(:)
+  END SUBROUTINE block_copy_1d1d_s
+
+! *****************************************************************************
+!> \brief Copy a block
+!> \param[out] extent_out     output matrix in the form of a 2-d array
+!> \param[in] extent_in       input matrix in the form of a 2-d array
+!> \param[in] rows, columns   input matrix size
+! *****************************************************************************
+  PURE SUBROUTINE block_copy_2d2d_s(extent_out, extent_in,&
+       rows, columns)
+    INTEGER, INTENT(IN)                           :: rows, columns
+    REAL(kind=real_4), DIMENSION(rows,columns), INTENT(OUT) :: extent_out
+    REAL(kind=real_4), DIMENSION(rows,columns), INTENT(IN)  :: extent_in
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_transpose_copy_2d2d_s', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
+
+    extent_out(:,:) = extent_in(:,:)
+  END SUBROUTINE block_copy_2d2d_s
 
 
 ! *****************************************************************************

@@ -45,8 +45,8 @@
        IF (PRESENT (col_size)) col_size = csize
        IF (PRESENT (row_offset)) row_offset = iterator%row_offset
        IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
-       rbp => dbcsr_get_data_p (iterator%data_area, [zero1])
-       block => rbp(bp:bp+nze-1)
+       CALL dbcsr_get_data (iterator%data_area, block,&
+            lb=bp, ub=bp+nze-1)
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        CALL iterator_advance (iterator)
@@ -87,12 +87,16 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_p, bp, csize, ithread, &
-                                                nze, rsize, pos
-    [type1], DIMENSION(:), POINTER :: lin_blk_p, rbp
+                                                nze, rsize, pos,&
+                                                block_row_size, block_col_size
+    [type1], DIMENSION(:), POINTER           :: lin_blk_p
+    INTEGER                                  :: error_handle
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 ! If we're pointing to a valid block, return that block.
 
+    CALL dbcsr_error_set (routineN, error_handle, error)
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -103,30 +107,29 @@
        bp = ABS (blk_p)
        rsize = iterator%row_size
        csize = iterator%cbs(column)
+       block_row_size = rsize
+       block_col_size = csize
        IF (PRESENT (row_size)) row_size = rsize
        IF (PRESENT (col_size)) col_size = csize
        IF (PRESENT (row_offset)) row_offset = iterator%row_offset
        IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
        nze = rsize * csize
-       rbp => dbcsr_get_data_p (iterator%data_area, [zero1])
-       IF (transposed) CALL swap (rsize, csize)
-#if defined(__PTR_RANK_REMAP)
-       block(1:rsize, 1:csize) => rbp(bp:bp+nze-1)
-#elif !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-       lin_blk_p => rbp(bp:bp+nze-1)
-       CALL pointer_[nametype1]_rank_remap2 (block, rsize, csize, lin_blk_p)
-#else
-       IF (iterator%contiguous_pointers) THEN
-          IF (SIZE (iterator%buffer_2d%d%[base1]2_[prec1], 1) .NE. rsize) THEN
-             DEALLOCATE (iterator%buffer_2d%d%[base1]2_[prec1])
-             ALLOCATE (iterator%buffer_2d%d%[base1]2_[prec1](&
-                  rsize, MAX(iterator%max_cbs, iterator%max_rbs)))
-          ENDIF
+       IF (dbcsr_buffers_2d_needed) THEN
+          CALL dbcsr_buffers_flush (iterator%buffer_2d, error=error)
+          CALL resize_buffers (iterator, error=error)
+          CALL dbcsr_buffers_set_pointer_2d (block, row, column,&
+               block_row_size, block_col_size,&
+               transposed, blk_p, iterator%buffer_2d, .FALSE., error=error)
+          IF (iterator%read_only) &
+               CALL dbcsr_buffers_mark_dirty (iterator%buffer_2d,&
+               dirty=.FALSE., error=error)
+          transposed = .FALSE.
+       ELSE
+          IF (transposed) CALL swap (rsize, csize)
+          CALL dbcsr_get_data (iterator%data_area, lin_blk_p,&
+               lb=bp, ub=bp+nze-1)
+          CALL pointer_[nametype1]_rank_remap2 (block, rsize, csize, lin_blk_p)
        ENDIF
-       iterator%buffer_2d%d%[base1]2_[prec1] =&
-            RESHAPE (rbp(bp:bp+nze-1), (/rsize, csize/))
-       block => iterator%buffer_2d%d%[base1]2_[prec1](1:rsize, 1:csize)
-#endif /* __PTR_RANK_REMAP || !__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION */
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        CALL iterator_advance (iterator)
@@ -137,42 +140,5 @@
        NULLIFY (block)
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE iterator_next_2d_block_[nametype1]
-
-
-
-#if !defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
-#if defined(__PTR_RANK_REMAP)
-! *****************************************************************************
-!> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
-!>        rank remapping.
-!>
-!> Merge this with dbcsr_util* upon refactoring.
-! *****************************************************************************
-  SUBROUTINE pointer_[nametype1]_rank_remap2 (r2p, d1, d2, r1p)
-    INTEGER, INTENT(IN)                      :: d1, d2
-    [type1], DIMENSION(:, :), &
-      POINTER                                :: r2p
-    [type1], DIMENSION(d1*d2), &
-      TARGET                                 :: r1p
-
-    r2p(1:d1,1:d2) => r1p(1:d1*d2)
-  END SUBROUTINE pointer_[nametype1]_rank_remap2
-#else
-! *****************************************************************************
-!> \brief Sets a rank-2 pointer to rank-1 data using ugly hacks.
-!>
-!> Merge this with the same routine in dbcsr_util* upon refactoring.
-! *****************************************************************************
-  SUBROUTINE pointer_[nametype1]_rank_remap2 (r2p, d1, d2, r1p)
-    [type1], DIMENSION(:, :), &
-      POINTER                                :: r2p
-    INTEGER, INTENT(IN)                      :: d1, d2
-    [type1], DIMENSION(d1, *), &
-      TARGET                                 :: r1p
-
-    r2p => r1p(1:d1, 1:d2)
-  END SUBROUTINE pointer_[nametype1]_rank_remap2
-#endif
-#endif
-

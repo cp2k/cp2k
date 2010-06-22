@@ -110,6 +110,8 @@ How to compile CP2K code
      reasonable defaults are provided (see src/lib/collocate_fast.F) but trial-and-error might yield (a small ~10%) speedup.
      -D__HAS_NO_OMP_3: CP2K assumes that compilers support OpenMP 3.0 - If this is not the case
      specify this flag to compile.  Runtime performance will be poorer on low numbers of processors
+     Subparts of Fortran 2003 or later that help various aspects of the code:
+     -D__PTR_RANK_REMAP: compiler supports pointer rank remapping
 
  3c) The `I'm feeling lucky' version of building will try to guess what architecture you're on.
      Just type

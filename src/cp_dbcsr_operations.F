@@ -36,13 +36,16 @@ MODULE cp_dbcsr_operations
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
+  USE dbcsr_block_access,              ONLY: dbcsr_access_flush,&
+                                             dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_get_tmp_block2d,&
                                              dbcsr_put_block,&
                                              dbcsr_remove_block,&
                                              dbcsr_reserve_block2d
   USE dbcsr_block_operations,          ONLY: block_set
+  USE dbcsr_data_methods,              ONLY: dbcsr_get_data,&
+                                             dbcsr_get_data_p
   USE dbcsr_dist_operations
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -60,15 +63,15 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data, dbcsr_get_data_p, dbcsr_get_data_size, &
-       dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-       dbcsr_init, dbcsr_init_p, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
-       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_release, dbcsr_release_p, dbcsr_row_block_sizes, &
-       dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
+       dbcsr_get_matrix_type, dbcsr_init, dbcsr_init_p, &
+       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+       dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_valid_index, &
+       dbcsr_wm_use_mutable
   USE dbcsr_operations,                ONLY: &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, dbcsr_filter, &
        dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
@@ -455,7 +458,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    checksum = dbcsr_checksum(matrix, local, dbcsr_error)
+    checksum = dbcsr_checksum(matrix, local, error=dbcsr_error)
   END FUNCTION cp_dbcsr_checksum
 
   SUBROUTINE cp_dbcsr_sum_replicated (matrix, error)
@@ -3674,6 +3677,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
+    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
     CALL timeset(routineN,handle)
 
     my_beta=0._dp
@@ -3878,6 +3882,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
+    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
     CALL timeset(routineN,handle)
 
     group = fm%matrix_struct%para_env%group
@@ -4008,10 +4013,10 @@ END FUNCTION cp_dbcsr_get_id_nr
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_dbcsr_to_fm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
-      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
-      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
-      nrow_block, nrow_global, row
+    INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
+      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
+      ncol_block, ncol_global, nfullcols_total, nfullrows_total, npcol, npe, &
+      nprow, nrow_block, nrow_global, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -4033,6 +4038,8 @@ END FUNCTION cp_dbcsr_get_id_nr
     DEBUG_BODY
 
     CALL timeset(routineN,handle)
+    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
 
     ! info about the full matrix
     group = fm%matrix_struct%para_env%group
@@ -4152,6 +4159,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat, error=error)
+    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_fm
 
@@ -4170,10 +4178,10 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: blk_2d, fm_block
-    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
-      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
-      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
-      nrow_block, nrow_global, row
+    INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
+      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
+      ncol_block, ncol_global, nfullcols_total, nfullrows_total, npcol, npe, &
+      nprow, nrow_block, nrow_global, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -4193,6 +4201,8 @@ END FUNCTION cp_dbcsr_get_id_nr
     DEBUG_BODY
 
     CALL timeset(routineN,handle)
+    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
 
     ! info about the full matrix
     group = fm%matrix_struct%para_env%group
@@ -4296,6 +4306,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat, error=error)
+    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_cfm
 
@@ -4487,7 +4498,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     CHARACTER                                :: dbcsr_matrix_type
     CHARACTER(LEN=40)                        :: sm_symmetry
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: blk, block_col, nblkcols_total, nblkrows_total, &
+    INTEGER :: blk, block_col, error_handle, nblkcols_total, nblkrows_total, &
       nfullcols_total, nfullrows_total, stored_col, stored_row, timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sm_first_col, sm_first_row, &
                                                 sm_last_col, sm_last_row
@@ -4495,6 +4506,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     LOGICAL                                  :: sm_filled, symmetric, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d, buff2d
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(distribution_2d_type), POINTER      :: dist2d
     TYPE(real_block_node_type), POINTER      :: sm_block_node
@@ -4503,6 +4515,8 @@ END FUNCTION cp_dbcsr_get_id_nr
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
+    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
     ! Sanity checks.
     CALL cp_assert (dbcsr_valid_index (matrix), cp_warning_level,&
          cp_caller_error, routineN,&
@@ -4615,6 +4629,7 @@ END FUNCTION cp_dbcsr_get_id_nr
        ENDDO
        CALL dbcsr_iterator_stop(iter)
     ENDIF sm_struct_exists
+    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE sm_from_dbcsr
 
@@ -4639,16 +4654,19 @@ END FUNCTION cp_dbcsr_get_id_nr
     INTEGER, PARAMETER                       :: data_exchange_info_cnt = 3, &
                                                 metalen = 2
 
-    INTEGER                                  :: block_col, sm_col, sm_row, &
-                                                timing_handle
+    INTEGER                                  :: block_col, error_handle, &
+                                                sm_col, sm_row, timing_handle
     LOGICAL                                  :: found
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(real_block_node_type), POINTER      :: sm_block_node
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
+    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
     !
     DO sm_row = 1, dbcsr_nblkrows_total(matrix)
        sm_block_node => first_block_node(sm, sm_row)
@@ -4677,6 +4695,7 @@ END FUNCTION cp_dbcsr_get_id_nr
           sm_block_node => next_block_node(sm_block_node)
        ENDDO
     ENDDO
+    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE dbcsr_fill_sm_with_dbcsr
 

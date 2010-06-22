@@ -20,6 +20,7 @@ MODULE dbcsr_tests
                                              array_release,&
                                              array_size
   USE dbcsr_block_access
+  USE dbcsr_data_methods
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&

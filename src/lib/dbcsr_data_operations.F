@@ -17,14 +17,14 @@ MODULE dbcsr_data_operations
   USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy
   USE dbcsr_block_operations,          ONLY: dbcsr_block_transpose,&
                                              dbcsr_data_set
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
+                                             dbcsr_data_get_size_referenced,&
+                                             dbcsr_data_hold,&
+                                             dbcsr_data_set_size_referenced,&
+                                             dbcsr_get_data
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
-  USE dbcsr_methods,                   ONLY: dbcsr_data_hold,&
-                                             dbcsr_get_data,&
-                                             dbcsr_get_data_size,&
-                                             dbcsr_get_data_size_referenced,&
-                                             dbcsr_set_data_size_referenced
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
@@ -99,9 +99,9 @@ CONTAINS
        CALL dbcsr_assert (ASSOCIATED (target_area%d), dbcsr_fatal_level,&
             dbcsr_caller_error, routineN, "Target area does not exist.",&
             __LINE__, error=error)
-       CALL dbcsr_set_data_size_referenced(target_area,&
-            dbcsr_get_data_size_referenced(source_area))
-       n = dbcsr_get_data_size_referenced (source_area)
+       CALL dbcsr_data_set_size_referenced(target_area,&
+            dbcsr_data_get_size_referenced(source_area))
+       n = dbcsr_data_get_size_referenced (source_area)
        IF (n .GT. 0) THEN
           CALL dbcsr_blas_copy (n, source_area, 1, target_area, 1)
        ENDIF
@@ -151,8 +151,8 @@ CONTAINS
     IF (PRESENT (drop_real)) keep_real = .NOT. drop_real
     noimult = .FALSE.
     IF (PRESENT (multiply_by_i)) noimult = .NOT. multiply_by_i
-    ns = dbcsr_get_data_size (source_area)
-    nt = dbcsr_get_data_size (source_area)
+    ns = dbcsr_data_get_size (source_area)
+    nt = dbcsr_data_get_size (source_area)
     n = MIN (ns, nt)
     IF (n .GT. 0) THEN
        SELECT CASE (source_area%d%data_type)
@@ -334,7 +334,7 @@ CONTAINS
                      mark)
              ENDIF
              CALL dbcsr_assert(&
-                  ABS(blk_p(blk))+nze-1,'LE', dbcsr_get_data_size(dst),&
+                  ABS(blk_p(blk))+nze-1,'LE', dbcsr_data_get_size(dst),&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                   'Destination data space is too small.',__LINE__,error)
              IF (.NOT. trb) THEN
@@ -392,7 +392,7 @@ CONTAINS
     multidata = PRESENT (srcs) .AND. PRESENT (old_blk_d)
     nblks = SIZE(old_blk_p)
     DBG 'blk sizes', SIZE(blk_p), nblks
-    DBG 'dst data sizes', dbcsr_get_data_size(dsts)
+    DBG 'dst data sizes', dbcsr_data_get_size(dsts)
     CALL dbcsr_assert(SIZE(blk_p),'GE',nblks, dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN, 'Destination blk_p too small.',__LINE__,error)
     ! If the source is deliberately bigger, we don't want any warnings.
@@ -429,6 +429,8 @@ CONTAINS
     DBGV 'new blk_p =',blk_p
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_sort_data
+
+
 
 
 END MODULE dbcsr_data_operations

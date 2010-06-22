@@ -14,14 +14,31 @@
 ! *****************************************************************************
 MODULE dbcsr_iterator_operations
   USE array_types,                     ONLY: array_data
+  USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_2d_needed,&
+                                             dbcsr_buffers_flush,&
+                                             dbcsr_buffers_hold,&
+                                             dbcsr_buffers_init,&
+                                             dbcsr_buffers_mark_dirty,&
+                                             dbcsr_buffers_release,&
+                                             dbcsr_buffers_resize,&
+                                             dbcsr_buffers_set_pointer_2d
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_get_type,&
+                                             dbcsr_data_hold,&
+                                             dbcsr_data_release,&
+                                             dbcsr_data_set_pointer,&
+                                             dbcsr_get_data,&
+                                             dbcsr_type_is_2d
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-       dbcsr_data_set_pointer, dbcsr_distribution, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_num_threads, &
-       dbcsr_distribution_thread_dist, dbcsr_get_data_p, dbcsr_get_data_type
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                             dbcsr_distribution_has_threads,&
+                                             dbcsr_distribution_num_threads,&
+                                             dbcsr_distribution_thread_dist
+  USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
+                                             pointer_d_rank_remap2,&
+                                             pointer_s_rank_remap2,&
+                                             pointer_z_rank_remap2
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_iterator,&
@@ -124,6 +141,8 @@ CONTAINS
 !>                            by rows; default is .FALSE.
 !> \param[in] contiguous_pointers  (optional) Whether returned pointers need
 !>                                 to be contiguous; default is FALSE.
+!> \param[in] read_only            (optional) User promises not to change
+!>                                 returned data; default is FALSE
 !>
 !> \par Contiguous pointers
 !> Contiguous pointers may incur reallocation penalties but enable quick
@@ -158,25 +177,26 @@ CONTAINS
 !>          threads dynamically. By default the assignment is grouped
 !>          by rows (to minimize synchronization); however, if the
 !>          dynamic_byrows flag is .FALSE. then every block is
-!>          assigned dynamically.</DD></DL
+!>          assigned dynamically.</DD></DL>
 ! *****************************************************************************
   SUBROUTINE dbcsr_iterator_start (iterator, matrix, shared, dynamic,&
-       dynamic_byrows, contiguous_pointers)
+       dynamic_byrows, contiguous_pointers, read_only)
     TYPE(dbcsr_iterator), INTENT(OUT)        :: iterator
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: shared, dynamic, &
                                                 dynamic_byrows, &
-                                                contiguous_pointers
+                                                contiguous_pointers, read_only
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: max_size
+    INTEGER                                  :: error_handle
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set (routineN, error_handle, error)
     iterator%shared = .TRUE.
 !$  iterator%shared = omp_in_parallel()
 !$  CALL dbcsr_assert (omp_in_parallel(), "IMP", PRESENT (shared),&
@@ -231,7 +251,12 @@ CONTAINS
     IF (PRESENT (contiguous_pointers)) THEN
        iterator%contiguous_pointers = contiguous_pointers
     ELSE
-       iterator%contiguous_pointers = .FALSE.
+       iterator%contiguous_pointers = .TRUE.
+    ENDIF
+    IF (PRESENT (read_only)) THEN
+       iterator%read_only = read_only
+    ELSE
+       iterator%read_only = .FALSE.
     ENDIF
     iterator%row = 0
     iterator%pos = 0
@@ -263,12 +288,15 @@ CONTAINS
     ELSE
        NULLIFY (iterator%tdist)
     ENDIF
+    CALL dbcsr_buffers_init (iterator%buffer_2d)
+    IF (dbcsr_buffers_2d_needed) THEN
+       iterator%buffer_2d = matrix%m%buffers
+       CALL dbcsr_buffers_hold (iterator%buffer_2d, error=error)
+       CALL dbcsr_buffers_flush (iterator%buffer_2d, error=error)
+    ENDIF
+    !
     CALL dbcsr_iterator_seek (iterator, 1)
-    max_size = MAX (matrix%m%max_rbs, matrix%m%max_cbs)
-    CALL dbcsr_data_init(iterator%buffer_2d)
-    CALL dbcsr_data_new(iterator%buffer_2d,&
-         dbcsr_get_data_type(matrix),&
-         max_size, max_size)
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_iterator_start
 
 ! *****************************************************************************
@@ -282,13 +310,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_stop', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: error_handle
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 !CALL dbcsr_release (iterator%matrix)
 
+    CALL dbcsr_error_set (routineN, error_handle, error)
     iterator%row = 0
     iterator%pos = 0
 
-    CALL dbcsr_data_release (iterator%buffer_2d)
+    IF (dbcsr_buffers_2d_needed) THEN
+       CALL dbcsr_buffers_flush (iterator%buffer_2d, error=error)
+       CALL dbcsr_buffers_release (iterator%buffer_2d, error=error)
+    ENDIF
     NULLIFY (iterator%tdist)
     !CALL dbcsr_release (iterator%matrix)
 !$omp critical
@@ -303,6 +338,7 @@ CONTAINS
        !$OMP BARRIER
        NULLIFY (iterator%common_pos)
     ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_iterator_stop
 
 
@@ -544,8 +580,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iterator_seek', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: error_handle
+    TYPE(dbcsr_error_type)                   :: error
+
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set (routineN, error_handle, error)
     IF (iterator%nblks .GT. 0) THEN
        iterator%row = row
        ! This line is replaced because iterator_advance increments the block
@@ -558,8 +598,49 @@ CONTAINS
        iterator%row = 0
        iterator%pos = 0
     ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_iterator_seek
 
+
+! *****************************************************************************
+!> \brief Ensures buffers are correctly sized
+!> \param[in,out] iterator     the iterator
+! *****************************************************************************
+  SUBROUTINE resize_buffers (iterator, row_size, error)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+    INTEGER, INTENT(IN), OPTIONAL            :: row_size
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'resize_buffers', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (iterator%contiguous_pointers) THEN
+       ! Only the row size has to be matched. The columns can be varied
+       IF (iterator%row .GT. 0) THEN
+          IF (PRESENT (row_size)) THEN
+             CALL dbcsr_buffers_resize (iterator%buffer_2d,&
+               row_size=row_size,&
+               col_size=MAX(iterator%max_c_size, iterator%max_r_size),&
+               error=error)
+          ELSE
+             CALL dbcsr_buffers_resize (iterator%buffer_2d,&
+                  row_size=iterator%rbs(iterator%row),&
+                  col_size=MAX(iterator%max_c_size, iterator%max_r_size),&
+                  error=error)
+          ENDIF
+       ENDIF
+    ELSE
+       CALL dbcsr_buffers_resize (iterator%buffer_2d,&
+            row_size=iterator%max_r_size, col_size=iterator%max_c_size,&
+            error=error)
+    ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE resize_buffers
 
 ! *****************************************************************************
 !> \brief Gets the index information of the next block, no data.
@@ -585,10 +666,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_index', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bp
+    INTEGER                                  :: bp, error_handle
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set (routineN, error_handle, error)
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -610,6 +693,7 @@ CONTAINS
        row = 0
        column = 0
     ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE iterator_next_block_index
 
 ! *****************************************************************************
@@ -638,10 +722,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_area_block', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, bp, csize, nze, rsize
+    INTEGER                                  :: blk_p, block_col_size, &
+                                                block_row_size, bp, csize, &
+                                                error_handle, nze, rsize
+    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
+    CALL dbcsr_error_set (routineN, error_handle, error)
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -652,15 +740,33 @@ CONTAINS
        bp = ABS (blk_p)
        rsize = iterator%row_size
        csize = iterator%cbs(column)
+       block_row_size = rsize
+       block_col_size = csize
        nze = rsize * csize
        IF (PRESENT (row_size)) row_size = rsize
        IF (PRESENT (col_size)) col_size = csize
        IF (PRESENT (row_offset)) row_offset = iterator%row_offset
        IF (PRESENT (col_offset)) col_offset = iterator%coff(column)
-       ! Redirect the encapsulated pointer to the correct pointer here.
-       IF (transposed) CALL swap (rsize, csize)
-       CALL dbcsr_data_set_pointer (block, rsize, csize, iterator%data_area,&
-            source_lb=bp)
+       IF (dbcsr_buffers_2d_needed .AND.&
+            dbcsr_type_is_2d (dbcsr_data_get_type (block))) THEN
+          ! If the buffers are used then the data is always
+          ! non-transposed (to prevent too many reallocations).
+          CALL dbcsr_buffers_flush (iterator%buffer_2d, error=error)
+          CALL resize_buffers (iterator, error=error)
+          CALL dbcsr_buffers_set_pointer_2d (block, row, column,&
+               block_row_size, block_col_size,&
+               transposed, blk_p, iterator%buffer_2d, .FALSE.,&
+               error=error)
+          IF (iterator%read_only) &
+               CALL dbcsr_buffers_mark_dirty (iterator%buffer_2d,&
+               dirty=.FALSE., error=error)
+          transposed = .FALSE.
+       ELSE
+          ! Redirect the encapsulated pointer to the correct pointer here.
+          IF (transposed) CALL swap (rsize, csize)
+          CALL dbcsr_data_set_pointer (block, rsize, csize, iterator%data_area,&
+               source_lb=bp)
+       ENDIF
        IF (PRESENT (block_number)) block_number = iterator%pos
        ! Move to the next non-deleted position.
        CALL iterator_advance (iterator)
@@ -670,6 +776,7 @@ CONTAINS
        column = 0
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
+    CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE iterator_next_area_block
 
 

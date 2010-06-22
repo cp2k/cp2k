@@ -14,6 +14,7 @@
 ! *****************************************************************************
 MODULE dbcsr_mp_operations
 
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_get_type
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
@@ -21,11 +22,10 @@ MODULE dbcsr_mp_operations
        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_recv, mp_send, &
        mp_type_descriptor_type, mp_type_make, mp_waitall
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_get_data_type, dbcsr_mp_get_process, dbcsr_mp_grid_setup, &
-       dbcsr_mp_group, dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, &
-       dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
-       dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid
+       dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, &
+       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_type_complex_4,&
@@ -318,7 +318,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_send_any', &
       routineP = moduleN//':'//routineN
 
-    SELECT CASE (dbcsr_get_data_type (msgin))
+    SELECT CASE (dbcsr_data_get_type (msgin))
     CASE (dbcsr_type_real_4)
        CALL mp_send (msgin%d%r_sp, dest, tag, comm)
     CASE (dbcsr_type_real_8)
@@ -347,7 +347,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_isend_any', &
       routineP = moduleN//':'//routineN
 
-    SELECT CASE (dbcsr_get_data_type (msgin))
+    SELECT CASE (dbcsr_data_get_type (msgin))
     CASE (dbcsr_type_real_4)
        CALL mp_isend (msgin%d%r_sp, dest, comm, request, tag)
     CASE (dbcsr_type_real_8)
@@ -378,7 +378,7 @@ CONTAINS
 
     io_source = source ; io_comm = comm; io_tag = tag
     
-    SELECT CASE (dbcsr_get_data_type (msgin))
+    SELECT CASE (dbcsr_data_get_type (msgin))
     CASE (dbcsr_type_real_4)
        CALL mp_recv (msgin%d%r_sp, io_source, io_tag, io_comm)
     CASE (dbcsr_type_real_8)
@@ -407,7 +407,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_irecv_any', &
       routineP = moduleN//':'//routineN
 
-    SELECT CASE (dbcsr_get_data_type (msgin))
+    SELECT CASE (dbcsr_data_get_type (msgin))
     CASE (dbcsr_type_real_4)
        CALL mp_irecv (msgin%d%r_sp, source, comm, request, tag)
     CASE (dbcsr_type_real_8)
@@ -438,11 +438,11 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: error
 
-    CALL dbcsr_assert (dbcsr_get_data_type (send_data), "EQ",&
-         dbcsr_get_data_type (recv_data), dbcsr_fatal_level,&
+    CALL dbcsr_assert (dbcsr_data_get_type (send_data), "EQ",&
+         dbcsr_data_get_type (recv_data), dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN, "Data type mismatch", __LINE__,&
          error=error)
-    SELECT CASE (dbcsr_get_data_type(send_data))
+    SELECT CASE (dbcsr_data_get_type(send_data))
     CASE (dbcsr_type_real_4)
        CALL mp_allgather(send_data%d%r_sp, recv_data%d%r_sp,&
        recv_count, recv_displ, gid)

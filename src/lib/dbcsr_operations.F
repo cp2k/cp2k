@@ -21,7 +21,8 @@ MODULE dbcsr_operations
   USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy,&
                                              dbcsr_blas_gemm,&
                                              dbcsr_blas_scal
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
+  USE dbcsr_block_access,              ONLY: dbcsr_access_flush,&
+                                             dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_remove_block,&
                                              dbcsr_reserve_blocks
@@ -31,6 +32,12 @@ MODULE dbcsr_operations
                                              dbcsr_data_clear,&
                                              get_block2d_diagonal,&
                                              set_block2d_diagonal
+  USE dbcsr_data_methods,              ONLY: &
+       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
+       dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_get_data, &
+       dbcsr_get_data_p, dbcsr_scalar, dbcsr_scalar_are_equal, &
+       dbcsr_scalar_one, dbcsr_scalar_zero, dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_operations,           ONLY: checker_square_proc,&
@@ -61,18 +68,14 @@ MODULE dbcsr_operations
                                              mp_send,&
                                              mp_sum
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_offsets, dbcsr_col_block_sizes, &
-       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_hold, &
-       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-       dbcsr_data_set_pointer, dbcsr_destroy, dbcsr_destroy_array, &
-       dbcsr_destroy_image_dist, dbcsr_distribution, &
+       dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_destroy, &
+       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
        dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
        dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_no_threads, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data, dbcsr_get_data_p, &
-       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_distribution_row_dist, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
        dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_init, &
        dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
        dbcsr_may_be_dense, dbcsr_mp_grid_setup, dbcsr_mp_group, &
@@ -81,8 +84,7 @@ MODULE dbcsr_operations
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, dbcsr_name, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_nfullcols_total, &
        dbcsr_nfullrows_total, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_one, &
-       dbcsr_scalar_zero, dbcsr_type_1d_to_2d, dbcsr_valid_index
+       dbcsr_switch_data_area, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
                                              dbcsr_send_any
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
@@ -380,6 +382,10 @@ CONTAINS
        CALL dbcsr_print (matrix_b, nodata=.TRUE., error=error)
        CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
     ENDIF
+    !
+    CALL dbcsr_access_flush (matrix_a, error=error)
+    CALL dbcsr_access_flush (matrix_b, error=error)
+    CALL dbcsr_access_flush (matrix_c, error=error)
     !
     ! transpose/conjg left and/or right matrices if needed 
     SELECT CASE(transa)
@@ -688,6 +694,15 @@ CONTAINS
           CALL dbcsr_print(m2s_left%mats(1,i),nodata=.TRUE., error=error)
        ENDDO
     ENDIF
+    ! Flush
+    DO i = 1, SIZE (m2s_right%mats,1)
+       CALL dbcsr_access_flush (m2s_right%mats(i,1), error=error)
+    ENDDO
+    DO i = 1, SIZE (m2s_left%mats,2)
+       CALL dbcsr_access_flush (m2s_left%mats(1,i), error=error)
+    ENDDO
+    CALL dbcsr_access_flush (product_matrix, error=error)
+    !
     !
     IF (PRESENT (flop)) flop = 0
     my_flop = 0
@@ -747,7 +762,7 @@ CONTAINS
        WRITE(*,*)routineN//" Use dense mult, symm", use_dense_mult, ab_dense, &
             dbcsr_has_symmetry (matrix_c)
        CALL dbcsr_verify_matrix (matrix_c, error=error)
-       CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
+       !CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
        cs = dbcsr_checksum (matrix_c, error=error)
        WRITE(*,*)routineN//" Product checksum", cs
     ENDIF
@@ -963,7 +978,7 @@ CONTAINS
        !
        ! This data area holds the current column
        CALL dbcsr_data_init (mat_tmp)
-       CALL dbcsr_data_new (mat_tmp, dbcsr_get_data_type (alpha_matrix))
+       CALL dbcsr_data_new (mat_tmp, dbcsr_data_get_type (alpha_matrix))
     ENDIF
     !
     ! quick return if possible
@@ -1058,7 +1073,6 @@ CONTAINS
 
     IF(scale_type .EQ. 'M') THEN
        DEALLOCATE(m_offset)
-       !@@@
        WRITE(*,*)"refs:", buffer%d%refcount, buffer%d%data_type
        CALL dbcsr_data_release (buffer)
        CALL dbcsr_data_clear_pointer (mat_tmp)
@@ -1709,6 +1723,7 @@ CONTAINS
     CALL dbcsr_assert (operation, "EQ", "+", dbcsr_fatal_level,&
          dbcsr_unimplemented_error_nr, routineN,&
          "Reduction operation not yet implemented.", __LINE__, error=error)
+    CALL dbcsr_access_flush (matrix, error=error)
     IF (reduce_rows .AND. reduce_columns) THEN
        red_type = dbcsr_repl_full
     ELSEIF (reduce_rows .AND. .NOT. reduce_columns) THEN
@@ -2235,7 +2250,7 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
-    CALL dbcsr_assert (dbcsr_nfullrows_total(matrix), "LE", dbcsr_get_data_size(diag), &
+    CALL dbcsr_assert (dbcsr_nfullrows_total(matrix), "LE", dbcsr_data_get_size(diag), &
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Diagonal is too small",__LINE__,error)
 
@@ -2292,7 +2307,7 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
-    CALL dbcsr_assert (dbcsr_nfullrows_total(matrix), "LE", dbcsr_get_data_size(diag), &
+    CALL dbcsr_assert (dbcsr_nfullrows_total(matrix), "LE", dbcsr_data_get_size(diag), &
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Diagonal too small",__LINE__,error)
 
@@ -2357,6 +2372,7 @@ CONTAINS
     shallow = .FALSE. ; IF (PRESENT (shallow_data)) shallow = shallow_data
     keep_sparse = .FALSE.
     IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
+    CALL dbcsr_access_flush (matrix_a, error=error)
 
     !CALL dbcsr_assert (dbcsr_is_initialized (matrix_b),&
     !     dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -2416,9 +2432,8 @@ CONTAINS
                .EQ. dbcsr_get_data_type(matrix_b), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN,&
                "Shallow copy only possible when retaining data type.", __LINE__, error)
-          CALL dbcsr_data_release (matrix_b%m%data_area)
-          matrix_b%m%data_area = matrix_a%m%data_area
-          CALL dbcsr_data_hold (matrix_b%m%data_area)
+          CALL dbcsr_switch_data_area (matrix_b, matrix_a%m%data_area,&
+               error=error)
        ENDIF
        !
        ! the row_p, col_i and blk_p ...
@@ -2496,8 +2511,8 @@ CONTAINS
           !dst_r_dp(:) = 0.0_dp
        CASE (0)
           ! Copy the data
-          CALL dbcsr_assert (dbcsr_get_data_size (src_data)&
-               .EQ. dbcsr_get_data_size (dst_data), dbcsr_fatal_level,&
+          CALL dbcsr_assert (dbcsr_data_get_size (src_data)&
+               .EQ. dbcsr_data_get_size (dst_data), dbcsr_fatal_level,&
                dbcsr_internal_error, routineN, "Block sizes not equal!",__LINE__,error)
           IF (src_tr .EQV. dst_tr) THEN
              CALL dbcsr_data_copyall (dst_data, src_data, error=error)
@@ -2737,6 +2752,7 @@ CONTAINS
     ELSE
        shallow = .FALSE.
     ENDIF
+    CALL dbcsr_access_flush (matrix_a, error=error)
     ! Verify assumptions.
     IF (PRESENT (block_row_bounds)) THEN
        CALL dbcsr_assert (SIZE(block_row_bounds), "EQ", 2, dbcsr_fatal_level,&
@@ -2798,9 +2814,7 @@ CONTAINS
        CALL dbcsr_finalize (matrix_b, error=error)
     ELSE
        ! For the shallow copy the source matrix data is referenced.
-       CALL dbcsr_data_release (matrix_b%m%data_area)
-       matrix_b%m%data_area = matrix_a%m%data_area
-       CALL dbcsr_data_hold (matrix_b%m%data_area)
+       CALL dbcsr_switch_data_area (matrix_b, matrix_a%m%data_area, error=error)
        nblocks = dbcsr_get_num_blocks (matrix_a) ! High estimate.
        ! Shallow copy goes through source's data blocks and inserts
        ! the only the ones corresponding to the submatrix specifier
@@ -3164,15 +3178,15 @@ CONTAINS
     CASE(dbcsr_norm_column)
 
        IF(PRESENT(norm_vector)) THEN
-          CALL dbcsr_assert (dbcsr_get_data_type(norm_vector), "EQ",&
+          CALL dbcsr_assert (dbcsr_data_get_type(norm_vector), "EQ",&
                dbcsr_get_data_type(matrix), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN,&
                "Mismatched vector/matrix data types", __LINE__, error=error)
-          CALL dbcsr_assert (dbcsr_get_data_size(norm_vector), "GE",&
+          CALL dbcsr_assert (dbcsr_data_get_size(norm_vector), "GE",&
                dbcsr_nfullrows_total(matrix), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN, "Passed vector too small",&
                __LINE__, error=error)
-          CALL dbcsr_assert (dbcsr_get_data_size(norm_vector), "GE",&
+          CALL dbcsr_assert (dbcsr_data_get_size(norm_vector), "GE",&
                dbcsr_nfullcols_total(matrix), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN, "Passed vector too small",&
                __LINE__, error=error)
@@ -3579,6 +3593,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_access_flush (matrix, error=error)
     mp = dbcsr_distribution_mp (dbcsr_distribution (matrix))
     comm = dbcsr_mp_group (mp)
     numnodes = dbcsr_mp_numnodes (mp)

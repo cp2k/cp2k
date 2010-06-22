@@ -15,14 +15,14 @@
 MODULE dbcsr_io
 
   USE array_types,                     ONLY: array_data
+  USE dbcsr_data_methods,              ONLY: dbcsr_get_data
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
                                              real_4,&
                                              real_8,&
                                              sp
   USE dbcsr_message_passing,           ONLY: mp_allgather
-  USE dbcsr_methods,                   ONLY: dbcsr_get_data,&
-                                             dbcsr_get_data_size,&
+  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
                                              dbcsr_mp_group,&
                                              dbcsr_mp_numnodes,&
                                              dbcsr_valid_index
@@ -470,7 +470,7 @@ CONTAINS
     dbg = .FALSE.
     CALL dbcsr_set_debug(dbg, on=.FALSE.)
     !IF (.NOT.dbg.OR..NOT.bcsr_verbose) RETURN
-    IF (.NOT.dbg) RETURN
+    !IF (.NOT.dbg) RETURN
     rows = SIZE(matrix,1)
     cols = SIZE(matrix,2)
     m = rows

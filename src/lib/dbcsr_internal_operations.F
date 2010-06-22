@@ -17,6 +17,12 @@ MODULE dbcsr_internal_operations
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
+  USE dbcsr_data_methods,              ONLY: &
+       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
+       dbcsr_data_get_size_referenced, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_release, dbcsr_data_set_pointer, &
+       dbcsr_data_set_size_referenced, dbcsr_scalar_are_equal, &
+       dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: checker_tr
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_expand_row_index,&
@@ -44,21 +50,15 @@ MODULE dbcsr_internal_operations
                                              mp_type_make,&
                                              mp_waitall
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_data_clear_pointer, &
-       dbcsr_data_ensure_size, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_destroy_array, &
-       dbcsr_distribution, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_get_data_size, dbcsr_get_data_size_referenced, &
-       dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_init, dbcsr_mp_grid_setup, dbcsr_mp_group, &
+       dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_distribution, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_get_data_type, dbcsr_get_matrix_type, &
+       dbcsr_get_num_blocks, dbcsr_init, dbcsr_mp_grid_setup, dbcsr_mp_group, &
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
        dbcsr_nblkrows_total, dbcsr_nfullcols_local, dbcsr_nfullrows_local, &
-       dbcsr_row_block_sizes, dbcsr_scalar_are_equal, dbcsr_scalar_negative, &
-       dbcsr_scalar_one, dbcsr_scalar_zero, dbcsr_set_data_size_referenced, &
-       dbcsr_valid_index
+       dbcsr_row_block_sizes, dbcsr_valid_index
 
 !$ USE dbcsr_methods, ONLY: dbcsr_distribution_thread_dist
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
@@ -341,7 +341,7 @@ CONTAINS
             dbcsr_nfullrows_local (product_matrix)&
             *dbcsr_nfullcols_local (product_matrix)),error=error)
             !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%nfullcols_local))
-       CALL dbcsr_set_data_size_referenced (product_matrix%m%wms(i)%data_area,&
+       CALL dbcsr_data_set_size_referenced (product_matrix%m%wms(i)%data_area,&
             product_matrix%m%wms(i)%datasize)
        CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
@@ -358,7 +358,7 @@ CONTAINS
     DO left_row_image = 1, left_row_nimages
        DO left_col_image = 1, left_col_nimages
           my_sizes(idata, left_row_image, left_col_image) &
-               = dbcsr_get_data_size_referenced (&
+               = dbcsr_data_get_size_referenced (&
                left_set%mats(left_row_image, left_col_image)%m%data_area)
           my_sizes(imeta, left_row_image, left_col_image) = SIZE (&
                left_set%mats(left_row_image, left_col_image)%m%index)
@@ -367,7 +367,7 @@ CONTAINS
     DO right_row_image = 1, right_row_nimages
        DO right_col_image = 1, right_col_nimages
           my_sizes(idata+2, right_row_image, right_col_image) &
-               = dbcsr_get_data_size_referenced (&
+               = dbcsr_data_get_size_referenced (&
                right_set%mats(right_row_image, right_col_image)%m%data_area)
           my_sizes(imeta+2, right_row_image, right_col_image) = SIZE (&
                right_set%mats(right_row_image, right_col_image)%m%index)

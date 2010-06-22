@@ -14,16 +14,17 @@
 ! *****************************************************************************
 MODULE dbcsr_block_operations
 
+  USE dbcsr_data_methods,              ONLY: &
+       dbcsr_data_exists, dbcsr_data_get_type, dbcsr_data_verify_bounds, &
+       dbcsr_get_data_p_2d_c, dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, &
+       dbcsr_get_data_p_2d_z, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
+       dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, &
+       dbcsr_type_is_2d
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
                                              real_4,&
                                              real_8,&
                                              sp
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_get_data_p_2d_c, dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, &
-       dbcsr_get_data_p_2d_z, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
-       dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_get_data_type, &
-       dbcsr_type_2d_to_1d, dbcsr_type_is_2d
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_scalar_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
@@ -66,9 +67,13 @@ MODULE dbcsr_block_operations
 
   INTERFACE dbcsr_block_copy
      MODULE PROCEDURE block_copy_2d1d_s, block_copy_2d1d_d,&
-          block_copy_2d1d_c, block_copy_2d1d_z,&
-          block_copy_1d2d_s, block_copy_1d2d_d,&
-          block_copy_1d2d_c, block_copy_1d2d_z
+                      block_copy_2d1d_c, block_copy_2d1d_z
+     MODULE PROCEDURE block_copy_1d2d_s, block_copy_1d2d_d,&
+                      block_copy_1d2d_c, block_copy_1d2d_z
+     MODULE PROCEDURE block_copy_1d1d_s, block_copy_1d1d_d,&
+                      block_copy_1d1d_c, block_copy_1d1d_z
+     MODULE PROCEDURE block_copy_2d2d_s, block_copy_2d2d_d,&
+                      block_copy_2d2d_c, block_copy_2d2d_z
   END INTERFACE
 
   INTERFACE dbcsr_block_partial_copy
@@ -77,6 +82,18 @@ MODULE dbcsr_block_operations
                       block_partial_copy_s,&
                       block_partial_copy_z,&
                       block_partial_copy_c
+     MODULE PROCEDURE block_partial_copy_1d2d_d,&
+                      block_partial_copy_1d2d_s,&
+                      block_partial_copy_1d2d_z,&
+                      block_partial_copy_1d2d_c
+     MODULE PROCEDURE block_partial_copy_2d1d_d,&
+                      block_partial_copy_2d1d_s,&
+                      block_partial_copy_2d1d_z,&
+                      block_partial_copy_2d1d_c
+     MODULE PROCEDURE block_partial_copy_2d2d_d,&
+                      block_partial_copy_2d2d_s,&
+                      block_partial_copy_2d2d_z,&
+                      block_partial_copy_2d2d_c
   END INTERFACE
 
   ! Supports copy between two data areas, or to a data area from a
@@ -85,6 +102,12 @@ MODULE dbcsr_block_operations
      MODULE PROCEDURE dbcsr_data_copy_aa, dbcsr_data_set_as,&
           dbcsr_data_set_ad, dbcsr_data_set_ac, dbcsr_data_set_az
   END INTERFACE
+
+  INTERFACE dbcsr_data_copy
+     MODULE PROCEDURE dbcsr_data_copy_aa2, dbcsr_data_set_as,&
+          dbcsr_data_set_ad, dbcsr_data_set_ac, dbcsr_data_set_az
+  END INTERFACE
+
 
   INTERFACE set_block_diagonal
      MODULE PROCEDURE set_block_diagonal_s, set_block_diagonal_d,&
@@ -138,6 +161,8 @@ MODULE dbcsr_block_operations
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+  LOGICAL, PARAMETER :: debug_mod  =   .FALSE.
+  LOGICAL, PARAMETER :: careful_mod  = .FALSE.
 
 CONTAINS
 
@@ -564,6 +589,206 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Copy data from one data area to another, the most basic form.
+!>
+!> There are no checks done for correctness!
+!> \param[in,out] dst    destination data area
+!> \param[in] dst_lb     lower bounds for destination
+!> \param[in] dst_sizes  sizes for destination
+!> \param[in] src        source data area
+!> \param[in] src_lb     lower bounds for source
+!> \param[in] src_sizes  sizes for source
+!> \param[in,out] error  error
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_copy_aa2 (dst, dst_lb, dst_sizes,&
+       src, src_lb, src_sizes, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
+    INTEGER, DIMENSION(:), INTENT(IN)        :: dst_lb, dst_sizes
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: src
+    INTEGER, DIMENSION(:), INTENT(IN)        :: src_lb, src_sizes
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_aa2', &
+      routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: careful = .TRUE., dbg = .TRUE.
+
+    CHARACTER                                :: dst_dt, src_dt
+    INTEGER                                  :: dst_d, error_handler, src_d
+    INTEGER, DIMENSION(2)                    :: dst_ub, src_ub
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handler, error)
+    !
+    src_dt = dbcsr_data_get_type (src)
+    dst_dt = dbcsr_data_get_type (dst)
+    IF (dbcsr_type_is_2d (src_dt)) THEN
+       src_d = 2
+    ELSE
+       src_d = 1
+    ENDIF
+    IF (dbcsr_type_is_2d (dst_dt)) THEN
+       dst_d = 2
+    ELSE
+       dst_d = 1
+    ENDIF
+    src_ub(1:src_d) = src_lb(1:src_d) + src_sizes(1:src_d) - 1
+    dst_ub(1:dst_d) = dst_lb(1:dst_d) + dst_sizes(1:dst_d) - 1
+    IF (careful) THEN
+       CALL dbcsr_assert (dbcsr_data_exists (dst, error), dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN, "Invalid target data area",&
+            __LINE__, error=error)
+       CALL dbcsr_assert (dbcsr_data_exists (src, error), dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN, "Invalid source data area",&
+            __LINE__, error=error)
+       CALL dbcsr_assert (dbcsr_type_2d_to_1d (src_dt), "EQ",&
+            dbcsr_type_2d_to_1d (dst_dt), dbcsr_fatal_level, &
+            dbcsr_caller_error, routineN,&
+            "Data types must be comptable: ", __LINE__, error=error)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_assert (SIZE (dst_lb), "EQ", 2, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "size must be 2 for 2-d dst_lb", __LINE__, error=error)
+          CALL dbcsr_assert (SIZE (dst_sizes), "EQ", 2, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "size must be 2 for 2-d dst_sizes", __LINE__, error=error)
+       ELSE
+          CALL dbcsr_assert (SIZE (dst_lb), "EQ", 1, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "size must be 1 for 1-d dst_lb", __LINE__, error=error)
+          CALL dbcsr_assert (SIZE (dst_sizes), "EQ", 1, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "size must be 1 for 1-d dst_sizes", __LINE__, error=error)
+       ENDIF
+       IF (dbcsr_type_is_2d (src_dt)) THEN
+          CALL dbcsr_assert (SIZE (src_lb), "EQ", 2, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "size must be 2 for 2-d src_lb", __LINE__, error=error)
+          CALL dbcsr_assert (SIZE (src_sizes), "EQ", 2, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "size must be 2 for 2-d src_sizes", __LINE__, error=error)
+       ELSE
+          CALL dbcsr_assert (SIZE (src_lb), "EQ", 1, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "size must be 1 for 1-d src_lb", __LINE__, error=error)
+          CALL dbcsr_assert (SIZE (src_sizes), "EQ", 1, dbcsr_fatal_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "size must be 1 for 1-d src_sizes", __LINE__, error=error)
+       ENDIF
+       IF (dbg) THEN
+          CALL dbcsr_data_verify_bounds (dst, dst_lb(1:dst_d), dst_ub(1:dst_d),&
+               error)
+          CALL dbcsr_data_verify_bounds (src, src_lb(1:src_d), src_ub(1:src_d),&
+               error)
+       ENDIF
+    ENDIF
+    !
+    SELECT CASE (src_dt)
+    CASE (dbcsr_type_real_4)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_block_copy (dst%d%r2_sp(dst_lb(1):dst_ub(1),&
+                                             dst_lb(2):dst_ub(2)),&
+                                 src%d%r_sp(src_lb(1):src_ub(1)),&
+                                 src_sizes(1), 1)
+       ELSE
+          CALL dbcsr_block_copy (dst%d%r_sp(dst_lb(1):dst_ub(1)),&
+                                 src%d%r_sp(src_lb(1):src_ub(1)),&
+                                 src_sizes(1), 1)
+       ENDIF
+    CASE (dbcsr_type_real_8)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_block_copy (dst%d%r2_dp(dst_lb(1):dst_ub(1),&
+                                             dst_lb(2):dst_ub(2)),&
+                                 src%d%r_dp(src_lb(1):src_ub(1)),&
+                                 src_sizes(1), 1)
+       ELSE
+          CALL dbcsr_block_copy (dst%d%r_dp(dst_lb(1):dst_ub(1)),&
+                                 src%d%r_dp(src_lb(1):src_ub(1)),&
+                                 src_sizes(1), 1)
+       ENDIF
+    CASE (dbcsr_type_complex_4)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_block_copy (dst%d%c2_sp(dst_lb(1):dst_ub(1),&
+                                             dst_lb(2):dst_ub(2)),&
+                                 src%d%c_sp(src_lb(1):src_ub(1)),&
+                                 src_sizes(1), 1)
+       ELSE
+          CALL dbcsr_block_copy (dst%d%c_sp(dst_lb(1):dst_ub(1)),&
+                                 src%d%c_sp(src_lb(1):src_ub(1)),&
+                                 src_sizes(1), 1)
+       ENDIF
+    CASE (dbcsr_type_complex_8)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_block_copy (dst%d%c2_dp(dst_lb(1):dst_ub(1),&
+                                             dst_lb(2):dst_ub(2)),&
+                                 src%d%c_dp(src_lb(1):src_ub(1)),&
+                                 src_sizes(1), 1)
+       ELSE
+          CALL dbcsr_block_copy (dst%d%c_dp(dst_lb(1):dst_ub(1)),&
+                                 src%d%c_dp(src_lb(1):src_ub(1)),&
+                                 src_sizes(1), 1)
+       ENDIF
+    CASE (dbcsr_type_real_4_2d)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_block_copy (dst%d%r2_sp(dst_lb(1):dst_ub(1),&
+                                             dst_lb(2):dst_ub(2)),&
+                                 src%d%r2_sp(src_lb(1):src_ub(1),&
+                                             src_lb(2):src_ub(2)),&
+                                 dst_sizes(1), dst_sizes(2))
+       ELSE
+          CALL dbcsr_block_copy (dst%d%r_sp(dst_lb(1):dst_ub(1)),&
+                                 src%d%r2_sp(src_lb(1):src_ub(1),&
+                                             src_lb(2):src_ub(2)),&
+                                 dst_sizes(1), dst_sizes(2))
+       ENDIF
+    CASE (dbcsr_type_real_8_2d)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_block_copy (dst%d%r2_dp(dst_lb(1):dst_ub(1),&
+                                             dst_lb(2):dst_ub(2)),&
+                                 src%d%r2_dp(src_lb(1):src_ub(1),&
+                                             src_lb(2):src_ub(2)),&
+                                 dst_sizes(1), dst_sizes(2))
+       ELSE
+          CALL dbcsr_block_copy (dst%d%r_dp(dst_lb(1):dst_ub(1)),&
+                                 src%d%r2_dp(src_lb(1):src_ub(1),&
+                                             src_lb(2):src_ub(2)),&
+                                 dst_sizes(1), dst_sizes(2))
+       ENDIF
+    CASE (dbcsr_type_complex_4_2d)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_block_copy (dst%d%c2_sp(dst_lb(1):dst_ub(1),&
+                                             dst_lb(2):dst_ub(2)),&
+                                 src%d%c2_sp(src_lb(1):src_ub(1),&
+                                             src_lb(2):src_ub(2)),&
+                                 dst_sizes(1), dst_sizes(2))
+       ELSE
+          CALL dbcsr_block_copy (dst%d%c_sp(dst_lb(1):dst_ub(1)),&
+                                 src%d%c2_sp(src_lb(1):src_ub(1),&
+                                             src_lb(2):src_ub(2)),&
+                                 dst_sizes(1), dst_sizes(2))
+       ENDIF
+    CASE (dbcsr_type_complex_8_2d)
+       IF (dbcsr_type_is_2d (dst_dt)) THEN
+          CALL dbcsr_block_copy (dst%d%c2_dp(dst_lb(1):dst_ub(1),&
+                                             dst_lb(2):dst_ub(2)),&
+                                 src%d%c2_dp(src_lb(1):src_ub(1),&
+                                             src_lb(2):src_ub(2)),&
+                                 dst_sizes(1), dst_sizes(2))
+       ELSE
+          CALL dbcsr_block_copy (dst%d%c_dp(dst_lb(1):dst_ub(1)),&
+                                 src%d%c2_dp(src_lb(1):src_ub(1),&
+                                             src_lb(2):src_ub(2)),&
+                                 dst_sizes(1), dst_sizes(2))
+       ENDIF
+    CASE default
+       CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type",__LINE__,error)
+    END SELECT
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_copy_aa2
+
+
+! *****************************************************************************
 !> \brief Clears a data area
 !> \param[in,out] area   area with encapsulated data
 !> \param[in] lb, lb2    (optional) lower bound for clearing
@@ -831,50 +1056,126 @@ CONTAINS
     LOGICAL, PARAMETER                       :: verification = .TRUE.
 
     INTEGER                                  :: dst_o, src_o
+    LOGICAL                                  :: src_is_2d
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (dbcsr_get_data_type (dst) .EQ. dbcsr_get_data_type(src),&
+    CALL dbcsr_assert (dbcsr_type_2d_to_1d (dbcsr_data_get_type (dst)),&
+         "EQ", dbcsr_type_2d_to_1d (dbcsr_data_get_type(src)),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Incompatible data types.",__LINE__,error)
     dst_o = 0 ; src_o = 0
     IF (PRESENT (dst_offset)) dst_o = dst_offset
     IF (PRESENT (src_offset)) src_o = src_offset
     IF (verification) THEN
-       CALL dbcsr_assert (dst_r_lb+nrow-1 .LE. dst_rs, dbcsr_fatal_level,&
+       CALL dbcsr_assert (dst_r_lb+nrow-1, "LE", dst_rs, dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN, "Incompatible dst row sizes",__LINE__,error)
-       CALL dbcsr_assert (dst_c_lb+ncol-1 .LE. dst_cs, dbcsr_fatal_level,&
+       CALL dbcsr_assert (dst_c_lb+ncol-1, "LE", dst_cs, dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN, "Incompatible dst col sizes",__LINE__,error)
-       CALL dbcsr_assert (src_r_lb+nrow-1 .LE. src_rs, dbcsr_fatal_level,&
+       CALL dbcsr_assert (src_r_lb+nrow-1, "LE", src_rs, dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN, "Incompatible src row sizes",__LINE__,error)
-       CALL dbcsr_assert (src_c_lb+ncol-1 .LE. src_cs, dbcsr_fatal_level,&
+       CALL dbcsr_assert (src_c_lb+ncol-1, "LE", src_cs, dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN, "Incompatible src col sizes",__LINE__,error)
     ENDIF
-    SELECT CASE (dbcsr_get_data_type (dst))
+    !
+    src_is_2d = dbcsr_type_is_2d (dbcsr_data_get_type (src))
+    SELECT CASE (dbcsr_data_get_type (dst))
     CASE (dbcsr_type_real_4)
-       CALL dbcsr_block_partial_copy(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
-            src%d%r_sp, src_rs, src_cs, src_tr,&
-            dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
-            dst_offset=dst_o, src_offset=src_o)
+       IF (src_is_2d) THEN
+          CALL dbcsr_block_partial_copy(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%r2_sp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               dst_offset=dst_o)
+       ELSE
+          CALL dbcsr_block_partial_copy(dst%d%r_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%r_sp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               dst_offset=dst_o, src_offset=src_o)
+       ENDIF
     CASE (dbcsr_type_real_8)
-       CALL dbcsr_block_partial_copy(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
-            src%d%r_dp, src_rs, src_cs, src_tr,&
-            dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
-            dst_offset=dst_o, src_offset=src_o)
+       IF (src_is_2d) THEN
+          CALL dbcsr_block_partial_copy(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%r2_dp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               dst_offset=dst_o)
+       ELSE
+          CALL dbcsr_block_partial_copy(dst%d%r_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%r_dp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               dst_offset=dst_o, src_offset=src_o)
+       ENDIF
     CASE (dbcsr_type_complex_4)
-       CALL dbcsr_block_partial_copy(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
-            src%d%c_sp, src_rs, src_cs, src_tr,&
-            dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
-            dst_offset=dst_o, src_offset=src_o)
+       IF (src_is_2d) THEN
+          CALL dbcsr_block_partial_copy(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%c2_sp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               dst_offset=dst_o)
+       ELSE
+          CALL dbcsr_block_partial_copy(dst%d%c_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%c_sp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               dst_offset=dst_o, src_offset=src_o)
+       ENDIF
     CASE (dbcsr_type_complex_8)
-       CALL dbcsr_block_partial_copy(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
-            src%d%c_dp, src_rs, src_cs, src_tr,&
-            dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
-            dst_offset=dst_o, src_offset=src_o)
+       IF (src_is_2d) THEN
+          CALL dbcsr_block_partial_copy(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%c2_dp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               dst_offset=dst_o)
+       ELSE
+          CALL dbcsr_block_partial_copy(dst%d%c_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%c_dp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               dst_offset=dst_o, src_offset=src_o)
+       ENDIF
+    CASE (dbcsr_type_real_4_2d)
+       IF (src_is_2d) THEN
+          CALL dbcsr_block_partial_copy(dst%d%r2_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%r2_sp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+       ELSE
+          CALL dbcsr_block_partial_copy(dst%d%r2_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%r_sp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               src_offset=src_o)
+       ENDIF
+    CASE (dbcsr_type_real_8_2d)
+       IF (src_is_2d) THEN
+          CALL dbcsr_block_partial_copy(dst%d%r2_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%r2_dp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+       ELSE
+          CALL dbcsr_block_partial_copy(dst%d%r2_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%r_dp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               src_offset=src_o)
+       ENDIF
+    CASE (dbcsr_type_complex_4_2d)
+       IF (src_is_2d) THEN
+          CALL dbcsr_block_partial_copy(dst%d%c2_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%c2_sp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+       ELSE
+          CALL dbcsr_block_partial_copy(dst%d%c2_sp, dst_rs, dst_cs, dst_tr,&
+               src%d%c_sp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               src_offset=src_o)
+       ENDIF
+    CASE (dbcsr_type_complex_8_2d)
+       IF (src_is_2d) THEN
+          CALL dbcsr_block_partial_copy(dst%d%c2_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%c2_dp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
+       ELSE
+          CALL dbcsr_block_partial_copy(dst%d%c2_dp, dst_rs, dst_cs, dst_tr,&
+               src%d%c_dp, src_rs, src_cs, src_tr,&
+               dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
+               src_offset=src_o)
+       ENDIF
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            routineN, "Invalid data type or 2-d not supported",__LINE__,error)
+            routineN, "Invalid data type.",__LINE__,error)
     END SELECT
   END SUBROUTINE block_partial_copy_a
 
@@ -908,8 +1209,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    dt_block = dbcsr_get_data_type(block_data)
-    dt_diag = dbcsr_get_data_type(diagonal)
+    dt_block = dbcsr_data_get_type(block_data)
+    dt_diag = dbcsr_data_get_type(diagonal)
     CALL dbcsr_assert (dbcsr_type_is_2d (dt_block), dbcsr_fatal_level,&
          dbcsr_internal_error, routineN, "Block must be 2-d", __LINE__,&
          error=error)
@@ -969,8 +1270,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    dt_block = dbcsr_get_data_type(block_data)
-    dt_diag = dbcsr_get_data_type(diagonal)
+    dt_block = dbcsr_data_get_type(block_data)
+    dt_diag = dbcsr_data_get_type(diagonal)
     CALL dbcsr_assert (dbcsr_type_is_2d (dt_block), dbcsr_fatal_level,&
          dbcsr_internal_error, routineN, "Block must be 2-d", __LINE__,&
          error=error)
@@ -1020,10 +1321,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (dbcsr_type_2d_to_1d(dbcsr_get_data_type(block_a)), "EQ",&
+    CALL dbcsr_assert (dbcsr_type_2d_to_1d(dbcsr_data_get_type(block_a)), "EQ",&
          alpha_scalar%data_type, dbcsr_fatal_level, dbcsr_wrong_args_error,&
          routineN, "Mismatched data types.", __LINE__, error=error)
-    SELECT CASE (dbcsr_get_data_type(block_a))
+    SELECT CASE (dbcsr_data_get_type(block_a))
     CASE (dbcsr_type_real_4)
        CALL block_add_on_diag (&
             block_dimension, block_a%d%r_sp, alpha_scalar%r_sp, imin, imax)

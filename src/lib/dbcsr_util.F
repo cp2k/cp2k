@@ -17,6 +17,8 @@ MODULE dbcsr_util
   USE array_types,                     ONLY: array_data,&
                                              array_hold,&
                                              array_i1d_obj
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
+                                             dbcsr_get_data
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: dp,&
                                              int_4,&
@@ -29,9 +31,9 @@ MODULE dbcsr_util
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_get_data, dbcsr_get_data_size, &
-       dbcsr_get_data_size_referenced, dbcsr_has_symmetry, dbcsr_mp_group, &
-       dbcsr_valid_index
+       dbcsr_distribution_nrows, dbcsr_get_data_size_referenced, &
+       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_valid_index,&
+       dbcsr_blk_row_offset, dbcsr_blk_col_offset
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_magic_number, dbcsr_meta_size, &
        dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
@@ -724,12 +726,13 @@ CONTAINS
 !> \brief Calculates the checksum of a DBCSR matrix.
 !> \param[in] matrix          matrix
 !> \param[out] chksum         calculated checksum
-!> \param[in,out] error       cp2k error
 !> \param[in] local           (optional) no global communication
+!> \param[in] pos             (optional) position-dependent checksum
+!> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  FUNCTION dbcsr_checksum(matrix, local, error) RESULT(checksum)
+  FUNCTION dbcsr_checksum(matrix, local, pos, error) RESULT(checksum)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: local
+    LOGICAL, INTENT(IN), OPTIONAL            :: local, pos
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     REAL(KIND=dp)                            :: checksum
 
@@ -741,9 +744,10 @@ CONTAINS
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
     INTEGER                                  :: bc, blk, blk_p, br, &
-                                                error_handler, m, mn, n
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: nocomm
+                                                error_handler, m, mn, n, ro, co
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size,&
+                                                row_blk_offset, col_blk_offset
+    LOGICAL                                  :: nocomm, tr, pd
     REAL(KIND=dp)                            :: blk_cs, local_cs
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
@@ -757,6 +761,11 @@ CONTAINS
          routineN, "Invalid matrix.",__LINE__,error)
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
+    IF (PRESENT (pos)) THEN
+       pd = pos
+    ELSE
+       pd = .FALSE.
+    ENDIF
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
     local_cs = 0.0_dp
@@ -772,27 +781,51 @@ CONTAINS
     END SELECT
     DO br = 1, matrix%m%nblkrows_total
        m = row_blk_size(br)
+       ro = dbcsr_blk_row_offset (matrix, br)
        DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
           bc = matrix%m%col_i(blk)
           n = col_blk_size(bc)
           mn = m*n
           blk_p = ABS(matrix%m%blk_p(blk))
+          tr = matrix%m%blk_p(blk) .LT. 0
           IF (blk_p .NE. 0) THEN
              IF (mn .GT. 0) THEN
+                IF (tr) CALL swap (m, n)
+                co = dbcsr_blk_col_offset (matrix, bc)
                 ! Calculate DDOT
                 SELECT CASE (matrix%m%data_type)
                 CASE (dbcsr_type_real_8)
-                   blk_cs = REAL(DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
-                        &                    r_dp(blk_p:blk_p+mn-1)), KIND=dp)
+                   IF (pd) THEN
+                      blk_cs = pd_blk_cs (r_dp(blk_p:blk_p+mn-1),&
+                           tr, m, n, ro, co)
+                   ELSE
+                      blk_cs = REAL(DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
+                           &                    r_dp(blk_p:blk_p+mn-1)), KIND=dp)
+                   ENDIF
                 CASE (dbcsr_type_real_4)
-                   blk_cs = REAL(DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
-                        &                    r_sp(blk_p:blk_p+mn-1)), KIND=dp)
+                   IF (pd) THEN
+                      blk_cs = pd_blk_cs (REAL(r_sp(blk_p:blk_p+mn-1), KIND=dp),&
+                           tr,m, n, ro, co)
+                   ELSE
+                      blk_cs = REAL(DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
+                           &                    r_sp(blk_p:blk_p+mn-1)), KIND=dp)
+                   ENDIF
                 CASE (dbcsr_type_complex_8)
-                   blk_cs = REAL(DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
-                        &                    c_dp(blk_p:blk_p+mn-1)), KIND=dp)
+                   IF (pd) THEN
+                      blk_cs = pd_blk_cs (REAL(c_dp(blk_p:blk_p+mn-1), KIND=dp),&
+                           tr, m, n, ro, co)
+                   ELSE
+                      blk_cs = REAL(DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
+                           &                    c_dp(blk_p:blk_p+mn-1)), KIND=dp)
+                   ENDIF
                 CASE (dbcsr_type_complex_4)
-                   blk_cs = REAL(DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
-                        &                    c_sp(blk_p:blk_p+mn-1)), KIND=dp)
+                   IF (pd) THEN
+                      blk_cs = pd_blk_cs (REAL(c_sp(blk_p:blk_p+mn-1), KIND=dp),&
+                           tr, m, n, ro, co)
+                   ELSE
+                      blk_cs = REAL(DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
+                           &                    c_sp(blk_p:blk_p+mn-1)), KIND=dp)
+                   ENDIF
                 CASE default
                    blk_cs = 0.0_dp
                 END SELECT
@@ -814,6 +847,32 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END FUNCTION dbcsr_checksum
+
+  PURE FUNCTION pd_blk_cs (data, tr, ld, od, ro, co) RESULT (pd_cs)
+    INTEGER, INTENT(IN) :: ld, od
+    REAL(KIND=dp), DIMENSION(ld, od), INTENT(IN) :: data
+    LOGICAL, INTENT(IN) :: tr
+    INTEGER, INTENT(IN) :: ro, co
+    REAL(KIND=dp) :: pd_cs
+    INTEGER :: r, c, rs, cs
+    pd_cs = 0.0_dp
+    rs = ld ; cs = od
+    IF (tr) THEN
+       CALL swap (rs, cs)
+       DO r = 1, rs
+          DO c = 1, cs
+             pd_cs = pd_cs + data(c, r)*LOG(ABS(REAL((ro+r-1)*(co+c-1), KIND=dp)))
+          ENDDO
+       ENDDO
+    ELSE
+       DO c = 1, cs
+          DO r = 1, rs
+             pd_cs = pd_cs + data(r, c)*LOG(ABS(REAL((ro+r-1)*(co+c-1), KIND=dp)))
+          ENDDO
+       ENDDO
+    ENDIF
+  END FUNCTION pd_blk_cs
+    
 
 ! *****************************************************************************
 !> \brief Verify the correctness of a BCSR matrix.
@@ -930,7 +989,7 @@ CONTAINS
     !
     IF(dbg.GE.4) THEN
        WRITE(*,'(1X,A,I7,A,I7)')r//' nze=',m%m%nze,'data size',&
-            dbcsr_get_data_size(m%m%data_area)
+            dbcsr_data_get_size(m%m%data_area)
     ENDIF
     data_size_referenced = dbcsr_get_data_size_referenced (m)
     !This tends to be too verbose and usually untrue for symmetric

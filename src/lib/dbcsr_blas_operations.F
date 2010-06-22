@@ -14,9 +14,9 @@
 ! *****************************************************************************
 MODULE dbcsr_blas_operations
 
-  USE dbcsr_error_handling
-  USE dbcsr_methods,                   ONLY: dbcsr_data_clear_2d_pointer,&
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_2d_pointer,&
                                              dbcsr_data_set_2d_pointer
+  USE dbcsr_error_handling
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_scalar_type,&
                                              dbcsr_type_complex_4,&

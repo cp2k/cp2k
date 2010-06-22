@@ -11,6 +11,7 @@
 !>
 !> <b>Modification history:</b>
 !> - 2010-02-18 Moved from dbcsr_util
+!> - 2010-06-18 Moved all pointer methods into here.
 ! *****************************************************************************
 MODULE dbcsr_ptr_util
 
@@ -35,9 +36,26 @@ MODULE dbcsr_ptr_util
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
+#if defined(__PTR_RANK_REMAP)
+  ! True pointer rank remapping can be used.
+  LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .TRUE.
+#else
+#if defined(__NO_ASSUMED_SIZE_NOCOPY_ASSUMPTION)
+  ! Use buffers
+  LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .FALSE.
+#else
+  ! Use crazy Fortran hacks.
+  ! This can be very unsafe!
+  LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .TRUE.
+#endif
+#endif
+
 
   PUBLIC :: addto_array, ensure_array_size
-  PUBLIC :: pointer_replace, pointer_view, pointer_set
+  PUBLIC :: pointer_replace, pointer_view
+  PUBLIC :: pointer_rank_remap2, dbcsr_ptr_remapping,&
+            pointer_s_rank_remap2, pointer_d_rank_remap2,&
+            pointer_c_rank_remap2, pointer_z_rank_remap2
 
 
   INTERFACE addto_array
@@ -62,15 +80,14 @@ MODULE dbcsr_ptr_util
      MODULE PROCEDURE pointer_view_a
   END INTERFACE
 
-  INTERFACE pointer_set
-     MODULE PROCEDURE pointer_set_r2_from_r1_s, pointer_set_r2_from_r1_d,&
-                      pointer_set_r2_from_r1_c, pointer_set_r2_from_r1_z
-  END INTERFACE
-
   INTERFACE pointer_replace
      MODULE PROCEDURE pointer_replace_i
   END INTERFACE
 
+  INTERFACE pointer_rank_remap2
+     MODULE PROCEDURE pointer_s_rank_remap2, pointer_d_rank_remap2,&
+                      pointer_c_rank_remap2, pointer_z_rank_remap2
+  END INTERFACE
 
 CONTAINS
 
@@ -349,7 +366,6 @@ CONTAINS
     ENDIF
     narea2 = new_area
   END FUNCTION pointer_view_a
-
 
 #include "dbcsr_ptr_util_d.F"
 #include "dbcsr_ptr_util_z.F"

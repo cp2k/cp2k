@@ -24,7 +24,16 @@ MODULE dbcsr_work_operations
   USE btree_I8_k_dp2d_v,               ONLY: btree_2d_data_d => dp2d
   USE btree_I8_k_sp2d_v,               ONLY: btree_2d_data_s => sp2d
   USE btree_I8_k_zp2d_v,               ONLY: btree_2d_data_z => zp2d
+  USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_2d_needed,&
+                                             dbcsr_buffers_flush,&
+                                             dbcsr_buffers_init,&
+                                             dbcsr_buffers_new,&
+                                             dbcsr_buffers_release
   USE dbcsr_block_operations,          ONLY: dbcsr_data_set
+  USE dbcsr_data_methods,              ONLY: &
+       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
+       dbcsr_data_get_type, dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_release, dbcsr_data_set_size_referenced
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
@@ -40,16 +49,13 @@ MODULE dbcsr_work_operations
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_allocate
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_hold, &
-       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_destroy_array, dbcsr_destroy_image_dist, &
        dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
        dbcsr_distribution_make_threads, dbcsr_distribution_release, &
        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_num_blocks, &
        dbcsr_init, dbcsr_is_initialized, dbcsr_modify_lock, &
        dbcsr_modify_unlock, dbcsr_mutable_destroy, dbcsr_mutable_init, &
-       dbcsr_mutable_new, dbcsr_mutable_release, &
-       dbcsr_set_data_size_referenced, dbcsr_uses_special_memory, &
+       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_uses_special_memory, &
        dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
@@ -170,6 +176,9 @@ CONTAINS
     IF (.NOT.hijack) THEN
        CALL dbcsr_init (matrix%m)
        matrix%m%refcount = 1
+    ELSEIF (dbcsr_buffers_2d_needed) THEN
+       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
+       CALL dbcsr_buffers_release (matrix%m%buffers, error=error)
     ENDIF
     ! Mark matrix index as having an invalid index.
     matrix%m%valid = .FALSE.
@@ -324,6 +333,11 @@ CONTAINS
     END SELECT
     NULLIFY (matrix%m%predistributed)
     matrix%m%bcsc = .FALSE.
+    CALL dbcsr_buffers_init (matrix%m%buffers)
+    IF (dbcsr_buffers_2d_needed) THEN
+       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
+            error=error)
+    ENDIF
 !$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_create
@@ -495,6 +509,14 @@ CONTAINS
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
 
+    IF (dbcsr_buffers_2d_needed) THEN
+       !$OMP MASTER
+       !$OMP PARALLEL NUM_THREADS(1)
+       CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
+       CALL dbcsr_buffers_release (matrix%m%buffers, error=error)
+       !$OMP END PARALLEL
+       !$OMP END MASTER
+    ENDIF
 !$omp single
     ! Remove the cached pre-distributed images.
     IF (ASSOCIATED (matrix%m%predistributed)) THEN
@@ -517,6 +539,12 @@ CONTAINS
        IF (ASSOCIATED (matrix%m%wms)) &
             CALL dbcsr_work_destroy_all(matrix%m)
 !$omp end single
+       !$omp master
+       IF (dbcsr_buffers_2d_needed) THEN
+          CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
+               error=error)
+       ENDIF
+       !$omp end master
        CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
@@ -622,7 +650,7 @@ CONTAINS
        DO i = 1, SIZE (matrix%m%wms)
           WRITE(*,'(A,4(1X,I4))')"Sorted work matrix",i, matrix%m%wms(i)%lastblk,&
                matrix%m%wms(i)%datasize,&
-               dbcsr_get_data_size (matrix%m%wms(i)%data_area)
+               dbcsr_data_get_size (matrix%m%wms(i)%data_area)
           IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(i))) THEN
              DO j = 1, matrix%m%wms(i)%lastblk
                 WRITE(*,'(A,I4,":",3(1X,I5))')"Sorted",j,&
@@ -667,6 +695,10 @@ CONTAINS
 !$OMP MASTER
     IF (dbg) WRITE(*,*)routineN//" Checksum",&
          dbcsr_checksum (matrix, error=error, local=.TRUE.), matrix%m%name
+    IF (dbcsr_buffers_2d_needed) THEN
+       CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
+            error=error)
+    ENDIF
 !$OMP END MASTER
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_finalize
@@ -802,12 +834,12 @@ CONTAINS
 !$  ithread = omp_get_thread_num ()
     IF (nwms .GT. 1) THEN
        CALL dbcsr_data_init (data_block)
-       CALL dbcsr_data_new (data_block, dbcsr_get_data_type (matrix%data_area))
+       CALL dbcsr_data_new (data_block, dbcsr_data_get_type (matrix%data_area))
        DO which_wm = 1+offset, nwms+offset
           IF (mt .AND. which_wm .NE. ithread+1+offset) CYCLE
           ! We don't know how much data we'll get so we have to be generous.
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-               dbcsr_get_data_size (matrix%data_area), error=error)
+               dbcsr_data_get_size (matrix%data_area), error=error)
        ENDDO
     ENDIF
     CALL dbcsr_iterator_start (iter, m, shared=mt)
@@ -824,7 +856,7 @@ CONTAINS
           ENDIF
           wblk_p = SIGN (wm(which_wm)%datasize+1, blk_p)
           CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
-          nze = dbcsr_get_data_size (data_block)
+          nze = dbcsr_data_get_size (data_block)
           CALL dbcsr_data_set (wm(which_wm)%data_area,&
                lb=ABS(wblk_p),&
                data_size=nze,&
@@ -850,14 +882,14 @@ CONTAINS
        DO which_wm = 1+offset, nwms+offset
           IF (mt .AND. which_wm .NE. ithread+1+offset) CYCLE
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-               dbcsr_get_data_size (matrix%data_area), error=error)
+               dbcsr_data_get_size (matrix%data_area), error=error)
           CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%data_area,&
                error=error)
           IF (count) THEN
              wm(which_wm)%datasize = nze
-             CALL dbcsr_set_data_size_referenced(wm(which_wm)%data_area, nze)
+             CALL dbcsr_data_set_size_referenced(wm(which_wm)%data_area, nze)
           ELSE
-             wm(which_wm)%datasize = dbcsr_get_data_size (wm(which_wm)%data_area)
+             wm(which_wm)%datasize = dbcsr_data_get_size (wm(which_wm)%data_area)
           ENDIF
        ENDDO
     ENDIF
@@ -1068,7 +1100,7 @@ CONTAINS
     !IF (matrix%special_memory) srt = .TRUE.
     DO i = 1, nwms
        wspecial = matrix%special_memory
-       IF (dbcsr_get_data_size (matrix%wms(i)%data_area) .GT. 0) THEN
+       IF (dbcsr_data_get_size (matrix%wms(i)%data_area) .GT. 0) THEN
           wspecial = dbcsr_uses_special_memory (matrix%wms(i)%data_area)
           IF (matrix%special_memory .NEQV. wspecial) THEN
              srt = .TRUE.
@@ -1087,7 +1119,7 @@ CONTAINS
           WRITE(*,'(1X,A,1X,I4,1X,A,3(1X,I7))')routineN//" size of wm",i,"is",&
                matrix%wms(i)%lastblk,&
                matrix%wms(i)%datasize,&
-               dbcsr_get_data_size (matrix%wms(i)%data_area)
+               dbcsr_data_get_size (matrix%wms(i)%data_area)
           WRITE(*,'(1X,A)')routineN//' row_i='
           IF (ASSOCIATED (matrix%wms(i)%row_i))&
                WRITE(*,'(10(1X,I7))')matrix%wms(i)%row_i(:)
@@ -1160,7 +1192,7 @@ CONTAINS
     ENDDO
     matrix%row_p(smallest_row+1:matrix%nblkrows_total+1) = blk-1
     matrix%nze = blk_p - 1
-    CALL dbcsr_set_data_size_referenced (matrix%data_area, referenced)
+    CALL dbcsr_data_set_size_referenced (matrix%data_area, referenced)
     IF (.NOT. srt .AND. ASSOCIATED (matrix%wms(1)%blk_p)) THEN
        matrix%blk_p(1:matrix%wms(1)%lastblk)&
             = matrix%wms(1)%blk_p(1:matrix%wms(1)%lastblk)

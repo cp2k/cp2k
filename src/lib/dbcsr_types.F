@@ -47,8 +47,8 @@ MODULE dbcsr_types
             dbcsr_1d_array_obj,&
             dbcsr_2d_array_obj,&
             dbcsr_mutable_obj, dbcsr_mutable_type,&
-            dbcsr_magic_number
-  ! CP2K compatibility
+            dbcsr_magic_number,&
+            dbcsr_block_buffer_obj, dbcsr_block_buffer_type
   PUBLIC :: dbcsr_meta_size
   PUBLIC :: dbcsr_slot_size,&
             dbcsr_slot_row_p,&
@@ -245,6 +245,35 @@ MODULE dbcsr_types
   INTEGER, PARAMETER            :: dbcsr_norm_gershgorin = 3
   INTEGER, PARAMETER            :: dbcsr_norm_column = 4
 
+
+! *****************************************************************************
+!> \brief Buffer for blocks
+!> \var refcount        Reference counter
+!> \var dirty           Whether any buffers are dirty
+!> \var buffers         Buffers
+!> \var rcb             Row and column and offset and dimensions of data in the
+!>                      buffer
+!> \var main            Main memory
+!> \var data_type       Data type used for the buffers
+! *****************************************************************************
+  TYPE dbcsr_block_buffer_type
+     INTEGER                                     :: refcount
+     LOGICAL, DIMENSION(:), POINTER              :: dirty
+     TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: buffers
+     INTEGER, DIMENSION(:,:), POINTER            :: rcb
+     TYPE(dbcsr_data_obj)                        :: main
+     CHARACTER                                   :: data_type
+  END TYPE dbcsr_block_buffer_type
+
+! *****************************************************************************
+!> \brief Object for the buffer of blocks
+!> \var t               Block buffer
+! *****************************************************************************
+  TYPE dbcsr_block_buffer_obj
+     TYPE(dbcsr_block_buffer_type), POINTER :: b
+  END TYPE dbcsr_block_buffer_obj
+
+
 ! *****************************************************************************
 !> \brief An iterator over a DBCSR matrix.
 !> \note This is briefly changed to allow being included in the dbcsr_type type
@@ -266,16 +295,12 @@ MODULE dbcsr_types
 !>                       depending in dynamic_byrows
 ! *****************************************************************************
   TYPE dbcsr_iterator
-     !TYPE(dbcsr_obj)                               :: matrix
-     !REAL(KIND=real_4), DIMENSION(:,:), POINTER    :: buffer_r_sp
-     !REAL(KIND=real_8), DIMENSION(:,:), POINTER    :: buffer_r_dp
-     !COMPLEX(KIND=real_4), DIMENSION(:,:), POINTER :: buffer_c_sp
-     !COMPLEX(KIND=real_8), DIMENSION(:,:), POINTER :: buffer_c_dp
-     TYPE(dbcsr_data_obj)                           :: buffer_2d
+     TYPE(dbcsr_obj), POINTER                       :: matrix
+     TYPE(dbcsr_block_buffer_obj)                   :: buffer_2d
      INTEGER                                        :: pos, row, row_size, &
           row_offset
      INTEGER, DIMENSION(:), POINTER :: rbs, cbs, roff, coff
-     LOGICAL            :: contiguous_pointers, transpose
+     LOGICAL            :: contiguous_pointers, transpose, read_only
      LOGICAL            :: shared, dynamic, dynamic_byrows
      INTEGER, POINTER   :: common_pos
      ! Copies from the matrix.
@@ -372,6 +397,7 @@ MODULE dbcsr_types
 !> \var transpose             matrix is logically transposed
 !> \var bscs                  BCS Column instead of BCS Row
 !> \var special_memory        uses special (MPI-allocated) memory
+!> \var buffers               Block buffers
 !> \var refcount              reference count
 !> \var work_mutable          uses the mutable data for working and not the
 !>                            append-only data
@@ -407,6 +433,7 @@ MODULE dbcsr_types
      LOGICAL                 :: transpose
      LOGICAL                 :: bcsc
      LOGICAL                 :: special_memory
+     TYPE(dbcsr_block_buffer_obj) :: buffers
      !TYPE(dbcsr_work_type)   :: w
      TYPE(dbcsr_work_type), DIMENSION(:), POINTER :: wms
      TYPE(dbcsr_distribution_obj)       :: dist

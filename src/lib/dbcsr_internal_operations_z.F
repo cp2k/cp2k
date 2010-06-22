@@ -45,7 +45,7 @@
     IF (PRESENT (ltime)) ltime = 0.0_real_8
     ! Increase product data area size if necessary.
     do_resize = .FALSE.
-    maxs = dbcsr_get_data_size(product_data_area)
+    maxs = dbcsr_data_get_size(product_data_area)
     DO sp = 1, stack_size
        sp_c = params(sp)%p_c
        IF (params_c(sp_c)%offset+params_c(sp_c)%nze-1 .GT. maxs) THEN
@@ -53,8 +53,8 @@
           do_resize = .TRUE.
        ENDIF
     ENDDO
-    IF (maxs .GT. dbcsr_get_data_size_referenced (product_data_area)) THEN
-       CALL dbcsr_set_data_size_referenced (product_data_area, maxs)
+    IF (maxs .GT. dbcsr_data_get_size_referenced (product_data_area)) THEN
+       CALL dbcsr_data_set_size_referenced (product_data_area, maxs)
     ENDIF
     IF (do_resize) THEN
        CALL dbcsr_data_ensure_size (product_data_area,&
