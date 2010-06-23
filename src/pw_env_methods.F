@@ -155,7 +155,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL :: efg_present, failure, linres_present, odd, should_output, &
-      spherical, smooth_required, uf_grid, use_ref_cell
+      smooth_required, spherical, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
                                                 max_rpgf0_s, maxradius, &
                                                 my_cut, rel_cutoff, zet0, zetp
