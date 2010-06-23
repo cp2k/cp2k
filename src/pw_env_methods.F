@@ -155,7 +155,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL :: efg_present, failure, linres_present, odd, should_output, &
-      spherical, splines_required, uf_grid, use_ref_cell
+      spherical, smooth_required, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
                                                 max_rpgf0_s, maxradius, &
                                                 my_cut, rel_cutoff, zet0, zetp
@@ -325,38 +325,38 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ! use input suggestion for blocked
      blocked_id_input=dft_control % qs_control % pw_grid_opt % blocked
 
-     ! methods that require spline interpolation have to use a plane distributed setup
+     ! methods that require smoothing or nearest neighbor have to use a plane distributed setup
      ! find the xc properties (FIXME this could miss other xc sections that operate on the grid ...)
      CALL get_qs_env(qs_env=qs_env,input=input,error=error)
      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
      xc_deriv_method_id=section_get_ival(xc_section,"XC_GRID%XC_DERIV",error)
      xc_smooth_method_id=section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error)
-     splines_required=.FALSE.
+     smooth_required=.FALSE.
      SELECT CASE(xc_deriv_method_id)
-     CASE(xc_deriv_pw,xc_deriv_collocate)
-         splines_required=splines_required.OR..FALSE.
-     CASE(xc_deriv_spline2,xc_deriv_spline3,xc_deriv_spline2_smooth, &
+     CASE(xc_deriv_pw,xc_deriv_collocate,xc_deriv_spline3,xc_deriv_spline2)
+         smooth_required=smooth_required.OR..FALSE.
+     CASE(xc_deriv_spline2_smooth, &
           xc_deriv_spline3_smooth,xc_deriv_nn10_smooth,xc_deriv_nn50_smooth)
-         splines_required=splines_required.OR..TRUE.
+         smooth_required=smooth_required.OR..TRUE.
      CASE DEFAULT
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
      SELECT CASE(xc_smooth_method_id)
      CASE(xc_rho_no_smooth)
-         splines_required=splines_required.OR..FALSE.
+         smooth_required=smooth_required.OR..FALSE.
      CASE(xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_rho_nn10,xc_rho_nn50)
-         splines_required=splines_required.OR..TRUE.
+         smooth_required=smooth_required.OR..TRUE.
      CASE DEFAULT
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
      ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume 
-     ! it could be on and splines might be used 
+     ! it could be on and splines might be used (not quite sure if this is due to their use of splines or something else)
      linres_section => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="PROPERTIES%LINRES",&
                    error=error)
      CALL section_vals_get(linres_section,explicit=linres_present,error=error)
      IF (linres_present) THEN
-        splines_required=splines_required.OR..TRUE.
+        smooth_required=smooth_required.OR..TRUE.
      ENDIF
 
      efg_section => section_vals_get_subs_vals(section_vals=input,&
@@ -364,7 +364,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    error=error)
      CALL section_vals_get(efg_section,explicit=efg_present,error=error)
      IF (efg_present) THEN
-        splines_required=splines_required.OR..TRUE.
+        smooth_required=smooth_required.OR..TRUE.
      ENDIF
      
      DO igrid_level=1,ngrid_level
@@ -386,7 +386,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
         ! If splines are required
         ! FIXME.... should only be true for the highest grid 
-        IF (splines_required) THEN
+        IF (smooth_required) THEN
           distribution_layout = (/para_env%num_pe,1/)            
         ENDIF
 
