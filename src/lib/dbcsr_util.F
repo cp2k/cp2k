@@ -28,12 +28,12 @@ MODULE dbcsr_util
   USE dbcsr_machine,                   ONLY: m_walltime
   USE dbcsr_message_passing,           ONLY: mp_sum
   USE dbcsr_methods,                   ONLY: &
+       dbcsr_blk_col_offset, dbcsr_blk_row_offset, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_get_data_size_referenced, &
-       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_valid_index,&
-       dbcsr_blk_row_offset, dbcsr_blk_col_offset
+       dbcsr_has_symmetry, dbcsr_mp_group, dbcsr_valid_index
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_magic_number, dbcsr_meta_size, &
        dbcsr_num_slots, dbcsr_obj, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
@@ -743,11 +743,10 @@ CONTAINS
       POINTER                                :: c_sp
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
-    INTEGER                                  :: bc, blk, blk_p, br, &
-                                                error_handler, m, mn, n, ro, co
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size,&
-                                                row_blk_offset, col_blk_offset
-    LOGICAL                                  :: nocomm, tr, pd
+    INTEGER                                  :: bc, blk, blk_p, br, co, &
+                                                error_handler, m, mn, n, ro
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    LOGICAL                                  :: nocomm, pd, tr
     REAL(KIND=dp)                            :: blk_cs, local_cs
     REAL(KIND=real_4), DIMENSION(:), POINTER :: r_sp
     REAL(KIND=real_8), DIMENSION(:), POINTER :: r_dp
@@ -796,32 +795,32 @@ CONTAINS
                 SELECT CASE (matrix%m%data_type)
                 CASE (dbcsr_type_real_8)
                    IF (pd) THEN
-                      blk_cs = pd_blk_cs (r_dp(blk_p:blk_p+mn-1),&
-                           tr, m, n, ro, co)
+                      blk_cs = pd_blk_cs (m, n, r_dp(blk_p:blk_p+mn-1),&
+                           tr, ro, co)
                    ELSE
                       blk_cs = REAL(DOT_PRODUCT(r_dp(blk_p:blk_p+mn-1),&
                            &                    r_dp(blk_p:blk_p+mn-1)), KIND=dp)
                    ENDIF
                 CASE (dbcsr_type_real_4)
                    IF (pd) THEN
-                      blk_cs = pd_blk_cs (REAL(r_sp(blk_p:blk_p+mn-1), KIND=dp),&
-                           tr,m, n, ro, co)
+                      blk_cs = pd_blk_cs (m,n, REAL(r_sp(blk_p:blk_p+mn-1), KIND=dp),&
+                           tr, ro, co)
                    ELSE
                       blk_cs = REAL(DOT_PRODUCT(r_sp(blk_p:blk_p+mn-1),&
                            &                    r_sp(blk_p:blk_p+mn-1)), KIND=dp)
                    ENDIF
                 CASE (dbcsr_type_complex_8)
                    IF (pd) THEN
-                      blk_cs = pd_blk_cs (REAL(c_dp(blk_p:blk_p+mn-1), KIND=dp),&
-                           tr, m, n, ro, co)
+                      blk_cs = pd_blk_cs (m, n, REAL(c_dp(blk_p:blk_p+mn-1), KIND=dp),&
+                           tr, ro, co)
                    ELSE
                       blk_cs = REAL(DOT_PRODUCT(c_dp(blk_p:blk_p+mn-1),&
                            &                    c_dp(blk_p:blk_p+mn-1)), KIND=dp)
                    ENDIF
                 CASE (dbcsr_type_complex_4)
                    IF (pd) THEN
-                      blk_cs = pd_blk_cs (REAL(c_sp(blk_p:blk_p+mn-1), KIND=dp),&
-                           tr, m, n, ro, co)
+                      blk_cs = pd_blk_cs (m, n, REAL(c_sp(blk_p:blk_p+mn-1), KIND=dp),&
+                           tr, ro, co)
                    ELSE
                       blk_cs = REAL(DOT_PRODUCT(c_sp(blk_p:blk_p+mn-1),&
                            &                    c_sp(blk_p:blk_p+mn-1)), KIND=dp)
@@ -848,26 +847,29 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END FUNCTION dbcsr_checksum
 
-  PURE FUNCTION pd_blk_cs (data, tr, ld, od, ro, co) RESULT (pd_cs)
-    INTEGER, INTENT(IN) :: ld, od
-    REAL(KIND=dp), DIMENSION(ld, od), INTENT(IN) :: data
-    LOGICAL, INTENT(IN) :: tr
-    INTEGER, INTENT(IN) :: ro, co
-    REAL(KIND=dp) :: pd_cs
-    INTEGER :: r, c, rs, cs
+  PURE FUNCTION pd_blk_cs (ld, od, DATA, tr, ro, co) RESULT (pd_cs)
+    INTEGER, INTENT(IN)                      :: ld, od
+    REAL(KIND=dp), DIMENSION(ld, od), &
+      INTENT(IN)                             :: DATA
+    LOGICAL, INTENT(IN)                      :: tr
+    INTEGER, INTENT(IN)                      :: ro, co
+    REAL(KIND=dp)                            :: pd_cs
+
+    INTEGER                                  :: c, cs, r, rs
+
     pd_cs = 0.0_dp
     rs = ld ; cs = od
     IF (tr) THEN
        CALL swap (rs, cs)
        DO r = 1, rs
           DO c = 1, cs
-             pd_cs = pd_cs + data(c, r)*LOG(ABS(REAL((ro+r-1)*(co+c-1), KIND=dp)))
+             pd_cs = pd_cs + DATA(c, r)*LOG(ABS(REAL((ro+r-1)*(co+c-1), KIND=dp)))
           ENDDO
        ENDDO
     ELSE
        DO c = 1, cs
           DO r = 1, rs
-             pd_cs = pd_cs + data(r, c)*LOG(ABS(REAL((ro+r-1)*(co+c-1), KIND=dp)))
+             pd_cs = pd_cs + DATA(r, c)*LOG(ABS(REAL((ro+r-1)*(co+c-1), KIND=dp)))
           ENDDO
        ENDDO
     ENDIF
