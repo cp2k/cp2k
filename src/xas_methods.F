@@ -671,6 +671,7 @@ CONTAINS
       NULLIFY(mo_coeff)
       CALL get_mo_set(mos(1)%mo_set,nao=nao,homo=homo,nmo=nmo,mo_coeff=mo_coeff, nelectron=nelectron)
 
+      nvirtual2 = 0
       IF(xas_control%added_mos .GT. 0) THEN
          nvirtual2 = MIN(xas_control%added_mos,nao-nmo)
          xas_env%unoccupied_eps = xas_control%eps_added
