@@ -783,6 +783,7 @@ CONTAINS
        ro = dbcsr_blk_row_offset (matrix, br)
        DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
           bc = matrix%m%col_i(blk)
+          m = row_blk_size(br)
           n = col_blk_size(bc)
           mn = m*n
           blk_p = ABS(matrix%m%blk_p(blk))
@@ -1049,11 +1050,11 @@ CONTAINS
           !CALL dbcsr_assert(blk_p+mn-1, "LE", m%m%nze,&
           !     dbcsr_warning_level, dbcsr_internal_error, r,&
           !     'Block extends too far',__LINE__,error)
-          CALL dbcsr_assert (blk_p, "LE", data_size_referenced,&
+          CALL dbcsr_assert (ABS(blk_p), "LE", data_size_referenced,&
                dbcsr_warning_level, dbcsr_internal_error, r,&
                "Block pointer pointso outside of declared referenced area",&
                __LINE__, error)
-          CALL dbcsr_assert (blk_p+mn-1, "LE", data_size_referenced,&
+          CALL dbcsr_assert (ABS(blk_p)+mn-1, "LE", data_size_referenced,&
                dbcsr_warning_level, dbcsr_internal_error, r,&
                "Block extends outside of declared referenced area",&
                __LINE__, error)
