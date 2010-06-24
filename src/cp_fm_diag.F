@@ -774,7 +774,7 @@ CONTAINS
   SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,verbose,error)
 
    ! Raise the real symmetric n by n matrix to the power given by
-   ! positive(!) exponent. All eigenvectors with a corresponding eigenvalue lower
+   ! the exponent. All eigenvectors with a corresponding eigenvalue lower
    ! than threshold are quenched. result in matrix
 
    ! - Creation (29.03.1999, Matthias Krack)
