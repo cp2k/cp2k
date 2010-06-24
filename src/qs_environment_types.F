@@ -294,6 +294,7 @@ MODULE qs_environment_types
 !> \param x contains data used in Hartree-Fock-Exchange calculations
 !> \param task_list the list of tasks used in collocate and integrate
 !> \param task_list_soft the list of tasks used in collocate and integrate in case of soft basis functions
+!> \param mo_loc_history if a history of localized wfn is kept, they are stored here.
 !> \par History
 !>      11.2002 added doc and attribute description [fawzi]
 !>      08.2004 renamed some of the very short names (s,c,k,h) for easier grepping
@@ -314,6 +315,7 @@ MODULE qs_environment_types
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_loc_history
     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER         :: mo_derivs
     INTEGER                                               :: neighbor_list_id
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ae,&
@@ -422,7 +424,7 @@ CONTAINS
        local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit,tddfpt_control,&
+       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
@@ -518,7 +520,8 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mo_derivs_aux_fit
+      OPTIONAL, POINTER                      :: mo_derivs_aux_fit, &
+                                                mo_loc_history
     TYPE(tddfpt_control_type), OPTIONAL, &
       POINTER                                :: tddfpt_control
     INTEGER, OPTIONAL                        :: neighbor_list_id
@@ -644,6 +647,7 @@ CONTAINS
     IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
     IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
     IF (PRESENT(mo_derivs_aux_fit)) mo_derivs_aux_fit => qs_env%mo_derivs_aux_fit
+    IF (PRESENT(mo_loc_history)) mo_loc_history => qs_env%mo_loc_history
     IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
     IF (PRESENT(virial)) virial => qs_env%virial
@@ -841,6 +845,7 @@ CONTAINS
     CALL cp_result_create(qs_env%results, error)
     NULLIFY(qs_env%mo_derivs)
     NULLIFY(qs_env%mo_derivs_aux_fit)
+    NULLIFY(qs_env%mo_loc_history)
 
   END SUBROUTINE init_qs_env
 
@@ -860,7 +865,7 @@ CONTAINS
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit,&
+       mo_derivs_aux_fit, mo_loc_history, &
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
@@ -936,7 +941,8 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: mo_derivs_aux_fit
+      OPTIONAL, POINTER                      :: mo_derivs_aux_fit, &
+                                                mo_loc_history
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
@@ -1044,6 +1050,7 @@ CONTAINS
     IF (PRESENT(requires_mo_derivs)) qs_env%requires_mo_derivs=requires_mo_derivs
     IF (PRESENT(mo_derivs)) qs_env%mo_derivs=>mo_derivs
     IF (PRESENT(mo_derivs_aux_fit)) qs_env%mo_derivs_aux_fit=>mo_derivs_aux_fit
+    IF (PRESENT(mo_loc_history)) qs_env%mo_loc_history=>mo_loc_history
     IF (PRESENT(task_list)) qs_env%task_list=>task_list
     IF (PRESENT(task_list_aux_fit)) qs_env%task_list_aux_fit=>task_list_aux_fit
     IF (PRESENT(task_list_soft)) qs_env%task_list_soft=>task_list_soft
@@ -1351,6 +1358,14 @@ CONTAINS
                 CALL cp_fm_release(qs_env%mo_derivs_aux_fit(I)%matrix,error=error)
              ENDDO
              DEALLOCATE(qs_env%mo_derivs_aux_fit, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          ENDIF
+
+          IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
+             DO I=1,SIZE(qs_env%mo_loc_history)
+                CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix,error=error)
+             ENDDO
+             DEALLOCATE(qs_env%mo_loc_history, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           ENDIF
 

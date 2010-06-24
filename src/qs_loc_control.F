@@ -27,6 +27,8 @@ MODULE qs_loc_control
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -72,6 +74,7 @@ MODULE qs_loc_control
     LOGICAL                              :: print_spreads
     LOGICAL                              :: do_homo
     LOGICAL                              :: loc_restart
+    LOGICAL                              :: use_history
     INTEGER, POINTER, DIMENSION(:,:)       :: loc_states
     TYPE(cp_2d_r_p_type), DIMENSION(2)   :: centers_set
   END TYPE localized_wfn_control_type
@@ -123,6 +126,7 @@ CONTAINS
     localized_wfn_control%print_centers = .FALSE.
     localized_wfn_control%print_spreads = .FALSE.
     localized_wfn_control%do_homo = .TRUE.
+    localized_wfn_control%use_history = .FALSE.
     NULLIFY(localized_wfn_control%loc_states)
     NULLIFY(localized_wfn_control%centers_set(1)%array)
     NULLIFY(localized_wfn_control%centers_set(2)%array)
@@ -263,6 +267,8 @@ CONTAINS
                i_val=localized_wfn_control%operator_type,error=error)
           CALL section_vals_val_get(loc_section,"RESTART",&
                l_val=localized_wfn_control%loc_restart,error=error)
+          CALL section_vals_val_get(loc_section,"USE_HISTORY",&
+               l_val=localized_wfn_control%use_history,error=error)
 
           IF(localized_wfn_control%do_homo)THEN
             ! List of States HOMO
@@ -500,8 +506,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ispin, istat, max_iloc, &
-                                                max_nmoloc
+                                                max_nmoloc, state
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,state)
 
     failure = .FALSE.
 
@@ -561,6 +569,8 @@ CONTAINS
           END DO
        END DO
     END SELECT
+
+    CALL timestop(state)
 
   END SUBROUTINE set_loc_wfn_lists
 

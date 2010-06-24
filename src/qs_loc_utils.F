@@ -24,9 +24,13 @@ MODULE qs_loc_utils
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set,&
-                                             dbcsr_obj_p_type
+                                             dbcsr_obj_p_type,&
+                                             dbcsr_sm_fm_multiply
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -41,6 +45,7 @@ MODULE qs_loc_utils
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
+  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: do_loc_none,&
@@ -91,9 +96,122 @@ MODULE qs_loc_utils
 
 ! *** Public ***
   PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init, loc_write_restart,&
-            loc_read_restart,qs_loc_control_init
+            loc_read_restart,qs_loc_control_init, rotate_state_to_ref, retain_history
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief copy old mos to new ones, allocating as necessary
+! *****************************************************************************
+  SUBROUTINE retain_history(mo_loc_history, mo_loc, error)
+
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_loc_history, mo_loc
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'retain_history', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ncol_hist, ncol_loc
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    IF (.NOT. ASSOCIATED(mo_loc_history)) THEN
+       ALLOCATE(mo_loc_history(SIZE(mo_loc)))
+       DO i=1,SIZE(mo_loc_history)
+          CALL cp_fm_create(mo_loc_history(i)%matrix, mo_loc(i)%matrix%matrix_struct,error=error)
+       ENDDO
+    ENDIF
+
+    DO i=1,SIZE(mo_loc_history)
+       CALL cp_fm_get_info(mo_loc_history(i)%matrix, ncol_global=ncol_hist, error=error)
+       CALL cp_fm_get_info(mo_loc(i)%matrix,         ncol_global=ncol_loc, error=error)
+       CPPrecondition(ncol_hist==ncol_loc,cp_failure_level,routineP,error,failure)
+       CALL cp_fm_to_fm(mo_loc(i)%matrix, mo_loc_history(i)%matrix, error=error)
+    ENDDO
+
+    CALL timestop(handle)
+ 
+  END SUBROUTINE retain_history
+
+! *****************************************************************************
+!> \brief rotate the mo_new, so that the orbitals are as similar
+!>        as possible to ones in mo_ref.
+! *****************************************************************************
+  SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S, error) 
+
+    TYPE(cp_fm_type), POINTER                :: mo_new, mo_ref
+    TYPE(dbcsr_obj), POINTER                 :: matrix_S
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rotate_state_to_ref', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ncol, ncol_ref, nrow
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: o1, o2, o3, o4, smo
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    CALL cp_fm_get_info(mo_new, nrow_global=nrow, ncol_global=ncol, error=error)
+    CALL cp_fm_get_info(mo_ref, ncol_global=ncol_ref, error=error)
+    CPPrecondition(ncol==ncol_ref,cp_failure_level,routineP,error,failure)
+
+    NULLIFY(fm_struct_tmp,o1,o2,o3,o4,smo)
+    CALL cp_fm_create(smo,mo_ref%matrix_struct,error=error)
+
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, &
+            ncol_global=ncol, para_env=mo_new%matrix_struct%para_env, &
+            context=mo_new%matrix_struct%context,error=error)
+    CALL cp_fm_create(o1,fm_struct_tmp,error=error)
+    CALL cp_fm_create(o2,fm_struct_tmp,error=error)
+    CALL cp_fm_create(o3,fm_struct_tmp,error=error)
+    CALL cp_fm_create(o4,fm_struct_tmp,error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+
+    ! o1 = (mo_new)^T matrix_S mo_ref
+    CALL dbcsr_sm_fm_multiply(matrix_S,mo_ref,smo,ncol,error=error)
+    CALL cp_fm_gemm('T','N',ncol,ncol,nrow,1.0_dp, mo_new,smo,0.0_dp,o1,error=error)
+
+    ! o2 = (o1^T o1)
+    CALL cp_fm_gemm('T','N',ncol,ncol,ncol,1.0_dp, o1,o1,0.0_dp,o2,error=error)
+  
+    ! o2 = (o1^T o1)^-1/2
+    ALLOCATE(eigenvalues(ncol))
+    CALL cp_fm_syevd(o2,o3,eigenvalues,error)
+    CALL cp_fm_to_fm(o3,o4,error=error)
+    eigenvalues=1.0_dp/SQRT(eigenvalues)
+    CALL cp_fm_column_scale(o4,eigenvalues)
+    CALL cp_fm_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o4,0.0_dp,o2,error=error)
+
+    ! o3 = o1 (o1^T o1)^-1/2
+    CALL cp_fm_gemm('N','N',ncol,ncol,ncol,1.0_dp,o1,o2,0.0_dp,o3,error=error)
+
+    ! mo_new o1 (o1^T o1)^-1/2
+    CALL cp_fm_gemm('N','N',nrow,ncol,ncol,1.0_dp,mo_new,o3,0.0_dp,smo,error=error)
+    CALL cp_fm_to_fm(smo,mo_new,error=error)
+
+    ! XXXXXXX testing 
+    ! CALL cp_fm_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
+    ! WRITE(6,*) o1%local_data
+    ! CALL cp_fm_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1,error=error)
+    ! WRITE(6,*) o1%local_data
+
+    CALL cp_fm_release(o1,error=error)
+    CALL cp_fm_release(o2,error=error)
+    CALL cp_fm_release(o3,error=error)
+    CALL cp_fm_release(o4,error=error)
+    CALL cp_fm_release(smo,error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE rotate_state_to_ref
+
 
 ! *****************************************************************************
 !> \brief 2by2 rotation for the pipek operator
@@ -323,7 +441,7 @@ CONTAINS
 !>      04.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,loc_coeff,error)
+  SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,loc_coeff, mo_loc_history, error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(localized_wfn_control_type), &
@@ -332,7 +450,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: myspin
     LOGICAL, INTENT(IN), OPTIONAL            :: do_localize
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: loc_coeff
+      OPTIONAL, POINTER                      :: loc_coeff, mo_loc_history
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
@@ -368,7 +486,7 @@ CONTAINS
     IF (qs_loc_env%do_localize) THEN
        CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, cell=cell, &
             local_molecules=local_molecules,particle_set=particle_set, &
-            para_env=para_env,mos=mos,error=error)
+            para_env=para_env,mos=mos, error=error)
        nspins    = SIZE(mos,1)
        s_spin    = 1
        l_spin    = nspins
@@ -453,7 +571,17 @@ CONTAINS
              nmosub = localized_wfn_control%nloc_states(ispin)
              CALL cp_fm_to_fm(mat_ptr,moloc_coeff(ispin)%matrix,nmosub,lb,1)
           END IF
+
+          ! we have the mo's to be localized now, see if we can rotate them according to the history
+          ! only do that if we have a history of course. The history is filled 
+          IF (PRESENT(mo_loc_history)) THEN
+            IF (localized_wfn_control%use_history .AND. ASSOCIATED(mo_loc_history)) THEN
+               CALL rotate_state_to_ref(moloc_coeff(ispin)%matrix, mo_loc_history(ispin)%matrix, matrix_s(1)%matrix, error)
+            ENDIF
+          ENDIF 
+
        END DO
+
        CALL set_qs_loc_env(qs_loc_env=qs_loc_env, cell=cell, local_molecules=local_molecules,&
             moloc_coeff=moloc_coeff, particle_set=particle_set,para_env=para_env,&
             localized_wfn_control=localized_wfn_control,error=error)

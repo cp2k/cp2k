@@ -670,6 +670,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="USE_HISTORY",&
+            description="Generate an improved initial guess based on a history of results, which is useful during MD."//&
+                        "Will only work if the number of states to be localized remains constant.",&
+            usage="USE_HISTORY ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="EPS_OCCUPATION",&
             description="Tolerance in the occupation number to select only fully occupied orbitals for the rotation",&
             usage="EPS_OCCUPATION 1.E-5", default_r_val=1.0E-8_dp, error=error)

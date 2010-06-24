@@ -109,7 +109,8 @@ MODULE qs_scf_post_gpw
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -123,7 +124,8 @@ MODULE qs_scf_post_gpw
   USE qs_loc_utils,                    ONLY: loc_read_restart,&
                                              loc_write_restart,&
                                              qs_loc_control_init,&
-                                             qs_loc_env_init
+                                             qs_loc_env_init,&
+                                             retain_history
   USE qs_mo_methods,                   ONLY: calculate_orthonormality,&
                                              calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
@@ -210,10 +212,8 @@ CONTAINS
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: occupied_evals, &
                                                 unoccupied_evals
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: homo_localized, &
-                                                lumo_localized, lumo_ptr, &
-                                                occupied_orbs, unoccupied_orbs
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: homo_localized, &
+      lumo_localized, lumo_ptr, mo_loc_history, occupied_orbs, unoccupied_orbs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -389,13 +389,23 @@ CONTAINS
                 CALL cp_fm_create(homo_localized(ispin)%matrix,occupied_orbs(ispin)%matrix%matrix_struct,error=error)
                 CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix,homo_localized(ispin)%matrix,error=error)
              END DO
+
+             CALL get_qs_env(qs_env,mo_loc_history=mo_loc_history,error=error)
              do_homo=.TRUE.
+
              CALL qs_loc_env_create(qs_loc_env_homo,error=error)
              CALL qs_loc_control_init(qs_loc_env_homo,dft_section,do_homo=do_homo,error=error)
              CALL qs_loc_init(qs_env,qs_loc_env_homo,dft_section,homo_localized,do_homo,&
-                  do_mo_cubes,error=error)
+                  do_mo_cubes,mo_loc_history=mo_loc_history,error=error)
              CALL get_localization_info(qs_env,qs_loc_env_homo,dft_section,homo_localized,&
                   wf_r, wf_g,particles,occupied_orbs,occupied_evals,marked_states,error=error)
+
+             !retain the homo_localized for future use
+             IF (qs_loc_env_homo%localized_wfn_control%use_history) THEN
+                CALL retain_history(mo_loc_history,homo_localized,error)
+                CALL set_qs_env(qs_env,mo_loc_history=mo_loc_history,error=error)
+             ENDIF
+               
              !write restart for localization of occupied orbitals
              CALL loc_write_restart(qs_env,qs_loc_env_homo,localization_section,mos,&
                   homo_localized, do_homo, error=error)
@@ -859,13 +869,15 @@ CONTAINS
   !> \brief initializes everything needed for localization of the HOMOs
   ! *****************************************************************************
   SUBROUTINE qs_loc_init(qs_env,qs_loc_env,dft_section,mos_localized, &
-             do_homo,do_mo_cubes,evals,error)
+             do_homo,do_mo_cubes,mo_loc_history,evals,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_localized
     LOGICAL                                  :: do_homo, do_mo_cubes
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mo_loc_history
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: evals
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -995,7 +1007,8 @@ CONTAINS
       END IF
       CALL set_loc_centers(qs_loc_env%localized_wfn_control,nmoloc,nspin,error=error)
       IF(do_homo)THEN
-         CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,qs_env,loc_coeff=mos_localized,error=error)
+         CALL qs_loc_env_init(qs_loc_env,qs_loc_env%localized_wfn_control,qs_env, &
+                              loc_coeff=mos_localized,mo_loc_history=mo_loc_history,error=error)
       END IF
     ELSE
        ! Let's inform in case the section is not present in the input
