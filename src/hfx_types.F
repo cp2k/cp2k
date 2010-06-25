@@ -807,6 +807,8 @@ MODULE hfx_types
         ELSE
           ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! ** Initialize this guy to enable non periodic stress regtests
+          actual_x_data%periodic_parameter%R_max_stress = 1.0_dp
         END IF
      
         !! ** This guy is allocated on the master thread only 
