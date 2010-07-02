@@ -201,6 +201,9 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
              qs_ot_env(1)%OT_METHOD_FULL="OT DIIS"
            END IF
            CALL ot_diis_step(qs_ot_env,error=error)
+   CASE ("BROY")
+           qs_ot_env(1)%OT_METHOD_FULL="OT BROY"
+           CALL ot_broyden_step(qs_ot_env,error=error)
    CASE DEFAULT
            CALL stop_program("ot_mini","OT_METHOD NYI")
    END SELECT
@@ -1416,5 +1419,320 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
       ENDIF
    ENDIF
 END SUBROUTINE ot_diis_step
+
+! *****************************************************************************
+!> \brief 
+!> \param error variable to control error logging, stopping,...
+!>        qs_ot_env ...
+!> \author 
+! *****************************************************************************
+SUBROUTINE ot_broyden_step(qs_ot_env,error)
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ot_broyden_step', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: diis_bound, diis_m, i, info, &
+                                                ispin, itmp, j, k, n, nener, &
+                                                nscp, nspin
+    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
+                                                do_scp_nddo
+    REAL(KIND=dp)                            :: overlap, tmp, tr_xnew_gx, &
+                                                tr_xold_gx, tmp2
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    REAL(KIND=dp)                            :: beta,gamma,sigma
+
+    REAL(KIND=dp), dimension(:,:),  allocatable :: S
+    REAL(KIND=dp), dimension(:,:),  allocatable :: G
+    REAL(KIND=dp), dimension(:),    allocatable :: f   !  m vector
+    REAL(KIND=dp), dimension(:),    allocatable :: x   ! 2m vector
+    INTEGER, dimension(:), allocatable          :: circ_index
+
+
+   do_ks = qs_ot_env ( 1 ) % settings % ks
+   do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
+   do_scp_nddo = qs_ot_env ( 1 ) % settings % scp_nddo
+   do_ener = qs_ot_env ( 1 ) % settings % do_ener
+
+   beta=qs_ot_env ( 1 ) % settings % broyden_beta
+   gamma=qs_ot_env ( 1 ) % settings % broyden_gamma
+   sigma=qs_ot_env ( 1 ) % settings % broyden_sigma
+
+    ! simplify our life....
+    IF (do_ener .OR. do_scp_nddo .OR. do_scp_dft .OR. .NOT. do_ks .OR. &
+        qs_ot_env(1)%settings%do_rotation) THEN
+       CALL stop_program(routineN,"Not Implemented")
+    ENDIF
+    ! 
+   nspin=SIZE(qs_ot_env)
+
+   diis_m=qs_ot_env(1)%settings%diis_m
+
+   IF (qs_ot_env(1)%diis_iter.lt.diis_m) THEN
+         diis_bound=qs_ot_env(1)%diis_iter+1
+   ELSE
+         diis_bound=diis_m
+   ENDIF
+
+   allocate(S(diis_bound,diis_bound))
+   allocate(G(2*diis_bound,diis_bound))
+   allocate(f(diis_bound))
+   allocate(x(2*diis_bound))
+   allocate(circ_index(diis_bound))
+   S = 0.0
+
+   G = 0.0
+   DO i=1,diis_bound
+       G(i,i)=sigma
+   ENDDO
+
+
+   j = MOD(qs_ot_env(1)%diis_iter,diis_m)+1  ! index in the circular array
+
+   ! copy the position and the error vector in the diis buffers
+
+   DO ispin=1,nspin
+      CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix,qs_ot_env(ispin)%matrix_x,error=error)
+   ENDDO
+
+   IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
+       qs_ot_env(1)%gnorm=0.0_dp
+       DO ispin=1,nspin
+           CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
+                                     qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix,error=error)
+           CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+                tmp,error=error)
+           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
+       ENDDO
+       IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
+           WRITE(cp_logger_get_default_unit_nr(logger),*) "WARNING Preconditioner not positive definite !"
+       ENDIF
+       DO ispin=1,nspin
+          CALL cp_dbcsr_scale(qs_ot_env(ispin)%matrix_h_e(j)%matrix,-1.0_dp,error=error)
+       ENDDO
+   ELSE
+       qs_ot_env(1)%gnorm=0.0_dp
+       DO ispin=1,nspin
+          CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp,error=error)
+          qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
+          CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
+               qs_ot_env(ispin)%matrix_gx,alpha_scalar=0.0_dp,beta_scalar=-1.0_dp,error=error)
+       ENDDO
+   ENDIF
+
+   k    = 0
+   n    = 0
+   CALL dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
+   DO ispin=1,nspin
+      CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
+      k=k+itmp
+   ENDDO
+
+   ! Handling the case of no free variables to optimize
+   IF (n*k /= 0) THEN
+      qs_ot_env(1)%delta=SQRT(ABS(qs_ot_env(1)%gnorm)/(n*k))
+      qs_ot_env(1)%gradient =  - qs_ot_env(1)%gnorm
+   ELSE
+      qs_ot_env(1)%delta = 0.0_dp
+      qs_ot_env(1)%gradient = 0.0_dp
+   END IF
+
+   ! make the diis matrix
+   ! we utilize this as the overlap matrix after reordering
+   DO i=1,diis_bound
+      qs_ot_env(1)%ls_diis(i,j)=0.0_dp
+      DO ispin=1,nspin
+        CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, &
+                           qs_ot_env(ispin)%matrix_h_e(i)%matrix, &
+                           tmp,error=error)
+        qs_ot_env(1)%ls_diis(i,j)=qs_ot_env(1)%ls_diis(i,j)-1.0_dp * tmp
+      ENDDO
+      qs_ot_env(1)%ls_diis(j,i)=qs_ot_env(1)%ls_diis(i,j)
+      qs_ot_env(1)%ls_diis(i,diis_bound+1)=1.0_dp
+      qs_ot_env(1)%ls_diis(diis_bound+1,i)=1.0_dp
+   ENDDO
+   qs_ot_env(1)%ls_diis(diis_bound+1,diis_bound+1)=0.0_dp
+
+   IF (diis_bound == diis_m) THEN
+       DO i=1,diis_bound
+           circ_index(i) = MOD(j+i-1,diis_m)+1
+       ENDDO
+   ELSE
+       DO i=1,diis_bound
+           circ_index(i) = i
+       ENDDO
+   ENDIF
+
+    IF (diis_bound .GT. 1) THEN
+        tmp = 0.0_dp
+        tmp2 = 0.0_dp
+        i = diis_bound
+        DO ispin=1,nspin
+            ! dot product of differences
+            CALL cp_dbcsr_trace( &
+                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
+                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
+                tmp,error=error)
+            tmp2 = tmp2+tmp
+            CALL cp_dbcsr_trace( &
+                qs_ot_env(ispin)%matrix_h_x(circ_index(i-1))%matrix, &
+                qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
+                tmp,error=error)
+            tmp2 = tmp2-tmp
+            CALL cp_dbcsr_trace( &
+                qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
+                qs_ot_env(ispin)%matrix_h_e(circ_index(i-1))%matrix, &
+                tmp,error=error)
+            tmp2 = tmp2-tmp
+            CALL cp_dbcsr_trace( &
+                qs_ot_env(ispin)%matrix_h_x(circ_index(i-1))%matrix, &
+                qs_ot_env(ispin)%matrix_h_e(circ_index(i-1))%matrix, &
+                tmp,error=error)
+            tmp2 = tmp2+tmp
+        ENDDO
+        qs_ot_env(1)%c_broy(i-1) = tmp2
+    ENDIF
+
+
+   ! Fill S matrix with values
+   ! S is symmetric, so where doing unecessary loops.
+   DO i=1,diis_bound
+        DO k=1,diis_bound
+            S(i,k) =  qs_ot_env(1)%ls_diis(circ_index(i), circ_index(k))
+        ENDDO
+   ENDDO
+
+   ! Save energy TODO introduce an array for the energy
+   qs_ot_env(1)%energy_h(j) = qs_ot_env(1)%etotal
+
+    ! If we went uphill, do backtracking line search
+    i = MINLOC(qs_ot_env(1)%energy_h(1:diis_bound),dim=1)
+    IF (i .NE. j) THEN
+        qs_ot_env(1)%OT_METHOD_FULL="OT BTRK"
+        DO ispin=1,nspin
+            CALL cp_dbcsr_set(qs_ot_env(ispin)%matrix_x,0.0_dp,error=error)
+            CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                qs_ot_env(ispin)%matrix_h_x(i)%matrix,&
+                alpha_scalar=1.0_dp,beta_scalar=(1.0_dp-gamma),error=error)
+            CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix,&
+                alpha_scalar=1.0_dp,beta_scalar=gamma,error=error)
+        ENDDO
+   ELSE
+
+      ! Construct G
+      DO i=2,diis_bound
+         f = 0.0
+         x = 0.0
+         ! f is df_i
+         f(i) = 1.0
+         f(i-1) = -1.0
+         ! x is dx_i
+         x(diis_bound+i) = 1.0
+         x(diis_bound+i-1) = -1.0
+         tmp = 1.0_dp
+         ! We want a pos def Hessian
+         IF(qs_ot_env(1)%c_broy(i-1) .GT. 0) THEN
+             qs_ot_env(1)%OT_METHOD_FULL="OT FLIP"
+             tmp = -1.0_dp
+         ENDIF
+
+         ! get dx-Gdf
+         x = tmp*x - matmul(G, f)
+         ! dfSdf
+         ! we calculate matmul(S, f) twice. They're small...
+         tmp = dot_product(f, matmul(S, f))
+         ! NOTE THAT S IS SYMMETRIC !!!
+         f = matmul(S, f)/tmp
+         ! the spread is an outer vector product
+         G = G + spread(x,dim=2,ncopies=size(f))*spread(f,dim=1,ncopies=size(x))
+      ENDDO
+      f = 0.0_dp
+      f(diis_bound)=1.0_dp
+      x = matmul(G,f)
+      x = -beta*x
+
+      ! OK, add the vectors now, this sums up to the proposed step
+      DO ispin=1,nspin
+         CALL cp_dbcsr_set(qs_ot_env(ispin)%matrix_x,0.0_dp,error=error)
+         DO i=1, diis_bound
+            CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                 qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix,&
+                 alpha_scalar=1.0_dp,beta_scalar=-x(i),error=error)
+         ENDDO
+         DO i=1, diis_bound
+            CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                 qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix,&
+                 alpha_scalar=1.0_dp,beta_scalar=x(i+diis_bound),error=error)
+         ENDDO
+      ENDDO
+
+      ! compute the inner product of direction of the step and gradient
+      tmp = 0.0_dp
+      DO ispin=1,nspin
+        CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_gx, &
+                      qs_ot_env(ispin)%matrix_x, &
+                      tmp2,error=error)
+         tmp = tmp+tmp2
+      ENDDO
+
+      DO ispin=1,nspin
+        ! if the direction of the step is not in direction of the gradient,
+        ! flip step sign
+        IF (tmp .ge. 0.0_dp) THEN
+                qs_ot_env(1)%OT_METHOD_FULL="OT TURN"
+                ! XXXXXXX forget history ??
+                !qs_ot_env(1)%diis_iter=0
+                CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                     qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix,&
+                     alpha_scalar=-1.0_dp,beta_scalar=1.0_dp,error=error)
+        ELSE
+                CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+                     qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix,&
+                     alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+        ENDIF
+      ENDDO
+
+   ENDIF
+
+
+   ! get rid of S, G, f, x, circ_index for next round
+   deallocate(S,G,f,x,circ_index)
+
+   qs_ot_env(1)%diis_iter=qs_ot_env(1)%diis_iter+1
+
+   !IF (.TRUE. .OR. qs_ot_env(1)%settings%safer_diis) THEN
+   !  ! now, final check, is the step in fact in the direction of the -gradient ?
+   !  ! if not we're walking towards a sadle point, and should avoid that
+   !  ! the direction of the step is x_new-x_old
+   !  tr_xold_gx=0.0_dp
+   !  tr_xnew_gx=0.0_dp
+   !  DO ispin=1,nspin
+   !       CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_h_x(j)%matrix, &
+   !                              qs_ot_env(ispin)%matrix_gx, tmp,error=error)
+   !       tr_xold_gx=tr_xold_gx+tmp
+   !       CALL cp_dbcsr_trace(qs_ot_env(ispin)%matrix_x, &
+   !                              qs_ot_env(ispin)%matrix_gx, tmp,error=error)
+   !       tr_xnew_gx=tr_xnew_gx+tmp
+   !  ENDDO
+   !  overlap=(tr_xnew_gx-tr_xold_gx)
+   !  ! OK, bad luck, take a SD step along the preconditioned gradient
+   !  IF (overlap.GT.0.0_dp) THEN
+   !     qs_ot_env(1)%OT_METHOD_FULL="OT SD"
+   !     DO ispin=1,nspin
+   !        CALL cp_dbcsr_set(qs_ot_env(ispin)%matrix_x,0.0_dp,error=error)
+   !        CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+   !                       qs_ot_env(ispin)%matrix_h_e(j)%matrix,&
+   !                       1.0_dp,qs_ot_env(1)%ds_min,error=error)
+   !        CALL cp_dbcsr_add(qs_ot_env(ispin)%matrix_x, &
+   !           qs_ot_env(ispin)%matrix_h_x(j)%matrix,&
+   !           1.0_dp,1.0_dp,error=error)
+   !     ENDDO
+   !  ENDIF
+   !ENDIF
+
+END SUBROUTINE ot_broyden_step
 
 END MODULE qs_ot_minimizer

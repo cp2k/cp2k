@@ -405,7 +405,7 @@ MODULE input_constants
                                               current_orb_center_atom=3,&
                                               current_orb_center_box=4
 
-  INTEGER, PARAMETER, PUBLIC               :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
+  INTEGER, PARAMETER, PUBLIC               :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3,ot_mini_broyden=4
   INTEGER, PARAMETER, PUBLIC               :: ot_algo_taylor_or_diag=1,ot_algo_irac=2
   INTEGER, PARAMETER, PUBLIC               :: ot_chol_irac=1,ot_poly_irac=2,ot_lwdn_irac=3
   INTEGER, PARAMETER, PUBLIC               :: ls_none=1,ls_2pnt=2,ls_3pnt=3,ls_gold=4,ls_fit=5

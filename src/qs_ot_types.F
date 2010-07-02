@@ -50,7 +50,7 @@ MODULE qs_ot_types
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
        ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
-       ot_precond_sparse_kinetic_sainv
+       ot_precond_sparse_kinetic_sainv, ot_mini_broyden
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -105,6 +105,7 @@ MODULE qs_ot_types
      LOGICAL           :: mixed_precision
      LOGICAL           :: occupation_preconditioner, add_nondiag_energy
      REAL(KIND = dp)   :: nondiag_energy_strength
+     REAL(KIND = dp)   :: broyden_beta, broyden_gamma, broyden_sigma
   END TYPE qs_ot_settings_type
 
 ! *****************************************************************************
@@ -167,6 +168,8 @@ MODULE qs_ot_types
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: ls_diis
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lss_diis
      REAL(KIND = dp), DIMENSION(:),   POINTER  :: c_diis
+     REAL(KIND = dp), DIMENSION(:),   POINTER  :: c_broy
+     REAL(KIND = dp), DIMENSION(:),   POINTER  :: energy_h
      INTEGER,  DIMENSION(:),   POINTER         :: ipivot
 
      REAL(KIND = dp)  :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
@@ -396,17 +399,20 @@ CONTAINS
     CASE ("CG")
        qs_ot_env%use_gx_old=.TRUE.
        qs_ot_env%use_dx    =.TRUE.
-    CASE ("DIIS")
-       IF (m_diis.lt.1) CALL stop_program("qs_ot_allocate","diis_m less than one")
+    CASE ("DIIS","BROY")
+       IF (m_diis.lt.1) CALL stop_program("qs_ot_allocate","m_diis less than one")
     CASE DEFAULT
        CALL stop_program("qs_ot_allocate","unknown option")
     END SELECT
 
-    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
+    IF (qs_ot_env%settings%ot_method.eq."DIIS" .OR. &
+        qs_ot_env%settings%ot_method.eq."BROY") THEN
        ALLOCATE(qs_ot_env%ls_diis(m_diis+1,m_diis+1))
        qs_ot_env%ls_diis=0.0_dp
        ALLOCATE(qs_ot_env%lss_diis(m_diis+1,m_diis+1))
        ALLOCATE(qs_ot_env%c_diis(m_diis+1))
+       ALLOCATE(qs_ot_env%c_broy(m_diis))
+       ALLOCATE(qs_ot_env%energy_h(m_diis))
        ALLOCATE(qs_ot_env%ipivot(m_diis+1))
     ENDIF
 
@@ -688,7 +694,8 @@ CONTAINS
 
     END SELECT
 
-    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
+    IF (qs_ot_env%settings%ot_method.eq."DIIS" .OR. &
+        qs_ot_env%settings%ot_method.eq."BROY" ) THEN
        NULLIFY(qs_ot_env%matrix_h_e)
        NULLIFY(qs_ot_env%matrix_h_x)
        CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e,m_diis,error=error)
@@ -986,12 +993,15 @@ CONTAINS
     IF(ASSOCIATED(qs_ot_env%buf1_n_k)) CALL cp_dbcsr_release_p(qs_ot_env%buf1_n_k, error=error)
     IF(ASSOCIATED(qs_ot_env%buf1_n_k_dp)) CALL cp_dbcsr_release_p(qs_ot_env%buf1_n_k_dp, error=error)
 
-    IF (qs_ot_env%settings%ot_method.eq."DIIS") THEN
+    IF (qs_ot_env%settings%ot_method.eq."DIIS" .OR. &
+        qs_ot_env%settings%ot_method.eq."BROY") THEN
        CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_x,error=error)
        CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_e,error=error)
        DEALLOCATE(qs_ot_env%ls_diis)
        DEALLOCATE(qs_ot_env%lss_diis)
        DEALLOCATE(qs_ot_env%c_diis)
+       DEALLOCATE(qs_ot_env%c_broy)
+       DEALLOCATE(qs_ot_env%energy_h)
        DEALLOCATE(qs_ot_env%ipivot)
     ENDIF
 
@@ -1160,7 +1170,13 @@ CONTAINS
        settings%ot_method="CG"
     CASE (ot_mini_diis)
        settings%ot_method="DIIS"
-       CALL section_vals_val_get(ot_section,"N_DIIS",i_val=settings%diis_m,error=error)
+       CALL section_vals_val_get(ot_section,"N_HISTORY_VEC",i_val=settings%diis_m,error=error)
+    CASE (ot_mini_broyden)
+       CALL section_vals_val_get(ot_section,"N_HISTORY_VEC",i_val=settings%diis_m,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_BETA", r_val=settings%broyden_beta,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_GAMMA",r_val=settings%broyden_gamma,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_SIGMA",r_val=settings%broyden_sigma,error=error)
+       settings%ot_method="BROY"
     CASE DEFAULT
        CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
     END SELECT
@@ -1254,6 +1270,13 @@ CONTAINS
           ELSE
              WRITE(output_unit,'(A,I3,A)') "                                         - safer DIIS off"
           ENDIF
+       CASE ("BROY")
+          WRITE(output_unit,'(A)')       "  Minimizer      : BROYDEN             : Broyden "
+          WRITE(output_unit,'(A,F16.8)') "                   BETA                : ",settings%broyden_beta
+          WRITE(output_unit,'(A,F16.8)') "                   GAMMA               : ",settings%broyden_gamma
+          WRITE(output_unit,'(A,F16.8)') "                   SIGMA               : ",settings%broyden_sigma
+          WRITE(output_unit,'(A,I3,A)')    "                            using      : - ",&
+               settings%diis_m," BROYDEN vectors"
        CASE DEFAULT
           WRITE(output_unit,'(3A)') "  Minimizer      :      ",settings%OT_METHOD," : UNKNOWN"
        END SELECT

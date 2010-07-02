@@ -4983,11 +4983,12 @@ CONTAINS
             description="Minimizer to be used with the OT method",&
             usage="MINIMIZER DIIS",&
             default_i_val=ot_mini_cg,&
-            enum_c_vals=s2a( "SD", "CG", "DIIS"),&
+            enum_c_vals=s2a( "SD", "CG", "DIIS","BROYDEN"),&
             enum_desc=s2a("Steepest descent: not recommended","Conjugate Gradients: most reliable, use for difficult systems."//&
             " The total energy should decrease at every OT CG step if the line search is appropriate.", &
-            "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster"),&
-            enum_i_vals=(/ot_mini_sd,ot_mini_cg,ot_mini_diis/),&
+            "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster",&
+            "Broyden mixing approximating the inverse Hessian"),&
+            enum_i_vals=(/ot_mini_sd,ot_mini_cg,ot_mini_diis,ot_mini_broyden/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -5000,11 +5001,32 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="N_DIIS",&
-            variants=(/"NDIIS"/),&
-            description="Number of history vectors to be used with DIIS",&
+       CALL keyword_create(keyword, name="N_HISTORY_VEC",&
+            variants=s2a("NDIIS","N_DIIS","N_BROYDEN"),&
+            description="Number of history vectors to be used with DIIS or BROYDEN",&
             usage="N_DIIS 4",&
             default_i_val=7,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_BETA",&
+            description="Underrelaxation for the broyden mixer",&
+            usage="BROYDEN_BETA 0.8",&
+            default_r_val=0.7_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_GAMMA",&
+            description="Backtracking parameter",&
+            usage="BROYDEN_GAMMA 0.5",&
+            default_r_val=0.5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_SIGMA",&
+            description="Weight of initial guess for inverse Hessian.",&
+            usage="BROYDEN_SIGMA 0.5",&
+            default_r_val=0.5_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
