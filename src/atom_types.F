@@ -2080,7 +2080,7 @@ CONTAINS
         READ(line_att,*) potential%cl(i)
         CALL remove_word(line_att)
       END DO
-      ! Check for the next entry: LPOT, NCCL, LSD, or ppnl
+      ! Check for the next entry: LPOT, NLCC, LSD, or ppnl
       DO
         is_ok=cp_sll_val_next(list,val,error=error)
         CPPostcondition(is_ok, cp_failure_level, routineP, error, failure)
