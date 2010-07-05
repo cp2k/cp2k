@@ -32,7 +32,7 @@
 !>    can be found at  http://cp2k.berlios.de/                                  !
 !> \note
 !>       should be kept as lean as possible.
-!>       see cp2k_run for more comments 
+!>       see cp2k_run for more comments  
 !> \author Joost VandeVondele !
 ! *****************************************************************************
 PROGRAM cp2k
