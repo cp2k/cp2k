@@ -520,7 +520,7 @@ CONTAINS
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
 
-!$  INTEGER :: omp_get_max_threads, omp_get_num_threads, omp_get_thread_num  
+!$  INTEGER :: omp_get_max_threads, omp_get_thread_num  
 
     CALL timeset(routineN,handle)
 
@@ -837,17 +837,19 @@ CONTAINS
        tbuf => fft_scratch%tbuf
        num_threads = 1
        my_id = 0
-!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(sbuf,2), SIZE(tbuf,3))), &
+!$omp parallel default(none), &
 !$omp          private(my_id, num_threads, lb, ub), &
 !$omp          shared(sbuf, tbuf)
-!$     num_threads = omp_get_num_threads()
+!$     num_threads = MIN(omp_get_max_threads(), SIZE(sbuf,2), SIZE(tbuf,3))
 !$     my_id = omp_get_thread_num()
-       lb = (SIZE(sbuf,2)*my_id)/num_threads + 1
-       ub = (SIZE(sbuf,2)*(my_id+1))/num_threads
-       sbuf(:,lb:ub) = 0._dp
-       lb = (SIZE(tbuf,3)*my_id)/num_threads + 1
-       ub = (SIZE(tbuf,3)*(my_id+1))/num_threads
-       tbuf(:,:,lb:ub) = 0._dp
+       if (my_id < num_threads) then
+         lb = (SIZE(sbuf,2)*my_id)/num_threads + 1
+         ub = (SIZE(sbuf,2)*(my_id+1))/num_threads
+         sbuf(:,lb:ub) = 0._dp
+         lb = (SIZE(tbuf,3)*my_id)/num_threads + 1
+         ub = (SIZE(tbuf,3)*(my_id+1))/num_threads
+         tbuf(:,:,lb:ub) = 0._dp
+       end if
 !$omp end parallel
 
        IF ( sign == FWFFT ) THEN
@@ -1720,7 +1722,7 @@ CONTAINS
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
-!$ INTEGER :: omp_get_max_threads, omp_get_num_threads, omp_get_thread_num
+!$ INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -1824,14 +1826,16 @@ CONTAINS
     num_threads = 1
     my_id = 0
 
-!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(tb,2))), &
+!$omp parallel default(none), &
 !$omp          private(my_id,num_threads,lb,ub,ipr,jj,ip,ir,jz,jy,jx), &
 !$omp          shared(tb,np,p2p,bo,rs_pos,nray,yzp,alltoall_sgl,zcor,myz,tq,rq,nz)
-!$  num_threads = omp_get_num_threads()
+!$  num_threads = MIN(omp_get_max_threads(), SIZE(tb,2))
 !$  my_id = omp_get_thread_num()
-    lb = (SIZE(tb,2)*my_id)/num_threads + 1
-    ub = (SIZE(tb,2)*(my_id+1))/num_threads
-    tb(:,lb:ub) = 0.0_lp
+    if (my_id < num_threads) then
+      lb = (SIZE(tb,2)*my_id)/num_threads + 1
+      ub = (SIZE(tb,2)*(my_id+1))/num_threads
+      tb(:,lb:ub) = 0.0_lp
+    end if
 !$omp barrier
 !$omp do
     DO ip = 0, np - 1
@@ -2251,7 +2255,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -2294,15 +2298,16 @@ CONTAINS
     rbuf => fft_scratch%rbuf3
     num_threads = 1
     my_id = 0
-!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(rbuf,2))), &
+!$omp parallel default(none), &
 !$omp          private(num_threads, my_id, lb, ub), &
 !$omp          shared(rbuf)
-!$  num_threads = omp_get_num_threads()
+!$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
-    lb = (SIZE(rbuf,2)*my_id)/num_threads 
-    ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
-
-    rbuf(:,lb:ub) = 0.0_lp
+    if (my_id < num_threads) then
+      lb = (SIZE(rbuf,2)*my_id)/num_threads 
+      ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
+      rbuf(:,lb:ub) = 0.0_lp
+    end if
 !$omp end parallel
 
     CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
@@ -2352,7 +2357,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
-!$  INTEGER :: omp_get_max_threads, omp_get_num_threads, omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -2374,15 +2379,16 @@ CONTAINS
     rbuf => fft_scratch%rbuf4
     num_threads = 1
     my_id = 0
-!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(rbuf,2))), &
+!$omp parallel default(none), &
 !$omp          private(num_threads,my_id,lb,ub,ip,ipl,ny,iy,ir), &
 !$omp          shared(rbuf,nz,nx,np,pgrid,boout,cin,my,scount,sdispl)
-!$  num_threads = omp_get_num_threads()
+!$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
-    lb = (SIZE(rbuf,2)*my_id)/num_threads 
-    ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
-
-    rbuf(:,lb:ub) = 0.0_lp
+    if (my_id < num_threads) then
+      lb = (SIZE(rbuf,2)*my_id)/num_threads 
+      ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
+      rbuf(:,lb:ub) = 0.0_lp
+    end if
 !$omp barrier
 
 !$omp do __COLLAPSE2
@@ -2446,7 +2452,7 @@ CONTAINS
                                                 num_threads, nx, ny, nz, ub
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
 
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -2483,15 +2489,16 @@ CONTAINS
     rbuf => fft_scratch%rbuf5
     num_threads = 1
     my_id = 0
-!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(rbuf,2))), &
+!$omp parallel default(none), &
 !$omp          private(num_threads, my_id, lb, ub), &
 !$omp          shared(rbuf)
-!$  num_threads = omp_get_num_threads()
+!$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
-    lb = (SIZE(rbuf,2)*my_id)/num_threads 
-    ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
-
-    rbuf(:,lb:ub) = 0.0_lp
+    if (my_id < num_threads) then
+      lb = (SIZE(rbuf,2)*my_id)/num_threads 
+      ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
+      rbuf(:,lb:ub) = 0.0_lp
+    end if
 !$omp end parallel
 
 
@@ -2538,7 +2545,7 @@ CONTAINS
                                                 num_threads, nx, ny, nz, ub
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
 
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -2556,15 +2563,16 @@ CONTAINS
     rbuf => fft_scratch%rbuf5
     num_threads = 1
     my_id = 0
-!$omp parallel default(none), num_threads(MIN(omp_get_max_threads(), SIZE(rbuf,2))), &
+!$omp parallel default(none), &
 !$omp          private(num_threads,my_id,lb,ub,ip,ny,iy,ir), &
 !$omp          shared(rbuf,nx,nz,np,boout,cin,my,scount,sdispl)
-!$  num_threads = omp_get_num_threads()
+!$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
-    lb = (SIZE(rbuf,2)*my_id)/num_threads
-    ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
-
-    rbuf(:,lb:ub) = 0.0_lp
+    if (my_id < num_threads) then
+      lb = (SIZE(rbuf,2)*my_id)/num_threads
+      ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
+      rbuf(:,lb:ub) = 0.0_lp
+    end if
 !$omp barrier
 
 !$omp do __COLLAPSE2
