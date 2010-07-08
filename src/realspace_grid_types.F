@@ -41,6 +41,12 @@ MODULE realspace_grid_types
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
+#if defined(__HAS_NO_OMP_3)
+#define __COLLAPSE2
+#else
+#define __COLLAPSE2 collapse(2)
+#endif
+
   IMPLICIT NONE
 
   PRIVATE
@@ -145,7 +151,7 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: ub_real                   ! upper bounds of the real local data
 
      INTEGER, DIMENSION (:), POINTER :: px,py,pz         ! index translators
-     REAL(KIND=dp), DIMENSION ( :, :, : ),POINTER :: r   ! the grid
+     REAL(KIND=dp), DIMENSION ( :, :, : ), ALLOCATABLE :: r   ! the grid
 
   END TYPE realspace_grid_type
 
@@ -1973,11 +1979,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_zero', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, n
+    INTEGER                                  :: handle, i, j, k, l(3), u(3)
 
     CALL timeset(routineN,handle)
-    n = SIZE ( rs % r )
-    CALL dcopy ( n, 0.0_dp, 0, rs % r, 1 )
+    l(1) = LBOUND( rs % r, 1 );l(2) = LBOUND( rs % r, 2 );l(3) = LBOUND( rs % r, 3 )
+    u(1) = UBOUND( rs % r, 1 );u(2) = UBOUND( rs % r, 2 );u(3) = UBOUND( rs % r, 3 )
+!$omp parallel do default(none) __COLLAPSE2 &
+!$omp             private(i,j,k) &
+!$omp             shared(rs,l,u)
+    DO k = l(3),u(3)
+    DO j = l(2),u(2)
+    DO i = l(1),u(1)
+       rs % r ( i, j, k ) = 0.0_dp
+    ENDDO
+    ENDDO
+    ENDDO
+!$omp end parallel do
     CALL timestop(handle)
 
   END SUBROUTINE rs_grid_zero
