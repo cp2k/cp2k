@@ -52,7 +52,6 @@ MODULE dft_plus_u
                                              dbcsr_iterator_stop
   USE dbcsr_types,                     ONLY: dbcsr_iterator,&
                                              dbcsr_obj
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: plus_u_lowdin,&
                                              plus_u_mulliken,&
@@ -108,7 +107,6 @@ CONTAINS
     LOGICAL                                  :: failure, orthonormal_basis, &
                                                 should_output
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
@@ -116,13 +114,11 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    NULLIFY (distribution_2d)
     NULLIFY (input)
 
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    distribution_2d=distribution_2d,&
                     input=input,&
                     error=error)
 
@@ -247,7 +243,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -263,7 +258,6 @@ CONTAINS
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
-    NULLIFY (distribution_2d)
     NULLIFY (energy)
     NULLIFY (first_sgf)
     NULLIFY (fm_s_half)
@@ -303,7 +297,6 @@ CONTAINS
                     particle_set=particle_set,&
                     rho=rho,&
                     scf_env=scf_env,&
-                    distribution_2d=distribution_2d,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -927,7 +920,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -942,7 +934,6 @@ CONTAINS
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
-    NULLIFY (distribution_2d)
     NULLIFY (energy)
     NULLIFY (first_sgf)
     NULLIFY (h_block)
@@ -977,7 +968,6 @@ CONTAINS
                     energy=energy,&
                     particle_set=particle_set,&
                     rho=rho,&
-                    distribution_2d=distribution_2d,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
@@ -1597,7 +1587,6 @@ CONTAINS
     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1610,7 +1599,6 @@ CONTAINS
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
-    NULLIFY (distribution_2d)
     NULLIFY (energy)
     NULLIFY (first_sgf)
     NULLIFY (h_block)
@@ -1637,7 +1625,6 @@ CONTAINS
                     energy=energy,&
                     particle_set=particle_set,&
                     rho=rho,&
-                    distribution_2d=distribution_2d,&
                     error=error)
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
