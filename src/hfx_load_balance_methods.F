@@ -79,8 +79,6 @@ MODULE hfx_load_balance_methods
                                               1.4245996087624646_dp,       1.1425350529853495_dp/)
   REAL(KIND=dp), PARAMETER :: p3_forces(2) =(/0.12051930516830946_dp,      1.3828051586144336_dp/)
 
-  INTEGER  :: my_rank
-
 !***
   
   CONTAINS
@@ -687,7 +685,6 @@ MODULE hfx_load_balance_methods
       ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      my_rank = para_env%mepos
       CALL optimize_distribution(ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
                                  shm_distribution_vector, x_data%load_balance_parameter%do_randomize, &
                                  error)
