@@ -842,14 +842,14 @@ CONTAINS
 !$omp          shared(sbuf, tbuf)
 !$     num_threads = MIN(omp_get_max_threads(), SIZE(sbuf,2), SIZE(tbuf,3))
 !$     my_id = omp_get_thread_num()
-       if (my_id < num_threads) then
+       IF (my_id < num_threads) THEN
          lb = (SIZE(sbuf,2)*my_id)/num_threads + 1
          ub = (SIZE(sbuf,2)*(my_id+1))/num_threads
          sbuf(:,lb:ub) = 0._dp
          lb = (SIZE(tbuf,3)*my_id)/num_threads + 1
          ub = (SIZE(tbuf,3)*(my_id+1))/num_threads
          tbuf(:,:,lb:ub) = 0._dp
-       end if
+       END IF
 !$omp end parallel
 
        IF ( sign == FWFFT ) THEN
@@ -1831,11 +1831,11 @@ CONTAINS
 !$omp          shared(tb,np,p2p,bo,rs_pos,nray,yzp,alltoall_sgl,zcor,myz,tq,rq,nz)
 !$  num_threads = MIN(omp_get_max_threads(), SIZE(tb,2))
 !$  my_id = omp_get_thread_num()
-    if (my_id < num_threads) then
+    IF (my_id < num_threads) THEN
       lb = (SIZE(tb,2)*my_id)/num_threads + 1
       ub = (SIZE(tb,2)*(my_id+1))/num_threads
       tb(:,lb:ub) = 0.0_lp
-    end if
+    END IF
 !$omp barrier
 !$omp do
     DO ip = 0, np - 1
@@ -2303,11 +2303,11 @@ CONTAINS
 !$omp          shared(rbuf)
 !$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
-    if (my_id < num_threads) then
+    IF (my_id < num_threads) THEN
       lb = (SIZE(rbuf,2)*my_id)/num_threads 
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
       rbuf(:,lb:ub) = 0.0_lp
-    end if
+    END IF
 !$omp end parallel
 
     CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
@@ -2384,11 +2384,11 @@ CONTAINS
 !$omp          shared(rbuf,nz,nx,np,pgrid,boout,cin,my,scount,sdispl)
 !$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
-    if (my_id < num_threads) then
+    IF (my_id < num_threads) THEN
       lb = (SIZE(rbuf,2)*my_id)/num_threads 
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
       rbuf(:,lb:ub) = 0.0_lp
-    end if
+    END IF
 !$omp barrier
 
 !$omp do __COLLAPSE2
@@ -2494,11 +2494,11 @@ CONTAINS
 !$omp          shared(rbuf)
 !$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
-    if (my_id < num_threads) then
+    IF (my_id < num_threads) THEN
       lb = (SIZE(rbuf,2)*my_id)/num_threads 
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
       rbuf(:,lb:ub) = 0.0_lp
-    end if
+    END IF
 !$omp end parallel
 
 
@@ -2568,11 +2568,11 @@ CONTAINS
 !$omp          shared(rbuf,nx,nz,np,boout,cin,my,scount,sdispl)
 !$  num_threads = MIN(omp_get_max_threads(), SIZE(rbuf,2))
 !$  my_id = omp_get_thread_num()
-    if (my_id < num_threads) then
+    IF (my_id < num_threads) THEN
       lb = (SIZE(rbuf,2)*my_id)/num_threads
       ub = (SIZE(rbuf,2)*(my_id+1))/num_threads - 1
       rbuf(:,lb:ub) = 0.0_lp
-    end if
+    END IF
 !$omp barrier
 
 !$omp do __COLLAPSE2

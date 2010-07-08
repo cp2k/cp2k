@@ -1433,23 +1433,19 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_broyden_step', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: diis_bound, diis_m, i, info, &
-                                                ispin, itmp, j, k, n, nener, &
-                                                nscp, nspin
+    INTEGER                                  :: diis_bound, diis_m, i, ispin, &
+                                                itmp, j, k, n, nspin
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: circ_index
     LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
                                                 do_scp_nddo
-    REAL(KIND=dp)                            :: overlap, tmp, tr_xnew_gx, &
-                                                tr_xold_gx, tmp2
+    REAL(KIND=dp)                            :: beta, gamma, sigma, tmp, tmp2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f, x
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: G, S
     TYPE(cp_logger_type), POINTER            :: logger
 
-    REAL(KIND=dp)                            :: beta,gamma,sigma
-
-    REAL(KIND=dp), dimension(:,:),  allocatable :: S
-    REAL(KIND=dp), dimension(:,:),  allocatable :: G
-    REAL(KIND=dp), dimension(:),    allocatable :: f   !  m vector
-    REAL(KIND=dp), dimension(:),    allocatable :: x   ! 2m vector
-    INTEGER, dimension(:), allocatable          :: circ_index
-
+!  m vector
+! 2m vector
 
    do_ks = qs_ot_env ( 1 ) % settings % ks
    do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
@@ -1476,11 +1472,11 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
          diis_bound=diis_m
    ENDIF
 
-   allocate(S(diis_bound,diis_bound))
-   allocate(G(2*diis_bound,diis_bound))
-   allocate(f(diis_bound))
-   allocate(x(2*diis_bound))
-   allocate(circ_index(diis_bound))
+   ALLOCATE(S(diis_bound,diis_bound))
+   ALLOCATE(G(2*diis_bound,diis_bound))
+   ALLOCATE(f(diis_bound))
+   ALLOCATE(x(2*diis_bound))
+   ALLOCATE(circ_index(diis_bound))
    S = 0.0
 
    G = 0.0
@@ -1640,18 +1636,18 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
          ENDIF
 
          ! get dx-Gdf
-         x = tmp*x - matmul(G, f)
+         x = tmp*x - MATMUL(G, f)
          ! dfSdf
          ! we calculate matmul(S, f) twice. They're small...
-         tmp = dot_product(f, matmul(S, f))
+         tmp = DOT_PRODUCT(f, MATMUL(S, f))
          ! NOTE THAT S IS SYMMETRIC !!!
-         f = matmul(S, f)/tmp
+         f = MATMUL(S, f)/tmp
          ! the spread is an outer vector product
-         G = G + spread(x,dim=2,ncopies=size(f))*spread(f,dim=1,ncopies=size(x))
+         G = G + SPREAD(x,dim=2,ncopies=SIZE(f))*SPREAD(f,dim=1,ncopies=SIZE(x))
       ENDDO
       f = 0.0_dp
       f(diis_bound)=1.0_dp
-      x = matmul(G,f)
+      x = MATMUL(G,f)
       x = -beta*x
 
       ! OK, add the vectors now, this sums up to the proposed step
@@ -1681,7 +1677,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
       DO ispin=1,nspin
         ! if the direction of the step is not in direction of the gradient,
         ! flip step sign
-        IF (tmp .ge. 0.0_dp) THEN
+        IF (tmp .GE. 0.0_dp) THEN
                 qs_ot_env(1)%OT_METHOD_FULL="OT TURN"
                 ! XXXXXXX forget history ??
                 !qs_ot_env(1)%diis_iter=0
@@ -1699,7 +1695,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
 
 
    ! get rid of S, G, f, x, circ_index for next round
-   deallocate(S,G,f,x,circ_index)
+   DEALLOCATE(S,G,f,x,circ_index)
 
    qs_ot_env(1)%diis_iter=qs_ot_env(1)%diis_iter+1
 

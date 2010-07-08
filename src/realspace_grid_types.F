@@ -1088,14 +1088,14 @@ CONTAINS
 !$omp          shared(send_buf_3d_down,rs,lb_send_down,ub_send_down)
 !$              num_threads = MIN(omp_get_max_threads(), ub_send_down(3)-lb_send_down(3)+1)
 !$              my_id = omp_get_thread_num()
-                if (my_id < num_threads) then
+                IF (my_id < num_threads) THEN
                   lb = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*my_id)/num_threads 
                   ub = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*(my_id+1))/num_threads - 1
 
                   send_buf_3d_down(lb_send_down(1):ub_send_down(1), lb_send_down(2):ub_send_down(2), &
                                    lb:ub) = rs % r ( lb_send_down(1):ub_send_down(1), &
                                    lb_send_down(2):ub_send_down(2), lb:ub )
-                end if
+                END IF
 !$omp end parallel
 
                 CALL mp_isend (send_buf_3d_down, dest_down, rs % desc % group, req(3))
@@ -1150,14 +1150,14 @@ CONTAINS
 !$omp          shared(send_buf_3d_up,rs,lb_send_up,ub_send_up)
 !$              num_threads = MIN(omp_get_max_threads(), ub_send_up(3)-lb_send_up(3)+1)
 !$              my_id = omp_get_thread_num()
-                if (my_id < num_threads) then
+                IF (my_id < num_threads) THEN
                   lb = lb_send_up(3) + ((ub_send_up(3)-lb_send_up(3)+1)*my_id)/num_threads
                   ub = lb_send_up(3) + ((ub_send_up(3)-lb_send_up(3)+1)*(my_id+1))/num_threads - 1
 
                   send_buf_3d_up ( lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2), &
                                    lb:ub ) = rs % r ( lb_send_up(1):ub_send_up(1), &
                                    lb_send_up(2):ub_send_up(2), lb:ub )
-                end if
+                END IF
 !$omp end parallel
 
                 CALL mp_isend (send_buf_3d_up, dest_up, rs % desc % group, req(4))
@@ -1178,7 +1178,7 @@ CONTAINS
 !$omp          shared(recv_buf_3d_down,rs,lb_recv_down,ub_recv_down)
 !$                       num_threads = MIN(omp_get_max_threads(), ub_recv_down(3)-lb_recv_down(3)+1)
 !$                       my_id = omp_get_thread_num()
-                         if (my_id < num_threads) then
+                         IF (my_id < num_threads) THEN
                            lb = lb_recv_down(3) + ((ub_recv_down(3)-lb_recv_down(3)+1)*my_id)/num_threads
                            ub = lb_recv_down(3) + ((ub_recv_down(3)-lb_recv_down(3)+1)*(my_id+1))/num_threads - 1
 
@@ -1187,7 +1187,7 @@ CONTAINS
                                 rs % r ( lb_recv_down(1):ub_recv_down(1), &
                                 lb_recv_down(2):ub_recv_down(2), lb:ub ) + &
                                 recv_buf_3d_down (:, :, lb:ub)
-                         end if
+                         END IF
 !$omp end parallel
                       END IF
                       DEALLOCATE( recv_buf_3d_down, STAT=stat)
@@ -1202,7 +1202,7 @@ CONTAINS
 !$omp          shared(recv_buf_3d_up,rs,lb_recv_up,ub_recv_up)
 !$              num_threads = MIN(omp_get_max_threads(), ub_recv_up(3)-lb_recv_up(3)+1)
 !$              my_id = omp_get_thread_num()
-                         if (my_id < num_threads) then
+                         IF (my_id < num_threads) THEN
                            lb = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*my_id)/num_threads
                            ub = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*(my_id+1))/num_threads - 1
 
@@ -1211,7 +1211,7 @@ CONTAINS
                                 rs % r ( lb_recv_up(1):ub_recv_up(1), &
                                 lb_recv_up(2):ub_recv_up(2), lb:ub ) + &
                                 recv_buf_3d_up (:, :, lb:ub)
-                         end if
+                         END IF
 !$omp end parallel
                       END IF
                       DEALLOCATE( recv_buf_3d_up, STAT=stat)
@@ -1806,14 +1806,14 @@ CONTAINS
 !$omp          shared(send_buf_3d_down,rs,lb_send_down,ub_send_down)
 !$              num_threads = MIN(omp_get_max_threads(), ub_send_down(3)-lb_send_down(3)+1)
 !$              my_id = omp_get_thread_num()
-                if (my_id < num_threads) then
+                IF (my_id < num_threads) THEN
                   lb = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*my_id)/num_threads
                   ub = lb_send_down(3) + ((ub_send_down(3)-lb_send_down(3)+1)*(my_id+1))/num_threads - 1
 
                   send_buf_3d_down ( lb_send_down(1):ub_send_down(1) ,lb_send_down(2):ub_send_down(2), &
                                      lb:ub ) = rs % r ( lb_send_down(1):ub_send_down(1), &
                                      lb_send_down(2):ub_send_down(2), lb:ub )
-                end if
+                END IF
 !$omp end parallel
 
                 CALL mp_isend ( send_buf_3d_down, dest_down, rs % desc % group, req(3))
@@ -1872,14 +1872,14 @@ CONTAINS
 !$omp          shared(send_buf_3d_up,rs,lb_send_up,ub_send_up)
 !$              num_threads = MIN(omp_get_max_threads(), ub_send_up(3)-lb_send_up(3)+1)
 !$              my_id = omp_get_thread_num()
-                if (my_id < num_threads) then
+                IF (my_id < num_threads) THEN
                   lb = lb_send_up(3) + ((ub_send_up(3)-lb_send_up(3)+1)*my_id)/num_threads
                   ub = lb_send_up(3) + ((ub_send_up(3)-lb_send_up(3)+1)*(my_id+1))/num_threads - 1
 
                   send_buf_3d_up ( lb_send_up(1):ub_send_up(1), lb_send_up(2):ub_send_up(2), &
                                    lb:ub ) = rs % r ( lb_send_up(1):ub_send_up(1), &
                                    lb_send_up(2):ub_send_up(2), lb:ub )
-                end if
+                END IF
 !$omp end parallel
 
                 CALL mp_isend ( send_buf_3d_up, dest_up, rs % desc % group, req(4) )
@@ -1901,13 +1901,13 @@ CONTAINS
 !$omp          shared(recv_buf_3d_down,rs,lb_recv_down,ub_recv_down)
 !$                       num_threads = MIN(omp_get_max_threads(), ub_recv_down(3)-lb_recv_down(3)+1)
 !$                       my_id = omp_get_thread_num()
-                         if (my_id < num_threads) then
+                         IF (my_id < num_threads) THEN
                            lb = lb_recv_down(3) + ((ub_recv_down(3)-lb_recv_down(3)+1)*my_id)/num_threads
                            ub = lb_recv_down(3) + ((ub_recv_down(3)-lb_recv_down(3)+1)*(my_id+1))/num_threads - 1
 
                            rs % r ( lb_recv_down(1):ub_recv_down(1), lb_recv_down(2):ub_recv_down(2), &
                                 lb:ub ) =  recv_buf_3d_down ( :, :, lb:ub )
-                         end if
+                         END IF
 !$omp end parallel
                       END IF
 
@@ -1924,13 +1924,13 @@ CONTAINS
 !$omp          shared(recv_buf_3d_up,rs,lb_recv_up,ub_recv_up)
 !$                       num_threads = MIN(omp_get_max_threads(), ub_recv_up(3)-lb_recv_up(3)+1)
 !$                       my_id = omp_get_thread_num()
-                         if (my_id < num_threads) then
+                         IF (my_id < num_threads) THEN
                            lb = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*my_id)/num_threads
                            ub = lb_recv_up(3) + ((ub_recv_up(3)-lb_recv_up(3)+1)*(my_id+1))/num_threads - 1
 
                            rs % r ( lb_recv_up(1):ub_recv_up(1), lb_recv_up(2):ub_recv_up(2), &
                                 lb:ub ) = recv_buf_3d_up ( :, :, lb:ub )
-                         end if
+                         END IF
 !$omp end parallel
                       END IF
 

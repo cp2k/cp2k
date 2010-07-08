@@ -43,14 +43,14 @@ MODULE qs_ot_types
   USE f77_blas
   USE input_constants,                 ONLY: &
        ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, &
-       ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_cg, &
-       ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
-       ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, &
+       ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
+       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_solver_default, ot_precond_solver_direct, &
        ot_precond_solver_inv_chol, ot_precond_solver_sainv, &
        ot_precond_sparse_diag, ot_precond_sparse_kinetic, &
-       ot_precond_sparse_kinetic_sainv, ot_mini_broyden
+       ot_precond_sparse_kinetic_sainv
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp

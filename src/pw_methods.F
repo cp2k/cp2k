@@ -1190,11 +1190,11 @@ CONTAINS
 !$omp          shared(c)
 !$     num_threads = MIN(omp_get_max_threads(), SIZE(c,2))
 !$     my_id = omp_get_thread_num()
-       if (my_id < num_threads) then
+       IF (my_id < num_threads) THEN
          lb = (SIZE(c,2)*my_id)/num_threads + 1
          ub = (SIZE(c,2)*(my_id+1))/num_threads
          c(:, lb:ub) = 0.0_dp
-       end if
+       END IF
 !$omp end parallel
     END IF
 
@@ -1538,11 +1538,11 @@ CONTAINS
 !$omp          shared(grays,nrays)
 !$     num_threads = MIN(omp_get_max_threads(), nrays)
 !$     my_id = omp_get_thread_num()
-       if (my_id < num_threads) then
+       IF (my_id < num_threads) THEN
          lb = (nrays*my_id)/num_threads + 1
          ub = (nrays*(my_id+1))/num_threads
          grays(:, lb:ub) = 0.0_dp
-       end if
+       END IF
 !$omp end parallel
 
        SELECT CASE ( mode )
