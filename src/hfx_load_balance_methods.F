@@ -25,12 +25,18 @@ MODULE hfx_load_balance_methods
                                              int_8
   USE mathconstants
   USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_gatherv,&
                                              mp_isendrecv,&
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync,&
                                              mp_waitall
   USE orbital_pointers
+  USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
+                                             delete_rng_stream,&
+                                             next_random_number,&
+                                             rng_stream_type
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -41,7 +47,8 @@ MODULE hfx_load_balance_methods
   PRIVATE
    
   PUBLIC hfx_load_balance, &
-         hfx_update_load_balance
+         hfx_update_load_balance,&
+         collect_load_balance_info
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_load_balance_methods'
 
@@ -71,6 +78,8 @@ MODULE hfx_load_balance_methods
                                              12.593431549069477_dp,        1.1311978374487595_dp, &
                                               1.4245996087624646_dp,       1.1425350529853495_dp/)
   REAL(KIND=dp), PARAMETER :: p3_forces(2) =(/0.12051930516830946_dp,      1.3828051586144336_dp/)
+
+  INTEGER  :: my_rank
 
 !***
   
@@ -177,7 +186,6 @@ MODULE hfx_load_balance_methods
                                                 shm_local_quartet_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, tmp_index, &
                                                 tmp_pos, to_be_sorted
-    INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
     INTEGER, SAVE                            :: shm_nblocks
     LOGICAL                                  :: changed, failure, &
@@ -671,22 +679,21 @@ MODULE hfx_load_balance_methods
 !$OMP BARRIER
 
       !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
-      ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !$OMP BARRIER
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL optimize_distribution(ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
-                                 distribution_vector, error)
-
-!$OMP BARRIER
 !$OMP MASTER
-      CALL timestop(handle_inner)
-      CALL timeset(routineN//"_redist",handle_inner)
       ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      shm_distribution_vector = distribution_vector
+
+      my_rank = para_env%mepos
+      CALL optimize_distribution(ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
+                                 shm_distribution_vector, x_data%load_balance_parameter%do_randomize, &
+                                 error)
+
+      CALL timestop(handle_inner)
+      CALL timeset(routineN//"_redist",handle_inner)
       !! Collect local data to global array
       ALLOCATE(full_dist(ncpu*n_threads,nbins),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -792,8 +799,6 @@ MODULE hfx_load_balance_methods
 !$OMP BARRIER
       DEALLOCATE(tmp_dist, tmp_pos, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(distribution_vector, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(binned_dist, local_cost_matrix, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
@@ -854,7 +859,6 @@ MODULE hfx_load_balance_methods
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: bins_per_rank
     INTEGER, ALLOCATABLE, DIMENSION(:, :), &
       SAVE                                   :: bin_histogram
-    INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
     INTEGER, SAVE                            :: max_bin_size
     LOGICAL                                  :: failure
@@ -1002,21 +1006,16 @@ MODULE hfx_load_balance_methods
       CALL mp_sync(para_env%group)
 !$OMP END MASTER
 !$OMP BARRIER
-      !! Find an optimal distribution i.e. assign each element of the cost matrix to a certain process
-      ALLOCATE(distribution_vector(ncpu*nbins*n_threads),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!$OMP BARRIER
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL optimize_distribution(ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
-                                 distribution_vector, error)
-
-!$OMP BARRIER
 !$OMP MASTER
       ALLOCATE(shm_distribution_vector(ncpu*nbins*n_threads), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      shm_distribution_vector = distribution_vector
+      CALL optimize_distribution(ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, &
+                                 shm_distribution_vector, x_data%load_balance_parameter%do_randomize, &
+                                 error)
+
       ALLOCATE(full_dist(ncpu*n_threads,max_bin_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -1121,8 +1120,6 @@ MODULE hfx_load_balance_methods
 !$OMP BARRIER
       DEALLOCATE(tmp_dist,  tmp_pos, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(distribution_vector, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE(binned_dist, local_cost_matrix, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -1192,11 +1189,12 @@ MODULE hfx_load_balance_methods
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE optimize_distribution(total_number_of_bins, number_of_processes, bin_costs, &
-                                   distribution_vector, error)
+                                   distribution_vector, do_randomize, error)
     INTEGER(int_8)                           :: total_number_of_bins, &
                                                 number_of_processes
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
+    LOGICAL, INTENT(IN)                      :: do_randomize
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_distribution', &
@@ -1207,6 +1205,7 @@ MODULE hfx_load_balance_methods
                                                 tmp_cpu_cost
     INTEGER, DIMENSION(:), POINTER           :: tmp_cpu_index, tmp_index
     LOGICAL                                  :: failure
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
     failure = .FALSE.
 
@@ -1226,23 +1225,37 @@ MODULE hfx_load_balance_methods
 
     CALL sort(tmp_cost,INT(total_number_of_bins),tmp_index)
     my_cost_cpu=0
-!
-! assign the largest remaining bin to the CPU with the smallest load
-! gives near perfect distributions for a sufficient number of bins ...
-! doing this in chunks of nstep (where nstep ~ number_of_processes) makes this n log n and gives
-! each cpu a similar number of tasks.
-! it also avoids degenerate cases where thousands of zero sized tasks
-! are assigned to the same (least loaded) cpu
-!
+    !
+    ! assign the largest remaining bin to the CPU with the smallest load
+    ! gives near perfect distributions for a sufficient number of bins ...
+    ! doing this in chunks of nstep (where nstep ~ number_of_processes) makes this n log n and gives
+    ! each cpu a similar number of tasks.
+    ! it also avoids degenerate cases where thousands of zero sized tasks
+    ! are assigned to the same (least loaded) cpu
+    !
+    IF ( do_randomize ) THEN
+      NULLIFY(rng_stream)
+      CALL create_rng_stream(rng_stream=rng_stream,&
+                             name="uniform_rng",&
+                             distribution_type=UNIFORM,error=error)
+    END IF
+
     DO i=total_number_of_bins,1,-nstep
        tmp_cpu_cost=my_cost_cpu
        CALL sort(tmp_cpu_cost,INT(number_of_processes),tmp_cpu_index)
+       IF( do_randomize ) THEN
+         CALL reshuffle(MIN(i,nstep), tmp_cpu_index(1:MIN(i,nstep)),rng_stream, error)
+       END IF
        DO j=1,MIN(i,nstep)
           itmp=tmp_cpu_index(j)
           distribution_vector(tmp_index(i-j+1))=itmp
           my_cost_cpu(itmp)=my_cost_cpu(itmp)+bin_costs(tmp_index(i-j+1))
        ENDDO
     ENDDO
+
+    IF( do_randomize ) THEN
+      CALL delete_rng_stream(rng_stream,error=error)
+    END IF
 
     DEALLOCATE(tmp_cost,tmp_index,tmp_cpu_cost,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1611,6 +1624,241 @@ MODULE hfx_load_balance_methods
 
     END DO
   END SUBROUTINE init_blocks
+
+
+  SUBROUTINE  collect_load_balance_info(para_env, x_data, iw, n_threads, i_thread, &
+                                        eval_type, error)
+
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(hfx_type), POINTER                  :: x_data
+    INTEGER, INTENT(IN)                      :: iw, n_threads, i_thread, &
+                                                eval_type
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'collect_load_balance_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, k, my_rank, nranks, stat
+    INTEGER(int_8)                           :: avg_bin, avg_rank, max_bin, &
+                                                max_rank, min_bin, min_rank, &
+                                                nbins, sum_bin, sum_rank, &
+                                                total_bins
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: buffer, buffer_in, &
+                                                buffer_out, summary
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:), SAVE                     :: shm_cost_vector
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bins_per_rank, rdispl, &
+                                                sort_idx
+    INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: shm_bins_per_rank, shm_displ
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+  
+    SELECT CASE (eval_type)
+    CASE (hfx_do_eval_energy) 
+      nbins = SIZE(x_data%distribution_energy) 
+    CASE (hfx_do_eval_forces)
+      nbins = SIZE(x_data%distribution_forces)
+    END SELECT
+
+!$OMP MASTER
+    ALLOCATE(shm_bins_per_rank(n_threads),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(shm_displ(n_threads+1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!$OMP END MASTER
+!$OMP BARRIER
+     
+    shm_bins_per_rank(i_thread+1) = nbins
+!$OMP BARRIER
+    nbins = 0
+    DO i = 1,n_threads
+      nbins = nbins + shm_bins_per_rank(i)
+    END DO
+    my_rank = para_env%mepos
+    nranks = para_env%num_pe
+
+!$OMP BARRIER
+!$OMP MASTER
+    ALLOCATE(bins_per_rank(nranks),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    bins_per_rank = 0
+
+    bins_per_rank(my_rank+1) = nbins
+
+    CALL mp_sum(bins_per_rank, para_env%group)
+
+    total_bins = 0_int_8
+    DO i = 1,nranks
+      total_bins = total_bins + bins_per_rank(i)
+    END DO
+
+    ALLOCATE(shm_cost_vector(2*total_bins),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    shm_cost_vector = -1_int_8
+    shm_displ(1) = 1
+    DO i = 2,n_threads
+      shm_displ(i) = shm_displ(i-1) + shm_bins_per_rank(i-1)
+    END DO
+    shm_displ(n_threads+1) = nbins+1
+!$OMP END MASTER
+!$OMP BARRIER   
+    j = 0
+    SELECT CASE (eval_type)
+    CASE (hfx_do_eval_energy)
+      DO i = shm_displ(i_thread+1), shm_displ(i_thread+2)-1 
+        j = j + 1
+        shm_cost_vector(2*(i-1)+1) = x_data%distribution_energy(j)%cost
+        shm_cost_vector(2*i) = (x_data%distribution_energy(j)%time_first_scf*10000.0_dp)
+      END DO
+    CASE (hfx_do_eval_forces)
+       DO i = shm_displ(i_thread+1), shm_displ(i_thread+2)-1 
+        j = j + 1
+        shm_cost_vector(2*(i-1)+1) = x_data%distribution_forces(j)%cost
+        shm_cost_vector(2*i) = (x_data%distribution_forces(j)%time_forces*10000.0_dp)
+      END DO
+    END SELECT 
+!$OMP BARRIER
+!$OMP MASTER
+    ! ** calculate offsets
+    ALLOCATE(rdispl(nranks), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    bins_per_rank = bins_per_rank * 2 
+    rdispl(1) = 0
+    DO i = 2,nranks
+      rdispl(i) = rdispl(i-1) + bins_per_rank(i-1)
+    END DO
+
+    ALLOCATE(buffer_in(2*nbins), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(buffer_out(2*total_bins), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO i=1,nbins
+      buffer_in(2*(i-1)+1) = shm_cost_vector(2*(i-1)+1)
+      buffer_in(2*i) = shm_cost_vector(2*i)
+    END DO
+
+    CALL mp_gatherv(buffer_in,buffer_out,bins_per_rank,rdispl,para_env%source,para_env%group)
+
+    IF( iw>0 ) THEN
+
+      ALLOCATE(summary(2*nranks),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      summary = 0_int_8
+
+      WRITE(iw,'( /, 1X, 79("-") )' )
+      WRITE(iw,'( " -", 77X, "-" )' )
+      SELECT CASE (eval_type)
+      CASE (hfx_do_eval_energy)
+        WRITE(iw,'( " -", 20X, A, 19X, "-" )' ) ' HFX LOAD BALANCE INFORMATION - ENERGY '
+      CASE (hfx_do_eval_forces)
+        WRITE(iw,'( " -", 20X, A, 19X, "-" )' ) ' HFX LOAD BALANCE INFORMATION - FORCES '
+      END SELECT
+      WRITE(iw,'( " -", 77X, "-" )' )
+      WRITE(iw,'( 1X, 79("-") )' )
+
+      WRITE(iw,FMT="(T3,A,T15,A,T35,A,T55,A)") "MPI RANK", "BIN #", "EST cost", "Processing time [s]"
+      WRITE(iw, '( 1X, 79("-"), / )' )
+      k = 0
+      DO i=1,nranks
+        DO j = 1, bins_per_rank(i)/2
+          k = k + 1
+          WRITE(iw,FMT="(T6,I5,T15,I5,T27,I16,T55,F19.8)") i-1, j, buffer_out(2*(k-1)+1), REAL(buffer_out(2*k),dp)/10000.0_dp 
+          summary(2*(i-1)+1) = summary(2*(i-1)+1) + buffer_out(2*(k-1)+1)
+          summary(2*i) = summary(2*i) + buffer_out(2*k)
+        END DO
+      END DO
+
+      !** Summary
+      max_bin = 0_int_8
+      min_bin = HUGE(min_bin)
+      sum_bin = 0_int_8
+      DO i=1,total_bins
+        sum_bin = sum_bin + buffer_out(2*i)
+        max_bin = MAX(max_bin,buffer_out(2*i))
+        min_bin = MIN(min_bin,buffer_out(2*i))
+      END DO
+      avg_bin = sum_bin/total_bins
+
+      max_rank = 0_int_8
+      min_rank = HUGE(min_rank)
+      sum_rank = 0_int_8
+      DO i=1,nranks
+        sum_rank = sum_rank + summary(2*i)
+        max_rank = MAX(max_rank,summary(2*i))
+        min_rank = MIN(min_rank,summary(2*i))
+      END DO
+      avg_rank = sum_rank/nranks
+
+      WRITE(iw,FMT='(/,T3,A,/)') "SUMMARY:"
+      WRITE(iw,FMT="(T3,A,T35,F19.8)") "Max bin", REAL(max_bin,dp)/10000.0_dp
+      WRITE(iw,FMT="(T3,A,T35,F19.8)") "Min bin", REAL(min_bin,dp)/10000.0_dp
+      WRITE(iw,FMT="(T3,A,T35,F19.8)") "Sum bin", REAL(sum_bin,dp)/10000.0_dp
+      WRITE(iw,FMT="(T3,A,T35,F19.8,/)") "Avg bin", REAL(avg_bin,dp)/10000.0_dp
+      WRITE(iw,FMT="(T3,A,T35,F19.8)") "Max rank", REAL(max_rank,dp)/10000.0_dp
+      WRITE(iw,FMT="(T3,A,T35,F19.8)") "Min rank", REAL(min_rank,dp)/10000.0_dp
+      WRITE(iw,FMT="(T3,A,T35,F19.8)") "Sum rank", REAL(sum_rank,dp)/10000.0_dp
+      WRITE(iw,FMT="(T3,A,T35,F19.8,/)") "Avg rank", REAL(avg_rank,dp)/10000.0_dp
+      
+
+      ALLOCATE(buffer(nranks),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(sort_idx(nranks),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+      DO i=1,nranks
+        buffer(i) = summary(2*i)
+      END DO
+      
+      CALL sort(buffer,nranks,sort_idx)
+
+      WRITE(iw,FMT="(T3,A,T35,A,T55,A,/)") "MPI RANK", "EST cost", "Processing time [s]"
+      DO i=nranks,1,-1
+        WRITE(iw,FMT="(T6,I5,T27,I16,T55,F19.8)") sort_idx(i)-1, summary(2*(sort_idx(i)-1)+1),REAL(buffer(i),dp)/10000.0_dp
+      END DO
+
+      DEALLOCATE(summary, buffer, sort_idx, STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    END IF
+
+    DEALLOCATE(buffer_in, buffer_out, rdispl, STAT=stat)     
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL mp_sync(para_env%group)
+
+    DEALLOCATE(shm_bins_per_rank, shm_displ, shm_cost_vector, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!$OMP END MASTER
+!$OMP BARRIER
+     
+  END SUBROUTINE collect_load_balance_info
+
+  SUBROUTINE reshuffle(size, array, rng_stream, error)
+    INTEGER                                  :: size
+    INTEGER, DIMENSION(size)                 :: array
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: i, idx1, idx2, tmp
+    REAL(dp)                                 :: x
+
+    DO i = 1,size*10
+      x = next_random_number(rng_stream,error=error)
+      idx1 = INT(x*(size+1-1))+1
+      x = next_random_number(rng_stream,error=error)
+      idx2 = INT(x*(size+1-1))+1
+      
+
+      tmp = array(idx1)
+      array(idx1) = array(idx2)
+      array(idx2) = tmp
+    END DO
+
+  END SUBROUTINE
 
 #include "hfx_get_pmax_val.h"
 

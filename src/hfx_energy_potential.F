@@ -21,7 +21,9 @@ MODULE hfx_energy_potential
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_trace,&
                                              dbcsr_obj_p_type
   USE cp_files,                        ONLY: get_unit_number
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
@@ -39,7 +41,8 @@ MODULE hfx_energy_potential
   USE hfx_libint_interface,            ONLY: evaluate_eri
   USE hfx_libint_wrapper_types,        ONLY: has_iso_c_binding,&
                                              lib_int
-  USE hfx_load_balance_methods,        ONLY: hfx_load_balance,&
+  USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
+                                             hfx_load_balance,&
                                              hfx_update_load_balance
   USE hfx_pair_list_methods,           ONLY: build_pair_list,&
                                              build_pair_list_pgf,&
@@ -272,6 +275,8 @@ MODULE hfx_energy_potential
     TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::rho_ao
     INTEGER::ii,pbc_shells_dummy
     REAL(dp), DIMENSION(:), POINTER          :: p_work
+    TYPE(section_vals_type), POINTER         :: print_key
+    LOGICAL                                  :: do_print_load_balance_info
 
 #if defined(__USE_PAT)
     INTEGER :: istat
@@ -389,7 +394,8 @@ MODULE hfx_energy_potential
 !$OMP                                  shm_total_bins,&
 !$OMP                                  shm_master_x_data,&
 !$OMP                                  shm_pmax_atom,&
-!$OMP                                  shm_mem_compression_counter)
+!$OMP                                  shm_mem_compression_counter,&
+!$OMP                                  do_print_load_balance_info)
 
 
     ln_10 = LOG(10.0_dp)
@@ -1643,6 +1649,29 @@ MODULE hfx_energy_potential
 !$OMP END MASTER
     END DO !bin
 
+
+!$OMP MASTER
+    logger => cp_error_get_logger(error)
+    do_print_load_balance_info = .FALSE.
+    do_print_load_balance_info = BTEST(cp_print_key_should_output(logger%iter_info,hfx_section,&
+               "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO",error=error),cp_p_file)
+!$OMP END MASTER
+!$OMP BARRIER
+    IF(do_print_load_balance_info) THEN
+      iw = -1
+!$OMP MASTER
+      iw = cp_print_key_unit_nr(logger,hfx_section,"LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO",&
+                              extension=".scfLog",error=error)
+!$OMP END MASTER
+
+      CALL collect_load_balance_info(para_env, actual_x_data, iw, n_threads, i_thread, &
+                                     hfx_do_eval_energy, error)
+
+!$OMP MASTER
+      CALL cp_print_key_finished_output(iw,logger,hfx_section,&
+                                       "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO", error=error)
+!$OMP END MASTER
+    END IF
 
 !$OMP BARRIER
 !$OMP MASTER

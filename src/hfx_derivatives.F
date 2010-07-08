@@ -17,7 +17,9 @@ MODULE hfx_derivatives
                                              pbc
   USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
   USE cp_files,                        ONLY: get_unit_number
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
@@ -31,7 +33,8 @@ MODULE hfx_derivatives
                                              hfx_reset_cache_and_container
   USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
   USE hfx_libint_wrapper_types,        ONLY: lib_deriv
-  USE hfx_load_balance_methods,        ONLY: hfx_load_balance,&
+  USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
+                                             hfx_load_balance,&
                                              hfx_update_load_balance
   USE hfx_pair_list_methods,           ONLY: build_pair_list,&
                                              build_pair_list_pgf,&
@@ -254,6 +257,7 @@ MODULE hfx_derivatives
     TYPE(virial_type), POINTER               :: virial
     REAL(dp)                                 :: tmp_virial(3,3)
     INTEGER                                  :: k,j
+    LOGICAL                                  :: do_print_load_balance_info
     
 
     rho_ao=>rho%rho_ao
@@ -342,7 +346,8 @@ MODULE hfx_derivatives
 !$OMP                                  shm_task_counter,&
 !$OMP                                  shm_task_list,&
 !$OMP                                  shm_total_bins,&
-!$OMP                                  shm_pmax_atom)
+!$OMP                                  shm_pmax_atom,&
+!$OMP                                  do_print_load_balance_info)
 
     i_thread = 0
 !$  i_thread = omp_get_thread_num()
@@ -1383,6 +1388,30 @@ MODULE hfx_derivatives
       CALL timestop(handle_bin)
 !$OMP END MASTER
     END DO  !bin
+
+!$OMP MASTER
+    logger => cp_error_get_logger(error)
+    do_print_load_balance_info = .FALSE.
+    do_print_load_balance_info = BTEST(cp_print_key_should_output(logger%iter_info,hfx_section,&
+               "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO",error=error),cp_p_file)
+!$OMP END MASTER
+!$OMP BARRIER
+    IF(do_print_load_balance_info) THEN
+      iw = -1
+!$OMP MASTER
+      iw = cp_print_key_unit_nr(logger,hfx_section,"LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO",&
+                              extension=".scfLog",error=error)
+!$OMP END MASTER
+
+      CALL collect_load_balance_info(para_env, actual_x_data, iw, n_threads, i_thread, &
+                                     hfx_do_eval_forces, error)
+
+!$OMP MASTER
+      CALL cp_print_key_finished_output(iw,logger,hfx_section,&
+                                       "LOAD_BALANCE%PRINT/LOAD_BALANCE_INFO", error=error)
+!$OMP END MASTER
+    END IF
+
 
     IF ( use_virial ) THEN
        DO i = 1, 3

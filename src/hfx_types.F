@@ -160,6 +160,7 @@ MODULE hfx_types
     INTEGER                                  :: nblocks
     LOGICAL                                  :: rtp_redistribute
     LOGICAL                                  :: blocks_initialized
+    LOGICAL                                  :: do_randomize
   END TYPE
 
 ! *****************************************************************************
@@ -571,6 +572,9 @@ MODULE hfx_types
         CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
         actual_x_data%load_balance_parameter%nbins = MAX(1,int_val)
         actual_x_data%load_balance_parameter%blocks_initialized = .FALSE.
+
+        CALL section_vals_val_get(hf_sub_section, "RANDOMIZE", l_val=logic_val, error=error)
+        actual_x_data%load_balance_parameter%do_randomize = logic_val
 
         actual_x_data%load_balance_parameter%rtp_redistribute=.FALSE.
         IF(ASSOCIATED(dft_control%rtp_control))&

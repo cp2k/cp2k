@@ -98,7 +98,8 @@ CONTAINS
             usage="PW_HFX_BLOCKSIZE 20", default_i_val=20,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
+      
+       NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"HF_INFO",&
             description="Controls the printing basic info about hf method", &
             print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
@@ -187,12 +188,36 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="Controls the printing of basic information during the run", &
-            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="RANDOMIZE",&
+            description="This flag controls the randomization of the bin assignment to processes. "//&
+                        "For highly ordered input structures with a bad load balance, setting "//&
+                        "this flag to TRUE might improve.", &
+            usage="RANDOMIZE TRUE",&
+            default_l_val=.FALSE.,&
             error=error)
-       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PRINT",&
+            description="Controls the printing of info about load balance", &
+            print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword=keyword,&
+            name="LOAD_BALANCE_INFO",&
+            description="Activates the printing of load balance information ",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_release(print_key,error=error)
 
     END IF
