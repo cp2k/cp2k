@@ -392,12 +392,13 @@ SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
 my_id = 0
 num_rows = plan%m
 
-!$omp parallel num_threads(plan%num_threads_needed), &
-!$omp          default(none), &
+!$omp parallel default(none), &
 !$omp          private(my_id,num_rows,zin_ptr,zout_ptr,zscal_ptr,in_offset,out_offset,scal_offset,fftw_plan), &
 !$omp          shared(zin,zout), &
 !$omp          shared(plan,scale,stat)
 !$ my_id = omp_get_thread_num()
+
+!$ if (my_id < plan%num_threads_needed) then
 
 fftw_plan = plan%fftw_plan
 
@@ -440,6 +441,8 @@ zscal_ptr => zout(scal_offset)
   stat=0
 
 #endif
+
+!$ end if
 
 !$omp end parallel
 
