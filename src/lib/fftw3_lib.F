@@ -414,7 +414,7 @@ scal_offset = 1
 !$  out_offset = 1 + plan%num_rows*my_id
 !$ ENDIF
 !$ scal_offset = 1 + plan%n*plan%num_rows*my_id 
-!$ IF ( plan%need_alt_plan .AND. my_id .EQ. omp_get_num_threads() - 1 ) THEN
+!$ IF ( plan%need_alt_plan .AND. my_id .EQ. plan%num_threads_needed - 1 ) THEN
 !$   num_rows = plan%alt_num_rows
 !$   fftw_plan = plan%alt_fftw_plan
 !$ ELSE
