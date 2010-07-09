@@ -69,8 +69,7 @@ MODULE qs_collocate_density
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_8
-  USE lgrid_types,                     ONLY: lgrid_p_type,&
-                                             lgrid_type
+  USE lgrid_types,                     ONLY: lgrid_type
   USE mathconstants,                   ONLY: fac,&
                                              pi,&
                                              twopi
@@ -692,11 +691,11 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: bcol, brow, ga_gb_function, handle, i, iatom, iatom_old, &
-      igrid_level, ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, &
-      jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb, lb_l, &
-      maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, &
+      igrid_level, ikind, ikind_old, ipair, ipgf, iset, iset_old, itask, &
+      ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, lb, &
+      lb_l, maxco, maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, &
       my_der_type, n, na1, na2, natoms, nb1, nb2, ncoa, ncob, nkind, nn, &
-      nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, ub
+      nseta, nsetb, ntasks, nthread, segment, sgfa, sgfb, stat, ub
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -728,8 +727,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(lgrid_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: lgrids
+    TYPE(lgrid_type), POINTER                :: lgrid
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
@@ -750,7 +748,7 @@ CONTAINS
          para_env, dist_ab, set_radius_a, set_radius_b, la_max, la_min, &
          lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, rpgfa, rpgfb, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
-         workt)
+         workt,lgrid)
 
     debug_count=debug_count+1
 
@@ -880,17 +878,16 @@ CONTAINS
     END DO
 
     IF ( nthread > 1 ) THEN
-      ALLOCATE(lgrids(gridlevel_info%ngrid_levels),STAT=stat)
-      IF ( stat /= 0 ) CALL stop_memory ( "calculate_rho_elec", "lgrids")
+      ALLOCATE(lgrid,STAT=stat)
+      IF ( stat /= 0 ) CALL stop_memory ( "calculate_rho_elec", "lgrid")
+      n = 0
       DO igrid_level = 1,gridlevel_info%ngrid_levels
-        NULLIFY(lgrids(igrid_level)%l)
-        ALLOCATE(lgrids(igrid_level)%l,STAT=stat)
-        IF ( stat /= 0 ) CALL stop_memory ( "calculate_rho_elec", "lgrids")
-        n = rs_rho(igrid_level)%rs_grid%ngpts_local*nthread
-        ALLOCATE(lgrids(igrid_level)%l%r(1:n),STAT=stat)
-        IF ( stat /= 0 ) CALL stop_memory ( "calculate_rho_elec", "lgrid", n )
-        lgrids(igrid_level)%l%ldim = rs_rho(igrid_level)%rs_grid%ngpts_local
+        n = MAX(n,rs_rho(igrid_level)%rs_grid%ngpts_local)
       END DO
+      NULLIFY(lgrid%r)
+      ALLOCATE(lgrid%r(1:n*nthread),STAT=stat)
+      IF ( stat /= 0 ) CALL stop_memory ( "calculate_rho_elec", "lgrid", n*nthread )
+      lgrid%ldim = n
     END IF
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -922,7 +919,7 @@ CONTAINS
 !$omp          shared(ntasks,tasks,natoms,maxset,maxpgf,particle_set,pabt,workt), &
 !$omp          shared(my_basis_set_id,my_soft,deltap,maxco,dist_ab,ncoset,nthread), &
 !$omp          shared(cell,cube_info,eps_rho_rspace,ga_gb_function,map_consistent), &
-!$omp          shared(rs_rho,lgrids,gridlevel_info), &
+!$omp          shared(rs_rho,lgrid,gridlevel_info,task_list), &
 !$omp          private(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
 !$omp          private(iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
 !$omp          private(brow,bcol,atomic_kind,orb_basis_set,first_sgfa,la_max,la_min), &
@@ -930,7 +927,7 @@ CONTAINS
 !$omp          private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,p_block,tr,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
 !$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,lb,ub,n), &
-!$omp          private(lb_l,nn)
+!$omp          private(lb_l,nn,segment)
 
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -940,19 +937,21 @@ CONTAINS
     iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1
     ikind_old = -1 ; jkind_old = -1
 
+    ! Loop over each gridlevel first, then loop and load balance over atom pairs
+    ! We only need a single lgrid, which we sum back onto the rsgrid after each
+    ! grid level is completed
+    loop_gridlevels: DO igrid_level=1,gridlevel_info%ngrid_levels
+
+    ! Only zero the region of the lgrid required for this grid level
     IF (nthread > 1) THEN
-     DO igrid_level=1,gridlevel_info%ngrid_levels
-      lb = ithread*lgrids(igrid_level)%l%ldim + 1
-      ub = (ithread+1)*lgrids(igrid_level)%l%ldim
-      lgrids(igrid_level)%l%r(lb:ub) = 0._dp
-     END DO
+      lb = ithread*lgrid%ldim + 1
+      ub = ithread*lgrid%ldim + rs_rho(igrid_level)%rs_grid%ngpts_local + 1
+      lgrid%r(lb:ub) = 0._dp
     END IF
 
-    ! Schedule so each thread will get approx 20 blocks of tasks
-    ! This is a compromise between load balance and scheduling overhead
-
-!$omp do schedule(dynamic,MAX(1,ntasks/(20*nthread)))
-    loop_tasks: DO itask=1,ntasks
+!$omp do schedule(dynamic, MAX(1,task_list%npairs(igrid_level)/(nthread*50)))
+    loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
+    loop_tasks: DO itask = task_list%taskstart(ipair,igrid_level), task_list%taskstop(ipair,igrid_level)
        !decode the atom pair and basis info
        CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
        ikind = particle_set(iatom)%atomic_kind%kind_number
@@ -1106,7 +1105,7 @@ CONTAINS
                  rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                  eps_rho_rspace,&
                  ga_gb_function=ga_gb_function, &
-                 lgrid=lgrids(igrid_level)%l,ithread=ithread, &
+                 lgrid=lgrid,ithread=ithread, &
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
                  subpatch_pattern=tasks(6,itask),error=error)
           ELSE
@@ -1118,7 +1117,7 @@ CONTAINS
                  rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                  eps_rho_rspace,&
                  ga_gb_function=ga_gb_function, &
-                 lgrid=lgrids(igrid_level)%l,ithread=ithread, &
+                 lgrid=lgrid,ithread=ithread, &
                  map_consistent=map_consistent,use_subpatch=use_subpatch,&
                  subpatch_pattern=tasks(6,itask),error=error)
           END IF
@@ -1147,40 +1146,34 @@ CONTAINS
           END IF
        END IF
     END DO loop_tasks
+    END DO loop_pairs
 !$omp end do
-!$omp end parallel
 
-! Now sum the local grids back into the rs_grid (in parallel)
-
-!$omp parallel default(none), shared(gridlevel_info,rs_rho,nthread,lgrids), &
-!$omp          private(igrid_level,n,nn,i,lb,ub,lb_l,ithread)
-
-!$    ithread = omp_get_thread_num()
+    ! Now sum the thread-local grids back into the rs_grid (in parallel, each thread writes to a section of the rs_grid at a time)
       IF (nthread > 1) THEN
-        DO igrid_level=1,gridlevel_info%ngrid_levels
           n = rs_rho(igrid_level)%rs_grid%ub_local(3) - rs_rho(igrid_level)%rs_grid%lb_local(3) + 1
           nn = (rs_rho(igrid_level)%rs_grid%ub_local(1) - rs_rho(igrid_level)%rs_grid%lb_local(1) + 1) * &
                (rs_rho(igrid_level)%rs_grid%ub_local(2) - rs_rho(igrid_level)%rs_grid%lb_local(2) + 1)
-  
+
           DO i=1,nthread
-            lb = (n*ithread)/nthread + rs_rho(igrid_level)%rs_grid%lb_local(3)
-            ub = (n*(ithread+1))/nthread - 1 + rs_rho(igrid_level)%rs_grid%lb_local(3)
-            lb_l = lgrids(igrid_level)%l%ldim*(i-1) + (lb - rs_rho(igrid_level)%rs_grid%lb_local(3))*nn + 1
-            CALL daxpy ((ub-lb+1)*nn,1._dp,lgrids(igrid_level)%l%r(lb_l),1, &
+            segment = MODULO(i + ithread, nthread)
+            lb = (n*segment)/nthread + rs_rho(igrid_level)%rs_grid%lb_local(3)
+            ub = (n*(segment+1))/nthread - 1 + rs_rho(igrid_level)%rs_grid%lb_local(3)
+            lb_l = lgrid%ldim*(ithread) + (lb - rs_rho(igrid_level)%rs_grid%lb_local(3))*nn + 1
+!$omp barrier
+            CALL daxpy ((ub-lb+1)*nn,1._dp,lgrid%r(lb_l),1, &
                         rs_rho(igrid_level)%rs_grid%r(:,:,lb:ub), 1)
           END DO
-        END DO
+!$omp barrier
       END IF
+
+    END DO loop_gridlevels
 !$omp end parallel
 
     IF (nthread > 1) THEN
-      DO igrid_level = 1,gridlevel_info%ngrid_levels
-        DEALLOCATE(lgrids(igrid_level)%l%r,STAT=stat)
-        IF (stat /= 0) CALL stop_memory(routineP,"lgrids%l")
-        DEALLOCATE(lgrids(igrid_level)%l,STAT=stat)
-        IF (stat /= 0) CALL stop_memory(routineP,"lgrids%l")
-      END DO
-      DEALLOCATE(lgrids,STAT=stat)
+      DEALLOCATE(lgrid%r,STAT=stat)
+      IF (stat /= 0) CALL stop_memory(routineP,"lgrids%r")
+      DEALLOCATE(lgrid,STAT=stat)
       IF (stat /= 0) CALL stop_memory(routineP,"lgrids")
     END IF
 
@@ -1198,6 +1191,7 @@ CONTAINS
 
     total_rho = pw_integrate_function(rho%pw,isign=-1,error=error)
     CALL timestop(handle)
+
   END SUBROUTINE calculate_rho_elec
 
 ! *****************************************************************************

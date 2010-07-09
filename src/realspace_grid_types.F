@@ -42,9 +42,9 @@ MODULE realspace_grid_types
 #include "cp_common_uses.h"
 
 #if defined(__HAS_NO_OMP_3)
-#define __COLLAPSE2
+#define __COLLAPSE3
 #else
-#define __COLLAPSE2 collapse(2)
+#define __COLLAPSE3 collapse(3)
 #endif
 
   IMPLICIT NONE
@@ -1984,7 +1984,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     l(1) = LBOUND( rs % r, 1 );l(2) = LBOUND( rs % r, 2 );l(3) = LBOUND( rs % r, 3 )
     u(1) = UBOUND( rs % r, 1 );u(2) = UBOUND( rs % r, 2 );u(3) = UBOUND( rs % r, 3 )
-!$omp parallel do default(none) __COLLAPSE2 &
+!$omp parallel do default(none) __COLLAPSE3 &
 !$omp             private(i,j,k) &
 !$omp             shared(rs,l,u)
     DO k = l(3),u(3)
