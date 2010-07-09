@@ -442,6 +442,12 @@ zscal_ptr => zout(scal_offset)
 
 #endif
 
+! the idle threads still need to call the proper number of barriers, 
+! otherwise the barrier for the working threads causes a mess.
+!$ else
+
+!$omp barrier
+
 !$ end if
 
 !$omp end parallel
