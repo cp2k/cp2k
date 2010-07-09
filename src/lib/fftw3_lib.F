@@ -429,26 +429,30 @@ zscal_ptr => zout(scal_offset)
   stat=1
 #if defined(__SGL) || defined(__FFTSGL)
   CALL sfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
+!$ endif
+! all theads need to meet at this barrier
 !$omp barrier
+!$ if (my_id < plan%num_threads_needed) then
   IF ( scale /= 1.0_dp ) CALL csscal(plan%n*num_rows,scale,zscal_ptr,1)
+!$ endif
 #else
   CALL dfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
+!$ endif
+! all theads need to meet at this barrier
 !$omp barrier
+!$ if (my_id < plan%num_threads_needed) then
   IF ( scale /= 1.0_dp ) CALL zdscal(plan%n*num_rows,scale,zscal_ptr,1)
+!$ endif
 #endif
+
 #else
 
   stat=0
 
-#endif
-
-! the idle threads still need to call the proper number of barriers, 
-! otherwise the barrier for the working threads causes a mess.
 !$ else
-
-!$omp barrier
-
 !$ end if
+
+#endif
 
 !$omp end parallel
 
