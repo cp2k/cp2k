@@ -27,8 +27,7 @@ MODULE qs_scf_post_se
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_iter_string,&
-                                             cp_p_file,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
@@ -45,15 +44,14 @@ MODULE qs_scf_post_se
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
-  USE lowdin,                          ONLY: lowdin_charges
+  USE kinds,                           ONLY: dp
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
-  USE mulliken,                        ONLY: mulliken_charges
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
+  USE population_analyses,             ONLY: lowdin_population_analysis,&
+                                             mulliken_population_analysis
   USE preconditioner_types,            ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -577,8 +575,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_charges', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: lowdin_title, mulliken_title
-    INTEGER                                  :: unit_nr
+    INTEGER                                  :: print_level, unit_nr
+    LOGICAL                                  :: print_it
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: print_key
@@ -594,29 +592,34 @@ CPSourceFileRef,&
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="MULLIKEN charges not validated for Semi-Empirical calculations!!", &
             error=error, error_level=cp_warning_level)
-
        unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
-            middle_name="",log_filename=.FALSE.,error=error)
-       mulliken_title="  Mulliken charges : iteration level: "//cp_iter_string(logger%iter_info, print_key,error=error)
-       CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,para_env,particle_set,unit_nr,mulliken_title,error=error)
-
+                                    middle_name="",log_filename=.FALSE.,error=error)
+       print_level = 1
+       CALL section_vals_val_get(print_key,"PRINT_GOP",l_val=print_it,error=error)
+       IF (print_it) print_level = 2
+       CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it,error=error)
+       IF (print_it) print_level = 3
+       CALL mulliken_population_analysis(qs_env,unit_nr,print_level,error)
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN",error=error)
     END IF
 
-    ! Compute the Loewdin charges
+    ! Compute the Lowdin charges
     print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOWDIN", error=error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="LOWDIN charges not validated for Semi-Empirical calculations!!", &
-            error=error, error_level=cp_warning_level)
-
-       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOWDIN",extension=".lowdin",&
-            log_filename=.FALSE.,error=error)
-       lowdin_title="  Lowdin charges : iteration level: "//cp_iter_string(logger%iter_info, print_key,error=error)
-       CALL lowdin_charges(matrix_s(1)%matrix, mos, particle_set, unit_nr, lowdin_title, error=error)
+       CALL cp_unimplemented_error(fromWhere=routineP,&
+                                   message="Lowdin charges not validated for semi-empirical calculations!", &
+                                   error=error, error_level=cp_warning_level)
+       unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOWDIN",extension=".lowdin",&
+                                      log_filename=.FALSE.,error=error)
+       print_level = 1
+       CALL section_vals_val_get(print_key,"PRINT_GOP",l_val=print_it,error=error)
+       IF (print_it) print_level = 2
+       CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it,error=error)
+       IF (print_it) print_level = 3
+       CALL lowdin_population_analysis(qs_env,unit_nr,print_level,error)
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%LOWDIN", error=error)
     END IF
-    
+
     ! Compute the RESP charges
     CALL resp_fit(qs_env,error)
 

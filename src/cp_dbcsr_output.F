@@ -180,6 +180,8 @@ CONTAINS
 
     CALL copy_repl_dbcsr_to_repl_fm(sparse_matrix,matrix,error)
 
+    CALL mp_sum(matrix,group)
+
     SELECT CASE(dbcsr_get_matrix_type(sparse_matrix))
     CASE(dbcsr_type_symmetric)
        CALL symmetrize_matrix(matrix,"upper_to_lower")

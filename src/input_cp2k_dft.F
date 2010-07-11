@@ -352,10 +352,9 @@ CONTAINS
                         enum_desc=s2a("Method based on Lowdin population analysis "//&
                                       "(computationally expensive, since the diagonalization of the "//&
                                       "overlap matrix is required, but possibly more robust than Mulliken)",&
-                                      "Method based on Mulliken population analysis "//&
-                                      "(computationally cheap method due to minor overhead)",&
-                                      "Method based on Mulliken orbital charges "//&
-                                      "(only the trace of PS is considered)"),&
+                                      "Method based on Mulliken population analysis using the net AO and "//&
+                                      "overlap populations (computationally cheap method)",&
+                                      "Method based on Mulliken gross orbital populations (GOP)"),&
                         n_var=1,&
                         default_i_val=plus_u_mulliken,&
                         usage="METHOD Lowdin",&
@@ -1489,19 +1488,72 @@ CONTAINS
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key,error=error)
 
-       ! Mulliken charges
+       ! Mulliken population analysis
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
-            description="Controls the printing of the Mulliken (spin) population analysis.", &
+            description="Controls the printing of the Mulliken (spin) population analysis", &
             print_level=medium_print_level,filename="__STD_OUT__",&
             common_iter_levels=1, error=error)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="PRINT_GOP",&
+            description="Print the gross orbital populations (GOP) in addition to the gross atomic populations (GAP) "//&
+                        "and net charges",&
+            usage="PRINT_GOP yes",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="PRINT_ALL",&
+            description="Print all information including the full net AO and overlap population matrix",&
+            usage="PRINT_ALL yes",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       ! fairly expensive to compute, so only at high
+       ! Lowdin population analysis (fairly expensive to compute, so only at high)
        CALL cp_print_key_section_create(print_key,"LOWDIN",&
-            description="Controls the printing of the Lowdin charges.", &
+            description="Controls the printing of the Lowdin (spin) population analysis", &
             print_level=high_print_level,filename="__STD_OUT__",&
             common_iter_levels=1, error=error)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="PRINT_GOP",&
+            description="Print the orbital populations in addition to the atomic populations and net charges",&
+            usage="PRINT_GOP yes",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="PRINT_ALL",&
+            description="Print all information including the full symmetrically orthogonalised density matrix",&
+            usage="PRINT_ALL yes",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

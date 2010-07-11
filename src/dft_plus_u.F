@@ -14,6 +14,7 @@
 !> \version 1.0
 ! *****************************************************************************
 MODULE dft_plus_u
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -226,7 +227,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL :: debug, dft_plus_u_atom, failure, fm_work1_local_alloc, &
       fm_work2_local_alloc, found, just_energy, smear, tr
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_occ
     REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
                                                 trq2, u_minus_j
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: q_eigval
@@ -327,10 +328,6 @@ CONTAINS
                              nsgf=nsgf)
 
     nkind = SIZE(atomic_kind_set)
-
-    ALLOCATE (is_plus_u_kind(nkind),STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-    is_plus_u_kind(:) = .FALSE.
 
     ALLOCATE (first_sgf_atom(natom),STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
@@ -492,8 +489,6 @@ CONTAINS
         IF (.NOT.dft_plus_u_atom) CYCLE
         IF (lu < 0) CYCLE
         IF (u_minus_j == 0.0_dp) CYCLE
-
-        is_plus_u_kind(ikind) = .TRUE.
 
         ! Load the required Gaussian basis set data
 
