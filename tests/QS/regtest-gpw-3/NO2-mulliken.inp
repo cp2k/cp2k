@@ -1,0 +1,59 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT NO2-mulliken
+  RUN_TYPE energy
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    BASIS_SET_FILE_NAME ../BASIS_SET
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &MGRID
+      CUTOFF 280
+    &END MGRID
+    &PRINT
+      &LOWDIN OFF
+      &END LOWDIN
+      &MULLIKEN ON
+        PRINT_ALL
+      &END MULLIKEN
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      EPS_DIIS 0.4
+      EPS_SCF 1.0E-4
+      MAX_SCF 15
+      &MIXING
+        METHOD DIRECT_P_MIXING
+        ALPHA 0.4
+      &END
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+    &END CELL
+    &COORD
+   O  3.71590        2.5        2.5
+   O  1.65536    3.37465        2.5
+   N  2.5 2.5 2.5
+    &END COORD
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+    &KIND N
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

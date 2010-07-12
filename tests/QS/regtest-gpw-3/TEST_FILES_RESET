@@ -834,3 +834,5 @@ H2O-ref-2.inp
 H2O-ata.inp
 H2O-solv.inp
 rsgrid-dist-2.inp
+# Rewrite of Lowdin
+CN-lowdin.inp
