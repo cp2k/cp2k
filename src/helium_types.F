@@ -24,6 +24,8 @@ MODULE helium_types
 
   PRIVATE
 
+  REAL(kind=dp), PARAMETER, PUBLIC :: he_mass = 4.00263037059764_dp ! 4He mass in [u]
+
   ! Energy contributions - symbolic names for indexing energy arrays
   INTEGER, PARAMETER, PUBLIC :: e_id_total = 1, &
                                 e_id_potential = 2, &
@@ -58,7 +60,10 @@ MODULE helium_types
 !>                      multiple of the solvated molecule bead number)
 !>    pdx           - pair density expansion max exponent
 !>    maxcycle      - maximum cyclic permutation change to attempt
+!>    m_value       - cycle length sampled with different probability than other lengths
+!>    m_ratio       - probability ratio betw m_value and other possible values of m
 !>    bisection     - power of 2 number for bisection algorithm
+!>    bisctlog2     - log2(bisection)
 !>    relrot        - relative rotation in imaginary time with
 !>                    respect to the normal system/starting configuration
 !>    iter_norot    - number of iterations to try for a given
@@ -67,8 +72,17 @@ MODULE helium_types
 !>                    total number of iterations is iter_norot*iter_rot
 !>    iter          - number of iterations tried so far
 !>    accepts       - number of accepted new configurations
+!>    num_accepted  - average number of accepted permutations of a given length
+!>                    on a given Levy level, plus one additional level which
+!>                    counts # of trials, REAL(BISCTLOG2+2, MAX_PERM_CYCLE)
+!>                    num_accepted(1,l) - # of trials for perm length l
+!>                    num_accepted(2,l) - # of selected perms of length l
+!>                    num_accepted(3,l) - # of perms of length l accepted at level 1
+!>                    average over He environments/processors
 !>    wnumber_inst  - winding number (instantaneous) REAL(3)
 !>    wnumber_avrg  - winding number (averaged) REAL(3)
+!>    sdensity_inst - superfluid density (instantaneous) REAL
+!>    sdensity_avrg - superfluid density (averaged) REAL
 !>    pos           - position of the helium atoms REAL(3,ATOMS,BEADS)
 !>    work          - same dimensions as pos
 !>    tmatrix       - ? permutation probability related
@@ -79,6 +93,8 @@ MODULE helium_types
 !>                    (dimension max_cycle)
 !>    permutation   - current permutation state INTEGER(ATOMS)
 !>    iperm         - inverse of the current permutation state INTEGER(ATOMS)
+!>    plength_avrg  - permutation length probability distribution REAL(ATOMS)
+!>    plength_inst  - instantaneous permutation length probability REAL(ATOMS)
 !>    uij           - pair density matrix coefficients (action)
 !>    eij           - pair density matrix coefficients (energy)
 !>    bead_ratio    - ratio of helium beads to system beads
@@ -98,6 +114,7 @@ MODULE helium_types
 !>    force_inst    - instantaneous forces exerted by He on the solute (P, NDIM)
 !>    General purpose temporary arrays
 !>    (performance measure: no allocation in frequently called subroutines)
+!>      rtmp_3_np_1d - real, 1D temp array (3 * NUM_PROC)
 !>      rtmp_p_ndim_1d - real, 1D temp array (P * NDIM)
 !>      rtmp_p_ndim_np_1d - real, 1D temp array (P * NDIM * NUM_PROC)
 !>      rtmp_p_ndim_2d - real, 2D temp array (P, NDIM)
@@ -112,12 +129,13 @@ MODULE helium_types
      INTEGER :: id_nr,ref_count
      TYPE(section_vals_type), POINTER :: input
      LOGICAL :: periodic
-     INTEGER :: cell_shape, num_proc
-     REAL(kind=dp) :: cell_size, cell_size_inv
+     INTEGER :: cell_shape, num_proc, m_value
+     REAL(kind=dp) :: cell_size, cell_size_inv, m_ratio
      REAL(kind=dp), DIMENSION(3,3) ::  cell_m_inv
      REAL(kind=dp) :: tau, density, e_corr, hb2m, pweight
      INTEGER :: atoms, beads, pdx, maxcycle, relrot, iter_norot, iter_rot
-     INTEGER :: bisection, bead_ratio, num_steps, first_step, last_step, current_step
+     INTEGER :: bisection, bisctlog2
+     INTEGER :: bead_ratio, num_steps, first_step, last_step, current_step
      INTEGER(kind=int_8) :: accepts
      INTEGER, DIMENSION(:), POINTER :: ptable
      INTEGER, DIMENSION(:), POINTER :: permutation
@@ -133,7 +151,9 @@ MODULE helium_types
      TYPE (spline_data_p_type), DIMENSION(:,:), POINTER :: eij
      REAL(kind=dp), DIMENSION(e_num_ids) :: energy_inst, energy_avrg
      REAL(kind=dp), DIMENSION(3)         :: wnumber_inst, wnumber_avrg
-     REAL(kind=dp) :: n_accepted_permutations
+     REAL(kind=dp) :: sdensity_inst, sdensity_avrg
+     REAL(kind=dp), DIMENSION(:,:), POINTER :: num_accepted
+     REAL(kind=dp), DIMENSION(:), POINTER :: plength_avrg, plength_inst
      INTEGER :: rdf_nbin
      REAL(kind=dp) :: rdf_delr, rdf_maxr
      REAL(kind=dp), DIMENSION(:), POINTER :: rdf_inst, rdf_avrg
@@ -146,7 +166,7 @@ MODULE helium_types
      INTEGER, DIMENSION(:,:), POINTER :: solute_index
      TYPE(cell_type), POINTER  :: solute_cell
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: force_avrg, force_inst
-     REAL(KIND=dp), DIMENSION(:), POINTER   :: rtmp_p_ndim_1d, rtmp_p_ndim_np_1d
+     REAL(KIND=dp), DIMENSION(:), POINTER   :: rtmp_3_np_1d, rtmp_p_ndim_1d, rtmp_p_ndim_np_1d
      REAL(KIND=dp), DIMENSION(:), POINTER   :: rtmp_3_atoms_beads_1d, rtmp_3_atoms_beads_np_1d
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: rtmp_p_ndim_2d
      LOGICAL, DIMENSION(:,:,:), POINTER :: ltmp_3_atoms_beads_3d

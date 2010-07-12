@@ -11,17 +11,20 @@
 ! *****************************************************************************
 MODULE helium_common
 
-  USE helium_types,                    ONLY: helium_solvent_type
+  USE helium_types,                    ONLY: helium_solvent_type, he_mass
   USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_octahedron
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE parallel_rng_types,              ONLY: next_random_number
+  USE physcon,                         ONLY: h_bar, a_mass, boltzmann, angstrom, kelvin
   USE pint_public,                     ONLY: pint_com_pos
   USE pint_types,                      ONLY: pint_env_type
   USE splines_methods,                 ONLY: spline_value
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_data_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -36,6 +39,7 @@ MODULE helium_common
   PUBLIC :: helium_boxmean_3d
   PUBLIC :: helium_calc_wnumber
   PUBLIC :: helium_calc_rdf
+  PUBLIC :: helium_calc_plength
   PUBLIC :: helium_rotate
   PUBLIC :: helium_eval_expansion
   PUBLIC :: helium_update_transition_matrix
@@ -255,41 +259,69 @@ MODULE helium_common
     RETURN
   END SUBROUTINE helium_boxmean_3d
 
-! *****************************************************************************
-!> \brief Calculate the winding number for helium
-!> \param   helium - helium environment for which to calculate the winding num
-!> \author hforbert
-!> \par   History
-!>        2009-10-19 generalized for truncated octahedron cell shape [lwalewski]
-! *****************************************************************************
-SUBROUTINE helium_calc_wnumber( helium )
+  ! ***************************************************************************
+  !> \brief Calculate the winding number for helium
+  !> \author hforbert
+  !> \par   History
+  !>        2009-10-19 generalized for trunc. octahedron cell shape [lwalewski]
+  ! ***************************************************************************
+  SUBROUTINE helium_calc_wnumber( helium )
 
     TYPE(helium_solvent_type), POINTER       :: helium
 
-    INTEGER                                  :: ia, ib
-    REAL(KIND=dp), DIMENSION(3)              :: r, w
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_wnumber', &
+      routineP = moduleN//':'//routineN
 
-   w(:) = 0.0_dp
-   ! iterate over all helium atoms
-   DO ia = 1, helium%atoms
+    INTEGER                                  :: ia, ib
+    REAL(KIND=dp)                            :: mHe, T, c
+    REAL(KIND=dp), DIMENSION(3)              :: r, w, v
+
+!TODO combined with my standalone program - simpify the units
+    ! h_bar - Planck constant over 2 pi in [J*s]
+    ! boltzmann = 1.3806504e-23 - Boltzmann constant in [J/K]
+    ! he_mass - 4He mass in [u]
+    ! a_mass = 1.660538782e-27 - atomic mass unit in [kg]
+    mHe  = he_mass * a_mass ! 4He mass in [kg]
+    T    = kelvin / helium%tau / helium%beads
+    c    = 1e-20 * mHe / h_bar / h_bar * boltzmann * T / 3.0_dp / helium%atoms
+
+    v(:) = 0.0_dp
+    ! iterate over all helium atoms
+    DO ia = 1, helium%atoms
       ! contribution comming from the last and the first bead
-      r(:) = helium%pos(:,ia,helium%beads) - helium%pos(:,helium%permutation(ia),1)
+      r(:) = helium%pos(:,ia,helium%beads) - &
+        helium%pos(:,helium%permutation(ia),1)
       CALL helium_pbc( helium, r )
-      w(:) = w(:) + r(:)
+      v(:) = v(:) + r(:)
       ! sum of contributions from the rest of bead pairs
       DO ib = 2, helium%beads
-         r(:) = helium%pos(:,ia,ib-1) - helium%pos(:,ia,ib)
-         CALL helium_pbc( helium, r )
-         w(:) = w(:) + r(:)
+        r(:) = helium%pos(:,ia,ib-1) - helium%pos(:,ia,ib)
+        CALL helium_pbc( helium, r )
+        v(:) = v(:) + r(:)
       END DO
-   END DO
-   w(1) = helium%cell_m_inv(1,1) * w(1) + helium%cell_m_inv(1,2) * w(2) + helium%cell_m_inv(1,3) * w(3);
-   w(2) = helium%cell_m_inv(2,1) * w(1) + helium%cell_m_inv(2,2) * w(2) + helium%cell_m_inv(2,3) * w(3);
-   w(3) = helium%cell_m_inv(3,1) * w(1) + helium%cell_m_inv(3,2) * w(2) + helium%cell_m_inv(3,3) * w(3);
-!write(*,'("w = ",F10.5," (",3F10.5,")")') w(1)**2 + w(2)**2 + w(3)**2, w(1), w(2), w(3)
-   helium%wnumber_inst(:) = w(:)
-   RETURN
-END SUBROUTINE helium_calc_wnumber
+    END DO
+
+    ! calc winding number (cell_m_inv is in Bohr^-1)
+    w(1) = &
+      helium%cell_m_inv(1,1) * v(1) + &
+      helium%cell_m_inv(1,2) * v(2) + &
+      helium%cell_m_inv(1,3) * v(3);
+    w(2) = &
+      helium%cell_m_inv(2,1) * v(1) + &
+      helium%cell_m_inv(2,2) * v(2) + &
+      helium%cell_m_inv(2,3) * v(3);
+    w(3) = &
+      helium%cell_m_inv(3,1) * v(1) + &
+      helium%cell_m_inv(3,2) * v(2) + &
+      helium%cell_m_inv(3,3) * v(3);
+    helium%wnumber_inst(:) = w(:)
+
+    ! calc superfluid density
+    v(:) = angstrom * v(:)
+    helium%sdensity_inst = c * ( v(1)**2 + v(2)**2 + v(3)**2 )
+
+    RETURN
+  END SUBROUTINE helium_calc_wnumber
 
 ! *****************************************************************************
 !> \brief  Calculate helium radial distribution function wrt <r0>.
@@ -307,13 +339,12 @@ END SUBROUTINE helium_calc_wnumber
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rdf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, ia, ib
+    INTEGER                                  :: bin, ia, ib, handle
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: ri, time_start, time_stop, &
-                                                time_used
+    REAL(kind=dp)                            :: ri
     REAL(kind=dp), DIMENSION(3)              :: r, r0
 
-    time_start = m_walltime()
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
@@ -353,21 +384,50 @@ END SUBROUTINE helium_calc_wnumber
 !    END DO
 !    norm = norm * helium%rdf_delr
 
-    time_stop = m_walltime()
-    time_used = time_stop - time_start
-!    CALL helium_write_line("Calculated RDF wrt (" // &
-!      TRIM(ADJUSTL(cp_to_string(r0(1)))) // "," // &
-!      TRIM(ADJUSTL(cp_to_string(r0(2)))) // "," // &
-!      TRIM(ADJUSTL(cp_to_string(r0(3)))) // ") in " // &
-!      TRIM(ADJUSTL(cp_to_string(time_used))) // " sec." &
-!      ,error)
+    CALL timestop(handle)
+
     RETURN
   END SUBROUTINE helium_calc_rdf
 
-! *****************************************************************************
-!> \brief  Rotate helium particles (coordinates of helium beads) by nslices.
-!> \author hforbert
-! *****************************************************************************
+  ! ***************************************************************************
+  !> \brief  Calculate probability distribution of the permutation lengths
+  !> \author Lukasz Walewski
+  !> \date   2010-06-07
+  !> \descr  Valid permutation path length is an integer (1, NATOMS), number
+  !>         of paths of a given length is calculated here and average over
+  !>         inner loop iterations and helium environments is done in
+  !>         helium_sample.
+  ! ***************************************************************************
+  SUBROUTINE helium_calc_plength( helium, error )
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_plength', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, k
+
+    helium%plength_inst(:) = 0.0_dp
+    DO i = 1, helium%atoms
+      j = helium%permutation(i)
+      k = 1
+      DO
+        IF (j == i) EXIT
+        k = k + 1
+        j = helium%permutation(j)
+      END DO
+      helium%plength_inst(k) = helium%plength_inst(k) + 1
+    END DO
+    helium%plength_inst(:) = helium%plength_inst(:) / helium%atoms
+
+    RETURN
+  END SUBROUTINE helium_calc_plength
+
+  ! ***************************************************************************
+  !> \brief  Rotate helium particles (coordinates of helium beads) by nslices.
+  !> \author hforbert
+  ! ***************************************************************************
   SUBROUTINE helium_rotate(helium, nslices, error)
     TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: nslices

@@ -2706,7 +2706,7 @@ CONTAINS
 
     CALL section_create(section,name="HELIUM",&
          description="The section that controls optional helium solvent"// &
-         " envirnoment (highly experimental, not for general use yet)",&
+         " environment (highly experimental, not for general use yet)",&
          n_keywords=11, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
@@ -2775,6 +2775,28 @@ CONTAINS
          repeats=.FALSE., default_i_val=6,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="M-SAMPLING",&
+         description="Permutation cycle length sampling settings",&
+         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+    CALL keyword_create(keyword, name="M-VALUE", &
+         description="Value of m treated in a special way",&
+         repeats=.FALSE.,&
+         default_i_val=1,&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="M-RATIO", &
+         description="Probability ratio betw M-VALUE and other cycle lengths",&
+         repeats=.FALSE.,&
+         default_r_val=1.0_dp,&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
 
     CALL keyword_create(keyword, name="PERIODIC", &
          description="Use periodic boundary conditions for helium",&
@@ -2881,20 +2903,37 @@ CONTAINS
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
+    ! *************************************************************************
+    !> Printkeys for properites output
+    ! *************************************************************************
     NULLIFY(print_key)
+
+    ! Properties printed at SILENT print level
+    !
+    CALL cp_print_key_section_create(print_key,"RESTART",&
+         description="Controls the output of helium restart data",&
+         print_level=silent_print_level,add_last=add_last_numeric,&
+         common_iter_levels=1,error=error)
+    CALL keyword_create(keyword, name="BACKUP_COPIES",&
+         description="Specifies the maximum number of backup copies",&
+         usage="BACKUP_COPIES {int}",&
+         default_i_val=3, error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+    ! Properties printed at LOW print level
+    !
     CALL cp_print_key_section_create(print_key,"ENER_INFO",&
          description="Controls the output of the helium energies"//&
          " (averaged over MC step)", &
          print_level=low_print_level,common_iter_levels=1,error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)        
-
-    CALL cp_print_key_section_create(print_key,"WNUMBER",&
-         description="Controls the output of the helium winding number",&
-         print_level=low_print_level,common_iter_levels=1,error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 
+    ! Properties printed at MEDIUM print level
+    !
     CALL cp_print_key_section_create(print_key,"COORDINATES",&
          description="Controls the output of helium coordinates",&
          print_level=medium_print_level,common_iter_levels=1,error=error)
@@ -2912,48 +2951,62 @@ CONTAINS
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 
-    CALL cp_print_key_section_create(print_key,"FORCES",&
-         description="Controls the output of the helium forces on the solute",&
+    CALL cp_print_key_section_create(print_key,"SDENSITY",&
+         description="Controls the output of the helium superfluid density",&
+         print_level=medium_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"RDF",&
+         description="Controls the output of the helium radial distribution function",&
+         print_level=medium_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"PLENGTH",&
+         description="Controls the output of the helium permutation length",&
+         print_level=medium_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    ! Properties printed at HIGH print level
+    !
+    CALL cp_print_key_section_create(print_key,"ACCEPTS",&
+         description="Controls the output of the helium acceptance data",&
          print_level=high_print_level,common_iter_levels=1,error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 
+    CALL cp_print_key_section_create(print_key,"PERM",&
+         description="Controls the output of the helium permutation state",&
+         print_level=high_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"FORCES",&
+         description="Controls the output of the helium forces on the solute",&
+         print_level=high_print_level,common_iter_levels=1,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+    ! Properties printed at DEBUG print level
+    !
     CALL cp_print_key_section_create(print_key,"FORCES_INST",&
          description="Controls the output of the instantaneous helium forces on the solute",&
          print_level=debug_print_level,common_iter_levels=1,error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 
-    CALL cp_print_key_section_create(print_key,"SAMPLING",&
-         description="Controls the output of the helium MC sampling data"//&
-         " (does lot of I/O - use with care)", &
-         each_iter_names=s2a("MD"),each_iter_values=(/100/),&
-         print_level=high_print_level,common_iter_levels=1,error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)        
-
-    CALL cp_print_key_section_create(print_key,"RESTART",&
-         description="Controls the output of helium restart data",&
-         print_level=silent_print_level,add_last=add_last_numeric,&
-         common_iter_levels=1,error=error)
-    CALL keyword_create(keyword, name="BACKUP_COPIES",&
-         description="Specifies the maximum number of backup copies",&
-         usage="BACKUP_COPIES {int}",&
-         default_i_val=3, error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL section_add_subsection(subsection,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
-    CALL cp_print_key_section_create(print_key,"RDF",&
-         description="Radial distribution function output settings", &
-         print_level=medium_print_level,common_iter_levels=1,error=error)
+    CALL cp_print_key_section_create(print_key,"WNUMBER",&
+         description="Controls the output of the helium winding number",&
+         print_level=debug_print_level,common_iter_levels=1,error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)        
 
+    RETURN
   END SUBROUTINE create_helium_section
 
 ! *****************************************************************************

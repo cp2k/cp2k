@@ -17,6 +17,7 @@ MODULE helium_sampling
   USE helium_common,                   ONLY: helium_boxmean_3d,&
                                              helium_calc_rdf,&
                                              helium_calc_wnumber,&
+                                             helium_calc_plength,&
                                              helium_eval_expansion,&
                                              helium_pbc,&
                                              helium_rotate,&
@@ -26,9 +27,19 @@ MODULE helium_sampling
                                              helium_calc_energy,&
                                              helium_solute_e_f
   USE helium_io,                       ONLY: &
-       helium_update, helium_write_coordinates, helium_write_energy, &
-       helium_write_force, helium_write_force_inst, helium_write_line, &
-       helium_write_rdf, helium_write_restart, helium_write_wnumber
+                                             helium_update,&
+                                             helium_write_accepts,&
+                                             helium_write_coordinates,&
+                                             helium_write_energy,&
+                                             helium_write_force,&
+                                             helium_write_force_inst,&
+                                             helium_write_line,&
+                                             helium_write_rdf,&
+                                             helium_write_restart,&
+                                             helium_write_sdensity,&
+                                             helium_write_wnumber,&
+                                             helium_write_perm,&
+                                             helium_write_plength
   USE helium_types,                    ONLY: e_id_total,&
                                              helium_solvent_type
   USE kinds,                           ONLY: default_string_length,&
@@ -137,7 +148,7 @@ MODULE helium_sampling
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: irot, naccepted, nslices
+    INTEGER                                  :: irot, nslices, i,j
     LOGICAL                                  :: failure, solute_present
     REAL(kind=dp)                            :: inv_iter_rot, inv_num_pe, &
                                                 rnd, rtmp
@@ -154,8 +165,10 @@ MODULE helium_sampling
     helium%energy_avrg(:) = 0.0_dp
     helium%energy_inst(:) = 0.0_dp
     helium%wnumber_avrg(:) = 0.0_dp
+    helium%sdensity_avrg = 0.0_dp
+    helium%plength_avrg(:) = 0.0_dp
     helium%rdf_avrg(:) = 0.0_dp
-    helium%n_accepted_permutations = 0.0_dp
+    helium%num_accepted(:,:) = 0.0_dp
 
     ! helium parallelization: each processor gets different RN stream and
     ! runs independent helium simulation, the properties and forces are
@@ -167,12 +180,13 @@ MODULE helium_sampling
       rnd = next_random_number(helium%rng_stream_uniform,error=error)
       nslices = rnd * helium%beads
       CALL helium_rotate(helium,nslices,error)
-      CALL helium_try_permutations(helium,pint_env,naccepted,error)
+      CALL helium_try_permutations(helium,pint_env,error)
 
       ! calculate instantaneous forces on the solute and He properties
       IF (solute_present) CALL helium_solute_e_f(pint_env, helium, rtmp)
       CALL helium_calc_energy(helium,pint_env)
       CALL helium_calc_wnumber( helium )
+      CALL helium_calc_plength( helium, error )
       CALL helium_calc_rdf( helium, pint_env, error )
 
       ! instantaneous force output according to HELIUM%PRINT%FORCES_INST
@@ -184,9 +198,9 @@ MODULE helium_sampling
         helium%force_avrg(:,:) + helium%force_inst(:,:)
       helium%energy_avrg(:) = helium%energy_avrg(:) + helium%energy_inst(:)
       helium%wnumber_avrg(:) = helium%wnumber_avrg(:) + helium%wnumber_inst(:)
+      helium%sdensity_avrg = helium%sdensity_avrg + helium%sdensity_inst
+      helium%plength_avrg(:) = helium%plength_avrg(:) + helium%plength_inst(:)
       helium%rdf_avrg(:) = helium%rdf_avrg(:) + helium%rdf_inst(:)
-      helium%n_accepted_permutations = &
-        helium%n_accepted_permutations + REAL(naccepted,dp)
 
     END DO
 
@@ -195,21 +209,25 @@ MODULE helium_sampling
     helium%force_avrg(:,:) = helium%force_avrg(:,:) * inv_iter_rot
     helium%energy_avrg(:) = helium%energy_avrg(:) * inv_iter_rot
     helium%wnumber_avrg(:) = helium%wnumber_avrg(:) * inv_iter_rot
+    helium%sdensity_avrg = helium%sdensity_avrg * inv_iter_rot
+    helium%plength_avrg(:) = helium%plength_avrg(:) * inv_iter_rot
     helium%rdf_avrg(:) = helium%rdf_avrg(:) * inv_iter_rot
 
     ! average over helium environments sitting at different processors
+    ! WARNING: do not average winding number, etc. over He environments!
     inv_num_pe = 1.0_dp / REAL(logger%para_env%num_pe,dp)
     IF (solute_present) CALL mp_sum(helium%force_avrg,logger%para_env%group)
     CALL mp_sum(helium%energy_avrg,logger%para_env%group)
-    CALL mp_sum(helium%wnumber_avrg,logger%para_env%group)
+    CALL mp_sum(helium%sdensity_avrg,logger%para_env%group)
+    CALL mp_sum(helium%plength_avrg,logger%para_env%group)
     CALL mp_sum(helium%rdf_avrg,logger%para_env%group)
-    CALL mp_sum(helium%n_accepted_permutations,logger%para_env%group)
+    CALL mp_sum(helium%num_accepted,logger%para_env%group)
     helium%force_avrg(:,:) = helium%force_avrg(:,:) * inv_num_pe
     helium%energy_avrg(:) = helium%energy_avrg(:) * inv_num_pe
-    helium%wnumber_avrg(:) = helium%wnumber_avrg(:) * inv_num_pe
+    helium%sdensity_avrg = helium%sdensity_avrg * inv_num_pe
+    helium%plength_avrg(:) = helium%plength_avrg(:) * inv_num_pe
     helium%rdf_avrg(:) = helium%rdf_avrg(:) * inv_num_pe
-    helium%n_accepted_permutations = &
-      helium%n_accepted_permutations * inv_num_pe
+    helium%num_accepted(:,:) = helium%num_accepted(:,:) * inv_num_pe
 
     RETURN
   END SUBROUTINE helium_sample
@@ -246,8 +264,12 @@ MODULE helium_sampling
 
     ! write out the averaged properties
     CALL helium_write_energy( helium, error )
+    CALL helium_write_sdensity( helium, error )
     CALL helium_write_wnumber( helium, error )
+    CALL helium_write_plength( helium, error )
     CALL helium_write_rdf( helium, error )
+    CALL helium_write_perm( helium, error )
+    CALL helium_write_accepts( helium, error )
 
     ! write out He coordinates
     IF (helium%solute_present) THEN
@@ -265,10 +287,10 @@ MODULE helium_sampling
     IF ( time_used .GE. 60.0_dp ) THEN
       time_used = time_used / 60.0_dp
       time_unit = "min"
-    END IF
-    IF ( time_used .GE. 60.0_dp ) THEN
-      time_used = time_used / 60.0_dp
-      time_unit = "hours"
+      IF ( time_used .GE. 60.0_dp ) THEN
+        time_used = time_used / 60.0_dp
+        time_unit = "hours"
+      END IF
     END IF
     msgstr = "MC step"
     stmp = ""
@@ -297,38 +319,49 @@ MODULE helium_sampling
   ! ***************************************************************************
   !> \brief  ...
   !> \param  pint_env  - path integral environment
-  !> \param  naccepted - number of accepted permutations
   !> \param  error     - error handling (see module cp_error_handling)
   !> \author hforbert
+  !> \par    History
+  !>        2010-06-17 ratio for m-value added (m-sampling related) [lwalewski]
   ! ***************************************************************************
-  SUBROUTINE helium_try_permutations(helium, pint_env, naccepted, error)
+  SUBROUTINE helium_try_permutations(helium, pint_env, error)
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
-    INTEGER, INTENT(OUT)                     :: naccepted
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_try_permutations', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_naccepted, ncycles, ni, &
+    INTEGER                                  :: ncycles, ni, &
                                                 nselected, res
-    REAL(KIND=dp)                            :: rnd
+    REAL(KIND=dp)                            :: rnd, x, r
 
    IF (helium%maxcycle>1) CALL helium_update_transition_matrix(helium,error)
 helium%work(:,:,:)=helium%pos(:,:,:)
-   my_naccepted = 0
-
-! forces moved to the outer loop
-!   IF (helium%solute_present) THEN
-!     ! calculate the forces on the solute (initialization)
-!     CALL helium_solute_e_f(pint_env, helium, e)
-!   END IF
 
    ! the inner MC loop (without rotation in imaginary time)
    DO ni = 1, helium%iter_norot
-      rnd = next_random_number(helium%rng_stream_uniform,error=error)
-      ncycles = INT(helium%maxcycle*rnd)+1
+
+      ! set the probability threshold for m_value: 1/(1+(m-1)/helium%m_ratio)
+      r = 1.0_dp / ( 1.0_dp + (helium%maxcycle-1)/helium%m_ratio )
+
+      ! draw permutation length for this trial from the distribution of choice
+      x = next_random_number(helium%rng_stream_uniform,error=error)
+      IF ( x .LT. r ) THEN
+        ncycles = helium%m_value
+      ELSE
+        DO
+          x = next_random_number(helium%rng_stream_uniform,error=error)
+          ncycles = INT(helium%maxcycle*x)+1
+          IF ( ncycles .NE. helium%m_value ) EXIT
+        END DO
+      END IF
+
+      IF (ncycles<1) ncycles = 1
       IF (ncycles>helium%maxcycle) ncycles = helium%maxcycle
+      helium%num_accepted(1,ncycles) = helium%num_accepted(1,ncycles) + 1
+
+      ! check, if permutation of this length can be constructed
       IF (ncycles == 1) THEN
          rnd = next_random_number(helium%rng_stream_uniform,error=error)
          helium%ptable(1)=1+INT(rnd*helium%atoms)
@@ -340,33 +373,11 @@ helium%work(:,:,:)=helium%pos(:,:,:)
       END IF
 
       IF (nselected /= 0) THEN
-         ! the permutation was successfully selected
+         ! the permutation was successfully selected - actually sample this permutation
          res = helium_slice_metro_cyclic(helium, pint_env, ncycles, error)
-! forces moved to the outer loop
-!         IF ((res == 1).AND.(helium%solute_present)) THEN
-!           ! step was accepted (helium was moved) - recalculate the forces
-!           ! TODO: at the moment we recalculate the forces from the whole helium
-!           ! TODO: maybe do it in a smarter way ?
-!           CALL helium_solute_e_f(pint_env, helium, e)
-!         END IF
-         my_naccepted = my_naccepted + res
       END IF
 
-! forces moved to the outer loop
-!      IF (helium%solute_present) THEN
-!        ! sum up the forces on the solute
-!        ! (we average them outside the outer MC loop in helium_step)
-!        DO i = 1, helium%solute_beads
-!          DO j = 1, helium%solute_atoms*3
-!            helium%force_avrg(i,j) = helium%force_avrg(i,j) + &
-!              helium%force_inst(i,j)
-!          END DO
-!        END DO
-!      END IF
-
     END DO
-
-    naccepted = my_naccepted
 
     RETURN
   END SUBROUTINE helium_try_permutations
@@ -385,9 +396,7 @@ helium%work(:,:,:)=helium%pos(:,:,:)
 
     INTEGER                                  :: c, hbeads, i, j, k, l, level, &
                                                 m, nb, pk1, pk2, stride
-    INTEGER, DIMENSION(5, 6), SAVE           :: accepts
     INTEGER, DIMENSION(:), POINTER           :: p, perm
-    INTEGER, SAVE                            :: iter = 0
     LOGICAL                                  :: nperiodic
     REAL(KIND=dp)                            :: cell_size, ds, dtk, e1, e2, &
                                                 pds, prev_ds, r, sigma, tmp, x
@@ -408,19 +417,8 @@ helium%work(:,:,:)=helium%pos(:,:,:)
   p => helium%ptable
   prev_ds = helium%pweight
 
-IF (iter == 0) accepts(:,:)=0
-iter = iter + 1
-accepts(1,n)=accepts(1,n)+1
-level = 2
-
-!if ((mod(iter,10000)==0).OR.(m==0)) then
-!print *,"#1",accepts(:,1)
-!print *,"#2",accepts(:,2)
-!print *,"#3",accepts(:,3)
-!print *,"#4",accepts(:,4)
-!print *,"#5",accepts(:,5)
-!print *,"#6",accepts(:,6)
-!end if
+  helium%num_accepted(2,n) = helium%num_accepted(2,n) + 1
+  level = 1
 
 IF (m==0) RETURN
    hbeads = helium%beads
@@ -610,8 +608,8 @@ END DO
          END IF
       END IF
       ! accepted. go on to the next level
-accepts(level,n)=accepts(level,n)+1
-level = level+1
+      helium%num_accepted(level+2,n) = helium%num_accepted(level+2,n) + 1
+      level = level+1
       pds = ds
       stride = stride / 2
    END DO
@@ -801,8 +799,9 @@ DO k = 1, n
 helium%iperm(perm(p(k))) = p(k)
 END DO
 !   pos(:,:,:) = work(:,:,:)
-   res = 1
-accepts(level,n)=accepts(level,n)+1
+
+    helium%num_accepted(level+2,n) = helium%num_accepted(level+2,n) + 1
+    res = 1
 
     RETURN
   END FUNCTION helium_slice_metro_cyclic
@@ -810,6 +809,7 @@ accepts(level,n)=accepts(level,n)+1
   ! ***************************************************************************
   !> \brief  ...
   !> \author hforbert
+  !> \return 1 - if the permutation was successfully selected, 0 - otherwise
   ! ***************************************************************************
   FUNCTION helium_select_permutation(helium,len,error) RESULT(res)
     TYPE(helium_solvent_type), POINTER       :: helium

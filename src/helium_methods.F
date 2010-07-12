@@ -26,7 +26,7 @@ MODULE helium_methods
   USE helium_io,                       ONLY: helium_write_line,&
                                              helium_write_setup
   USE helium_sampling,                 ONLY: helium_sample
-  USE helium_types,                    ONLY: helium_solvent_type
+  USE helium_types,                    ONLY: helium_solvent_type, he_mass
   USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_none,&
                                              helium_cell_shape_octahedron
@@ -125,13 +125,14 @@ MODULE helium_methods
     IF (.NOT. failure) THEN
        NULLIFY ( helium%input, &
                  helium%ptable,  helium%permutation, &
-                 helium%iperm,   &
+                 helium%iperm, &
                  helium%itmp_atoms_1d, &
                  helium%ltmp_atoms_1d, &
                  helium%itmp_atoms_np_1d, &
                  helium%pos, helium%work, &
                  helium%force_avrg, &
                  helium%force_inst, &
+                 helium%rtmp_3_np_1d, &
                  helium%rtmp_p_ndim_1d, &
                  helium%rtmp_p_ndim_np_1d, &
                  helium%rtmp_3_atoms_beads_1d, &
@@ -141,7 +142,11 @@ MODULE helium_methods
                  helium%tmatrix, helium%pmatrix,     &
                  helium%nmatrix, helium%ipmatrix,    &
                  helium%uij,     helium%eij, &
-                 helium%rdf_inst,helium%rdf_avrg )
+                 helium%rdf_avrg,&
+                 helium%rdf_inst,&
+                 helium%plength_avrg, &
+                 helium%plength_inst &
+                )
 
        helium%ref_count=1
        last_helium_id=last_helium_id+1
@@ -290,7 +295,7 @@ MODULE helium_methods
                     CALL helium_write_line(msg_str, error)
                     helium%cell_size = rtmp
                  END IF
-              END IF 
+              END IF
            END IF
        END IF
        helium%cell_size_inv = 1.0_dp / helium%cell_size
@@ -327,7 +332,19 @@ MODULE helium_methods
        CPPostcondition(i>=0,cp_failure_level,routineP,error,failure)
        i = helium%atoms - helium%maxcycle
        CPPostcondition(i>=0,cp_failure_level,routineP,error,failure)
-       !
+
+       ! set m-distribution parameters
+       CALL section_vals_val_get(helium_section,"M-SAMPLING%M-VALUE",&
+            i_val=i, error=error)
+       CPPostcondition(i>=1,cp_failure_level,routineP,error,failure)
+       CPPostcondition(i<=helium%maxcycle,cp_failure_level,routineP,error,failure)
+       helium%m_value = i
+       CALL section_vals_val_get(helium_section,"M-SAMPLING%M-RATIO",&
+            r_val=rtmp, error=error)
+       CPPostcondition(rtmp>0.0_dp,cp_failure_level,routineP,error,failure)
+       CPPostcondition(rtmp<=1.0_dp,cp_failure_level,routineP,error,failure)
+       helium%m_ratio = rtmp
+
        CALL section_vals_val_get(helium_section,"BISECTION",&
               i_val=helium%bisection, error=error)
        ! precheck bisection value (not all invalids are filtered out here yet)
@@ -335,9 +352,18 @@ MODULE helium_methods
        CPPostcondition(i>1,cp_failure_level,routineP,error,failure)
        i = helium%beads - helium%bisection
        CPPostcondition(i>0,cp_failure_level,routineP,error,failure)
+       !
+       itmp = helium%bisection
+       rtmp = 2**(ANINT(LOG(REAL(itmp))/LOG(2.0_dp)))
+       tcheck=ABS(REAL(itmp)-rtmp)
+       msg_str = "BISECTION should be integer power of 2."
+       CALL cp_assert(tcheck<100.0_dp*EPSILON(0.0_dp),cp_failure_level,&
+            cp_assertion_failed, routineP, msg_str)
+       helium%bisctlog2 = ANINT(LOG(REAL(itmp))/LOG(2.0_dp))
 
        ! hard coded He4 directly (mass so i get my original hb2m value)
-       helium%hb2m = 1.0_dp/(4.00263037059764_dp*massunit)
+       ! He4 mass defined as a constant in helium_types.F now [lwalewski]
+       helium%hb2m = 1.0_dp/(he_mass*massunit)
        helium%pweight = 0.0_dp
 
        ! get the RDF parameters
@@ -435,6 +461,7 @@ MODULE helium_methods
        DEALLOCATE(pot_transfer, STAT=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
+       ! ALLOCATE helium-related arrays
        i = helium%atoms
        j = helium%beads
        ALLOCATE(helium%pos(3,i,j),STAT=stat)
@@ -455,9 +482,16 @@ MODULE helium_methods
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%ipmatrix(i,i),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(helium%rdf_inst(helium%rdf_nbin),STAT=stat)
+       itmp = helium%bisctlog2 + 2
+       ALLOCATE(helium%num_accepted(itmp,helium%maxcycle),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rdf_avrg(helium%rdf_nbin),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%rdf_inst(helium%rdf_nbin),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%plength_avrg(helium%atoms),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%plength_inst(helium%atoms),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! RNG state create & init
@@ -510,7 +544,7 @@ MODULE helium_methods
          END IF
        END IF
 
-       ! allocate solute-related arrays
+       ! ALLOCATE solute-related arrays
        ALLOCATE(helium%force_avrg(helium%solute_beads,&
          helium%solute_atoms*3),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -518,12 +552,14 @@ MODULE helium_methods
          helium%solute_atoms*3),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       ! allocate temporary arrays
+       ! ALLOCATE temporary arrays
        ALLOCATE(helium%itmp_atoms_1d(helium%atoms),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%ltmp_atoms_1d(helium%atoms),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%itmp_atoms_np_1d(helium%atoms*helium%num_proc),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(helium%rtmp_3_np_1d(3*helium%num_proc),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rtmp_p_ndim_1d(helium%solute_beads*&
          helium%solute_atoms*3),STAT=stat)
@@ -570,55 +606,82 @@ MODULE helium_methods
     failure=.FALSE.
 
     IF (ASSOCIATED(helium)) THEN
-       CPPrecondition(helium%ref_count>0,cp_failure_level,routineP,error,failure)
-       helium%ref_count=helium%ref_count-1
-       IF (helium%ref_count<1) THEN
-          DEALLOCATE ( helium%ipmatrix , &
-                       helium%pmatrix , &
-                       helium%tmatrix , &
-                       helium%nmatrix , &
-                       helium%iperm , &
-                       helium%permutation , &
-                       helium%ptable , &
-                       helium%pos , &
-                       helium%work , &
-                       helium%force_avrg, &
-                       helium%force_inst, &
-                       helium%rtmp_p_ndim_1d, &
-                       helium%rtmp_p_ndim_np_1d, &
-                       helium%rtmp_3_atoms_beads_1d, &
-                       helium%rtmp_3_atoms_beads_np_1d, &
-                       helium%rtmp_p_ndim_2d, &
-                       helium%ltmp_3_atoms_beads_3d, &
-                       helium%itmp_atoms_1d,&
-                       helium%ltmp_atoms_1d,&
-                       helium%itmp_atoms_np_1d,&
-                       helium%rdf_inst,&
-                       helium%rdf_avrg,&
-                       STAT=stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          NULLIFY(helium%ipmatrix, &
-                  helium%pmatrix, &
-                  helium%tmatrix , &
-                  helium%nmatrix , &
-                  helium%iperm , &
-                  helium%permutation , &
-                  helium%ptable , &
-                  helium%pos, &
-                  helium%work, &
-                  helium%force_avrg, &
-                  helium%force_inst, &
-                  helium%rtmp_p_ndim_1d, &
-                  helium%rtmp_p_ndim_np_1d, &
-                  helium%rtmp_3_atoms_beads_1d, &
-                  helium%rtmp_3_atoms_beads_np_1d, &
-                  helium%rtmp_p_ndim_2d, &
-                  helium%ltmp_3_atoms_beads_3d, &
-                  helium%itmp_atoms_1d,&
-                  helium%ltmp_atoms_1d,&
-                  helium%itmp_atoms_np_1d,&
-                  helium%rdf_inst,&
-                  helium%rdf_avrg)
+      CPPrecondition(helium%ref_count>0,cp_failure_level,routineP,error,failure)
+      helium%ref_count=helium%ref_count-1
+      IF (helium%ref_count<1) THEN
+
+        ! DEALLOCATE temporary arrays
+        DEALLOCATE ( &
+          helium%ltmp_3_atoms_beads_3d, &
+          helium%rtmp_p_ndim_2d, &
+          helium%rtmp_3_atoms_beads_np_1d, &
+          helium%rtmp_3_atoms_beads_1d, &
+          helium%rtmp_p_ndim_np_1d, &
+          helium%rtmp_p_ndim_1d, &
+          helium%rtmp_3_np_1d, &
+          helium%itmp_atoms_np_1d, &
+          helium%ltmp_atoms_1d, &
+          helium%itmp_atoms_1d, &
+          STAT=stat )
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        NULLIFY ( &
+          helium%ltmp_3_atoms_beads_3d, &
+          helium%rtmp_p_ndim_2d, &
+          helium%rtmp_3_atoms_beads_np_1d, &
+          helium%rtmp_3_atoms_beads_1d, &
+          helium%rtmp_p_ndim_np_1d, &
+          helium%rtmp_p_ndim_1d, &
+          helium%rtmp_3_np_1d, &
+          helium%itmp_atoms_np_1d, &
+          helium%ltmp_atoms_1d, &
+          helium%itmp_atoms_1d &
+        )
+
+        ! DEALLOCATE solute-related arrays
+        DEALLOCATE ( &
+          helium%force_inst, &
+          helium%force_avrg, &
+          STAT=stat )
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        NULLIFY( &
+          helium%force_inst, &
+          helium%force_avrg &
+        )
+
+        ! DEALLOCATE helium-related arrays
+        DEALLOCATE ( &
+          helium%plength_inst, &
+          helium%plength_avrg, &
+          helium%rdf_inst, &
+          helium%rdf_avrg, &
+          helium%num_accepted, &
+          helium%ipmatrix, &
+          helium%pmatrix, &
+          helium%nmatrix, &
+          helium%tmatrix, &
+          helium%iperm, &
+          helium%permutation, &
+          helium%ptable, &
+          helium%work, &
+          helium%pos, &
+          STAT=stat )
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        NULLIFY( &
+          helium%plength_inst, &
+          helium%plength_avrg, &
+          helium%rdf_inst, &
+          helium%rdf_avrg, &
+          helium%num_accepted, &
+          helium%ipmatrix, &
+          helium%pmatrix, &
+          helium%nmatrix, &
+          helium%tmatrix, &
+          helium%iperm, &
+          helium%permutation, &
+          helium%ptable, &
+          helium%work, &
+          helium%pos &
+        )
 
           DO i = 1, SIZE ( helium%eij , 1 )
              DO j = 1, SIZE ( helium%eij , 1 )
@@ -1566,33 +1629,6 @@ FUNCTION helium_total_action(helium) RESULT(res)
    RETURN
 
 END FUNCTION helium_total_action
-
-SUBROUTINE helium_calc_perm(helium)
-
-    TYPE(helium_solvent_type), POINTER       :: helium
-
-    INTEGER                                  :: i, j, k, n
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cycles
-
-   n = helium%atoms
-   ALLOCATE(cycles(n),STAT=i)
-   cycles(:)=0
-   DO i = 1, n
-      j = helium%permutation(i)
-      k = 1
-      DO
-         IF (j == i) EXIT
-         k = k + 1
-         j = helium%permutation(j)
-      END DO
-      cycles(k) = cycles(k)+1
-   END DO
-   PRINT *,"#P",cycles(:)
-
-   DEALLOCATE(cycles)
-
-   RETURN
-END SUBROUTINE helium_calc_perm
 
 SUBROUTINE helium_delta_pos(helium,part,ref_bead,delta_bead,d)
 
