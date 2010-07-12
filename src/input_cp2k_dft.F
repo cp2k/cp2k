@@ -344,7 +344,7 @@ CONTAINS
 
     CALL keyword_create(keyword,&
                         name="PLUS_U_METHOD",&
-                        description="Method employed for the calculation of the DFT+U contributuion",&
+                        description="Method employed for the calculation of the DFT+U contribution",&
                         required=.FALSE.,&
                         repeats=.FALSE.,&
                         enum_c_vals=s2a("LOWDIN","MULLIKEN","MULLIKEN_CHARGES"),&
