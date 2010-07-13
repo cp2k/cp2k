@@ -186,7 +186,7 @@ MODULE hfx_derivatives
     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
     REAL(dp)                                 :: pmax_tmp
     INTEGER                                  :: kind_kind_idx, swap_id
-    REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4
+    REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, shm_pmax_block
     INTEGER, DIMENSION(:), POINTER           :: shm_block_offset
     INTEGER, DIMENSION(:,:), POINTER         :: shm_atomic_block_offset
     INTEGER, DIMENSION(:,:,:,:), POINTER     :: shm_set_offset
@@ -255,8 +255,9 @@ MODULE hfx_derivatives
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces_virial
     TYPE(virial_type), POINTER               :: virial
-    REAL(dp)                                 :: tmp_virial(3,3)
+    REAL(dp)                                 :: tmp_virial(3,3), pmax_blocks, pmax_atom
     INTEGER                                  :: k,j
+    LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
     LOGICAL                                  :: do_print_load_balance_info
     
 
@@ -346,7 +347,10 @@ MODULE hfx_derivatives
 !$OMP                                  shm_task_counter,&
 !$OMP                                  shm_task_list,&
 !$OMP                                  shm_total_bins,&
+!$OMP                                  shm_pmax_block,&
+!$OMP                                  shm_atomic_pair_list,&
 !$OMP                                  shm_pmax_atom,&
+!$OMP                                  use_virial,&
 !$OMP                                  do_print_load_balance_info)
 
     i_thread = 0
@@ -354,7 +358,6 @@ MODULE hfx_derivatives
 
     ln_10 = LOG(10.0_dp)
     log_2 = LOG10(2.0_dp)
-
     actual_x_data => qs_env%x_data(irep, i_thread + 1)
     do_periodic = actual_x_data%periodic_parameter%do_periodic
 
@@ -535,13 +538,14 @@ MODULE hfx_derivatives
     !! Load balance the work
     IF( actual_x_data%memory_parameter%recalc_forces ) THEN
       IF( actual_x_data%b_first_load_balance_forces ) THEN
+        shm_pmax_block => actual_x_data%pmax_block
         CALL hfx_load_balance(actual_x_data,eps_schwarz,particle_set,max_set,para_env,&
                               screen_coeffs_set,screen_coeffs_kind,&
                               shm_is_assoc_atomic_block, do_periodic,&
                               load_balance_parameter, kind_of, basis_parameter,shm_initial_p, &
                               shm_pmax_atom, i_thread, n_threads,&
                               cell, screen_pmat_forces, actual_x_data%map_atom_to_kind_atom, &
-                              nkind, hfx_do_eval_forces, use_virial, error)
+                              nkind, hfx_do_eval_forces, shm_pmax_block, use_virial, error)
         actual_x_data%b_first_load_balance_forces = .FALSE.
       ELSE
         CALL hfx_update_load_balance(actual_x_data, para_env, &
@@ -797,6 +801,22 @@ MODULE hfx_derivatives
       DEALLOCATE(tmp_task_list_cost, tmp_index, tmp_task_list, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
+    !! precalculate maximum density matrix elements in blocks
+    shm_pmax_block => actual_x_data%pmax_block
+    actual_x_data%pmax_block = 0.0_dp
+    IF ( screen_pmat_forces ) THEN
+      DO iatom_block = 1,SIZE(actual_x_data%blocks)
+        iatom_start = actual_x_data%blocks(iatom_block)%istart
+        iatom_end = actual_x_data%blocks(iatom_block)%iend
+        DO jatom_block = 1,SIZE(actual_x_data%blocks)
+          jatom_start = actual_x_data%blocks(jatom_block)%istart
+          jatom_end = actual_x_data%blocks(jatom_block)%iend
+          shm_pmax_block(iatom_block,jatom_block) = MAXVAL(shm_pmax_atom(iatom_start:iatom_end,jatom_start:jatom_end))
+        END DO
+      END DO
+    END IF
+    shm_atomic_pair_list => actual_x_data%atomic_pair_list
 !$OMP END MASTER
 !$OMP BARRIER
 
@@ -894,15 +914,24 @@ MODULE hfx_derivatives
         latom_start = actual_x_data%blocks(latom_block)%istart
         latom_end =   actual_x_data%blocks(latom_block)%iend
 
-        CALL build_pair_list(list_ij,set_list_ij,iatom_start, iatom_end, &
+        pmax_blocks = MAX( shm_pmax_block(katom_block, iatom_block) + &
+                           shm_pmax_block(latom_block, jatom_block), &
+                           shm_pmax_block(latom_block, iatom_block) + &
+                           shm_pmax_block(katom_block, jatom_block) )
+
+        IF( 2.0_dp*coeffs_kind_max0 + pmax_blocks  < log10_eps_schwarz ) CYCLE
+
+        CALL build_pair_list(natom,list_ij,set_list_ij,iatom_start, iatom_end, &
                              jatom_start, jatom_end, &
                              kind_of,basis_parameter,particle_set, &
-                             do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
+                             do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0, &
+                             log10_eps_schwarz,cell,pmax_blocks, shm_atomic_pair_list)
 
-        CALL build_pair_list(list_kl,set_list_kl, katom_start, katom_end, &
+        CALL build_pair_list(natom,list_kl,set_list_kl, katom_start, katom_end, &
                              latom_start, latom_end, &
                              kind_of,basis_parameter,particle_set, &
-                             do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
+                             do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0, &
+                             log10_eps_schwarz,cell,pmax_blocks,shm_atomic_pair_list)
 
 
         DO i_list_ij=1,list_ij%n_element
@@ -965,10 +994,20 @@ MODULE hfx_derivatives
             rd=list_kl%elements(i_list_kl)%r2
             rcd2=list_kl%elements(i_list_kl)%dist2
 
+            IF( screen_pmat_forces) THEN 
+              pmax_atom = MAX(shm_pmax_atom(katom,iatom)+ &
+                              shm_pmax_atom(latom,jatom), &
+                              shm_pmax_atom(latom,iatom)+ &
+                              shm_pmax_atom(katom,jatom) )
+            ELSE
+              pmax_atom = 0.0_dp
+            END IF
+
+
             IF( (screen_coeffs_kind(jkind,ikind)%x(1)*rab2+&
                  screen_coeffs_kind(jkind,ikind)%x(2) ) + &
                  (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2+&
-                 screen_coeffs_kind(lkind,kkind)%x(2)) < log10_eps_schwarz ) CYCLE
+                 screen_coeffs_kind(lkind,kkind)%x(2)) + pmax_atom < log10_eps_schwarz ) CYCLE
  
             IF(.NOT. (shm_is_assoc_atomic_block(latom,iatom)>=1 .AND. &
                       shm_is_assoc_atomic_block(katom,iatom)>=1 .AND. &
@@ -1153,7 +1192,7 @@ MODULE hfx_derivatives
                          screen_coeffs_set(jset,iset,jkind,ikind)%x(2)
               !! Near field screening
               IF (max_val1 + (screen_coeffs_kind(lkind,kkind)%x(1)*rcd2 + &
-                              screen_coeffs_kind(lkind,kkind)%x(2) ) < log10_eps_schwarz) CYCLE
+                              screen_coeffs_kind(lkind,kkind)%x(2) ) + pmax_atom < log10_eps_schwarz) CYCLE
               sphi_a_ext_set => sphi_a_ext(:,:,:,iset)
               sphi_b_ext_set => sphi_b_ext(:,:,:,jset)
 
@@ -1167,7 +1206,7 @@ MODULE hfx_derivatives
                 max_val2 = max_val1 + max_val2_set
 
                 !! Near field screening
-                IF(max_val2<log10_eps_schwarz) CYCLE
+                IF(max_val2+ pmax_atom <log10_eps_schwarz) CYCLE
                 sphi_c_ext_set => sphi_c_ext(:,:,:,kset)
                 sphi_d_ext_set => sphi_d_ext(:,:,:,lset)
 
@@ -1989,7 +2028,7 @@ MODULE hfx_derivatives
       END DO !mc
     END DO !md
 
-    !$OMP ATOMIC
+!$OMP ATOMIC
     force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1, &
           forces_map((coord-1)/3 + 1,2)) = &
     force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1, &

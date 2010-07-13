@@ -44,7 +44,8 @@ MODULE hfx_energy_potential
   USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
                                              hfx_load_balance,&
                                              hfx_update_load_balance
-  USE hfx_pair_list_methods,           ONLY: build_pair_list,&
+  USE hfx_pair_list_methods,           ONLY: build_atomic_pair_list,&
+                                             build_pair_list,&
                                              build_pair_list_pgf,&
                                              build_pgf_product_list
   USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
@@ -270,11 +271,12 @@ MODULE hfx_energy_potential
     INTEGER                                  :: sphi_a_u1, sphi_a_u2, sphi_a_u3
     INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
                                                 katom_end, latom_start, latom_end, my_process_id
-    REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
-    REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl
+    REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom, shm_pmax_block
+    REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl, pmax_blocks
     TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::rho_ao
     INTEGER::ii,pbc_shells_dummy
     REAL(dp), DIMENSION(:), POINTER          :: p_work
+    LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
     TYPE(section_vals_type), POINTER         :: print_key
     LOGICAL                                  :: do_print_load_balance_info
 
@@ -394,6 +396,8 @@ MODULE hfx_energy_potential
 !$OMP                                  shm_total_bins,&
 !$OMP                                  shm_master_x_data,&
 !$OMP                                  shm_pmax_atom,&
+!$OMP                                  shm_pmax_block,&
+!$OMP                                  shm_atomic_pair_list,&
 !$OMP                                  shm_mem_compression_counter,&
 !$OMP                                  do_print_load_balance_info)
 
@@ -875,7 +879,7 @@ MODULE hfx_energy_potential
                               shm_is_assoc_atomic_block,do_periodic,load_balance_parameter, &
                               kind_of, basis_parameter, shm_initial_p, shm_pmax_atom, i_thread, n_threads, &
                               cell, do_p_screening, actual_x_data%map_atom_to_kind_atom, &
-                              nkind, hfx_do_eval_energy, use_virial=.FALSE., error=error)
+                              nkind, hfx_do_eval_energy, shm_pmax_block, use_virial=.FALSE., error=error)
         actual_x_data%b_first_load_balance_energy = .FALSE.
       ELSE
         CALL hfx_update_load_balance(actual_x_data,para_env, &
@@ -1065,6 +1069,34 @@ MODULE hfx_energy_potential
     ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+!$OMP BARRIER
+!$OMP MASTER
+
+    !! precalculate maximum density matrix elements in blocks
+    actual_x_data%pmax_block = 0.0_dp
+    shm_pmax_block => actual_x_data%pmax_block
+    IF( do_p_screening ) THEN
+      DO iatom_block = 1,SIZE(actual_x_data%blocks)
+        iatom_start = actual_x_data%blocks(iatom_block)%istart
+        iatom_end = actual_x_data%blocks(iatom_block)%iend
+        DO jatom_block = 1,SIZE(actual_x_data%blocks)
+          jatom_start = actual_x_data%blocks(jatom_block)%istart
+          jatom_end = actual_x_data%blocks(jatom_block)%iend
+          shm_pmax_block(iatom_block,jatom_block) = MAXVAL(shm_pmax_atom(iatom_start:iatom_end,jatom_start:jatom_end))
+        END DO
+      END DO
+    END IF
+    shm_atomic_pair_list => actual_x_data%atomic_pair_list
+    IF( geometry_did_change) THEN
+      CALL build_atomic_pair_list(natom, shm_atomic_pair_list, kind_of,basis_parameter,particle_set, &
+                                  do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell,&
+                                  actual_x_data%blocks)
+    END IF
+
+
+!$OMP END MASTER
+!$OMP BARRIER
+
     my_bin_size = SIZE(actual_x_data%distribution_energy)
     ! reset timings for the new SCF round
     IF (geometry_did_change) THEN
@@ -1145,16 +1177,28 @@ MODULE hfx_energy_potential
         latom_start = actual_x_data%blocks(latom_block)%istart
         latom_end =   actual_x_data%blocks(latom_block)%iend
 
+        pmax_blocks = MAX( shm_pmax_block(katom_block, iatom_block), &
+                           shm_pmax_block(latom_block, jatom_block), &
+                           shm_pmax_block(latom_block, iatom_block), &
+                           shm_pmax_block(katom_block, jatom_block) )
+        
+        IF( 2.0_dp*coeffs_kind_max0 + pmax_blocks  < log10_eps_schwarz ) CYCLE
 
-        CALL build_pair_list(list_ij,set_list_ij,iatom_start, iatom_end, &
+
+        CALL build_pair_list(natom, list_ij,set_list_ij,iatom_start, iatom_end, &
                              jatom_start, jatom_end, &
                              kind_of,basis_parameter,particle_set, &
-                             do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
+                             do_periodic,screen_coeffs_set,screen_coeffs_kind, &
+                             coeffs_kind_max0,log10_eps_schwarz,cell, pmax_blocks, &
+                             shm_atomic_pair_list)
 
-        CALL build_pair_list(list_kl,set_list_kl, katom_start, katom_end, &
+
+        CALL build_pair_list(natom, list_kl,set_list_kl, katom_start, katom_end, &
                              latom_start, latom_end, &
                              kind_of,basis_parameter,particle_set, &
-                             do_periodic,screen_coeffs_set,screen_coeffs_kind,coeffs_kind_max0,log10_eps_schwarz,cell)
+                             do_periodic,screen_coeffs_set,screen_coeffs_kind, &
+                             coeffs_kind_max0,log10_eps_schwarz, cell, pmax_blocks, &
+                             shm_atomic_pair_list)
 
         DO i_list_ij=1,list_ij%n_element
 

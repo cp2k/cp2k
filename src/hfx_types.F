@@ -427,6 +427,8 @@ MODULE hfx_types
      REAL(dp), DIMENSION(:,:), POINTER        :: pmax_atom, pmax_atom_forces
      TYPE(lib_int)                            :: lib_int
      TYPE(lib_deriv)                          :: lib_deriv
+     REAL(dp), DIMENSION(:,:), POINTER        :: pmax_block
+     LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list
   END TYPE hfx_type
 
   CONTAINS
@@ -832,14 +834,18 @@ MODULE hfx_types
         ALLOCATE(actual_x_data%distribution_energy(1),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
-        actual_x_data%memory_parameter%size_p_screen = 0_int_8 
+        actual_x_data%memory_parameter%size_p_screen = 0_int_8
+        IF( i_thread == 1 ) THEN
+          ALLOCATE(actual_x_data%atomic_pair_list(natom,natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           !! ** This guy is allocated on the master thread only 
           IF (i_thread == 1 ) THEN
             ALLOCATE(actual_x_data%pmax_atom(natom,natom),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
             ALLOCATE(actual_x_data%initial_p(nkind*(nkind+1)/2),STAT=stat)
             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
             i = 1
@@ -1110,7 +1116,12 @@ MODULE hfx_types
           DEALLOCATE(actual_x_data%blocks,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-    
+         
+        IF( i_thread == 1 ) THEN
+          DEALLOCATE(actual_x_data%atomic_pair_list, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+ 
         IF(actual_x_data%screening_parameter%do_initial_p_screening .OR. &
            actual_x_data%screening_parameter%do_p_screening_forces) THEN
           IF( i_thread == 1 ) THEN
