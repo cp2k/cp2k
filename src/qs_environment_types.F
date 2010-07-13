@@ -1656,6 +1656,16 @@ CONTAINS
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
               DEALLOCATE(qs_env%dispersion_env%r2r4, stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              DEALLOCATE(qs_env%dispersion_env%cn, stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              IF (ASSOCIATED(qs_env%dispersion_env%cnlist)) THEN
+                DO i=1,SIZE(qs_env%dispersion_env%cnlist)
+                  DEALLOCATE(qs_env%dispersion_env%cnlist(i)%atom, stat=stat)
+                  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                END DO
+                DEALLOCATE(qs_env%dispersion_env%cnlist, stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              END IF
             END IF
             DEALLOCATE(qs_env%dispersion_env, stat=stat)
             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

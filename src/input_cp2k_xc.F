@@ -837,6 +837,33 @@ CONTAINS
             lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="REFERENCE_C9_TERM",&
+            description="Calculate C9 terms in DFT-D3 model using reference coordination numbers",&
+            usage="REFERENCE_C9_TERM", default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="LONG_RANGE_CORRECTION",&
+            description="Calculate a long range correction to the DFT-D3 model",&
+            usage="LONG_RANGE_CORRECTION", default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="VERBOSE_OUTPUT",&
+            description="Extensive output for the DFT-D2 and DFT-D3 models",&
+            usage="VERBOSE_OUTPUT", default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Set coordination numbers by atom numbers
+       CALL keyword_create(keyword, name="COORDINATION_NUMBERS",&
+            description="Specifies the electron configurationi.",&
+            usage="COORDINATION_NUMBERS CN atom1 atom2 ... ", required=.FALSE., repeats=.TRUE.,&
+            n_var=-1,type_of_var=char_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        ! parameter specification atom by atom
        CALL keyword_create(keyword, name="ATOMPARM",&
             description="Specifies parameters for atom types (in atomic units). If "//&

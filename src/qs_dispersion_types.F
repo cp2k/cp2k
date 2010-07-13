@@ -30,6 +30,7 @@ MODULE qs_dispersion_types
     REAL(KIND=dp)                          :: scaling
     REAL(KIND=dp)                          :: rc_disp
     REAL(KIND=dp)                          :: exp_pre
+    LOGICAL                                :: verbose  !extended output
     !DFT-D3 global parameters
     INTEGER                                :: max_elem !elements parametrized
     INTEGER                                :: maxc     !max coordination number references per element
@@ -38,12 +39,17 @@ MODULE qs_dispersion_types
     REAL(KIND=dp)                          :: s6,s8,sr6!scaling parameters
     REAL(KIND=dp)                          :: eps_cn
     LOGICAL                                :: doabc    !neglect C9 terms
+    LOGICAL                                :: c9cnst   !use constant c9 terms
+    LOGICAL                                :: lrc      !calculate a long range correction
     REAL(KIND=dp),DIMENSION(:,:,:,:,:), POINTER &
                                            :: c6ab
     INTEGER,DIMENSION(:),POINTER           :: maxci
     REAL(KIND=dp),DIMENSION(:,:), POINTER  :: r0ab
     REAL(KIND=dp),DIMENSION(:), POINTER    :: rcov     !covalent radii
     REAL(KIND=dp),DIMENSION(:), POINTER    :: r2r4     !atomic <r^2>/<r^4> values
+    REAL(KIND=dp),DIMENSION(:), POINTER    :: cn       !coordination numbers (defaults)
+    TYPE(cn_atom_list),DIMENSION(:), POINTER &
+                                           :: cnlist
   END TYPE qs_dispersion_type
 
   TYPE qs_atom_dispersion_type
@@ -53,9 +59,15 @@ MODULE qs_dispersion_types
     REAL(KIND=dp)                          :: c6         !c6 coefficients
   END TYPE qs_atom_dispersion_type
 
+  TYPE cn_atom_list
+    REAL(KIND=dp)                          :: cnum
+    INTEGER                                :: natom
+    INTEGER,DIMENSION(:), POINTER          :: atom
+  END TYPE cn_atom_list
+
 ! *****************************************************************************
 
-  PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type
+  PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type, cn_atom_list
   PUBLIC :: dftd2_pp, dftd3_pp
 
 ! *****************************************************************************

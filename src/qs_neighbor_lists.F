@@ -54,6 +54,8 @@ MODULE qs_neighbor_lists
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
+  USE periodic_table,                  ONLY: ptable
+  USE physcon,                         ONLY: bohr
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
                                              qs_dftb_pairpot_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
@@ -142,7 +144,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: print_key_path, unit_str
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, iw, jkind, &
       maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
-      output_unit, stat
+      output_unit, stat, zat
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
     LOGICAL :: all_pairs_list, all_potential_present, cls, epr, failure, &
@@ -960,7 +962,11 @@ CONTAINS
 
           IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
              ! Build the neighbor lists for coordination numbers as needed by the DFT-D3 method
-             c_radius(:) = 10.0_dp !hard wired
+             DO ikind = 1, nkind
+                atomic_kind => atomic_kind_set(ikind)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,z=zat)
+                c_radius(ikind) = 4._dp*ptable(zat)%covalent_radius*bohr
+             END DO
              CALL build_neighbor_lists(sab_cn,atom,cell,0._dp,maxatom_local,&
                 unit_conv,unit_str,output_unit,default_present,default_present,&
                 c_radius,c_radius,name="COORDINATION",subcells=subcells,&

@@ -581,7 +581,7 @@ CONTAINS
     !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxlgto=maxlgto)
-    maxl = 3*maxlgto + 1
+    maxl = MAX(3*maxlgto + 1,0)
     CALL init_md_ftable(maxl)
 
     !   *** Initialize the atomic interaction radii ***
@@ -770,13 +770,17 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"dispersion_env",1)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
+      dispersion_env%c9cnst=.FALSE.
+      dispersion_env%lrc=.FALSE.
+      dispersion_env%verbose=.FALSE.
       NULLIFY(dispersion_env%c6ab,dispersion_env%maxci,dispersion_env%r0ab,dispersion_env%rcov,&
-              dispersion_env%r2r4)
+              dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnlist)
       NULLIFY(vdw_section,xc_fun_section)
       vdw_section =>  section_vals_get_subs_vals(dft_section,"XC%vdw_potential",error=error)
       xc_fun_section => section_vals_get_subs_vals(dft_section,"XC%XC_FUNCTIONAL",error=error)
       CALL section_vals_val_get(vdw_section, "POTENTIAL_TYPE", i_val=dispersion_env%type, error=error)
       IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
+        CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%VERBOSE_OUTPUT", l_val=dispersion_env%verbose, error=error)
         CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%TYPE", c_val=dispersion_env%pp_type, error=error)
         IF ( TRIM(dispersion_env%pp_type) == "DFTD2" ) THEN
           ! functional parameters for Grimme D2 type
@@ -798,6 +802,8 @@ CONTAINS
           CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%EPS_CN", r_val=dispersion_env%eps_cn, error=error)
           CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%D3_SCALING" ,explicit=explicit,error=error)
           CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%CALCULATE_C9_TERM" ,l_val=dispersion_env%doabc,error=error)
+          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_C9_TERM" ,l_val=dispersion_env%c9cnst,error=error)
+          CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%LONG_RANGE_CORRECTION" ,l_val=dispersion_env%lrc,error=error)
           IF ( .NOT. explicit ) THEN
             CALL section_vals_val_get(vdw_section, "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL" ,explicit=exfun,error=error)
             CPPostcondition(exfun,cp_failure_level,routineP,error,failure)
