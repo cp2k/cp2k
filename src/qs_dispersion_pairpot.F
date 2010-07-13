@@ -660,10 +660,10 @@ CONTAINS
 
        NULLIFY (particle_set)
        CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
-       IF(calculate_forces .OR. debugall) THEN
+       natom = SIZE(particle_set)
+       IF (calculate_forces .OR. debugall) THEN
           NULLIFY (force)
           CALL get_qs_env(qs_env=qs_env,force=force,error=error)
-          natom = SIZE (particle_set)
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -673,7 +673,6 @@ CONTAINS
             dvirial = virial%pv_virial
           END IF
        ELSE IF ( dispersion_env%pp_type == "DFTD3" .AND. dispersion_env%doabc ) THEN
-          natom = SIZE (particle_set)
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
