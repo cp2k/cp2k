@@ -14,32 +14,19 @@ MODULE helium_sampling
                                              cp_iterate,&
                                              cp_rm_iter_level
   USE global_types,                    ONLY: global_environment_type
-  USE helium_common,                   ONLY: helium_boxmean_3d,&
-                                             helium_calc_rdf,&
-                                             helium_calc_wnumber,&
-                                             helium_calc_plength,&
-                                             helium_eval_expansion,&
-                                             helium_pbc,&
-                                             helium_rotate,&
-                                             helium_spline,&
-                                             helium_update_transition_matrix
+  USE helium_common,                   ONLY: &
+       helium_boxmean_3d, helium_calc_plength, helium_calc_rdf, &
+       helium_calc_wnumber, helium_eval_expansion, helium_pbc, helium_rotate, &
+       helium_spline, helium_update_transition_matrix
   USE helium_interactions,             ONLY: helium_bead_solute_e,&
                                              helium_calc_energy,&
                                              helium_solute_e_f
   USE helium_io,                       ONLY: &
-                                             helium_update,&
-                                             helium_write_accepts,&
-                                             helium_write_coordinates,&
-                                             helium_write_energy,&
-                                             helium_write_force,&
-                                             helium_write_force_inst,&
-                                             helium_write_line,&
-                                             helium_write_rdf,&
-                                             helium_write_restart,&
-                                             helium_write_sdensity,&
-                                             helium_write_wnumber,&
-                                             helium_write_perm,&
-                                             helium_write_plength
+       helium_update, helium_write_accepts, helium_write_coordinates, &
+       helium_write_energy, helium_write_force, helium_write_force_inst, &
+       helium_write_line, helium_write_perm, helium_write_plength, &
+       helium_write_rdf, helium_write_restart, helium_write_sdensity, &
+       helium_write_wnumber
   USE helium_types,                    ONLY: e_id_total,&
                                              helium_solvent_type
   USE kinds,                           ONLY: default_string_length,&
@@ -148,7 +135,7 @@ MODULE helium_sampling
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_sample', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: irot, nslices, i,j
+    INTEGER                                  :: irot, nslices
     LOGICAL                                  :: failure, solute_present
     REAL(kind=dp)                            :: inv_iter_rot, inv_num_pe, &
                                                 rnd, rtmp
@@ -332,9 +319,8 @@ MODULE helium_sampling
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_try_permutations', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ncycles, ni, &
-                                                nselected, res
-    REAL(KIND=dp)                            :: rnd, x, r
+    INTEGER                                  :: ncycles, ni, nselected, res
+    REAL(KIND=dp)                            :: r, rnd, x
 
    IF (helium%maxcycle>1) CALL helium_update_transition_matrix(helium,error)
 helium%work(:,:,:)=helium%pos(:,:,:)

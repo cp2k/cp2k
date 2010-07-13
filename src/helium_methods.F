@@ -26,7 +26,8 @@ MODULE helium_methods
   USE helium_io,                       ONLY: helium_write_line,&
                                              helium_write_setup
   USE helium_sampling,                 ONLY: helium_sample
-  USE helium_types,                    ONLY: helium_solvent_type, he_mass
+  USE helium_types,                    ONLY: he_mass,&
+                                             helium_solvent_type
   USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_none,&
                                              helium_cell_shape_octahedron

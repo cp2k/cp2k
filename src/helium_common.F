@@ -11,13 +11,17 @@
 ! *****************************************************************************
 MODULE helium_common
 
-  USE helium_types,                    ONLY: helium_solvent_type, he_mass
+  USE helium_types,                    ONLY: he_mass,&
+                                             helium_solvent_type
   USE input_constants,                 ONLY: helium_cell_shape_cube,&
                                              helium_cell_shape_octahedron
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_walltime
   USE parallel_rng_types,              ONLY: next_random_number
-  USE physcon,                         ONLY: h_bar, a_mass, boltzmann, angstrom, kelvin
+  USE physcon,                         ONLY: a_mass,&
+                                             angstrom,&
+                                             boltzmann,&
+                                             h_bar,&
+                                             kelvin
   USE pint_public,                     ONLY: pint_com_pos
   USE pint_types,                      ONLY: pint_env_type
   USE splines_methods,                 ONLY: spline_value
@@ -273,14 +277,15 @@ MODULE helium_common
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, ib
-    REAL(KIND=dp)                            :: mHe, T, c
-    REAL(KIND=dp), DIMENSION(3)              :: r, w, v
+    REAL(KIND=dp)                            :: c, mHe, T
+    REAL(KIND=dp), DIMENSION(3)              :: r, v, w
 
 !TODO combined with my standalone program - simpify the units
-    ! h_bar - Planck constant over 2 pi in [J*s]
-    ! boltzmann = 1.3806504e-23 - Boltzmann constant in [J/K]
-    ! he_mass - 4He mass in [u]
-    ! a_mass = 1.660538782e-27 - atomic mass unit in [kg]
+! h_bar - Planck constant over 2 pi in [J*s]
+! boltzmann = 1.3806504e-23 - Boltzmann constant in [J/K]
+! he_mass - 4He mass in [u]
+! a_mass = 1.660538782e-27 - atomic mass unit in [kg]
+
     mHe  = he_mass * a_mass ! 4He mass in [kg]
     T    = kelvin / helium%tau / helium%beads
     c    = 1e-20 * mHe / h_bar / h_bar * boltzmann * T / 3.0_dp / helium%atoms
@@ -339,7 +344,7 @@ MODULE helium_common
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_calc_rdf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, ia, ib, handle
+    INTEGER                                  :: bin, handle, ia, ib
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ri
     REAL(kind=dp), DIMENSION(3)              :: r, r0

@@ -462,7 +462,8 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_setup', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: my_label, stmp, stmp1, stmp2, unit_str
+    CHARACTER(len=default_string_length)     :: my_label, stmp, stmp1, stmp2, &
+                                                unit_str
     INTEGER                                  :: i, itmp, j, unit_nr
     INTEGER(kind=int_8)                      :: i8tmp
     LOGICAL                                  :: failure, first
@@ -708,7 +709,7 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_sdensity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, unit_nr, iteration
+    INTEGER                                  :: handle, iteration, unit_nr
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -754,9 +755,8 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_wnumber', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, unit_nr, i
+    INTEGER                                  :: handle, i, unit_nr
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: wsquared
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
@@ -813,7 +813,8 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_accepts', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iteration, unit_nr, i, j
+    INTEGER                                  :: handle, i, iteration, j, &
+                                                unit_nr
     LOGICAL                                  :: failure, file_is_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -878,7 +879,8 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_perm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iteration, unit_nr, i, j, offset
+    INTEGER                                  :: handle, i, iteration, j, &
+                                                offset, unit_nr
     LOGICAL                                  :: failure, file_is_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
@@ -1446,7 +1448,6 @@ MODULE helium_io
 
     INTEGER                                  :: handle, i, unit_nr
     LOGICAL                                  :: failure, is_new, should_output
-    REAL(kind=dp)                            :: rtmp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
