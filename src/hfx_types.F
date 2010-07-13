@@ -1115,6 +1115,10 @@ MODULE hfx_types
         IF( actual_x_data%load_balance_parameter%blocks_initialized ) THEN
           DEALLOCATE(actual_x_data%blocks,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF( i_thread == 1 ) THEN
+            DEALLOCATE(actual_x_data%pmax_block,STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
         END IF
          
         IF( i_thread == 1 ) THEN

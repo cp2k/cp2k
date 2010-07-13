@@ -424,8 +424,6 @@ MODULE hfx_load_balance_methods
 
       load_balance_parameter%blocks_initialized = .TRUE.
 
-      ALLOCATE(x_data%blocks(shm_nblocks), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       x_data%blocks = shm_blocks
       load_balance_parameter%nblocks = shm_nblocks
       load_balance_parameter%blocks_initialized = .TRUE.
