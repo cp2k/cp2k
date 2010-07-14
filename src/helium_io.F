@@ -39,7 +39,7 @@ MODULE helium_io
                                              dp,&
                                              int_8
   USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_gather
+  USE message_passing,                 ONLY: mp_gather, mp_sum
   USE parallel_rng_types,              ONLY: get_rng_stream
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -654,9 +654,10 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iteration, unit_nr
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, iteration, unit_nr, m
+    LOGICAL                                  :: failure, file_is_new
     REAL(kind=dp), DIMENSION(:), POINTER     :: my_energy
+    REAL(kind=dp)                            :: naccptd
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
@@ -676,11 +677,34 @@ MODULE helium_io
     IF ( BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&
       basis_section=print_key,error=error),cp_p_file) ) THEN
       unit_nr=cp_print_key_unit_nr(logger,print_key, &
-        middle_name="helium-energy",extension=".dat",error=error )
+        middle_name="helium-energy",extension=".dat",&
+        is_new_file=file_is_new,error=error )
       ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%ionode
+
+      naccptd = 0.0_dp
+      DO m = 1, helium%maxcycle
+        naccptd = naccptd + helium%num_accepted(helium%bisctlog2+2,m)
+      END DO
+      CALL mp_sum(naccptd,logger%para_env%group)
+      naccptd = naccptd / REAL(logger%para_env%num_pe,dp)
+
       IF (unit_nr>0) THEN
-        WRITE (unit_nr,"(I8,6(1X,F20.9))") &
+
+        IF ( file_is_new ) THEN
+          WRITE(unit_nr,'(A9,1X,A12,6(1X,A20))')&
+                           "#    Step",&
+                        "     Naccptd",&
+                "               E_pot",&
+                "               E_kin",&
+                "            E_thermo",&
+                "            E_virial",&
+                "             E_inter",&
+                "               E_tot"
+        END IF
+
+        WRITE (unit_nr,"(I9,1X,F12.1,6(1X,F20.9))") &
           iteration, &
+          naccptd,&
           my_energy(e_id_potential), &
           my_energy(e_id_kinetic), &
           my_energy(e_id_thermo), &
