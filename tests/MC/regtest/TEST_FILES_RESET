@@ -52,3 +52,6 @@ GEMC_NVT_box1.inp
 # Update of atomic weights 
 MC_QS.inp
 MC_KG.inp
+# change of basis sets
+MC_QS.inp
+MC_KG.inp
