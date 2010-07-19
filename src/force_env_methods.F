@@ -723,11 +723,13 @@ CONTAINS
           force_env%sub_force_env => sub_force_env
        END IF
   
+   
        IF (PRESENT(meta_env)) THEN
           force_env%meta_env => meta_env
           CALL meta_env_retain(meta_env,error=error)
+       ELSE 
+          NULLIFY(force_env%meta_env)
        END IF
-  
        CALL cp_result_create(results=force_env%results,error=error)
        SELECT CASE(force_env%in_use)
        CASE(use_fist_force)

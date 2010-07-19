@@ -1421,11 +1421,17 @@ CONTAINS
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_PINT_THERMOSTAT",&
+       CALL keyword_create(keyword, name="RESTART_PINT_NOSE",&
             description="Restart Nose thermostat for beads from PINT%NOSE.",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_PINT_GLE",&
+            description="Restart GLE thermostat for beads from PINT%GLE.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
        ! PIMC
        CALL keyword_create(keyword, name="RESTART_HELIUM_POS",&

@@ -81,6 +81,8 @@ MODULE input_cp2k_restarts
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE pint_transformations,            ONLY: pint_u2x
+  USE pint_types,                      ONLY: pint_env_type, thermostat_nose, thermostat_gle
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
@@ -114,16 +116,16 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,root_section,&
-       coords, vels,  error)
+  SUBROUTINE write_restart(md_env,force_env,kg_env,root_section,&
+       coords, vels, pint_env,  error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
+    TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
@@ -156,7 +158,7 @@ CONTAINS
        sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
-       CALL update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,&
+       CALL update_input(md_env,force_env,kg_env,root_section,coords,vels,pint_env,&
             save_mem=save_mem,error=error)
 
        DO ikey=1,SIZE(keys)
@@ -430,15 +432,16 @@ CONTAINS
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,save_mem,error)
+  SUBROUTINE update_input(md_env,force_env,kg_env,root_section,coords,vels,pint_env, &
+             save_mem,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
+    TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -449,14 +452,12 @@ CONTAINS
     LOGICAL                                  :: failure, lcond, my_save_mem
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: my_force_env
-    TYPE(kg_environment_type), POINTER       :: my_kg_env
-    TYPE(meta_env_type), POINTER             :: my_meta_env
     TYPE(section_vals_type), POINTER         :: motion_section
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(logger,motion_section,my_force_env,my_kg_env,my_meta_env)
+    NULLIFY(logger,motion_section,my_force_env)
     my_save_mem = .FALSE.
     IF(PRESENT(save_mem)) my_save_mem=save_mem
 
@@ -464,7 +465,7 @@ CONTAINS
     !
     ! Can handle md_env or force_env
     !
-    lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(kg_env)
+    lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(kg_env).OR.PRESENT(pint_env)
     IF (lcond) THEN
        IF (PRESENT(md_env)) THEN
           CALL get_md_env ( md_env=md_env, force_env=my_force_env, error=error)
@@ -472,27 +473,12 @@ CONTAINS
           my_force_env => force_env
        END IF
        !
-       ! Let's set up kg_env
-       !
-       IF (PRESENT(kg_env)) THEN
-          my_kg_env => kg_env
-       ELSEIF (ASSOCIATED(my_force_env)) THEN 
-          my_kg_env => my_force_env%kg_env
-       END IF
-       !
-       ! meta_env
-       !
-       IF (PRESENT(meta_env)) THEN
-          my_meta_env => meta_env
-       ELSEIF (ASSOCIATED(my_force_env)) THEN 
-          my_meta_env => my_force_env%meta_env
-       END IF
-       !
        ! The real restart setting...
        !
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
-       CALL update_motion(motion_section,md_env,my_force_env,my_kg_env,my_meta_env,&
-            logger,coords,vels,save_mem=my_save_mem,error=error)
+       CALL update_motion(motion_section,md_env=md_env,force_env=my_force_env,&
+            kg_env=kg_env,logger=logger,coords=coords,vels=vels,&
+            pint_env=pint_env,save_mem=my_save_mem,error=error)
        !
        ! Update one force_env_section per time..
        !
@@ -513,34 +499,35 @@ CONTAINS
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,meta_env,logger,&
-       coords,vels,save_mem,error)
+  SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,logger,&
+       coords,vels,pint_env,save_mem,error)
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
+    TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, irep, &
-      isec, j, n_el, natom, natom_tot, nfield, nhc_len, nkind, nsgf, &
-      nsgf_max, stat, tot_nhcneed
+    INTEGER :: counter, handle, handle2, i, iatom, ibead, icoef, idim, iel,&
+      ikind, inos, irep, isec, istat, j, n_el, natom, natom_tot, nfield, &
+      nhc_len, nkind, nsgf,  nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, DIMENSION(:), POINTER           :: lindex, walkers_status
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, my_save_mem
+    LOGICAL                                  :: explicit,failure, my_save_mem
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, pindex, vbuffer, &
                                                 vindex
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
                                                 veta, wrk
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
     REAL(KIND=dp), POINTER                   :: constant, t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -551,10 +538,12 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: replica_section, work_section
+    TYPE(section_vals_type), POINTER         :: replica_section, work_section,&
+                                                pint_section, tmpsec
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_coeff, &
                                                 thermostat_part, &
@@ -565,7 +554,7 @@ CONTAINS
     NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
          atomic_kind_set, work_section, dyn_coeff_set, atomic_kind, coeffs, &
          aux_basis_set, thermostat_coeff, thermostat_shell, t, averages, &
-         constant, walkers_status, itimes)
+         constant, walkers_status, itimes,meta_env)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
                          thermostat_part=thermostat_part,&
@@ -582,11 +571,17 @@ CONTAINS
     ELSE
        IF (ASSOCIATED(force_env)) THEN
           para_env => force_env%para_env
-       ELSEIF (ASSOCIATED(kg_env)) THEN
+       ELSEIF (PRESENT(kg_env)) THEN
           para_env => kg_env%para_env
+       ELSEIF (PRESENT(pint_env)) THEN
+          para_env => logger%para_env
        ELSE
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
+    END IF
+
+    IF(ASSOCIATED(force_env)) THEN
+       meta_env => force_env%meta_env
     END IF
     
     my_save_mem=.FALSE.
@@ -758,7 +753,7 @@ CONTAINS
     CALL timestop(handle2)
     ! COEFFICIENTS 
     CALL timeset(routineN//"_KG",handle2)
-    IF (ASSOCIATED(kg_env)) THEN
+    IF (PRESENT(kg_env)) THEN
        CALL get_kg_env(kg_env=kg_env,&
             atomic_kind_set=atomic_kind_set,&
             particle_set=particle_set, &
@@ -982,6 +977,111 @@ CONTAINS
        END IF
     END IF
     CALL timestop(handle2)
+
+    CALL timeset(routineN//"_PINT",handle2)
+    IF (PRESENT(pint_env)) THEN
+       ! Update PINT section
+      pint_section => section_vals_get_subs_vals(motion_section,"PINT",error=error)
+      CALL section_vals_val_set(pint_section,"ITERATION",i_val=pint_env%iter,error=error)
+
+      ! allocate memory for COORDs and VELOCITYs if the BEADS section was not
+      ! explicitly given in the input (this is actually done only once since
+      ! after section_vals_add_values section becomes explict)
+      NULLIFY(tmpsec)
+      tmpsec => section_vals_get_subs_vals(pint_section,"BEADS", error=error)
+      CALL section_vals_get(tmpsec,explicit=explicit,error=error)
+      IF ( .NOT. explicit ) THEN
+        CALL section_vals_add_values(tmpsec,error)
+      END IF
+
+
+      ! update bead coordinates in the global input structure
+      NULLIFY(r_vals)
+      ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
+      CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+
+      i=1
+      CALL pint_u2x(pint_env,error=error)
+      DO idim=1, pint_env%ndim
+        DO ibead=1, pint_env%p
+          r_vals(i)=pint_env%x(ibead,idim)
+          i = i+1
+        END DO
+      END DO
+      CALL section_vals_val_set(pint_section,"BEADS%COORD%_DEFAULT_KEYWORD_", &
+           r_vals_ptr=r_vals,error=error)
+
+      ! update bead velocities in the global input structure
+      NULLIFY(r_vals)
+      ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
+      CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+      i=1
+      CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+      DO idim=1, pint_env%ndim
+        DO ibead=1, pint_env%p
+          r_vals(i)=pint_env%v(ibead,idim)
+          i = i+1
+        END DO
+      END DO
+      CALL section_vals_val_set(pint_section,"BEADS%VELOCITY%_DEFAULT_KEYWORD_", &
+           r_vals_ptr=r_vals,error=error)
+
+      IF(pint_env%pimd_thermostat==thermostat_nose) THEN
+
+        ! allocate memory for COORDs and VELOCITYs if the NOSE section was not
+        ! explicitly given in the input (this is actually done only once since
+        ! after section_vals_add_values section becomes explict)
+        NULLIFY(tmpsec)
+        tmpsec => section_vals_get_subs_vals(pint_section,"NOSE", error=error)
+        CALL section_vals_get(tmpsec,explicit=explicit,error=error)
+        IF ( .NOT. explicit ) THEN
+          CALL section_vals_add_values(tmpsec,error)
+        END IF
+
+        ! update thermostat coordinates in the global input structure
+        NULLIFY(r_vals)
+        ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
+        CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+
+        i=1
+        DO idim=1, pint_env%ndim
+          DO ibead=1, pint_env%p
+            DO inos=1, pint_env%nnos
+              r_vals(i)=pint_env%tx(inos,ibead,idim)
+              i = i+1
+            END DO
+          END DO
+        END DO
+        CALL section_vals_val_set(pint_section,"NOSE%COORD%_DEFAULT_KEYWORD_", &
+             r_vals_ptr=r_vals,error=error)
+
+        ! update thermostat velocities in the global input structure
+        NULLIFY(r_vals)
+        ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
+        CPAssert(istat==0, cp_failure_level, routineP, error, failure)
+        i=1
+        DO idim=1, pint_env%ndim
+          DO ibead=1, pint_env%p
+            DO inos=1, pint_env%nnos
+              r_vals(i)=pint_env%tv(inos,ibead,idim)
+              i = i+1
+            END DO
+          END DO
+        END DO
+        CALL section_vals_val_set(pint_section,"NOSE%VELOCITY%_DEFAULT_KEYWORD_", &
+             r_vals_ptr=r_vals,error=error)
+
+      ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
+
+        NULLIFY(tmpsec)
+        tmpsec => section_vals_get_subs_vals(pint_section,"GLE",error=error)
+        CALL dump_gle_restart_info(pint_env%gle, pint_env%replicas%para_env, tmpsec, error)
+
+      END IF
+
+    END IF
+    CALL timestop(handle2)
+
     CALL timestop(handle)
 
   END SUBROUTINE update_motion

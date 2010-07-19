@@ -55,7 +55,7 @@ MODULE bibliography
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
-             Ceriotti2009,Guidon2009,BarducBus2008,Grimme2010
+             Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010
 
 CONTAINS
 
@@ -1779,6 +1779,27 @@ CONTAINS
          "UT ISI:000244117400046",&
          "ER"),&
          DOI="10.1103/PhysRevLett.102.020601")
+
+   CALL add_reference(key=Ceriotti2009b, ISI_record=s2a(&
+          "AU Ceriotti, M",&
+          "   Bussi, G",&
+          "   Parrinello, M",&
+          "AF Ceriotti, Michele",&
+          "   Bussi, Giovanni",&
+          "   Parrinello, Michele",&
+          "TI Nuclear Quantum Effects in Solids Using a Colored-Noise Thermostat",&
+          "SO PHYSICAL REVIEW LETTERS",&
+          "LA English",&
+          "J9 PHYS REV LETT",&
+          "JI Phys. Rev. Lett.",&
+          "PD JUL 17",&
+          "PY 2009",&
+          "VL 103",&
+          "IS 3",&
+          "AR 030603",&
+          "PG 4",&
+          "ER"),&
+          DOI="10.1103/PhysRevLett.103.030603")
 
     CALL add_reference(key=Guidon2009, ISI_record=s2a(&
          "AU Guidon, M",&

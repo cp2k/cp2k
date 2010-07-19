@@ -1564,6 +1564,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RMSD",&
+            description=" ",&
+            usage="RMSD T", &
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        CALL keyword_create(keyword, name="SUBSET_TYPE",&
             description="Define the subsytem used to compute the RMSD",&
             usage="SUBSET_TYPE ALL",&

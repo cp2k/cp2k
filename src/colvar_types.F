@@ -218,7 +218,7 @@ MODULE colvar_types
      INTEGER                                  :: n_components, nr_frames, subset
      INTEGER,DIMENSION(2)                     :: function_bounds
      INTEGER, POINTER, DIMENSION (:)          :: i_rmsd
-     LOGICAL                                  :: align_frames, dist_rmsd
+     LOGICAL                                  :: align_frames, dist_rmsd, rmsd
      REAL(KIND=dp), DIMENSION (:,:), POINTER  :: f_vals
      REAL(KIND=dp), DIMENSION(:,:), POINTER   :: r_ref
      REAL(KIND=dp)                            :: lambda
@@ -876,7 +876,7 @@ CPSourceFileRef)
           END DO
        CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
           colvar%n_atom_s=0
-          IF(colvar%reaction_path_param%dist_rmsd) THEN
+          IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
             colvar%n_atom_s = colvar%reaction_path_param%n_components
           ELSE
             DO ii=1,SIZE(colvar%reaction_path_param%colvar_p)
@@ -885,7 +885,7 @@ CPSourceFileRef)
           END IF
           ALLOCATE(list(colvar%n_atom_s))
           idum=0
-          IF(colvar%reaction_path_param%dist_rmsd) THEN
+          IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
             DO ii=1,SIZE(colvar%reaction_path_param%i_rmsd)
                idum = idum + 1
                i = colvar%reaction_path_param%i_rmsd(ii)
@@ -1141,7 +1141,7 @@ CPSourceFileRef)
        DEALLOCATE(colvar%hydronium_param, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     CASE (reaction_path_colvar_id, distance_from_path_colvar_id)
-       IF(colvar%reaction_path_param%dist_rmsd) THEN
+       IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
          DEALLOCATE(colvar%reaction_path_param%r_ref,STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
          DEALLOCATE(colvar%reaction_path_param%i_rmsd,STAT=stat)
@@ -1412,8 +1412,9 @@ CPSourceFileRef)
        colvar_out%hydronium_param%i_hydrogens      = colvar_in%hydronium_param%i_oxygens + my_offset
     CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
        colvar_out%reaction_path_param%dist_rmsd = colvar_in%reaction_path_param%dist_rmsd
+       colvar_out%reaction_path_param%rmsd = colvar_in%reaction_path_param%rmsd
        colvar_out%reaction_path_param%nr_frames = colvar_in%reaction_path_param%nr_frames
-       IF(colvar_in%reaction_path_param%dist_rmsd) THEN
+       IF(colvar_in%reaction_path_param%dist_rmsd .OR. colvar_in%reaction_path_param%rmsd) THEN
          colvar_out%reaction_path_param%align_frames = colvar_in%reaction_path_param%align_frames
          colvar_out%reaction_path_param%subset = colvar_in%reaction_path_param%subset
          NULLIFY(colvar_out%reaction_path_param%i_rmsd)
@@ -1868,7 +1869,7 @@ CPSourceFileRef)
     END IF
 
     IF (colvar%type_id == distance_from_path_colvar_id .OR. colvar%type_id == reaction_path_colvar_id) THEN
-      IF(colvar%reaction_path_param%dist_rmsd) THEN
+      IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
          IF(colvar%reaction_path_param%align_frames) THEN
            nr_frame = colvar%reaction_path_param%nr_frames
            DO i = 2,nr_frame

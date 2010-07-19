@@ -257,7 +257,8 @@ CONTAINS
        gle_section => section_vals_get_subs_vals(section,"GLE",error=error)
        ALLOCATE(thermostat%gle, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL gle_init(thermostat%gle, simpar, gle_section, error=error)
+       CALL gle_init(thermostat%gle, dt=simpar%dt, temp=simpar%temp_ext, &
+     section=gle_section, error=error)
        thermostat%gle%region=region
        CPPostcondition(region==do_region_massive,cp_failure_level,routineP,error,failure)
     END IF

@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE gle_system_types
   USE bibliography,                    ONLY: Ceriotti2009,&
+                                             Ceriotti2009b,&
                                              cite_reference
   USE extended_system_types,           ONLY: create_map_info_type,&
                                              map_info_type,&
@@ -23,7 +24,6 @@ MODULE gle_system_types
                                              delete_rng_stream,&
                                              next_rng_seed,&
                                              rng_stream_type
-  USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
 
@@ -62,9 +62,9 @@ CONTAINS
 !> \brief 
 !> \param 
 ! *****************************************************************************
-  SUBROUTINE gle_init(gle, simpar, section, error)
+  SUBROUTINE gle_init(gle, dt,temp, section, error)
     TYPE(gle_type), POINTER                  :: gle
-    TYPE(simpar_type), POINTER               :: simpar
+    REAL(dp), INTENT(IN)                     :: dt, temp
     TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -83,10 +83,11 @@ CONTAINS
     NULLIFY(gle%map_info)
     gle%loc_num_gle=0
     gle%glob_num_gle=0
-    gle%temp = simpar%temp_ext
-    gle%dt = simpar%dt*0.5_dp
+    gle%temp = temp
+    gle%dt = dt*0.5_dp
 
     CALL cite_reference(Ceriotti2009)   
+    CALL cite_reference(Ceriotti2009b)   
     CALL section_vals_val_get(section,"NDIM",i_val=gle%ndim,error=error)
     CALL section_vals_val_get(section,"A_SCALE",r_val=a_scale,error=error)
 

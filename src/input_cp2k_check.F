@@ -690,7 +690,7 @@ CONTAINS
                CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%BEADS%VELOCITY",section,error=error)
                CALL set_restart_info("PINT BEAD VELOCITIES",restarted_infos,error)
           END IF
-          CALL section_vals_val_get(r_section,"RESTART_PINT_THERMOSTAT",l_val=flag,error=error)
+          CALL section_vals_val_get(r_section,"RESTART_PINT_NOSE",l_val=flag,error=error)
           IF(flag) THEN
                section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%NOSE%COORD",error=error)
                CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%NOSE%COORD",section,error=error)
@@ -698,6 +698,13 @@ CONTAINS
                CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%NOSE%VELOCITY",section,error=error)
                CALL set_restart_info("PINT NOSE THERMOSTAT",restarted_infos,error)
           END IF
+          CALL section_vals_val_get(r_section,"RESTART_PINT_GLE",l_val=flag,error=error)
+          IF(flag) THEN
+               section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%GLE",error=error)
+               CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%GLE",section,error=error)
+               CALL set_restart_info("PINT GLE THERMOSTAT",restarted_infos,error)
+          END IF
+
 
           ! PIMC
           CALL section_vals_val_get(r_section,"RESTART_HELIUM_POS",l_val=flag,error=error)

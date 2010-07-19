@@ -49,7 +49,10 @@ MODULE gle_system_dynamics
   PRIVATE
 
   PUBLIC :: gle_particles,&
-            initialize_gle_part
+            initialize_gle_part,&
+            gle_cholesky_stab, &
+            gle_matrix_exp, &
+            restart_gle
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gle_system_dynamics'
 
@@ -213,7 +216,7 @@ MODULE gle_system_dynamics
     CALL gle_matrix_exp((-simpar%dt*0.5_dp)*gle%a_mat, gle%ndim,15,15,gle%gle_t)
     ! stochastic part 
     Mtmp=gle%c_mat-MATMUL(gle%gle_t,MATMUL(gle%c_mat,TRANSPOSE(gle%gle_t)))
-    CALL gle_cholesky(Mtmp, gle%gle_s, gle%ndim)  
+    CALL gle_cholesky_stab(Mtmp, gle%gle_s, gle%ndim)  
 
   END SUBROUTINE initialize_gle_part
 
@@ -259,32 +262,41 @@ MODULE gle_system_dynamics
 
 ! *****************************************************************************
 !> \author Michele
-!>  simple cholesky 
+!>  "stabilized" cholesky to deal with small & negative diagonal elements,
+!>  in practice a LDL^T decomposition is computed, and negative els. are zeroed
 ! *****************************************************************************
-  SUBROUTINE gle_cholesky(SST, S, n)
+  SUBROUTINE gle_cholesky_stab(SST, S, n)
     INTEGER, INTENT(in)                      :: n
     REAL(dp), INTENT(out)                    :: S(n,n)
     REAL(dp), INTENT(in)                     :: SST(n,n)
 
     INTEGER                                  :: i, j, k
+    REAL(dp)                                 :: D(n), L(n,n)
 
+    D=0._dp
+    L=0._dp
     S=0._dp
-    S(1,1)=SQRT(SST(1,1))
     DO i=1,n
+       L(i,i) = 1.0_dp
+       D(i) = SST(i,i)
        DO j=1,i-1
-          S(i,j)=SST(i,j);
+          L(i,j)=SST(i,j);
           DO k=1,j-1
-             S(i,j)=S(i,j)-S(i,k)*S(j,k)
+             L(i,j)=L(i,j)-L(i,k)*L(j,k)*D(k)
           ENDDO
-          S(i,j)=S(i,j)/S(j,j)
+          IF(ABS(D(j))>EPSILON(1.0_dp)) L(i,j)=L(i,j)/D(j)
        ENDDO
-       S(i,i)=SST(i,i)
        DO k=1,i-1
-          S(i,i)=S(i,i)-S(i,k)**2
+          D(i)=D(i)-L(i,k)*L(i,k)*D(k)
        END DO
-       S(i,i)=SQRT(S(i,i))
     ENDDO
-  END SUBROUTINE gle_cholesky
+    DO i=1,n
+      DO j=1,i
+         IF (ABS(D(j))>EPSILON(1.0_dp)) S(i,j)=S(i,j)+L(i,j)*SQRT(D(j))
+      ENDDO
+    ENDDO
+
+  END SUBROUTINE gle_cholesky_stab
 
 ! *****************************************************************************
 !> \author 
@@ -495,14 +507,14 @@ MODULE gle_system_dynamics
 
     failure = .FALSE.
 
-    CALL gle_cholesky(gle%c_mat, cc, gle%ndim)  
+    CALL gle_cholesky_stab(gle%c_mat, cc, gle%ndim)  
     DO i = 1, gle%loc_num_gle
       rng_stream => gle%nvt(i)%gaussian_rng_stream
       DO j = 1, gle%ndim
         ! here s should be properly initialized, when it is not read from restart
         rr(j) =  next_random_number( rng_stream,error=error)
       END DO
-      gle%nvt(i)%s = MATMUL(cc,rr) ! temp here should be in a.u. CHECK THIS !!
+      gle%nvt(i)%s = MATMUL(cc,rr)
     END DO
 
   END SUBROUTINE init_gle_variables

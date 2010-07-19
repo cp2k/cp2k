@@ -25,13 +25,10 @@ MODULE pint_io
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
                                              dump_xmol
-  USE input_section_types,             ONLY: section_vals_add_values,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_cp2k_restarts,             ONLY: write_restart
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_write
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
@@ -44,6 +41,8 @@ MODULE pint_io
                                              e_kin_virial_id,&
                                              e_potential_id,&
                                              pint_env_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -463,138 +462,29 @@ MODULE pint_io
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_restart', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ibead, idim, inos, status, &
-                                                unit_nr
-    LOGICAL                                  :: explicit, failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key, tmpsec
+    INTEGER                                  :: handle, ierr
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(f_env_type), POINTER                :: f_env
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    CALL timeset(routineN,handle)
 
-    NULLIFY(print_key)
-    print_key => section_vals_get_subs_vals(pint_env%input, &
-                 "MOTION%PINT%PRINT%RESTART",error=error)
+    NULLIFY(f_env)
+    CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
+            f_env=f_env,new_error=new_error, failure=failure)
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-      basis_section=print_key,error=error),cp_p_file) ) THEN
+    CALL write_restart(force_env=f_env%force_env,&
+             root_section=f_env%force_env%root_section,&
+             pint_env=pint_env,error=new_error)
 
-      ! update iteration count
-      CALL section_vals_val_set(pint_env%input, &
-           "MOTION%PINT%ITERATION", &
-           i_val=pint_env%iter,error=error)
+    CALL f_env_rm_defaults(f_env,new_error,ierr)
+    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
-      ! allocate memory for COORDs and VELOCITYs if the BEADS section was not
-      ! explicitly given in the input (this is actually done only once since
-      ! after section_vals_add_values section becomes explict)
-      NULLIFY(tmpsec)
-      tmpsec => section_vals_get_subs_vals(pint_env%input,"MOTION%PINT%BEADS",&
-                error=error)
-      CALL section_vals_get(tmpsec,explicit=explicit,error=error)
-      IF ( .NOT. explicit ) THEN
-        CALL section_vals_add_values(tmpsec,error)
-      END IF
-
-      ! update bead coordinates in the global input structure
-      NULLIFY(r_vals)
-      ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=status)
-      CPAssert(status==0, cp_failure_level, routineP, error, failure)
-      i=1
-      CALL pint_u2x(pint_env,error=error)
-      DO idim=1, pint_env%ndim
-        DO ibead=1, pint_env%p
-          r_vals(i)=pint_env%x(ibead,idim)
-          i = i+1
-        END DO
-      END DO
-      CALL section_vals_val_set(pint_env%input, &
-           "MOTION%PINT%BEADS%COORD%_DEFAULT_KEYWORD_", &
-           r_vals_ptr=r_vals,error=error)
-
-      ! update bead velocities in the global input structure
-      NULLIFY(r_vals)
-      ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=status)
-      CPAssert(status==0, cp_failure_level, routineP, error, failure)
-      i=1
-      CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
-      DO idim=1, pint_env%ndim
-        DO ibead=1, pint_env%p
-          r_vals(i)=pint_env%v(ibead,idim)
-          i = i+1
-        END DO
-      END DO
-      CALL section_vals_val_set(pint_env%input, &
-           "MOTION%PINT%BEADS%VELOCITY%_DEFAULT_KEYWORD_", &
-           r_vals_ptr=r_vals,error=error)
-
-      IF (pint_env%nnos > 0) THEN
-
-        ! allocate memory for COORDs and VELOCITYs if the NOSE section was not
-        ! explicitly given in the input (this is actually done only once since
-        ! after section_vals_add_values section becomes explict)
-        NULLIFY(tmpsec)
-        tmpsec => section_vals_get_subs_vals(pint_env%input,"MOTION%PINT%NOSE",&
-                  error=error)
-        CALL section_vals_get(tmpsec,explicit=explicit,error=error)
-        IF ( .NOT. explicit ) THEN
-          CALL section_vals_add_values(tmpsec,error)
-        END IF
-
-        ! update thermostat coordinates in the global input structure
-        NULLIFY(r_vals)
-        ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=status)
-        CPAssert(status==0, cp_failure_level, routineP, error, failure)
-        i=1
-        DO idim=1, pint_env%ndim
-          DO ibead=1, pint_env%p
-            DO inos=1, pint_env%nnos
-              r_vals(i)=pint_env%tx(inos,ibead,idim)
-              i = i+1
-            END DO
-          END DO
-        END DO
-        CALL section_vals_val_set(pint_env%input, &
-             "MOTION%PINT%NOSE%COORD%_DEFAULT_KEYWORD_", &
-             r_vals_ptr=r_vals,error=error)
-
-        ! update thermostat velocities in the global input structure
-        NULLIFY(r_vals)
-        ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=status)
-        CPAssert(status==0, cp_failure_level, routineP, error, failure)
-        i=1
-        DO idim=1, pint_env%ndim
-          DO ibead=1, pint_env%p
-            DO inos=1, pint_env%nnos
-              r_vals(i)=pint_env%tv(inos,ibead,idim)
-              i = i+1
-            END DO
-          END DO
-        END DO
-        CALL section_vals_val_set(pint_env%input, &
-             "MOTION%PINT%NOSE%VELOCITY%_DEFAULT_KEYWORD_", &
-             r_vals_ptr=r_vals,error=error)
-        NULLIFY(r_vals)
-
-      END IF
-
-      ! actually write the restart file
-      unit_nr = cp_print_key_unit_nr(logger,print_key,&
-                extension=".restart", do_backup=.TRUE., error=error)
-      IF (unit_nr>0) THEN
-        CALL section_vals_write(pint_env%input,unit_nr,hide_root=.TRUE.,&
-             error=error)
-        CALL m_flush(unit_nr)
-      END IF
-      CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
-
-    END IF
-
-    RETURN
+    CALL timestop(handle)
   END SUBROUTINE pint_write_restart
 
   ! ***************************************************************************

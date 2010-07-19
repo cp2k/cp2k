@@ -408,6 +408,7 @@ OBJECTS_GENERIC =\
  paw_proj_set_types.o\
  periodic_table.o\
  physcon.o\
+ pint_gle.o\
  pint_io.o\
  pint_methods.o\
  pint_normalmode.o\

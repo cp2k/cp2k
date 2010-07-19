@@ -5,6 +5,7 @@
 
 MODULE pint_types
 
+  USE gle_system_types,                ONLY: gle_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: rng_stream_type
@@ -23,6 +24,10 @@ MODULE pint_types
 
   ! Number of energy contributions for static array allocation
   INTEGER, PARAMETER, PUBLIC :: e_num_ids = 4
+
+  INTEGER, PARAMETER, PUBLIC :: thermostat_none  = 0, &
+                                thermostat_nose  = 1, &
+                                thermostat_gle   = 2
 
   PUBLIC :: pint_env_type
   PUBLIC :: normalmode_env_type
@@ -87,13 +92,15 @@ MODULE pint_types
   TYPE pint_env_type
      INTEGER :: ref_count, id_nr, p, nnos, nrespa, iter, ndim, transform
      INTEGER :: first_step, last_step, num_steps
+     INTEGER :: pimd_thermostat
      REAL(kind=dp) :: t_tol, v_tol, kT, beta, dt, &
-          e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
+          e_gle, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
      TYPE(replica_env_type), POINTER :: replicas
      TYPE(section_vals_type), POINTER :: input
      TYPE(staging_env_type), POINTER :: staging_env
      TYPE(normalmode_env_type), POINTER :: normalmode_env
      TYPE(rng_stream_type), POINTER :: randomG
+     TYPE(gle_type), POINTER        :: gle
      REAL(kind=dp), DIMENSION(e_num_ids) :: energy
      REAL(kind=dp), DIMENSION(:), POINTER :: mass,e_pot_bead
      REAL(kind=dp), DIMENSION(:,:), POINTER :: x,v,f,mass_beads,&

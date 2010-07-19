@@ -11,6 +11,7 @@
 MODULE input_cp2k_thermostats
   USE bibliography,                    ONLY: Bussi2007,&
                                              Ceriotti2009,&
+                                             Ceriotti2009b,&
                                              Nose1984a,&
                                              Nose1984b
   USE cp_output_handling,              ONLY: cp_print_key_section_create
@@ -43,7 +44,8 @@ PUBLIC :: create_thermostat_section,&
           create_coord_section,&
           create_region_section,&
           create_velocity_section,&
-          create_mass_section
+          create_mass_section,&
+          create_gle_section
 
 !***
 CONTAINS
@@ -134,7 +136,7 @@ CONTAINS
        CALL section_add_subsection(section, csvr_section, error=error)
        CALL section_release(csvr_section,error=error)
 
-       CALL create_gle_section(gle_section, my_coupled_thermostat, error=error)
+       CALL create_gle_section(gle_section, error=error)
        CALL section_add_subsection(section, gle_section, error=error)
        CALL section_release(gle_section,error=error)
 
@@ -351,9 +353,8 @@ CONTAINS
 !> \param 
 !> \author 
 ! *****************************************************************************
-  SUBROUTINE create_gle_section(section, coupled_thermostat, error)
+  SUBROUTINE create_gle_section(section, error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_gle_section', &
@@ -370,28 +371,36 @@ CONTAINS
        CALL section_create(section,name="GLE",&
             description="paramameters of the gle thermostat. This section can be generated "//&
                         " from http://gle4md.berlios.de/compose.php?page=matrix ",&
-            citations=(/Ceriotti2009/),required=.NOT.coupled_thermostat,error=error)
+            citations=(/Ceriotti2009,Ceriotti2009b/),required=.FALSE.,error=error)
 
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="NDIM",&
             description="Size of the gle matrix", usage="NDIM 6", &
-            default_i_val=1, error=error)
+            default_i_val=5, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="A_SCALE",&
             description="scaling factor for matrix A (for generic matrix A, depends "//&
             "on the characteristic frequency of the system).", usage="A_SCALE 0.5", &
-            default_r_val=1.0_dp, unit_str="au_t^-1", error=error)
+            default_r_val=cp_unit_to_cp2k(1.0_dp,"ps^-1",error=error), unit_str="ps^-1", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="A_LIST",&
-            description="A matrix", usage="A_LIST real real real", &
-            type_of_var=real_t, unit_str="internal_cp2k",&
-            n_var=-1, repeats=.TRUE., required=.TRUE., &
-            error=error)
+            description="A matrix The defaults give optimal sampling for most "//&
+            "cristalline and liquid compounds. Generated with the parameters set kv_4-4.a"//&
+            "centered on w_0=40 cm^-1.", usage="A_LIST real real real", &
+             type_of_var=real_t, unit_str="internal_cp2k",&
+             n_var=-1, repeats=.TRUE., required=.FALSE., &
+!             default_r_vals=(/ &
+!       1.859575861256e+2_dp,     2.726385349840e-1_dp,     1.152610045461e+1_dp,    -3.641457826260e+1_dp,     2.317337581602e+2_dp, &
+!      -2.780952471206e-1_dp,     8.595159180871e-5_dp,     7.218904801765e-1_dp,    -1.984453934386e-1_dp,     4.240925758342e-1_dp, &
+!      -1.482580813121e+1_dp,    -7.218904801765e-1_dp,     1.359090212128e+0_dp,     5.149889628035e+0_dp,    -9.994926845099e+0_dp, &
+!      -1.037218912688e+1_dp,     1.984453934386e-1_dp,    -5.149889628035e+0_dp,     2.666191089117e+1_dp,     1.150771549531e+1_dp, &
+!       2.180134636042e+2_dp,    -4.240925758342e-1_dp,     9.994926845099e+0_dp,    -1.150771549531e+1_dp,     3.095839456559e+2_dp /), &
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

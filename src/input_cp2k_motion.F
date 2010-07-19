@@ -22,6 +22,7 @@ MODULE input_cp2k_motion
   USE input_cp2k_free_energy,          ONLY: create_fe_section
   USE input_cp2k_subsys,               ONLY: create_structure_data_section
   USE input_cp2k_thermostats,          ONLY: create_coord_section,&
+                                             create_gle_section,&
                                              create_region_section,&
                                              create_thermostat_section,&
                                              create_velocity_section
@@ -2476,7 +2477,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PINT",&
             description="The section that controls a path integral run",&
-            n_keywords=10, n_subsections=7, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=10, n_subsections=8, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
 
@@ -2610,6 +2611,10 @@ CONTAINS
        CALL section_add_subsection(subsection,subsubsection,error=error)
        CALL section_release(subsubsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_gle_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
        CALL section_create( subsection, name="INIT",&

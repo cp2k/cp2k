@@ -127,7 +127,7 @@ CONTAINS
       iw, iw1, j, k, kk, n_var, n_var_k, ncol, ndim, nr_frame, stat, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
-    LOGICAL                                  :: check, explicit, failure
+    LOGICAL                                  :: check, failure
     LOGICAL, DIMENSION(19)                   :: my_subsection
     REAL(dp), DIMENSION(:), POINTER          :: s1, wei, weights
     REAL(dp), DIMENSION(:, :), POINTER       :: p_range, s1v
@@ -459,7 +459,14 @@ CONTAINS
        CALL section_vals_val_get(path_section,"LAMBDA",r_val=colvar%reaction_path_param%lambda,error=error)
        CALL section_vals_val_get(path_section,"DISTANCES_RMSD",l_val=colvar%reaction_path_param%dist_rmsd,&
             error=error)
-       IF(colvar%reaction_path_param%dist_rmsd) THEN
+       CALL section_vals_val_get(path_section,"RMSD",l_val=colvar%reaction_path_param%rmsd,&
+            error=error)
+       IF(colvar%reaction_path_param%dist_rmsd .AND. colvar%reaction_path_param%rmsd)THEN 
+          CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+                     "CV REACTION PATH: only one between DISTANCES_RMSD and RMSD can be used "//&
+                     CPSourceFileRef)
+       END IF
+       IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
           NULLIFY(colvar%reaction_path_param%i_rmsd, colvar%reaction_path_param%r_ref)         
           frame_section => section_vals_get_subs_vals(path_section,"FRAME",error=error)
           CALL section_vals_get(frame_section,n_repetition=nr_frame,error=error)
@@ -502,12 +509,16 @@ CONTAINS
           CALL section_vals_get(colvar_subsection,n_repetition=ncol,error=error)
           ALLOCATE(colvar%reaction_path_param%colvar_p(ncol),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (.NOT. failure) THEN
+          IF (ncol>0) THEN
              DO i= 1, ncol
                 NULLIFY(colvar%reaction_path_param%colvar_p(i)%colvar)
                 CALL colvar_read(colvar%reaction_path_param%colvar_p(i)%colvar,i,colvar_subsection, para_env,&
                      error=error)
              ENDDO
+          ELSE
+             CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
+                    "CV REACTION PATH: the number of CV to define the path must be >0 "//&
+                    CPSourceFileRef)
           ENDIF
           colvar%reaction_path_param%n_components=ncol
           NULLIFY(range)
@@ -1304,7 +1315,7 @@ CPSourceFileRef)
           CALL xyz_outerdiag_colvar(colvar,cell,subsys=subsys, error=error)
        CASE (u_colvar_id)
           CALL force_env_get(force_env,potential_energy=potential_energy,error=error)
-          CALL u_colvar(colvar,cell,force_env=force_env,subsys=subsys,&
+          CALL u_colvar(colvar,force_env=force_env,&
                potential_energy=potential_energy,error=error)
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -1603,13 +1614,9 @@ CPSourceFileRef)
 !> \brief evaluates the force due (and on) the energy as collective variable
 !> \author Sebastiano Caravati
 ! *****************************************************************************
-  SUBROUTINE u_colvar(colvar,cell,force_env,subsys,particles,potential_energy,error)
+  SUBROUTINE u_colvar(colvar,force_env,potential_energy,error)
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
-    TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: particles
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: potential_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3071,6 +3078,8 @@ CPSourceFileRef,&
 
     IF(colvar%reaction_path_param%dist_rmsd) THEN
       CALL rpath_dist_rmsd(colvar,my_particles,error=error)
+    ELSEIF(colvar%reaction_path_param%rmsd) THEN
+      CALL rpath_rmsd(colvar,my_particles,error=error)
     ELSE
        CALL rpath_colvar(colvar,cell,my_particles,error)
     END IF
@@ -3200,7 +3209,8 @@ CPSourceFileRef,&
                                                 rmsd_atom, stat
     INTEGER, DIMENSION(:), POINTER           :: iatom
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: lambda, s1(2), sum_exp
+    REAL(dp)                                 :: lambda, my_rmsd, s1(2), &
+                                                sum_exp
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, vec_dif
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dvec_dif, fi, riat, s1v
     REAL(dp), ALLOCATABLE, &
@@ -3255,7 +3265,7 @@ CPSourceFileRef,&
         r(ii+3) = path_conf(ii+3,ik)
        END DO
 
-       CALL rmsd3(particles,r,r0,output_unit=-1,rotate=.TRUE.,error=error)
+       CALL rmsd3(particles,r,r0,output_unit=-1,my_val=my_rmsd,rotate=.TRUE.,error=error)
 
        sum_exp = 0.0_dp
        DO iat  = 1,rmsd_atom
@@ -3265,6 +3275,7 @@ CPSourceFileRef,&
                        +(riat(3,iat)-r(ii+3))**2
          sum_exp =  sum_exp + vec_dif(iat) 
        END DO
+
        s1v(1,ik) = REAL(ik-1,dp)*EXP(-lambda*sum_exp)
        s1v(2,ik) = EXP(-lambda*sum_exp)
        DO  iat  = 1,rmsd_atom
@@ -3322,6 +3333,147 @@ CPSourceFileRef,&
 
   END SUBROUTINE rpath_dist_rmsd
 
+
+  SUBROUTINE  rpath_rmsd(colvar,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rpath_rmsd', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
+                                                rmsd_atom, stat
+    INTEGER, DIMENSION(:), POINTER           :: iatom
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: lambda, my_rmsd, s1(2)
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fi, riat, s1v
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ds1
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: ds1v
+    REAL(dp), DIMENSION(:, :), POINTER       :: path_conf
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: drmsd
+
+    failure=.FALSE.
+
+    nconf=colvar%reaction_path_param%nr_frames
+    rmsd_atom=colvar%reaction_path_param%n_components
+    lambda=colvar%reaction_path_param%lambda
+    path_conf => colvar%reaction_path_param%r_ref
+    iatom => colvar%reaction_path_param%i_rmsd
+
+    natom = SIZE(particles)
+
+    ALLOCATE(r0(3*natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(r(3*natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(riat(3,rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(s1v(2,nconf),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1v(3,rmsd_atom,2,nconf),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1(3,rmsd_atom,2),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(drmsd(3,natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    drmsd = 0.0_dp
+    ALLOCATE (weight(natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+    DO i = 1,natom
+      ii = (i-1)*3
+      r0(ii+1) = particles(i)%r(1)
+      r0(ii+2) = particles(i)%r(2)
+      r0(ii+3) = particles(i)%r(3)
+    END DO
+
+    DO iat = 1,rmsd_atom
+      ii = iatom(iat)
+      riat(:,iat) = particles(ii)%r
+    END DO
+
+! set weights of atoms in the rmsd list
+    weight = 0.0_dp
+    DO iat  = 1,rmsd_atom
+       i = iatom(iat)
+       weight(i) = 1.0_dp
+    END DO
+
+
+    DO ik = 1, nconf
+       DO i = 1,natom
+        ii = (i-1)*3
+        r(ii+1) = path_conf(ii+1,ik)
+        r(ii+2) = path_conf(ii+2,ik)
+        r(ii+3) = path_conf(ii+3,ik)
+       END DO
+
+       CALL rmsd3(particles,r0,r,output_unit=-1,weights=weight,my_val=my_rmsd,&
+           rotate=.FALSE.,drmsd3=drmsd,error=error)
+
+       s1v(1,ik) = REAL(ik-1,dp)*EXP(-lambda*my_rmsd)
+       s1v(2,ik) = EXP(-lambda*my_rmsd)
+       DO  iat  = 1,rmsd_atom
+         i = iatom(iat)
+         ds1v(1,iat,1,ik) = drmsd(1,i)*s1v(1,ik)
+         ds1v(1,iat,2,ik) = drmsd(1,i)*s1v(2,ik)
+         ds1v(2,iat,1,ik) = drmsd(2,i)*s1v(1,ik)
+         ds1v(2,iat,2,ik) = drmsd(2,i)*s1v(2,ik)
+         ds1v(3,iat,1,ik) = drmsd(3,i)*s1v(1,ik)
+         ds1v(3,iat,2,ik) = drmsd(3,i)*s1v(2,ik)
+       END DO
+    END DO  ! ik
+
+    s1(1) = accurate_sum(s1v(1,:))
+    s1(2) = accurate_sum(s1v(2,:))
+    DO i = 1,2
+      DO iat =  1,rmsd_atom
+        ds1(1,iat,i) = accurate_sum(ds1v(1,iat,i,:))
+        ds1(2,iat,i) = accurate_sum(ds1v(2,iat,i,:))
+        ds1(3,iat,i) = accurate_sum(ds1v(3,iat,i,:))
+      END DO
+    END DO
+
+   colvar%ss = s1(1)/s1(2)/REAL(nconf-1,dp)
+
+    ALLOCATE(fi(3,rmsd_atom),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+    DO iat = 1,rmsd_atom
+      fi(1,iat) = -lambda/s1(2)/REAL(nconf-1,dp)*(ds1(1,iat,1) - ds1(1,iat,2)*s1(1)/s1(2))
+      fi(2,iat) = -lambda/s1(2)/REAL(nconf-1,dp)*(ds1(2,iat,1) - ds1(2,iat,2)*s1(1)/s1(2))
+      fi(3,iat) = -lambda/s1(2)/REAL(nconf-1,dp)*(ds1(3,iat,1) - ds1(3,iat,2)*s1(1)/s1(2))
+      CALL put_derivative(colvar,iat,fi(:,iat))
+    END DO
+
+    DEALLOCATE(fi,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(r0,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(r,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(riat,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(s1v,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1v,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(drmsd,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(weight,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+  END SUBROUTINE  rpath_rmsd
+
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) distance from reaction path collective variable
 !>             ss(R) = -1/\lambda \log[\sum_i exp{-\lambda \sum_a(S_a(R)-f_a(i))^2}]
@@ -3357,6 +3509,8 @@ CPSourceFileRef,&
 
     IF(colvar%reaction_path_param%dist_rmsd) THEN
       CALL dpath_dist_rmsd(colvar,my_particles,error=error)
+    ELSEIF(colvar%reaction_path_param%rmsd) THEN
+      CALL dpath_rmsd(colvar,my_particles,error=error)
     ELSE
       CALL dpath_colvar(colvar,cell,my_particles,error=error)
     END IF
@@ -3529,6 +3683,7 @@ CPSourceFileRef,&
        END DO
 
        CALL rmsd3(particles,r,r0,output_unit=-1,rotate=.TRUE.,error=error)
+
        sum_exp = 0.0_dp
        DO iat  = 1,rmsd_atom
          i = iatom(iat)
@@ -3582,6 +3737,135 @@ CPSourceFileRef,&
     DEALLOCATE(ds1,STAT=stat)
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE  dpath_dist_rmsd
+
+  SUBROUTINE dpath_rmsd(colvar,particles,error)
+
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dpath_rmsd', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iat, ii, ik, natom, nconf, &
+                                                rmsd_atom, stat
+    INTEGER, DIMENSION(:), POINTER           :: iatom
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: lambda, my_rmsd, s1
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: r, r0, s1v
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, fi, riat
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ds1v
+    REAL(dp), DIMENSION(:, :), POINTER       :: path_conf
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: drmsd
+
+    failure=.FALSE.
+
+    nconf=colvar%reaction_path_param%nr_frames
+    rmsd_atom=colvar%reaction_path_param%n_components
+    lambda=colvar%reaction_path_param%lambda
+    path_conf => colvar%reaction_path_param%r_ref
+    iatom => colvar%reaction_path_param%i_rmsd
+
+    natom = SIZE(particles)
+
+    ALLOCATE(r0(3*natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(r(3*natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(riat(3,rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(s1v(nconf),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1v(3,rmsd_atom,nconf),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(ds1(3,rmsd_atom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(drmsd(3,natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    drmsd = 0.0_dp
+    ALLOCATE (weight(natom),STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+
+    DO i = 1,natom
+      ii = (i-1)*3
+      r0(ii+1) = particles(i)%r(1)
+      r0(ii+2) = particles(i)%r(2)
+      r0(ii+3) = particles(i)%r(3)
+    END DO
+
+    DO iat = 1,rmsd_atom
+      ii = iatom(iat)
+      riat(:,iat) = particles(ii)%r
+    END DO
+
+! set weights of atoms in the rmsd list
+    weight = 0.0_dp
+    DO iat  = 1,rmsd_atom
+       i = iatom(iat)
+       weight(i) = 1.0_dp
+    END DO
+
+    DO ik = 1, nconf
+       DO i = 1,natom
+        ii = (i-1)*3
+        r(ii+1) = path_conf(ii+1,ik)
+        r(ii+2) = path_conf(ii+2,ik)
+        r(ii+3) = path_conf(ii+3,ik)
+       END DO
+
+       CALL rmsd3(particles,r0,r,output_unit=-1,weights=weight,my_val=my_rmsd,&
+             rotate=.FALSE.,drmsd3=drmsd,error=error)
+
+       s1v(ik)=EXP(-lambda*my_rmsd)
+       DO iat = 1,rmsd_atom
+         i = iatom(iat)
+         ds1v(1,iat,ik) = drmsd(1,i) * s1v(ik)
+         ds1v(2,iat,ik) = drmsd(2,i) * s1v(ik)
+         ds1v(3,iat,ik) = drmsd(3,i) * s1v(ik)
+       END DO
+    END DO
+
+    s1 = accurate_sum(s1v(:))
+    DO iat = 1,rmsd_atom
+      ds1(1,iat) = accurate_sum( ds1v(1,iat,:))
+      ds1(2,iat) = accurate_sum( ds1v(2,iat,:))
+      ds1(3,iat) = accurate_sum( ds1v(3,iat,:))
+    END DO
+    colvar%ss=-1.0_dp/lambda*LOG(s1)
+
+    ALLOCATE(fi(3,rmsd_atom),stat=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+    DO iat = 1,rmsd_atom
+      fi(:,iat) = ds1(:,iat)/s1
+      CALL put_derivative(colvar,iat,fi(:,iat))
+    END DO
+
+    DEALLOCATE(fi,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(r0,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(r,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(riat,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(s1v,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1v,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(ds1,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(drmsd,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+    DEALLOCATE(weight,STAT=stat)
+    CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+
+  END SUBROUTINE dpath_rmsd
 
 ! *****************************************************************************
 !> \brief evaluates the force due to population colvar
