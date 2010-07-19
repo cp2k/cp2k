@@ -36,3 +36,7 @@ water-in-helium.inp
 # 2010-07-14 default helium sampling scheme changed
 helium-only.inp
 water-in-helium.inp
+#
+h2o_pint.inp
+h2o_pint_fist.inp
+h2o_pint_fist_r.inp
