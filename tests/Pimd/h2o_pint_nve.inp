@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               H2O
+  PROJECT_NAME               H2O_nve
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -19,9 +19,6 @@
       Q_BEAD                -1.0
       Q_CENTROID            -1.0
     &END NORMALMODE
-    &NOSE
-      NNOS                   3
-    &END NOSE
     &INIT
       RANDOMIZE_POS          F
       CENTROID_SPEED         F

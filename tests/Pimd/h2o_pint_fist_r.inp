@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               H2O_fist
+  PROJECT_NAME               H2O_fist_r
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -8,7 +8,7 @@
   &PINT
     P                        4
     PROC_PER_REPLICA         1
-    NUM_STEPS                4
+    NUM_STEPS                10
     DT                       0.5
     NRESPA                   2
     TEMP                    50.0
@@ -37,6 +37,17 @@
     &RESTART_HISTORY OFF
     &END
   &END
+  &PRINT
+    &RESTART
+      FILENAME ./H2O_fist
+      &EACH
+        REPLICA_EVAL 4
+      &END
+    &END
+    &RESTART_HISTORY OFF
+    &END
+  &END
+
 &END MOTION
 
 &FORCE_EVAL
@@ -73,3 +84,10 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
+&EXT_RESTART
+    RESTART_FILE_NAME H2O_fist-4.restart
+   RESTART_DEFAULT F
+   RESTART_PINT_POS  T
+   RESTART_PINT_VEL  T
+   RESTART_PINT_NOSE  T
+&END
