@@ -24,6 +24,8 @@ lamol.inp
 12_exvdw_12_exei_list_1.inp
 12_exvdw_12_exei_list_2_c.inp
 12_exvdw_12_exei_list_2.inp
-
 # Update of atomic weights 
 ignore.inp
+#
+argon-gle.inp
+argon-gle_r.inp
