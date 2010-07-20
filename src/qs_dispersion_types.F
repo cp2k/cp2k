@@ -48,6 +48,8 @@ MODULE qs_dispersion_types
     REAL(KIND=dp),DIMENSION(:), POINTER    :: rcov     !covalent radii
     REAL(KIND=dp),DIMENSION(:), POINTER    :: r2r4     !atomic <r^2>/<r^4> values
     REAL(KIND=dp),DIMENSION(:), POINTER    :: cn       !coordination numbers (defaults)
+    TYPE(cn_kind_list),DIMENSION(:), POINTER &
+                                           :: cnkind
     TYPE(cn_atom_list),DIMENSION(:), POINTER &
                                            :: cnlist
   END TYPE qs_dispersion_type
@@ -59,6 +61,10 @@ MODULE qs_dispersion_types
     REAL(KIND=dp)                          :: c6         !c6 coefficients
   END TYPE qs_atom_dispersion_type
 
+  TYPE cn_kind_list
+    REAL(KIND=dp)                          :: cnum
+    INTEGER                                :: kind
+  END TYPE cn_kind_list
   TYPE cn_atom_list
     REAL(KIND=dp)                          :: cnum
     INTEGER                                :: natom
@@ -67,7 +73,7 @@ MODULE qs_dispersion_types
 
 ! *****************************************************************************
 
-  PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type, cn_atom_list
+  PUBLIC :: qs_atom_dispersion_type, qs_dispersion_type, cn_atom_list, cn_kind_list
   PUBLIC :: dftd2_pp, dftd3_pp
 
 ! *****************************************************************************

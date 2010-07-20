@@ -856,10 +856,17 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       ! Set coordination numbers by atom kinds
+       CALL keyword_create(keyword, name="KIND_COORDINATION_NUMBERS",&
+            description="Specifies the coordination number for a kind for the C9 term in DFT-D3.",&
+            usage="KIND_COORDINATION_NUMBERS CN kind ", required=.FALSE., repeats=.TRUE.,&
+            n_var=-1,type_of_var=char_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        ! Set coordination numbers by atom numbers
-       CALL keyword_create(keyword, name="COORDINATION_NUMBERS",&
-            description="Specifies the electron configurationi.",&
-            usage="COORDINATION_NUMBERS CN atom1 atom2 ... ", required=.FALSE., repeats=.TRUE.,&
+       CALL keyword_create(keyword, name="ATOM_COORDINATION_NUMBERS",&
+            description="Specifies the coordination number of a set of atoms for the C9 term in DFT-D3.",&
+            usage="ATOM_COORDINATION_NUMBERS CN atom1 atom2 ... ", required=.FALSE., repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

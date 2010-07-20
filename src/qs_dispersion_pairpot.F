@@ -262,12 +262,23 @@ CONTAINS
              END IF
 
              ! Check for coordination numbers
-             CALL section_vals_val_get(pp_section,"COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
+             CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
+             IF (n_rep > 0) THEN
+                ALLOCATE(dispersion_env%cnkind(n_rep),STAT=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DO i=1,n_rep
+                   CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", i_rep_val=i,&
+                     c_vals=tmpstringlist, error=error)
+                   READ(tmpstringlist(1),*) dispersion_env%cnkind(i)%cnum 
+                   READ(tmpstringlist(2),*) dispersion_env%cnkind(i)%kind
+                END DO
+             END IF
+             CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep, error=error)
              IF (n_rep > 0) THEN
                 ALLOCATE(dispersion_env%cnlist(n_rep),STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 DO i=1,n_rep
-                   CALL section_vals_val_get(pp_section,"COORDINATION_NUMBERS", i_rep_val=i,&
+                   CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", i_rep_val=i,&
                      c_vals=tmpstringlist, error=error)
                    nl = SIZE(tmpstringlist)
                    ALLOCATE(dispersion_env%cnlist(i)%atom(nl-1),STAT=stat)
@@ -589,9 +600,10 @@ CONTAINS
     INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, iab, &
       iatom, icx, icy, icz, ikind, ilist, inode, istat, jatom, jkind, katom, &
       kkind, kstart, latom, lkind, max_elem, maxc, na, natom, nb, nc, ni, nj, &
-      nkind, nlist, nnode, za, zb, zc
+      nkind, nlist, nnode, za, zb, zc, ia
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, atomnumber, &
                                                 kind_of
+    INTEGER, POINTER, DIMENSION(:)           :: atom_list
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
                                                 periodic
     LOGICAL                                  :: debug, debugall, debugx, &
@@ -605,8 +617,8 @@ CONTAINS
       e8tot, e9, e9tot, elrc6, elrc8, elrc9, eps_cn, er, evdw, fac, fdab6, &
       fdab8, fdabc, fdmp, gnorm, nab, nabc, r0, r2ab, r2abc, r2bc, r2ca, r6, &
       r8, rabc, rc2, rc_a, rc_b, rcc, rcova, rcovb, rcut, rs6, rs8, s1, s2, &
-      s3, s6, s8, s9, xp
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cnumbers, cnumfix
+      s3, s6, s8, s9, xp, cnum
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cnumbers, cnumfix, cnkind
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rcpbc
     REAL(KIND=dp), DIMENSION(3)              :: fdij, fdik, ra, rab, rb, rbc, &
@@ -847,6 +859,20 @@ CONTAINS
               cnumfix(iatom) = dispersion_env%cn(za)
             END DO
             ! now check for changes from default 
+            IF (ASSOCIATED(dispersion_env%cnkind)) THEN
+              DO i=1,SIZE(dispersion_env%cnkind)
+                ikind=dispersion_env%cnkind(i)%kind
+                cnum=dispersion_env%cnkind(i)%cnum
+                CPPrecondition(ikind <= nkind,cp_failure_level,routineP,error,failure)
+                CPPrecondition(ikind > 0,cp_failure_level,routineP,error,failure)
+                atomic_kind => atomic_kind_set(ikind)
+                CALL get_atomic_kind(atomic_kind,natom=na,atom_list=atom_list)
+                DO ia=1,na
+                  iatom=atom_list(ia)
+                  cnumfix(iatom) = cnum
+                END DO
+              END DO
+            END IF
             IF (ASSOCIATED(dispersion_env%cnlist)) THEN
               DO i=1,SIZE(dispersion_env%cnlist)
                 DO ilist=1,dispersion_env%cnlist(i)%natom
@@ -1241,6 +1267,22 @@ CONTAINS
        IF ( dispersion_env%pp_type == "DFTD3" ) THEN
           ! Long range correction
           IF (dispersion_env%lrc) THEN
+             ALLOCATE (cnkind(nkind),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             cnkind = 0._dp
+             ! first use the default values
+             DO ikind=1,nkind
+               atomic_kind => atomic_kind_set(ikind)
+               CALL get_atomic_kind(atomic_kind,z=za)
+               cnkind(ikind) = dispersion_env%cn(za)
+             END DO
+             ! now check for changes from default
+             IF (ASSOCIATED(dispersion_env%cnkind)) THEN
+               DO i=1,SIZE(dispersion_env%cnkind)
+                 ikind=dispersion_env%cnkind(i)%kind
+                 cnkind(ikind)=dispersion_env%cnkind(i)%cnum
+               END DO
+             END IF
              DO ikind=1,nkind
                 atomic_kind => atomic_kind_set(ikind)
                 CALL get_atomic_kind(atomic_kind=atomic_kind, natom=na, z=za, dispersion=disp_a, ghost=ghost_a)
@@ -1250,7 +1292,7 @@ CONTAINS
                    CALL get_atomic_kind(atomic_kind=atomic_kind, natom=nb, z=zb, dispersion=disp_b, ghost=ghost_b)
                    IF (.NOT.disp_b%defined .OR. ghost_b) CYCLE
                    CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
-                      dispersion_env%cn(za),dispersion_env%cn(zb),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
+                      cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
                    elrc6 = elrc6 - s6*twopi*REAL(na*nb,KIND=dp)*cc6ab/(3._dp*rcut**3*cell%deth)
                    c8 = 3.0d0*cc6ab*dispersion_env%r2r4(za)*dispersion_env%r2r4(zb)
                    elrc8 = elrc8 - s8*twopi*REAL(na*nb,KIND=dp)*c8/(5._dp*rcut**5*cell%deth)
@@ -1260,11 +1302,11 @@ CONTAINS
                          CALL get_atomic_kind(atomic_kind=atomic_kind, natom=nc, z=zc, dispersion=disp_c, ghost=ghost_c)
                          IF (.NOT.disp_c%defined .OR. ghost_c) CYCLE
                          CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
-                            dispersion_env%cn(za),dispersion_env%cn(zb),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
+                            cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
                          CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,zc,za,&
-                            dispersion_env%cn(zc),dispersion_env%cn(za),dispersion_env%k3,cc6ca,dcc6aba,dcc6abb)
+                            cnkind(kkind),cnkind(ikind),dispersion_env%k3,cc6ca,dcc6aba,dcc6abb)
                          CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,zb,zc,&
-                            dispersion_env%cn(zb),dispersion_env%cn(zc),dispersion_env%k3,cc6bc,dcc6aba,dcc6abb)
+                            cnkind(jkind),cnkind(kkind),dispersion_env%k3,cc6bc,dcc6aba,dcc6abb)
                          c9 = -SQRT(cc6ab*cc6bc*cc6ca)
                          elrc9 = elrc9 - s9*8._dp*twopi*REAL(na*nb*nc,KIND=dp)*c9/(6._dp*rcut**3*cell%deth**2)
                       END DO
@@ -1276,6 +1318,8 @@ CONTAINS
                  virial%pv_virial(i,i) = virial%pv_virial(i,i) + (elrc6+elrc8+2._dp*elrc9)/cell%deth
                END DO
              END IF
+             DEALLOCATE (cnkind,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           END IF
        END IF
 

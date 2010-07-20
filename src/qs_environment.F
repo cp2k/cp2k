@@ -774,7 +774,7 @@ CONTAINS
       dispersion_env%lrc=.FALSE.
       dispersion_env%verbose=.FALSE.
       NULLIFY(dispersion_env%c6ab,dispersion_env%maxci,dispersion_env%r0ab,dispersion_env%rcov,&
-              dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnlist)
+              dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnkind,dispersion_env%cnlist)
       NULLIFY(vdw_section,xc_fun_section)
       vdw_section =>  section_vals_get_subs_vals(dft_section,"XC%vdw_potential",error=error)
       xc_fun_section => section_vals_get_subs_vals(dft_section,"XC%XC_FUNCTIONAL",error=error)

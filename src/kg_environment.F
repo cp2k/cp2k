@@ -621,7 +621,7 @@ CONTAINS
       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ELSE
       NULLIFY(dispersion_env%c6ab,dispersion_env%maxci,dispersion_env%r0ab,dispersion_env%rcov,&
-              dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnlist)
+              dispersion_env%r2r4,dispersion_env%cn,dispersion_env%cnkind,dispersion_env%cnlist)
     END IF
     CALL set_qs_env(qs_env, dispersion_env=dispersion_env, error=error)
 
