@@ -39,7 +39,8 @@ MODULE helium_io
                                              dp,&
                                              int_8
   USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_gather, mp_sum
+  USE message_passing,                 ONLY: mp_gather,&
+                                             mp_sum
   USE parallel_rng_types,              ONLY: get_rng_stream
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -654,10 +655,10 @@ MODULE helium_io
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_write_energy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iteration, unit_nr, m
+    INTEGER                                  :: handle, iteration, m, unit_nr
     LOGICAL                                  :: failure, file_is_new
-    REAL(kind=dp), DIMENSION(:), POINTER     :: my_energy
     REAL(kind=dp)                            :: naccptd
+    REAL(kind=dp), DIMENSION(:), POINTER     :: my_energy
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 

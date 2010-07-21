@@ -922,7 +922,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_do_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: step, itimes
+    INTEGER                                  :: itimes, step
     LOGICAL                                  :: failure, should_stop
     REAL(kind=dp)                            :: scal
     TYPE(cp_logger_type), POINTER            :: logger

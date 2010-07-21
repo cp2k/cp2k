@@ -82,7 +82,9 @@ MODULE input_cp2k_restarts
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pint_transformations,            ONLY: pint_u2x
-  USE pint_types,                      ONLY: pint_env_type, thermostat_nose, thermostat_gle
+  USE pint_types,                      ONLY: pint_env_type,&
+                                             thermostat_gle,&
+                                             thermostat_nose
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
@@ -505,7 +507,8 @@ CONTAINS
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
+    TYPE(kg_environment_type), OPTIONAL, &
+      POINTER                                :: kg_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
@@ -515,19 +518,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, handle, handle2, i, iatom, ibead, icoef, idim, iel,&
+    INTEGER :: counter, handle, handle2, i, iatom, ibead, icoef, idim, iel, &
       ikind, inos, irep, isec, istat, j, n_el, natom, natom_tot, nfield, &
-      nhc_len, nkind, nsgf,  nsgf_max, stat, tot_nhcneed
+      nhc_len, nkind, nsgf, nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, DIMENSION(:), POINTER           :: lindex, walkers_status
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: explicit,failure, my_save_mem
+    LOGICAL                                  :: explicit, failure, my_save_mem
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, pindex, vbuffer, &
                                                 vindex
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
-                                                veta, wrk
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
+                                                r_vals, veta, wrk
     REAL(KIND=dp), POINTER                   :: constant, t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -542,8 +544,9 @@ CONTAINS
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: replica_section, work_section,&
-                                                pint_section, tmpsec
+    TYPE(section_vals_type), POINTER         :: pint_section, &
+                                                replica_section, tmpsec, &
+                                                work_section
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_coeff, &
                                                 thermostat_part, &

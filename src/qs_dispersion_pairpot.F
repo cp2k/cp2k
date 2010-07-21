@@ -597,28 +597,28 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_pairpot', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, iab, &
-      iatom, icx, icy, icz, ikind, ilist, inode, istat, jatom, jkind, katom, &
-      kkind, kstart, latom, lkind, max_elem, maxc, na, natom, nb, nc, ni, nj, &
-      nkind, nlist, nnode, za, zb, zc, ia
+    INTEGER :: atom_a, atom_b, atom_c, atom_d, handle, hashb, hashc, i, ia, &
+      iab, iatom, icx, icy, icz, ikind, ilist, inode, istat, jatom, jkind, &
+      katom, kkind, kstart, latom, lkind, max_elem, maxc, na, natom, nb, nc, &
+      ni, nj, nkind, nlist, nnode, za, zb, zc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, atomnumber, &
                                                 kind_of
-    INTEGER, POINTER, DIMENSION(:)           :: atom_list
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
                                                 periodic
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: debug, debugall, debugx, &
                                                 failure, ghost_a, ghost_b, &
                                                 ghost_c, is000, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: dodisp
     REAL(KIND=dp) :: alp6, alp8, ang, c6, c6a, c6b, c8, c9, cc6ab, cc6bc, &
-      cc6ca, cnab, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, &
+      cc6ca, cnab, cnum, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, &
       dcc6bcc, dcc6caa, dcc6cac, dcnab, dd, de6, de8, de91, de921, de922, &
       dea, devdw, dfdab6, dfdab8, dfdabc, dfdmp, dr, drk, e6, e6tot, e8, &
       e8tot, e9, e9tot, elrc6, elrc8, elrc9, eps_cn, er, evdw, fac, fdab6, &
       fdab8, fdabc, fdmp, gnorm, nab, nabc, r0, r2ab, r2abc, r2bc, r2ca, r6, &
       r8, rabc, rc2, rc_a, rc_b, rcc, rcova, rcovb, rcut, rs6, rs8, s1, s2, &
-      s3, s6, s8, s9, xp, cnum
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cnumbers, cnumfix, cnkind
+      s3, s6, s8, s9, xp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cnkind, cnumbers, cnumfix
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rcpbc
     REAL(KIND=dp), DIMENSION(3)              :: fdij, fdik, ra, rab, rb, rbc, &
