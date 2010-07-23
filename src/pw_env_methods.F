@@ -44,8 +44,7 @@ MODULE pw_env_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_type
-  USE pw_grid_info,                    ONLY: pw_find_cutoff,&
-                                             pw_grid_init_setup
+  USE pw_grid_info,                    ONLY: pw_grid_init_setup
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              do_pw_grid_blocked_false,&
@@ -158,9 +157,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       smooth_required, spherical, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
                                                 max_rpgf0_s, maxradius, &
-                                                my_cut, rel_cutoff, zet0, zetp
+                                                rel_cutoff, zet0, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -201,9 +200,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 !
 !
   failure=.FALSE.
-  NULLIFY(my_cutoff,cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
-          pw_pools,rho0_mpole,rs_descs, para_env,cell_ref, mt_super_ref_grid,&
-          input,poisson_section,xc_super_ref_grid,super_ref_grid,my_cell)
+  NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, atomic_kind_set, &
+       pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
+       mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
+       super_ref_grid, my_cell)
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -462,28 +462,15 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL pw_grid_release(mt_super_ref_grid,error=error)
 !
 ! If reference cell is present, then use pw_grid_change to keep bounds constant...
-!
+! do not re-init the Gaussian grid level (fix the gridlevel on which the pgf should go.
 !
     IF ( use_ref_cell ) THEN
-         ALLOCATE( my_cutoff ( SIZE ( cutoff ) ),stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          DO igrid_level = 1, SIZE ( pw_pools )
            CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
-           my_cut = pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % npts,  &
-                                 cell%h_inv, error=error)
-           my_cutoff (igrid_level) = 0.5_dp * my_cut*my_cut
          ENDDO
-         CALL destroy_gaussian_gridlevel (pw_env%gridlevel_info, error=error )
-         print_section=>section_vals_get_subs_vals(qs_env%input, &
-                             "PRINT%GRID_INFORMATION",error=error)
-         CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
-              ngrid_levels=ngrid_level,cutoff=my_cutoff,rel_cutoff=rel_cutoff, &
-              print_section=print_section,error=error)
          CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
-         DEALLOCATE( my_cutoff ,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 !
 !

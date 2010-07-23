@@ -836,3 +836,7 @@ H2O-solv.inp
 rsgrid-dist-2.inp
 # Rewrite of Lowdin
 CN-lowdin.inp
+# bug fix ref cell 
+H2O-ref-1.inp
+# bug fix ref cell 
+H2O-ref-2.inp
