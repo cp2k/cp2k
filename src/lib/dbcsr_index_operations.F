@@ -58,7 +58,18 @@ MODULE dbcsr_index_operations
   ! Index array manipulation
   PUBLIC :: dbcsr_addto_index_array, dbcsr_clearfrom_index_array,&
             dbcsr_repoint_index
+  PUBLIC :: sort
 
+  INTERFACE dbcsr_count_row_index
+     MODULE PROCEDURE dbcsr_count_row_index_copy,&
+                      dbcsr_count_row_index_inplace
+  END INTERFACE
+
+  INTERFACE dbcsr_build_row_index
+     MODULE PROCEDURE dbcsr_build_row_index_copy,&
+                      dbcsr_build_row_index_inplace
+  END INTERFACE
+     
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
@@ -266,7 +277,7 @@ CONTAINS
 !> \param[in,out] rows        the row_p index (input); the count of the number
 !>                            of columns per row (output)
 ! *****************************************************************************
-  PURE SUBROUTINE dbcsr_count_row_index (rows, nrows)
+  PURE SUBROUTINE dbcsr_count_row_index_inplace (rows, nrows)
     INTEGER, INTENT(IN)                      :: nrows
     INTEGER, DIMENSION(1:nrows+1), &
       INTENT(INOUT)                          :: rows
@@ -277,7 +288,26 @@ CONTAINS
        rows(row) = rows(row+1) - rows(row)
     ENDDO
     rows(nrows+1) = 0
-  END SUBROUTINE dbcsr_count_row_index
+  END SUBROUTINE dbcsr_count_row_index_inplace
+
+! *****************************************************************************
+!> \brief Counts columns-per-row count from row index array.
+!> \param[in] nrows           number of rows
+!> \param[in] rows            the row_p index (input)
+!> \param[out] counts         the count of the number of columns per row
+! *****************************************************************************
+  PURE SUBROUTINE dbcsr_count_row_index_copy (rows, counts, nrows)
+    INTEGER, INTENT(IN)                      :: nrows
+    INTEGER, DIMENSION(1:nrows), INTENT(OUT) :: counts
+    INTEGER, DIMENSION(1:nrows+1), &
+      INTENT(IN)                             :: rows
+
+    INTEGER                                  :: row
+
+    FORALL (row = 1:nrows)
+       counts(row) = rows(row+1) - rows(row)
+    END FORALL
+  END SUBROUTINE dbcsr_count_row_index_copy
 
 ! *****************************************************************************
 !> \brief Builds row index array from a columns-per-row count, in-place.
@@ -285,7 +315,7 @@ CONTAINS
 !> \param[in,out] rows        count of the number of colums per row (input);
 !>                            the row_p index (output)
 ! *****************************************************************************
-  PURE SUBROUTINE dbcsr_build_row_index (rows, nrows)
+  PURE SUBROUTINE dbcsr_build_row_index_inplace (rows, nrows)
     INTEGER, INTENT(IN)                      :: nrows
     INTEGER, DIMENSION(1:nrows+1), &
       INTENT(INOUT)                          :: rows
@@ -301,7 +331,31 @@ CONTAINS
           old_count = o
        ENDDO
     ENDIF
-  END SUBROUTINE dbcsr_build_row_index
+  END SUBROUTINE dbcsr_build_row_index_inplace
+
+! *****************************************************************************
+!> \brief Builds row index array from a columns-per-row count.
+!> \param[in] nrows           number of rows
+!> \param[in] counts          count of the number of colums per row
+!> \param[out] rows           count of the number of colums per row (input);
+!>                            the row_p index (output)
+! *****************************************************************************
+  PURE SUBROUTINE dbcsr_build_row_index_copy (counts, rows, nrows)
+    INTEGER, INTENT(IN)                      :: nrows
+    INTEGER, DIMENSION(1:nrows+1), &
+      INTENT(OUT)                            :: rows
+    INTEGER, DIMENSION(1:nrows), INTENT(IN)  :: counts
+
+!WTF?!rows(1) = 0
+!WTF?!IF (nrows .GE. 1) THEN
+!WTF?!   DO row = 2, nrows+1
+!WTF?!      rows(row) = rows(row-1) + counts(rows-1)
+!WTF?!   ENDDO
+!WTF?!ENDIF
+
+    rows(1:nrows) = counts(1:nrows)
+    CALL dbcsr_build_row_index_inplace (rows, nrows)
+  END SUBROUTINE dbcsr_build_row_index_copy
 
 
 ! *****************************************************************************

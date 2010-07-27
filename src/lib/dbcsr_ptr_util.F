@@ -51,20 +51,12 @@ MODULE dbcsr_ptr_util
 #endif
 
 
-  PUBLIC :: addto_array, ensure_array_size
+  PUBLIC :: ensure_array_size
   PUBLIC :: pointer_replace, pointer_view
   PUBLIC :: pointer_rank_remap2, dbcsr_ptr_remapping,&
             pointer_s_rank_remap2, pointer_d_rank_remap2,&
             pointer_c_rank_remap2, pointer_z_rank_remap2
 
-
-  INTERFACE addto_array
-     MODULE PROCEDURE addto_array_i
-     MODULE PROCEDURE addto_array_s, addto_array_d,&
-                      addto_array_c, addto_array_z
-     MODULE PROCEDURE addto_array_as, addto_array_ad,&
-                      addto_array_ac, addto_array_az
-  END INTERFACE
 
   INTERFACE ensure_array_size
      MODULE PROCEDURE ensure_array_size_i,&! ensure_array_size_i_2d,&
@@ -90,63 +82,6 @@ MODULE dbcsr_ptr_util
   END INTERFACE
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief Copies an array into another array, ensuring that the target array
-!>        is large enough.
-!> \par Makes use of FORTRAN's array bounds for array sections.
-!> \param to        array to copy to (target array)
-!> \param[in] from  array to copy from (source array)
-!> \param[in] offset          starting position in the target array
-!> \param[in] factor          factor for size increase
-!> \param error     cp2k error
-! *****************************************************************************
-  SUBROUTINE addto_array_i(to, from, offset, factor, special, error)
-    INTEGER, DIMENSION(:), POINTER           :: to
-    INTEGER, DIMENSION(:), INTENT(IN)        :: from
-    INTEGER, INTENT(IN), OPTIONAL            :: offset
-    REAL, INTENT(IN), OPTIONAL               :: factor
-    LOGICAL, INTENT(IN), OPTIONAL            :: special
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'addto_array_i', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handler, last, lb_t, &
-                                                s_f, s_t, start, ub_t
-    LOGICAL                                  :: dbg, spec
-    REAL                                     :: f
-
-!   ---------------------------------------------------------------------------
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    dbg = .FALSE.
-    spec = .FALSE.
-    IF (PRESENT (special)) spec = special
-    s_f = SIZE(from, 1)
-    ub_t = UBOUND(to, 1)
-    lb_t = LBOUND(to, 1)
-    s_t = SIZE(to)
-    start = lb_t
-    IF (PRESENT (offset)) start = offset
-    ! assert offset > lb_t
-    last = start+s_f-1
-    IF (ub_t .LT. last) THEN
-       IF (PRESENT (factor)) THEN
-          f = factor
-       ELSE
-          f = 1.4142136
-       ENDIF
-       ub_t = MAX(start + INT(s_t * f), last)
-       IF(dbg) WRITE(*,*)routineP//' expanding array from :',UBOUND(to),&
-            'to',ub_t
-       CALL ensure_array_size(to, lb_t, ub_t, factor=1.0, nocopy=.FALSE.,&
-            special=spec, error=error)
-    ENDIF
-    to(start:last) = from(:)
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE addto_array_i
-
 
 ! *****************************************************************************
 !> \brief Ensures that an array is appropriately large.

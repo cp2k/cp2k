@@ -442,6 +442,7 @@ CONTAINS
     CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Data seems to be unreferenced.",__LINE__,error)
     IF (area%d%refcount .GT. 0) THEN
+       !$OMP ATOMIC
        area%d%refcount = area%d%refcount - 1
     ELSE
        RETURN
@@ -637,6 +638,7 @@ CONTAINS
     IF (.NOT. ASSOCIATED (area%d)) THEN
        RETURN
     ENDIF
+    !$OMP ATOMIC
     area%d%refcount = area%d%refcount + 1
   END SUBROUTINE dbcsr_data_hold
 
@@ -834,6 +836,7 @@ CONTAINS
     CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data area must be setup.",__LINE__,error)
     current_size = dbcsr_data_get_size (area)
+    CALL dbcsr_data_set_size_referenced (area, data_size)
     IF (current_size .GT. 1 .AND. current_size .GE. data_size) THEN
        CALL dbcsr_error_stop(error_handler, error)
        RETURN
@@ -902,7 +905,6 @@ CONTAINS
             dbcsr_unimplemented_error_nr, routineN,&
             "Invalid data type are supported",__LINE__,error)
     END SELECT
-    CALL dbcsr_data_set_size_referenced (area, data_size)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_data_ensure_size
 

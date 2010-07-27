@@ -1225,18 +1225,15 @@ CONTAINS
     !received_data_area%d%r_dp => recv_data
 !$omp end single
     t_error = dbcsr_error
-!$omp do
     DO row_img = 1, nrow_images
        DO col_img = 1, ncol_images
-!$omp parallel num_threads(1)
           CALL dbcsr_work_create(ums%mats(row_img, col_img),&
                SUM(recv_count(1,row_img,col_img,:)), n=1, error=t_error)
-!$omp end parallel
-!$omp critical
+!$omp single
           CALL dbcsr_data_hold (received_data_area)
-!$omp end critical
           CALL dbcsr_data_release (ums%mats(row_img,col_img)%m%wms(1)%data_area)
           ums%mats(row_img,col_img)%m%wms(1)%data_area = received_data_area
+!$omp end single
        ENDDO
     ENDDO
     prev_dst_p = -1
@@ -1361,13 +1358,13 @@ CONTAINS
                * col_blk_size(ABS(stored_col))
           blk = blks(row_img,col_img)
           blks(row_img,col_img) = blks(row_img,col_img) + 1
-          blk_ps(row_img,col_img) = blk_ps(row_img,col_img) + nze
           IF (stored_col .GT. 0) THEN
              blk_p = data_p
              data_p = data_p + nze
           ELSE
              blk_p = prev_blk_p
           ENDIF
+          blk_ps(row_img,col_img) = blk_ps(row_img,col_img) + nze
           ums%mats(row_img,col_img)%m%wms(1)%row_i(blk) = ABS(stored_row)
           ums%mats(row_img,col_img)%m%wms(1)%col_i(blk) = ABS(stored_col)
           ums%mats(row_img,col_img)%m%wms(1)%blk_p(blk) =&
@@ -2386,7 +2383,7 @@ CONTAINS
     replicated%m%wms(1)%lastblk = blks - 1
     replicated%m%wms(1)%datasize = blk_ps - 1
     DBG 'Finalizing normalization'
-    CALL dbcsr_finalize(replicated, resort=.TRUE., reshuffle=.TRUE., error=error)
+    CALL dbcsr_finalize(replicated, reshuffle=.TRUE., error=error)
     !
     ! Remove communicators if they were forcibly created.
     IF (had_subcomms .AND.&

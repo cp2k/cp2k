@@ -2205,12 +2205,11 @@ CONTAINS
     CALL dbcsr_create(diag, 'diag of '//matrix%m%name, &
          matrix%m%dist, dbcsr_get_matrix_type (matrix),&
          matrix%m%row_blk_size,&
-         matrix%m%col_blk_size, matrix%m%nblks, matrix%m%nze,&
+         matrix%m%col_blk_size, matrix%m%nblkrows_total, matrix%m%nze,&
          matrix%m%data_type, matrix%m%special_memory, error=error)
 
     CALL dbcsr_data_init (data_a)
     CALL dbcsr_data_new (data_a, dbcsr_get_data_type(matrix))
-
     CALL dbcsr_iterator_start(iter, matrix)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, row, col, data_a, tr, blk)
@@ -2373,7 +2372,6 @@ CONTAINS
     keep_sparse = .FALSE.
     IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
     CALL dbcsr_access_flush (matrix_a, error=error)
-
     !CALL dbcsr_assert (dbcsr_is_initialized (matrix_b),&
     !     dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
     !     "Target matrix must be initialized", error=error)
@@ -2414,7 +2412,7 @@ CONTAINS
        ! copy index and data
        matrix_b%m%index(1:SIZE(matrix_a%m%index)) = matrix_a%m%index(:)
        IF (.NOT. shallow) THEN
-          CALL dbcsr_assert (matrix_a%m%nze .LE. dbcsr_get_data_size(matrix_a),&
+          CALL dbcsr_assert (matrix_a%m%nze, "LE", dbcsr_get_data_size(matrix_a),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                "Source matrix sizes not consistent!",__LINE__,error)
           CALL dbcsr_data_ensure_size (matrix_b%m%data_area,&

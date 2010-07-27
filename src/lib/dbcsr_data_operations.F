@@ -407,7 +407,7 @@ CONTAINS
        DO i = 2, nblks
           blk_p(i) = SIGN(ABS(blk_p(i-1)) + sizes(i-1), old_blk_p(i))
        ENDDO
-       !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(i)
+       !$OMP DO
        DO i = 1, nblks
           IF (.NOT. multidata) THEN
              CALL dbcsr_data_set (dsts,&
@@ -424,7 +424,7 @@ CONTAINS
              !     %r_dp(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
           ENDIF
        ENDDO
-       !$OMP END PARALLEL DO
+       !$OMP END DO
     ENDIF
     DBGV 'new blk_p =',blk_p
     CALL dbcsr_error_stop(error_handler, error)

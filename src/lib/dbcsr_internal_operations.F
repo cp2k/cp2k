@@ -218,6 +218,7 @@ CONTAINS
                                                 right_buffer_1, right_buffer_2
     TYPE(dbcsr_data_obj)                     :: left_data_rp, left_data_sp, &
                                                 right_data_rp, right_data_sp
+    TYPE(dbcsr_error_type)                   :: t_error
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
                                                 right_mp_obj
     TYPE(mp_type_descriptor_type), &
@@ -951,10 +952,8 @@ CONTAINS
     CALL dbcsr_data_release(right_data_sp)
     CALL dbcsr_data_release(right_data_rp)
     !
-!$omp parallel default(none) &
-!$omp shared (product_matrix, error)
+    t_error = error
     CALL dbcsr_finalize(product_matrix, error=error)
-!$omp end parallel
     !
     IF (dbg) THEN
        checksum = dbcsr_checksum (product_matrix, error=error)

@@ -64,7 +64,8 @@ MODULE dbcsr_util
             convert_sizes_to_offsets, convert_offsets_to_sizes,&
             global_offsets_to_local,&
             dbcsr_unpack_i8_2i4, make_coordinate_tuple,&
-            nfull_elements
+            nfull_elements,&
+            dbcsr_calc_block_sizes
   PUBLIC :: swap, sgn
   ! math routines
   PUBLIC :: gcd, lcm, ceil_log2
@@ -360,23 +361,22 @@ CONTAINS
 !> \param[in] row_p, col_i    index structure
 !> \param[in] rbs, cbs        row block sizes and column block sizes
 ! *****************************************************************************
-  SUBROUTINE calc_blk_sizes(sizes, row_p, col_i, rbs, cbs)
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: sizes
+  SUBROUTINE dbcsr_calc_block_sizes(sizes, row_p, col_i, rbs, cbs)
+    INTEGER, DIMENSION(:), POINTER           :: sizes
     INTEGER, DIMENSION(:), INTENT(IN)        :: row_p, col_i, rbs, cbs
 
     INTEGER                                  :: blk, nrows, row, row_size
 
     nrows = SIZE (row_p)-1
-    !$OMP PARALLEL DO PRIVATE (row, blk, row_size)
+    !$OMP DO
     DO row = 1, nrows
        row_size = rbs(row)
        FORALL (blk = row_p(row)+1 : row_p(row+1))
           sizes(blk) = row_size * cbs(col_i(blk))
        END FORALL
     ENDDO
-    !$OMP END PARALLEL DO
-  END SUBROUTINE calc_blk_sizes
-
+    !$OMP END DO
+  END SUBROUTINE dbcsr_calc_block_sizes
 
 
 ! *****************************************************************************
@@ -643,12 +643,10 @@ CONTAINS
 !lmask8 = 4294967295 ! 2^32-1
 !umask8 = 18446744069414584320 ! (2^32-1) * 2^32 = (2^64-1)-(2^32-1)
 
-!$OMP DO SCHEDULE (STATIC)
     DO i = 1, SIZE (merged)
        array_upper(i) = INT (ISHFT (merged(i), -32), KIND=int_4)
        array_lower(i) = INT (IAND (merged(i), lmask8), KIND=int_4)
     ENDDO
-!$OMP END DO
   END SUBROUTINE dbcsr_unpack_i8_2i4
 
 
@@ -943,9 +941,9 @@ CONTAINS
          dbcsr_warning_level, dbcsr_internal_error, r,&
          'Index size 0',__LINE__,error)
     DO i = dbcsr_slot_row_p, dbcsr_num_slots
-       CALL dbcsr_assert(m%m%index(i), "GT", 0,&
-            dbcsr_warning_level, dbcsr_internal_error, r,&
-            'Index member is 0',__LINE__,error)
+       !CALL dbcsr_assert(m%m%index(i), "GT", 0,&
+       !     dbcsr_warning_level, dbcsr_internal_error, r,&
+       !     'Index member is 0',__LINE__,error)
        IF (.NOT. (i.EQ.dbcsr_slot_col_i.OR.i.EQ.dbcsr_slot_blk_p)) THEN
             CALL dbcsr_assert(m%m%index(i), "LE", m%m%index(1),&
                  dbcsr_warning_level, dbcsr_internal_error, r,&

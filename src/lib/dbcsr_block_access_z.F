@@ -673,9 +673,11 @@
                matrix%m%wms(iw)%datasize+SIZE(block),&
                factor=default_resize_factor, error=error)
           IF (PRESENT (scale)) THEN
-             CALL addto_array (matrix%m%wms(iw)%data_area, scale*block, ABS(blk_p), error=error)
+             CALL dbcsr_data_set (matrix%m%wms(iw)%data_area, ABS(blk_p),&
+                  data_size=SIZE(block), src=scale*block, source_lb=1)
           ELSE
-             CALL addto_array (matrix%m%wms(iw)%data_area, block, ABS(blk_p), error=error)
+             CALL dbcsr_data_set (matrix%m%wms(iw)%data_area, ABS(blk_p),&
+                  data_size=SIZE(block), src=block, source_lb=1)
           ENDIF
        ELSE
           ALLOCATE (data_block%p (row_size, col_size))

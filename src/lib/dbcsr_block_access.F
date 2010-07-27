@@ -34,7 +34,8 @@ MODULE dbcsr_block_access
                                              dbcsr_buffers_set_pointer_2d
   USE dbcsr_block_operations,          ONLY: dbcsr_block_copy,&
                                              dbcsr_block_transpose,&
-                                             dbcsr_data_clear
+                                             dbcsr_data_clear,&
+                                             dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
                                              dbcsr_data_ensure_size,&
                                              dbcsr_data_get_type,&
@@ -58,8 +59,7 @@ MODULE dbcsr_block_access
        dbcsr_get_data_type, dbcsr_get_num_blocks, dbcsr_mutable_instantiated, &
        dbcsr_mutable_new, dbcsr_nblkrows_total, dbcsr_use_mutable, &
        dbcsr_wm_use_mutable
-  USE dbcsr_ptr_util,                  ONLY: addto_array,&
-                                             pointer_c_rank_remap2,&
+  USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
                                              pointer_d_rank_remap2,&
                                              pointer_s_rank_remap2,&
                                              pointer_view,&

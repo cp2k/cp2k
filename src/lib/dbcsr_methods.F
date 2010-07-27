@@ -106,8 +106,7 @@ MODULE dbcsr_methods
             dbcsr_name, dbcsr_may_be_dense,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
             dbcsr_is_transposed, dbcsr_get_data_size
-  PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced,&
-            dbcsr_set_data_size_referenced
+  PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
   PUBLIC :: dbcsr_col_block_offsets, dbcsr_row_block_offsets
   PUBLIC :: dbcsr_data_area, dbcsr_switch_data_area
   PUBLIC :: dbcsr_get_num_blocks
@@ -162,10 +161,6 @@ MODULE dbcsr_methods
   INTERFACE dbcsr_get_data_size_referenced
      !MODULE PROCEDURE get_data_size_ref_area, get_data_size_ref_matrix
      MODULE PROCEDURE get_data_size_ref_matrix
-  END INTERFACE
-
-  INTERFACE dbcsr_set_data_size_referenced
-     !MODULE PROCEDURE set_data_size_ref_area
   END INTERFACE
 
   INTERFACE dbcsr_get_data_type
