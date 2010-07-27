@@ -214,3 +214,5 @@ SiO2_lr_quad.inp
 N3_rp_md.inp
 # Numerics due to DBCSR images. 
 N3_dp_md.inp
+# Numerics due to DBCSR images (extra)
+Co_complex.inp

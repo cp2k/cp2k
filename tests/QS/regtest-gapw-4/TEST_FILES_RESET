@@ -213,3 +213,7 @@ H2O_Hnopaw_pp.inp
 H2O_Onopaw_gop.inp
 #  
 Fe.inp
+# Numerics due to DBCSR images (extra)
+H2O_allnopaw.inp
+# Numerics due to DBCSR images (extra)
+H2O_Hnopaw_pp.inp
