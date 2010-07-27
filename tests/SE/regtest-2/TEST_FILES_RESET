@@ -372,3 +372,5 @@ hcl_ot.inp
 hcl_z.inp
 # reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
 H2O-32.inp
+# Numerics due to DBCSR images. 
+zn_1w_debug.inp

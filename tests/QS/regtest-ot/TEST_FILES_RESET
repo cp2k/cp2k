@@ -762,3 +762,13 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 He2_ddapc_constraint-4.inp
 H2-BECKE-MD.inp
+# Numerics due to DBCSR images. 
+He2_ddapc_constraint-2.inp
+# Numerics due to DBCSR images. 
+He2_ddapc_constraint-3.inp
+# Numerics due to DBCSR images. 
+He2_none_full_inverse.inp
+# Numerics due to DBCSR images. 
+sic_ddapc_rt.inp
+# Numerics due to DBCSR images. 
+He2_ddapc_constraint-4.inp

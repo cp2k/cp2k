@@ -428,3 +428,7 @@ CH3-PBE0_TC.inp
 CH3-PBE0_TC_LRC.inp
 #  
 CH4-PBE0_TC_LRC.inp
+# Numerics due to DBCSR images. 
+CH4-PBE0_TC.inp
+# Numerics due to DBCSR images. 
+CH4-PBE0_TC_LRC.inp

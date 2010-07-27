@@ -803,3 +803,13 @@ H2O-9.inp
 basis_none_1.inp
 basis_none_2.inp
 H2O-extpot.inp
+# Numerics due to DBCSR images. 
+spin_restraint.inp
+# Numerics due to DBCSR images. 
+basis_none_1.inp
+# Numerics due to DBCSR images. 
+He3_multi_ddapc.inp
+# Numerics due to DBCSR images. 
+h2o-otdiag.inp
+# Numerics due to DBCSR images. 
+2H2O_meta_welltemp.inp

@@ -61,3 +61,13 @@ H2+-BLOCKED-PURIFY-BLOCKED.inp
 2H2O-BLOCKED-PURIFY-BLOCKED.inp
 # Reset for numerics after OpenMP changes
 H2+-BLOCKED-PURIFY-FULL.inp
+# Numerics due to DBCSR images. 
+CH4-BP-MO_DIAG.inp
+# Numerics due to DBCSR images. 
+CH4-BP-MO_NO_DIAG.inp
+# Numerics due to DBCSR images. 
+CH4-BP-NONE.inp
+# Numerics due to DBCSR images. 
+CH4-BP-CAUCHY_SUBSPACE.inp
+# Numerics due to DBCSR images. 
+CH4-BP-CAUCHY.inp

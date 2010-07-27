@@ -614,13 +614,13 @@ CONTAINS
           ! Fill remainder with a cyclic distribution
           bin = MOD (i, old_nbins)
        ENDIF
+       virtual_bin = bin*multiplicity+bin_multiplier(bin)
+       new_bins(i) = virtual_bin / nimages
+       images(i) = 1 + MOD (virtual_bin, nimages)
        bin_multiplier(bin) = bin_multiplier(bin)+1
        IF (bin_multiplier(bin) .GE. multiplicity) THEN
           bin_multiplier(bin) = 0
        ENDIF
-       virtual_bin = bin*multiplicity+bin_multiplier(bin)
-       new_bins(i) = virtual_bin / nimages
-       images(i) = 1 + MOD (virtual_bin, nimages)
     ENDDO
   END SUBROUTINE rebin_distribution
 
@@ -675,11 +675,11 @@ CONTAINS
     bin_multiplier(:) = 0
     DO i = 1, SIZE (my_bins)
        bin = my_bins (i)
+       images(i) = 1 + bin_multiplier(bin)
        bin_multiplier(bin) = bin_multiplier(bin)+1
        IF (bin_multiplier(bin) .GE. nimages) THEN
           bin_multiplier(bin) = 0
        ENDIF
-       images(i) = 1 + bin_multiplier(bin)
     ENDDO
   END SUBROUTINE reimage_distribution
 

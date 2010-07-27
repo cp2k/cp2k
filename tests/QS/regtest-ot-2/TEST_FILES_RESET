@@ -882,3 +882,5 @@ C-sic-2.inp
 C_ot.inp
 # Update of atomic weights 
 Al_fermi.inp
+# Numerics due to DBCSR images. 
+H2O.inp

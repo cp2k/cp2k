@@ -166,3 +166,9 @@ graphite-lumo.inp
 graphite.inp
 graphite2.inp
 graphite3.inp
+# Numerics due to DBCSR images. 
+graphite.inp
+# Numerics due to DBCSR images. 
+graphite2.inp
+# Numerics due to DBCSR images. 
+graphite3.inp

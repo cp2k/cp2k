@@ -94,3 +94,11 @@ cu2cl6_m3_clp6cud9.inp
 cu2cl6_m1_clp6cud9.inp
 cu2cl6_m1_std.inp
 cu2cl6_m3_std.inp
+# Numerics due to DBCSR images. 
+cu2cl6_m1_std.inp
+# Numerics due to DBCSR images. 
+cu2cl6_m3_std.inp
+# Numerics due to DBCSR images. 
+cu2cl6_m1_clp6cud9.inp
+# Numerics due to DBCSR images. 
+cu2cl6_m3_clp6cud9.inp

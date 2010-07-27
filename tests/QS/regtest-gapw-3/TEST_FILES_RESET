@@ -226,3 +226,7 @@ CO_xastpxhh_loclist.inp
 CO_xastpfh.inp
 CO_xastpxhh_loclist.inp
 CO_xastpval.inp
+# Numerics due to DBCSR images. 
+CO_xastpxhh.inp
+# Numerics due to DBCSR images. 
+CO_xastpxhh_loclist.inp

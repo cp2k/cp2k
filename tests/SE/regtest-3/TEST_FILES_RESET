@@ -200,3 +200,17 @@ N3-rp_colvar.inp
 N3_rp_md.inp
 SiO2.inp
 SiO2_lr_quad.inp
+# Numerics due to DBCSR images. 
+N3-rp_colvar.inp
+# Numerics due to DBCSR images. 
+Periclase.inp
+# Numerics due to DBCSR images. 
+SiO2.inp
+# Numerics due to DBCSR images. 
+H2O-4.inp
+# Numerics due to DBCSR images. 
+SiO2_lr_quad.inp
+# Numerics due to DBCSR images. 
+N3_rp_md.inp
+# Numerics due to DBCSR images. 
+N3_dp_md.inp

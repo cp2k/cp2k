@@ -318,3 +318,9 @@ CH-hfx-md.inp
 CH-hfx-md-2.inp
 H2O-hfx-emd.inp
 H2O-hfx-emd-restart.inp
+# Numerics due to DBCSR images. 
+4H2O-disk.inp
+# Numerics due to DBCSR images. 
+4H2O-mix-disk-ram.inp
+# Numerics due to DBCSR images. 
+4H2O-mix-disk-ram-on-the-fly.inp

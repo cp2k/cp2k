@@ -682,3 +682,11 @@ Au12_rmsd_mtd.inp
 # reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
 Au12_rmsd_mtd.inp
 Au13ico_mtd.inp
+# Numerics due to DBCSR images. 
+hcn_ts.inp
+# Numerics due to DBCSR images. 
+hcn_ts_r.inp
+# Numerics due to DBCSR images. 
+Au13ico_mtd.inp
+# Numerics due to DBCSR images. 
+Au12_rmsd_mtd.inp

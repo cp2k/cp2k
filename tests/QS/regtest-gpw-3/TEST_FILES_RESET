@@ -840,3 +840,5 @@ CN-lowdin.inp
 H2O-ref-1.inp
 # bug fix ref cell 
 H2O-ref-2.inp
+# Numerics due to DBCSR images. 
+H2O-ata.inp
