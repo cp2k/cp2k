@@ -68,3 +68,7 @@ h2o-32_1.inp
 h2o-32_2.inp
 h2o-32_3.inp
 h2o-32_4.inp
+# Bug fix self term of dispersion energy
+ch2o-3.inp
+ch2o-r.inp
+MoS.inp
