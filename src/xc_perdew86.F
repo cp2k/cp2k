@@ -245,7 +245,8 @@ CONTAINS
   SUBROUTINE p86_u_1 ( rho, grho, rs, e_rho, e_ndrho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(OUT) :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout)       :: error
 
