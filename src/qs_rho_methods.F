@@ -21,7 +21,8 @@ MODULE qs_rho_methods
   USE f77_blas
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -85,9 +86,10 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_rebuild', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_rho_rebuild', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, i, my_basis_set_id, &
                                                 nspins, stat
     LOGICAL                                  :: failure, my_gapw_xc, &
@@ -102,8 +104,9 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-    NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
-    NULLIFY(sab_orb)
+    NULLIFY (pw_env,auxbas_pw_pool,matrix_s,dft_control)
+    NULLIFY (sab_orb)
+    NULLIFY (distribution_2d)
     CALL timeset(routineN,handle)
     failure=.FALSE.
     my_gapw_xc=.FALSE.
@@ -163,23 +166,32 @@ CONTAINS
     END IF
   
     ! rho_ao
-    IF(.NOT. my_gapw_xc) THEN
-      IF (my_rebuild_ao.OR..NOT.ASSOCIATED(rho%rho_ao)) THEN
+    IF (.NOT.my_gapw_xc) THEN
+      IF (my_rebuild_ao.OR.(.NOT.ASSOCIATED(rho%rho_ao))) THEN
          IF (.NOT.failure) THEN
             IF (ASSOCIATED(rho%rho_ao)) THEN
                CALL dbcsr_deallocate_matrix_set(rho%rho_ao,error=error)
             END IF
-            !
+            ! Create a new density matrix set
             CALL dbcsr_allocate_matrix_set(rho%rho_ao,nspins,error=error)
             DO i=1,nspins
                ALLOCATE(rho%rho_ao(i)%matrix)
+               IF (nspins > 1) THEN
+                  IF (i == 1) THEN
+                     headline = "DENSITY MATRIX FOR ALPHA SPIN"
+                  ELSE
+                     headline = "DENSITY MATRIX FOR BETA SPIN"
+                  END IF
+               ELSE
+                  headline = "DENSITY MATRIX"
+               END IF
                CALL cp_dbcsr_init(rho%rho_ao(i)%matrix, error=error)
-               CALL cp_dbcsr_create(matrix=rho%rho_ao(i)%matrix, &
-                    name="DENSITY_MATRIX_AUX_FIT_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))), &
-                    dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
+               CALL cp_dbcsr_create(matrix=rho%rho_ao(i)%matrix,&
+                    name=TRIM(headline),&
+                    dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric,&
                     row_blk_size=matrix_s(1)%matrix%m%row_blk_size,&
                     col_blk_size=matrix_s(1)%matrix%m%col_blk_size,&
-                    nblks=0, nze=0,mutable_work=.TRUE., &
+                    nblks=0, nze=0,mutable_work=.TRUE.,&
                     error=error)
                CALL cp_dbcsr_finalize(rho%rho_ao(i)%matrix,error=error)
                CALL dbcsr_alloc_block_from_nbl(rho%rho_ao(i)%matrix,sab_orb,error=error)

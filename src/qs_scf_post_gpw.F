@@ -2460,36 +2460,43 @@ CONTAINS
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw, error=error)
           CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_g%pw, error=error)
-       ENDIF
+       END IF
 
-       !    *** write the density matrix ***
+       ! Write the density matrices
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+                 "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
-               extension=".Log",error=error)
+                                    extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
              CALL dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
-                  para_env,output_unit=iw,error=error)
+                                            para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
-               "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
+                                            "DFT%PRINT%AO_MATRICES/DENSITY",&
+                                            error=error)
        END IF
 
-       !    **** the Kohn-Sham matrix itself
+       ! Write the Kohn-Sham matrices
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
-          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-               error=error,&
-               calculate_forces=.FALSE.,just_energy=.FALSE.)
+                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
+          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,error=error,&
+                                   calculate_forces=.FALSE.,just_energy=.FALSE.)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
-               extension=".Log",error=error)
-          CALL dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,para_env,output_unit=iw,error=error)
+                                    extension=".Log",error=error)
+          DO ispin=1,dft_control%nspins
+             CALL dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,&
+                                            para_env,output_unit=iw,error=error)
+          END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
-               "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
+                                            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+                                            error=error)
        END IF
+
     END IF
+
     CALL timestop(handle)
+
   END SUBROUTINE write_available_results
 
 END MODULE qs_scf_post_gpw

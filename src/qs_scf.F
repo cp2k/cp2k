@@ -108,7 +108,8 @@ MODULE qs_scf
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE particle_types,                  ONLY: particle_type
@@ -828,18 +829,19 @@ CONTAINS
              IF (scf_env%mixing_method>0) THEN
                 SELECT CASE(scf_env%mixing_method)
                 CASE(direct_mixing_nr)
-                  CALL scf_env_density_mixing(scf_env%p_mix_new,&
-                    scf_env%mixing_store, rho%rho_ao, para_env, scf_env%iter_delta, scf_env%iter_count, &
-                                   diis=diis_step, invert=.TRUE.,error=error)
+                  CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_store,&
+                                              rho%rho_ao,para_env,scf_env%iter_delta,&
+                                              scf_env%iter_count,diis=diis_step,&
+                                              invert=.TRUE.,error=error)
                   DO ispin=1,dft_control%nspins
                      CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                          error=error)
+                                        name=TRIM(rho%rho_ao(ispin)%matrix%m%name),error=error)
                   END DO
                 CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
-                      broyden_mixing_new_nr,multisecant_mixing_nr)
+                     broyden_mixing_new_nr,multisecant_mixing_nr)
                   DO ispin=1,dft_control%nspins
                      CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                          error=error)
+                                        name=TRIM(rho%rho_ao(ispin)%matrix%m%name),error=error)
                   END DO
                 END SELECT
              ENDIF
@@ -891,12 +893,12 @@ CONTAINS
                t1 = m_walltime()
 
           ! ** mixing methods have the new density matrix in p_mix_new **
-          IF (scf_env%mixing_method>0) THEN
+          IF (scf_env%mixing_method > 0) THEN
              DO ispin=1,dft_control%nspins
                 CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                     error=error)
-              END DO
-          ENDIF
+                                   name=TRIM(rho%rho_ao(ispin)%matrix%m%name),error=error)
+             END DO
+          END IF
 
           ! ** update qs_env%rho
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
@@ -2071,6 +2073,7 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_check_i_alloc', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, homo, ispin, &
                                                 mixing_method, nao, nhistory, &
                                                 nmo, nrow_block, nvariables, &
@@ -2333,19 +2336,26 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
 
 !   *** Allocate matrix_ks and put it in the QS environment ***
 
-    IF (.not.ASSOCIATED(matrix_ks)) THEN
+    IF (.NOT.ASSOCIATED(matrix_ks)) THEN
        CALL dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
        DO ispin=1,dft_control%nspins
           ALLOCATE(matrix_ks(ispin)%matrix)
           CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
-
-          CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix, &
-               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-               "KOHN-SHAM_MATRIX", &
-               dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
+          IF (dft_control%nspins > 1) THEN
+             IF (ispin == 1) THEN
+                headline="KOHN-SHAM MATRIX FOR ALPHA SPIN"
+             ELSE
+                headline="KOHN-SHAM MATRIX FOR BETA SPIN"
+             END IF
+          ELSE
+             headline="KOHN-SHAM MATRIX"
+          END IF
+          CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix,&
+               name=TRIM(headline)//" (SCF ENV "//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//")",&
+               dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric,&
                row_blk_size=matrix_s(1)%matrix%m%row_blk_size,&
                col_blk_size=matrix_s(1)%matrix%m%col_blk_size,&
-               nblks=0, nze=0, mutable_work=.TRUE., &
+               nblks=0, nze=0, mutable_work=.TRUE.,&
                error=error)
           CALL cp_dbcsr_finalize(matrix_ks(ispin)%matrix,error=error)
           ! for hfx we need to allocate the blocks

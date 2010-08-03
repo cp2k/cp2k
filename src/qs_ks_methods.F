@@ -918,10 +918,11 @@ CONTAINS
              END IF
           END IF
 
-          IF( .NOT.do_hfx ) THEN
-            ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
+          IF (.NOT.do_hfx) THEN
+             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
              DO ispin=1,nspins
-                CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+                CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
+                                   name=ks_matrix(ispin)%matrix%m%name,error=error)
              END DO
           END IF
 
