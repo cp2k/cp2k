@@ -867,13 +867,19 @@ CONTAINS
        blk_p = matrix%blk_p(blk)
        which_wm = ithread+1
        wblk_p = SIGN (wm(which_wm)%datasize+1, blk_p)
-       CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
        nze = dbcsr_data_get_size (data_block)
        IF (mt .OR. limit) THEN
+          ! The data gets copied block by block so the block pointers
+          ! are ordered accordingly.
+          CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
           CALL dbcsr_data_set (wm(which_wm)%data_area,&
                lb=ABS(wblk_p),&
                data_size=nze,&
                src=data_block, source_lb=1)
+       ELSE
+          ! The data gets copied all at once so the block pointers
+          ! should remain the same as they were.
+          CALL add_work_coordinate (wm(which_wm), row, col, blk_p, error=error)
        ENDIF
        wm(which_wm)%datasize = wm(which_wm)%datasize+nze
     ENDDO

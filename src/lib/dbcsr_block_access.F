@@ -724,8 +724,13 @@ CONTAINS
           ENDIF
        ENDIF
     ELSE
-       CALL dbcsr_data_set_pointer (pointer_any, rsize, csize,&
-            matrix%m%data_area, source_lb = base_offset)
+       IF (main_tr) THEN
+          CALL dbcsr_data_set_pointer (pointer_any, csize, rsize,&
+               matrix%m%data_area, source_lb = base_offset)
+       ELSE
+          CALL dbcsr_data_set_pointer (pointer_any, rsize, csize,&
+               matrix%m%data_area, source_lb = base_offset)
+       ENDIF
     ENDIF buffer_is_2d
     CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_set_block_pointer_any
