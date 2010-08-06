@@ -11,6 +11,7 @@
         &CLUSTERING
            METHOD BOX
         &END
+        BASIC_OPTIMIZATION T
       &END
     &END QS
     &SCF

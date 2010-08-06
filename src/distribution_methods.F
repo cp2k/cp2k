@@ -551,11 +551,13 @@ CONTAINS
                                      "nparticle_local_col",&
                                      nparticle_kind*int_size)
     IF(clustering) THEN
+       CALL cp_assert (skip_optimization .OR. basic_optimization,&
+            cp_fatal_level, cp_unimplemented_error_nr, routineN,&
+            "Clustering can only use basic or no distribution optimization.",&
+            error=error)
        CALL clustering_particles(clusters, clustering_section, cell, particle_kind_set, particle_set, error)
-       
-       ALLOCATE(cluster_row_dist(clusters%nclusters),cluster_col_dist(clusters%nclusters))
-       !
-       !IF(skip_optimization) THEN
+       IF (skip_optimization) THEN
+          ALLOCATE(cluster_row_dist(clusters%nclusters),cluster_col_dist(clusters%nclusters))
           DO icluster = 1,clusters%nclusters
              cluster_row_dist(icluster) = MOD(icluster,nprow)+1
              cluster_col_dist(icluster) = MOD(icluster,npcol)+1
@@ -565,14 +567,100 @@ CONTAINS
                 col_distribution(iatom) = cluster_col_dist(icluster) 
              ENDDO
           ENDDO
-       !ELSE
-       !   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       !ENDIF
-       !
-       ! so far nothing with the cluster...
-       DEALLOCATE(cluster_row_dist,cluster_col_dist)
-       CALL cluster_deallocate(clusters, error=error)
-
+          DEALLOCATE(cluster_row_dist,cluster_col_dist)
+       ELSEIF (basic_optimization) THEN
+          CALL cp_assert (.NOT. molecular_distribution, cp_warning_level,&
+               cp_caller_error, routineN, &
+               "Molecular distribution and basic optimization are incompatible.",&
+               error=error)
+          nclusters = clusters%nclusters
+          ALLOCATE (cluster_list (nclusters), stat=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+               "cluster_list",&
+               nclusters*int_size)
+          ALLOCATE (cluster_prices (nclusters), stat=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+               "cluster_prices",&
+               nclusters*int_size)
+          CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
+          ! Fill in the clusters and their prices
+!$omp parallel do default (none) &
+!$omp          private (icluster, iatom, ip, &
+!$omp                   orb_basis_set, lmax_basis, cluster_price) &
+!$omp          shared (natom, nclusters, clusters,&
+!$omp                  cluster_list, cluster_prices, particle_set, cost_model) &
+!$omp          shared (error)
+          DO icluster = 1, nclusters
+             CALL cp_assert (icluster .LE. nclusters, cp_fatal_level,&
+                  cp_internal_error, routineN, "Bounds error", error=error)
+             cluster_list(icluster) = icluster
+             SELECT CASE (cost_model)
+             CASE (model_block_count)
+                cluster_price = 1
+             CASE (model_block_lmax)
+                cluster_price = 0
+                DO ip = clusters%cluster_ptr(icluster),&
+                     clusters%cluster_ptr(icluster+1)-1
+                   iatom = clusters%particle_idx(ip)
+                   CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
+                        orb_basis_set=orb_basis_set)
+                   CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                   cluster_price = cluster_price + MAXVAL (lmax_basis)
+                ENDDO
+             CASE default
+                cluster_price = 0
+                DO ip = clusters%cluster_ptr(icluster),&
+                     clusters%cluster_ptr(icluster+1)-1
+                   iatom = clusters%particle_idx(ip)
+                   CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
+                        orb_basis_set=orb_basis_set)
+                   CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+                   cluster_price = cluster_price + 8 + MAXVAL (lmax_basis)
+                ENDDO
+             END SELECT
+             cluster_prices(icluster) = cluster_price
+          ENDDO
+          ! Create the cluster distribution.
+          ALLOCATE (cluster_row_dist(nclusters), stat=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+               "cluster_row_dist",&
+               nclusters*int_size)
+          ALLOCATE (cluster_col_dist(nclusters), stat=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+               "cluster_col_dist",&
+               nclusters*int_size)
+          CALL make_basic_distribution (cluster_list, cluster_prices,&
+               nprow, cluster_row_dist, npcol, cluster_col_dist, error=error)
+          DEALLOCATE (cluster_list, stat=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+               "cluster_list",&
+               nclusters*int_size)
+          DEALLOCATE (cluster_prices, stat=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+               "cluster_prices",&
+               nclusters*int_size)
+          ! Transfer the cluster distribution to the atoms.
+!$omp parallel do default (none) &
+!$omp          private (icluster, iatom, ip) &
+!$omp          shared (nclusters, clusters, row_distribution, col_distribution,&
+!$omp                  cluster_row_dist, cluster_col_dist)
+          DO icluster = 1, nclusters
+             DO ip = clusters%cluster_ptr(icluster),&
+                  clusters%cluster_ptr(icluster+1)-1
+                iatom = clusters%particle_idx(ip)
+                row_distribution(iatom) = cluster_row_dist(icluster)
+                col_distribution(iatom) = cluster_col_dist(icluster) 
+             ENDDO
+          ENDDO
+          DEALLOCATE (cluster_row_dist, stat=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+               "cluster_row_dist",&
+               nclusters*int_size)
+          DEALLOCATE (cluster_col_dist, stat=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+               "cluster_col_dist",&
+               nclusters*int_size)
+       ENDIF
     ELSEIF (skip_optimization) THEN ! just in case the optimization is to heavy to be performed
        imol = 0
        DO imolecule_kind=1,nmolecule_kind
@@ -597,7 +685,6 @@ CONTAINS
             cp_caller_error, routineN, &
             "Molecular distribution and basic optimization are incompatible.",&
             error=error)
-       ! Atoms or clusters
        nclusters = natom
        ALLOCATE (cluster_list (nclusters), stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -708,6 +795,11 @@ CONTAINS
        DEALLOCATE(row_ele)
        DEALLOCATE(col_ele)
     ENDIF
+
+    IF (clustering) THEN
+       CALL cluster_deallocate(clusters, error=error)
+    ENDIF
+
 
     ! prepare the lists of local particles
 
