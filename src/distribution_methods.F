@@ -42,8 +42,16 @@ MODULE distribution_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: int_size
   USE machine,                         ONLY: m_flush
+  USE mathlib,                         ONLY: gcd,&
+                                             lcm
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
+  USE min_heap,                        ONLY: heap_fill,&
+                                             heap_get_first,&
+                                             heap_new,&
+                                             heap_release,&
+                                             heap_reset_first,&
+                                             heap_t
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              get_molecule_kind_set,&
                                              molecule_kind_type
@@ -52,6 +60,7 @@ MODULE distribution_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -451,17 +460,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_2d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cost_model, group, handle, iatom, iatom_mol, icluster, imol, &
-      imolecule, imolecule_kind, ip, iparticle_kind, ipcol, iprow, istat, iw, &
-      kind_a, mypcol, myprow, n, natom, natom_mol, nele, nmolecule, &
-      nmolecule_kind, nparticle_kind, npcol, nprow, output_unit
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_ele, nparticle_local_col, &
-                                                nparticle_local_row, row_ele, &
-                                                work
+    INTEGER :: cluster_price, cost_model, group, handle, iatom, iatom_mol, &
+      icluster, imol, imolecule, imolecule_kind, ip, iparticle_kind, ipcol, &
+      iprow, istat, iw, kind_a, mypcol, myprow, n, natom, natom_mol, &
+      nclusters, nele, nmolecule, nmolecule_kind, nparticle_kind, npcol, &
+      nprow, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: cluster_list, cluster_prices, &
+      col_ele, nparticle_local_col, nparticle_local_row, row_ele, work
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_ele_pair
     INTEGER, DIMENSION(:), POINTER :: cluster_col_dist, cluster_row_dist, &
-      col_distribution, molecule_list, row_distribution
-    LOGICAL                                  :: clustering, failure, &
+      col_distribution, lmax_basis, molecule_list, row_distribution
+    LOGICAL                                  :: basic_optimization, &
+                                                clustering, failure, &
                                                 molecular_distribution, &
                                                 skip_optimization
     TYPE(cluster_type)                       :: clusters
@@ -469,6 +479,7 @@ CONTAINS
       POINTER                                :: local_particle_col, &
                                                 local_particle_row
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(section_vals_type), POINTER         :: clustering_section, &
                                                 distribution_section, &
@@ -488,6 +499,8 @@ CONTAINS
 
     CALL section_vals_val_get(distribution_section,"2D_MOLECULAR_DISTRIBUTION",l_val=molecular_distribution,error=error)
     CALL section_vals_val_get(distribution_section,"SKIP_OPTIMIZATION",l_val=skip_optimization,error=error)
+    CALL section_vals_val_get(distribution_section,"BASIC_OPTIMIZATION",&
+         l_val=basic_optimization,error=error)
 
     CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
     !
@@ -579,6 +592,59 @@ CONTAINS
              ENDDO
           ENDDO
        ENDDO
+    ELSEIF (basic_optimization) THEN
+       CALL cp_assert (.NOT. molecular_distribution, cp_warning_level,&
+            cp_caller_error, routineN, &
+            "Molecular distribution and basic optimization are incompatible.",&
+            error=error)
+       ! Atoms or clusters
+       nclusters = natom
+       ALLOCATE (cluster_list (nclusters), stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "cluster_list",&
+            nclusters*int_size)
+       ALLOCATE (cluster_prices (nclusters), stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "cluster_prices",&
+            nclusters*int_size)
+       CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
+       ! Fill in the clusters and their prices
+!$omp parallel do default (none) &
+!$omp          private (iatom, orb_basis_set, lmax_basis, cluster_price) &
+!$omp          shared (natom, nclusters, &
+!$omp                  cluster_list, cluster_prices, particle_set, cost_model) &
+!$omp          shared (error)
+       DO iatom = 1, natom
+          CALL cp_assert (iatom .LE. nclusters, cp_fatal_level,&
+               cp_internal_error, routineN, "Bounds error", error=error)
+          cluster_list(iatom) = iatom
+          SELECT CASE (cost_model)
+          CASE (model_block_count)
+             cluster_price = 1
+          CASE (model_block_lmax)
+             CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
+                  orb_basis_set=orb_basis_set)
+             CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+             cluster_price = MAXVAL (lmax_basis)
+          CASE default
+             CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
+                  orb_basis_set=orb_basis_set)
+             CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
+             cluster_price = 8 + MAXVAL (lmax_basis)
+          END SELECT
+          cluster_prices(iatom) = cluster_price
+       ENDDO
+       ! And distribute
+       CALL make_basic_distribution (cluster_list, cluster_prices,&
+            nprow, row_distribution, npcol, col_distribution, error=error)
+       DEALLOCATE (cluster_list, stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "cluster_list",&
+            nclusters*int_size)
+       DEALLOCATE (cluster_prices, stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "cluster_prices",&
+            nclusters*int_size)
     ELSE
        !
        ! this could be a lot of memory, even in QS case
@@ -950,5 +1016,75 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE distribute_2d_cost_model
+
+
+! *****************************************************************************
+!> \brief Creates a basic distribution
+!> \par History
+!> - Created 2010-08-06 UB
+! *****************************************************************************
+  SUBROUTINE make_basic_distribution (cluster_list, cluster_prices,&
+       nprows, row_distribution, npcols, col_distribution, error)
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: cluster_list, cluster_prices
+    INTEGER, INTENT(IN)                      :: nprows
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: row_distribution
+    INTEGER, INTENT(IN)                      :: npcols
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: col_distribution
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_basic_distribution', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: bin, bin_price, cluster, cluster_price, nbins, nclusters, &
+      pcol, pgrid_lcm, prow, timing_handle
+    LOGICAL                                  :: failure, found, heap_error
+    TYPE(heap_t)                             :: bin_heap
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset (routineN, timing_handle)
+    nbins = gcd (nprows, npcols)
+    pgrid_lcm = lcm (nprows, npcols)
+    CALL sort (cluster_prices, SIZE(cluster_list), cluster_list)
+    CALL heap_new (bin_heap, nbins, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+         routineN, "Error creating heap.", error=error)
+    CALL heap_fill (bin_heap,&
+         (/(bin,bin=0,nbins-1)/), (/(0, bin=1,nbins)/), heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+         routineN, "Error initially filling the heap.", error=error)
+    !
+    nclusters = SIZE (cluster_list)
+    ! Put the most expensive cluster in the bin with the smallest
+    ! price and repeat.
+    DO cluster = 1, nclusters
+       CALL heap_get_first (bin_heap, bin, bin_price, found, heap_error)
+       CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
+            routineN, "Error getting topmost heap element.", error=error)
+       CALL cp_assert (found, cp_fatal_level, cp_internal_error,&
+            routineN, "No topmost heap element found.", error=error)
+       !
+       failure = .FALSE.
+       prow = INT (bin*pgrid_lcm / npcols)
+       CALL cp_assert (prow .LT. nprows, cp_fatal_level, cp_internal_error,&
+            routineN, "Invalid process row.", failure=failure, error=error)
+       failure = .TRUE.
+       pcol = INT (bin*pgrid_lcm / nprows)
+       CALL cp_assert (pcol .LT. npcols, cp_fatal_level, cp_internal_error,&
+            routineN, "Invalid process column.", failure=failure, error=error)
+       row_distribution (cluster) = prow + 1
+       col_distribution (cluster) = pcol + 1
+       !
+       cluster_price = cluster_prices(cluster)
+       bin_price = bin_price + cluster_price
+       CALL heap_reset_first (bin_heap, bin_price, heap_error)
+       CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+            routineN, "Error setting price of top heap element.", error=error)
+    ENDDO
+    CALL heap_release (bin_heap, heap_error)
+    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
+         routineN, "Error releasing heap.", error=error)
+    CALL timestop (timing_handle)
+  END SUBROUTINE make_basic_distribution
 
 END MODULE distribution_methods

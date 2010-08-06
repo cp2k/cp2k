@@ -94,6 +94,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
 
+       CALL keyword_create(keyword, name="BASIC_OPTIMIZATION",&
+            description=&
+"Creates a distribution based on a few heuristics using only minimal memory "//&
+"and CPU time.",&
+            usage="BASIC_OPTIMIZATION TRUE",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
        CALL keyword_create(keyword, name="SYMMETRIC",&
             description="Take the symmetry of the distribution_2d into account.",&
             usage="SYMMETRIC TRUE",&

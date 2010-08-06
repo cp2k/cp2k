@@ -1147,7 +1147,7 @@ CONTAINS
 !> \date    16.10.1998
 !> \version 1.0
 ! *****************************************************************************
-  FUNCTION vector_product(a,b) RESULT(c)
+  PURE FUNCTION vector_product(a,b) RESULT(c)
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
     REAL(KIND=dp), DIMENSION(3)              :: c
 
@@ -1161,8 +1161,9 @@ CONTAINS
 !> \brief computes the greatest common divisor of two number
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  FUNCTION gcd(a,b)
-    INTEGER                                  :: a, b, gcd
+  ELEMENTAL FUNCTION gcd(a,b)
+    INTEGER, INTENT(IN)                      :: a, b
+    INTEGER                                  :: gcd
 
     INTEGER                                  :: aa, ab, l, rem, s
 
@@ -1192,8 +1193,9 @@ CONTAINS
 !> \brief computes the least common multiplier of two numbers
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  FUNCTION lcm(a,b)
-    INTEGER                                  :: a, b, lcm
+  ELEMENTAL FUNCTION lcm(a,b)
+    INTEGER, INTENT(IN)                      :: a, b
+    INTEGER                                  :: lcm
 
     INTEGER                                  :: tmp
 
