@@ -17,6 +17,10 @@ MODULE distribution_methods
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type
+  USE cluster_methods,                 ONLY: cluster_deallocate,&
+                                             clustering_particles
+  USE cluster_types,                   ONLY: cluster_type
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -426,11 +430,11 @@ CONTAINS
 !>      - update for molecules (Oct. 2003,MK)
 !> \author fawzi (Feb. 2003)
 ! *****************************************************************************
-  SUBROUTINE distribute_molecules_2d(particle_kind_set,particle_set,&
+  SUBROUTINE distribute_molecules_2d(cell, particle_kind_set,particle_set,&
                                      molecule_kind_set,molecule_set,&
                                      distribution_2d,blacs_env,force_env_section,&
                                      error)
-
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: particle_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -447,26 +451,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_2d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cost_model, group, handle, iatom, iatom_mol, imol, imolecule, &
-      imolecule_kind, iparticle_kind, ipcol, iprow, istat, iw, kind_a, &
-      mypcol, myprow, n, natom, natom_mol, nele, nmolecule, nmolecule_kind, &
-      nparticle_kind, npcol, nprow, output_unit
+    INTEGER :: cost_model, group, handle, iatom, iatom_mol, icluster, imol, &
+      imolecule, imolecule_kind, ip, iparticle_kind, ipcol, iprow, istat, iw, &
+      kind_a, mypcol, myprow, n, natom, natom_mol, nele, nmolecule, &
+      nmolecule_kind, nparticle_kind, npcol, nprow, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_ele, nparticle_local_col, &
                                                 nparticle_local_row, row_ele, &
                                                 work
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_ele_pair
-    INTEGER, DIMENSION(:), POINTER           :: col_distribution, &
-                                                molecule_list, &
-                                                row_distribution
-    LOGICAL                                  :: molecular_distribution, &
+    INTEGER, DIMENSION(:), POINTER :: cluster_col_dist, cluster_row_dist, &
+      col_distribution, molecule_list, row_distribution
+    LOGICAL                                  :: clustering, failure, &
+                                                molecular_distribution, &
                                                 skip_optimization
+    TYPE(cluster_type)                       :: clusters
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
       POINTER                                :: local_particle_col, &
                                                 local_particle_row
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(section_vals_type), POINTER         :: distribution_section, &
+    TYPE(section_vals_type), POINTER         :: clustering_section, &
+                                                distribution_section, &
                                                 mc_section
+
+!...
+
+    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -474,10 +484,15 @@ CONTAINS
 
     distribution_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DISTRIBUTION",error=error)
     mc_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DISTRIBUTION%2D_MC",error=error)
+    clustering_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DISTRIBUTION%CLUSTERING",error=error)
+
     CALL section_vals_val_get(distribution_section,"2D_MOLECULAR_DISTRIBUTION",l_val=molecular_distribution,error=error)
     CALL section_vals_val_get(distribution_section,"SKIP_OPTIMIZATION",l_val=skip_optimization,error=error)
 
     CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
+    !
+    ! clustering
+    CALL section_vals_val_get(distribution_section,"CLUSTERING%_SECTION_PARAMETERS_",l_val=clustering,error=error)
 
     group = blacs_env%para_env%group
     myprow = blacs_env%mepos(1) + 1
@@ -522,8 +537,30 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_col",&
                                      nparticle_kind*int_size)
+    IF(clustering) THEN
+       CALL clustering_particles(clusters, clustering_section, cell, particle_kind_set, particle_set, error)
+       
+       ALLOCATE(cluster_row_dist(clusters%nclusters),cluster_col_dist(clusters%nclusters))
+       !
+       !IF(skip_optimization) THEN
+          DO icluster = 1,clusters%nclusters
+             cluster_row_dist(icluster) = MOD(icluster,nprow)+1
+             cluster_col_dist(icluster) = MOD(icluster,npcol)+1
+             DO ip = clusters%cluster_ptr(icluster),clusters%cluster_ptr(icluster+1)-1
+                iatom = clusters%particle_idx(ip)
+                row_distribution(iatom) = cluster_row_dist(icluster)
+                col_distribution(iatom) = cluster_col_dist(icluster) 
+             ENDDO
+          ENDDO
+       !ELSE
+       !   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       !ENDIF
+       !
+       ! so far nothing with the cluster...
+       DEALLOCATE(cluster_row_dist,cluster_col_dist)
+       CALL cluster_deallocate(clusters, error=error)
 
-    IF (skip_optimization) THEN ! just in case the optimization is to heavy to be performed
+    ELSEIF (skip_optimization) THEN ! just in case the optimization is to heavy to be performed
        imol = 0
        DO imolecule_kind=1,nmolecule_kind
           molecule_kind => molecule_kind_set(imolecule_kind)

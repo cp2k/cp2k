@@ -105,8 +105,74 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_clustering_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_distribution_section
+
+
+! *****************************************************************************
+!> \brief provides options for the clustering
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author VW
+! *****************************************************************************
+  SUBROUTINE create_clustering_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_clustering_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="CLUSTERING",&
+            description="provides parameters for the clustering",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the clustering",&
+            usage="&CLUSTERING T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="METHOD",&
+            description="The clustering method ",&
+            usage="METHOD BOX",&
+            enum_c_vals=s2a("NONE","BOX"),&
+            enum_i_vals=(/clustering_none, clustering_box/),&
+            enum_desc=s2a("none",&
+                          "based on boxes"), &
+            default_i_val=clustering_none,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="Controls the printing of basic information during the run", &
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+
+  END SUBROUTINE create_clustering_section
 
 ! *****************************************************************************
 !> \brief provides options for the distribute_2d_monte_carlo

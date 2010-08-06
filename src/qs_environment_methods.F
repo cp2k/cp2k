@@ -187,7 +187,8 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
        ! create 2d distribution
 
-       CALL distribute_molecules_2d(particle_kind_set=atomic_kind_set,&
+       CALL distribute_molecules_2d(cell=qs_env%cell,&
+                                    particle_kind_set=atomic_kind_set,&
                                     particle_set=particle_set,&
                                     molecule_kind_set=molecule_kind_set,&
                                     molecule_set=molecule_set,&

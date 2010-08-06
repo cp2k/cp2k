@@ -417,7 +417,8 @@ MODULE input_constants
                                               ot_precond_full_all=5,&
                                               ot_precond_full_single_inverse=6,&
                                               ot_precond_sparse_kinetic=7,&
-                                              ot_precond_sparse_kinetic_sainv=8
+                                              ot_precond_sparse_kinetic_sainv=8,&
+                                              ot_precond_sparse_inverse=9
   INTEGER, PARAMETER, PUBLIC               :: ot_precond_solver_default=1,&
                                               ot_precond_solver_inv_chol=2,&
                                               ot_precond_solver_direct=3,&
@@ -717,6 +718,10 @@ MODULE input_constants
   ! optimization targets for distribution 2d
   INTEGER, PARAMETER, PUBLIC               :: opt_target_minimum=456, &
                                               opt_target_median=457
+
+  ! clustering methods
+  INTEGER, PARAMETER, PUBLIC               :: clustering_none=0, &
+                                              clustering_box=1
 
   ! HFX potential type
   INTEGER, PARAMETER, PUBLIC               :: do_hfx_potential_coulomb=1,&

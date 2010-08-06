@@ -53,6 +53,8 @@ OBJECTS_GENERIC =\
  cg_optimizer.o\
  cg_utils.o\
  cg_test.o\
+ cluster_methods.o\
+ cluster_types.o\
  colvar_methods.o\
  colvar_types.o\
  colvar_utils.o\
