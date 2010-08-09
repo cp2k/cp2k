@@ -17,14 +17,14 @@ MODULE rt_propagation_methods
                                              cp_cfm_release,&
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_add,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
-                                             cp_dbcsr_init,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+                                             cp_dbcsr_init
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_upper_to_full
@@ -117,10 +117,10 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i
     LOGICAL                                  :: my_force
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, exp_H_new
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -387,12 +387,12 @@ CONTAINS
     INTEGER                                  :: handle, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: SinvH
     TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &
                                                 tmp_mat_H
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(rt_prop_type), POINTER              :: rtp
 
     failure=.FALSE.
@@ -451,8 +451,8 @@ CONTAINS
 
   SUBROUTINE s_matrices_create (s_mat,rtp,diagonalize,error)
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: s_mat
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp
     LOGICAL                                  :: diagonalize
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -572,8 +572,8 @@ CONTAINS
     CALL qs_rho_update_rho(rho, qs_env, error=error)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
-    CALL dbcsr_deallocate_matrix(tmp_rho_re,error)
-    CALL dbcsr_deallocate_matrix(tmp_rho_im,error)
+    CALL cp_dbcsr_deallocate_matrix(tmp_rho_re,error)
+    CALL cp_dbcsr_deallocate_matrix(tmp_rho_im,error)
 
     CALL timestop(handle)
 
@@ -595,9 +595,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(section_vals_type), POINTER         :: input
@@ -619,7 +619,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,matrix_s=matrix_s,ks_env=ks_env,error=error)
     
     IF (.NOT.ASSOCIATED(matrix_ks)) THEN
-       CALL dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
+       CALL cp_dbcsr_allocate_matrix_set(matrix_ks, dft_control%nspins, error)
        DO ispin=1,dft_control%nspins
           ALLOCATE(matrix_ks(ispin)%matrix)
           CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
@@ -658,6 +658,8 @@ CONTAINS
                                                 naspc, ncol_local, nmat
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_cfm_type), POINTER               :: cfm_tmp, cfm_tmp1, csc
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s, s_hist
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, mos_new
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -665,8 +667,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: fm_tmp, fm_tmp1, fm_tmp2
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, s_hist
 
     CALL timeset(routineN,handle)
     NULLIFY(exp_hist)
@@ -772,7 +772,7 @@ CONTAINS
                 fm_tmp%local_data(:,icol_local+ncol_local)=mos_new(2*i)%matrix%local_data(:,icol_local)
              END DO
 
-             CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,fm_tmp,fm_tmp1,kdbl,error=error)
+             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,fm_tmp,fm_tmp1,kdbl,error=error)
 
              DO icol_local=1,ncol_local
                 cfm_tmp%local_data(:,icol_local)=CMPLX(fm_tmp1%local_data(:,icol_local),&
@@ -810,8 +810,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos, exp_H
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: s_mat
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: s_mat
     INTEGER                                  :: ihist
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -841,7 +841,7 @@ CONTAINS
    IF(PRESENT(s_mat))THEN
        IF (ASSOCIATED(rtp%history%s_history(ihist)%matrix)) THEN ! the sparsity might be different
           ! (future struct:check)
-          CALL dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
+          CALL cp_dbcsr_deallocate_matrix(rtp%history%s_history(ihist)%matrix,error=error)
        END IF
        ALLOCATE(rtp%history%s_history(ihist)%matrix)
        CALL cp_dbcsr_init(rtp%history%s_history(ihist)%matrix,error=error)

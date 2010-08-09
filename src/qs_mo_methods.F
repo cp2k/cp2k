@@ -12,13 +12,16 @@
 MODULE qs_mo_methods
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
-  USE cp_dbcsr_diag,                   ONLY: dbcsr_syevd,&
-                                             dbcsr_syevx
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_finalize, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, &
-       cp_dbcsr_set, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
+  USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd,&
+                                             cp_dbcsr_syevx
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init, &
+       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, &
+       cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_syrk,&
@@ -112,7 +115,7 @@ CONTAINS
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
 
     CALL cp_fm_create(svmatrix,vmatrix%matrix_struct,"SV",error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_s,vmatrix,svmatrix,ncol,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s,vmatrix,svmatrix,ncol,error=error)
 
     NULLIFY(fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
@@ -321,7 +324,7 @@ CONTAINS
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
 
     CALL cp_fm_create(sc,vmatrix%matrix_struct,"SC",error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_s,vmatrix,sc,ncol,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s,vmatrix,sc,ncol,error=error)
 
     NULLIFY(fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
@@ -477,7 +480,7 @@ CONTAINS
           CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp,error=error)
           CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
           alpha=1.0_dp
-          CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
+          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
                                   matrix_v=mo_set%mo_coeff,&
                                   matrix_g=fm_tmp,&
                                   ncol=mo_set%homo,&
@@ -491,7 +494,7 @@ CONTAINS
                last_k = mo_set%homo, error=error)
        ELSE
           alpha=mo_set%maxocc
-          CALL dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
+          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=density_matrix,&
                                   matrix_v=mo_set%mo_coeff,&
                                   ncol=mo_set%homo,&
                                   alpha=alpha,error=error)
@@ -579,7 +582,7 @@ CONTAINS
         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
         ! h subblock and diag
-        CALL dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
+        CALL cp_dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
 
         CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
                         orbitals,weighted_vectors,0.0_dp,h_block,error=error)
@@ -744,7 +747,7 @@ CONTAINS
         ! h subblock and diag
         CALL cp_dbcsr_multiply('N','N',1.0_dp,ks_matrix,orbitals,&
              0.0_dp,weighted_vectors,last_column=ncol_global,error=error)
-        !CALL dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
+        !CALL cp_dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
 
         CALL cp_dbcsr_multiply('T','N',1.0_dp,orbitals,weighted_vectors,0.0_dp,h_block,error=error)
         !CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
@@ -752,9 +755,9 @@ CONTAINS
 
         ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
         IF (compute_evecs) THEN
-           CALL dbcsr_syevd(h_block,e_vectors,evals,para_env=para_env,blacs_env=blacs_env,error=error)
+           CALL cp_dbcsr_syevd(h_block,e_vectors,evals,para_env=para_env,blacs_env=blacs_env,error=error)
         ELSE
-           CALL dbcsr_syevx(h_block,eigenvalues=evals,para_env=para_env,blacs_env=blacs_env,error=error)
+           CALL cp_dbcsr_syevx(h_block,eigenvalues=evals,para_env=para_env,blacs_env=blacs_env,error=error)
         ENDIF
 
         ! rotate the orbitals
@@ -851,7 +854,7 @@ CONTAINS
         CALL cp_fm_create(svec,mo_array(ispin)%mo_set%mo_coeff%matrix_struct,error=error)
         CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
              nrow_global=n,ncol_global=k,error=error)
-        CALL dbcsr_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%mo_coeff,&
+        CALL cp_dbcsr_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%mo_coeff,&
              svec,k,error=error)
         ! get C^T (S*C)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &

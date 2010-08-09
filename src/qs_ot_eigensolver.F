@@ -11,13 +11,16 @@
 MODULE qs_ot_eigensolver
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
-  USE cp_dbcsr_cholesky,               ONLY: dbcsr_cholesky_decompose,&
-                                             dbcsr_cholesky_invert
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_finalize, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
-       dbcsr_copy_columns_hack, dbcsr_obj_p_type
+  USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
+                                             cp_dbcsr_cholesky_invert
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_trace
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             cp_dbcsr_copy_columns_hack
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution
@@ -92,12 +95,12 @@ CONTAINS
     REAL(KIND=dp)                            :: delta, energy
     TYPE(array_i1d_obj) :: col_blk_size, col_blk_size_o, col_dist, &
       col_dist_o, row_blk_size, row_blk_size_o, row_dist, row_dist_o
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_hc
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj)             :: dist, dist_o_o
     TYPE(dbcsr_obj), POINTER :: matrix_buf1_ortho, matrix_buf2_ortho, &
       matrix_c, matrix_orthogonal_space, matrix_os_ortho, matrix_s_ortho
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_hc
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     CALL timeset(routineN,handle)
@@ -241,9 +244,9 @@ CONTAINS
               rzero,matrix_os_ortho,last_row=ortho_space_k,last_column=ortho_space_k,&
               last_k=n,error=error)
 
-          CALL dbcsr_cholesky_decompose(matrix_os_ortho,&
+          CALL cp_dbcsr_cholesky_decompose(matrix_os_ortho,&
                para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,error=error)
-          CALL dbcsr_cholesky_invert(matrix_os_ortho,&
+          CALL cp_dbcsr_cholesky_invert(matrix_os_ortho,&
                para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,&
                upper_to_full=.TRUE.,error=error)
 
@@ -268,10 +271,10 @@ CONTAINS
 
           ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
           !CALL cp_dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_s_ortho,ortho_space_k,1,1,error=error)
-          CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0,matrix_s_ortho,ortho_space_k,1,1,&
+          CALL cp_dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0,matrix_s_ortho,ortho_space_k,1,1,&
                para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,error=error)
           !CALL cp_dbcsr_copy_columns(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1,error=error)
-          CALL dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1,&
+          CALL cp_dbcsr_copy_columns_hack(qs_ot_env(1)%matrix_sc0,matrix_c,k,1,ortho_space_k+1,&
                para_env=qs_ot_env(1)%para_env,blacs_env=qs_ot_env(1)%blacs_env,error=error)
 
           CALL cp_dbcsr_release_p(matrix_buf1_ortho, error=error)

@@ -14,13 +14,13 @@ MODULE qs_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -121,14 +121,14 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, &
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s, &
                                                 matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb, &
                                                 matrix_w, mo_derivs
+    TYPE(cp_fm_type), POINTER                :: dp_imag, mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -244,7 +244,7 @@ CONTAINS
 
           nspin = SIZE(mos)
 
-          CALL dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
+          CALL cp_dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
 
           DO ispin=1,nspin
              ALLOCATE(matrix_w(ispin)%matrix)
@@ -283,7 +283,7 @@ CONTAINS
                   qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
                 iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
                      extension=".Log",error=error)
-                CALL dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+                CALL cp_dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
                 CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                      "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
              END IF
@@ -294,7 +294,7 @@ CONTAINS
     ELSE
        nspin = SIZE(mos)
        
-       CALL dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
 
 
        DO ispin=1,nspin
@@ -493,7 +493,7 @@ CONTAINS
        END DO
     END IF
 
-    CALL dbcsr_deallocate_matrix_set(matrix_w,error=error)
+    CALL cp_dbcsr_deallocate_matrix_set(matrix_w,error=error)
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=istat)

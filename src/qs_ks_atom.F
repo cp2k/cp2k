@@ -14,7 +14,7 @@ MODULE qs_ks_atom
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -80,8 +80,8 @@ CONTAINS
   SUBROUTINE update_ks_atom(qs_env,ks,p,forces,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: ks, p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), INTENT(INOUT)            :: ks, p
     LOGICAL, INTENT(IN)                      :: forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env

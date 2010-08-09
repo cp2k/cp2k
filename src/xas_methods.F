@@ -26,10 +26,16 @@ MODULE xas_methods
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, &
-       cp_dbcsr_set, dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
-       dbcsr_dist2d_to_dist, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_alloc_block_from_nbl,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_dist2d_to_dist,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -176,14 +182,14 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, op_sm, ostrength_sm
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: groundstate_coeff
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
                                                 mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, op_sm, ostrength_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -602,12 +608,12 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -842,7 +848,7 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
   
       IF(xas_control%dipole_form==xas_dip_len2) THEN
-        CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
+        CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
         DO i = 1,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
            CALL cp_dbcsr_init(xas_env%ostrength_sm(i)%matrix,error=error)
@@ -862,7 +868,7 @@ CONTAINS
          CALL get_particle_set(particle_set=particle_set,&
               first_sgf=first_sgf,&
               last_sgf=last_sgf,error=error)
-         CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+         CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
          ALLOCATE (rbs(natom), STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -874,7 +880,7 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          !
          !
-         CALL dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
+         CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3,error=error)
          ALLOCATE(xas_env%ostrength_sm(1)%matrix)
          CALL cp_dbcsr_init(xas_env%ostrength_sm(1)%matrix,error=error)
          CALL cp_dbcsr_create(matrix=xas_env%ostrength_sm(1)%matrix, &
@@ -883,7 +889,7 @@ CONTAINS
               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
               nblks=0, nze=0, mutable_work=.TRUE., &
               error=error)
-         CALL dbcsr_alloc_block_from_nbl(xas_env%ostrength_sm(1)%matrix,sab_orb,error=error)
+         CALL cp_dbcsr_alloc_block_from_nbl(xas_env%ostrength_sm(1)%matrix,sab_orb,error=error)
          CALL cp_dbcsr_set(xas_env%ostrength_sm(1)%matrix,0.0_dp,error=error)
          DO i = 2,3
            ALLOCATE(xas_env%ostrength_sm(i)%matrix)
@@ -1057,13 +1063,13 @@ CONTAINS
     REAL(dp)                                 :: rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
     REAL(dp), DIMENSION(:, :), POINTER       :: sp_ab, sp_em
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: op_sm, ostrength_sm
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: dip_fm_set
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
                                                 fm_work
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op_sm, ostrength_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -1329,7 +1335,7 @@ CONTAINS
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(dbcsr_obj_p_type), &
+    TYPE(cp_dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1367,7 +1373,7 @@ CONTAINS
            CPPrecondition(ASSOCIATED(fm_set(j,i)%matrix),cp_failure_level,routineP,error,failure)
            CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp, error=error)
            CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-           CALL dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
+           CALL cp_dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
            CALL cp_fm_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
                   fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=1,error=error)
         END DO
@@ -1432,8 +1438,8 @@ CONTAINS
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op_sm
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
@@ -1467,7 +1473,7 @@ CONTAINS
          CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-         CALL dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
+         CALL cp_dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
          CALL cp_fm_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
       END DO

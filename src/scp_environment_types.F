@@ -9,7 +9,7 @@
 MODULE scp_environment_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -346,10 +346,10 @@ SUBROUTINE scp_env_release(scp_env,error)
            CALL distribution_2d_release(scp_env%distribution_2d,error=error)
         ENDIF
         IF (ASSOCIATED(scp_env%pscp)) THEN
-           CALL dbcsr_deallocate_matrix ( scp_env%pscp, error )
+           CALL cp_dbcsr_deallocate_matrix ( scp_env%pscp, error )
         ENDIF
         IF (ASSOCIATED(scp_env%ks_scp)) THEN
-           CALL dbcsr_deallocate_matrix ( scp_env%ks_scp, error )
+           CALL cp_dbcsr_deallocate_matrix ( scp_env%ks_scp, error )
         ENDIF
         IF (ASSOCIATED(scp_env%ascp_diag)) THEN
            DEALLOCATE ( scp_env%ascp_diag, stat=stat)

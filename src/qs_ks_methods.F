@@ -28,13 +28,18 @@ MODULE qs_ks_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_copy, &
-       cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
-       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, &
-       dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_filter, cp_dbcsr_init, &
+       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release_p, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD,&
                                              qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -285,8 +290,8 @@ CONTAINS
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -318,6 +323,10 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_dv, matrix_h, &
+                                                matrix_p, matrix_p_aux_fit, &
+                                                matrix_s, mo_derivs, my_rho
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_aux_fit, &
                                                 mo_derivs_tmp
@@ -325,10 +334,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_dv, matrix_h, &
-                                                matrix_p, matrix_p_aux_fit, &
-                                                matrix_s, mo_derivs, my_rho
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1649,10 +1654,10 @@ CONTAINS
     REAL(KIND=dp)                            :: exc, total_rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h, matrix_p, mo_derivs
     TYPE(dbcsr_obj), POINTER                 :: dbcsr_deriv, fm_deriv, &
                                                 fm_scaled, mo_coeff
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, mo_derivs
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1723,7 +1728,7 @@ CONTAINS
     ! density matrices, kohn-sham matrices
 
     NULLIFY(matrix_p)
-    CALL dbcsr_allocate_matrix_set(matrix_p,Nspin,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_p,Nspin,error=error)
     DO ispin=1,Nspin
        ALLOCATE(matrix_p(ispin)%matrix)
        CALL cp_dbcsr_init(matrix_p(ispin)%matrix, error=error)
@@ -1733,7 +1738,7 @@ CONTAINS
     ENDDO
 
     NULLIFY(matrix_h)
-    CALL dbcsr_allocate_matrix_set(matrix_h,Nspin,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_h,Nspin,error=error)
     DO ispin=1,Nspin
        ALLOCATE(matrix_h(ispin)%matrix)
        CALL cp_dbcsr_init(matrix_h(ispin)%matrix, error=error)
@@ -1790,7 +1795,7 @@ CONTAINS
           CALL cp_dbcsr_copy(fm_scaled,mo_coeff,error=error)
           !CALL cp_fm_column_scale(fm_scaled,scaling)
           CALL cp_dbcsr_scale_by_vector(fm_scaled,scaling,side='right',error=error)
-          !CALL dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p(ispin)%matrix,&
+          !CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p(ispin)%matrix,&
           !                     matrix_v=mo_coeff, matrix_g=fm_scaled,&
           !                     ncol=k_alpha,error=error)
           CALL cp_dbcsr_multiply('n','t',1.0_dp,mo_coeff,fm_scaled,&
@@ -1849,8 +1854,8 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g(ispin)%pw,error=error)
     ENDDO
     DEALLOCATE(rho_r,rho_g)
-    CALL dbcsr_deallocate_matrix_set(matrix_p,error=error)
-    CALL dbcsr_deallocate_matrix_set(matrix_h,error=error)
+    CALL cp_dbcsr_deallocate_matrix_set(matrix_p,error=error)
+    CALL cp_dbcsr_deallocate_matrix_set(matrix_h,error=error)
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,work_v_rspace%pw,error=error)
 
@@ -1889,14 +1894,14 @@ CONTAINS
     LOGICAL                                  :: failure, uniform_occupation
     REAL(KIND=dp)                            :: ener, exc, total_rho
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type)                :: orb_density_matrix_p, orb_h_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: mo_derivs, tmp_dbcsr
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_local
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_hv, matrix_v, mo_coeff
     TYPE(dbcsr_obj), POINTER                 :: orb_density_matrix, orb_h
-    TYPE(dbcsr_obj_p_type)                   :: orb_density_matrix_p, orb_h_p
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs, tmp_dbcsr
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1940,7 +1945,7 @@ CONTAINS
     CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
     NULLIFY (tmp_dbcsr)
-    CALL dbcsr_allocate_matrix_set(tmp_dbcsr,SIZE(mo_derivs,1),error=error)
+    CALL cp_dbcsr_allocate_matrix_set(tmp_dbcsr,SIZE(mo_derivs,1),error=error)
     DO i=1,SIZE(mo_derivs,1)!fm->dbcsr
        !
        NULLIFY(tmp_dbcsr(i)%matrix)
@@ -2093,7 +2098,7 @@ CONTAINS
 
        ! construct the density matrix and the corresponding density
        CALL cp_dbcsr_set(orb_density_matrix,0.0_dp,error=error)
-       CALL dbcsr_plus_fm_fm_t(orb_density_matrix,matrix_v=matrix_v,ncol=1,&
+       CALL cp_dbcsr_plus_fm_fm_t(orb_density_matrix,matrix_v=matrix_v,ncol=1,&
                                   alpha=1.0_dp,error=error)
 
        CALL calculate_rho_elec(matrix_p=orb_density_matrix,&
@@ -2133,7 +2138,7 @@ CONTAINS
                                    qs_env=qs_env,calculate_forces=calculate_forces,error=error) 
 
            ! add this to the mo_derivs
-           CALL dbcsr_sm_fm_multiply(orb_h,matrix_v,matrix_hv, 1, error=error)
+           CALL cp_dbcsr_sm_fm_multiply(orb_h,matrix_v,matrix_hv, 1, error=error)
            ! silly trick, copy to an array of the right size and add to mo_derivs
            CALL cp_fm_set_all(mo_derivs_local(sic_orbital_list(3,iorb))%matrix,0.0_dp,error=error)
            CALL cp_fm_to_fm(matrix_hv,mo_derivs_local(sic_orbital_list(3,iorb))%matrix,1,1,sic_orbital_list(2,iorb))
@@ -2158,8 +2163,8 @@ CONTAINS
     CALL pw_pool_give_back_pw(auxbas_pw_pool,work_v_gspace%pw,error=error)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,work_v_rspace%pw,error=error)
 
-    CALL dbcsr_deallocate_matrix(orb_density_matrix,error=error)
-    CALL dbcsr_deallocate_matrix(orb_h,error=error)
+    CALL cp_dbcsr_deallocate_matrix(orb_density_matrix,error=error)
+    CALL cp_dbcsr_deallocate_matrix(orb_h,error=error)
     CALL cp_fm_release(matrix_v,error)
     CALL cp_fm_release(matrix_hv,error)
     DO I=1,SIZE(mo_derivs_local,1)
@@ -2169,7 +2174,7 @@ CONTAINS
     DEALLOCATE(rho_r)
     DEALLOCATE(rho_g)
 
-    CALL dbcsr_deallocate_matrix_set(tmp_dbcsr,error=error)!fm->dbcsr                                                           
+    CALL cp_dbcsr_deallocate_matrix_set(tmp_dbcsr,error=error)!fm->dbcsr                                                           
 
     CALL timestop(handle)
 
@@ -2478,10 +2483,10 @@ CONTAINS
     LOGICAL                                  :: c_forces, did_update, &
                                                 energy_only, failure
     REAL(KIND=dp)                            :: ecore
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h, matrix_ks
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm_set
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -3254,7 +3259,7 @@ CONTAINS
     CALL cp_fm_column_scale(weighted_vectors,eigocc)
     DEALLOCATE(eigocc)
 
-    CALL dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix,&
+    CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix,&
                             matrix_v=mo_set%mo_coeff,&
                             matrix_g=weighted_vectors,&
                             ncol=mo_set%homo,error=error)
@@ -3342,14 +3347,14 @@ CONTAINS
                     mo_set%mo_coeff,h_block,0.0_dp,weighted_vectors,error=error)
 
     CALL cp_dbcsr_set(w_matrix,0.0_dp,error=error)
-    CALL dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix,&
+    CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix,&
                             matrix_v=mo_set%mo_coeff,&
                             matrix_g=weighted_vectors,&
                             ncol=mo_set%homo,error=error)
 
     IF (check_gradient) THEN
        CALL cp_fm_create(gradient,mo_set%mo_coeff%matrix_struct,"gradient",error=error)
-       CALL dbcsr_sm_fm_multiply(s_matrix,weighted_vectors,&
+       CALL cp_dbcsr_sm_fm_multiply(s_matrix,weighted_vectors,&
                                  gradient, ncol_global,error=error)
 
        ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)

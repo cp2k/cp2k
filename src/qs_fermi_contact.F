@@ -19,8 +19,8 @@ MODULE qs_fermi_contact
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -70,8 +70,8 @@ CONTAINS
   SUBROUTINE build_fermi_contact_matrix(qs_env,matrix_fc,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_fc
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_fc
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -334,7 +334,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(matrix_fc(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_fc(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/FERMI_CONTACT", error=error)
     END IF

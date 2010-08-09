@@ -11,8 +11,8 @@
 ! *****************************************************************************
 MODULE harris_functional
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_trace,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE harris_energy_types,             ONLY: harris_energy_type
@@ -309,9 +309,9 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(qs_rho_type), POINTER               :: rho
@@ -376,9 +376,9 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_energy_type), POINTER        :: harris_energy
 

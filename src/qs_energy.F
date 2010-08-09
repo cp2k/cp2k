@@ -13,7 +13,7 @@ MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -134,10 +134,10 @@ CONTAINS
 
     INTEGER                                  :: handle, nder
     LOGICAL                                  :: do_et, my_calc_forces
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux_fit, &
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -300,11 +300,11 @@ CONTAINS
     INTEGER                                  :: aspc_order, handle, i, ihist
     LOGICAL                                  :: diagonalize
     REAL(Kind=dp)                            :: delta_iter, eps_ener
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 mos_new, mos_old
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)

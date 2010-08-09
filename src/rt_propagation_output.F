@@ -12,8 +12,8 @@ MODULE rt_propagation_output
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
@@ -70,11 +70,11 @@ CONTAINS
     REAL(dp)                                 :: orthonormality, tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
@@ -199,9 +199,9 @@ CONTAINS
       CALL cp_fm_create(svec_im,mos_new(2*ispin)%matrix%matrix_struct,error=error)
       CALL cp_fm_get_info(mos_new(2*ispin)%matrix,&
            nrow_global=n,ncol_global=k,error=error)
-      CALL dbcsr_sm_fm_multiply(matrix_s,mos_new(re_part)%matrix,&
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s,mos_new(re_part)%matrix,&
            svec_re,k,error=error)
-      CALL dbcsr_sm_fm_multiply(matrix_s,mos_new(im_part)%matrix,&
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s,mos_new(im_part)%matrix,&
            svec_im,k,error=error)
 
       ! get C^T (S*C)
@@ -265,12 +265,12 @@ CONTAINS
                                                 newdim, nmo, nspin, re_part
     LOGICAL                                  :: double_col, double_row
     REAL(KIND=dp)                            :: alpha, max_alpha
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrixv_s
     TYPE(cp_fm_struct_type), POINTER         :: newstruct, newstruct1, &
                                                 tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: work, work1, work2
     TYPE(dbcsr_obj), POINTER                 :: matrix_s
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrixv_s
     TYPE(rt_prop_type), POINTER              :: rtp
 
    NULLIFY(tmp_fm_struct)
@@ -313,7 +313,7 @@ CONTAINS
       END DO
       
 
-      CALL dbcsr_sm_fm_multiply(matrix_s, work, work1, ncol=newdim, error=error)
+      CALL cp_dbcsr_sm_fm_multiply(matrix_s, work, work1, ncol=newdim, error=error)
 
       CALL cp_fm_release(work,error)
 

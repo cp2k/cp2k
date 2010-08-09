@@ -28,10 +28,15 @@ MODULE qs_moments
                                              cp_cfm_p_type,&
                                              cp_cfm_release
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_trace, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
-       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_trace
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
@@ -90,8 +95,8 @@ CONTAINS
   SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,ref_points,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: moments
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: moments
     INTEGER, INTENT(IN)                      :: nmoments
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: ref_point
@@ -125,8 +130,8 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mint
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -148,7 +153,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
 
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
-    CALL dbcsr_allocate_matrix_set ( moments, nm ,error=error)
+    CALL cp_dbcsr_allocate_matrix_set ( moments, nm ,error=error)
 
     DO i=1,nm
        ALLOCATE(moments(i)%matrix)
@@ -611,6 +616,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: eigrmat
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: opvec
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -619,8 +626,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -955,8 +960,8 @@ CONTAINS
        DEALLOCATE (rlab,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       CALL dbcsr_deallocate_matrix ( cosmat, error )
-       CALL dbcsr_deallocate_matrix ( sinmat, error )
+       CALL cp_dbcsr_deallocate_matrix ( cosmat, error )
+       CALL cp_dbcsr_deallocate_matrix ( sinmat, error )
 
        DO ispin = 1, dft_control%nspins
          CALL cp_fm_release(opvec(ispin)%matrix,error=error)
@@ -995,10 +1000,10 @@ CONTAINS
 
     DO i=1,SIZE ( op_fm_set, 2 )   ! spin
        CALL get_mo_set(mo_set=mos(i)%mo_set,nao=nao,mo_coeff=mo_coeff,nmo=nmo)
-       CALL dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
        CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
             op_fm_set(1,i)%matrix,error=error)
-       CALL dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
+       CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo, error=error)
        CALL cp_fm_gemm("T","N",nmo,nmo,nao,1.0_dp,mo_coeff,opvec(i)%matrix,0.0_dp,&
             op_fm_set(2,i)%matrix,error=error)
     ENDDO
@@ -1046,8 +1051,8 @@ CONTAINS
           work%local_data(:,icol+lcol)=mos_new(2*i)%matrix%local_data(:,icol)
        END DO
 
-       CALL dbcsr_sm_fm_multiply(cosmat, work, work1, ncol=newdim, error=error)
-       CALL dbcsr_sm_fm_multiply(sinmat, work, work2, ncol=newdim, error=error)
+       CALL cp_dbcsr_sm_fm_multiply(cosmat, work, work1, ncol=newdim, error=error)
+       CALL cp_dbcsr_sm_fm_multiply(sinmat, work, work2, ncol=newdim, error=error)
 
        DO icol=1,lcol
           work%local_data(:,icol)=work1%local_data(:,icol)-work2%local_data(:,icol+lcol)
@@ -1118,9 +1123,9 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s, moments
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, moments
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), DIMENSION(:), &
@@ -1172,7 +1177,7 @@ CONTAINS
           rmom(i+1,1) = strace
        END DO
 
-       CALL dbcsr_deallocate_matrix_set ( moments, error )
+       CALL cp_dbcsr_deallocate_matrix_set ( moments, error )
 
        ! nuclear contribution
        CALL get_qs_env(qs_env=qs_env,&

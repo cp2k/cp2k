@@ -13,14 +13,14 @@
 MODULE qs_linres_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_checksum,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_checksum,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_plus_fm_fm_t,&
-                                             dbcsr_sm_fm_multiply
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -243,6 +243,8 @@ CONTAINS
     REAL(dp)                                 :: norm_res
     REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
                                                 tr_rz1
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s, matrix_t
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: Ap, chc, mo_coeff_array, p, &
                                                 r, Sc, z
@@ -250,8 +252,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: buf, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, matrix_t
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -345,13 +345,13 @@ CONTAINS
        ! C0_order' * H * C0_order
        mo_coeff => psi0_order(ispin)%matrix
        CALL cp_fm_get_info(mo_coeff,ncol_global=ncol,error=error)
-       CALL dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_coeff,buf,ncol,error=error)
+       CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_coeff,buf,ncol,error=error)
        CALL cp_fm_gemm('T','N',ncol,ncol,nao,-1.0_dp,mo_coeff,buf,0.0_dp,chc(ispin)%matrix,error)
        !
        ! S * C0
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_get_info(mo_coeff,ncol_global=ncol,error=error)
-       CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,Sc(ispin)%matrix,ncol,error=error)
+       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,Sc(ispin)%matrix,ncol,error=error)
     ENDDO
     !
     !
@@ -596,8 +596,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure
     REAL(dp)                                 :: chksum
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(qs_rho_type), POINTER               :: rho
@@ -689,8 +689,8 @@ CONTAINS
     !
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: c0, c1
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: dm
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: dm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dm_response', &
@@ -713,11 +713,11 @@ CONTAINS
     DO ispin = 1,nspins
        CALL cp_dbcsr_set(dm(ispin)%matrix,0.0_dp,error=error)
        CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol,error=error)
-       CALL dbcsr_plus_fm_fm_t(dm(ispin)%matrix,&
+       CALL cp_dbcsr_plus_fm_fm_t(dm(ispin)%matrix,&
                                matrix_v=c0(ispin)%matrix,&
                                matrix_g=c1(ispin)%matrix,&
                                ncol=ncol,alpha=1.0_dp,error=error)
-       CALL dbcsr_plus_fm_fm_t(dm(ispin)%matrix,&
+       CALL cp_dbcsr_plus_fm_fm_t(dm(ispin)%matrix,&
                                matrix_v=c1(ispin)%matrix,&
                                matrix_g=c0(ispin)%matrix,&
                                ncol=ncol,alpha=1.0_dp,error=error)
@@ -754,11 +754,11 @@ CONTAINS
     !
     CALL cp_fm_get_info(v,ncol_global=ncol,nrow_global=nrow,error=error)
     ! H * v
-    CALL dbcsr_sm_fm_multiply(matrix_ks,v,Av,ncol,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_ks,v,Av,ncol,error=error)
     ! v * e
     CALL cp_fm_gemm('N','N',nrow,ncol,ncol,1.0_dp,v,chc,0.0_dp,buf,error)
     ! S * ve
-    CALL dbcsr_sm_fm_multiply(matrix_s,buf,Av,ncol,alpha=1.0_dp,beta=1.0_dp,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s,buf,Av,ncol,alpha=1.0_dp,beta=1.0_dp,error=error)
     !
     CALL timestop(handle)
     !
@@ -1171,7 +1171,7 @@ CONTAINS
 
     DO ispin = 1,nspins
        CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol,error=error)
-       CALL dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix,&
+       CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix,&
                                  c0(ispin)%matrix,&
                                  Av(ispin)%matrix,&
                                  ncol=ncol,alpha=1.0_dp,beta=1.0_dp,&
@@ -1194,8 +1194,8 @@ CONTAINS
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, gapw_xc
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
@@ -1212,7 +1212,7 @@ CONTAINS
           CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
           nspins=dft_control%nspins
 
-          CALL dbcsr_allocate_matrix_set(p_env%kpp1,nspins,error=error)
+          CALL cp_dbcsr_allocate_matrix_set(p_env%kpp1,nspins,error=error)
              name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
              !CALL compress(name,full=.TRUE.)
              DO ispin=1,nspins
@@ -1255,8 +1255,8 @@ CONTAINS
     INTEGER                                  :: ispin, nspins, stat
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -1292,7 +1292,7 @@ CONTAINS
     END IF
 
     IF (.NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
-       CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error)
+       CALL cp_dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error)
           DO ispin=1,nspins
              ALLOCATE(kpp1_env%v_ao(ispin)%matrix)
              CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix,error=error)

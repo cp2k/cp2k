@@ -24,10 +24,15 @@ MODULE  rt_propagation_utils
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init, &
-       dbcsr_add_block_node, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_init
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_add_block_node,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_dist2d_to_dist
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -152,12 +157,12 @@ MODULE  rt_propagation_utils
       POINTER                                :: sint
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: sintt
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: s_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat
     TYPE(cp_fm_type), POINTER                :: B_mat, tmp_mat, tmp_mat2
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: s_derivs
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -218,14 +223,14 @@ MODULE  rt_propagation_utils
          error=error)
 
     ! prepare for allocation
-    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
     CALL array_nullify (row_blk_sizes)
     CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
 
-    CALL dbcsr_allocate_matrix_set(s_derivs,maxder-1,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(s_derivs,maxder-1,error=error)
 
     DO m=1,3
        cgfsym = cgf_symbol(1,indco(1:3,m+1))
@@ -386,7 +391,7 @@ MODULE  rt_propagation_utils
                END IF
               DO m=1,SIZE(s_derivs)
                  NULLIFY (sint(m)%block)
-                 CALL dbcsr_add_block_node(matrix=s_derivs(m)%matrix,&
+                 CALL cp_dbcsr_add_block_node(matrix=s_derivs(m)%matrix,&
                       block_row=irow,&
                       block_col=icol,&
                       BLOCK=sint(m)%block,error=error)
@@ -572,7 +577,7 @@ MODULE  rt_propagation_utils
 
     CALL cp_fm_release(tmp_mat,error)
     CALL cp_fm_release(tmp_mat2,error)
-    CALL dbcsr_deallocate_matrix_set(s_derivs,error)
+    CALL cp_dbcsr_deallocate_matrix_set(s_derivs,error)
     DEALLOCATE(row_atom_index,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(col_atom_index,stat=stat)
@@ -605,8 +610,8 @@ MODULE  rt_propagation_utils
     LOGICAL                                  :: scp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_rmpv
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p_rmpv
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array

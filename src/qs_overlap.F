@@ -23,15 +23,15 @@ MODULE qs_overlap
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_create,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
                                              cp_dbcsr_finalize,&
-                                             cp_dbcsr_init,&
-                                             dbcsr_add_block_node,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_dist2d_to_dist,&
-                                             dbcsr_obj_p_type
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
-                                             dbcsr_write_sparse_matrix
+                                             cp_dbcsr_init
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_dist2d_to_dist
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_distribution,&
+                                             cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -111,8 +111,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
     TYPE(neighbor_list_set_p_type), &
@@ -190,7 +190,7 @@ CONTAINS
     END IF
 
     maxder = ncoset(nder)
-    CALL dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_a,basis_set_id=basis_set_id_a)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_b,basis_set_id=basis_set_id_b)
@@ -230,7 +230,7 @@ CONTAINS
 
 
     ! prepare for allocation
-    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf_a, rbs, last_sgf_a)
@@ -421,7 +421,7 @@ CONTAINS
               END IF
               DO i=1,maxder
                 NULLIFY (sint(i)%block)
-                CALL dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
+                CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=sint(i)%block,error=error)
@@ -544,7 +544,7 @@ CONTAINS
 
 !   *** Print the overlap matrix distribution ***
 
-    CALL dbcsr_write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
+    CALL cp_dbcsr_write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
 
 !   *** Print the overlap matrix, if requested ***
 
@@ -552,11 +552,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,maxder
-             CALL dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&

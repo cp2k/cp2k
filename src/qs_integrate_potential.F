@@ -35,10 +35,16 @@ MODULE qs_integrate_potential
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init, &
-       cp_dbcsr_work_create, dbcsr_add_block_node, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_work_create
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
@@ -502,14 +508,14 @@ CONTAINS
        matrix_dv, basis_set_id, error)
 
     TYPE(pw_p_type)                          :: v_rspace
-    TYPE(dbcsr_obj_p_type), INTENT(IN), &
+    TYPE(cp_dbcsr_obj_p_type), INTENT(IN), &
       OPTIONAL                               :: p
-    TYPE(dbcsr_obj_p_type), INTENT(INOUT)    :: h
+    TYPE(cp_dbcsr_obj_p_type), INTENT(INOUT) :: h
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, TARGET                       :: matrix_dv
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, TARGET         :: matrix_dv
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -558,13 +564,13 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ddv
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dbcsr_distribution_obj), POINTER    :: dist
     TYPE(dbcsr_obj), POINTER                 :: deltap, dh
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ddv
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -709,7 +715,7 @@ CONTAINS
 
        IF (has_dv) THEN
           NULLIFY(ddv)
-          CALL dbcsr_allocate_matrix_set(ddv,3,error=error)
+          CALL cp_dbcsr_allocate_matrix_set(ddv,3,error=error)
           DO idir=1,3
              ALLOCATE(ddv(idir)%matrix)
              CALL cp_dbcsr_init(ddv(idir)%matrix, error=error)
@@ -942,7 +948,7 @@ CONTAINS
           NULLIFY(h_block)
           CALL dbcsr_get_block_p(dh,brow,bcol,h_block,tr,found)
           IF (.NOT.ASSOCIATED(h_block)) THEN
-               CALL dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
+               CALL cp_dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
           END IF
           IF (has_dv) THEN
              DO idir=1,3
@@ -950,7 +956,7 @@ CONTAINS
                      row=brow,col=bcol,BLOCK=dv_block(idir)%array,tr=tr,found=found)
 
                 IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
-                     CALL dbcsr_add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
+                     CALL cp_dbcsr_add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
              END DO
           END IF
 
@@ -1252,7 +1258,7 @@ CONTAINS
        scatter = .FALSE.
        CALL distribute_matrix (rs_v, dh, atom_pair_recv, atom_pair_send,&
             natom, scatter, error, h%matrix)
-       CALL dbcsr_deallocate_matrix ( dh ,error=error)
+       CALL cp_dbcsr_deallocate_matrix ( dh ,error=error)
 
        IF (has_dv) THEN
           DO idir=1,3
@@ -1260,14 +1266,14 @@ CONTAINS
                   atom_pair_recv, atom_pair_send, &
                   natom, scatter, error, matrix_dv(idir)%matrix)
           END DO
-          CALL dbcsr_deallocate_matrix_set(ddv,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(ddv,error=error)
        END IF
     ELSE
        NULLIFY ( dh, ddv )
     END IF
 
     IF ( p_duplicated ) THEN
-       CALL dbcsr_deallocate_matrix ( deltap ,error=error)
+       CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
     ELSE
        NULLIFY ( deltap )
     END IF

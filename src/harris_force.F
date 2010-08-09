@@ -15,7 +15,7 @@ MODULE harris_force
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
@@ -120,10 +120,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(particle_type), DIMENSION(:), &
@@ -503,10 +503,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(particle_type), DIMENSION(:), &
@@ -995,9 +995,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -1474,9 +1474,9 @@ CONTAINS
     REAL(KIND=dp)                            :: Ehartree, Exc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, rho_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

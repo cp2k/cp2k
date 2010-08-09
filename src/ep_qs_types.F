@@ -11,8 +11,8 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE ep_qs_types
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -38,7 +38,7 @@ MODULE ep_qs_types
 TYPE ep_qs_type
    INTEGER :: id_nr, ref_count
    LOGICAL :: ep_active
-   TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: dH_coeffs, dS_coeffs
+   TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: dH_coeffs, dS_coeffs
    REAL(kind=dp) :: core_energy,tot_rho
 END TYPE ep_qs_type
 
@@ -101,8 +101,8 @@ SUBROUTINE ep_qs_release(ep_qs_env,error)
      CPPrecondition(ep_qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
      ep_qs_env%ref_count=ep_qs_env%ref_count-1
      IF(ep_qs_env%ref_count==0) THEN
-        CALL dbcsr_deallocate_matrix_set(ep_qs_env%dH_coeffs,error=error)
-        CALL dbcsr_deallocate_matrix_set(ep_qs_env%dS_coeffs,error=error)
+        CALL cp_dbcsr_deallocate_matrix_set(ep_qs_env%dH_coeffs,error=error)
+        CALL cp_dbcsr_deallocate_matrix_set(ep_qs_env%dS_coeffs,error=error)
         DEALLOCATE(ep_qs_env,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
@@ -123,8 +123,8 @@ END SUBROUTINE ep_qs_release
 ! *****************************************************************************
 SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: dH_coeffs_ptr, dS_coeffs_ptr
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: dH_coeffs_ptr, dS_coeffs_ptr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_set', &
@@ -146,7 +146,7 @@ SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)
               DO i=1,MIN(SIZE(dH_coeffs_ptr),SIZE(dS_coeffs_ptr))
               END DO
            END IF
-           CALL dbcsr_deallocate_matrix_set(ep_qs_env%dH_coeffs,error=error)
+           CALL cp_dbcsr_deallocate_matrix_set(ep_qs_env%dH_coeffs,error=error)
         END IF
         ep_qs_env%dH_coeffs => dH_coeffs_ptr
      END IF
@@ -157,7 +157,7 @@ SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)
               DO i=1,MIN(SIZE(dS_coeffs_ptr),SIZE(dS_coeffs_ptr))
               END DO
            END IF
-           CALL dbcsr_deallocate_matrix_set(ep_qs_env%dS_coeffs,error=error)
+           CALL cp_dbcsr_deallocate_matrix_set(ep_qs_env%dS_coeffs,error=error)
         END IF
         ep_qs_env%dS_coeffs => dS_coeffs_ptr
      END IF

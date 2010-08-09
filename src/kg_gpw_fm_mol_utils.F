@@ -12,9 +12,9 @@
 ! *****************************************************************************
 MODULE kg_gpw_fm_mol_utils
 
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -107,7 +107,7 @@ CONTAINS
 
     ALLOCATE(w_matrix)!sm->dbcsr
     !CALL cp_dbcsr_init(w_matrix, error)!sm->dbcsr
-    CALL dbcsr_from_sm(w_matrix, w_matrix_sm, error, distribution_2d)!sm->dbcsr
+    CALL cp_dbcsr_from_sm(w_matrix, w_matrix_sm, error, distribution_2d)!sm->dbcsr
 
     nmolecule_kind = SIZE(fm_mol_set,1)
     NULLIFY(wmo_x_mot,mo,wmo)
@@ -210,7 +210,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL sm_from_dbcsr ( w_matrix_sm, w_matrix, distribution_2d, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix ( w_matrix, error=error )!sm->dbcsr
+    CALL cp_dbcsr_deallocate_matrix ( w_matrix, error=error )!sm->dbcsr
 
   END SUBROUTINE calculate_w_matrix_per_molecule
 
@@ -567,7 +567,7 @@ CONTAINS
 
     ALLOCATE(matrix)!sm->dbcsr
     !CALL cp_dbcsr_init(matrix, error)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix, matrix_sm, error)!sm->dbcsr
+    CALL cp_dbcsr_from_sm(matrix, matrix_sm, error)!sm->dbcsr
 
     NULLIFY(i_atom,ifirst_ao,ilast_ao)
 
@@ -618,7 +618,7 @@ CONTAINS
       END DO  ! jat
     END DO  ! iat
 
-    CALL dbcsr_deallocate_matrix ( matrix, error=error )!sm->dbcsr
+    CALL cp_dbcsr_deallocate_matrix ( matrix, error=error )!sm->dbcsr
 
   END SUBROUTINE copy_sparse2mol_block
 

@@ -18,7 +18,7 @@ MODULE task_list_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_finalize,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize,&
                                              cp_dbcsr_work_create
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&

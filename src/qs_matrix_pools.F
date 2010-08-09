@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE qs_matrix_pools
   USE array_types,                     ONLY: array_data
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
@@ -724,8 +724,8 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
      para_env, basis_set_id,distribution_2d, error)
 
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: s
     INTEGER, INTENT(in)                      :: nspins
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

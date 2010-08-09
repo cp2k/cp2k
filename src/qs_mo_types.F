@@ -24,11 +24,11 @@ MODULE qs_mo_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init_p,&
-                                             cp_dbcsr_release_p,&
-                                             dbcsr_copy_columns_hack
+                                             cp_dbcsr_release_p
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_copy_columns_hack
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
@@ -335,7 +335,7 @@ CONTAINS
     ! first nmo_beta orbitals are copied from alpha to beta
     IF (.NOT.failure) THEN
        IF(my_convert_dbcsr) THEN!fm->dbcsr
-          CALL dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b,mo_array(1)%mo_set%mo_coeff_b,&!fm->dbcsr
+          CALL cp_dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b,mo_array(1)%mo_set%mo_coeff_b,&!fm->dbcsr
                mo_array(2)%mo_set%nmo,1,1,&!fm->dbcsr
                para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env,&!fm->dbcsr
                blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context,error=error)!fm->dbcsr

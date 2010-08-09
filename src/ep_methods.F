@@ -18,11 +18,17 @@ MODULE ep_methods
                                              get_atomic_kind_set
   USE cp_array_utils,                  ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_scale, cp_dbcsr_set, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, dbcsr_from_sm, &
-       dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply, &
-       sm_from_dbcsr
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_scale,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_from_sm,&
+                                             cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply,&
+                                             sm_from_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -590,10 +596,10 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -641,7 +647,7 @@ CONTAINS
     !   *** Allocate k and put it in the QS environment ***
     CALL get_qs_env(qs_env,dft_control=dft_control,matrix_s=matrix_s,error=error)
 
-    CALL dbcsr_allocate_matrix_set(matrix_ks,dft_control%nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_ks,dft_control%nspins,error=error)
     DO ispin=1,dft_control%nspins
        ALLOCATE (matrix_ks(ispin)%matrix)
        CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
@@ -856,13 +862,13 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: alpha, Ap_p, Ap_p_s, beta, p_ortho_norm, p_ortho_norm_s, &
       r_norm2, r_norm2_s, r_z, r_z_new, r_z_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: Ap, p, p_ortho, r, z
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
@@ -963,7 +969,7 @@ CONTAINS
              ! calc norm of p_ortho
              p_ortho_norm=0.0_dp
              DO ispin=1,nspins
-                CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,&
+                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,&
                      p_ortho(ispin)%matrix,Ap(ispin)%matrix,&
                      ncol=ep_env%main_p_env%n_mo(ispin),&
                      error=error)
@@ -1167,13 +1173,13 @@ CONTAINS
     INTEGER                                  :: iao, imo, ispin, ispin2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: v_norm, v_norm_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: res, v
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
 
     failure=.FALSE.
@@ -1204,7 +1210,7 @@ CONTAINS
                 ! scale v
                 v_norm=0.0_dp
                 DO ispin2=1,dft_control%nspins
-                   CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,&
+                   CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,&
                         v(ispin2)%matrix,res(ispin2)%matrix,&
                         ncol=p_env%n_mo(ispin2), &
                         error=error)
@@ -1352,14 +1358,14 @@ CONTAINS
                                                 uniform_occupation
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1442,7 +1448,7 @@ CONTAINS
     !   *** Allocate matrix_ks and put it in the QS environment ***
 
     IF (.not.ASSOCIATED(matrix_ks)) THEN
-       CALL dbcsr_allocate_matrix_set( matrix_ks, dft_control%nspins, error )
+       CALL cp_dbcsr_allocate_matrix_set( matrix_ks, dft_control%nspins, error )
        DO ispin=1,SIZE(matrix_ks)
           ALLOCATE(matrix_ks(ispin)%matrix)
           CALL cp_dbcsr_init(matrix_ks(ispin)%matrix,error=error)
@@ -1491,6 +1497,8 @@ CONTAINS
     TYPE(cp_2d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: rotatedC0
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s, matrix_w
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi0
@@ -1498,8 +1506,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1700,7 +1706,7 @@ CONTAINS
     CALL get_qs_env(qs_env, rho=rho, mos=mos, error=error)
     DO ispin=1,ep_env%nspins
        CALL cp_dbcsr_set(rho%rho_ao(ispin)%matrix,0._dp,error=error)
-       CALL dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(ispin)%matrix,&
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho%rho_ao(ispin)%matrix,&
             matrix_v=mos(ispin)%mo_set%mo_coeff,&
             matrix_g=ep_env%main_p_env%psi0d(ispin)%matrix,&
             ncol=ep_env%full_nmo(ispin),&
@@ -1898,7 +1904,7 @@ CONTAINS
          extension=".epLog",message=routineP//&
          " creating w_matrix main_qs_env",error=error)
     nspin = SIZE(mos)
-    CALL dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
     DO ispin=1,nspin
        ALLOCATE(matrix_w(ispin)%matrix)
        CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
@@ -2012,7 +2018,7 @@ CONTAINS
        !     ot_precond_sparse_diag) ! these are 'independent'
     END IF
 
-    CALL dbcsr_deallocate_matrix_set( matrix_w, error=error )
+    CALL cp_dbcsr_deallocate_matrix_set( matrix_w, error=error )
 
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
@@ -2038,8 +2044,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ep_calc_w_matrix_full(ep_env,w_matrix,error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: w_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: w_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_w_matrix_full', &
@@ -2071,7 +2077,7 @@ CONTAINS
             -REAL(3-ep_env%nspins,dp), &
             ep_env%main_p_env%m_epsilon(ispin)%matrix,psi0, 0.0_dp,weighted_vectors,error=error)
        CALL cp_dbcsr_set(w_matrix(ispin)%matrix,0.0_dp,error=error)
-       CALL dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix(ispin)%matrix,&
+       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix(ispin)%matrix,&
             matrix_v=psi0,&
             matrix_g=weighted_vectors,&
             ncol=ep_env%full_nmo(ispin),error=error)
@@ -2184,7 +2190,7 @@ CONTAINS
           CPAssert(ASSOCIATED(tmp_snap%wf),cp_failure_level,routineP,new_error,failure)
           CALL fm_pools_create_fm_vect(mo_mo_fm_pools,mo_mo_m,error=new_error)
           DO ispin=1,ep_env%nspins
-                CALL dbcsr_sm_fm_multiply(snapshot%overlap,&
+                CALL cp_dbcsr_sm_fm_multiply(snapshot%overlap,&
                      tmp_snap%wf(ispin)%matrix,dc_dr(ispin)%matrix,&
                      ncol=ep_env%sub_nmo(ispin),error=new_error)
                 CALL cp_fm_gemm(transa='T',transb='N',m=ep_env%sub_nmo(ispin),&
@@ -2231,6 +2237,8 @@ CONTAINS
     REAL(kind=dp)                            :: fdiff(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s_b
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: aomo_work1, coeffs_cr, &
@@ -2241,8 +2249,6 @@ CONTAINS
                                                 maxao_maxmo_fm_pool, &
                                                 maxmo_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: aoao_work1, psi0
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_b
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_force_type), POINTER             :: ep_force
     TYPE(f_env_type), POINTER                :: f_env
@@ -2522,9 +2528,9 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ierr, ispin, stat
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s_b
     TYPE(cp_error_type)                      :: new_error
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_b
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: sub_qs_env
@@ -2601,7 +2607,7 @@ CONTAINS
     END IF
 
     DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-       CALL dbcsr_from_sm(matrix_s_b(ispin)%matrix, matrix_s(ispin)%matrix, error)!sm->dbcsr
+       CALL cp_dbcsr_from_sm(matrix_s_b(ispin)%matrix, matrix_s(ispin)%matrix, error)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
 

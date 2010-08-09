@@ -22,8 +22,8 @@
 MODULE kg_gpw_fm_mol_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_types,                     ONLY: dbcsr_obj
@@ -285,7 +285,7 @@ CONTAINS
 
     ALLOCATE(p_ispin)!sm->dbcsr
     !CALL cp_dbcsr_init(p_ispin, error)
-    CALL dbcsr_from_sm(p_ispin, p_ispin_sm, error,distribution_2d)!sm->dbcsr
+    CALL cp_dbcsr_from_sm(p_ispin, p_ispin_sm, error,distribution_2d)!sm->dbcsr
 
     CALL get_fm_mol_block(fm_mol_block = mol_block,&
                           index_atom = i_atom,&
@@ -372,7 +372,7 @@ CONTAINS
     END DO  ! iat
 
     CALL sm_from_dbcsr ( p_ispin_sm, p_ispin, distribution_2d, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix ( p_ispin, error=error )!sm->dbcsr
+    CALL cp_dbcsr_deallocate_matrix ( p_ispin, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -827,7 +827,7 @@ CONTAINS
     NULLIFY(i_atom,ifirst_ao,ilast_ao,mol_s)
 
     ALLOCATE(matrix)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix, matrix_sm, error,distribution_2d)!sm->dbcsr
+    CALL cp_dbcsr_from_sm(matrix, matrix_sm, error,distribution_2d)!sm->dbcsr
 
 
     CALL get_fm_mol_block(fm_mol_block = mol_block,&
@@ -888,7 +888,7 @@ CONTAINS
     CALL DGEMM('N','N',nrow,nmo,nrow,1.0_dp,mol_s,nrow,vectors,ldb,&
                 0.0_dp,mat_x_vec,ldc)
 
-    CALL dbcsr_deallocate_matrix ( matrix, error=error )!sm->dbcsr
+    CALL cp_dbcsr_deallocate_matrix ( matrix, error=error )!sm->dbcsr
 
   END SUBROUTINE multiply_sparse_mol_mo
 

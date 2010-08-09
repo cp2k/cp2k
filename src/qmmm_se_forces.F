@@ -14,7 +14,7 @@ MODULE qmmm_se_forces
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE f77_blas
@@ -93,8 +93,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho

@@ -21,9 +21,9 @@ MODULE qs_scf_post_gpw
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             dbcsr_obj_p_type
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_ddapc_util,                   ONLY: get_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
@@ -212,14 +212,14 @@ CONTAINS
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: occupied_evals, &
                                                 unoccupied_evals
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: kinetic_m, ks_rmpv, matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: homo_localized, &
       lumo_localized, lumo_ptr, mo_loc_history, occupied_orbs, unoccupied_orbs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: kinetic_m, ks_rmpv, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -590,9 +590,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: marked_states_spin
     LOGICAL                                  :: do_homo, failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_rmpv, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -690,12 +690,12 @@ CONTAINS
                                                 n, nao, nmo, output_unit
     LOGICAL                                  :: failure
     TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_rmpv, ks_rmpv_aux_fit, &
+                                                matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, ks_rmpv_aux_fit, &
-                                                matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -786,11 +786,11 @@ CONTAINS
                                                 output_unit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(admm_type), POINTER                 :: admm_env
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_rmpv, ks_rmpv_aux_fit
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj), POINTER                 :: mo_coeff_deriv
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, ks_rmpv_aux_fit
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -888,10 +888,10 @@ CONTAINS
     INTEGER :: handle, homo, i, ilast_intocc, ilow, ispin, iup, n_mo(2), &
       n_mos(2), nao, nelectron, nmoloc(2), nspin, output_unit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, occupation
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_rmpv
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(section_vals_type), POINTER         :: localization_section, &
@@ -1040,8 +1040,8 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     INTEGER                                  :: output_unit
     INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1182,8 +1182,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1577,9 +1577,9 @@ CONTAINS
     REAL(KIND=dp)                            :: volume
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
@@ -1864,10 +1864,10 @@ CONTAINS
     INTEGER                                  :: handle, nao, unit_nr
     REAL(KIND=dp)                            :: S_cond_number
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s, fm_work, mo_coeff
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_energy_type), POINTER            :: energy
@@ -2028,13 +2028,13 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_rmpv, matrix_s
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dbcsr_obj), POINTER                 :: mo_coeff_deriv
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -2468,7 +2468,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
@@ -2485,7 +2485,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                                     extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&

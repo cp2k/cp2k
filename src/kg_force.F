@@ -15,11 +15,11 @@ MODULE kg_force
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -729,10 +729,10 @@ END SUBROUTINE kg_calculate_forces
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s_b, matrix_w_b
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_b, matrix_w_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
@@ -850,11 +850,11 @@ END SUBROUTINE kg_calculate_forces
     END DO
 
     NULLIFY(matrix_w_b)!sm->dbcsr
-    CALL dbcsr_allocate_matrix_set( matrix_w_b, SIZE(matrix_w), error )!sm->dbcsr
+    CALL cp_dbcsr_allocate_matrix_set( matrix_w_b, SIZE(matrix_w), error )!sm->dbcsr
     DO ispin=1,SIZE(matrix_w_b)!sm->dbcsr
        ALLOCATE(matrix_w_b(ispin)%matrix)!sm->dbcsr
        !CALL cp_dbcsr_init(matrix_w_b(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_w_b(ispin)%matrix, matrix_w(ispin)%matrix, &
+       CALL cp_dbcsr_from_sm(matrix_w_b(ispin)%matrix, matrix_w(ispin)%matrix, &
             error,distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
 
@@ -920,7 +920,7 @@ END SUBROUTINE kg_calculate_forces
          "DFT%PRINT%DERIVATIVES",error=error)
 
     CALL deallocate_matrix_set(matrix_w,error=error)
-    CALL dbcsr_deallocate_matrix_set( matrix_w_b, error=error )!sm->dbcsr
+    CALL cp_dbcsr_deallocate_matrix_set( matrix_w_b, error=error )!sm->dbcsr
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w_b,error=error)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
@@ -930,7 +930,7 @@ END SUBROUTINE kg_calculate_forces
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     !DO ispin=1,SIZE(matrix_s)!sm->dbcsr
-    !   CALL dbcsr_from_sm(matrix_s_b(ispin)%matrix, matrix_s(ispin)%matrix, error)!sm->dbcsr
+    !   CALL cp_dbcsr_from_sm(matrix_s_b(ispin)%matrix, matrix_s(ispin)%matrix, error)!sm->dbcsr
     !ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
 

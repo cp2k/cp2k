@@ -17,8 +17,8 @@
 ! *****************************************************************************
 MODULE qs_diis
 
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -238,8 +238,8 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: diis_step
     REAL(KIND=dp), INTENT(IN)                :: eps_diis
     INTEGER, INTENT(IN), OPTIONAL            :: nmixing
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: s_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: s_matrix
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(IN), OPTIONAL            :: roks
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -21,11 +21,11 @@ MODULE qs_loc_utils
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -175,7 +175,7 @@ CONTAINS
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
     ! o1 = (mo_new)^T matrix_S mo_ref
-    CALL dbcsr_sm_fm_multiply(matrix_S,mo_ref,smo,ncol,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_S,mo_ref,smo,ncol,error=error)
     CALL cp_fm_gemm('T','N',ncol,ncol,nrow,1.0_dp, mo_new,smo,0.0_dp,o1,error=error)
 
     ! o2 = (o1^T o1)
@@ -464,13 +464,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: moloc_coeff
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mat_ptr, mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -710,7 +710,7 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: op_cost, op_sint
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj_p_type), &
+    TYPE(cp_dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: op_sm_set
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set

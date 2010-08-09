@@ -22,10 +22,15 @@ MODULE qs_wf_history_methods
                                              VandeVondele2005a,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_set, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix, &
-       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type, dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_scale_and_add
@@ -241,7 +246,7 @@ END SUBROUTINE wfs_create
 
       ! rho_ao
       IF (ASSOCIATED(input_snapshot%rho_ao)) THEN
-        CALL dbcsr_allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao),error=error)
+        CALL cp_dbcsr_allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao),error=error)
         DO i = 1,SIZE(input_snapshot%rho_ao)
            CALL cp_dbcsr_copy(output_snapshot%rho_ao(i)%matrix,input_snapshot%rho_ao(i)%matrix, &
                 name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
@@ -301,13 +306,13 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     INTEGER                                  :: handle, ispin, &
                                                 nmolecule_kind, nspins, stat
     LOGICAL                                  :: failure, kg_gpw
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: rho_ao, s_array
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao, s_array
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -425,13 +430,13 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
 
      IF (ASSOCIATED(snapshot%rho_ao)) THEN ! the sparsity might be different
         ! (future struct:check)
-        CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao,error=error)
+        CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao,error=error)
      END IF
      IF (wf_history%store_rho_ao) THEN
         CALL qs_rho_get(rho, rho_ao=rho_ao,error=error)
         CPPrecondition(ASSOCIATED(rho_ao),cp_failure_level,routineP,error,failure)
 
-        CALL dbcsr_allocate_matrix_set(snapshot%rho_ao,nspins,error=error)
+        CALL cp_dbcsr_allocate_matrix_set(snapshot%rho_ao,nspins,error=error)
         DO ispin=1,nspins
            ALLOCATE(snapshot%rho_ao(ispin)%matrix)
            CALL cp_dbcsr_init(snapshot%rho_ao(ispin)%matrix,error=error)
@@ -442,7 +447,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
 
      IF (ASSOCIATED(snapshot%overlap)) THEN ! the sparsity might be different
         ! (future struct:check)
-        CALL dbcsr_deallocate_matrix(snapshot%overlap,error=error)
+        CALL cp_dbcsr_deallocate_matrix(snapshot%overlap,error=error)
      END IF
      IF (wf_history%store_overlap) THEN
         CPPrecondition(ASSOCIATED(s_array),cp_failure_level,routineP,error,failure)
@@ -660,14 +665,14 @@ END FUNCTION wfi_get_method_label
     LOGICAL                                  :: failure, my_kg_gpw, &
                                                 my_orthogonal_wf, use_overlap
     REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: csc, fm_tmp, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -962,7 +967,7 @@ END FUNCTION wfi_get_method_label
                   CALL cp_fm_struct_release(matrix_struct_new,error=error)
   
                   IF ( use_overlap ) THEN
-                    CALL dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
+                    CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
                     CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
                   ELSE
                     CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
@@ -1056,7 +1061,7 @@ END FUNCTION wfi_get_method_label
                 DO i=2,nvec
                    t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
                    IF ( use_overlap ) THEN
-                     CALL dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k,error=error)
+                     CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k,error=error)
                      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
                    ELSE
                      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
@@ -1135,7 +1140,7 @@ END FUNCTION wfi_get_method_label
           DO i=2,nvec
             t0_state => wfi_get_snapshot(wf_history,index=i,error=error)
             IF ( use_overlap ) THEN
-              CALL dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k,error=error)
+              CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp,k,error=error)
               CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
             ELSE
               CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&

@@ -14,9 +14,9 @@ MODULE qs_dftb_coulomb
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             dbcsr_multiply_local,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
@@ -100,8 +100,8 @@ CONTAINS
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     REAL(dp), DIMENSION(:)                   :: mcharge
     TYPE(qs_energy_type), POINTER            :: energy
@@ -127,11 +127,11 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: gamma_matrix, matrix_p, &
+                                                matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: gamma_matrix, matrix_p, &
-                                                matrix_s
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -175,7 +175,7 @@ CONTAINS
 
     DO i=1,nmat
       mcout = 0._dp
-      CALL dbcsr_multiply_local(gamma_matrix(i)%matrix,mcin,mcout,ncol=1,error=error)
+      CALL cp_dbcsr_multiply_local(gamma_matrix(i)%matrix,mcin,mcout,ncol=1,error=error)
       gmcharge(:,i) = mcout(:,1)
     END DO
 

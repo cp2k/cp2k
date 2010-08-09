@@ -13,11 +13,11 @@
 MODULE stm_images
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_plus_fm_fm_t
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_plus_fm_fm_t
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -225,7 +225,7 @@ CONTAINS
      DEALLOCATE(occupation,STAT=istat)
           CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
-     CALL dbcsr_deallocate_matrix(stm_density_ao,error=error)
+     CALL cp_dbcsr_deallocate_matrix(stm_density_ao,error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw, error=error)
 
@@ -363,7 +363,7 @@ CONTAINS
        alpha=1.0_dp
 
        CALL cp_dbcsr_set(stm_density_ao,0.0_dp,error=error)
-       CALL dbcsr_plus_fm_fm_t(stm_density_ao,matrix_v=matrix_v, matrix_g=matrix_vf,ncol=istates,&
+       CALL cp_dbcsr_plus_fm_fm_t(stm_density_ao,matrix_v=matrix_v, matrix_g=matrix_vf,ncol=istates,&
                                alpha=alpha,error=error)
 
        DO i = 1,SIZE(stm_th_torb)

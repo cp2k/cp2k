@@ -11,8 +11,8 @@ MODULE qs_tddfpt_utils
 
   USE cp_control_types,                ONLY: tddfpt_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -322,7 +322,7 @@ CONTAINS
        nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
        CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
                          "S times lumos", error=error)
-       CALL dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
+       CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
                               S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp,error=error)
     END DO
 
@@ -386,8 +386,8 @@ CONTAINS
   SUBROUTINE normalize(X, tmp_vec, metric, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: metric
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: metric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_spins, spin
@@ -398,7 +398,7 @@ CONTAINS
 
     DO spin=1, n_spins
        tmp = 0.0_dp
-       CALL dbcsr_sm_fm_multiply(metric(1)%matrix, X(spin)%matrix, &
+       CALL cp_dbcsr_sm_fm_multiply(metric(1)%matrix, X(spin)%matrix, &
             tmp_vec(spin)%matrix, &
             X(spin)%matrix%matrix_struct%ncol_global, &
             1.0_dp, 0.0_dp,error=error)

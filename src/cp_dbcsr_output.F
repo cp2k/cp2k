@@ -61,8 +61,8 @@ MODULE cp_dbcsr_output
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_output'
 
-  PUBLIC :: dbcsr_write_sparse_matrix
-  PUBLIC :: dbcsr_write_matrix_distribution
+  PUBLIC :: cp_dbcsr_write_sparse_matrix
+  PUBLIC :: cp_dbcsr_write_matrix_distribution
   PUBLIC :: write_fm_with_basis_info
 
   PRIVATE
@@ -148,7 +148,7 @@ CONTAINS
     
   END SUBROUTINE write_fm_with_basis_info
 
-  SUBROUTINE dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
+  SUBROUTINE cp_dbcsr_write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
                                       first_row,last_row,first_col,last_col,scale,&
                                        output_unit,error)
 
@@ -162,7 +162,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_write_sparse_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_write_sparse_matrix', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=80)                        :: matrix_name
@@ -242,7 +242,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-  END SUBROUTINE dbcsr_write_sparse_matrix
+  END SUBROUTINE cp_dbcsr_write_sparse_matrix
 
   SUBROUTINE copy_repl_dbcsr_to_repl_fm(sparse_matrix,fm,error)
 
@@ -537,14 +537,14 @@ CONTAINS
 !> \par History
 !>      Creation (25.06.2003,MK)
 ! *****************************************************************************
-  SUBROUTINE dbcsr_write_matrix_distribution(matrix,force_env_section,para_env,error)
+  SUBROUTINE cp_dbcsr_write_matrix_distribution(matrix,force_env_section,para_env,error)
     TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'dbcsr_write_matrix_distribution', &
+      routineN = 'cp_dbcsr_write_matrix_distribution', &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
@@ -659,6 +659,6 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE dbcsr_write_matrix_distribution
+  END SUBROUTINE cp_dbcsr_write_matrix_distribution
 
 END MODULE cp_dbcsr_output

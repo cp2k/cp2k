@@ -12,7 +12,7 @@
 MODULE hfx_communication 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
@@ -340,8 +340,8 @@ MODULE hfx_communication
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix
     INTEGER, INTENT(IN)                      :: irep
     REAL(dp), INTENT(IN)                     :: scaling_factor
     TYPE(cp_error_type), INTENT(inout)       :: error

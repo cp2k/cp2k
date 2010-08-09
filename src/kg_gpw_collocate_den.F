@@ -22,8 +22,8 @@ MODULE kg_gpw_collocate_den
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
   USE cube_utils,                      ONLY: cube_info_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
@@ -679,8 +679,8 @@ CONTAINS
     ALLOCATE(matrix_p,matrix_h)!sm->dbcsr
     !CALL cp_dbcsr_init(matrix_p, error)!sm->dbcsr
     !CALL cp_dbcsr_init(matrix_h, error)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error, distribution_2d)!sm->dbcsr
-    CALL dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error, distribution_2d,&
+    CALL cp_dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error, distribution_2d)!sm->dbcsr
+    CALL cp_dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error, distribution_2d,&
          mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_p)))!sm->dbcsr
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
@@ -1093,8 +1093,8 @@ CONTAINS
     END IF
 
     CALL sm_from_dbcsr ( matrix_h_sm%matrix, matrix_h, distribution_2d, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix ( matrix_h, error=error )!sm->dbcsr
-    CALL dbcsr_deallocate_matrix ( matrix_p, error=error )!sm->dbcsr
+    CALL cp_dbcsr_deallocate_matrix ( matrix_h, error=error )!sm->dbcsr
+    CALL cp_dbcsr_deallocate_matrix ( matrix_p, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 

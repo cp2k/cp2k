@@ -11,7 +11,7 @@
 MODULE mulliken
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cp_control_types,                ONLY: mulliken_restraint_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
@@ -70,11 +70,11 @@ CONTAINS
       INTENT(IN)                             :: mulliken_restraint_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: s_matrix
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p_matrix
     REAL(KIND=dp), OPTIONAL                  :: energy, order_p
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ks_matrix, w_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: ks_matrix, w_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
@@ -263,8 +263,8 @@ END SUBROUTINE rf_deriv_check
 !>      06.2004 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE compute_charges(p_matrix,s_matrix,charges,para_env)
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p_matrix
     TYPE(dbcsr_obj), POINTER                 :: s_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -321,8 +321,8 @@ END SUBROUTINE rf_deriv_check
   SUBROUTINE mulliken_charges_a(p_matrix,s_matrix,para_env,particle_set, &
                                 scr,title,error)
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p_matrix
     TYPE(dbcsr_obj), POINTER                 :: s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
@@ -357,8 +357,8 @@ END SUBROUTINE rf_deriv_check
 ! *****************************************************************************
   SUBROUTINE mulliken_charges_b(p_matrix,s_matrix,para_env,mcharge,error)
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p_matrix
     TYPE(dbcsr_obj), POINTER                 :: s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge

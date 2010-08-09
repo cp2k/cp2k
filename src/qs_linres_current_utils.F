@@ -28,11 +28,16 @@ MODULE qs_linres_current_utils
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_set, &
-       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type, &
-       dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_dist2d_to_dist,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -149,6 +154,8 @@ CONTAINS
       POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: op_p_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fm_work_ii, fm_work_iii, &
                                                 h1_psi0, hpsi0_ptr, &
@@ -161,8 +168,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op_p_ao
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -248,7 +253,7 @@ CONTAINS
        CALL get_particle_set(particle_set=particle_set,&
             first_sgf=first_sgf,&
             last_sgf=last_sgf,error=error)
-       CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+       CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
        ALLOCATE (rbs(natom), STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -258,7 +263,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
        ! rebuild the linear momentum matrices
-       CALL dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(op_p_ao,3,error=error)
        ALLOCATE(op_p_ao(1)%matrix)
        CALL cp_dbcsr_init(op_p_ao(1)%matrix,error=error)
        CALL cp_dbcsr_create(matrix=op_p_ao(1)%matrix, &
@@ -267,7 +272,7 @@ CONTAINS
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
             nblks=0, nze=0, mutable_work=.TRUE., &
             error=error)
-       CALL dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix,sab_orb,error=error)
+       CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix,sab_orb,error=error)
        !
        !
        CALL dbcsr_distribution_release (dbcsr_dist)
@@ -484,7 +489,7 @@ CONTAINS
                 !
                 ! Apply the p_iii operator
                 ! fm_work_iii = -p_iii * (dk-dl)_ii * C0
-                CALL dbcsr_sm_fm_multiply(op_p_ao(iii)%matrix,fm_work_ii(ispin)%matrix,&
+                CALL cp_dbcsr_sm_fm_multiply(op_p_ao(iii)%matrix,fm_work_ii(ispin)%matrix,&
                      &                    fm_work_iii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
                      &                    error=error)
                 !
@@ -499,7 +504,7 @@ CONTAINS
                 !
                 ! Apply the p_ii operator
                 ! fm_work_ii = -p_ii * (dk-dl)_iii * C0
-                CALL dbcsr_sm_fm_multiply(op_p_ao(ii)%matrix,fm_work_iii(ispin)%matrix,&
+                CALL cp_dbcsr_sm_fm_multiply(op_p_ao(ii)%matrix,fm_work_iii(ispin)%matrix,&
                      &                    fm_work_ii(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,&
                      &                    error=error)
                 !
@@ -565,7 +570,7 @@ CONTAINS
     !
     ! clean up
     IF(current_env%full) THEN
-       CALL dbcsr_deallocate_matrix_set(op_p_ao,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(op_p_ao,error=error)
        DO ispin = 1,nspins
           CALL cp_fm_release(psi1(ispin)%matrix,error=error)
           CALL cp_fm_release(h1_psi0(ispin)%matrix,error=error)

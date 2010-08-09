@@ -12,10 +12,10 @@
 ! *****************************************************************************
 MODULE kg_gpw_wf_history
 
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
@@ -74,8 +74,8 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: beta
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_b
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p_b, matrix_s_b
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: matrix_p_b, matrix_s_b
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -212,9 +212,9 @@ distribution_2d=distribution_2d,error=error)
 
     IF(PRESENT(matrix_p_b))THEN
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
-       CALL dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
        ALLOCATE(matrix_p_b(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error, distribution_2d)!sm->dbcsr
+       CALL cp_dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error, distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
     ENDIF
@@ -251,8 +251,8 @@ distribution_2d=distribution_2d,error=error)
     TYPE(dbcsr_obj), POINTER                 :: ov_b_b
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_last
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_p_b, matrix_s_b
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: matrix_p_b, matrix_s_b
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -430,9 +430,9 @@ ENDIF
 
     IF(PRESENT(matrix_p_b))THEN
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
-       CALL dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
        ALLOCATE(matrix_p_b(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error)!sm->dbcsr
+       CALL cp_dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
  ENDIF
@@ -451,8 +451,8 @@ ENDIF
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_b, matrix_s_b
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_p_b, matrix_s_b
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -539,9 +539,9 @@ ENDIF
     CALL deallocate_matrix_set( matrix_s, error )!sm->dbcsr
 
     DO ispin=1,SIZE(matrix_p)!sm->dbcsr
-       CALL dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(matrix_p_b(ispin)%matrix,error)
        ALLOCATE(matrix_p_b(ispin)%matrix)
-       CALL dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error,distribution_2d)!sm->dbcsr
+       CALL cp_dbcsr_from_sm(matrix_p_b(ispin)%matrix, matrix_p(ispin)%matrix, error,distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
 

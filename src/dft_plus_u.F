@@ -24,16 +24,16 @@ MODULE dft_plus_u
                                              Dudarev1998,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                             cp_dbcsr_get_block_diag,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_diag,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_plus_fm_fm_t,&
-                                             dbcsr_sm_fm_multiply
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -97,8 +97,8 @@ CONTAINS
   SUBROUTINE plus_u(qs_env,matrix_h,matrix_w,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_w
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: matrix_h, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u', &
@@ -204,8 +204,8 @@ CONTAINS
   SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,should_output,output_unit,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_w
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: matrix_h, matrix_w
     LOGICAL, INTENT(IN)                      :: should_output
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -237,12 +237,12 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
     TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_q, sm_s, sm_v, &
                                                 sm_w
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
@@ -424,7 +424,7 @@ CONTAINS
 
       ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
 
-      CALL dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
+      CALL cp_dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
       CALL cp_fm_gemm(transa="N",&
                       transb="N",&
                       m=nsgf,&
@@ -437,7 +437,7 @@ CONTAINS
                       matrix_c=fm_work2,&
                       error=error)
       IF (debug) THEN
-        CALL dbcsr_write_sparse_matrix(sm_p,4,6,qs_env,qs_env%para_env,&
+        CALL cp_dbcsr_write_sparse_matrix(sm_p,4,6,qs_env,qs_env%para_env,&
                                        output_unit=output_unit,&
                                        error=error)
         CALL write_fm_with_basis_info(fm_s_half,4,6,qs_env,qs_env%para_env,&
@@ -797,9 +797,9 @@ CONTAINS
 
       IF (ASSOCIATED(sm_h)) THEN
 
-        CALL dbcsr_sm_fm_multiply(sm_v,fm_s_half,fm_work1,nsgf,error=error)
+        CALL cp_dbcsr_sm_fm_multiply(sm_v,fm_s_half,fm_work1,nsgf,error=error)
         CALL cp_fm_transpose(fm_work1,fm_work2,error=error)
-        CALL dbcsr_plus_fm_fm_t(sm_h,fm_s_half,fm_work2,nsgf,error=error)
+        CALL cp_dbcsr_plus_fm_fm_t(sm_h,fm_s_half,fm_work2,nsgf,error=error)
 
       END IF ! An update of the Hamiltonian matrix is requested
 
@@ -839,8 +839,8 @@ CONTAINS
 
     ! Release (local) sparse matrices
 
-    CALL dbcsr_deallocate_matrix(sm_q,error=error)
-    CALL dbcsr_deallocate_matrix(sm_v,error=error)
+    CALL cp_dbcsr_deallocate_matrix(sm_q,error=error)
+    CALL cp_dbcsr_deallocate_matrix(sm_v,error=error)
 
     CALL timestop(handle)
 
@@ -878,8 +878,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: matrix_h
     LOGICAL, INTENT(IN)                      :: should_output
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -911,9 +911,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
     TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_q, sm_s, sm_v
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
@@ -1502,8 +1502,8 @@ CONTAINS
                    "if this warning persists or try a different method!",&
                    only_ionode=.TRUE.)
 
-    CALL dbcsr_deallocate_matrix(sm_q,error=error)
-    CALL dbcsr_deallocate_matrix(sm_v,error=error)
+    CALL cp_dbcsr_deallocate_matrix(sm_q,error=error)
+    CALL cp_dbcsr_deallocate_matrix(sm_v,error=error)
 
     CALL timestop(handle)
 
@@ -1547,8 +1547,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_w
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: matrix_h, matrix_w
     LOGICAL, INTENT(IN)                      :: should_output
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1577,10 +1577,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_s, sm_w
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &

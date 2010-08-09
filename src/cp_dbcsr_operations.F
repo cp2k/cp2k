@@ -22,6 +22,14 @@ MODULE cp_dbcsr_operations
                                              cp_blacs_env_write,&
                                              get_blacs_info
   USE cp_cfm_types,                    ONLY: cp_cfm_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribute, cp_dbcsr_filter, cp_dbcsr_finalize, &
+       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release, &
+       cp_dbcsr_replicate_all, cp_dbcsr_scale, cp_dbcsr_sum_replicated, &
+       cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_verify_matrix, &
+       cp_dbcsr_work_create
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                              cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -64,46 +72,28 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_init, dbcsr_init_p, &
-       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
-       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_release_p, dbcsr_row_block_sizes, dbcsr_valid_index, &
-       dbcsr_wm_use_mutable
-  USE dbcsr_operations,                ONLY: &
-       dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, dbcsr_filter, &
-       dbcsr_get_block_diag, dbcsr_get_diag, dbcsr_hadamard_product, &
-       dbcsr_multiply, dbcsr_norm, dbcsr_replace_blocks, dbcsr_scale, &
-       dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, &
-       dbcsr_sum_replicated, dbcsr_trace
-  USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
-                                             dbcsr_distribute,&
-                                             dbcsr_new_transposed,&
-                                             dbcsr_replicate_all
+       dbcsr_get_matrix_type, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
+       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
+       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
+       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_row_block_sizes, dbcsr_valid_index, dbcsr_wm_use_mutable
+  USE dbcsr_operations,                ONLY: dbcsr_replace_blocks
+  USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_distribution_obj, dbcsr_iterator, &
-       dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_norm_gershgorin, &
-       dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_8, dbcsr_type_normal, dbcsr_type_real_8, &
-       dbcsr_type_symmetric
+       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
+       dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
+       dbcsr_obj, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+       dbcsr_type_normal, dbcsr_type_real_8, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
-                                             dbcsr_checksum,&
                                              dbcsr_set_debug,&
-                                             dbcsr_verify_matrix,&
                                              swap
-  USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
-                                             dbcsr_create,&
-                                             dbcsr_finalize,&
-                                             dbcsr_work_create
+  USE dbcsr_work_operations,           ONLY: add_work_coordinate
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                              distribution_2d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
-                                             real_4,&
-                                             real_8,&
                                              sp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
@@ -116,7 +106,6 @@ MODULE cp_dbcsr_operations
        add_block_node, allocate_matrix, checksum_matrix, deallocate_matrix, &
        first_block_node, get_block_node, next_block_node, &
        real_block_node_type, real_matrix_type, replicate_matrix
-  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -129,121 +118,43 @@ MODULE cp_dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
-  PUBLIC :: dbcsr_multiply, dbcsr_check, dbcsr_multiply_local
-  PUBLIC :: dbcsr_multiply_vec, dbcsr_pack_vec,&
-       packed_vec_scale, dbcsr_unpack_vec,&
-       dbcsr_mult_pack_vec_local, packed_vec_bif_tech, &
-       packed_vec_bif_tech2, dbcsr_copy_vec, packed_vec_build_u, packed_vec_bcast, &
+  PUBLIC :: cp_dbcsr_check, cp_dbcsr_multiply_local
+  PUBLIC :: cp_dbcsr_multiply_vec, cp_dbcsr_pack_vec,&
+       packed_vec_scale, cp_dbcsr_unpack_vec,&
+       cp_dbcsr_mult_pack_vec_local, packed_vec_bif_tech, &
+       packed_vec_bif_tech2, cp_dbcsr_copy_vec, packed_vec_build_u, packed_vec_bcast, &
        packed_vec_ini
 
   ! CP2K API emulation
-  PUBLIC :: dbcsr_add_block_node,&
-            dbcsr_deallocate_matrix,&
-            dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set,&
-            dbcsr_obj_p_type, test_sm,&
-            dbcsr_from_fm, dbcsr_from_sm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
+  PUBLIC :: cp_dbcsr_add_block_node,&
+            cp_dbcsr_deallocate_matrix,&
+            cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set,&
+            test_sm,&
+            cp_dbcsr_from_fm, cp_dbcsr_from_sm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
             copy_dbcsr_to_cfm, copy_cfm_to_dbcsr, &
-            sm_from_dbcsr, dbcsr_type_from_sm_symmetry, &
-            dbcsr_sm_fm_multiply, dbcsr_plus_fm_fm_t,&
+            sm_from_dbcsr, cp_dbcsr_type_from_sm_symmetry, &
+            cp_dbcsr_sm_fm_multiply, cp_dbcsr_plus_fm_fm_t,&
             cp_dbcsr_get_id_nr,&
-            dbcsr_alloc_block_from_nbl
+            cp_dbcsr_alloc_block_from_nbl
 
-  !
-  ! Interface to libdbcsr (contains cp2k timing and error)
-  PUBLIC :: cp_dbcsr_set
-  PUBLIC :: cp_dbcsr_add
-  PUBLIC :: cp_dbcsr_scale
-  PUBLIC :: cp_dbcsr_scale_by_vector
-  PUBLIC :: cp_dbcsr_hadamard_product
-  PUBLIC :: cp_dbcsr_transposed
-  PUBLIC :: cp_dbcsr_multiply
-  PUBLIC :: cp_dbcsr_copy
-  PUBLIC :: cp_dbcsr_add_on_diag
-  PUBLIC :: cp_dbcsr_get_block_diag
-  PUBLIC :: cp_dbcsr_set_diag
-  PUBLIC :: cp_dbcsr_get_diag
-  PUBLIC :: cp_dbcsr_filter
-  PUBLIC :: cp_dbcsr_finalize
-  PUBLIC :: cp_dbcsr_create
-  PUBLIC :: cp_dbcsr_work_create
-  PUBLIC :: cp_dbcsr_verify_matrix
-  PUBLIC :: cp_dbcsr_btriu
-  PUBLIC :: cp_dbcsr_sum_replicated
-  PUBLIC :: cp_dbcsr_checksum
-  PUBLIC :: cp_dbcsr_trace
-  PUBLIC :: cp_dbcsr_print
-  PUBLIC :: cp_dbcsr_init
-  PUBLIC :: cp_dbcsr_init_p
-  PUBLIC :: cp_dbcsr_release
-  PUBLIC :: cp_dbcsr_release_p
-  PUBLIC :: cp_dbcsr_distribute
-  PUBLIC :: cp_dbcsr_replicate_all
-  PUBLIC :: cp_dbcsr_norm
-
-  INTERFACE cp_dbcsr_trace
-     MODULE PROCEDURE cp_dbcsr_trace_ab_d
-     MODULE PROCEDURE cp_dbcsr_trace_ab_s
-     MODULE PROCEDURE cp_dbcsr_trace_a_d
-     MODULE PROCEDURE cp_dbcsr_trace_a_s
-  END INTERFACE
-
-  INTERFACE cp_dbcsr_set
-     MODULE PROCEDURE cp_dbcsr_set_d
-     MODULE PROCEDURE cp_dbcsr_set_s
-     MODULE PROCEDURE cp_dbcsr_set_c
-     MODULE PROCEDURE cp_dbcsr_set_z
-  END INTERFACE
-
-  INTERFACE cp_dbcsr_add
-     MODULE PROCEDURE cp_dbcsr_add_d
-     MODULE PROCEDURE cp_dbcsr_add_s
-     MODULE PROCEDURE cp_dbcsr_add_c
-     MODULE PROCEDURE cp_dbcsr_add_z
-  END INTERFACE
-
-  INTERFACE cp_dbcsr_scale
-     MODULE PROCEDURE cp_dbcsr_scale_d
-     MODULE PROCEDURE cp_dbcsr_scale_s
-     MODULE PROCEDURE cp_dbcsr_scale_c
-     MODULE PROCEDURE cp_dbcsr_scale_z
-  END INTERFACE
-
-  INTERFACE cp_dbcsr_scale_by_vector
-     MODULE PROCEDURE cp_dbcsr_scale_by_vector_d
-     MODULE PROCEDURE cp_dbcsr_scale_by_vector_s
-     MODULE PROCEDURE cp_dbcsr_scale_by_vector_c
-     MODULE PROCEDURE cp_dbcsr_scale_by_vector_z
-  END INTERFACE
-
-  INTERFACE cp_dbcsr_multiply
-     MODULE PROCEDURE cp_dbcsr_multiply_d
-     MODULE PROCEDURE cp_dbcsr_multiply_s
-     MODULE PROCEDURE cp_dbcsr_multiply_c
-     MODULE PROCEDURE cp_dbcsr_multiply_z
-  END INTERFACE
 
   ! distribution_2d_type compatibility
-  PUBLIC :: dbcsr_dist2d_to_dist
+  PUBLIC :: cp_dbcsr_dist2d_to_dist
 
-  PUBLIC :: dbcsr_copy_columns_hack
+  PUBLIC :: cp_dbcsr_copy_columns_hack
 
-  INTERFACE dbcsr_allocate_matrix_set
+  INTERFACE cp_dbcsr_allocate_matrix_set
      MODULE PROCEDURE allocate_dbcsr_matrix_set, allocate_dbcsr_matrix_set_2d
   END INTERFACE
 
-  INTERFACE dbcsr_deallocate_matrix_set
+  INTERFACE cp_dbcsr_deallocate_matrix_set
      MODULE PROCEDURE deallocate_dbcsr_matrix_set,&
                       deallocate_dbcsr_matrix_set_2d
   END INTERFACE
 
-  INTERFACE dbcsr_plus_fm_fm_t
-     MODULE PROCEDURE dbcsr_plus_fm_fm_t_native
+  INTERFACE cp_dbcsr_plus_fm_fm_t
+     MODULE PROCEDURE cp_dbcsr_plus_fm_fm_t_native
   END INTERFACE
-
-!> \brief Emulation of real_matrix_p_type
-  TYPE dbcsr_obj_p_type
-     TYPE(dbcsr_obj), POINTER :: matrix
-  END TYPE dbcsr_obj_p_type
 
   PRIVATE
 
@@ -256,924 +167,13 @@ MODULE cp_dbcsr_operations
 #define DEBUG_BODY        dbg = .FALSE. ; CALL dbcsr_set_debug(dbg, info=info)
 #define DEBUG_BODYY       dbg = .TRUE. ; CALL dbcsr_set_debug(dbg, info=info)
 
-
 CONTAINS
-
-! *****************************************************************************
-!> \brief cp2k interface to libdbcsr.
-!>     The cp2k error is passed as an argument.
-!>     Those procedure can de timed with the cp2k timer.    
-!> \author vw
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_norm(matrix, which_norm, norm_scalar, norm_vector, error)
-
-    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: matrix
-    INTEGER, INTENT(IN)                      :: which_norm
-    REAL(dp), INTENT(OUT), OPTIONAL          :: norm_scalar
-    REAL(dp), DIMENSION(:), INTENT(OUT), &
-      OPTIONAL                               :: norm_vector
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_norm', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    IF (PRESENT (norm_scalar)) THEN
-       CALL dbcsr_norm(matrix, which_norm, norm_scalar=norm_scalar,&
-            error=dbcsr_error)
-    ELSEIF (PRESENT (norm_vector)) THEN
-       CALL dbcsr_norm (matrix, which_norm, norm_vector=norm_vector,&
-            error=dbcsr_error)
-    ELSE
-       CALL cp_assert (.FALSE., cp_wrong_args_error, cp_internal_error,&
-            routineN, "Must pass either scalar or vector norm.", error=error)
-    ENDIF
-
-  END SUBROUTINE cp_dbcsr_norm
-
-  SUBROUTINE cp_dbcsr_replicate_all(matrix, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_replicate_all', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_replicate_all(matrix, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_replicate_all
-
-  SUBROUTINE cp_dbcsr_distribute(matrix, fast, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    LOGICAL, INTENT(in), OPTIONAL            :: fast
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_distribute', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_distribute(matrix, fast, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_distribute
-
-  SUBROUTINE cp_dbcsr_release_p (matrix, error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_release_p', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_release_p (matrix,dbcsr_error)
-
-  END SUBROUTINE cp_dbcsr_release_p
-
-  SUBROUTINE cp_dbcsr_release (matrix, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_release', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_release (matrix)
-
-  END SUBROUTINE cp_dbcsr_release
-
-  SUBROUTINE cp_dbcsr_init (matrix, error)
-    TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init', &
-      routineP = moduleN//':'//routineN
-
-    CALL dbcsr_init(matrix)
-
-  END SUBROUTINE cp_dbcsr_init
-
-  SUBROUTINE cp_dbcsr_init_p (matrix, error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_p', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_init_p(matrix,dbcsr_error)
-
-  END SUBROUTINE cp_dbcsr_init_p
-
-  SUBROUTINE cp_dbcsr_print(matrix, nodata, matlab_format, variable_name, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: nodata, matlab_format
-    CHARACTER(*), INTENT(in), OPTIONAL       :: variable_name
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_print(matrix, nodata, matlab_format, variable_name, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_print
-
-  SUBROUTINE cp_dbcsr_trace_a_d(matrix_a, trace, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(kind=real_8), INTENT(INOUT)         :: trace
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_a_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_trace(matrix_a, trace, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_trace_a_d
-
-  SUBROUTINE cp_dbcsr_trace_a_s(matrix_a, trace, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(kind=real_4), INTENT(INOUT)         :: trace
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_a_s', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_trace(matrix_a, trace, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_trace_a_s
-
-  SUBROUTINE cp_dbcsr_trace_ab_d(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
-    REAL(kind=real_8), INTENT(INOUT)         :: trace
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
-    LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_ab_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_trace(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_trace_ab_d
-
-  SUBROUTINE cp_dbcsr_trace_ab_s(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
-    REAL(kind=real_4), INTENT(INOUT)         :: trace
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
-    LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_ab_s', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_trace(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_trace_ab_s
-
-  FUNCTION cp_dbcsr_checksum(matrix, local, error) RESULT(checksum)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: local
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    REAL(KIND=dp)                            :: checksum
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_checksum', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    checksum = dbcsr_checksum(matrix, local, error=dbcsr_error)
-  END FUNCTION cp_dbcsr_checksum
-
-  SUBROUTINE cp_dbcsr_sum_replicated (matrix, error)
-    TYPE(dbcsr_obj), INTENT(inout)           :: matrix
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_sum_replicated', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_sum_replicated (matrix, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_sum_replicated
-
-  SUBROUTINE cp_dbcsr_btriu(matrix_b, matrix_a, error)
-
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_btriu', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_btriu(matrix_b, matrix_a, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_btriu
-
-  SUBROUTINE cp_dbcsr_verify_matrix(m, error, verbosity, local)
-    TYPE(dbcsr_obj), INTENT(IN)              :: m
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER, INTENT(IN), OPTIONAL            :: verbosity
-    LOGICAL, INTENT(IN), OPTIONAL            :: local
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_verify_matrix', &
-      r = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_verify_matrix(m, verbosity, local, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_verify_matrix
-
-  SUBROUTINE cp_dbcsr_finalize(matrix, resort, reshuffle, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: resort, reshuffle
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_finalize', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_finalize(matrix, resort, reshuffle, error=dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_finalize
-
-  SUBROUTINE cp_dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
-       error, work_mutable)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess, n
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    LOGICAL, INTENT(in), OPTIONAL            :: work_mutable
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_work_create', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
-         work_mutable, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_work_create
-
-  SUBROUTINE cp_dbcsr_create(matrix, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
-       mutable_work, replication_type, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    CHARACTER(len=*), INTENT(IN)             :: name
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    CHARACTER, INTENT(IN)                    :: matrix_type
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
-    CHARACTER, INTENT(IN), OPTIONAL          :: data_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
-    CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_create(matrix, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
-       mutable_work, replication_type, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_create
-
-  SUBROUTINE cp_dbcsr_filter(matrix, eps, method, use_absolute, filter_diag, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    REAL(dp), INTENT(IN)                     :: eps
-    INTEGER, INTENT(IN), OPTIONAL            :: method
-    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_filter', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_filter(matrix, eps, method, use_absolute, filter_diag, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_filter
-
-  SUBROUTINE cp_dbcsr_set_diag(matrix, diag, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: diag
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_diag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_set_diag(matrix, diag, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_set_diag
-
-  SUBROUTINE cp_dbcsr_get_diag(matrix, diag, error)
-
-    TYPE(dbcsr_obj), INTENT(IN), TARGET      :: matrix
-    REAL(dp), DIMENSION(:), INTENT(INOUT), &
-      TARGET                                 :: diag
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_diag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_get_diag(matrix, diag, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_get_diag
-
-  SUBROUTINE cp_dbcsr_get_block_diag(matrix, diag, error)
-
-    TYPE(dbcsr_obj), INTENT(IN), TARGET      :: matrix
-    TYPE(dbcsr_obj), INTENT(INOUT), TARGET   :: diag
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_diag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_get_block_diag(matrix, diag, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_get_block_diag
-
-  SUBROUTINE cp_dbcsr_add_on_diag(matrix, alpha_scalar, first_row, last_row, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    REAL(KIND=dp), INTENT(IN)                :: alpha_scalar
-    INTEGER, INTENT(in), OPTIONAL            :: first_row, last_row
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_on_diag', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_add_on_diag(matrix, alpha_scalar, first_row, last_row, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_add_on_diag
-
-  SUBROUTINE cp_dbcsr_copy(matrix_b, matrix_a, name, error, keep_sparsity,&
-       shallow_data, keep_imaginary)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity, shallow_data, &
-                                                keep_imaginary
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_copy(matrix_b, matrix_a, name, keep_sparsity,&
-         shallow_data, keep_imaginary, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_copy
-
-  SUBROUTINE cp_dbcsr_multiply_s(transa, transb,&
-       alpha, matrix_a, matrix_b, beta, matrix_c,&
-       first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
-    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
-    REAL(real_4), INTENT(IN)                 :: alpha
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
-    REAL(real_4), INTENT(IN)                 :: beta
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
-    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
-                                                first_column, last_column, &
-                                                first_k, last_k
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_s', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
-                                                trans_b
-    INTEGER                                  :: timing_handle, &
-                                                timing_handle_detail
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    trans_a = transa
-    trans_b = transb
-    CALL uppercase(trans_a)
-    CALL uppercase(trans_b)
-    shape_a='R'
-    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
-    shape_b='R'
-    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL timeset('dbcsr_mult_'//trans_a//shape_a//dbcsr_get_matrix_type(matrix_a)//'_'&
-         //trans_b//shape_b//dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
-    CALL dbcsr_multiply(transa, transb,&
-         alpha, matrix_a, matrix_b, beta, matrix_c,&
-         first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
-    CALL timestop(timing_handle_detail)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_multiply_s
-
-  SUBROUTINE cp_dbcsr_multiply_d(transa, transb,&
-       alpha, matrix_a, matrix_b, beta, matrix_c,&
-       first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
-    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
-    REAL(real_8), INTENT(IN)                 :: alpha
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
-    REAL(real_8), INTENT(IN)                 :: beta
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
-    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
-                                                first_column, last_column, &
-                                                first_k, last_k
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_d', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
-                                                trans_b
-    INTEGER                                  :: timing_handle, &
-                                                timing_handle_detail
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-
-    trans_a = transa
-    trans_b = transb
-    CALL uppercase(trans_a)
-    CALL uppercase(trans_b)
-    shape_a='R'
-    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
-    shape_b='R'
-    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL timeset('dbcsr_mult_'//trans_a//shape_a//dbcsr_get_matrix_type(matrix_a)//'_'&
-         //trans_b//shape_b//dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
-    CALL dbcsr_multiply(transa, transb,&
-         alpha, matrix_a, matrix_b, beta, matrix_c,&
-         first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set, right_set, dbcsr_error, flop)
-    CALL timestop(timing_handle_detail)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_multiply_d
-
-  SUBROUTINE cp_dbcsr_multiply_c(transa, transb,&
-       alpha, matrix_a, matrix_b, beta, matrix_c,&
-       first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
-    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
-    COMPLEX(real_4), INTENT(IN)              :: alpha
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
-    COMPLEX(real_4), INTENT(IN)              :: beta
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
-    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
-                                                first_column, last_column, &
-                                                first_k, last_k
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_c', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
-                                                trans_b
-    INTEGER                                  :: timing_handle, &
-                                                timing_handle_detail
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-
-    trans_a = transa
-    trans_b = transb
-    CALL uppercase(trans_a)
-    CALL uppercase(trans_b)
-    shape_a='R'
-    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
-    shape_b='R'
-    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL timeset('dbcsr_mult_'//trans_a//shape_a//dbcsr_get_matrix_type(matrix_a)//'_'&
-         //trans_b//shape_b//dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
-    CALL dbcsr_multiply(transa, transb,&
-         alpha, matrix_a, matrix_b, beta, matrix_c,&
-         first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
-    CALL timestop(timing_handle_detail)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_multiply_c
-
-  SUBROUTINE cp_dbcsr_multiply_z(transa, transb,&
-       alpha, matrix_a, matrix_b, beta, matrix_c,&
-       first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
-    CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
-    COMPLEX(real_8), INTENT(IN)              :: alpha
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
-    COMPLEX(real_8), INTENT(IN)              :: beta
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
-    INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
-                                                first_column, last_column, &
-                                                first_k, last_k
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
-    TYPE(dbcsr_2d_array_type), OPTIONAL, &
-      POINTER                                :: left_set, right_set
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-    INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_z', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
-                                                trans_b
-    INTEGER                                  :: timing_handle, &
-                                                timing_handle_detail
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-
-    trans_a = transa
-    trans_b = transb
-    CALL uppercase(trans_a)
-    CALL uppercase(trans_b)
-    shape_a='R'
-    IF(dbcsr_nfullcols_total(matrix_a).EQ.dbcsr_nfullrows_total(matrix_a)) shape_a='S'
-    shape_b='R'
-    IF(dbcsr_nfullcols_total(matrix_b).EQ.dbcsr_nfullrows_total(matrix_b)) shape_b='S'
-    CALL timeset('dbcsr_mult_'//trans_a//shape_a//dbcsr_get_matrix_type(matrix_a)//'_'&
-         //trans_b//shape_b//dbcsr_get_matrix_type(matrix_b), timing_handle_detail)
-    CALL dbcsr_multiply(transa, transb,&
-         alpha, matrix_a, matrix_b, beta, matrix_c,&
-         first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
-    CALL timestop(timing_handle_detail)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_multiply_z
-
-  SUBROUTINE cp_dbcsr_transposed (transposed, normal, shallow_data_copy,&
-       transpose_data, transpose_distribution, use_distribution, error)
-
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: transposed
-    TYPE(dbcsr_obj), INTENT(IN)              :: normal
-    LOGICAL, INTENT(IN), OPTIONAL            :: shallow_data_copy, &
-                                                transpose_data, &
-                                                transpose_distribution
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(IN), OPTIONAL                   :: use_distribution
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_transposed', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_new_transposed(transposed, normal, shallow_data_copy,&
-         transpose_data, transpose_distribution,&
-         use_distribution=use_distribution, error=dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_transposed
-
-  SUBROUTINE cp_dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_c
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_hadamard_product', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_hadamard_product
-
-
-  SUBROUTINE cp_dbcsr_scale_by_vector_d(matrix_a, alpha, side, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(real_8), DIMENSION(:), INTENT(IN), &
-      TARGET                                 :: alpha
-    CHARACTER(LEN=*), INTENT(IN)             :: side
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_by_vector_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_scale_by_vector(matrix_a, alpha, side, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_scale_by_vector_d
-
-  SUBROUTINE cp_dbcsr_scale_by_vector_s(matrix_a, alpha, side, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(real_4), DIMENSION(:), INTENT(IN), &
-      TARGET                                 :: alpha
-    CHARACTER(LEN=*), INTENT(IN)             :: side
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_by_vector_s', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_scale_by_vector(matrix_a, alpha, side, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_scale_by_vector_s
-
-  SUBROUTINE cp_dbcsr_scale_by_vector_z(matrix_a, alpha, side, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    COMPLEX(real_8), DIMENSION(:), &
-      INTENT(IN), TARGET                     :: alpha
-    CHARACTER(LEN=*), INTENT(IN)             :: side
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_by_vector_z', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_scale_by_vector(matrix_a, alpha, side, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_scale_by_vector_z
-
-  SUBROUTINE cp_dbcsr_scale_by_vector_c(matrix_a, alpha, side, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    COMPLEX(real_4), DIMENSION(:), &
-      INTENT(IN), TARGET                     :: alpha
-    CHARACTER(LEN=*), INTENT(IN)             :: side
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_by_vector_c', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_scale_by_vector(matrix_a, alpha, side, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_scale_by_vector_c
-
-  SUBROUTINE cp_dbcsr_scale_d(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(real_8), INTENT(IN)                 :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_scale(matrix_a, alpha_scalar, last_column, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_scale_d
-
-  SUBROUTINE cp_dbcsr_scale_s(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(real_4), INTENT(IN)                 :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_s', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_scale(matrix_a, alpha_scalar, last_column, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_scale_s
-
-  SUBROUTINE cp_dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    COMPLEX(real_8), INTENT(IN)              :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_z', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_scale(matrix_a, alpha_scalar, last_column, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_scale_z
-
-  SUBROUTINE cp_dbcsr_scale_c(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    COMPLEX(real_4), INTENT(IN)              :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_c', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_scale(matrix_a, alpha_scalar, last_column, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_scale_c
-
-  SUBROUTINE cp_dbcsr_set_d(matrix, alpha, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    REAL(real_8), INTENT(IN)                 :: alpha
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_set(matrix, alpha, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_set_d
-
-  SUBROUTINE cp_dbcsr_set_s(matrix, alpha, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    REAL(real_4), INTENT(IN)                 :: alpha
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_s', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_set(matrix, alpha, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_set_s
-
-  SUBROUTINE cp_dbcsr_set_z(matrix, alpha, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    COMPLEX(real_8), INTENT(IN)              :: alpha
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_z', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_set(matrix, alpha, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_set_z
-
-  SUBROUTINE cp_dbcsr_set_c(matrix, alpha, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    COMPLEX(real_4), INTENT(IN)              :: alpha
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_c', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_set(matrix, alpha, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_set_c
-
-  SUBROUTINE cp_dbcsr_add_d(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    REAL(real_8), INTENT(IN)                 :: alpha_scalar, beta_scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_d', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_add_d
-
-  SUBROUTINE cp_dbcsr_add_s(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    REAL(real_4), INTENT(IN)                 :: alpha_scalar, beta_scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_s', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_add_s
-
-  SUBROUTINE cp_dbcsr_add_z(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    COMPLEX(real_8), INTENT(IN)              :: alpha_scalar, beta_scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_z', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_add_z
-
-  SUBROUTINE cp_dbcsr_add_c(matrix_a, matrix_b, alpha_scalar, beta_scalar, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
-    COMPLEX(real_4), INTENT(IN)              :: alpha_scalar, beta_scalar
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_c', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: timing_handle
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL timeset(routineN, timing_handle)
-    CALL dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar, dbcsr_error)
-    CALL timestop(timing_handle)
-  END SUBROUTINE cp_dbcsr_add_c
-
 
 ! *****************************************************************************
 !> \brief hack for dbcsr_copy_columns
 !> \author vw
 ! *****************************************************************************
-  SUBROUTINE dbcsr_copy_columns_hack(matrix_b, matrix_a,&
+  SUBROUTINE cp_dbcsr_copy_columns_hack(matrix_b, matrix_a,&
        ncol, source_start, target_start, para_env, blacs_env, error)
 
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
@@ -1184,7 +184,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_columns_hack', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy_columns_hack', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nfullcols_total, &
@@ -1215,7 +215,7 @@ CONTAINS
     CALL cp_fm_release(fm_matrix_a, error=error)
     CALL cp_fm_release(fm_matrix_b, error=error)
 
-  END SUBROUTINE dbcsr_copy_columns_hack
+  END SUBROUTINE cp_dbcsr_copy_columns_hack
 
 
 ! *****************************************************************************
@@ -1226,7 +226,7 @@ CONTAINS
 !> \par History
 !>    move form dbcsr_operation 01.2010
 ! *****************************************************************************
-  SUBROUTINE dbcsr_dist2d_to_dist(dist2d, dist, error, mp_obj)
+  SUBROUTINE cp_dbcsr_dist2d_to_dist(dist2d, dist, error, mp_obj)
     TYPE(distribution_2d_type), INTENT(IN), &
       TARGET                                 :: dist2d
     TYPE(dbcsr_distribution_obj), &
@@ -1271,7 +271,7 @@ CONTAINS
     CALL dbcsr_mp_release (mp_env)
     CALL array_release (rd)
     CALL array_release (cd)
-  END SUBROUTINE dbcsr_dist2d_to_dist
+  END SUBROUTINE cp_dbcsr_dist2d_to_dist
 
 ! *****************************************************************************
 !> \brief allocate the blocks of a dbcsr based on the neighbor list
@@ -1284,14 +284,15 @@ CONTAINS
 !> \author vw
 ! *****************************************************************************
 
-  SUBROUTINE dbcsr_alloc_block_from_nbl(matrix,sab_orb,error)
+  SUBROUTINE cp_dbcsr_alloc_block_from_nbl(matrix,sab_orb,error)
 
     TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_alloc_block_from_nbl', &
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_alloc_block_from_nbl', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=1)                         :: symmetry
@@ -1356,7 +357,7 @@ CONTAINS
              END IF
              NULLIFY(block)
              IF(symmetry==dbcsr_type_normal) THEN
-                CALL dbcsr_add_block_node(matrix=matrix,&
+                CALL cp_dbcsr_add_block_node(matrix=matrix,&
                      block_row=iatom,&
                      block_col=jatom,&
                      block=block,error=error)
@@ -1368,7 +369,7 @@ CONTAINS
                    irow = jatom
                    icol = iatom
                 END IF
-                CALL dbcsr_add_block_node(matrix=matrix,&
+                CALL cp_dbcsr_add_block_node(matrix=matrix,&
                      block_row=irow,&
                      block_col=icol,&
                      block=block,error=error)
@@ -1388,7 +389,7 @@ CONTAINS
 
     CALL cp_dbcsr_finalize( matrix, error=error )
 
-  END SUBROUTINE dbcsr_alloc_block_from_nbl
+  END SUBROUTINE cp_dbcsr_alloc_block_from_nbl
 
 
 
@@ -1397,14 +398,14 @@ CONTAINS
 !> \author  Urban
 !> \date    2008-10-07
 ! *****************************************************************************
-  SUBROUTINE dbcsr_check(matrix_s, matrix_x, hint, error)
+  SUBROUTINE cp_dbcsr_check(matrix_s, matrix_x, hint, error)
 
     TYPE(real_matrix_type), POINTER          :: matrix_s
     TYPE(cp_fm_type), POINTER                :: matrix_x
     INTEGER, INTENT(IN)                      :: hint
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_check', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_nze, col, col_size, &
@@ -1441,7 +442,7 @@ CONTAINS
     output_unit = cp_logger_get_default_io_unit (logger)
     !Do the new multiplication
     CALL cp_dbcsr_init (matrix_a, error)
-    CALL dbcsr_from_sm(matrix_a, matrix_s, error)
+    CALL cp_dbcsr_from_sm(matrix_a, matrix_s, error)
     CALL cp_dbcsr_verify_matrix(matrix_a, error)
 !write(*,*)'-###MATRIX A'
 !call dbcsr_print_dist(matrix_a%m%dist)
@@ -1547,7 +548,7 @@ CONTAINS
     !
     ! Fill a matrix with all zeros.
     CALL cp_dbcsr_init (matrix_a2, error)
-    CALL dbcsr_from_sm(matrix_a2, matrix_s, error)
+    CALL cp_dbcsr_from_sm(matrix_a2, matrix_s, error)
     ! Now delete all the blocks.
     !WRITE(*,*)'Deleting all blocks!'
     CALL dbcsr_iterator_start (iter, matrix_a2)
@@ -1593,7 +594,7 @@ CONTAINS
     !
     ! Tests (undefined) block addition then subsequently setting the
     ! data area.
-    CALL dbcsr_from_sm(matrix_a2, matrix_s, error)
+    CALL cp_dbcsr_from_sm(matrix_a2, matrix_s, error)
     !write(*,*)'zeroing..., second time around'
     rbs => array_data (dbcsr_row_block_sizes (matrix_a2))
     cbs => array_data (dbcsr_col_block_sizes (matrix_a2))
@@ -1604,7 +605,7 @@ CONTAINS
           NULLIFY (block2d)
           !CALL dbcsr_reserve_block2d (matrix_a2, row, col,&
           !     block2d)
-          CALL dbcsr_add_block_node (matrix_a2, row, col, block2d, error)
+          CALL cp_dbcsr_add_block_node (matrix_a2, row, col, block2d, error)
 !write(*,*)routineN//" setting block at virt. coor", row, col, rowsize, colsize          
           !block2d(1:rowsize, 1:colsize) = 1.0_dp
           block2d(:,:) = 1.0_dp
@@ -1645,7 +646,7 @@ CONTAINS
     ENDDO
     !
     !CALL cp_dbcsr_release (matrix_a2)
-    CALL dbcsr_deallocate_matrix (matrix_a2, error)
+    CALL cp_dbcsr_deallocate_matrix (matrix_a2, error)
     !
     checksum = 0.0_dp
     CALL cp_fm_frobenius_norm(matrix_x, checksum, error)
@@ -1662,7 +663,7 @@ CONTAINS
             col_blk_size_right)
     ENDIF
     CALL cp_dbcsr_init (matrix_b, error)
-    CALL dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist_right,&
+    CALL cp_dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist_right,&
          row_blk_size=matrix_a%m%row_blk_size,&
          col_blk_size=col_blk_size_right,&
          error=error)
@@ -1947,14 +948,14 @@ CONTAINS
        WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')" SMFM Sx checksum",&
             checksum*checksum, " time ", oldtime
     ENDIF
-    CALL dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist_right,&
+    CALL cp_dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist_right,&
          row_blk_size=matrix_a%m%row_blk_size,&
          col_blk_size=col_blk_size_right,&
          error=error)
 
     !CALL cp_fm_release (fmout, error)
     !CALL cp_fm_create(fmout, matrix_x%matrix_struct, "FMout", error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_a, matrix_x, fmout, k, beta=0.0_dp, error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_a, matrix_x, fmout, k, beta=0.0_dp, error=error)
     CALL cp_fm_frobenius_norm(fmout, checksum, error)
     IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" dbcsr_SM_FM Sx checksum",&
@@ -1964,7 +965,7 @@ CONTAINS
     ALLOCATE (matrix_a2)
     CALL cp_dbcsr_init (matrix_a2, error)
     CALL cp_dbcsr_copy(matrix_a2, matrix_a, error=error)
-    CALL dbcsr_plus_fm_fm_t(matrix_a2,matrix_x,ncol=k,error=error)
+    CALL cp_dbcsr_plus_fm_fm_t(matrix_a2,matrix_x,ncol=k,error=error)
     checksum = cp_dbcsr_checksum(matrix_a2, error=error)
     IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" S = S+C*C^t Sx1checksum",&
@@ -1976,7 +977,7 @@ CONTAINS
     ALLOCATE (matrix_a2)
     CALL cp_dbcsr_init (matrix_a2, error)
     CALL cp_dbcsr_copy(matrix_a2, matrix_a, error=error)
-    CALL dbcsr_plus_fm_fm_t(matrix_a2,matrix_x,matrix_x,ncol=k,error=error)
+    CALL cp_dbcsr_plus_fm_fm_t(matrix_a2,matrix_x,matrix_x,ncol=k,error=error)
     checksum = cp_dbcsr_checksum(matrix_a2, error=error)
     IF (ldbg.AND.(output_unit>0)) THEN
        WRITE(output_unit, '(T2,A,F12.4)')" S = S+C*C^t Sx2checksum",&
@@ -2012,7 +1013,7 @@ CONTAINS
     CALL timestop(handle)
 
 
-  END SUBROUTINE dbcsr_check
+  END SUBROUTINE cp_dbcsr_check
 
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a column vector
@@ -2023,13 +1024,13 @@ CONTAINS
 !> \param[out] pkd       the result in a packed format
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_multiply_vec(matrix_a, matrix_b, a_row_beg, a_row_end, b_col, pkd, error)
+  SUBROUTINE cp_dbcsr_multiply_vec(matrix_a, matrix_b, a_row_beg, a_row_end, b_col, pkd, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
     INTEGER, INTENT(in)                      :: a_row_beg, a_row_end, b_col
     REAL(dp), DIMENSION(:), POINTER          :: pkd
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_vec', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_vec', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, nblkcols_total, node, &
@@ -2051,22 +1052,22 @@ CONTAINS
     ALLOCATE(pkd_b(SIZE(pkd)))
     !
     ! packed the b_col
-    CALL dbcsr_pack_vec(matrix_b, b_col, pkd_b, 'column', error)
+    CALL cp_dbcsr_pack_vec(matrix_b, b_col, pkd_b, 'column', error)
     !
     ! send the packed col to the right guy
     row = 1
     col = b_col
-    !write(*,*) 'dbcsr_multiply_vec: row, col',row,col
+    !write(*,*) 'cp_dbcsr_multiply_vec: row, col',row,col
     tr = .FALSE.
     CALL dbcsr_get_stored_coordinates (matrix_b, row, col, tr, node)
-    !write(*,*) 'dbcsr_multiply_vec: node',node
+    !write(*,*) 'cp_dbcsr_multiply_vec: node',node
     CALL dbcsr_mp_get_coordinates(mp_obj, node, prow, pcol)
-    !write(*,*) 'dbcsr_multiply_vec: prow, pcol',prow, pcol
+    !write(*,*) 'cp_dbcsr_multiply_vec: prow, pcol',prow, pcol
     CALL packed_vec_alltoall(pkd_b, pcol, 'column', nblkcols_total, &
          row_blk_size*col_blk_size(b_col), mp_obj, error)
     !
     ! local multiply
-    CALL dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd, error)
+    CALL cp_dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd, error)
     !
     ! sum the local products
     CALL packed_vec_alltoall(pkd, -1, 'all', nblkcols_total, &
@@ -2075,7 +1076,7 @@ CONTAINS
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_multiply_vec
+  END SUBROUTINE cp_dbcsr_multiply_vec
 
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a packed vector as
@@ -2086,14 +1087,14 @@ CONTAINS
 !> \param[out] pkd_c       packed vector c
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd_c, error)
+  SUBROUTINE cp_dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd_c, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     REAL(dp), DIMENSION(:), INTENT(in)       :: pkd_b
     INTEGER, INTENT(in)                      :: a_row_beg, a_row_end, b_col
     REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd_c
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mult_pack_vec_local', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_mult_pack_vec_local', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: b_col_size, blk, c_offset, &
@@ -2144,7 +1145,7 @@ CONTAINS
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_mult_pack_vec_local
+  END SUBROUTINE cp_dbcsr_mult_pack_vec_local
 
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a replicated array
@@ -2156,7 +1157,7 @@ CONTAINS
 !> \param[in]  alpha        alpha
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_multiply_local(matrix_a, vec_b, vec_c, ncol, alpha, error)
+  SUBROUTINE cp_dbcsr_multiply_local(matrix_a, vec_b, vec_c, ncol, alpha, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: vec_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: vec_c
@@ -2164,7 +1165,7 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_local', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_local', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, my_ncol, row, &
@@ -2224,7 +1225,7 @@ CONTAINS
     DEALLOCATE(offset)
 
     CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_multiply_local
+  END SUBROUTINE cp_dbcsr_multiply_local
 
 
 ! *****************************************************************************
@@ -2236,7 +1237,7 @@ CONTAINS
 !> \param[in]  beta           beta
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_sm_fm_multiply(matrix, fm_in, fm_out, ncol, alpha, beta, error)
+  SUBROUTINE cp_dbcsr_sm_fm_multiply(matrix, fm_in, fm_out, ncol, alpha, beta, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(cp_fm_type), POINTER                :: fm_in, fm_out
     INTEGER, INTENT(IN)                      :: ncol
@@ -2355,9 +1356,9 @@ CONTAINS
          ENDDO
       ENDIF
     END SUBROUTINE match_col_sizes
-  END SUBROUTINE dbcsr_sm_fm_multiply
+  END SUBROUTINE cp_dbcsr_sm_fm_multiply
 
-  SUBROUTINE dbcsr_plus_fm_fm_t_native(sparse_matrix,matrix_v,matrix_g,ncol,&
+  SUBROUTINE cp_dbcsr_plus_fm_fm_t_native(sparse_matrix,matrix_v,matrix_g,ncol,&
        alpha,error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: sparse_matrix
     TYPE(cp_fm_type), POINTER                :: matrix_v
@@ -2366,7 +1367,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_plus_fm_fm_t_native', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_plus_fm_fm_t_native', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k, nao, timing_handle
@@ -2499,7 +1500,7 @@ CONTAINS
     ENDIF
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_plus_fm_fm_t_native
+  END SUBROUTINE cp_dbcsr_plus_fm_fm_t_native
 
 ! *****************************************************************************
 !> \brief pack a row or column of a dbcsr
@@ -2509,14 +1510,14 @@ CONTAINS
 !> \param[in]  what        what to pack (row or column)
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_pack_vec(matrix, ivec, pkd_vec, what, error)
+  SUBROUTINE cp_dbcsr_pack_vec(matrix, ivec, pkd_vec, what, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec
     CHARACTER(LEN=*), INTENT(IN)             :: what
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_pack_vec', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_pack_vec', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, col_size, &
@@ -2586,7 +1587,7 @@ CONTAINS
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_pack_vec
+  END SUBROUTINE cp_dbcsr_pack_vec
 
 ! *****************************************************************************
 !> \brief unpack a row or column of a dbcsr
@@ -2596,7 +1597,7 @@ CONTAINS
 !> \param[in]     what        what to unpack (row or column)
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_unpack_vec(matrix, ivec, pkd_vec, what, do_sum, error)
+  SUBROUTINE cp_dbcsr_unpack_vec(matrix, ivec, pkd_vec, what, do_sum, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_vec
@@ -2604,7 +1605,7 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: do_sum
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_unpack_vec', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_unpack_vec', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: col, col_size, mynode, nblkcols_total, nblkrows_total, node, &
@@ -2668,7 +1669,7 @@ CONTAINS
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_unpack_vec
+  END SUBROUTINE cp_dbcsr_unpack_vec
 
 
 ! *****************************************************************************
@@ -3267,14 +2268,14 @@ CONTAINS
 !> \param[in]    ivec      the column/row index
 !> 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_copy_vec(matrix_a, matrix_b, what, ivec, error)
+  SUBROUTINE cp_dbcsr_copy_vec(matrix_a, matrix_b, what, ivec, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
     CHARACTER(len=*), INTENT(in)             :: what
     INTEGER, INTENT(IN)                      :: ivec
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_vec', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy_vec', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, row, timing_handle
@@ -3309,7 +2310,7 @@ CONTAINS
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_copy_vec
+  END SUBROUTINE cp_dbcsr_copy_vec
 
 
 ! *****************************************************************************
@@ -3324,13 +2325,13 @@ CONTAINS
 !> \param[in]  block          the block to put
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add_block_node (matrix, block_row, block_col, block, error)
+  SUBROUTINE cp_dbcsr_add_block_node (matrix, block_row, block_col, block, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_block_node', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_block_node', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: c, ithread, p, r
@@ -3374,7 +2375,7 @@ CONTAINS
     CALL cp_assert (.NOT.existed, cp_warning_level, cp_wrong_args_error,&
          routineN, "You should not add existing blocks according to old API.")
     IF(.NOT.is_there) block(:,:) = 0.0_dp
-  END SUBROUTINE dbcsr_add_block_node
+  END SUBROUTINE cp_dbcsr_add_block_node
 
 ! *****************************************************************************
 !> \brief returns the id of the given matrix (from cp_sm_get_id_nr)
@@ -3407,11 +2408,11 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[in,out] matrix      DBCSR matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_deallocate_matrix(matrix, error)
+  SUBROUTINE cp_dbcsr_deallocate_matrix(matrix, error)
     TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_deallocate_matrix', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_deallocate_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
@@ -3428,7 +2429,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_deallocate_matrix
+  END SUBROUTINE cp_dbcsr_deallocate_matrix
 
 ! *****************************************************************************
 ! CP2k-compatible matrix sets
@@ -3444,8 +2445,8 @@ END FUNCTION cp_dbcsr_get_id_nr
 !>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
 ! *****************************************************************************
   SUBROUTINE allocate_dbcsr_matrix_set(matrix_set, nmatrix, error)
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_set
     INTEGER, INTENT(IN)                      :: nmatrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -3454,7 +2455,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     INTEGER                                  :: imatrix, istat
 
-    IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set,error=error)
+    IF (ASSOCIATED(matrix_set)) CALL cp_dbcsr_deallocate_matrix_set(matrix_set,error=error)
     ALLOCATE (matrix_set(nmatrix),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"matrix_set",0)
     DO imatrix=1,nmatrix
@@ -3473,7 +2474,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
 ! *****************************************************************************
   SUBROUTINE allocate_dbcsr_matrix_set_2d(matrix_set,nmatrix,mmatrix,error)
-    TYPE(dbcsr_obj_p_type), &
+    TYPE(cp_dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: matrix_set
     INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3483,7 +2484,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     INTEGER                                  :: imatrix, istat, jmatrix
 
-    IF (ASSOCIATED(matrix_set)) CALL dbcsr_deallocate_matrix_set(matrix_set,error=error)
+    IF (ASSOCIATED(matrix_set)) CALL cp_dbcsr_deallocate_matrix_set(matrix_set,error=error)
     ALLOCATE (matrix_set(nmatrix,mmatrix),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"matrix_set",0)
     DO jmatrix=1,mmatrix
@@ -3505,8 +2506,8 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE deallocate_dbcsr_matrix_set(matrix_set,error)
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set', &
@@ -3518,7 +2519,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     IF (ASSOCIATED(matrix_set)) THEN
       DO imatrix=1,SIZE(matrix_set)
-        CALL dbcsr_deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
+        CALL cp_dbcsr_deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
       END DO
       DEALLOCATE (matrix_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
@@ -3537,7 +2538,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE deallocate_dbcsr_matrix_set_2d(matrix_set,error)
 
-    TYPE(dbcsr_obj_p_type), &
+    TYPE(cp_dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: matrix_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3550,7 +2551,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     IF (ASSOCIATED(matrix_set)) THEN
       DO jmatrix=1,SIZE(matrix_set,2)
         DO imatrix=1,SIZE(matrix_set,1)
-          CALL dbcsr_deallocate_matrix(matrix_set(imatrix,jmatrix)%matrix,error=error)
+          CALL cp_dbcsr_deallocate_matrix(matrix_set(imatrix,jmatrix)%matrix,error=error)
         END DO
       END DO
       DEALLOCATE (matrix_set,STAT=istat)
@@ -3563,11 +2564,12 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[out] dbcsr_matrix_type        matrix_type of the DBCSR matrix
 !> \param[in] sm_symmetry               sparse_matrix_symmetry
 ! *****************************************************************************
-  SUBROUTINE dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, sm_symmetry)
+  SUBROUTINE cp_dbcsr_type_from_sm_symmetry (dbcsr_matrix_type, sm_symmetry)
     CHARACTER, INTENT(OUT)                   :: dbcsr_matrix_type
     CHARACTER(LEN=*), INTENT(IN)             :: sm_symmetry
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_type_from_sm_symmetry', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_dbcsr_type_from_sm_symmetry', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -3583,7 +2585,7 @@ END FUNCTION cp_dbcsr_get_id_nr
        CALL cp_assert (.FALSE., cp_warning_level, cp_caller_error, routineN,&
             "Unknown matrix type "//sm_symmetry)
     END SELECT
-  END SUBROUTINE dbcsr_type_from_sm_symmetry
+  END SUBROUTINE cp_dbcsr_type_from_sm_symmetry
 
 
 ! *****************************************************************************
@@ -3596,7 +2598,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[in] distribution    the distribution to use for the new matrix
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_from_fm(matrix, fm, threshold, distribution, row_blk_size,&
+  SUBROUTINE cp_dbcsr_from_fm(matrix, fm, threshold, distribution, row_blk_size,&
        col_blk_size, error)
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
     TYPE(cp_fm_type), POINTER                :: fm
@@ -3605,7 +2607,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_from_fm', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_from_fm', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
@@ -3621,7 +2623,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL cp_dbcsr_verify_matrix(matrix, error)
     CALL timestop(timing_handle)
 
-  END SUBROUTINE dbcsr_from_fm
+  END SUBROUTINE cp_dbcsr_from_fm
 
 
 ! *****************************************************************************
@@ -4319,7 +3321,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[in] sm    cp2k sparse matrix
 !> \param[in,out] error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_from_sm(matrix, sm, error, distribution_2d, mp_obj)
+  SUBROUTINE cp_dbcsr_from_sm(matrix, sm, error, distribution_2d, mp_obj)
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
     TYPE(real_matrix_type), POINTER          :: sm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -4327,7 +3329,7 @@ END FUNCTION cp_dbcsr_get_id_nr
       POINTER                                :: distribution_2d
     TYPE(dbcsr_mp_obj), INTENT(IN), OPTIONAL :: mp_obj
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_from_sm', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_from_sm', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: data_exchange_info_cnt = 3, &
                                                 metalen = 2
@@ -4361,7 +3363,7 @@ END FUNCTION cp_dbcsr_get_id_nr
        dist2d => sm%distribution_2d
     ENDIF
     CALL dbcsr_distribution_init (dist)
-    CALL dbcsr_dist2d_to_dist (dist2d, dist, mp_obj=mp_obj, error=error)
+    CALL cp_dbcsr_dist2d_to_dist (dist2d, dist, mp_obj=mp_obj, error=error)
     symmetric = (sm%symmetry .EQ. "symmetric")
     nblkrows_total = sm%nblock_row
     nblkcols_total = sm%nblock_col
@@ -4470,7 +3472,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL array_release (rbs_array)
     CALL array_release (cbs_array)
     CALL timestop(timing_handle)
-  END SUBROUTINE dbcsr_from_sm
+  END SUBROUTINE cp_dbcsr_from_sm
 
 
 ! *****************************************************************************

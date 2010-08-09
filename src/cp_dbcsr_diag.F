@@ -49,15 +49,15 @@ MODULE cp_dbcsr_diag
 
   ! Public subroutines
 
-  PUBLIC :: dbcsr_syevd, &
-            dbcsr_syevr, &
-            dbcsr_syevx, &
-            dbcsr_heevd
+  PUBLIC :: cp_dbcsr_syevd, &
+            cp_dbcsr_syevr, &
+            cp_dbcsr_syevx, &
+            cp_dbcsr_heevd
 
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_syevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
+  SUBROUTINE cp_dbcsr_syevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
 
     ! Computes all eigenvalues and vectors of a real symmetric matrix
     ! should be quite a bit faster than syevx for that case
@@ -70,7 +70,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_syevd', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_syevd', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nfullrows_total
@@ -103,18 +103,18 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE dbcsr_syevd
+  END SUBROUTINE cp_dbcsr_syevd
 
 ! *****************************************************************************
 !> \brief   compute eigenvalues and optionally eigenvectors of a real symmetric matrix using scalapack.
 !>          If eigenvectors are required this routine will replicate a full matrix on each CPU...
-!>          if more than a handful of vectors are needed, use dbcsr_syevd instead
+!>          if more than a handful of vectors are needed, use cp_dbcsr_syevd instead
 !> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
 !>          neig   is the number of vectors needed (default all)
 !>          work_syevx evec calculation only, is the fraction of the working buffer allowed (1.0 use full buffer)
 !>                     reducing this saves time, but might cause the routine to fail
 ! *****************************************************************************
-  SUBROUTINE dbcsr_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,&
+  SUBROUTINE cp_dbcsr_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,&
        para_env,blacs_env,error)
 
     ! Diagonalise the symmetric n by n matrix using the LAPACK library.
@@ -128,7 +128,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_syevx', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_syevx', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n, neig_local
@@ -163,7 +163,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE dbcsr_syevx
+  END SUBROUTINE cp_dbcsr_syevx
 
 ! *****************************************************************************
 !> \brief  computes selected eigenvalues and, optionally, eigenvectors of 
@@ -174,7 +174,7 @@ CONTAINS
 !>          subsets of eigenvalues/vectors can be selected by
 !>          specifying a range of values or a range of indices for the desired eigenvalues.
 ! *****************************************************************************
-  SUBROUTINE dbcsr_syevr(matrix,eigenvectors,eigenvalues,ilow,iup,para_env,blacs_env,error)
+  SUBROUTINE cp_dbcsr_syevr(matrix,eigenvectors,eigenvalues,ilow,iup,para_env,blacs_env,error)
 
     TYPE(dbcsr_obj), POINTER                 :: matrix
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: eigenvectors
@@ -184,7 +184,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_syevr', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_syevr', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n
@@ -214,10 +214,10 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE dbcsr_syevr
+  END SUBROUTINE cp_dbcsr_syevr
 
 ! *****************************************************************************
-  SUBROUTINE dbcsr_heevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
+  SUBROUTINE cp_dbcsr_heevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
 
     TYPE(dbcsr_obj)                          :: matrix
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: eigenvectors
@@ -226,7 +226,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_heevd', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_heevd', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nfullrows_total
@@ -258,6 +258,6 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE dbcsr_heevd
+  END SUBROUTINE cp_dbcsr_heevd
 
 END MODULE cp_dbcsr_diag

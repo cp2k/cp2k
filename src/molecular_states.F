@@ -13,7 +13,7 @@ MODULE molecular_states
                                              cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -179,7 +179,7 @@ CONTAINS
                         nrow_global=nrow_global ,error=error)
     NULLIFY(smo)
     CALL cp_fm_create(smo,mo_coeff%matrix_struct,error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global,error=error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -240,7 +240,7 @@ CONTAINS
           CALL cp_fm_to_fm ( mo_localized, b, 1, ind ( i ), i)
        END DO
 
-       CALL dbcsr_sm_fm_multiply(Hks,b,c,ns,error=error)
+       CALL cp_dbcsr_sm_fm_multiply(Hks,b,c,ns,error=error)
 
        CALL cp_fm_gemm('T','N',ns,ns,nrow_global,1.0_dp, &
             b,c,0.0_dp,d,error=error)

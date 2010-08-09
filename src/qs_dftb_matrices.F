@@ -19,11 +19,17 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, &
-       cp_dbcsr_init, cp_dbcsr_multiply, dbcsr_add_block_node, &
-       dbcsr_allocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_multiply
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_dist2d_to_dist
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -134,11 +140,11 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(2:4)       :: dgblocks, dsblocks
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: gamma_matrix, matrix_h, &
+                                                matrix_p, matrix_s, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: gamma_matrix, matrix_h, &
-                                                matrix_p, matrix_s, matrix_w
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -221,7 +227,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       gamma_matrix=gamma_matrix,error=error)
 
-      CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error,&
+      CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error,&
            mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_s(1)%matrix)))
       ALLOCATE (rbs(natom), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -230,7 +236,7 @@ CONTAINS
       CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
 
 
-      CALL dbcsr_allocate_matrix_set(gamma_matrix,nmat,error=error)
+      CALL cp_dbcsr_allocate_matrix_set(gamma_matrix,nmat,error=error)
       ALLOCATE(gamma_matrix(1)%matrix)
       CALL cp_dbcsr_init(gamma_matrix(1)%matrix, error=error)
 
@@ -373,18 +379,18 @@ CONTAINS
                    icol = MAX(iatom,jatom)
                    irow = MIN(iatom,jatom)
                    NULLIFY (sblock)
-                   CALL dbcsr_add_block_node(matrix=matrix_s(1)%matrix,&
+                   CALL cp_dbcsr_add_block_node(matrix=matrix_s(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=sblock,error=error)
                    NULLIFY (fblock)
-                   CALL dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
+                   CALL cp_dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=fblock,error=error)
                    IF ( dftb_control%self_consistent ) THEN
                      NULLIFY (gblock)
-                     CALL dbcsr_add_block_node(matrix=gamma_matrix(1)%matrix,&
+                     CALL cp_dbcsr_add_block_node(matrix=gamma_matrix(1)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=gblock,error=error)
@@ -401,12 +407,12 @@ CONTAINS
                      IF ( dftb_control%self_consistent ) THEN
                        DO i=2,4
                           NULLIFY(dsblocks(i)%block)
-                          CALL dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
+                          CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
                                      block_row=irow,&
                                      block_col=icol,&
                                      BLOCK=dsblocks(i)%block,error=error)
                          NULLIFY (dgblocks(i)%block)
-                         CALL dbcsr_add_block_node(matrix=gamma_matrix(i)%matrix,&
+                         CALL cp_dbcsr_add_block_node(matrix=gamma_matrix(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=dgblocks(i)%block,error=error)
@@ -611,7 +617,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
              output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
@@ -621,7 +627,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,&
+       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,&
              output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
@@ -646,8 +652,8 @@ CONTAINS
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -667,12 +673,12 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h, matrix_p, matrix_s, &
+                                                mo_derivs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: mo_coeff
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s, &
-                                                mo_derivs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -807,9 +813,9 @@ CONTAINS
     TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h, matrix_s
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -854,15 +860,15 @@ CONTAINS
       nmat = 1
     END IF
 
-    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
     CALL array_nullify (row_blk_sizes)
     CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
 
-    CALL dbcsr_allocate_matrix_set(matrix_s,nmat,error=error)
-    CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_s,nmat,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
 
     ALLOCATE(matrix_s(1)%matrix)
     CALL cp_dbcsr_init(matrix_s(1)%matrix, error=error)

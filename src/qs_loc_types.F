@@ -25,8 +25,8 @@ MODULE qs_loc_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -102,7 +102,7 @@ MODULE qs_loc_types
           POINTER                                :: localized_wfn_control
      TYPE (particle_type), DIMENSION(:),&
           POINTER                                :: particle_set
-     TYPE (dbcsr_obj_p_type), DIMENSION(:,:),&
+     TYPE (cp_dbcsr_obj_p_type), DIMENSION(:,:),&
           POINTER                                :: op_sm_set
      
      REAL (KIND = dp)                            :: start_time,target_time
@@ -206,7 +206,7 @@ CONTAINS
        IF(ASSOCIATED(qs_loc_env%op_sm_set)) THEN
           DO i=1,SIZE ( qs_loc_env % op_sm_set, 2 )
              DO j=1,SIZE ( qs_loc_env % op_sm_set, 1 )
-                CALL dbcsr_deallocate_matrix(qs_loc_env%op_sm_set(j,i)%matrix,error=error)
+                CALL cp_dbcsr_deallocate_matrix(qs_loc_env%op_sm_set(j,i)%matrix,error=error)
              ENDDO
           END DO
           DEALLOCATE(qs_loc_env%op_sm_set,STAT=istat)
@@ -291,7 +291,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: localized_wfn_control
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: moloc_coeff
-    TYPE(dbcsr_obj_p_type), &
+    TYPE(cp_dbcsr_obj_p_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: op_fm_set
@@ -345,7 +345,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: localized_wfn_control
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: moloc_coeff
-    TYPE(dbcsr_obj_p_type), &
+    TYPE(cp_dbcsr_obj_p_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: op_fm_set

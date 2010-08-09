@@ -13,8 +13,8 @@ MODULE et_coupling
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_invert,&
                                              cp_fm_transpose
@@ -150,7 +150,7 @@ CONTAINS
 
 !   calculate MO-overlap 
 
-    CALL dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix,qs_env%et_coupling%et_mo_coeff(i)%matrix,&
+    CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix,qs_env%et_coupling%et_mo_coeff(i)%matrix,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)
     CALL cp_fm_gemm('T','N',nmo,nmo,nao,1.0_dp,&
          qs_env%mos(i)%mo_set%mo_coeff,&
@@ -158,7 +158,7 @@ CONTAINS
 
 !    calculate the MO-representation of the restraint matrix A
          
-    CALL dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(1)%matrix,&
+    CALL cp_dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(1)%matrix,&
          qs_env%et_coupling%et_mo_coeff(i)%matrix,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)   
     
@@ -168,7 +168,7 @@ CONTAINS
 
 !    calculate the MO-representation of the restraint matrix D
              
-    CALL dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(2)%matrix,&
+    CALL cp_dbcsr_sm_fm_multiply(qs_env%et_coupling%rest_mat(2)%matrix,&
          qs_env%mos(i)%mo_set%mo_coeff,&
          tmp2,nmo,1.0_dp,0.0_dp,error=error)
     
@@ -281,7 +281,7 @@ CONTAINS
        
     ENDIF
 
-    CALL dbcsr_deallocate_matrix_set(qs_env%et_coupling%rest_mat,error=error)
+    CALL cp_dbcsr_deallocate_matrix_set(qs_env%et_coupling%rest_mat,error=error)
    
     CALL cp_print_key_finished_output(iw,logger,et_coupling_section,&
                "PROGRAM_RUN_INFO", error=error)

@@ -17,8 +17,8 @@ MODULE core_ppl
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
@@ -52,8 +52,8 @@ CONTAINS
   SUBROUTINE build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h, matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(virial_type), POINTER               :: virial

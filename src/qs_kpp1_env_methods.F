@@ -12,14 +12,14 @@
 ! *****************************************************************************
 MODULE qs_kpp1_env_methods
   USE cell_types,                      ONLY: cell_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_scale,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
@@ -157,8 +157,8 @@ CONTAINS
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: k_p_p1
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho1_xc
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -542,8 +542,8 @@ CONTAINS
        diff, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: k_p_p1
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: diff
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -553,8 +553,8 @@ CONTAINS
 
     INTEGER                                  :: ispin, nspins
     REAL(KIND=dp)                            :: my_diff
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_2, matrix_s, rho_ao
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_2, matrix_s, rho_ao
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
     NULLIFY(ks_2,matrix_s,qs_energy)
@@ -583,7 +583,7 @@ CONTAINS
          calculate_forces=.FALSE.,&
          just_energy=.FALSE.,error=error)
 
-    CALL dbcsr_allocate_matrix_set(ks_2,nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(ks_2,nspins,error=error)
     DO ispin=1,nspins
        ALLOCATE(ks_2(ispin)%matrix)
        CALL cp_dbcsr_init(ks_2(ispin)%matrix,error=error)
@@ -625,7 +625,7 @@ CONTAINS
        CALL cp_dbcsr_scale(k_p_p1(ispin)%matrix,alpha_scalar=0.5_dp/my_diff,error=error)
     END DO
 
-    CALL dbcsr_deallocate_matrix_set(ks_2,error=error)
+    CALL cp_dbcsr_deallocate_matrix_set(ks_2,error=error)
     CALL deallocate_qs_energy(qs_energy)
   END SUBROUTINE kpp1_calc_k_p_p1_fdiff
 
@@ -653,8 +653,8 @@ CONTAINS
     LOGICAL                                  :: explicit, failure, &
                                                 lsd_singlets
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -692,7 +692,7 @@ CONTAINS
        END IF
 
        IF (.NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
-          CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error=error)
+          CALL cp_dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error=error)
              DO ispin=1,nspins
                 ALLOCATE(kpp1_env%v_ao(ispin)%matrix)
                 CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix,error=error)
@@ -795,7 +795,7 @@ CONTAINS
     IF (.not.failure) THEN
        IF (my_s_struct_changed) THEN
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
-             CALL dbcsr_deallocate_matrix_set(kpp1_env%v_ao,error=error)
+             CALL cp_dbcsr_deallocate_matrix_set(kpp1_env%v_ao,error=error)
           END IF
        END IF
        IF (my_s_struct_changed.or.my_psi0_changed) THEN

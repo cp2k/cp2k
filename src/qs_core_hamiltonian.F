@@ -86,13 +86,19 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
-       cp_dbcsr_finalize, cp_dbcsr_init, dbcsr_add_block_node, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, &
-       dbcsr_dist2d_to_dist, dbcsr_obj_p_type
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_matrix_distribution,&
-                                             dbcsr_write_sparse_matrix
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_filter,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_init
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_dist2d_to_dist
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_distribution,&
+                                             cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -213,12 +219,12 @@ CONTAINS
       POINTER                                :: sint, tint
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: sintt, tintt
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h, matrix_p, matrix_s, &
+                                                matrix_t, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s, &
-                                                matrix_t, matrix_w
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -377,7 +383,7 @@ CONTAINS
     
     maxder = ncoset(nder)
 
-    CALL dbcsr_allocate_matrix_set( matrix_s, maxder, error )
+    CALL cp_dbcsr_allocate_matrix_set( matrix_s, maxder, error )
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
     
@@ -395,7 +401,7 @@ CONTAINS
     ! this seems necessary anyway.
 
     ! prepare for allocation
-    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -468,10 +474,10 @@ CONTAINS
    IF (build_kinetic_energy_matrix) THEN
       IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
-         CALL dbcsr_allocate_matrix_set ( matrix_t, maxder, error )
+         CALL cp_dbcsr_allocate_matrix_set ( matrix_t, maxder, error )
          return_t_derivatives = .TRUE.
       ELSE
-         CALL dbcsr_allocate_matrix_set ( matrix_t, 1, error )
+         CALL cp_dbcsr_allocate_matrix_set ( matrix_t, 1, error )
          return_t_derivatives = .FALSE.
       END IF
 
@@ -505,7 +511,7 @@ CONTAINS
    END IF
 
    ! *** Allocate the core Hamiltonian matrix ***
-   CALL dbcsr_allocate_matrix_set(matrix_h,1,error)
+   CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error)
 
    ALLOCATE(matrix_h(1)%matrix)
    CALL cp_dbcsr_init(matrix_h(1)%matrix,error=error)
@@ -668,7 +674,7 @@ CONTAINS
 
                    DO i=1,SIZE(matrix_s)
                       NULLIFY (sint(i)%block)
-                      CALL dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
+                      CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
                                                 block_row=irow,&
                                                 block_col=icol,&
                                                 BLOCK=sint(i)%block,error=error)
@@ -676,7 +682,7 @@ CONTAINS
                    IF (build_kinetic_energy_matrix) THEN
                       DO i=1,SIZE(matrix_t)
                          NULLIFY (tint(i)%block)
-                         CALL dbcsr_add_block_node(matrix=matrix_t(i)%matrix,&
+                         CALL cp_dbcsr_add_block_node(matrix=matrix_t(i)%matrix,&
                                              block_row=irow,&
                                              block_col=icol,&
                                              BLOCK=tint(i)%block,error=error)
@@ -684,7 +690,7 @@ CONTAINS
                    END IF
                    NULLIFY (h_block)
 
-                   CALL dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
+                   CALL cp_dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
                                        block_row=irow,&
                                        block_col=icol,&
                                        BLOCK=h_block,error=error)
@@ -1020,8 +1026,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, &
        calculate_forces, para_env, error)
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_t, matrix_h
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s, matrix_t, matrix_h
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -1032,9 +1038,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iw
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_v
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_v
 
     CALL timeset(routineN,handle)
 
@@ -1044,7 +1050,7 @@ CONTAINS
     ! *** Print the distribution of the overlap matrix blocks ***
     ! *** this duplicates causes duplicate printing at the force calc ***
     IF (.NOT. calculate_forces) THEN
-       CALL dbcsr_write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
+       CALL cp_dbcsr_write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
     ENDIF
 
     ! *** Print the overlap integral matrix, if requested ***
@@ -1052,11 +1058,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-      CALL dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+      CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
          DO i=2,SIZE(matrix_s)
-            CALL dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+            CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
          END DO
       END IF
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
@@ -1068,11 +1074,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,SIZE(matrix_t)
-             CALL dbcsr_write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
           END DO
        END IF
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
@@ -1084,15 +1090,15 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
             extension=".Log",error=error)
-      CALL dbcsr_allocate_matrix_set(matrix_v,1,error=error)
+      CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
       ALLOCATE(matrix_v(1)%matrix)
       CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
       CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
            name="POTENTIAL ENERGY MATRIX",error=error)
       CALL cp_dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
            alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
-      CALL dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-      CALL dbcsr_deallocate_matrix_set(matrix_v,error=error)
+      CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+      CALL cp_dbcsr_deallocate_matrix_set(matrix_v,error=error)
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", error=error)
     END IF
@@ -1102,7 +1108,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
     END IF

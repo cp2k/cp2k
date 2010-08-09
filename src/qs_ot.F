@@ -11,12 +11,12 @@
 !> \author Joost VandeVondele (06.2002)
 ! *****************************************************************************
 MODULE qs_ot
-  USE cp_dbcsr_cholesky,               ONLY: dbcsr_cholesky_decompose,&
-                                             dbcsr_cholesky_invert,&
-                                             dbcsr_cholesky_restore
-  USE cp_dbcsr_diag,                   ONLY: dbcsr_heevd,&
-                                             dbcsr_syevd
-  USE cp_dbcsr_operations,             ONLY: &
+  USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
+                                             cp_dbcsr_cholesky_invert,&
+                                             cp_dbcsr_cholesky_restore
+  USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
+                                             cp_dbcsr_syevd
+  USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_filter, &
        cp_dbcsr_hadamard_product, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_release_p, &
@@ -276,16 +276,16 @@ CONTAINS
     CALL dbcsr_get_info(C_NEW,nfullrows_total=n,nfullcols_total=k)
     !
     ! P = U'*U
-    CALL dbcsr_cholesky_decompose(P,k,qs_ot_env%para_env,qs_ot_env%blacs_env,error=error)
+    CALL cp_dbcsr_cholesky_decompose(P,k,qs_ot_env%para_env,qs_ot_env%blacs_env,error=error)
     !
     ! C_NEW = C_OLD*inv(U)
-    CALL dbcsr_cholesky_restore(C_OLD,k,P,C_NEW,op="SOLVE",pos="RIGHT",&
+    CALL cp_dbcsr_cholesky_restore(C_OLD,k,P,C_NEW,op="SOLVE",pos="RIGHT",&
          transa="N",para_env=qs_ot_env%para_env,blacs_env=qs_ot_env%blacs_env,&
          error=error)
     !
     ! Update SC if needed
     IF(update) THEN
-       CALL dbcsr_cholesky_restore(SC,k,P,C_TMP,op="SOLVE",pos="RIGHT",&
+       CALL cp_dbcsr_cholesky_restore(SC,k,P,C_TMP,op="SOLVE",pos="RIGHT",&
             transa="N",para_env=qs_ot_env%para_env,blacs_env=qs_ot_env%blacs_env,error=error)
        CALL cp_dbcsr_copy(SC,C_TMP,error=error)
     ENDIF
@@ -320,7 +320,7 @@ CONTAINS
     ALLOCATE(eig(k), fun(k), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     !
-    CALL dbcsr_syevd(P,V,eig,qs_ot_env%para_env,qs_ot_env%blacs_env,error=error)
+    CALL cp_dbcsr_syevd(P,V,eig,qs_ot_env%para_env,qs_ot_env%blacs_env,error=error)
     !
     ! compute the P^(-1/2)
     DO i = 1,k
@@ -896,7 +896,7 @@ CONTAINS
        CALL dbcsr_iterator_stop(iter)
 
 
-       CALL dbcsr_heevd(cmat_x,qs_ot_env%rot_mat_evec,qs_ot_env%rot_mat_evals,&
+       CALL cp_dbcsr_heevd(cmat_x,qs_ot_env%rot_mat_evec,qs_ot_env%rot_mat_evals,&
             qs_ot_env%para_env, qs_ot_env%blacs_env, error=error)
        evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * qs_ot_env%rot_mat_evals(:) )
        CALL cp_dbcsr_copy(cmat_x,qs_ot_env%rot_mat_evec,error=error)
@@ -1260,9 +1260,9 @@ CONTAINS
             qs_ot_env%matrix_sc0,matrix_target, &
             rzero,qs_ot_env%matrix_os,&
             last_row=ortho_k,last_column=ortho_k,last_k=n,error=error)
-       CALL dbcsr_cholesky_decompose(qs_ot_env%matrix_os,&
+       CALL cp_dbcsr_cholesky_decompose(qs_ot_env%matrix_os,&
             para_env=qs_ot_env%para_env,blacs_env=qs_ot_env%blacs_env,error=error)
-       CALL dbcsr_cholesky_invert(qs_ot_env%matrix_os,&
+       CALL cp_dbcsr_cholesky_invert(qs_ot_env%matrix_os,&
             para_env=qs_ot_env%para_env,blacs_env=qs_ot_env%blacs_env,&
             upper_to_full=.TRUE.,error=error)
        qs_ot_env%os_valid=.TRUE.
@@ -1547,7 +1547,7 @@ CONTAINS
 
     CALL dbcsr_get_info(qs_ot_env%matrix_p,nfullrows_total=k)
     CALL cp_dbcsr_copy(qs_ot_env%matrix_buf1,qs_ot_env%matrix_p,error=error)
-    CALL dbcsr_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,&
+    CALL cp_dbcsr_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,&
          qs_ot_env%para_env,qs_ot_env%blacs_env,error=error)
     DO i=1,k
        qs_ot_env%evals(i)=MAX(0.0_dp,qs_ot_env%evals(i))

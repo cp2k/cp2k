@@ -9,12 +9,12 @@
 MODULE qs_ks_apply_restraints
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_obj_p_type
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_type
@@ -54,8 +54,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     LOGICAL, INTENT(in)                      :: calculate_forces
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -91,7 +91,7 @@ CONTAINS
                 CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1)%matrix, &
                      name="ET_RESTRAINT_MATRIX_A", error=error)
                 CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix,0.0_dp,error=error)
-                !CALL dbcsr_from_sm(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1)%matrix, error)
+                !CALL cp_dbcsr_from_sm(qs_env%et_coupling%rest_mat(1)%matrix, matrix_s(1)%matrix, error)
                 !CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                 !     TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
                 !     target_name="ET_RESTRAINT_MATRIX_A",error=error)
@@ -108,7 +108,7 @@ CONTAINS
                 CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1)%matrix, &
                      name="ET_RESTRAINT_MATRIX_B", error=error)
                 CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix,0.0_dp,error=error)
-                !CALL dbcsr_from_sm(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1)%matrix, error)
+                !CALL cp_dbcsr_from_sm(qs_env%et_coupling%rest_mat(2)%matrix, matrix_s(1)%matrix, error)
                 !CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                 !     TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
                 !     target_name="ET_RESTRAINT_MATRIX_B",error=error)
@@ -130,8 +130,8 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     LOGICAL, INTENT(in)                      :: just_energy
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix, matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix, matrix_s
     TYPE(qs_rho_type), POINTER               :: rho
     REAL(KIND=dp)                            :: mulliken_order_p
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -139,8 +139,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_mulliken_restraint', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: rho_ao
 
     energy%mulliken = 0.0_dp
     IF (dft_control%qs_control%mulliken_restraint) THEN
@@ -167,8 +167,8 @@ CONTAINS
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(qs_energy_type), POINTER            :: energy
@@ -180,11 +180,11 @@ CONTAINS
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fm_mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: mo_derivs
 
     IF (dft_control%qs_control%s2_restraint) THEN
     ! adds s2_restraint energy and orbital derivatives

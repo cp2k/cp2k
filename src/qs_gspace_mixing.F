@@ -7,11 +7,18 @@
 MODULE qs_gspace_mixing
 
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, cp_dbcsr_create, &
-       cp_dbcsr_init, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
-       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
-       dbcsr_obj_p_type, dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_scale,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_trace
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             cp_dbcsr_alloc_block_from_nbl,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_trace,&
                                              cp_fm_upper_to_full
@@ -78,11 +85,11 @@ MODULE qs_gspace_mixing
 CONTAINS
 
   SUBROUTINE self_consistency_check(rho_ao,p_delta,para_env,p_out,delta,error)
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao, p_delta
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: rho_ao, p_delta
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_out
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p_out
     REAL(KIND=dp), INTENT(INOUT)             :: delta
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -92,8 +99,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspin
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_q, p_in
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_q, p_in
 
     CALL timeset(routineN,handle)
 
@@ -137,8 +144,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_out
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p_out
     REAL(KIND=dp), INTENT(INOUT)             :: delta
     REAL(KIND=dp), INTENT(IN)                :: eps_scf
     LOGICAL, INTENT(in)                      :: diis
@@ -153,9 +160,9 @@ CONTAINS
     REAL(KIND=dp)                            :: a_mix, b_mix, t1, t2, tmp, &
                                                 trace
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_q, matrix_s, p_in
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_q, matrix_s, p_in
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -263,7 +270,7 @@ CONTAINS
        CALL cp_dbcsr_trace(p_in(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
        t1 = trace
  
-       CALL dbcsr_sm_fm_multiply(matrix_q(ispin)%matrix,scf_env%s_minus_one,&
+       CALL cp_dbcsr_sm_fm_multiply(matrix_q(ispin)%matrix,scf_env%s_minus_one,&
             scf_env%scf_work2, nao,error=error)
        CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,scf_env%s_minus_one,&
             scf_env%scf_work2,0.0_dp,scf_env%scf_work1(ispin)%matrix,error=error )
@@ -1750,8 +1757,8 @@ CONTAINS
     INTEGER                                  :: handle, i, iat, ispin, natom, &
                                                 nbuffer, stat
     LOGICAL                                  :: failure
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -1771,7 +1778,7 @@ CONTAINS
 
 !   *** allocate p_mix_new ***
     IF (.NOT.ASSOCIATED(scf_env%p_mix_new)) THEN
-       CALL dbcsr_allocate_matrix_set(scf_env%p_mix_new,nspins,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(scf_env%p_mix_new,nspins,error=error)
        DO i=1,nspins
           ALLOCATE(scf_env%p_mix_new(i)%matrix)
           CALL cp_dbcsr_init(scf_env%p_mix_new(i)%matrix, error=error)
@@ -1782,7 +1789,7 @@ CONTAINS
                col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
                nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
                error=error)
-          CALL dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i)%matrix,sab_orb,error=error)
+          CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_mix_new(i)%matrix,sab_orb,error=error)
           CALL cp_dbcsr_set(scf_env%p_mix_new(i)%matrix,0.0_dp,error=error)
        ENDDO
     END IF
@@ -1790,7 +1797,7 @@ CONTAINS
 !   *** allocate p_delta ***
     IF (mixing_method>=gspace_mixing_nr) THEN
        IF(.NOT.ASSOCIATED(scf_env%p_delta)) THEN
-          CALL dbcsr_allocate_matrix_set(scf_env%p_delta,nspins,error=error)
+          CALL cp_dbcsr_allocate_matrix_set(scf_env%p_delta,nspins,error=error)
           DO i=1,nspins
              ALLOCATE(scf_env%p_delta(i)%matrix)
              CALL cp_dbcsr_init(scf_env%p_delta(i)%matrix, error=error)
@@ -1801,7 +1808,7 @@ CONTAINS
                   col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
                   nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
                   error=error)
-             CALL dbcsr_alloc_block_from_nbl(scf_env%p_delta(i)%matrix,sab_orb,error=error)
+             CALL cp_dbcsr_alloc_block_from_nbl(scf_env%p_delta(i)%matrix,sab_orb,error=error)
              CALL cp_dbcsr_set(scf_env%p_delta(i)%matrix,0.0_dp,error=error)
           ENDDO
        END IF

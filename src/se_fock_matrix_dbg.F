@@ -4,9 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 MODULE se_fock_matrix_dbg
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_set,&
-                                             cp_dbcsr_trace,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set,&
+                                             cp_dbcsr_trace
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE qs_energy_types,                 ONLY: init_qs_energy,&
@@ -33,12 +33,12 @@ CONTAINS
   SUBROUTINE dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p,&
        calculate_forces, store_int_env, error)
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_p
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error

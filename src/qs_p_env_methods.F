@@ -13,10 +13,15 @@
 ! *****************************************************************************
 MODULE qs_p_env_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_init, cp_dbcsr_scale, cp_dbcsr_set, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, &
-       dbcsr_obj_p_type, dbcsr_plus_fm_fm_t, dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_scale,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
@@ -116,8 +121,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_kpp1_env_type), OPTIONAL, &
       POINTER                                :: kpp1_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: p1_option
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: p1_option
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: psi0d
     LOGICAL, INTENT(in), OPTIONAL            :: orthogonal_orbitals
@@ -187,7 +192,7 @@ CONTAINS
           p_env%p1 => p1_option
        ELSE
 
-          CALL dbcsr_allocate_matrix_set(p_env%p1,n_spins,error)
+          CALL cp_dbcsr_allocate_matrix_set(p_env%p1,n_spins,error)
           DO spin=1, n_spins
              ALLOCATE(p_env%p1(spin)%matrix)
              CALL cp_dbcsr_init(p_env%p1(spin)%matrix,error=error)
@@ -324,8 +329,8 @@ CONTAINS
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, gapw_xc
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
@@ -342,7 +347,7 @@ CONTAINS
           CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
           nspins=dft_control%nspins
 
-          CALL dbcsr_allocate_matrix_set(p_env%kpp1,nspins,error)
+          CALL cp_dbcsr_allocate_matrix_set(p_env%kpp1,nspins,error)
              name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
              CALL compress(name,full=.TRUE.)
              DO ispin=1,nspins
@@ -403,7 +408,7 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
      IF (PRESENT(s_struct_changed)) THEN
         IF (s_struct_changed) THEN
            IF (ASSOCIATED(p_env%kpp1)) THEN
-              CALL dbcsr_deallocate_matrix_set(p_env%kpp1,error=error)
+              CALL cp_dbcsr_deallocate_matrix_set(p_env%kpp1,error=error)
            END IF
         END IF
      END IF
@@ -456,6 +461,8 @@ END SUBROUTINE p_env_did_change
                                                 output_unit, spin, stat
     LOGICAL                                  :: failure, was_present
     REAL(KIND=dp)                            :: maxocc
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -464,8 +471,6 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -522,7 +527,7 @@ END SUBROUTINE p_env_did_change
           DO spin=1,n_spins
              ! m_epsilon=choleski_decomposition(my_psi0^T S my_psi0)^-1
              ! could be optimized by combining next two calls
-             CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,&
+             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,&
                   my_psi0(spin)%matrix,&
                   p_env%S_psi0(spin)%matrix,&
                   ncol=p_env%n_mo(spin), alpha=1.0_dp,error=error)
@@ -571,7 +576,7 @@ END SUBROUTINE p_env_did_change
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
                 CALL cp_dbcsr_set(qs_env%rho%rho_ao(spin)%matrix,0.0_dp,error=error)
-                CALL dbcsr_plus_fm_fm_t(qs_env%rho%rho_ao(spin)%matrix,&
+                CALL cp_dbcsr_plus_fm_fm_t(qs_env%rho%rho_ao(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
                      ncol=p_env%n_mo(spin),error=error)
@@ -615,7 +620,7 @@ END SUBROUTINE p_env_did_change
        !-----------------------------------------------------------------------|
        DO spin=1, n_spins
           ! S_psi0 = k times psi0d
-          CALL dbcsr_sm_fm_multiply(qs_env%matrix_ks(spin)%matrix, &
+          CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_ks(spin)%matrix, &
                p_env%psi0d(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, p_env%n_mo(spin),error=error)
           IF (PRESENT(Hrho_psi0d)) THEN
@@ -642,7 +647,7 @@ END SUBROUTINE p_env_did_change
        ! fly to spare some memory
        CALL get_qs_env(qs_env, matrix_s=matrix_s,error=error)
        DO spin=1,n_spins
-          CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
+          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                my_psi0(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, &
                p_env%n_mo(spin),error=error)
@@ -763,16 +768,16 @@ END SUBROUTINE p_env_did_change
     CALL cp_fm_get_info(v, ncol_global=ncol,error=error)
 
     IF (p_env%orthogonal_orbitals) THEN
-       CALL dbcsr_sm_fm_multiply(k_p, v, res, ncol ,error=error)
+       CALL cp_dbcsr_sm_fm_multiply(k_p, v, res, ncol ,error=error)
     ELSE
-       CALL dbcsr_sm_fm_multiply(k_p, v, tmp, ncol ,error=error)
+       CALL cp_dbcsr_sm_fm_multiply(k_p, v, tmp, ncol ,error=error)
        CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%Smo_inv(spin)%matrix, tmp, 0.0_dp, res,error=error)
     END IF
 
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp,error=error)
-    CALL dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, tmp, &
+    CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, tmp, &
          res, p_env%n_mo(spin), alpha=1.0_dp,beta=1.0_dp,error=error)
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp,error=error); NULLIFY(tmp)
 
@@ -804,8 +809,8 @@ END SUBROUTINE p_env_did_change
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p1
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p1
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: res
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
@@ -865,7 +870,7 @@ END SUBROUTINE p_env_did_change
        END IF
 
        DO ispin=1,n_spins
-          CALL dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix,&
+          CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix,&
                                  p_env%psi0d(ispin)%matrix, res(ispin)%matrix,&
                                  ncol=p_env%n_mo(ispin),&
                                  alpha=my_alpha,beta=my_beta,error=error)
@@ -1147,9 +1152,9 @@ END SUBROUTINE p_env_did_change
     INTEGER, SAVE                            :: iter = 0
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxocc, my_alpha, my_beta
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s, p1_new
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, p1_new
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1188,11 +1193,11 @@ END SUBROUTINE p_env_did_change
           IF (lfomo>nmo) THEN
              CALL cp_dbcsr_set(p1_new(ispin)%matrix,0.0_dp,error=error)
              ! optimize?
-             CALL dbcsr_plus_fm_fm_t(p1_new(ispin)%matrix,&
+             CALL cp_dbcsr_plus_fm_fm_t(p1_new(ispin)%matrix,&
                   matrix_v=v(ispin)%matrix,&
                   matrix_g=p_env%psi0d(ispin)%matrix,&
                   ncol=p_env%n_mo(ispin),error=error)
-             CALL dbcsr_plus_fm_fm_t(p1_new(ispin)%matrix,&
+             CALL cp_dbcsr_plus_fm_fm_t(p1_new(ispin)%matrix,&
                   matrix_v=p_env%psi0d(ispin)%matrix,&
                   matrix_g=v(ispin)%matrix,&
                   ncol=p_env%n_mo(ispin),error=error)

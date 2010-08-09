@@ -40,9 +40,9 @@ MODULE qs_collocate_density
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_init,&
-                                             dbcsr_deallocate_matrix
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_type
@@ -1180,7 +1180,7 @@ CONTAINS
     !   *** Release work storage ***
 
     IF (distributed_rs_grids) THEN
-       CALL dbcsr_deallocate_matrix ( deltap ,error=error)
+       CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
     ENDIF
 
     DEALLOCATE (pabt,workt,STAT=stat)
@@ -1600,7 +1600,7 @@ CONTAINS
       IF (stat /= 0) CALL stop_memory(routineP,"rs_rho")
     END IF
     IF (distributed_rs_grids) THEN
-      CALL dbcsr_deallocate_matrix ( deltap ,error=error)
+      CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
     ENDIF
 
     DEALLOCATE (pabt,workt,STAT=stat)

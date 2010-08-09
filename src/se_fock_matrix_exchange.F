@@ -18,7 +18,7 @@ MODULE se_fock_matrix_exchange
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -72,8 +72,8 @@ CONTAINS
        store_int_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error

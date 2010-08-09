@@ -13,10 +13,10 @@ MODULE kg_gpw_correction
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -95,8 +95,8 @@ CONTAINS
       POINTER                                :: molbox_env
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: fm_mol_set
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_global_b, p_global_b
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_global_b, p_global_b
     REAL(dp), INTENT(OUT)                    :: ekin_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -477,16 +477,16 @@ CONTAINS
 
 
     DO ispin=1,SIZE(ks_global)!sm->dbcsr
-       CALL dbcsr_deallocate_matrix(ks_global_b(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(ks_global_b(ispin)%matrix,error)
        ALLOCATE(ks_global_b(ispin)%matrix)
-       CALL dbcsr_from_sm(ks_global_b(ispin)%matrix, ks_global(ispin)%matrix, error)!sm->dbcsr
+       CALL cp_dbcsr_from_sm(ks_global_b(ispin)%matrix, ks_global(ispin)%matrix, error)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( ks_global, error )!sm->dbcsr
 
     DO ispin=1,SIZE(p_global)!sm->dbcsr
-       CALL dbcsr_deallocate_matrix(p_global_b(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(p_global_b(ispin)%matrix,error)
        ALLOCATE(p_global_b(ispin)%matrix)
-       CALL dbcsr_from_sm(p_global_b(ispin)%matrix, p_global(ispin)%matrix, error)!sm->dbcsr
+       CALL cp_dbcsr_from_sm(p_global_b(ispin)%matrix, p_global(ispin)%matrix, error)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( p_global, error )!sm->dbcsr
 

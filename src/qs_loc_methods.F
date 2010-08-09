@@ -24,8 +24,8 @@ MODULE qs_loc_methods
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm
@@ -146,7 +146,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_fm_type), POINTER                :: vectors
-    TYPE(dbcsr_obj_p_type), &
+    TYPE(cp_dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: zij_fm_set
@@ -186,7 +186,7 @@ CONTAINS
     DO i=1,SIZE ( zij_fm_set, 2 )
        DO j=1,SIZE ( zij_fm_set, 1 )
           CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
-          CALL dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
+          CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
           CALL cp_fm_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
                zij_fm_set(j,i)%matrix,error=error)
        ENDDO
@@ -239,7 +239,7 @@ CONTAINS
        DO i=1,SIZE ( zij_fm_set, 2 )
           DO j=1,SIZE ( zij_fm_set, 1 )
              CALL cp_fm_set_all(zij_fm_set(j,i)%matrix, 0.0_dp, error=error)
-             CALL dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
+             CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j,i)%matrix, vectors,opvec,ncol=nmoloc ,error=error)
              CALL cp_fm_gemm("T","N",nmoloc,nmoloc,nao,1.0_dp,vectors,opvec,0.0_dp,&
                   zij_fm_set(j,i)%matrix,error=error)
           ENDDO
@@ -291,12 +291,12 @@ CONTAINS
                                                 nmoloc, output_unit, sweeps
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, nsgf
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_ao_fm_pools
     TYPE(cp_fm_type), POINTER                :: opvec, ov_fm
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
@@ -628,6 +628,8 @@ CONTAINS
     REAL(dp), DIMENSION(6)                   :: weights
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers, vecbuffer
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: moloc_coeff
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -635,8 +637,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm_set
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control

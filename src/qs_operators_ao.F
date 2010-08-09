@@ -21,7 +21,7 @@ MODULE qs_operators_ao
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type
@@ -66,8 +66,8 @@ CONTAINS
   SUBROUTINE build_lin_mom_matrix(qs_env,matrix,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix', &
@@ -312,9 +312,9 @@ CONTAINS
     !     qs_env%input,"DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM",error=error),cp_p_file)) THEN
     !   iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/LINEA_MOMENTUM",&
     !        extension=".Log",error=error)
-    !   CALL dbcsr_write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-    !   CALL dbcsr_write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-    !   CALL dbcsr_write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL cp_dbcsr_write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL cp_dbcsr_write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL cp_dbcsr_write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
     !   CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
     !        "DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM", error=error)
     !END IF
@@ -456,8 +456,8 @@ CONTAINS
   SUBROUTINE build_ang_mom_matrix(qs_env,matrix,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -717,9 +717,9 @@ CONTAINS
     !     qs_env%input,"DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM",error=error),cp_p_file)) THEN
     !   iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM",&
     !        extension=".Log",error=error)
-    !   CALL dbcsr_write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-    !   CALL dbcsr_write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-    !   CALL dbcsr_write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL cp_dbcsr_write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL cp_dbcsr_write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+    !   CALL cp_dbcsr_write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
     !   CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
     !        "DFT%PRINT%AO_MATRICES/ANGULAR_MOMENTUM", error=error)
     !END IF
@@ -874,8 +874,8 @@ CONTAINS
 
   SUBROUTINE p_xyz_ao(op,qs_env,minimum_image,error)
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: op
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1240,8 +1240,8 @@ CONTAINS
 
   SUBROUTINE rRc_xyz_ao(op,qs_env,rc,order,minimum_image,soft,error)
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: op
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
@@ -1605,9 +1605,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rRc_xyz_der_ao(op,op_der,qs_env,rc,order,minimum_image,soft,error)
 
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: op
-    TYPE(dbcsr_obj_p_type), &
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: op
+    TYPE(cp_dbcsr_obj_p_type), &
       DIMENSION(:, :), POINTER               :: op_der
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp)                                 :: Rc(3)

@@ -15,12 +15,12 @@ MODULE kg_scf
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_from_sm,&
-                                             dbcsr_obj_p_type,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -309,10 +309,10 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orthonormality
     REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
     REAL(dp), DIMENSION(:, :), POINTER       :: diis_m1_global, diis_m2_global
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h_b, matrix_ks_b, &
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h_b, matrix_ks_b, &
                                                 matrix_s_b, p_mix_new
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
@@ -652,13 +652,13 @@ CONTAINS
           END IF
 
 
-          CALL dbcsr_allocate_matrix_set( p_mix_new, SIZE(scf_env%p_mix_new), error )
-          !CALL dbcsr_allocate_matrix_set( rho_ao, SIZE(scf_env%p_mix_new), error )
+          CALL cp_dbcsr_allocate_matrix_set( p_mix_new, SIZE(scf_env%p_mix_new), error )
+          !CALL cp_dbcsr_allocate_matrix_set( rho_ao, SIZE(scf_env%p_mix_new), error )
           DO ispin = 1,SIZE(p_mix_new)
              ALLOCATE(p_mix_new(ispin)%matrix)!,rho_ao(ispin)%matrix)!super dirty
-             CALL dbcsr_from_sm(p_mix_new(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
+             CALL cp_dbcsr_from_sm(p_mix_new(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
                   error, distribution_2d)
-             !CALL dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)
+             !CALL cp_dbcsr_from_sm(rho_ao(ispin)%matrix, qs_env%rho%rho_ao(ispin)%matrix, error)
           ENDDO
 
           DO ispin=1,SIZE(scf_env%p_mix_new)
@@ -677,8 +677,8 @@ CONTAINS
                   distribution_2d, error=error )
           ENDDO
 
-          CALL dbcsr_deallocate_matrix_set( p_mix_new, error=error )
-          !CALL dbcsr_deallocate_matrix_set( rho_ao, error=error )
+          CALL cp_dbcsr_deallocate_matrix_set( p_mix_new, error=error )
+          !CALL cp_dbcsr_deallocate_matrix_set( rho_ao, error=error )
 
 !          CALL scf_env_density_mixing(scf_env%p_mix_new,&
 !                                    qs_env%scf_env,scf_env%iter_delta,&
@@ -723,9 +723,9 @@ CONTAINS
 !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.direct_mixing_nr) THEN
            DO ispin=1,dft_control%nspins
-              CALL dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error=error)
+              CALL cp_dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error=error)
               ALLOCATE(qs_env%rho%rho_ao(ispin)%matrix)
-              CALL dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix,&
+              CALL cp_dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix,&
                    scf_env%p_mix_new(ispin)%matrix,error=error,distribution_2d=distribution_2d)
            END DO
        ENDIF
@@ -814,9 +814,9 @@ CONTAINS
 !                                   qs_env=qs_env,diis=diis_step,invert=.TRUE.,&
 !                                   error=error)
        DO ispin=1,dft_control%nspins
-          CALL dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error=error)
+          CALL cp_dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error=error)
           ALLOCATE(qs_env%rho%rho_ao(ispin)%matrix)
-          CALL dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix,&
+          CALL cp_dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix,&
                scf_env%p_mix_new(ispin)%matrix,error=error,distribution_2d=distribution_2d)
        END DO
     ENDIF
@@ -843,9 +843,9 @@ CONTAINS
 
 
     DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       CALL dbcsr_deallocate_matrix(qs_env%matrix_ks(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(qs_env%matrix_ks(ispin)%matrix,error)
        ALLOCATE(qs_env%matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, &
+       CALL cp_dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, &
             error,distribution_2d=distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_ks, error )!sm->dbcsr
@@ -855,9 +855,9 @@ CONTAINS
     CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr
 
     DO ispin=1,SIZE(matrix_h)!sm->dbcsr
-       CALL dbcsr_deallocate_matrix(qs_env%matrix_h(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(qs_env%matrix_h(ispin)%matrix,error)
        ALLOCATE(qs_env%matrix_h(ispin)%matrix)
-       CALL dbcsr_from_sm(qs_env%matrix_h(ispin)%matrix, matrix_h(ispin)%matrix, &
+       CALL cp_dbcsr_from_sm(qs_env%matrix_h(ispin)%matrix, matrix_h(ispin)%matrix, &
             error,distribution_2d=distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_h, error )!sm->dbcsr
@@ -900,11 +900,11 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ndep, &
                                                 output_unit
     LOGICAL                                  :: do_ortho, failure
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks_b, matrix_s_b
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_b, matrix_s_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
@@ -971,11 +971,11 @@ CONTAINS
               name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
               "KOHN-SHAM_MATRIX",&
               error=error)
-         CALL dbcsr_allocate_matrix_set( matrix_ks_b, SIZE(matrix_ks), error )!sm->dbcsr
+         CALL cp_dbcsr_allocate_matrix_set( matrix_ks_b, SIZE(matrix_ks), error )!sm->dbcsr
          DO ispin=1,SIZE(matrix_ks_b)!sm->dbcsr
             ALLOCATE(matrix_ks_b(ispin)%matrix)
             !call dbcsr_init(matrix_ks_b(ispin)%matrix)
-           CALL dbcsr_from_sm(matrix_ks_b(ispin)%matrix, matrix_ks(ispin)%matrix,error,distribution_2d)!sm->dbcsr
+           CALL cp_dbcsr_from_sm(matrix_ks_b(ispin)%matrix, matrix_ks(ispin)%matrix,error,distribution_2d)!sm->dbcsr
          ENDDO!sm->dbcsr
 
          CALL set_qs_env(qs_env=qs_env,matrix_ks=matrix_ks_b,error=error)
@@ -1057,9 +1057,9 @@ CONTAINS
    END IF
 
     DO ispin=1,SIZE(matrix_ks)!sm->dbcsr
-       CALL dbcsr_deallocate_matrix(qs_env%matrix_ks(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(qs_env%matrix_ks(ispin)%matrix,error)
        ALLOCATE(qs_env%matrix_ks(ispin)%matrix)
-       CALL dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, &
+       CALL cp_dbcsr_from_sm(qs_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix, &
             error,distribution_2d)!sm->dbcsr
     ENDDO!sm->dbcsr
     CALL deallocate_matrix_set( matrix_ks, error )!sm->dbcsr
@@ -1124,7 +1124,7 @@ CONTAINS
 
     ALLOCATE(s)!sm->dbcsr
     !CALL cp_dbcsr_init(s, error)
-    CALL dbcsr_from_sm(s, s_sm, error)!sm->dbcsr
+    CALL cp_dbcsr_from_sm(s, s_sm, error)!sm->dbcsr
 
     failure = .FALSE.
     nmol_kind = SIZE(kg_fm_mol_set,1)
@@ -1214,7 +1214,7 @@ CONTAINS
       END DO  ! imol
     END DO  ! imol_kind
 
-    CALL dbcsr_deallocate_matrix ( s, error=error )!sm->dbcsr
+    CALL cp_dbcsr_deallocate_matrix ( s, error=error )!sm->dbcsr
 
     CALL timestop(handle)
 
@@ -1258,9 +1258,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h_b, matrix_s_b
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h_b, matrix_s_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
@@ -1605,9 +1605,9 @@ CONTAINS
     CALL deallocate_matrix_set( matrix_h, error )!sm->dbcsr
 
     DO ispin=1,SIZE(matrix_p)
-       CALL dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error)
+       CALL cp_dbcsr_deallocate_matrix(qs_env%rho%rho_ao(ispin)%matrix,error)
        ALLOCATE(qs_env%rho%rho_ao(ispin)%matrix)
-       CALL dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix, matrix_p(ispin)%matrix, &
+       CALL cp_dbcsr_from_sm(qs_env%rho%rho_ao(ispin)%matrix, matrix_p(ispin)%matrix, &
             error)
     ENDDO
     CALL deallocate_matrix_set( matrix_p, error )!sm->dbcsr

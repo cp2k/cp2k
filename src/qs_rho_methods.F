@@ -11,11 +11,16 @@
 ! *****************************************************************************
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, &
-       cp_dbcsr_init, cp_dbcsr_set, dbcsr_alloc_block_from_nbl, &
-       dbcsr_allocate_matrix_set, dbcsr_deallocate_matrix_set, &
-       dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -95,8 +100,8 @@ CONTAINS
     LOGICAL                                  :: failure, my_gapw_xc, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
@@ -170,10 +175,10 @@ CONTAINS
       IF (my_rebuild_ao.OR.(.NOT.ASSOCIATED(rho%rho_ao))) THEN
          IF (.NOT.failure) THEN
             IF (ASSOCIATED(rho%rho_ao)) THEN
-               CALL dbcsr_deallocate_matrix_set(rho%rho_ao,error=error)
+               CALL cp_dbcsr_deallocate_matrix_set(rho%rho_ao,error=error)
             END IF
             ! Create a new density matrix set
-            CALL dbcsr_allocate_matrix_set(rho%rho_ao,nspins,error=error)
+            CALL cp_dbcsr_allocate_matrix_set(rho%rho_ao,nspins,error=error)
             DO i=1,nspins
                ALLOCATE(rho%rho_ao(i)%matrix)
                IF (nspins > 1) THEN
@@ -194,7 +199,7 @@ CONTAINS
                     nblks=0, nze=0,mutable_work=.TRUE.,&
                     error=error)
                CALL cp_dbcsr_finalize(rho%rho_ao(i)%matrix,error=error)
-               CALL dbcsr_alloc_block_from_nbl(rho%rho_ao(i)%matrix,sab_orb,error=error)
+               CALL cp_dbcsr_alloc_block_from_nbl(rho%rho_ao(i)%matrix,sab_orb,error=error)
                CALL cp_dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)
             END DO
          END IF
@@ -534,7 +539,7 @@ END SUBROUTINE qs_rho_update_rho
       ! rho_ao
       IF (ASSOCIATED(rho_input%rho_ao)) THEN
         !CALL allocate_matrix_set(rho_output%rho_ao, SIZE(rho_input%rho_ao))
-         CALL dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
+         CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         !DO i = 1, SIZE(rho_input%rho_ao)
         DO i = 1, nspins
            ALLOCATE(rho_output%rho_ao(i)%matrix)
@@ -771,7 +776,7 @@ END SUBROUTINE qs_rho_update_rho
       ! rho_ao
       IF (ASSOCIATED(rho_input1%rho_ao) .AND. ASSOCIATED(rho_input2%rho_ao)) THEN
         !CALL allocate_matrix_set(rho_output%rho_ao, SIZE(rho_input%rho_ao))
-         CALL dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
+         CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
         !DO i = 1, SIZE(rho_input%rho_ao)
         DO i = 1, nspins
            CALL cp_dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input1%rho_ao(i)%matrix, &
@@ -987,7 +992,7 @@ END SUBROUTINE qs_rho_update_rho
       ! rho_ao
       IF (ASSOCIATED(rho_input%rho_ao)) THEN
         IF (.NOT. ASSOCIATED(rho_output%rho_ao)) THEN
-           CALL dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
+           CALL cp_dbcsr_allocate_matrix_set(rho_output%rho_ao, nspins,error=error)
           DO i = 1, nspins
              CALL cp_dbcsr_copy(rho_output%rho_ao(i)%matrix,rho_input%rho_ao(i)%matrix, &
                   name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))), &

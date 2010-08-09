@@ -11,8 +11,8 @@ MODULE kg_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
@@ -149,9 +149,9 @@ CONTAINS
     INTEGER                                  :: handle, nspins
     LOGICAL                                  :: failure, use_tau
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -178,7 +178,7 @@ CONTAINS
     IF(ASSOCIATED(matrix_ks)) THEN
        !CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
 !CALL sm_pools_give_back_matrix_vect(S_sm_pools, matrix_ks,error=error)
-        CALL dbcsr_deallocate_matrix_set(matrix_ks,error)
+        CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error)
         CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
     END IF
 !dbg

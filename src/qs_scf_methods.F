@@ -14,8 +14,8 @@
 ! *****************************************************************************
 MODULE qs_scf_methods
 
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -84,11 +84,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_store, rho_ao, para_env, iter_delta,&
                                     iter_count,diis,invert,error)
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: p_mix_new
     TYPE(mixing_storage_type), POINTER       :: mixing_store
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
     INTEGER, INTENT(IN)                      :: iter_count

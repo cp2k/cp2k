@@ -21,11 +21,18 @@ MODULE se_fock_matrix_coulomb
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
-       cp_dbcsr_get_block_diag, cp_dbcsr_init, cp_dbcsr_replicate_all, &
-       cp_dbcsr_set, cp_dbcsr_sum_replicated, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_distribute,&
+                                             cp_dbcsr_get_block_diag,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_replicate_all,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_sum_replicated
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -107,8 +114,8 @@ CONTAINS
        store_int_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -135,10 +142,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: diagmat_ks, diagmat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -203,8 +210,8 @@ CONTAINS
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
-       CALL dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
-       CALL dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
 
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
@@ -495,8 +502,8 @@ CONTAINS
           CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,&
                1.0_dp,1.0_dp,error=error)
        END DO
-       CALL dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
-       CALL dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
+       CALL cp_dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
+       CALL cp_dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
 
        IF (calculate_forces) THEN 
           DEALLOCATE(atom_of_kind,stat=stat)
@@ -522,8 +529,8 @@ CONTAINS
        calculate_forces, store_int_env, error)
    
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -553,11 +560,11 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: diagmat_ks, diagmat_p
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_obj), POINTER                 :: dbm, ks_scp, pscp
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -615,8 +622,8 @@ CONTAINS
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
-       CALL dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
-       CALL dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
        
        nkind = SIZE(atomic_kind_set)
        DO ispin=1,nspins
@@ -882,7 +889,7 @@ CONTAINS
           CALL cp_dbcsr_add(ks_scp, dbm, &
                1.0_dp,1.0_dp,error=error)
           CALL set_scp_env ( scp_env=scp_env, ks_scp = ks_scp, error = error ) 
-          CALL dbcsr_deallocate_matrix ( dbm, error=error )
+          CALL cp_dbcsr_deallocate_matrix ( dbm, error=error )
        ENDIF
        
        DO ispin = 1, nspins
@@ -891,8 +898,8 @@ CONTAINS
           CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,&
                1.0_dp,1.0_dp,error=error)
        END DO
-       CALL dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
-       CALL dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
+       CALL cp_dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
+       CALL cp_dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
 
        ! Set the Fock matrix contribution to SCP
        IF (calculate_forces) THEN 
@@ -920,15 +927,15 @@ CONTAINS
        ks_scp, pscp, virial, pv_glob, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
     LOGICAL, DIMENSION(3), INTENT(IN)        :: task
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_p, diagmat_ks
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: diagmat_p, diagmat_ks
     TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -1345,8 +1352,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1371,10 +1378,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: diagmat_ks, diagmat_p
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -1432,8 +1439,8 @@ CONTAINS
        CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
        
-       CALL dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
-       CALL dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
        
        nkind = SIZE(atomic_kind_set)
        DO ispin=1,nspins
@@ -1657,8 +1664,8 @@ CONTAINS
           CALL cp_dbcsr_add(ks_matrix(ispin)%matrix, diagmat_ks(ispin)%matrix,&
                1.0_dp,1.0_dp,error=error)
        END DO
-       CALL dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
-       CALL dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
+       CALL cp_dbcsr_deallocate_matrix_set ( diagmat_p, error=error )
+       CALL cp_dbcsr_deallocate_matrix_set ( diagmat_ks, error=error )
 
        IF (calculate_forces) THEN 
           DEALLOCATE(atom_of_kind,stat=stat)

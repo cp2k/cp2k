@@ -12,9 +12,9 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE qs_wf_history_types
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix,&
-                                             dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE dbcsr_types,                     ONLY: dbcsr_obj
@@ -64,7 +64,7 @@ MODULE qs_wf_history_types
      TYPE(kg_fm_p_type),  POINTER              :: wf_mol
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
-     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: rho_ao
+     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: rho_ao
      TYPE(dbcsr_obj), POINTER :: overlap
      TYPE(qs_rho_type), POINTER :: rho_frozen
      REAL(KIND = dp) :: dt
@@ -185,10 +185,10 @@ SUBROUTINE wfs_release(snapshot,error)
         ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
         ! of qs_wf_history_methods, in case you wonder about it.
         IF (ASSOCIATED(snapshot%rho_ao)) THEN
-           CALL dbcsr_deallocate_matrix_set(snapshot%rho_ao,error=error)
+           CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao,error=error)
         END IF
         IF (ASSOCIATED(snapshot%overlap)) THEN
-           CALL dbcsr_deallocate_matrix(snapshot%overlap,error=error)
+           CALL cp_dbcsr_deallocate_matrix(snapshot%overlap,error=error)
         END IF
         IF (ASSOCIATED(snapshot%rho_frozen)) THEN
            CALL qs_rho_release(snapshot%rho_frozen,error=error)

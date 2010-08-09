@@ -16,11 +16,16 @@ MODULE  scp_hartree_1center
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_distribute, cp_dbcsr_get_block_diag, &
-       cp_dbcsr_init, cp_dbcsr_replicate_all, cp_dbcsr_set, &
-       cp_dbcsr_sum_replicated, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix_set, dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_distribute,&
+                                             cp_dbcsr_get_block_diag,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_replicate_all,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_sum_replicated
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -66,10 +71,10 @@ CONTAINS
   SUBROUTINE integrate_a_vhscp_b (qs_env,h_mat,p_mat, just_energy, error, debug)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: h_mat
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      INTENT(IN)                             :: p_mat
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), INTENT(INOUT)            :: h_mat
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), INTENT(IN)               :: p_mat
     LOGICAL, INTENT(IN)                      :: just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
@@ -103,9 +108,9 @@ CONTAINS
                                                 atomic_kind_set( : )
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: diagmat_ks, diagmat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(gto_basis_set_type), POINTER        :: aux_basis, orb_basis
     TYPE(scp_energy_type), POINTER           :: energy
@@ -189,8 +194,8 @@ CONTAINS
          "ff",(1+maxlgto+maxlgto+maxlgto)*dp_size)
 
     !   Allocated diagonal matricies
-    CALL dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
-    CALL dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(diagmat_ks,nspins,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(diagmat_p,nspins,error=error)
 
     DO ispin=1,nspins
        ! Allocate diagonal block matrices
@@ -541,8 +546,8 @@ CONTAINS
             "int_tmp,vv,ff")
     END IF
 
-    CALL dbcsr_deallocate_matrix_set( diagmat_ks, error )
-    CALL dbcsr_deallocate_matrix_set( diagmat_p, error )
+    CALL cp_dbcsr_deallocate_matrix_set( diagmat_ks, error )
+    CALL cp_dbcsr_deallocate_matrix_set( diagmat_p, error )
 
     CALL timestop(handle)
 

@@ -11,12 +11,12 @@
 ! *****************************************************************************
 MODULE qs_ot_minimizer
 
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
                                              cp_dbcsr_scale,&
                                              cp_dbcsr_set,&
-                                             cp_dbcsr_trace,&
-                                             dbcsr_obj_p_type
+                                             cp_dbcsr_trace
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
@@ -56,8 +56,8 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_hc
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_hc
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
     TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp

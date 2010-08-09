@@ -18,8 +18,8 @@ MODULE hfx_energy_potential
                                              guidon2009
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_trace,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -121,8 +121,8 @@ MODULE hfx_energy_potential
                                    ispin, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: ks_matrix
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: hfx_section
@@ -273,7 +273,7 @@ MODULE hfx_energy_potential
                                                 katom_end, latom_start, latom_end, my_process_id
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom, shm_pmax_block
     REAL(dp)                                 :: pmax_atom, screen_kind_ij, screen_kind_kl, pmax_blocks
-    TYPE(dbcsr_obj_p_type),POINTER,DIMENSION(:)::rho_ao
+    TYPE(cp_dbcsr_obj_p_type),POINTER,DIMENSION(:)::rho_ao
     INTEGER::ii,pbc_shells_dummy
     REAL(dp), DIMENSION(:), POINTER          :: p_work
     LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list

@@ -9,8 +9,8 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qs_ks_qmmm_types
-  USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set,&
-                                             dbcsr_obj_p_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
   USE f77_blas
@@ -47,7 +47,7 @@ MODULE qs_ks_qmmm_types
      TYPE(pw_env_type), POINTER                  :: pw_env
      TYPE(pw_p_type)                             :: v_qmmm_rspace
      TYPE(cube_info_type),DIMENSION(:), POINTER  :: cube_info
-     TYPE(dbcsr_obj_p_type), DIMENSION(:), &
+     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), &
           POINTER                                :: matrix_h
   END TYPE qs_ks_qmmm_env_type
 
@@ -101,7 +101,7 @@ CONTAINS
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(ks_qmmm_env%matrix_h)) THEN
-             CALL dbcsr_deallocate_matrix_set(ks_qmmm_env%matrix_h,error)
+             CALL cp_dbcsr_deallocate_matrix_set(ks_qmmm_env%matrix_h,error)
           END IF
           DEALLOCATE(ks_qmmm_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -20,7 +20,7 @@ MODULE qs_geminals
                                              get_geminal_basis_set,&
                                              get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
@@ -301,10 +301,10 @@ MODULE qs_geminals
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_a, atomic_kind_b, &
                                                 atomic_kind_c
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_ks, matrix_p
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_p
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set_a, &

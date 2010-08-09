@@ -18,15 +18,15 @@ MODULE population_analyses
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_deallocate_matrix,&
-                                             dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -94,11 +94,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
     TYPE(dbcsr_obj), POINTER                 :: sm_p, sm_s
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
@@ -189,7 +189,7 @@ CONTAINS
     DO ispin=1,nspin
       sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
       ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
-      CALL dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
+      CALL cp_dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
       CALL cp_fm_gemm(transa="N",&
                       transb="N",&
                       m=nsgf,&
@@ -262,10 +262,10 @@ CONTAINS
                                                 s_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_obj), POINTER                 :: sm_p, sm_ps, sm_s
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
@@ -396,7 +396,7 @@ CONTAINS
             sm_ps%m%name = TRIM(headline)//" FOR BETA SPIN"
           END IF
         END IF
-        CALL dbcsr_write_sparse_matrix(sm_ps,4,6,qs_env,qs_env%para_env,&
+        CALL cp_dbcsr_write_sparse_matrix(sm_ps,4,6,qs_env,qs_env%para_env,&
                                        output_unit=output_unit,&
                                        error=error)
       END IF
@@ -411,7 +411,7 @@ CONTAINS
     END IF
 
     ! Release local working storage
-    IF (ASSOCIATED(sm_ps)) CALL dbcsr_deallocate_matrix(sm_ps,error=error)
+    IF (ASSOCIATED(sm_ps)) CALL cp_dbcsr_deallocate_matrix(sm_ps,error=error)
     IF (ASSOCIATED(orbpop)) THEN
       DEALLOCATE (orbpop,STAT=stat)
       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)

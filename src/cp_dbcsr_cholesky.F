@@ -37,8 +37,8 @@ MODULE cp_dbcsr_cholesky
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_cholesky'
 
-  PUBLIC :: dbcsr_cholesky_decompose, dbcsr_cholesky_invert,&
-       dbcsr_cholesky_reduce, dbcsr_cholesky_restore
+  PUBLIC :: cp_dbcsr_cholesky_decompose, cp_dbcsr_cholesky_invert,&
+       cp_dbcsr_cholesky_reduce, cp_dbcsr_cholesky_restore
 
   PRIVATE
 
@@ -57,14 +57,14 @@ CONTAINS
 !>      12.2002 updated, added n optional parm [fawzi]
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE dbcsr_cholesky_decompose(matrix,n,para_env,blacs_env,error)
+  SUBROUTINE cp_dbcsr_cholesky_decompose(matrix,n,para_env,blacs_env,error)
     TYPE(dbcsr_obj)                          :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: n
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_cholesky_decompose', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_cholesky_decompose', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, my_n, &
@@ -128,7 +128,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END  SUBROUTINE dbcsr_cholesky_decompose
+  END  SUBROUTINE cp_dbcsr_cholesky_decompose
   
 ! *****************************************************************************
 !> \brief used to replace the cholesky decomposition by the inverse
@@ -140,7 +140,7 @@ CONTAINS
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE dbcsr_cholesky_invert(matrix,n,para_env,blacs_env,upper_to_full,error)
+  SUBROUTINE cp_dbcsr_cholesky_invert(matrix,n,para_env,blacs_env,upper_to_full,error)
     TYPE(dbcsr_obj)                           :: matrix
     INTEGER, INTENT(in), OPTIONAL             :: n
     TYPE(cp_para_env_type), POINTER           :: para_env
@@ -218,11 +218,11 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END  SUBROUTINE dbcsr_cholesky_invert
+  END  SUBROUTINE cp_dbcsr_cholesky_invert
 
 ! *****************************************************************************
 !> \brief reduce a matrix pencil A,B to normal form
-!>      B has to be cholesky decomposed with  dbcsr_cholesky_decompose
+!>      B has to be cholesky decomposed with  cp_dbcsr_cholesky_decompose
 !>      before calling this routine
 !>      A,B -> inv(U^T)*A*inv(U),1
 !>      (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
@@ -234,7 +234,7 @@ CONTAINS
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE dbcsr_cholesky_reduce(matrix,matrixb,para_env,blacs_env,error)
+  SUBROUTINE cp_dbcsr_cholesky_reduce(matrix,matrixb,para_env,blacs_env,error)
     TYPE(dbcsr_obj)                           :: matrix,matrixb
     TYPE(cp_para_env_type), POINTER           :: para_env
     TYPE(cp_blacs_env_type), POINTER          :: blacs_env
@@ -311,11 +311,11 @@ CPSourceFileRef,&
 
     CALL timestop(handle)
 
-  END  SUBROUTINE dbcsr_cholesky_reduce
+  END  SUBROUTINE cp_dbcsr_cholesky_reduce
 
 !
 ! *****************************************************************************
-  SUBROUTINE dbcsr_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,transa,&
+  SUBROUTINE cp_dbcsr_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,transa,&
        para_env,blacs_env,error)
     TYPE(dbcsr_obj)                                :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                            :: neig
@@ -477,7 +477,7 @@ CPSourceFileRef,&
 
     CALL timestop(handle)
 
-  END  SUBROUTINE dbcsr_cholesky_restore
+  END  SUBROUTINE cp_dbcsr_cholesky_restore
 
 END MODULE cp_dbcsr_cholesky
 

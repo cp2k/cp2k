@@ -13,11 +13,13 @@ MODULE qs_ot_scf
   USE array_types,                     ONLY: array_i1d_obj,&
                                              array_release
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_fm_to_dbcsr, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, &
-       cp_dbcsr_get_diag, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
-       cp_dbcsr_set_diag, cp_dbcsr_trace, dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_diag, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_set_diag, &
+       cp_dbcsr_trace
+  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -134,8 +136,8 @@ CONTAINS
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_dedc
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_dedc
     TYPE(smear_type), POINTER                :: smear
     TYPE(dbcsr_obj), POINTER                 :: matrix_s
     REAL(KIND=dp)                            :: energy
@@ -158,9 +160,9 @@ CONTAINS
       DIMENSION(:)                           :: expectation_values, &
                                                 occupation_numbers, &
                                                 scaling_factor
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_dedc_scaled
     TYPE(dbcsr_obj), POINTER                 :: mo_coeff
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_dedc_scaled
 
     CALL timeset(routineN,handle)
 

@@ -14,12 +14,12 @@ MODULE qmmm_se_energy
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_allocate_matrix_set,&
-                                             dbcsr_obj_p_type
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -101,9 +101,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
@@ -150,7 +150,7 @@ CONTAINS
          max_multipole=do_multipole_none, pc_coulomb_int=.FALSE.)
 
     ! Allocate the core Hamiltonian matrix
-    CALL dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)
     ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix, STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -241,7 +241,7 @@ CONTAINS
          qs_env%input,"QMMM%PRINT%QMMM_MATRIX",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"QMMM%PRINT%QMMM_MATRIX",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(ks_qmmm_env_loc%matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL cp_dbcsr_write_sparse_matrix(ks_qmmm_env_loc%matrix_h(1)%matrix,4,6,qs_env,para_env,&
             scale=1.0_dp,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "QMMM%PRINT%QMMM_MATRIX", error=error)

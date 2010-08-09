@@ -12,8 +12,8 @@
 MODULE preconditioner_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_release_p,&
-                                             dbcsr_deallocate_matrix
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release_p
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -104,7 +104,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
+       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
        NULLIFY(preconditioner_env%sparse_matrix)
     ENDIF
     IF (ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN

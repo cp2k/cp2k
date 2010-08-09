@@ -15,14 +15,14 @@ MODULE scp_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_diag,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set,&
-                                             dbcsr_add_block_node,&
-                                             dbcsr_dist2d_to_dist
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
+                                             cp_dbcsr_dist2d_to_dist
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
                                              dbcsr_get_info
@@ -230,7 +230,7 @@ CONTAINS
                           error=error)
 
     ! prepare for allocation
-    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom),cbs(natom), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf_a, rbs, last_sgf_a)
@@ -274,7 +274,7 @@ CONTAINS
           iatom = atom_list ( ilist )
 
           NULLIFY(block)
-          CALL dbcsr_add_block_node(matrix=pscp,&
+          CALL cp_dbcsr_add_block_node(matrix=pscp,&
                                     block_row=iatom,&
                                     block_col=iatom,&
                                     BLOCK=BLOCK,error=error)

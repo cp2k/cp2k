@@ -13,12 +13,18 @@ MODULE se_core_matrix
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
-       cp_dbcsr_get_block_diag, cp_dbcsr_init, cp_dbcsr_replicate_all, &
-       cp_dbcsr_set, cp_dbcsr_sum_replicated, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix, dbcsr_obj_p_type
-  USE cp_dbcsr_output,                 ONLY: dbcsr_write_sparse_matrix
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_distribute,&
+                                             cp_dbcsr_get_block_diag,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_replicate_all,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_sum_replicated
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -91,10 +97,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_h, matrix_p, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_obj), POINTER                 :: diagmat_h, diagmat_p
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -168,7 +174,7 @@ CONTAINS
      END IF
 
      ! Allocate the core Hamiltonian matrix
-     CALL dbcsr_allocate_matrix_set(matrix_h,1,error=error)
+     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
      ALLOCATE(matrix_h(1)%matrix)
      CALL cp_dbcsr_init(matrix_h(1)%matrix, error=error)
      CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
@@ -374,7 +380,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
              scale=evolt,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
@@ -385,10 +391,10 @@ CONTAINS
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
        END IF
        DEALLOCATE(atom_of_kind)
-       CALL dbcsr_deallocate_matrix(diagmat_p,error=error)
+       CALL cp_dbcsr_deallocate_matrix(diagmat_p,error=error)
      END IF
 
-     CALL dbcsr_deallocate_matrix(diagmat_h,error=error)
+     CALL cp_dbcsr_deallocate_matrix(diagmat_h,error=error)
 
   END SUBROUTINE build_se_core_matrix
 

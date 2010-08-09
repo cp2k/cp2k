@@ -6,9 +6,9 @@
 ! *****************************************************************************
 MODULE qs_tddfpt_eigensolver
   USE cp_control_types,                ONLY: tddfpt_control_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_set,&
-                                             dbcsr_plus_fm_fm_t,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
+                                             cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
@@ -364,7 +364,7 @@ CONTAINS
                qs_env%dft_control%tddfpt_control%do_kernel,error=error)
           CALL p_postortho(p_env, qs_env, Ab(k,:),error=error)
           DO spin=1, nspins
-             CALL dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, &
+             CALL cp_dbcsr_sm_fm_multiply(qs_env%matrix_s(1)%matrix, &
                   b(k,spin)%matrix, &
                   Sb(k,spin)%matrix, &
                   p_env%n_mo(spin),error=error)
@@ -557,12 +557,12 @@ CONTAINS
     IF (do_kernel) THEN
        DO spin=1, nspins
           CALL cp_dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp, error=error) ! optimize?
-          CALL dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
+          CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=p_env%psi0d(spin)%matrix,&
                                   matrix_g=X(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &
                                   alpha=0.5_dp,error=error)
-          CALL dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
+          CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=X(spin)%matrix,&
                                   matrix_g=p_env%psi0d(spin)%matrix,&
                                   ncol=p_env%n_mo(spin), &

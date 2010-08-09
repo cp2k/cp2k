@@ -13,15 +13,16 @@
 MODULE preconditioner
   USE array_types,                     ONLY: array_data,&
                                              array_i1d_obj
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_add, &
-       cp_dbcsr_add_on_diag, cp_dbcsr_btriu, cp_dbcsr_checksum, &
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_btriu, cp_dbcsr_checksum, &
        cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, cp_dbcsr_finalize, &
        cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_norm, &
        cp_dbcsr_print, cp_dbcsr_release, cp_dbcsr_release_p, cp_dbcsr_trace, &
-       cp_dbcsr_verify_matrix, cp_dbcsr_work_create, dbcsr_copy_vec, &
-       dbcsr_deallocate_matrix, dbcsr_from_fm, dbcsr_multiply_vec, &
-       dbcsr_pack_vec, dbcsr_sm_fm_multiply, dbcsr_unpack_vec, &
+       cp_dbcsr_verify_matrix, cp_dbcsr_work_create
+  USE cp_dbcsr_operations,             ONLY: &
+       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_copy_vec, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_from_fm, cp_dbcsr_multiply_vec, &
+       cp_dbcsr_pack_vec, cp_dbcsr_sm_fm_multiply, cp_dbcsr_unpack_vec, &
        packed_vec_bcast, packed_vec_bif_tech2, packed_vec_build_u, &
        packed_vec_ini, packed_vec_scale
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -481,7 +482,7 @@ SUBROUTINE apply_sparse_diag(preconditioner_env, matrix_in, matrix_out, error)
     INTEGER                                  :: k
 
   CALL cp_fm_get_info(matrix_in,ncol_global=k,error=error)
-  CALL dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_in, &
+  CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_in, &
                          matrix_out,k,error=error)
 
 END SUBROUTINE apply_sparse_diag
@@ -507,7 +508,7 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
   CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
+       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
        NULLIFY(preconditioner_env%sparse_matrix)
     ENDIF
 
@@ -812,9 +813,9 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
 
     ! get the error estimate
     CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,name="sc0",error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_s,matrix_c0,matrix_sc0,k,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s,matrix_c0,matrix_sc0,k,error=error)
     CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
     
     IF(mixed_precision) THEN
        CALL cp_fm_create(matrix_sc0_sp,matrix_c0%matrix_struct,name="sc0_sp",&
@@ -944,9 +945,9 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     !    (1 - PS)^T H (1-PS) + (PS)^T (H - lambda S ) (PS)
     !    we exploit that the C0 are already the ritz states of H
     CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,name="sc0",error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_s,matrix_c0,matrix_sc0,k,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s,matrix_c0,matrix_sc0,k,error=error)
     CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
 
        ! An aside, try to estimate the error on the ritz values, we'll need it later on
        CALL cp_fm_create(matrix_shc0,matrix_c0%matrix_struct,name="shc0",error=error)
@@ -1392,7 +1393,7 @@ SUBROUTINE make_sparse_diag_ortho(preconditioner_env, matrix_h, energy_homo, ene
   CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
+       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
        NULLIFY(preconditioner_env%sparse_matrix)
     ENDIF
 
@@ -1532,7 +1533,7 @@ SUBROUTINE make_full_single_inverse_ortho(preconditioner_env, matrix_c0, matrix_
     CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,name="sc0",error=error)
     CALL cp_fm_to_fm(matrix_c0,matrix_sc0,error=error)
     CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
 
     CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=k, &
                                 context=preconditioner_env%ctxt, &
@@ -1629,7 +1630,7 @@ SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals
     CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,name="sc0",error=error)
     CALL cp_fm_to_fm(matrix_c0,matrix_sc0,error=error)
     CALL cp_fm_create(matrix_hc0,matrix_c0%matrix_struct,name="hc0",error=error)
-    CALL dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_h,matrix_c0,matrix_hc0,k,error=error)
 
        ! An aside, try to estimate the error on the ritz values, we'll need it later on
        CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=k,ncol_global=k, &
@@ -1736,7 +1737,7 @@ END SUBROUTINE make_full_all_ortho
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
 
     IF(ASSOCIATED(sm_inner)) THEN
-       CALL dbcsr_deallocate_matrix(sm_inner,error=error)
+       CALL cp_dbcsr_deallocate_matrix(sm_inner,error=error)
        NULLIFY(sm_inner)
     ENDIF
 
@@ -1836,7 +1837,7 @@ END SUBROUTINE make_full_all_ortho
     residual_ot = SQRT(residual_ot/(REAL(n,dp)*REAL(m,dp)))
     !
     ! r = b-A*x
-    CALL dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
     CALL cp_fm_scale_and_add(-1.0_dp,r,1.0_dp,matrix_in,error=error)
     CALL cp_fm_trace(r,r,tr_rr,error=error)
     IF(output_unit>0) THEN
@@ -1849,7 +1850,7 @@ END SUBROUTINE make_full_all_ortho
        !
        ! s = M * r
        IF(ASSOCIATED(preconditioner_env%sparse_matrix_inner)) THEN
-          CALL dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix_inner,r,s,m,error=error)
+          CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix_inner,r,s,m,error=error)
        ELSE
           CALL cp_fm_to_fm(r,s,error=error)
        ENDIF
@@ -1866,7 +1867,7 @@ END SUBROUTINE make_full_all_ortho
        CALL cp_fm_scale_and_add(beta,p,1.0_dp,s,error=error)
        !
        ! Ap = A * p
-       CALL dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,p,Ap,m,error=error)
+       CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,p,Ap,m,error=error)
        CALL cp_fm_trace(Ap,p,tr_pAp,error=error)
        !
        ! alpha = Tr(s_k'*r_k)/Tr(p_k'*Ap_k)
@@ -1877,7 +1878,7 @@ END SUBROUTINE make_full_all_ortho
        !
        ! r = r - alpha * Ap or r = b - A * x
        IF(MOD(iter,restart_every).EQ.0) THEN
-          CALL dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
+          CALL cp_dbcsr_sm_fm_multiply(preconditioner_env%sparse_matrix,matrix_out,r,m,error=error)
           CALL cp_fm_scale_and_add(-1.0_dp,r,1.0_dp,matrix_in,error=error)
        ELSE
           CALL cp_fm_scale_and_add(1.0_dp,r,-alpha,Ap,error=error)
@@ -2148,7 +2149,7 @@ END SUBROUTINE make_full_all_ortho
     !
     prcnd => preconditioner_env%sparse_matrix
     IF (ASSOCIATED(prcnd)) THEN
-       CALL dbcsr_deallocate_matrix(prcnd,error=error)
+       CALL cp_dbcsr_deallocate_matrix(prcnd,error=error)
        NULLIFY(prcnd)
     ENDIF
     ALLOCATE(prcnd)
@@ -2235,7 +2236,7 @@ END SUBROUTINE make_full_all_ortho
        ! set v and u 
        !
        !v(k,1:n)=A(k,1:n);
-       CALL dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)
+       CALL cp_dbcsr_copy_vec(mat_v, mat_t, 'row', k, error=error)
        !chksum = cp_dbcsr_checksum(mat_v,error)
        !write(*,*) 'checksum1 checksum(mat_v)',chksum
        CALL cpu_time(t(4))
@@ -2263,7 +2264,7 @@ END SUBROUTINE make_full_all_ortho
        CALL cpu_time(t(5))
        t(51) = t(51) + t(5)-t(4)
        ! compute u(1:k-1,1:n) * A(1:n,k);
-       CALL dbcsr_multiply_vec(mat_li, mat_t, 1, k-1, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by 
+       CALL cp_dbcsr_multiply_vec(mat_li, mat_t, 1, k-1, k, pkd_v_fac, error=error)!PARA pkd_v_fac is hold by 
        !                                                                        !PARA the same procs as A(1:n,k)
        !write(*,*) 'pkd_v_fac:',pkd_v_fac(1:int(pkd_v_fac(nblkrows_total+1))-1)
        !chksum = sum(abs(   pkd_v_fac  ( nblkrows_total+2: int(pkd_v_fac (nblkrows_total+1))-1) ))
@@ -2285,7 +2286,7 @@ END SUBROUTINE make_full_all_ortho
        ! build the factor inv(d)*v
        ! 
        ! pack v(:,k)
-       !old CALL dbcsr_pack_vec(mat_v, k, pkd_u_fac, 'column', error=error)
+       !old CALL cp_dbcsr_pack_vec(mat_v, k, pkd_u_fac, 'column', error=error)
        !
        ! bcast pkd_u_fac
        !CALL packed_vec_bcast(pkd_u_fac, source, 'columnwise', mp_obj, error=error) !PARA replicate columnwise
@@ -2298,10 +2299,10 @@ END SUBROUTINE make_full_all_ortho
        ! pack u(k,:) and v(k,:)
        CALL packed_vec_ini(pkd_v, nblkrows_total, error)
 
-       !CALL dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
+       !CALL cp_dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
        CALL cpu_time(t(8))
        t(54) = t(54) + t(8)-t(7)
-       !old CALL dbcsr_pack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
+       !old CALL cp_dbcsr_pack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
        !
        ! bcast the u and v
        !call packed_vec_bcast(pkd_v, -1, 'all', .false., nblkrows_total, row_blk_size(k)*row_blk_size, mp_obj, error)
@@ -2331,8 +2332,8 @@ END SUBROUTINE make_full_all_ortho
             row_blk_size(k)*row_blk_size, mp_obj, error)
 
 
-       CALL dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', do_sum=.TRUE., error=error)  !PARA local
-       CALL dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
+       CALL cp_dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', do_sum=.TRUE., error=error)  !PARA local
+       CALL cp_dbcsr_pack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
        CALL packed_vec_bcast(pkd_v, -1, 'all', .FALSE. ,nblkrows_total, &
             row_blk_size(k)*row_blk_size, mp_obj, error)
 
@@ -2356,8 +2357,8 @@ END SUBROUTINE make_full_all_ortho
        !CALL packed_vec_reduce(pkd_u, to, 'columnwise', vec_blk_size, n, mp_obj, error=error)
        !
        ! unpack u(k,:) and v(k,:)
-       CALL dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
-       CALL dbcsr_unpack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
+       CALL cp_dbcsr_unpack_vec(mat_v, k, pkd_v, 'row', error=error)  !PARA local
+       CALL cp_dbcsr_unpack_vec(mat_li, k, pkd_u, 'row', error=error) !PARA local
        !chksum = cp_dbcsr_checksum(mat_v,error)
        !write(*,*) 'checksum5 checksum(mat_v)',chksum
        !chksum = cp_dbcsr_checksum(mat_li,error)
@@ -2523,7 +2524,7 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_fm_release(fm_work2,error=error)
 
     CALL copy_dbcsr_to_fm (prcnd, fm,error=error)!for the moment
-    CALL dbcsr_deallocate_matrix(prcnd,error=error)!for the moment
+    CALL cp_dbcsr_deallocate_matrix(prcnd,error=error)!for the moment
 
 CALL cpu_time(t(13))
 
@@ -2557,7 +2558,7 @@ WRITE(*,*) 'tend',t(13)-t(12)
     CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution( preconditioner_env%dbcsr_matrix )),&
          dbcsr_distribution_row_dist(dbcsr_distribution( preconditioner_env%dbcsr_matrix )), col_dist)
     CALL cp_dbcsr_init (matrix_right, error)
-    CALL dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist,&
+    CALL cp_dbcsr_from_fm (matrix_right, matrix_in, 0.0_dp, dist,&
          row_blk_size = dbcsr_row_block_sizes(preconditioner_env%dbcsr_matrix),&
          col_blk_size = col_blk_size, error=error)
     WRITE(*,*)'Pre checksum:',cp_dbcsr_checksum (matrix_right, error=error)
@@ -2601,7 +2602,7 @@ WRITE(*,*) 'tend',t(13)-t(12)
     ! allocate
 
     IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-       CALL dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
+       CALL cp_dbcsr_deallocate_matrix(preconditioner_env%sparse_matrix,error=error)
        NULLIFY(preconditioner_env%sparse_matrix)
     ENDIF
 

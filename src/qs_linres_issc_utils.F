@@ -24,11 +24,16 @@ MODULE qs_linres_issc_utils
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_set, &
-       dbcsr_alloc_block_from_nbl, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix_set, dbcsr_dist2d_to_dist, dbcsr_obj_p_type, &
-       dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
+                                             cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set,&
+                                             cp_dbcsr_dist2d_to_dist,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -472,14 +477,14 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: issc
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_dso, matrix_efg, &
+                                                matrix_fc, matrix_pso
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fc_psi0, psi1_fc
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: psi1_dso, psi1_efg, psi1_pso
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_dso, matrix_efg, &
-                                                matrix_fc, matrix_pso
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -554,7 +559,7 @@ CONTAINS
              ! build the integral for the jatom
              CALL cp_dbcsr_set(matrix_fc(1)%matrix,0.0_dp,error=error)
              CALL build_fermi_contact_matrix(qs_env,matrix_fc,r_j,error)
-             CALL dbcsr_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
+             CALL cp_dbcsr_sm_fm_multiply(matrix_fc(1)%matrix,mo_coeff,&
                   &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
                   &                 alpha=1.0_dp,error=error)
 
@@ -581,7 +586,7 @@ CONTAINS
              CALL cp_dbcsr_set(matrix_efg(6)%matrix,0.0_dp,error=error)
              CALL build_efg_matrix(qs_env,matrix_efg,r_j,error)
              DO ixyz = 1,6
-                CALL dbcsr_sm_fm_multiply(matrix_efg(ixyz)%matrix,mo_coeff,&
+                CALL cp_dbcsr_sm_fm_multiply(matrix_efg(ixyz)%matrix,mo_coeff,&
                      &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
                      &                 alpha=1.0_dp,beta=0.0_dp,error=error)
                 CALL cp_fm_trace(fc_psi0(ispin)%matrix,mo_coeff,buf,error=error)
@@ -605,7 +610,7 @@ CONTAINS
              CALL cp_dbcsr_set(matrix_pso(3)%matrix,0.0_dp,error=error)
              CALL build_pso_matrix(qs_env,matrix_pso,r_j,error)
              DO ixyz = 1,3
-                CALL dbcsr_sm_fm_multiply(matrix_pso(ixyz)%matrix,mo_coeff,&
+                CALL cp_dbcsr_sm_fm_multiply(matrix_pso(ixyz)%matrix,mo_coeff,&
                      &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
                      &                 alpha=1.0_dp,beta=0.0_dp,error=error)
              DO jxyz = 1,3
@@ -642,7 +647,7 @@ CONTAINS
              !CALL cp_dbcsr_set(matrix_dso(3)%matrix,0.0_dp,error=error)
              !CALL rRc_xyz_ao(matrix_dso,qs_env,(/0.0_dp,0.0_dp,0.0_dp/),1,error=error)
              DO ixyz = 1,3
-                CALL dbcsr_sm_fm_multiply(matrix_dso(ixyz)%matrix,mo_coeff,&
+                CALL cp_dbcsr_sm_fm_multiply(matrix_dso(ixyz)%matrix,mo_coeff,&
                      &                 fc_psi0(ispin)%matrix,ncol=nmo,& ! fc_psi0 a buffer
                      &                 alpha=1.0_dp,beta=0.0_dp,error=error)
              DO jxyz = 1,3
@@ -978,7 +983,7 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
-    CALL dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
     ALLOCATE (rbs(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
@@ -991,7 +996,7 @@ CONTAINS
 
     !
     ! efg, pso and fc operators
-    CALL dbcsr_allocate_matrix_set(issc_env%matrix_efg,6,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_efg,6,error=error)
     ALLOCATE(issc_env%matrix_efg(1)%matrix)
     CALL cp_dbcsr_init(issc_env%matrix_efg(1)%matrix,error=error)
     CALL cp_dbcsr_create(matrix=issc_env%matrix_efg(1)%matrix, &
@@ -1000,7 +1005,7 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL dbcsr_alloc_block_from_nbl(issc_env%matrix_efg(1)%matrix,sab_orb,error=error)
+    CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_efg(1)%matrix,sab_orb,error=error)
 
     ALLOCATE(issc_env%matrix_efg(2)%matrix,&
              issc_env%matrix_efg(3)%matrix,issc_env%matrix_efg(4)%matrix,&
@@ -1029,7 +1034,7 @@ CONTAINS
     CALL cp_dbcsr_set(issc_env%matrix_efg(6)%matrix,0.0_dp,error=error)
     !
     ! PSO
-    CALL dbcsr_allocate_matrix_set(issc_env%matrix_pso,3,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_pso,3,error=error)
     ALLOCATE(issc_env%matrix_pso(1)%matrix)
     CALL cp_dbcsr_init(issc_env%matrix_pso(1)%matrix,error=error)
     CALL cp_dbcsr_create(matrix=issc_env%matrix_pso(1)%matrix, &
@@ -1038,7 +1043,7 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-    CALL dbcsr_alloc_block_from_nbl(issc_env%matrix_pso(1)%matrix,sab_orb,error=error)
+    CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_pso(1)%matrix,sab_orb,error=error)
 
     ALLOCATE(issc_env%matrix_pso(2)%matrix,issc_env%matrix_pso(3)%matrix)
     CALL cp_dbcsr_init (issc_env%matrix_pso(2)%matrix,error=error)
@@ -1052,7 +1057,7 @@ CONTAINS
     CALL cp_dbcsr_set(issc_env%matrix_pso(3)%matrix,0.0_dp,error=error)
     !
     ! DSO
-    CALL dbcsr_allocate_matrix_set(issc_env%matrix_dso,3,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_dso,3,error=error)
     ALLOCATE(issc_env%matrix_dso(1)%matrix,issc_env%matrix_dso(2)%matrix,issc_env%matrix_dso(3)%matrix)
     CALL cp_dbcsr_init(issc_env%matrix_dso(1)%matrix,error=error)
     CALL cp_dbcsr_init(issc_env%matrix_dso(2)%matrix,error=error)
@@ -1068,7 +1073,7 @@ CONTAINS
     CALL cp_dbcsr_set(issc_env%matrix_dso(3)%matrix,0.0_dp,error=error)
     !
     ! FC
-    CALL dbcsr_allocate_matrix_set(issc_env%matrix_fc,1,error=error)
+    CALL cp_dbcsr_allocate_matrix_set(issc_env%matrix_fc,1,error=error)
     ALLOCATE(issc_env%matrix_fc(1)%matrix)
     CALL cp_dbcsr_init(issc_env%matrix_fc(1)%matrix,error=error)
     CALL cp_dbcsr_copy(issc_env%matrix_fc(1)%matrix,issc_env%matrix_efg(1)%matrix,&
@@ -1215,22 +1220,22 @@ CONTAINS
        !
        !matrix_efg
        IF(ASSOCIATED(issc_env%matrix_efg)) THEN
-          CALL dbcsr_deallocate_matrix_set(issc_env%matrix_efg,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_efg,error=error)
        ENDIF
        !
        !matrix_pso
        IF(ASSOCIATED(issc_env%matrix_pso)) THEN
-          CALL dbcsr_deallocate_matrix_set(issc_env%matrix_pso,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_pso,error=error)
        ENDIF
        !
        !matrix_dso
        IF(ASSOCIATED(issc_env%matrix_dso)) THEN
-          CALL dbcsr_deallocate_matrix_set(issc_env%matrix_dso,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_dso,error=error)
        ENDIF
        !
        !matrix_fc
        IF(ASSOCIATED(issc_env%matrix_fc)) THEN
-          CALL dbcsr_deallocate_matrix_set(issc_env%matrix_fc,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(issc_env%matrix_fc,error=error)
        ENDIF
 
     ENDIF ! ref count

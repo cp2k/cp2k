@@ -18,12 +18,15 @@ MODULE qs_initial_guess
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: &
-       copy_dbcsr_to_fm, copy_fm_to_dbcsr, cp_dbcsr_checksum, cp_dbcsr_copy, &
-       cp_dbcsr_filter, cp_dbcsr_get_diag, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set_diag, cp_dbcsr_trace, &
-       cp_dbcsr_verify_matrix, dbcsr_from_fm, dbcsr_obj_p_type, &
-       dbcsr_sm_fm_multiply
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_filter, cp_dbcsr_get_diag, &
+       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, &
+       cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr,&
+                                             cp_dbcsr_from_fm,&
+                                             cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_types,                     ONLY: &
        cp_fm_create, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
@@ -161,7 +164,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: s_sparse, h_core_sparse, p_rmpv
+    TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: s_sparse, h_core_sparse, p_rmpv
     TYPE(section_vals_type), POINTER         :: dft_section, input, subsys_section
     TYPE(dbcsr_obj)                          :: mo_dbcsr, mo_tmp_dbcsr
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
@@ -546,9 +549,9 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                       CALL cp_fm_to_fm(mo_coeff,sv,error=error)
                    ELSE
                       ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
-                      CALL dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                      CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
                    END IF
-                   CALL dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
+                   CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
    
                    CALL cp_fm_release(sv,error=error)
                    ! and ortho the result
@@ -779,7 +782,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                   dbcsr_distribution_row_dist(dbcsr_distribution( s_sparse(1)%matrix )), col_dist)
              !
              CALL cp_dbcsr_init(mo_dbcsr, error=error)
-             CALL dbcsr_from_fm(mo_dbcsr, mo_coeff, 0.0_dp, dist,&
+             CALL cp_dbcsr_from_fm(mo_dbcsr, mo_coeff, 0.0_dp, dist,&
                                 row_blk_size=dbcsr_row_block_sizes (s_sparse(1)%matrix),&
                                 col_blk_size=col_blk_size,&
                                 error=error)
@@ -1102,10 +1105,10 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                 IF (ortho_basis) THEN
                    CALL cp_fm_to_fm(mo_coeff,sv,error=error)
                 ELSE
-                   CALL dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
+                   CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
                 END IF
                 ! here we could easily multiply with the diag that we actually have replicated already
-                CALL dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
+                CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
                 CALL cp_fm_release(sv,error=error)
                 ! and ortho the result
                 IF (ortho_basis) THEN

@@ -18,10 +18,16 @@ MODULE qs_ot_types
                                              cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_dbcsr_operations,             ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init_p, &
-       cp_dbcsr_release_p, cp_dbcsr_set, dbcsr_allocate_matrix_set, &
-       dbcsr_deallocate_matrix, dbcsr_deallocate_matrix_set, dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_init_p,&
+                                             cp_dbcsr_release_p,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix,&
+                                             cp_dbcsr_deallocate_matrix_set
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -163,7 +169,7 @@ MODULE qs_ot_types
 
      LOGICAL :: use_gx_old, use_dx
 
-     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: matrix_h_e, matrix_h_x
+     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: matrix_h_e, matrix_h_x
 
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: ls_diis
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lss_diis
@@ -193,8 +199,8 @@ MODULE qs_ot_types
      TYPE(dbcsr_obj), POINTER :: rot_mat_dedu ! derivative of the total energy wrt to u
      TYPE(dbcsr_obj), POINTER :: rot_mat_chc  ! for convencience, the matrix c^T H c
 
-     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
-     TYPE(dbcsr_obj_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
+     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
+     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
      TYPE(dbcsr_obj), POINTER :: rot_mat_gx
      TYPE(dbcsr_obj), POINTER :: rot_mat_gx_old
      TYPE(dbcsr_obj), POINTER :: rot_mat_dx
@@ -217,8 +223,8 @@ MODULE qs_ot_types
      TYPE ( dbcsr_obj ), POINTER :: dxmat
      TYPE ( dbcsr_obj ), POINTER :: gxmat
      TYPE ( dbcsr_obj ), POINTER :: gx_oldmat
-     TYPE ( dbcsr_obj_p_type ), POINTER :: he_mat ( : )
-     TYPE ( dbcsr_obj_p_type ), POINTER :: hx_mat ( : )
+     TYPE ( cp_dbcsr_obj_p_type ), POINTER :: he_mat ( : )
+     TYPE ( cp_dbcsr_obj_p_type ), POINTER :: hx_mat ( : )
      INTEGER :: n_el_scp
      ! *** SCP
 
@@ -698,8 +704,8 @@ CONTAINS
         qs_ot_env%settings%ot_method.eq."BROY" ) THEN
        NULLIFY(qs_ot_env%matrix_h_e)
        NULLIFY(qs_ot_env%matrix_h_x)
-       CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e,m_diis,error=error)
-       CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_x,m_diis,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e,m_diis,error=error)
+       CALL cp_dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_x,m_diis,error=error)
        DO i=1,m_diis
           CALL cp_dbcsr_init_p(qs_ot_env%matrix_h_x(i)%matrix, error=error)
           IF(mixed_precision) THEN
@@ -757,8 +763,8 @@ CONTAINS
        CALL cp_dbcsr_finalize(qs_ot_env%rot_mat_chc, error=error)
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-          CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e,m_diis,error=error)
-          CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x,m_diis,error=error)
+          CALL cp_dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e,m_diis,error=error)
+          CALL cp_dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x,m_diis,error=error)
           DO i=1,m_diis
              CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_h_e(i)%matrix, error=error)
              CALL cp_dbcsr_create(qs_ot_env%rot_mat_h_e(i)%matrix, "rot_mat_h_e(i)%matrix", dist_k_k, dbcsr_type_normal,&
@@ -850,8 +856,8 @@ CONTAINS
       CALL cp_dbcsr_set ( qs_ot_env % xmat, 0.0_dp, error=error )
       
       IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-        CALL dbcsr_allocate_matrix_set ( qs_ot_env % he_mat, m_diis, error ) 
-        CALL dbcsr_allocate_matrix_set ( qs_ot_env % hx_mat, m_diis, error ) 
+        CALL cp_dbcsr_allocate_matrix_set ( qs_ot_env % he_mat, m_diis, error ) 
+        CALL cp_dbcsr_allocate_matrix_set ( qs_ot_env % hx_mat, m_diis, error ) 
 
         DO ii = 1, m_diis
            CALL cp_dbcsr_init_p(qs_ot_env % he_mat ( ii )%matrix, error=error)
@@ -995,8 +1001,8 @@ CONTAINS
 
     IF (qs_ot_env%settings%ot_method.eq."DIIS" .OR. &
         qs_ot_env%settings%ot_method.eq."BROY") THEN
-       CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_x,error=error)
-       CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_e,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_x,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_e,error=error)
        DEALLOCATE(qs_ot_env%ls_diis)
        DEALLOCATE(qs_ot_env%lss_diis)
        DEALLOCATE(qs_ot_env%c_diis)
@@ -1013,8 +1019,8 @@ CONTAINS
        IF(ASSOCIATED(qs_ot_env%rot_mat_chc)) CALL cp_dbcsr_release_p(qs_ot_env%rot_mat_chc, error=error)
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-          CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_x,error=error)
-          CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_e,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_x,error=error)
+          CALL cp_dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_e,error=error)
        ENDIF
 
        DEALLOCATE(qs_ot_env%rot_mat_evals)
@@ -1048,17 +1054,17 @@ CONTAINS
     END IF
 
     IF (qs_ot_env%settings%scp_nddo) THEN
-       CALL dbcsr_deallocate_matrix ( qs_ot_env % xmat, error=error )
-       CALL dbcsr_deallocate_matrix ( qs_ot_env % gxmat, error=error )
+       CALL cp_dbcsr_deallocate_matrix ( qs_ot_env % xmat, error=error )
+       CALL cp_dbcsr_deallocate_matrix ( qs_ot_env % gxmat, error=error )
        IF (qs_ot_env%use_gx_old) THEN
-         CALL dbcsr_deallocate_matrix ( qs_ot_env % gx_oldmat, error=error )
+         CALL cp_dbcsr_deallocate_matrix ( qs_ot_env % gx_oldmat, error=error )
        END IF
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
-         CALL dbcsr_deallocate_matrix_set ( qs_ot_env % he_mat, error=error )
-         CALL dbcsr_deallocate_matrix_set ( qs_ot_env % hx_mat, error=error )
+         CALL cp_dbcsr_deallocate_matrix_set ( qs_ot_env % he_mat, error=error )
+         CALL cp_dbcsr_deallocate_matrix_set ( qs_ot_env % hx_mat, error=error )
        END IF
        IF (qs_ot_env%use_dx) THEN
-          CALL dbcsr_deallocate_matrix ( qs_ot_env % dxmat, error=error )
+          CALL cp_dbcsr_deallocate_matrix ( qs_ot_env % dxmat, error=error )
        ENDIF
     END IF
     ! **** SCP

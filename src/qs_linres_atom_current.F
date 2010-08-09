@@ -22,7 +22,7 @@ MODULE qs_linres_atom_current
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE input_constants,                 ONLY: current_gauge_atom,&
@@ -90,8 +90,8 @@ CONTAINS
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(current_env_type)                   :: current_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: mat_d0, mat_jp, mat_jp_rii, &
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: mat_d0, mat_jp, mat_jp_rii, &
                                                 mat_jp_riii
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -120,10 +120,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: mat_a, mat_b, mat_c, mat_d
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: mat_a, mat_b, mat_c, mat_d
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(jrho_atom_type), DIMENSION(:), &

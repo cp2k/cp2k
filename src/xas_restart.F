@@ -17,8 +17,8 @@
 ! *****************************************************************************
 MODULE xas_restart
 
-  USE cp_dbcsr_operations,             ONLY: dbcsr_obj_p_type,&
-                                             dbcsr_sm_fm_multiply
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -109,11 +109,11 @@ CONTAINS
                                                 occupation_numbers
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
@@ -428,8 +428,8 @@ CPSourceFileRef,&
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(dbcsr_obj_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_obj_p_type), &
+      DIMENSION(:), POINTER                  :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'find_excited_core_orbital', &
@@ -466,7 +466,7 @@ CPSourceFileRef,&
     vecbuffer2 = 0.0_dp
 
   ! ** use the maximum overlap criterion to find the index of the excited orbital
-    CALL dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo,error=error)
+    CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo,error=error)
     CALL cp_fm_gemm("T","N",1,xas_env%nexc_search,nao,1.0_dp,excvec_coeff,&
          fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
     CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices,&
