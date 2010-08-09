@@ -10,7 +10,6 @@
 ! *****************************************************************************
 MODULE cluster_types
 
-  USE f77_blas
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
@@ -26,22 +25,21 @@ MODULE cluster_types
 
   PUBLIC :: cluster_type, box_type
 
-  TYPE boxes_type
-     INTEGER, DIMENSION(3) :: nboxes = 0
-     INTEGER, DIMENSION(:,:,:), POINTER :: boxes_ptr => NULL()
-     INTEGER, DIMENSION(:), POINTER :: boxes_data => NULL()
-  END TYPE boxes_type
-
   TYPE box_type
-     INTEGER :: nparticles = 0
-     INTEGER, DIMENSION(:), POINTER :: atom_list => NULL()
-     REAL(dp), DIMENSION(:,:), POINTER :: xyz => NULL()
+     INTEGER, DIMENSION(3)              :: nbox = 0
+     INTEGER                            :: npart = 0
+     INTEGER                            :: nbox_filled = 0
+     INTEGER, DIMENSION(:,:,:), POINTER :: box_p => NULL()
+     INTEGER, DIMENSION(:), POINTER     :: part_i => NULL()
+     REAL(dp), DIMENSION(:,:), POINTER  :: xyz => NULL()
   END TYPE box_type
 
   TYPE cluster_type
-     INTEGER                        :: nclusters=0, nparticles=0
-     INTEGER, DIMENSION(:), POINTER :: cluster_ptr => NULL(), &
-                                       particle_idx => NULL()
+     INTEGER                        :: nclusters = 0
+     INTEGER                        :: nparticles = 0
+     INTEGER, DIMENSION(:), POINTER :: cluster_ptr => NULL()
+     INTEGER, DIMENSION(:), POINTER :: particle_idx => NULL()
+     INTEGER, DIMENSION(:), POINTER :: particle_to_cluster => NULL()
   END TYPE cluster_type
 
 END MODULE cluster_types
