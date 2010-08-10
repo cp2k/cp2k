@@ -615,7 +615,8 @@ CONTAINS
                    CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
                         orb_basis_set=orb_basis_set)
                    CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-                   cluster_price = cluster_price + 8 + MAXVAL (lmax_basis)
+                   cluster_price = cluster_price + 8 +&
+                        (MAXVAL (lmax_basis))**2
                 ENDDO
              END SELECT
              cluster_prices(icluster) = cluster_price
@@ -717,7 +718,7 @@ CONTAINS
              CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
                   orb_basis_set=orb_basis_set)
              CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-             cluster_price = 8 + MAXVAL (lmax_basis)*MAXVAL(lmax_basis)
+             cluster_price = 8 + (MAXVAL (lmax_basis)**2)
           END SELECT
           cluster_prices(iatom) = cluster_price
        ENDDO
