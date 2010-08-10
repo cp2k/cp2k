@@ -195,7 +195,7 @@ CONTAINS
          "DI 10.1063/1.1636455",&
          "UT ISI:000188498400003",&
          "ER"),&
-         DOI="10.1063/1.1329672")
+         DOI="10.1063/1.1636455")
 
     CALL add_reference(key=Jonsson2000_2, ISI_record=s2a(&
          "AU Henkelman, G",&
