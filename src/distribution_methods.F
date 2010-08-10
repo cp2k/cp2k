@@ -717,7 +717,7 @@ CONTAINS
              CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
                   orb_basis_set=orb_basis_set)
              CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
-             cluster_price = 8 + MAXVAL (lmax_basis)
+             cluster_price = 8 + MAXVAL (lmax_basis)*MAXVAL(lmax_basis)
           END SELECT
           cluster_prices(iatom) = cluster_price
        ENDDO
@@ -1128,15 +1128,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bin, bin_price, cluster, cluster_price, nbins, nclusters, &
-      pcol, pgrid_lcm, prow, timing_handle
+      pcol, pgrid_gcd, prow, timing_handle, cluster_index
     LOGICAL                                  :: failure, found, heap_error
     TYPE(heap_t)                             :: bin_heap
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset (routineN, timing_handle)
-    nbins = gcd (nprows, npcols)
-    pgrid_lcm = lcm (nprows, npcols)
+    nbins = lcm (nprows, npcols)
+    pgrid_gcd = gcd (nprows, npcols)
     CALL sort (cluster_prices, SIZE(cluster_list), cluster_list)
     CALL heap_new (bin_heap, nbins, heap_error)
     CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
@@ -1149,7 +1149,8 @@ CONTAINS
     nclusters = SIZE (cluster_list)
     ! Put the most expensive cluster in the bin with the smallest
     ! price and repeat.
-    DO cluster = 1, nclusters
+    DO cluster_index = nclusters, 1, -1
+       cluster = cluster_list(cluster_index)
        CALL heap_get_first (bin_heap, bin, bin_price, found, heap_error)
        CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error,&
             routineN, "Error getting topmost heap element.", error=error)
@@ -1157,11 +1158,11 @@ CONTAINS
             routineN, "No topmost heap element found.", error=error)
        !
        failure = .FALSE.
-       prow = INT (bin*pgrid_lcm / npcols)
+       prow = INT (bin*pgrid_gcd / npcols)
        CALL cp_assert (prow .LT. nprows, cp_fatal_level, cp_internal_error,&
             routineN, "Invalid process row.", failure=failure, error=error)
        failure = .TRUE.
-       pcol = INT (bin*pgrid_lcm / nprows)
+       pcol = INT (bin*pgrid_gcd / nprows)
        CALL cp_assert (pcol .LT. npcols, cp_fatal_level, cp_internal_error,&
             routineN, "Invalid process column.", failure=failure, error=error)
        row_distribution (cluster) = prow + 1
