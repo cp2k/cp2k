@@ -50,7 +50,7 @@ CONTAINS
 ! IN the case of nspin != 1 we have a gradient that is distributed over different qs_ot_env.
 ! still things remain basically the same, since there are no constraints between the different qs_ot_env
 ! we only should take care that the various scalar products are taken over the full vectors.
-! all the information needed and  collected can be stored in the fist qs_ot_env only
+! all the information needed and collected can be stored in the fist qs_ot_env only
 ! (indicating that the data type for the gradient/position and minization should be separated)
 !
 ! *****************************************************************************

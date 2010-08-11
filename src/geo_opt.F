@@ -180,7 +180,7 @@ MODULE geo_opt
        CALL geoopt_lbfgs(force_env,gopt_param,globenv,&
             geo_section, gopt_env, x0, error=error)
     CASE (default_cg_method_id)
-       CALL geoopt_cg  (force_env,gopt_param,globenv,&
+       CALL geoopt_cg(force_env,gopt_param,globenv,&
             geo_section, gopt_env, x0, error=error)
     CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)

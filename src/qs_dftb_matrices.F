@@ -510,10 +510,8 @@ CONTAINS
                        ELSE
                          f0 = 1._dp
                        END IF
-                       CALL virial_pair_force ( virial%pv_virial, f0, &
-                                                force_ab, rij, error)
-                       CALL virial_pair_force ( virial%pv_virial, f0, &
-                                                force_w, rij, error)
+                       CALL virial_pair_force ( virial%pv_virial, -f0, force_ab, rij, error)
+                       CALL virial_pair_force ( virial%pv_virial, -f0, force_w, rij, error)
                      END IF
                      DEALLOCATE (dfblock,dsblock,STAT=istat)
                      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -575,8 +573,7 @@ CONTAINS
                     force(jkind)%repulsive(:,atom_b) =&
                         force(jkind)%repulsive(:,atom_b) + force_rr(:)
                     IF ( use_virial ) THEN
-                      CALL virial_pair_force ( virial%pv_virial, 1._dp, &
-                                               force_rr, rij, error)
+                      CALL virial_pair_force ( virial%pv_virial, -1._dp, force_rr, rij, error)
                      END IF
                   END IF
                END IF
@@ -613,7 +610,16 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
-             output_unit=iw,error=error)
+            output_unit=iw,error=error)
+
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+         DO i=2,size(matrix_h)
+           CALL cp_dbcsr_write_sparse_matrix(matrix_h(i)%matrix,4,6,qs_env,para_env,&
+                output_unit=iw,error=error)
+         END DO
+       END IF
+
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
      END IF
@@ -624,6 +630,15 @@ CONTAINS
             extension=".Log",error=error)
        CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,&
              output_unit=iw,error=error)
+
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+            qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+         DO i=2,size(matrix_s)
+           CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,&
+                output_unit=iw,error=error)
+         END DO
+       END IF
+
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
      END IF

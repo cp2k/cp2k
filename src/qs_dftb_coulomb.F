@@ -332,8 +332,7 @@ CONTAINS
             IF (use_virial) THEN
                rij = particle_set(iatom)%r - particle_set(jatom)%r
                rij = pbc(rij,cell)
-               CALL virial_pair_force ( virial%pv_virial, 1._dp, &
-                                        fij, rij, error)
+               CALL virial_pair_force ( virial%pv_virial, -1._dp, fij, rij, error)
             END IF
          END IF
       END DO
@@ -342,7 +341,7 @@ CONTAINS
          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
                         alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
       END IF
-   END IF
+    END IF
 
     IF ( calculate_forces ) THEN
       DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
@@ -635,7 +634,7 @@ CONTAINS
             END IF
             IF ( use_virial ) THEN
               pfr = -dfr*mcharge(iatom)*mcharge(jatom)
-              CALL virial_pair_force ( virial%pv_virial, pfr, rij, rij, error)
+              CALL virial_pair_force ( virial%pv_virial, -pfr, rij, rij, error)
             END IF
           END IF
 

@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Define the data structure for the dinamical coefficents .
+!> \brief Define the data structure for the dynamical coefficents .
 !> \par History
 !>      none
 !> \author gloria (09.12.2003)
