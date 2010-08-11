@@ -1717,7 +1717,7 @@ CONTAINS
        CALL cp_dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
        matrix%matrix%m%valid = .FALSE.
     ENDIF
-!$  CALL cp_assert (SIZE (matrix%m%wms) .GE. omp_get_num_threads(),&
+!$  CALL cp_assert (SIZE (matrix%matrix%m%wms) .GE. omp_get_num_threads(),&
 !$       cp_fatal_level, cp_wrong_args_error, routineN,&
 !$       "Too few threads.", error=error)
     CALL cp_assert (dbcsr_wm_use_mutable (matrix%matrix%m%wms(ithread+1)),&

@@ -839,14 +839,14 @@ CONTAINS
     loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
 
     CALL cp_dbcsr_work_create(dh,work_mutable=.TRUE.,n=nthread,error=error)
-!$  dist => dh%m%dist
+!$  dist => dh%matrix%m%dist
 !$  CALL cp_assert (dbcsr_distribution_has_threads(dist), cp_fatal_level,&
 !$       cp_internal_error, routineN, "No thread distribution defined.",&
 !$       error=error)
     IF (has_dv) THEN
       DO idir=1,3
         CALL cp_dbcsr_work_create(ddv(idir)%matrix,work_mutable=.TRUE.,n=nthread,error=error)
-!$      dist => ddv(idir)%matrix%m%dist
+!$      dist => ddv(idir)%matrix%matrix%m%dist
 !$      CALL cp_assert (dbcsr_distribution_has_threads(dist),&
 !$           cp_fatal_level, cp_internal_error, routineN,&
 !$           "No thread distribution defined.",&
