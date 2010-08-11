@@ -13,16 +13,20 @@
 MODULE qs_scf_diagonalization
 
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
+                                             cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
+                                             cp_dbcsr_distribution,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_row_block_sizes,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_uses_special_memory
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -39,10 +43,6 @@ MODULE qs_scf_diagonalization
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
-                                             dbcsr_distribution,&
-                                             dbcsr_row_block_sizes,&
-                                             dbcsr_uses_special_memory
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: cholesky_inverse,&
@@ -124,8 +124,8 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step, use_jacobi
@@ -260,8 +260,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occupations
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: eval_first, occ_first
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_fm_type), POINTER                :: c0, chc, evec, mo_coeff, work
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -450,8 +450,8 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
     INTEGER                                  :: handle, i, ispin, istat, nmo, &
                                                 nspin
     LOGICAL                                  :: failure
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -477,10 +477,10 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
           CALL cp_dbcsr_init(subspace_env%p_matrix_store(i)%matrix,error=error)
           CALL cp_dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, &
                name="DENSITY_STORE", &
-               dist=dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
-               row_blk_size=dbcsr_row_block_sizes(matrix_s(1)%matrix), &
-               col_blk_size=dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-               nblks=0, nze=0, special=dbcsr_uses_special_memory(matrix_s(1)%matrix), &
+               dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
+               row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
+               col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
+               nblks=0, nze=0, special=cp_dbcsr_uses_special_memory(matrix_s(1)%matrix), &
                error=error)
           CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix,&
                sab_orb, error=error)
@@ -524,8 +524,8 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
@@ -614,8 +614,8 @@ END SUBROUTINE diag_subspace_allocate
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
@@ -715,8 +715,8 @@ CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(INOUT)                   :: diis_step
@@ -984,8 +984,8 @@ CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: scf_section
     LOGICAL, INTENT(IN), OPTIONAL            :: check_moconv_only

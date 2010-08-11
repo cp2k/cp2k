@@ -29,6 +29,7 @@ MODULE qs_moments
                                              cp_cfm_release
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set,&
                                              cp_dbcsr_trace
@@ -36,7 +37,8 @@ MODULE qs_moments
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
@@ -51,8 +53,6 @@ MODULE qs_moments
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -95,8 +95,8 @@ CONTAINS
   SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,ref_points,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: moments
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: moments
     INTEGER, INTENT(IN)                      :: nmoments
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(IN), OPTIONAL                   :: ref_point
@@ -130,8 +130,8 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mint
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -278,7 +278,7 @@ CONTAINS
 
             DO i=1,nm
               NULLIFY (mint(i)%block)
-              CALL dbcsr_get_block_p(matrix=moments(i)%matrix,&
+              CALL cp_dbcsr_get_block_p(matrix=moments(i)%matrix,&
                    row=irow,col=icol,BLOCK=mint(i)%block,tr=tr,found=found)
               mint(i)%block = 0._dp
             END DO
@@ -382,7 +382,7 @@ CONTAINS
   SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
+    TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kvec
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -521,10 +521,10 @@ CONTAINS
             END IF
 
             NULLIFY (cblock)
-            CALL dbcsr_get_block_p(matrix=cosmat,&
+            CALL cp_dbcsr_get_block_p(matrix=cosmat,&
                  row=irow,col=icol,BLOCK=cblock,tr=tr,found=found)
             NULLIFY (sblock)
-            CALL dbcsr_get_block_p(matrix=sinmat,&
+            CALL cp_dbcsr_get_block_p(matrix=sinmat,&
                  row=irow,col=icol,BLOCK=sblock,tr=tr,found=found)
             IF(ASSOCIATED(cblock).AND..NOT.ASSOCIATED(sblock).OR.&
                .NOT.ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
@@ -616,8 +616,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_p_type), DIMENSION(:), &
       POINTER                                :: eigrmat
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: opvec
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -625,7 +626,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -986,7 +986,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
+    TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -1013,7 +1013,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,opvec,mos_new,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: cosmat, sinmat
+    TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -1123,8 +1123,8 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s, moments
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, moments
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles

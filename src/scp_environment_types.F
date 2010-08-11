@@ -10,11 +10,11 @@ MODULE scp_environment_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
@@ -54,7 +54,7 @@ MODULE scp_environment_types
     REAL ( dp )                                           :: eps_gvg_rspace, &
                                                              eps_rho_rspace
 ! FOR NDDO
-    TYPE ( dbcsr_obj ), POINTER                    :: pscp, ks_scp
+    TYPE ( cp_dbcsr_type ), POINTER                    :: pscp, ks_scp
     REAL ( dp ), POINTER                                  :: ascp_diag ( : )
 ! FOR DFT
     TYPE ( aux_coeff_set_type ), POINTER                  :: aux_coeff_set
@@ -108,7 +108,7 @@ CONTAINS
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, ks_scp
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, ks_scp
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -196,7 +196,7 @@ CONTAINS
       POINTER                                :: distribution_2d
     REAL(dp), OPTIONAL                       :: eps_gvg_rspace, eps_rho_rspace
     REAL(dp), OPTIONAL, POINTER              :: ascp_diag( : )
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, ks_scp
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, ks_scp
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_scp_env', &

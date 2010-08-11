@@ -22,10 +22,12 @@ MODULE qs_loc_utils
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -44,8 +46,6 @@ MODULE qs_loc_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: do_loc_none,&
@@ -143,7 +143,7 @@ CONTAINS
   SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S, error) 
 
     TYPE(cp_fm_type), POINTER                :: mo_new, mo_ref
-    TYPE(dbcsr_obj), POINTER                 :: matrix_S
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_S
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotate_state_to_ref', &
@@ -464,8 +464,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: moloc_coeff
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
@@ -710,8 +710,8 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: op_cost, op_sint
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_sm_set
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -903,10 +903,10 @@ CONTAINS
 
               DO i = 1,dim_op
                  NULLIFY(op_cos(i)%block)
-                 CALL dbcsr_get_block_p(matrix=op_sm_set(1,i)%matrix,&
+                 CALL cp_dbcsr_get_block_p(matrix=op_sm_set(1,i)%matrix,&
                       row=irow,col=icol,block=op_cos(i)%block,tr=tr,found=found)
                  NULLIFY(op_sin(i)%block)
-                 CALL dbcsr_get_block_p(matrix=op_sm_set(2,i)%matrix,&
+                 CALL cp_dbcsr_get_block_p(matrix=op_sm_set(2,i)%matrix,&
                       row=irow,col=icol,block=op_sin(i)%block,tr=tr,found=found)
               END DO
             END IF  ! new_atom_b

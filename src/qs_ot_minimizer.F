@@ -13,12 +13,12 @@ MODULE qs_ot_minimizer
 
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_copy,&
+                                             cp_dbcsr_get_info,&
                                              cp_dbcsr_scale,&
                                              cp_dbcsr_set,&
                                              cp_dbcsr_trace
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -56,11 +56,11 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, pscp, fscp, error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_hc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_hc
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_mini', &
@@ -693,9 +693,9 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
    nscp=0
    nener=0
    IF ( do_ks ) THEN
-      CALL dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
+      CALL cp_dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
      DO ispin=1,nspin
-        CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
+        CALL cp_dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
           k=k+itmp
      ENDDO
    ENDIF
@@ -883,9 +883,9 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
    nscp=0
    nener=0
    IF ( do_ks ) THEN
-      CALL dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
+      CALL cp_dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
      DO ispin=1,nspin
-        CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
+        CALL cp_dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
         k=k+itmp
      ENDDO
    END IF
@@ -1136,9 +1136,9 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
    n    = 0
    nener= 0
    IF ( do_ks ) THEN
-      CALL dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
+      CALL cp_dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
      DO ispin=1,nspin
-        CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
+        CALL cp_dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
         k=k+itmp
      ENDDO
    END IF
@@ -1520,9 +1520,9 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
 
    k    = 0
    n    = 0
-   CALL dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
+   CALL cp_dbcsr_get_info(qs_ot_env(1)%matrix_x,nfullrows_total=n)
    DO ispin=1,nspin
-      CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
+      CALL cp_dbcsr_get_info(qs_ot_env(ispin)%matrix_x,nfullcols_total=itmp)
       k=k+itmp
    ENDDO
 

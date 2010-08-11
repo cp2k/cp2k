@@ -35,29 +35,27 @@ MODULE qs_integrate_potential
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_work_create
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
+       cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, &
+       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_work_create
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_d32cp2k
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE dbcsr_dist_operations
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_has_threads,&
-                                             dbcsr_get_matrix_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_has_threads
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE gauss_colloc,                    ONLY: integrateGaussFull
@@ -508,14 +506,14 @@ CONTAINS
        matrix_dv, basis_set_id, error)
 
     TYPE(pw_p_type)                          :: v_rspace
-    TYPE(cp_dbcsr_obj_p_type), INTENT(IN), &
+    TYPE(cp_dbcsr_p_type), INTENT(IN), &
       OPTIONAL                               :: p
-    TYPE(cp_dbcsr_obj_p_type), INTENT(INOUT) :: h
+    TYPE(cp_dbcsr_p_type), INTENT(INOUT)     :: h
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, TARGET         :: matrix_dv
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, TARGET                       :: matrix_dv
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -564,13 +562,13 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ddv
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ddv
+    TYPE(cp_dbcsr_type), POINTER             :: deltap, dh
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dbcsr_distribution_obj), POINTER    :: dist
-    TYPE(dbcsr_obj), POINTER                 :: deltap, dh
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -708,9 +706,10 @@ CONTAINS
        ALLOCATE(dh)
        CALL cp_dbcsr_init(dh, error=error)
        CALL cp_dbcsr_create(dh, 'LocalH', &
-            dbcsr_distribution (h%matrix),&
-            dbcsr_get_matrix_type (h%matrix), h%matrix%m%row_blk_size,&
-            h%matrix%m%col_blk_size, h%matrix%m%nblks, h%matrix%m%nze,&
+            cp_dbcsr_distribution (h%matrix),&
+            cp_dbcsr_get_matrix_type (h%matrix), cp_dbcsr_row_block_sizes(h%matrix),&
+            cp_dbcsr_col_block_sizes(h%matrix), cp_dbcsr_get_num_blocks(h%matrix),&
+            cp_dbcsr_get_data_size(h%matrix),&
             error=error)
 
        IF (has_dv) THEN
@@ -720,10 +719,11 @@ CONTAINS
              ALLOCATE(ddv(idir)%matrix)
              CALL cp_dbcsr_init(ddv(idir)%matrix, error=error)
              CALL cp_dbcsr_create(ddv(idir)%matrix, "LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))), &
-                  dbcsr_distribution (h%matrix),&
-                  dbcsr_get_matrix_type (h%matrix),&
-                  h%matrix%m%row_blk_size,&
-                  h%matrix%m%col_blk_size, h%matrix%m%nblks, h%matrix%m%nze,&
+                  cp_dbcsr_distribution (h%matrix),&
+                  cp_dbcsr_get_matrix_type (h%matrix),&
+                  cp_dbcsr_row_block_sizes(h%matrix),&
+                  cp_dbcsr_col_block_sizes(h%matrix), cp_dbcsr_get_num_blocks(h%matrix), &
+                  cp_dbcsr_get_data_size(h%matrix),&
                   error=error)
           END DO
        END IF
@@ -946,13 +946,13 @@ CONTAINS
           END IF
 
           NULLIFY(h_block)
-          CALL dbcsr_get_block_p(dh,brow,bcol,h_block,tr,found)
+          CALL cp_dbcsr_get_block_p(dh,brow,bcol,h_block,tr,found)
           IF (.NOT.ASSOCIATED(h_block)) THEN
                CALL cp_dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
           END IF
           IF (has_dv) THEN
              DO idir=1,3
-                CALL dbcsr_get_block_p(matrix=ddv(idir)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=ddv(idir)%matrix,&
                      row=brow,col=bcol,BLOCK=dv_block(idir)%array,tr=tr,found=found)
 
                 IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
@@ -961,7 +961,7 @@ CONTAINS
           END IF
 
           IF (pab_required) THEN
-             CALL dbcsr_get_block_p(matrix=deltap,&
+             CALL cp_dbcsr_get_block_p(matrix=deltap,&
                   row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
 
              IF (.NOT.ASSOCIATED(p_block)) &

@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE qs_scf_types
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
@@ -123,7 +123,7 @@ END TYPE qs_outer_scf_type
   TYPE subspace_env_type
       INTEGER :: max_iter, mixing_method
       REAL(dp) :: eps_diag_sub, eps_ene, eps_adapt
-      TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: p_matrix_store,p_matrix_mix
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_matrix_store,p_matrix_mix
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: chc_mat, c_vec, c0
       TYPE(mixing_storage_type), POINTER :: mixing_store
   END TYPE
@@ -141,7 +141,7 @@ TYPE qs_scf_env_type
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
    TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, s_half, s_minus_one
    TYPE(krylov_space_type), POINTER :: krylov_space
-   TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
+   TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: p_delta, p_mix_new
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer

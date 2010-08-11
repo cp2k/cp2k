@@ -15,12 +15,14 @@ MODULE kg_scf
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -30,8 +32,6 @@ MODULE kg_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -309,8 +309,8 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orthonormality
     REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
     REAL(dp), DIMENSION(:, :), POINTER       :: diis_m1_global, diis_m2_global
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h_b, matrix_ks_b, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h_b, matrix_ks_b, &
                                                 matrix_s_b, p_mix_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -900,8 +900,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ndep, &
                                                 output_unit
     LOGICAL                                  :: do_ortho, failure
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks_b, matrix_s_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_b, matrix_s_b
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
@@ -1114,7 +1114,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure, found, tr
     REAL(dp), DIMENSION(:, :), POINTER       :: ortho, s_block, work
-    TYPE(dbcsr_obj), POINTER                 :: s
+    TYPE(cp_dbcsr_type), POINTER             :: s
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -1164,7 +1164,7 @@ CONTAINS
 
              NULLIFY(s_block)
              IF (iatom <= jatom) THEN
-                CALL dbcsr_get_block_p(matrix=s,&
+                CALL cp_dbcsr_get_block_p(matrix=s,&
                      row=iatom,col=jatom,BLOCK=s_block,tr=tr,found=found)
                icol =  1
                DO icol_ortho = col_first, col_last
@@ -1176,7 +1176,7 @@ CONTAINS
                   icol = icol + 1
                END DO   ! icol_ortho
              ELSE
-               CALL dbcsr_get_block_p(matrix=s,&
+               CALL cp_dbcsr_get_block_p(matrix=s,&
                     row=jatom,col=iatom,BLOCK=s_block,tr=tr,found=found)
 
                icol =  1
@@ -1258,8 +1258,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h_b, matrix_s_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h_b, matrix_s_b
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d

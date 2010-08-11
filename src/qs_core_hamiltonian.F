@@ -86,27 +86,22 @@ MODULE qs_core_hamiltonian
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_filter,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_occupation, cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_distribution,&
                                              cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_get_occupation
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
@@ -219,8 +214,8 @@ CONTAINS
       POINTER                                :: sint, tint
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: sintt, tintt
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h, matrix_p, matrix_s, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p, matrix_s, &
                                                 matrix_t, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -697,10 +692,10 @@ CONTAINS
 
                    IF (calculate_forces) THEN
                       NULLIFY(p_block)
-                      CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                            row=irow,col=icol,BLOCK=p_block,tr=tr,found=found)
                       NULLIFY(w_block)
-                      CALL dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
                            row=irow,col=icol,BLOCK=w_block,tr=tr,found=found)
                    END IF
                 END IF
@@ -912,10 +907,10 @@ CONTAINS
 
     DO i = 1,SIZE(matrix_s)
        CALL cp_dbcsr_finalize(matrix_s(i)%matrix, error=error)
-       IF(.FALSE.)WRITE(*,*) 'before',dbcsr_get_occupation(matrix_s(i)%matrix)
+       IF(.FALSE.)WRITE(*,*) 'before',cp_dbcsr_get_occupation(matrix_s(i)%matrix)
        CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
             qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
-       IF(.FALSE.)WRITE(*,*) 'after',dbcsr_get_occupation(matrix_s(i)%matrix)
+       IF(.FALSE.)WRITE(*,*) 'after',cp_dbcsr_get_occupation(matrix_s(i)%matrix)
     ENDDO
 
     IF (build_kinetic_energy_matrix) THEN
@@ -1010,7 +1005,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
 
     ! Print matrices if requested
@@ -1026,8 +1021,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, &
        calculate_forces, para_env, error)
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s, matrix_t, matrix_h
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, matrix_t, matrix_h
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -1038,8 +1033,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iw
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_v
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_v
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)

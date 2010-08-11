@@ -18,7 +18,7 @@ MODULE rt_make_propagators
                                              cp_cfm_set_all,&
                                              cp_cfm_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_upper_to_full
@@ -81,8 +81,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: SinvH
     TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &

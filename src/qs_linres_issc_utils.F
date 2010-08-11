@@ -26,6 +26,7 @@ MODULE qs_linres_issc_utils
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
+                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
@@ -33,7 +34,7 @@ MODULE qs_linres_issc_utils
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -51,7 +52,6 @@ MODULE qs_linres_issc_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
@@ -477,8 +477,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: issc
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_dso, matrix_efg, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dso, matrix_efg, &
                                                 matrix_fc, matrix_pso
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fc_psi0, psi1_fc
@@ -1080,7 +1080,7 @@ CONTAINS
                    'fc',error=error)
     CALL cp_dbcsr_set(issc_env%matrix_fc(1)%matrix,0.0_dp,error=error)
 
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     !
     ! Conversion factors

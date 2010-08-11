@@ -17,7 +17,10 @@ MODULE dkh_main
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_create,&
+                                             cp_dbcsr_distribution,&
+                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_finalize,&
+                                             cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
@@ -25,7 +28,7 @@ MODULE dkh_main
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -48,10 +51,7 @@ MODULE dkh_main
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_mp,&
-                                             dbcsr_distribution_release
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
@@ -162,9 +162,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: matrix_h, &
-      matrix_hpgf, matrix_pVppgf, matrix_s, matrix_spgf, matrix_t, &
-      matrix_tpgf, matrix_vnuc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, matrix_hpgf, &
+      matrix_pVppgf, matrix_s, matrix_spgf, matrix_t, matrix_tpgf, matrix_vnuc
     TYPE(cp_fm_struct_type), POINTER         :: matrix_full
     TYPE(cp_fm_type), POINTER                :: matrix_pVp_full, &
                                                 matrix_s_full, matrix_t_full, &
@@ -312,7 +311,7 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
     CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error=error,&
-         mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_s(1)%matrix)))
+         mp_obj=dbcsr_distribution_mp (cp_dbcsr_distribution (matrix_s(1)%matrix)))
     ALLOCATE (rbs(natom), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL convert_offsets_to_sizes (first_pgf, rbs, last_pgf)
@@ -377,7 +376,7 @@ CONTAINS
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
 
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
 
     !   *********************************************************************
@@ -1114,33 +1113,33 @@ CONTAINS
                    END IF
 
                    NULLIFY(spgf_block)
-                   CALL dbcsr_get_block_p(matrix=matrix_spgf(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_spgf(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=spgf_block,&
                         tr=tr,found=found)
 
                    NULLIFY(hpgf_block)
-                   CALL dbcsr_get_block_p(matrix=matrix_hpgf(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_hpgf(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=hpgf_block,&
                         tr=tr,found=found)
 
                    NULLIFY(tpgf_block)
-                   CALL dbcsr_get_block_p(matrix=matrix_tpgf(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_tpgf(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=tpgf_block,&
                         tr=tr,found=found)
 
                    NULLIFY(s_block)
-                   CALL dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=s_block,&
                         tr=tr,found=found)
 
                    NULLIFY(hp_block)
-                   CALL dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=hp_block,&
                         tr=tr,found=found)
 
                    IF(kinetic_m)THEN
                       NULLIFY(t_block)
-                      CALL dbcsr_get_block_p(matrix=matrix_t(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=matrix_t(1)%matrix,&
                            row=iblock_row,col=iblock_col,BLOCK=t_block,&
                            tr=tr,found=found)
                    END IF

@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE qs_conductivity
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -39,8 +39,8 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
                                 unoccupied_orbs,unoccupied_evals,volume,scr,error)
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_type), POINTER                :: occupied_orbs
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupied_evals
     TYPE(cp_fm_type), POINTER                :: unoccupied_orbs

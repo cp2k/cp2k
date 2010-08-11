@@ -19,7 +19,7 @@ MODULE qs_kpp1_env_methods
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
@@ -157,8 +157,8 @@ CONTAINS
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: k_p_p1
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho1_xc
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -542,8 +542,8 @@ CONTAINS
        diff, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: k_p_p1
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: diff
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -553,8 +553,8 @@ CONTAINS
 
     INTEGER                                  :: ispin, nspins
     REAL(KIND=dp)                            :: my_diff
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_2, matrix_s, rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_2, matrix_s, rho_ao
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
     NULLIFY(ks_2,matrix_s,qs_energy)
@@ -653,8 +653,8 @@ CONTAINS
     LOGICAL                                  :: explicit, failure, &
                                                 lsd_singlets
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool

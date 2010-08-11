@@ -26,7 +26,7 @@ MODULE qs_loc_types
                                              cell_retain,&
                                              cell_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -102,7 +102,7 @@ MODULE qs_loc_types
           POINTER                                :: localized_wfn_control
      TYPE (particle_type), DIMENSION(:),&
           POINTER                                :: particle_set
-     TYPE (cp_dbcsr_obj_p_type), DIMENSION(:,:),&
+     TYPE (cp_dbcsr_p_type), DIMENSION(:,:),&
           POINTER                                :: op_sm_set
      
      REAL (KIND = dp)                            :: start_time,target_time
@@ -291,8 +291,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: localized_wfn_control
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: moloc_coeff
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), OPTIONAL, POINTER     :: op_sm_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: op_fm_set
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -345,8 +345,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: localized_wfn_control
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: moloc_coeff
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), OPTIONAL, POINTER     :: op_sm_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: op_fm_set
     TYPE(cp_para_env_type), OPTIONAL, &

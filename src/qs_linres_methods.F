@@ -20,7 +20,8 @@ MODULE qs_linres_methods
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -43,7 +44,6 @@ MODULE qs_linres_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: do_loc_none,&
@@ -243,8 +243,8 @@ CONTAINS
     REAL(dp)                                 :: norm_res
     REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
                                                 tr_rz1
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s, matrix_t
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s, matrix_t
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: Ap, chc, mo_coeff_array, p, &
                                                 r, Sc, z
@@ -596,8 +596,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure
     REAL(dp)                                 :: chksum
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(qs_rho_type), POINTER               :: rho
@@ -689,8 +689,8 @@ CONTAINS
     !
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: c0, c1
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: dm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: dm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dm_response', &
@@ -729,7 +729,7 @@ CONTAINS
   SUBROUTINE apply_op_1(v,Av,matrix_ks,matrix_s,chc,buf,error)
     !
     TYPE(cp_fm_type), POINTER                :: v, Av
-    TYPE(dbcsr_obj), POINTER                 :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_ks, matrix_s
     TYPE(cp_fm_type), POINTER                :: chc, buf
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1194,8 +1194,8 @@ CONTAINS
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, gapw_xc
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
@@ -1255,8 +1255,8 @@ CONTAINS
     INTEGER                                  :: ispin, nspins, stat
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, rho_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool

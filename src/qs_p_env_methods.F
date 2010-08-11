@@ -21,7 +21,8 @@ MODULE qs_p_env_methods
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
@@ -51,7 +52,6 @@ MODULE qs_p_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
@@ -121,8 +121,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_kpp1_env_type), OPTIONAL, &
       POINTER                                :: kpp1_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: p1_option
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: p1_option
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: psi0d
     LOGICAL, INTENT(in), OPTIONAL            :: orthogonal_orbitals
@@ -329,8 +329,8 @@ CONTAINS
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins
     LOGICAL                                  :: failure, gapw_xc
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
@@ -461,8 +461,8 @@ END SUBROUTINE p_env_did_change
                                                 output_unit, spin, stat
     LOGICAL                                  :: failure, was_present
     REAL(KIND=dp)                            :: maxocc
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -741,10 +741,10 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, ncol
     LOGICAL                                  :: failure
+    TYPE(cp_dbcsr_type), POINTER             :: k_p
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: tmp
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: k_p
 
 ! code
 
@@ -809,8 +809,8 @@ END SUBROUTINE p_env_did_change
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: p1
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p1
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: res
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
@@ -1152,8 +1152,8 @@ END SUBROUTINE p_env_did_change
     INTEGER, SAVE                            :: iter = 0
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxocc, my_alpha, my_beta
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s, p1_new
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, p1_new
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &

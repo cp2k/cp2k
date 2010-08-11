@@ -23,15 +23,22 @@ MODULE cp_dbcsr_operations
                                              get_blacs_info
   USE cp_cfm_types,                    ONLY: cp_cfm_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribute, cp_dbcsr_filter, cp_dbcsr_finalize, &
-       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release, &
-       cp_dbcsr_replicate_all, cp_dbcsr_scale, cp_dbcsr_sum_replicated, &
-       cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_verify_matrix, &
+       cp_dbcsr_add, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_complete_redistribute, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_block, &
+       cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, cp_dbcsr_get_info, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_get_stored_coordinates, &
+       cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nblkcols_total, &
+       cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_put_block, &
+       cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, &
        cp_dbcsr_work_create
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
-                                             cp_fm_gemm
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -42,15 +49,7 @@ MODULE cp_dbcsr_operations
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t
-  USE dbcsr_block_access,              ONLY: dbcsr_access_flush,&
-                                             dbcsr_get_block,&
-                                             dbcsr_get_block_p,&
-                                             dbcsr_get_tmp_block2d,&
-                                             dbcsr_put_block,&
-                                             dbcsr_remove_block,&
-                                             dbcsr_reserve_block2d
+  USE dbcsr_block_access,              ONLY: dbcsr_access_flush
   USE dbcsr_block_operations,          ONLY: block_set
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data,&
                                              dbcsr_get_data_p
@@ -59,32 +58,25 @@ MODULE cp_dbcsr_operations
                                              dbcsr_error_stop,&
                                              dbcsr_error_type
   USE dbcsr_io
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_init, &
        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
        dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_mp_get_coordinates, dbcsr_mp_group, &
-       dbcsr_mp_hold, dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, &
-       dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
-       dbcsr_mp_pgrid, dbcsr_mp_release, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
-       dbcsr_row_block_sizes, dbcsr_valid_index, dbcsr_wm_use_mutable
-  USE dbcsr_operations,                ONLY: dbcsr_replace_blocks
-  USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute
-  USE dbcsr_types,                     ONLY: &
-       dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
-       dbcsr_norm_frobenius, dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
-       dbcsr_type_normal, dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_mp_get_coordinates, dbcsr_mp_group, dbcsr_mp_hold, &
+       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid, &
+       dbcsr_mp_release, dbcsr_wm_use_mutable
+  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
+                                             dbcsr_mp_obj,&
+                                             dbcsr_norm_frobenius,&
+                                             dbcsr_type_antisymmetric,&
+                                             dbcsr_type_complex_8,&
+                                             dbcsr_type_normal,&
+                                             dbcsr_type_real_8,&
+                                             dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_set_debug,&
                                              swap
@@ -93,19 +85,19 @@ MODULE cp_dbcsr_operations
                                              distribution_2d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             int_8,&
                                              sp
-  USE machine,                         ONLY: m_walltime
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_bcast
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE sparse_matrix_types,             ONLY: &
-       add_block_node, allocate_matrix, checksum_matrix, deallocate_matrix, &
-       first_block_node, get_block_node, next_block_node, &
-       real_block_node_type, real_matrix_type, replicate_matrix
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             first_block_node,&
+                                             get_block_node,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -118,7 +110,7 @@ MODULE cp_dbcsr_operations
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_operations'
 
-  PUBLIC :: cp_dbcsr_check, cp_dbcsr_multiply_local
+  PUBLIC :: cp_dbcsr_multiply_local
   PUBLIC :: cp_dbcsr_multiply_vec, cp_dbcsr_pack_vec,&
        packed_vec_scale, cp_dbcsr_unpack_vec,&
        cp_dbcsr_mult_pack_vec_local, packed_vec_bif_tech, &
@@ -176,8 +168,8 @@ CONTAINS
   SUBROUTINE cp_dbcsr_copy_columns_hack(matrix_b, matrix_a,&
        ncol, source_start, target_start, para_env, blacs_env, error)
 
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_b
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
     INTEGER, INTENT(IN)                      :: ncol, source_start, &
                                                 target_start
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -193,13 +185,13 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: fm_matrix_a, fm_matrix_b
 
     NULLIFY(fm_matrix_a, fm_matrix_b, fm_struct)
-    CALL dbcsr_get_info(matrix_a,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_dbcsr_get_info(matrix_a,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
          ncol_global=nfullcols_total,para_env=para_env,error=error)
     CALL cp_fm_create(fm_matrix_a,fm_struct,name="fm_matrix_a",error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
 
-    CALL dbcsr_get_info(matrix_b,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_dbcsr_get_info(matrix_b,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
          ncol_global=nfullcols_total,para_env=para_env,error=error)
     CALL cp_fm_create(fm_matrix_b,fm_struct,name="fm_matrix_b",error=error)
@@ -286,7 +278,7 @@ CONTAINS
 
   SUBROUTINE cp_dbcsr_alloc_block_from_nbl(matrix,sab_orb,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -307,7 +299,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    symmetry = dbcsr_get_matrix_type(matrix)
+    symmetry = cp_dbcsr_get_matrix_type(matrix)
 
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
 
@@ -391,630 +383,6 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_alloc_block_from_nbl
 
-
-
-! *****************************************************************************
-!> \brief   Checks the new bcsr routines, to find bugs early
-!> \author  Urban
-!> \date    2008-10-07
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_check(matrix_s, matrix_x, hint, error)
-
-    TYPE(real_matrix_type), POINTER          :: matrix_s
-    TYPE(cp_fm_type), POINTER                :: matrix_x
-    INTEGER, INTENT(IN)                      :: hint
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_check', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk_nze, col, col_size, &
-                                                colsize, handle, k, &
-                                                output_unit, row, row_size, &
-                                                rowsize
-    INTEGER(KIND=int_8)                      :: flop
-    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    LOGICAL                                  :: failure, found, ldbg, tr
-    REAL(kind=dp)                            :: checksum, newtime, oldtime, &
-                                                trace, walltime1, walltime2
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: block1d
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block2d, block2d_2
-    TYPE(array_i1d_obj)                      :: col_blk_size, &
-                                                col_blk_size_right, &
-                                                row_blk_size
-    TYPE(cp_fm_type), POINTER                :: fmout, matrix_x2
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_distribution_obj)             :: dist_right, product_dist, &
-                                                weird_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, &
-                                                matrix_bt, matrix_c
-    TYPE(dbcsr_obj), POINTER                 :: matrix_a2
-    TYPE(distribution_2d_type), POINTER      :: dist2d
-    TYPE(real_matrix_type), POINTER          :: matrix_s2
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-    ldbg = .TRUE.
-    logger => cp_error_get_logger (error)
-    output_unit = cp_logger_get_default_io_unit (logger)
-    !Do the new multiplication
-    CALL cp_dbcsr_init (matrix_a, error)
-    CALL cp_dbcsr_from_sm(matrix_a, matrix_s, error)
-    CALL cp_dbcsr_verify_matrix(matrix_a, error)
-!write(*,*)'-###MATRIX A'
-!call dbcsr_print_dist(matrix_a%m%dist)
-!call dbcsr_print(matrix_a)
-    !WRITE(*,*)'S checksum=',&
-    !     checksum_matrix(matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
-    IF (ldbg) THEN
-       checksum = checksum_matrix(&
-            matrix_s, matrix_s%distribution_2d%blacs_env%para_env)
-       IF (ldbg.AND.(output_unit>0)) THEN
-          WRITE(output_unit, '(T2,A,F12.4)')"   SM S  checksum", checksum
-       ENDIF
-    ENDIF
-    checksum = 0.0_dp
-    checksum = cp_dbcsr_checksum(matrix_a, error=error)
-    !WRITE(*,*)'BCSR S checksum',checksum
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR S  checksum", checksum
-    ENDIF
-    !
-    ! Convert back to see if we get the same thing.
-    dist2d => matrix_s%distribution_2d
-    NULLIFY (matrix_s2)
-    CALL sm_from_dbcsr (matrix_s2, matrix_a, dist2d, error)
-    checksum = checksum_matrix(matrix_s2,&
-                               matrix_s2%distribution_2d%blacs_env%para_env)
-    !WRITE(*,*)'BCSR S checksum',checksum
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"  SM2 S  checksum", checksum
-    ENDIF
-    ! Check that pointer reuse works.
-    CALL sm_from_dbcsr (matrix_s2, matrix_a, dist2d, error)
-    checksum = checksum_matrix(matrix_s2,&
-                               matrix_s2%distribution_2d%blacs_env%para_env)
-    !WRITE(*,*)'BCSR S checksum',checksum
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"  SM2 S2 checksum", checksum
-    ENDIF
-    
-    CALL deallocate_matrix (matrix_s2, error)
-    !
-    ! test the scale and trace routines on a square matrix
-    CALL cp_dbcsr_scale(matrix_a,alpha_scalar=2.0_dp,error=error)
-    checksum = 0.0_dp
-    checksum = cp_dbcsr_checksum(matrix_a, error=error)
-    CALL cp_dbcsr_trace(matrix_a,trace,error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,2(A,F12.4))')"DBCSR 2*S  checksum", checksum, " trace(2*S)",trace
-    ENDIF
-    CALL cp_dbcsr_scale(matrix_a,alpha_scalar=0.5_dp,error=error)
-    !
-    ! test the copy and add
-    ALLOCATE (matrix_a2)
-    CALL cp_dbcsr_init (matrix_a2, error)
-    CALL cp_dbcsr_copy(matrix_a2,matrix_a,error=error)
-    checksum = 0.0_dp
-    checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Sbis  checksum", checksum
-    ENDIF
-    CALL cp_dbcsr_add(matrix_a2,matrix_a,alpha_scalar=-2.0_dp,beta_scalar=2.0_dp,error=error)
-    checksum = 0.0_dp
-    checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR copy and add: 2*S-2*S  checksum", checksum
-    ENDIF
-    !CALL cp_dbcsr_release(matrix_a2)
-    !
-    ! Replace blocks
-    CALL dbcsr_replace_blocks(matrix_a2, matrix_a, error=dbcsr_error)
-    CALL cp_dbcsr_verify_matrix(matrix_a2, error)
-    checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR replace=S checksum", checksum
-    ENDIF
-    CALL cp_dbcsr_release(matrix_a2, error=error)
-    !
-    ! filter
-    CALL cp_dbcsr_copy(matrix_a2,matrix_a,error=error)
-    CALL cp_dbcsr_filter(matrix_a2,1.0_dp,error=error)
-    checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR filter(S,1.0)  checksum", checksum
-    ENDIF
-    CALL cp_dbcsr_release(matrix_a2, error=error)
-    !
-    ! some norms here
-    CALL cp_dbcsr_norm(matrix_a, which_norm=dbcsr_norm_maxabsnorm, &
-         norm_scalar=checksum, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR maxabsval(S)", checksum
-    ENDIF
-    CALL cp_dbcsr_norm(matrix_a, which_norm=dbcsr_norm_frobenius, &
-         norm_scalar=checksum, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Frobenius(S)", checksum
-    ENDIF
-    CALL cp_dbcsr_norm(matrix_a, which_norm=dbcsr_norm_gershgorin, &
-         norm_scalar=checksum, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR Gershgorin(S)", checksum
-    ENDIF
-    !
-    ! Fill a matrix with all zeros.
-    CALL cp_dbcsr_init (matrix_a2, error)
-    CALL cp_dbcsr_from_sm(matrix_a2, matrix_s, error)
-    ! Now delete all the blocks.
-    !WRITE(*,*)'Deleting all blocks!'
-    CALL dbcsr_iterator_start (iter, matrix_a2)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, k, &
-            row_size=row_size, col_size=col_size)
-       blk_nze = row_size * col_size
-       CALL dbcsr_remove_block (matrix_a2, row, col, k)
-    ENDDO
-    CALL dbcsr_iterator_stop (iter)
-    !WRITE(*,*)"blk_p=", matrix_a2%blk_p
-    CALL cp_dbcsr_finalize (matrix_a2, error=error)
-    !WRITE(*,*)"blk_p=", matrix_a2%nblks
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum ", checksum
-    ENDIF
-    !write(*,*)'zeroing...'
-    !call dbcsr_work_create(matrix_a2, dbcsr_get_num_blocks (matrix_a2),&
-    !     dbcsr_nfullrows_total(matrix_a2)*dbcsr_nfullcols_total(matrix_a2))
-    rbs => array_data (dbcsr_row_block_sizes (matrix_a2))
-    cbs => array_data (dbcsr_col_block_sizes (matrix_a2))
-    ALLOCATE (block2d(MAXVAL (rbs), MAXVAL (cbs)))
-    block2d(:,:) = 0
-    ALLOCATE (block1d(MAXVAL(rbs)*MAXVAL(cbs)))
-    block1d(:) = 0
-    k = 0
-    DO row = 1, MIN(10, dbcsr_nblkrows_total (matrix_a2))
-       rowsize = rbs (row)
-       DO col = 1, MIN(10, dbcsr_nblkcols_total (matrix_a2))
-          colsize = cbs (col)
-          CALL dbcsr_put_block (matrix_a2, row, col,&
-               block2d(1:rowsize, 1:colsize))
-       ENDDO
-    ENDDO
-    CALL cp_dbcsr_finalize (matrix_a2, error=error)
-    checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum2", checksum
-    ENDIF
-    DEALLOCATE (block2d)
-    DEALLOCATE (block1d)
-    CALL cp_dbcsr_release (matrix_a2, error=error)
-    !
-    ! Tests (undefined) block addition then subsequently setting the
-    ! data area.
-    CALL cp_dbcsr_from_sm(matrix_a2, matrix_s, error)
-    !write(*,*)'zeroing..., second time around'
-    rbs => array_data (dbcsr_row_block_sizes (matrix_a2))
-    cbs => array_data (dbcsr_col_block_sizes (matrix_a2))
-    DO row = 1, dbcsr_nblkrows_total (matrix_a2)
-       rowsize = rbs (row)
-       DO col = row, dbcsr_nblkcols_total (matrix_a2)
-          colsize = cbs (col)
-          NULLIFY (block2d)
-          !CALL dbcsr_reserve_block2d (matrix_a2, row, col,&
-          !     block2d)
-          CALL cp_dbcsr_add_block_node (matrix_a2, row, col, block2d, error)
-!write(*,*)routineN//" setting block at virt. coor", row, col, rowsize, colsize          
-          !block2d(1:rowsize, 1:colsize) = 1.0_dp
-          block2d(:,:) = 1.0_dp
-       ENDDO
-    ENDDO
-    DO row = 1, dbcsr_nblkrows_total (matrix_a2)
-       DO col = 1, dbcsr_nblkcols_total (matrix_a2)
-          CALL dbcsr_get_tmp_block2d (matrix_a2, row, col, block2d_2, tr, found)
-          IF (found) THEN
-             block2d_2(:,:) = 0.0_dp
-          ENDIF
-          !write(*,*)'size1:',size(block2d_2), rowsize, colsize
-          !write(*,'(10(1X,F5.1))')block2d_2
-       ENDDO
-    ENDDO
-    DO row = 1, dbcsr_nblkrows_total (matrix_a2)
-       DO col = 1, dbcsr_nblkcols_total (matrix_a2)
-          CALL dbcsr_get_tmp_block2d (matrix_a2, row, col, block2d, tr, found)
-          !write(*,*)'size3:',size(block2d), rowsize, colsize
-          !write(*,'(10(1X,F5.1))')block2d
-          !IF (.NOT. found) WRITE(*,*)"Oops, missing block."
-       ENDDO
-    ENDDO
-    CALL cp_dbcsr_finalize (matrix_a2, error=error)
-    CALL cp_dbcsr_verify_matrix(matrix_a2, error)
-    checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 0 checksum4", checksum
-    ENDIF
-    !
-    ! Tests block getting
-    DO row = 1, dbcsr_nblkrows_total (matrix_a2)
-       DO col = 1, dbcsr_nblkcols_total (matrix_a2)
-          CALL dbcsr_get_block_p (matrix_a2, row, col, block=block2d,&
-               tr=tr,found=found)
-          !WRITE(*,*)'getting block_node:',row, col, ASSOCIATED(block2d)
-       ENDDO
-    ENDDO
-    !
-    !CALL cp_dbcsr_release (matrix_a2)
-    CALL cp_dbcsr_deallocate_matrix (matrix_a2, error)
-    !
-    checksum = 0.0_dp
-    CALL cp_fm_frobenius_norm(matrix_x, checksum, error)
-    !WRITE(*,*)'x checksum',checksum*checksum
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"   FM x  checksum", checksum*checksum
-    ENDIF
-    CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
-    IF (MOD(hint,2) .EQ. 0) THEN
-       CALL dbcsr_create_dist_r_unrot (dist_right, matrix_a%m%dist, k,&
-            col_blk_size_right)
-    ELSE
-       CALL dbcsr_create_dist_r_rot (dist_right, matrix_a%m%dist, k,&
-            col_blk_size_right)
-    ENDIF
-    CALL cp_dbcsr_init (matrix_b, error)
-    CALL cp_dbcsr_from_fm(matrix_b, matrix_x, 0.0_dp, dist_right,&
-         row_blk_size=matrix_a%m%row_blk_size,&
-         col_blk_size=col_blk_size_right,&
-         error=error)
-    CALL cp_dbcsr_verify_matrix(matrix_b, error)
-    !CALL cp_dbcsr_print (matrix_b, error)
-
-    checksum = cp_dbcsr_checksum(matrix_b, error=error)
-    !WRITE(*,*)'DBCSR x checksum',checksum
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x  checksum", checksum
-    ENDIF
-    !
-    ! Test replacing a block.
-    !CALL cp_dbcsr_print (matrix_b, error)
-    CALL dbcsr_iterator_start (iter, matrix_b)
-    IF (dbcsr_iterator_blocks_left (iter)) THEN
-       checksum = cp_dbcsr_checksum(matrix_b, local=.TRUE., error=error)
-       IF (ldbg.AND.(output_unit>0)) THEN
-          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksumL", checksum
-       ENDIF
-       CALL dbcsr_iterator_next_block (iter, row, col, block2d, tr, &
-            row_size=row_size, col_size=col_size)
-       blk_nze = row_size * col_size
-       !write(*,*)'got block',row,col,tr
-       CALL dbcsr_put_block (matrix_b, row, col, block2d, tr)
-       CALL cp_dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
-       !CALL cp_dbcsr_print (matrix_b, error)
-       checksum = cp_dbcsr_checksum(matrix_b, error=error, local=.TRUE.)
-       IF (ldbg.AND.(output_unit>0)) THEN
-          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum2", checksum
-       ENDIF
-       ALLOCATE (block2d_2(SIZE(block2d,1),SIZE(block2d,2)))
-       block2d_2(:,:) = block2d(:,:)
-       !write(*,'(8(1X,F7.2))')block2d_2
-       block2d(:,:) = 0.0_dp
-       CALL dbcsr_put_block (matrix_b, row, col, block2d, tr)
-       CALL cp_dbcsr_finalize (matrix_b, error=error)
-       CALL cp_dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
-       checksum = cp_dbcsr_checksum(matrix_b, error=error, local=.TRUE.)
-       IF (ldbg.AND.(output_unit>0)) THEN
-          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cksm", checksum
-       ENDIF
-       !CALL cp_dbcsr_print (matrix_b, error)
-       CALL dbcsr_put_block (matrix_b, row, col, block2d_2, tr)
-       CALL cp_dbcsr_finalize (matrix_b, error=error)
-       CALL cp_dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
-       checksum = cp_dbcsr_checksum(matrix_b, error=error, local=.TRUE.)
-       IF (ldbg.AND.(output_unit>0)) THEN
-          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum3", checksum
-       ENDIF
-       !write(*,*)'removing block'
-       CALL dbcsr_remove_block (matrix_b, row, col, blk_nze)
-       CALL cp_dbcsr_finalize (matrix_b, error=error)
-       CALL cp_dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
-       checksum = cp_dbcsr_checksum(matrix_b, error=error, local=.TRUE.)
-       IF (ldbg.AND.(output_unit>0)) THEN
-          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x wrng cks4", checksum
-       ENDIF
-       !CALL cp_dbcsr_print (matrix_b, error)
-       !write(*,*)'use block',row,col,tr
-       !write(*,'(8(1X,F7.2))')block2d_2
-       CALL dbcsr_put_block (matrix_b, row, col, block2d_2, tr)
-       CALL cp_dbcsr_finalize (matrix_b, error=error)
-       CALL cp_dbcsr_verify_matrix (matrix_b, error, local=.TRUE.)
-       !CALL cp_dbcsr_print (matrix_b, error)
-       checksum = cp_dbcsr_checksum(matrix_b, error=error, local=.TRUE.)
-       IF (ldbg.AND.(output_unit>0)) THEN
-          WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksm4L", checksum
-       ENDIF
-       DEALLOCATE (block2d_2)
-    ENDIF
-    CALL dbcsr_iterator_stop (iter)
-    CALL cp_dbcsr_verify_matrix (matrix_b, error)
-    checksum = cp_dbcsr_checksum(matrix_b, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksm4g", checksum
-    ENDIF
-    CALL cp_dbcsr_finalize (matrix_b, error=error)
-    CALL cp_dbcsr_verify_matrix (matrix_b, error)
-    checksum = cp_dbcsr_checksum(matrix_b, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x checksum4", checksum
-    ENDIF
-    !
-    ! test the scale routine on a general matrix
-    CALL cp_dbcsr_scale(matrix_b,alpha_scalar=3.0_dp,error=error)
-    checksum = cp_dbcsr_checksum(matrix_b, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x  checksum", checksum
-    ENDIF
-    CALL cp_dbcsr_scale(matrix_b,alpha_scalar=1.0_dp/3.0_dp,error=error)
-    checksum = cp_dbcsr_checksum(matrix_b, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR 3*x/3  checksum", checksum
-    ENDIF
-    !
-    ! Replication
-    CALL cp_dbcsr_init (matrix_bt, error)
-    CALL cp_dbcsr_copy (matrix_bt, matrix_b, error=error)
-    CALL cp_dbcsr_replicate_all (matrix_bt, error=error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    checksum = cp_dbcsr_checksum(matrix_bt, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x.*p checksum", checksum
-    ENDIF
-    ! Sum the replicates.
-    CALL cp_dbcsr_sum_replicated (matrix_bt, error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    checksum = cp_dbcsr_checksum(matrix_bt, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSRpx.*p checksum", checksum
-    ENDIF
-    ! Again, to test unity of distribution of replication
-    !CALL cp_dbcsr_release(matrix_bt)
-    CALL cp_dbcsr_copy (matrix_bt, matrix_b, error=error)
-    CALL cp_dbcsr_replicate_all (matrix_bt, error=error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    CALL cp_dbcsr_distribute (matrix_bt, error=error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    checksum = cp_dbcsr_checksum(matrix_bt, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x s  checksum", checksum
-    ENDIF
-    !CALL cp_dbcsr_release(matrix_bt)
-    !
-    CALL cp_dbcsr_copy (matrix_bt, matrix_b, error=error)
-    CALL cp_dbcsr_replicate_all (matrix_bt, error=error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    CALL cp_dbcsr_distribute (matrix_bt, fast=.TRUE., error=error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    !checksum = cp_dbcsr_checksum(matrix_bt, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"DBCSR x d  checksum", checksum
-    ENDIF
-
-    !CALL cp_dbcsr_release (matrix_bt)
-    ! Transpose
-    CALL cp_dbcsr_transposed (matrix_bt, matrix_b, error=error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    !
-    CALL dbcsr_distribution_new (product_dist,&
-         dbcsr_distribution_mp (matrix_a%m%dist),&
-         dbcsr_distribution_row_dist (matrix_a%m%dist),&
-         dbcsr_distribution_col_dist (matrix_b%m%dist))
-    !
-    walltime1 = m_walltime()
-    flop = 0
-    CALL cp_dbcsr_init (matrix_c, error)
-    CALL cp_dbcsr_create (matrix_c, "C", product_dist, dbcsr_type_normal,&
-         matrix_a%m%row_blk_size, matrix_b%m%col_blk_size,&
-         error=error)
-    CALL cp_dbcsr_multiply("N", "N",&
-         1.0_dp, matrix_a, matrix_b,&
-         0.0_dp, matrix_c,&
-         error=error, flop=flop)
-    !CALL dbcsr_multiply("N", "N", matrix_bt, matrix_a, matrix_c,&
-    !     dist_result, hint, error)
-    !CALL dbcsr_distribution_release (dist_result)
-    walltime2 = m_walltime()
-    newtime = walltime2-walltime1
-    IF (newtime .LT. 0.1_dp) newtime = 0.1_dp
-    !
-    CALL cp_dbcsr_verify_matrix(matrix_c, error)
-    !
-    checksum = cp_dbcsr_checksum(matrix_c, error=error)
-    !WRITE(*,*)'BCSR Sx checksum',checksum,'time=',newtime
-    CALL mp_sum (flop, dbcsr_mp_group(dbcsr_distribution_mp(&
-         dbcsr_distribution(matrix_c))))
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4,A,F12.4,";",F12.4,A)')&
-            "DBCSR Sx checksum", checksum,&
-            " time ", newtime,&
-            REAL(flop, dp)/1000000000.0_dp/newtime, " GFLOP/s"
-       !WRITE(output_unit,'(A,I30,5X,EN12.4)')'FLOP=',flop, REAL (flop, dp)
-    ENDIF
-    !
-    ! Verify copy_dbcsr_to_fm
-    CALL cp_dbcsr_copy(matrix_bt, matrix_b, error=error)
-    CALL dbcsr_iterator_start(iter,matrix_bt)
-    DO WHILE(dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter,row,col,k, &
-            row_size=row_size, col_size=col_size)
-       blk_nze = row_size * col_size
-       !write(*,*)'i have',row,col
-       IF (MOD(row+col,3) .EQ. 0) &
-            CALL dbcsr_remove_block(matrix_bt,row,col,blk_nze,k)
-    ENDDO
-    CALL dbcsr_iterator_stop(iter)
-    !call dbcsr_remove_block(matrix_bt, 1, 1)
-    !call dbcsr_finalize(matrix_bt)
-    CALL cp_dbcsr_finalize(matrix_bt, error=error)
-    CALL cp_dbcsr_verify_matrix(matrix_bt, error)
-    CALL copy_fm_to_dbcsr(matrix_x, matrix_bt, error=error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    checksum = cp_dbcsr_checksum(matrix_bt, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"copy fm2dbcsr chksm", checksum
-    ENDIF
-
-    CALL cp_dbcsr_release (matrix_bt, error=error)
-    ! check trace(c'*s*c)
-    !call dbcsr_replicate_all (matrix_b)
-    !call dbcsr_replicate_all (matrix_c)
-    CALL cp_dbcsr_trace(matrix_b, matrix_c, trace, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4,A,I4)')"DBCSR trace(C'*S*C)", trace," should be equal to ",k
-    ENDIF
-
-    CALL cp_dbcsr_release (matrix_c, error=error)
-
-    ! Test redistribution
-    CALL dbcsr_create_dist_elemental (weird_dist,&
-         dbcsr_nfullrows_total(matrix_b),&
-         dbcsr_nfullcols_total(matrix_b),&
-         dbcsr_distribution_mp(dist_right),&
-         row_blk_size, col_blk_size)
-    CALL cp_dbcsr_create (matrix_bt, "Elemental", weird_dist, dbcsr_type_normal,&
-         row_blk_size, col_blk_size, 0, 0,error=error)
-    CALL dbcsr_distribution_release (weird_dist)
-    CALL array_release (row_blk_size)
-    CALL array_release (col_blk_size)
-
-    CALL dbcsr_complete_redistribute (matrix_b, matrix_bt, error=dbcsr_error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    checksum = cp_dbcsr_checksum(matrix_bt, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')"Elemental B chcksum", checksum
-    ENDIF
-    !
-    CALL dbcsr_create_dist_fullest (weird_dist,&
-         dbcsr_nfullrows_total(matrix_b),&
-         dbcsr_nfullcols_total(matrix_b),&
-         dbcsr_distribution_mp(dist_right),&
-         row_blk_size, col_blk_size)
-    CALL cp_dbcsr_create (matrix_bt, "Fullest", weird_dist, dbcsr_type_normal,&
-         row_blk_size, col_blk_size, 0, 0,error=error)
-    CALL dbcsr_distribution_release (weird_dist)
-    CALL array_release (row_blk_size)
-    CALL array_release (col_blk_size)
-    CALL dbcsr_complete_redistribute (matrix_b, matrix_bt, error=dbcsr_error)
-    CALL cp_dbcsr_verify_matrix (matrix_bt, error)
-    checksum = cp_dbcsr_checksum(matrix_bt, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')" Fullest B checksum", checksum
-    ENDIF
-
-    ! Test dbcsr->fm conversion
-    CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
-    CALL cp_fm_create(matrix_x2, matrix_x%matrix_struct,&
-         "x reconversion", error=error)
-    CALL cp_fm_create(fmout, matrix_x%matrix_struct, "FMout", error=error)
-    CALL copy_dbcsr_to_fm (matrix_b, matrix_x2, error=error)
-    CALL cp_sm_fm_multiply(matrix_s, matrix_x2, fmout, k, error=error)
-    CALL cp_fm_frobenius_norm(fmout, checksum, error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')" Conv Sx checksum",&
-            checksum*checksum
-    ENDIF
-    CALL cp_fm_release (fmout, error)
-    CALL cp_fm_release (matrix_x2, error)
-    
-    
-
-    CALL cp_dbcsr_release (matrix_b, error=error)
-    CALL cp_dbcsr_init (matrix_b, error)
-    CALL cp_dbcsr_release (matrix_bt, error=error)
-    CALL cp_dbcsr_init (matrix_bt, error)
-
-    CALL timestop(handle)
-
-    CALL timeset(routineN//'std', handle)
-
-    CALL cp_fm_get_info(matrix_x, ncol_global=k, error=error)
-    CALL cp_fm_create(fmout, matrix_x%matrix_struct, "FMout", error=error)
-    walltime1 = m_walltime()
-    CALL cp_sm_fm_multiply(matrix_s, matrix_x, fmout, k, error=error)
-    walltime2 = m_walltime()
-    oldtime = walltime2-walltime1
-    CALL cp_fm_frobenius_norm(fmout, checksum, error)
-    !WRITE(*,*)'Sx checksum',checksum*checksum,'time=',oldtime
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4,A,F12.4)')" SMFM Sx checksum",&
-            checksum*checksum, " time ", oldtime
-    ENDIF
-    CALL cp_dbcsr_from_fm(matrix_b, fmout, 0.0_dp, dist_right,&
-         row_blk_size=matrix_a%m%row_blk_size,&
-         col_blk_size=col_blk_size_right,&
-         error=error)
-
-    !CALL cp_fm_release (fmout, error)
-    !CALL cp_fm_create(fmout, matrix_x%matrix_struct, "FMout", error=error)
-    CALL cp_dbcsr_sm_fm_multiply(matrix_a, matrix_x, fmout, k, beta=0.0_dp, error=error)
-    CALL cp_fm_frobenius_norm(fmout, checksum, error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')" dbcsr_SM_FM Sx checksum",&
-            checksum*checksum
-    ENDIF
-
-    ALLOCATE (matrix_a2)
-    CALL cp_dbcsr_init (matrix_a2, error)
-    CALL cp_dbcsr_copy(matrix_a2, matrix_a, error=error)
-    CALL cp_dbcsr_plus_fm_fm_t(matrix_a2,matrix_x,ncol=k,error=error)
-    checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')" S = S+C*C^t Sx1checksum",&
-            checksum
-    ENDIF
-    CALL cp_dbcsr_release (matrix_a2, error=error)
-    DEALLOCATE (matrix_a2)
-
-    ALLOCATE (matrix_a2)
-    CALL cp_dbcsr_init (matrix_a2, error)
-    CALL cp_dbcsr_copy(matrix_a2, matrix_a, error=error)
-    CALL cp_dbcsr_plus_fm_fm_t(matrix_a2,matrix_x,matrix_x,ncol=k,error=error)
-    checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')" S = S+C*C^t Sx2checksum",&
-            checksum
-    ENDIF
-    CALL cp_dbcsr_release (matrix_a2, error=error)
-    DEALLOCATE (matrix_a2)
-
-
-
-    NULLIFY (matrix_s2)
-    CALL replicate_matrix(matrix_s, matrix_s2, "copy of S",&
-         allocate_blocks=.TRUE., error=error)
-    CALL cp_sm_plus_fm_fm_t(matrix_s2,matrix_x,&
-         ncol=dbcsr_nfullcols_total(matrix_b),&
-         error=error)
-    !checksum = cp_dbcsr_checksum(matrix_a2, error=error)
-    checksum = checksum_matrix(&
-         matrix_s2, matrix_s%distribution_2d%blacs_env%para_env)
-    IF (ldbg.AND.(output_unit>0)) THEN
-       WRITE(output_unit, '(T2,A,F12.4)')" S = S+C*C^t Sx3checksum",&
-            checksum
-    ENDIF
-    CALL deallocate_matrix (matrix_s2, error=error)
-    
-    CALL array_release (col_blk_size_right)
-    CALL cp_dbcsr_release (matrix_a, error=error)
-    CALL cp_dbcsr_release (matrix_b, error=error)
-    CALL cp_fm_release (fmout, error)
-    CALL dbcsr_distribution_release (dist_right)
-    CALL dbcsr_distribution_release (product_dist)
-
-    CALL timestop(handle)
-
-
-  END SUBROUTINE cp_dbcsr_check
-
 ! *****************************************************************************
 !> \brief multiply a dbcsr with a column vector
 !>        c (packed column) = A (dbscr) * B_b (dbcsr)
@@ -1025,7 +393,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_multiply_vec(matrix_a, matrix_b, a_row_beg, a_row_end, b_col, pkd, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
     INTEGER, INTENT(in)                      :: a_row_beg, a_row_end, b_col
     REAL(dp), DIMENSION(:), POINTER          :: pkd
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1042,11 +410,11 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
 
-    nblkcols_total = dbcsr_nblkcols_total(matrix_a)
-    col_blk_size => array_data (matrix_a%m%col_blk_size)
-    row_blk_size => array_data (matrix_a%m%row_blk_size)
+    nblkcols_total = cp_dbcsr_nblkcols_total(matrix_a)
+    col_blk_size => array_data (cp_dbcsr_col_block_sizes(matrix_a))
+    row_blk_size => array_data (cp_dbcsr_row_block_sizes(matrix_a))
 
-    mp_obj = dbcsr_distribution_mp (dbcsr_distribution (matrix_b))
+    mp_obj = dbcsr_distribution_mp (cp_dbcsr_distribution (matrix_b))
 
 
     ALLOCATE(pkd_b(SIZE(pkd)))
@@ -1059,7 +427,7 @@ CONTAINS
     col = b_col
     !write(*,*) 'cp_dbcsr_multiply_vec: row, col',row,col
     tr = .FALSE.
-    CALL dbcsr_get_stored_coordinates (matrix_b, row, col, tr, node)
+    CALL cp_dbcsr_get_stored_coordinates (matrix_b, row, col, tr, node)
     !write(*,*) 'cp_dbcsr_multiply_vec: node',node
     CALL dbcsr_mp_get_coordinates(mp_obj, node, prow, pcol)
     !write(*,*) 'cp_dbcsr_multiply_vec: prow, pcol',prow, pcol
@@ -1088,7 +456,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_mult_pack_vec_local(matrix_a, pkd_b, a_row_beg, a_row_end, b_col, pkd_c, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
     REAL(dp), DIMENSION(:), INTENT(in)       :: pkd_b
     INTEGER, INTENT(in)                      :: a_row_beg, a_row_end, b_col
     REAL(dp), DIMENSION(:), INTENT(inout)    :: pkd_c
@@ -1104,12 +472,12 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size
     LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:), POINTER          :: data_p
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN, timing_handle)
 
-    nblkrows_total = dbcsr_nblkrows_total(matrix_a)
-    col_blk_size => array_data (matrix_a%m%col_blk_size)
+    nblkrows_total = cp_dbcsr_nblkrows_total(matrix_a)
+    col_blk_size =>  array_data (cp_dbcsr_col_block_sizes(matrix_a))
 
     b_col_size = col_blk_size(b_col)
 
@@ -1120,9 +488,9 @@ CONTAINS
     c_offset = nblkrows_total + 2
     !pkd_c(nblkrows_total+1) = REAL(c_offset,dp)
 
-    CALL dbcsr_iterator_start(iter, matrix_a)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_p, tr, blk, &
+    CALL cp_dbcsr_iterator_start(iter, matrix_a)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_p, tr, blk, &
             row_size=row_size, col_size=col_size)
        IF(row.LT.a_row_beg.OR.row.GT.a_row_end) CYCLE
        IF(INT(pkd_b(col)).LE.0) CYCLE
@@ -1138,7 +506,7 @@ CONTAINS
             &            pkd_b(INT(pkd_b(col))),col_size,&
             &     1.0_dp,pkd_c(INT(pkd_c(row))),row_size)
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     IF(pkd_b(nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_b(n+1).LE.0")
     IF(pkd_c(nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_c(n+1).LE.0")
@@ -1158,7 +526,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_multiply_local(matrix_a, vec_b, vec_c, ncol, alpha, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: vec_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: vec_c
     INTEGER, INTENT(in), OPTIONAL            :: ncol
@@ -1175,7 +543,7 @@ CONTAINS
     LOGICAL                                  :: tr
     REAL(dp)                                 :: my_alpha, my_alpha2
     REAL(dp), DIMENSION(:, :), POINTER       :: data_d
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN, timing_handle)
     
@@ -1186,31 +554,31 @@ CONTAINS
     IF(PRESENT(ncol)) my_ncol = ncol
 
     my_alpha2 = 0.0_dp
-    IF(dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric) my_alpha2 = my_alpha
-    IF(dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
+    IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric) my_alpha2 = my_alpha
+    IF(cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
 
     !> this should be precomputed somewhere else
-    row_blk_size => array_data (matrix_a%m%row_blk_size)
-    ALLOCATE(offset(matrix_a%m%nblkrows_total))
+    row_blk_size => array_data(cp_dbcsr_row_block_sizes(matrix_a))
+    ALLOCATE(offset(cp_dbcsr_nblkrows_total(matrix_a)))
     offset(1) = 1
-    DO row = 2,matrix_a%m%nblkrows_total
+    DO row = 2,cp_dbcsr_nblkrows_total(matrix_a)
        offset(row) = offset(row-1) + row_blk_size(row-1)
     ENDDO
     !<
 
-    CALL dbcsr_iterator_start(iter, matrix_a)
+    CALL cp_dbcsr_iterator_start(iter, matrix_a)
 
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-       CALL dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
 
        CALL dgemm('N','N',SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
                   my_alpha,data_d(1,1),SIZE(data_d,1),&
                   vec_b(offset(col),1),SIZE(vec_b,1),&
                   1.0_dp,vec_c(offset(row),1),SIZE(vec_c,1))
 
-       IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
-          dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric)) THEN
+       IF((cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
+          cp_dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric)) THEN
           IF(row.NE.col) THEN
              CALL dgemm('T','N',SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
                   my_alpha2,data_d(1,1),SIZE(data_d,1),&
@@ -1220,7 +588,7 @@ CONTAINS
        ENDIF
     ENDDO
 
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     DEALLOCATE(offset)
 
@@ -1238,7 +606,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_sm_fm_multiply(matrix, fm_in, fm_out, ncol, alpha, beta, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(cp_dbcsr_type), INTENT(IN)              :: matrix
     TYPE(cp_fm_type), POINTER                :: fm_in, fm_out
     INTEGER, INTENT(IN)                      :: ncol
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha, beta
@@ -1248,7 +616,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k_in, k_out, timing_handle, timing_handle_mult
-    TYPE(dbcsr_obj)                          :: in, out, out_copy
+    TYPE(cp_dbcsr_type)                          :: in, out, out_copy
     TYPE(dbcsr_distribution_obj)             :: dist_right_in, &
                                                 dist_right_out, product_dist
     TYPE(array_i1d_obj)                      :: col_blk_size_right_in, &
@@ -1275,18 +643,18 @@ CONTAINS
 
     IF (ncol.GT.0.AND.k_out.GT.0.AND.k_in.GT.0) THEN
 
-       CALL dbcsr_create_dist_r_unrot (dist_right_in, matrix%m%dist, k_in, &
+       CALL dbcsr_create_dist_r_unrot (dist_right_in, matrix%matrix%m%dist, k_in, &
             col_blk_size_right_in)
        CALL cp_dbcsr_init(in, error)
        CALL cp_dbcsr_create(in, "D", dist_right_in, dbcsr_type_normal, &
-            matrix%m%row_blk_size, col_blk_size_right_in,&
+            matrix%matrix%m%row_blk_size, col_blk_size_right_in,&
             0, 0, error=error)
        CALL cp_dbcsr_finalize(in, error=error)
 
        CALL cp_dbcsr_init(out, error)
        CALL dbcsr_distribution_new (product_dist,&
-            dbcsr_distribution_mp (matrix%m%dist),&
-            dbcsr_distribution_row_dist (matrix%m%dist),&
+            dbcsr_distribution_mp (cp_dbcsr_distribution(matrix)),&
+            dbcsr_distribution_row_dist (cp_dbcsr_distribution(matrix)),&
             dbcsr_distribution_col_dist (dist_right_in))
        in_col_blk_sizes => array_data (col_blk_size_right_in)
        CALL array_nullify (col_blk_size_right_out)
@@ -1300,7 +668,7 @@ CONTAINS
        !endif
 
        CALL cp_dbcsr_create(out, "D", product_dist, dbcsr_type_normal, &
-            matrix%m%row_blk_size, col_blk_size_right_out,&
+            cp_dbcsr_row_block_sizes(matrix), col_blk_size_right_out,&
             0, 0, error=error)
        CALL cp_dbcsr_finalize(out, error=error)
 
@@ -1360,7 +728,7 @@ CONTAINS
 
   SUBROUTINE cp_dbcsr_plus_fm_fm_t_native(sparse_matrix,matrix_v,matrix_g,ncol,&
        alpha,error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: sparse_matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: sparse_matrix
     TYPE(cp_fm_type), POINTER                :: matrix_v
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_g
     INTEGER, INTENT(IN)                      :: ncol
@@ -1375,34 +743,34 @@ CONTAINS
     REAL(KIND=dp)                            :: my_alpha, norm
     TYPE(array_i1d_obj)                      :: col_blk_size_left, &
                                                 col_dist_left
+    TYPE(cp_dbcsr_type)                      :: mat_g, mat_v, sparse_matrix2, &
+                                                sparse_matrix3
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: fm_matrix
     TYPE(dbcsr_distribution_obj)             :: dist_left
     TYPE(dbcsr_mp_obj)                       :: mp
-    TYPE(dbcsr_obj)                          :: mat_g, mat_v, sparse_matrix2, &
-                                                sparse_matrix3
 
     check_product = .FALSE.
 
     CALL timeset(routineN, timing_handle)
     IF (ncol .GT. 0) THEN
-       CALL cp_assert (dbcsr_valid_index (sparse_matrix), cp_fatal_level,&
+       CALL cp_assert (cp_dbcsr_valid_index (sparse_matrix), cp_fatal_level,&
             cp_caller_error, routineN, "sparse_matrix must pre-exist", error)
        !
        ! Setup matrix_v
        CALL cp_fm_get_info(matrix_v, ncol_global=k, error=error)
        !WRITE(*,*)routineN//'truncated mult k, ncol',k,ncol,' PRESENT (matrix_g)',PRESENT (matrix_g)
-       mp = dbcsr_distribution_mp (dbcsr_distribution(sparse_matrix))
+       mp = dbcsr_distribution_mp (cp_dbcsr_distribution(sparse_matrix))
        CALL create_bl_distribution (col_dist_left, col_blk_size_left,&
             k, dbcsr_mp_npcols (mp))
        CALL dbcsr_distribution_new (dist_left, mp,&
-            dbcsr_distribution_row_dist (dbcsr_distribution(sparse_matrix)),&
+            dbcsr_distribution_row_dist (cp_dbcsr_distribution(sparse_matrix)),&
             col_dist_left)
        CALL array_release (col_dist_left)
        CALL cp_dbcsr_init (mat_v, error)
        CALL cp_dbcsr_create(mat_v, "DBCSR matrix_v", dist_left, dbcsr_type_normal,&
-            dbcsr_row_block_sizes (sparse_matrix), col_blk_size_left, 0, 0,&
-            dbcsr_get_data_type (sparse_matrix), special=.TRUE.,error=error)
+            cp_dbcsr_row_block_sizes (sparse_matrix), col_blk_size_left, 0, 0,&
+            cp_dbcsr_get_data_type (sparse_matrix), special=.TRUE.,error=error)
        CALL cp_dbcsr_finalize (mat_v, error=error)
        CALL copy_fm_to_dbcsr(matrix_v, mat_v, error=error)
        CALL cp_dbcsr_verify_matrix(mat_v, error)
@@ -1412,9 +780,9 @@ CONTAINS
           CALL cp_dbcsr_init(mat_g, error)
           CALL cp_dbcsr_create(mat_g, "DBCSR matrix_g", dist_left,&
                dbcsr_type_normal,&
-               dbcsr_row_block_sizes (sparse_matrix),&
-               dbcsr_col_block_sizes (mat_v),&
-               data_type=dbcsr_get_data_type (sparse_matrix), special=.TRUE.,error=error)
+               cp_dbcsr_row_block_sizes (sparse_matrix),&
+               cp_dbcsr_col_block_sizes (mat_v),&
+               data_type=cp_dbcsr_get_data_type (sparse_matrix), special=.TRUE.,error=error)
           CALL cp_dbcsr_finalize (mat_g, error=error)
           CALL copy_fm_to_dbcsr(matrix_g, mat_g, error=error)
        ENDIF
@@ -1470,7 +838,7 @@ CONTAINS
                norm_scalar=norm,error=error)
           WRITE(*,*) 'nao=',nao,' k=',k,' ncol=',ncol,' my_alpha=',my_alpha
           WRITE(*,*) 'PRESENT (matrix_g)',PRESENT (matrix_g)
-          WRITE(*,*) 'matrix_type=',dbcsr_get_matrix_type(sparse_matrix)
+          WRITE(*,*) 'matrix_type=',cp_dbcsr_get_matrix_type(sparse_matrix)
           WRITE(*,*) 'norm(sm+alpha*v*g^t - fm+alpha*v*g^t)/n=',norm/REAL(nao,dp)
           IF(norm/REAL(nao,dp).GT.1e-12_dp) THEN
              !WRITE(*,*) 'fm_matrix'
@@ -1511,7 +879,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_pack_vec(matrix, ivec, pkd_vec, what, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_vec
     CHARACTER(LEN=*), INTENT(IN)             :: what
@@ -1525,13 +893,13 @@ CONTAINS
                                                 row_size, timing_handle
     LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_p
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
     
-    nblkrows_total = dbcsr_nblkrows_total(matrix)
+    nblkrows_total = cp_dbcsr_nblkrows_total(matrix)
     pkd_vec(1:nblkrows_total+1) = 0.0_dp ! should be big enough to hold all the data
     !
     ! let's go
@@ -1540,9 +908,9 @@ CONTAINS
        ! we need nblkrows_total+1 to store rows 
        ! and 1 extra for adding new data
        pkd_vec(nblkrows_total+1) = REAL(nblkrows_total+2,dp)
-       CALL dbcsr_iterator_start(iter, matrix)
-       DO WHILE (dbcsr_iterator_blocks_left (iter))
-          CALL dbcsr_iterator_next_block (iter, row, col, data_p, tr, &
+       CALL cp_dbcsr_iterator_start(iter, matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+          CALL cp_dbcsr_iterator_next_block (iter, row, col, data_p, tr, &
                row_size=row_size, col_size=col_size)
           IF(col.ne.ivec) CYCLE
           nze = row_size*col_size
@@ -1559,14 +927,14 @@ CONTAINS
           ENDIF
           CALL dcopy(nze,data_p(1),1,pkd_vec(INT(pkd_vec(row))),1)
        ENDDO
-       CALL dbcsr_iterator_stop(iter)
+       CALL cp_dbcsr_iterator_stop(iter)
     CASE('row')
        ! we need nblkrows_total+1 to store rows 
        ! and 1 extra for adding new data
        pkd_vec(nblkrows_total+1) = REAL(nblkrows_total+2,dp)
-       CALL dbcsr_iterator_start(iter, matrix)
-       DO WHILE (dbcsr_iterator_blocks_left (iter))
-          CALL dbcsr_iterator_next_block (iter, row, col, data_p, tr, &
+       CALL cp_dbcsr_iterator_start(iter, matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+          CALL cp_dbcsr_iterator_next_block (iter, row, col, data_p, tr, &
                row_size=row_size, col_size=col_size)
           IF(row.ne.ivec) CYCLE
           nze = row_size*col_size
@@ -1580,7 +948,7 @@ CONTAINS
                CALL stop_program(routineN,"SIZE(pkd_vec).LT.pkd_vec(nblkrows_total+1)")
           CALL dcopy(nze,data_p(1),1,pkd_vec(INT(pkd_vec(col))),1)
        ENDDO
-       CALL dbcsr_iterator_stop(iter)
+       CALL cp_dbcsr_iterator_stop(iter)
     CASE DEFAULT
        CALL stop_program(routineN,"pack what?")       
     END SELECT
@@ -1598,7 +966,7 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_unpack_vec(matrix, ivec, pkd_vec, what, do_sum, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_vec
     CHARACTER(LEN=*), INTENT(IN)             :: what
@@ -1620,11 +988,11 @@ CONTAINS
     my_do_sum = .FALSE.
     IF(PRESENT(do_sum))my_do_sum=do_sum
 
-    row_blk_size => array_data (dbcsr_row_block_sizes (matrix))
-    col_blk_size => array_data (dbcsr_col_block_sizes (matrix))
-    nblkrows_total = dbcsr_nblkrows_total(matrix)
-    nblkcols_total = dbcsr_nblkcols_total(matrix)
-    mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dbcsr_distribution (matrix)))
+    row_blk_size => array_data (cp_dbcsr_row_block_sizes (matrix))
+    col_blk_size => array_data (cp_dbcsr_col_block_sizes (matrix))
+    nblkrows_total = cp_dbcsr_nblkrows_total(matrix)
+    nblkcols_total = cp_dbcsr_nblkcols_total(matrix)
+    mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (cp_dbcsr_distribution (matrix)))
 
     !
     ! let's go
@@ -1640,8 +1008,8 @@ CONTAINS
           nze = row_size*col_size
           ! add block only on the correct node
           tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates (matrix, row, col, tr, node)
-          IF(node.EQ.mynode) CALL dbcsr_put_block(matrix, row, col, &
+          CALL cp_dbcsr_get_stored_coordinates (matrix, row, col, tr, node)
+          IF(node.EQ.mynode) CALL cp_dbcsr_put_block(matrix, row, col, &
                pkd_vec(INT(pkd_vec(row)):INT(pkd_vec(row)+nze-1)), &
                summation=my_do_sum)
        ENDDO ! row
@@ -1657,8 +1025,8 @@ CONTAINS
           nze = row_size*col_size
           ! add block only on the correct node
           tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates (matrix, row, col, tr, node)
-          IF(node.EQ.mynode) CALL dbcsr_put_block(matrix, row, col, &
+          CALL cp_dbcsr_get_stored_coordinates (matrix, row, col, tr, node)
+          IF(node.EQ.mynode) CALL cp_dbcsr_put_block(matrix, row, col, &
                pkd_vec(INT(pkd_vec(col)):INT(pkd_vec(col)+nze-1)),&
                summation=my_do_sum)
        ENDDO ! col
@@ -1738,7 +1106,7 @@ CONTAINS
 !>
 ! *****************************************************************************
   SUBROUTINE packed_vec_bif_tech(mat_v, mat_u, pkd_v_fac, pkd_u_fac, ivec, pkd_v, pkd_u, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: mat_v, mat_u
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: mat_v, mat_u
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v_fac, pkd_u_fac
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v, pkd_u
@@ -1757,33 +1125,33 @@ CONTAINS
 
     CALL timeset(routineN, timing_handle)
     
-    row_blk_size => array_data (dbcsr_row_block_sizes (mat_u))
-    col_blk_size => array_data (dbcsr_col_block_sizes (mat_u))
+    row_blk_size => array_data (cp_dbcsr_row_block_sizes (mat_u))
+    col_blk_size => array_data (cp_dbcsr_col_block_sizes (mat_u))
 
-    IF(pkd_u(mat_u%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_u(n+1).LE.0")
-    IF(pkd_v(mat_v%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
-    CALL dbcsr_get_data (mat_v, data_v)
-    CALL dbcsr_get_data (mat_u, data_u)
+    IF(pkd_u(cp_dbcsr_nblkrows_total(mat_u)+1).LE.0) CALL stop_program(routineN,"1pkd_u(n+1).LE.0")
+    IF(pkd_v(cp_dbcsr_nblkrows_total(mat_v)+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
+    CALL dbcsr_get_data (mat_v%matrix, data_v)
+    CALL dbcsr_get_data (mat_u%matrix, data_u)
     !
     !v(k,:) (pkd) = v(k,:) (pkd) - (inv(d(i,i)) * uAk(i,k))' / s (pkd) * v(i,:) (bcsr) i = 1,ivec-1
     k_row = ivec
     k_row_size = row_blk_size(k_row)
-    v_offset_last = INT(pkd_v(mat_v%m%nblkrows_total+1))
-    DO row = 1, mat_v%m%nblkrows_total
+    v_offset_last = INT(pkd_v(cp_dbcsr_nblkrows_total(mat_v)+1))
+    DO row = 1, cp_dbcsr_nblkrows_total(mat_v)
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        row_size = row_blk_size(row)
        ufac_offset = INT(pkd_v_fac(row))
        IF(ufac_offset.LE.0) CYCLE
-       DO blk = mat_v%m%row_p(row)+1,mat_v%m%row_p(row+1)
-          col = mat_v%m%col_i(blk)
+       DO blk = mat_v%matrix%m%row_p(row)+1,mat_v%matrix%m%row_p(row+1)
+          col = mat_v%matrix%m%col_i(blk)
           col_size = col_blk_size(col)
-          offset = ABS(mat_v%m%blk_p(blk))
+          offset = ABS(mat_v%matrix%m%blk_p(blk))
           v_offset = INT(pkd_v(col))
           IF(v_offset.LE.0) THEN
              v_offset = v_offset_last
              v_offset_last = v_offset_last + k_row_size * col_size
              pkd_v(v_offset:v_offset+k_row_size * col_size-1) = 0.0_dp
-             pkd_v(mat_v%m%nblkrows_total+1) = REAL(v_offset_last,dp)
+             pkd_v(mat_v%matrix%m%nblkrows_total+1) = REAL(v_offset_last,dp)
           ENDIF
           !
           ! let's multiply and add
@@ -1795,22 +1163,22 @@ CONTAINS
     ENDDO ! row
     !
     !u(k,:) (pkd) = u(k,:) (pkd) - (inv(d(i,i)) * v(i,k))' / s (pkd) * u(i,:) (bcsr) i = 1,ivec-1
-    u_offset_last = INT(pkd_u(mat_u%m%nblkrows_total+1))
-    DO row = 1, mat_u%m%nblkrows_total
+    u_offset_last = INT(pkd_u(cp_dbcsr_nblkrows_total(mat_u)+1))
+    DO row = 1, cp_dbcsr_nblkrows_total(mat_u)
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        row_size = row_blk_size(row)
        vfac_offset = INT(pkd_u_fac(row))
        IF(vfac_offset.LE.0) CYCLE
-       DO blk = mat_u%m%row_p(row)+1,mat_u%m%row_p(row+1)
-          col = mat_u%m%col_i(blk)
+       DO blk = mat_u%matrix%m%row_p(row)+1,mat_u%matrix%m%row_p(row+1)
+          col = mat_u%matrix%m%col_i(blk)
           col_size = col_blk_size(col)
-          offset = ABS(mat_u%m%blk_p(blk))
+          offset = ABS(mat_u%matrix%m%blk_p(blk))
           u_offset = INT(pkd_u(col))
           IF(u_offset.LE.0) THEN
              u_offset = u_offset_last
              u_offset_last = u_offset_last + k_row_size * col_size
              pkd_u(u_offset:u_offset+k_row_size * col_size-1) = 0.0_dp
-             pkd_u(mat_u%m%nblkrows_total+1) = REAL(u_offset_last,dp)
+             pkd_u(mat_u%matrix%m%nblkrows_total+1) = REAL(u_offset_last,dp)
           ENDIF
           !
           ! let's multiply and add
@@ -1821,8 +1189,8 @@ CONTAINS
        ENDDO
     ENDDO ! row
 
-    IF(pkd_u(mat_u%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_u(n+1).LE.0")
-    IF(pkd_v(mat_v%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
+    IF(pkd_u(mat_u%matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_u(n+1).LE.0")
+    IF(pkd_v(mat_v%matrix%m%nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
 
     CALL timestop(timing_handle)
 
@@ -1872,7 +1240,7 @@ CONTAINS
 !>
 ! *****************************************************************************
   SUBROUTINE packed_vec_bif_tech2(mat_v, pkd_v_fac, ivec, pkd_v, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: mat_v
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: mat_v
     REAL(dp), DIMENSION(:), INTENT(IN)       :: pkd_v_fac
     INTEGER, INTENT(IN)                      :: ivec
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: pkd_v
@@ -1888,14 +1256,14 @@ CONTAINS
     LOGICAL                                  :: tr
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_v
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, timing_handle)
     
-    nblkrows_total = dbcsr_nblkrows_total(mat_v)
-    row_blk_size => array_data (dbcsr_row_block_sizes(mat_v))
+    nblkrows_total = cp_dbcsr_nblkrows_total(mat_v)
+    row_blk_size => array_data (cp_dbcsr_row_block_sizes(mat_v))
 
     IF(pkd_v(nblkrows_total+1).LE.0) CALL stop_program(routineN,"1pkd_v(n+1).LE.0")
 
@@ -1907,9 +1275,9 @@ CONTAINS
     k_row = ivec
     k_row_size = row_blk_size(k_row)
 
-    CALL dbcsr_iterator_start(iter, mat_v)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, data_v, tr, &
+    CALL cp_dbcsr_iterator_start(iter, mat_v)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block (iter, row, col, data_v, tr, &
             row_size=row_size, col_size=col_size)
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        IF(INT(pkd_v_fac(row)).LE.0) CYCLE
@@ -1926,7 +1294,7 @@ CONTAINS
             &             data_v(1), row_size,&
             &     1.0_dp, pkd_v(INT(pkd_v(col))), k_row_size)
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
     !
     IF(pkd_v(nblkrows_total+1).LE.0) CALL stop_program(routineN,"2pkd_v(n+1).LE.0")
     DEALLOCATE(buff)
@@ -2269,8 +1637,8 @@ CONTAINS
 !> 
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_copy_vec(matrix_a, matrix_b, what, ivec, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix_b
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_b
     CHARACTER(len=*), INTENT(in)             :: what
     INTEGER, INTENT(IN)                      :: ivec
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -2281,7 +1649,7 @@ CONTAINS
     INTEGER                                  :: col, row, timing_handle
     LOGICAL                                  :: copy_column, tr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
 !   ---------------------------------------------------------------------------
 
@@ -2296,16 +1664,16 @@ CONTAINS
        CALL stop_program(routineN,"copy what?")
     END SELECT
 
-    CALL dbcsr_iterator_start(iter, matrix_b)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, data_d, tr)
+    CALL cp_dbcsr_iterator_start(iter, matrix_b)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block (iter, row, col, data_d, tr)
        IF( (copy_column.AND.col.EQ.ivec) .OR. (.NOT.copy_column.AND.row.EQ.ivec) ) &
-            CALL dbcsr_put_block(matrix_a, row, col, data_d, tr, summation=.FALSE.)
+            CALL cp_dbcsr_put_block(matrix_a, row, col, data_d, tr, summation=.FALSE.)
        !IF(.NOT.copy_column.AND.row.EQ.ivec) &
        !     CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
        !     summation=.FALSE.)
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
     CALL cp_dbcsr_finalize(matrix_a, error=error)
 
     CALL timestop(timing_handle)
@@ -2326,7 +1694,7 @@ CONTAINS
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_add_block_node (matrix, block_row, block_col, block, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -2345,14 +1713,14 @@ CONTAINS
 
     ithread = 0
 !$  ithread = omp_get_thread_num()
-    IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
+    IF (.NOT. ASSOCIATED (matrix%matrix%m%wms)) THEN
        CALL cp_dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
-       matrix%m%valid = .FALSE.
+       matrix%matrix%m%valid = .FALSE.
     ENDIF
 !$  CALL cp_assert (SIZE (matrix%m%wms) .GE. omp_get_num_threads(),&
 !$       cp_fatal_level, cp_wrong_args_error, routineN,&
 !$       "Too few threads.", error=error)
-    CALL cp_assert (dbcsr_wm_use_mutable (matrix%m%wms(ithread+1)),&
+    CALL cp_assert (dbcsr_wm_use_mutable (matrix%matrix%m%wms(ithread+1)),&
          cp_warning_level,&
          cp_unimplemented_error_nr, routineN,&
          "Data loss due to no conversion of appendable to mutable data")
@@ -2361,14 +1729,14 @@ CONTAINS
     !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
     !CALL dbcsr_reserve_block2d (matrix, row, col, block)
     !write(*,*) 'add_block_node: block_row',block_row,' block_col',block_col
-    CALL dbcsr_reserve_block2d (matrix, block_row, block_col, block,&
+    CALL cp_dbcsr_reserve_block2d (matrix, block_row, block_col, block,&
          existed=existed)
 !
     IF (dbg) THEN
        r = block_row ; c = block_col ; tr = .FALSE.
-       CALL dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
+       CALL cp_dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
        CALL cp_assert (p .EQ. dbcsr_mp_mynode (dbcsr_distribution_mp (&
-            matrix%m%dist)),&
+            cp_dbcsr_distribution(matrix))),&
             cp_warning_level, cp_internal_error, routineN,&
             "Adding non-local element", error=error)
     ENDIF
@@ -2384,7 +1752,7 @@ CONTAINS
 !>        see module cp_error_handling
 ! *****************************************************************************
 FUNCTION cp_dbcsr_get_id_nr(matrix,error) RESULT(res)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER                                  :: res
 
@@ -2395,9 +1763,9 @@ FUNCTION cp_dbcsr_get_id_nr(matrix,error) RESULT(res)
 
   failure=.FALSE.
 !  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
-  CPPrecondition(matrix%m%refcount>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(matrix%matrix%m%refcount>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     res=matrix%m%id_nr
+     res=matrix%matrix%m%id_nr
   ELSE
      res=0
   END IF
@@ -2409,7 +1777,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_deallocate_matrix(matrix, error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_deallocate_matrix', &
@@ -2420,7 +1788,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL timeset(routineN, timing_handle)
 
     CALL cp_dbcsr_release (matrix, error=error)
-    CALL cp_assert (.NOT. dbcsr_valid_index(matrix), cp_warning_level,&
+    CALL cp_assert (.NOT. cp_dbcsr_valid_index(matrix), cp_warning_level,&
          cp_caller_error, routineN,&
          'You should not "deallocate" a referenced matrix. '//&
          'Avoid pointers to DBCSR matrices.')
@@ -2445,8 +1813,8 @@ END FUNCTION cp_dbcsr_get_id_nr
 !>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
 ! *****************************************************************************
   SUBROUTINE allocate_dbcsr_matrix_set(matrix_set, nmatrix, error)
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_set
     INTEGER, INTENT(IN)                      :: nmatrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -2474,8 +1842,8 @@ END FUNCTION cp_dbcsr_get_id_nr
 !>      2009-08-17 Adapted from sparse_matrix_type for DBCSR
 ! *****************************************************************************
   SUBROUTINE allocate_dbcsr_matrix_set_2d(matrix_set,nmatrix,mmatrix,error)
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: matrix_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_set
     INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2506,8 +1874,8 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE deallocate_dbcsr_matrix_set(matrix_set,error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbcsr_matrix_set', &
@@ -2538,8 +1906,8 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE deallocate_dbcsr_matrix_set_2d(matrix_set,error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: matrix_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -2600,7 +1968,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_from_fm(matrix, fm, threshold, distribution, row_blk_size,&
        col_blk_size, error)
-    TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
+    TYPE(cp_dbcsr_type), INTENT(OUT)         :: matrix
     TYPE(cp_fm_type), POINTER                :: fm
     REAL(KIND=dp), INTENT(IN)                :: threshold
     TYPE(dbcsr_distribution_obj)             :: distribution
@@ -2645,7 +2013,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE copy_fm_to_dbcsr(fm,matrix,alpha,beta,keep_sparsity,error)
     TYPE(cp_fm_type), POINTER                :: fm
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     REAL(kind=dp), INTENT(IN), OPTIONAL      :: alpha, beta
     LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2671,15 +2039,15 @@ END FUNCTION cp_dbcsr_get_id_nr
     REAL(kind=sp), DIMENSION(:, :), POINTER  :: fm_block_sp
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
     TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
-    TYPE(dbcsr_obj)                          :: bc_mat
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
-    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
     CALL timeset(routineN,handle)
 
     my_beta=0._dp
@@ -2696,7 +2064,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     nrow_global = fm%matrix_struct%nrow_global
     ncol_global = fm%matrix_struct%ncol_global
     
-    CALL dbcsr_get_info(matrix,&
+    CALL cp_dbcsr_get_info(matrix,&
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
 
@@ -2712,21 +2080,21 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_create_dist_block_cyclic (bc_dist,&
          nfullrows_total, nfullcols_total,& ! Actual full matrix size
          nrow_block, ncol_block,&           ! BLACS parameters
-         dbcsr_distribution_mp (dbcsr_distribution (matrix)),&
+         dbcsr_distribution_mp (cp_dbcsr_distribution (matrix)),&
          row_blk_size, col_blk_size)        ! block-cyclic row/col sizes
 
     ! Create the block-cyclic DBCSR matrix
     CALL cp_dbcsr_init (bc_mat, error)
-    CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//matrix%m%name, bc_dist,&
-         dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
-         data_type=dbcsr_get_data_type(matrix),error=error)
+    CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//matrix%matrix%m%name, bc_dist,&
+         cp_dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
+         data_type=cp_dbcsr_get_data_type(matrix),error=error)
 
     !call dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (row_blk_size)
     CALL array_release (col_blk_size)
 
-    CALL dbcsr_get_info(bc_mat,&
+    CALL cp_dbcsr_get_info(bc_mat,&
          nblkrows_total=nblkrows_total,&
          nblkcols_total=nblkcols_total,&
          nblkrows_local=nblkrows_local,&
@@ -2791,14 +2159,14 @@ END FUNCTION cp_dbcsr_get_id_nr
           col_size = cbs(col)
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
-          CALL add_work_coordinate(bc_mat%m%wms(1), row, col, blk_p, error=dbcsr_error)
+          CALL add_work_coordinate(bc_mat%matrix%m%wms(1), row, col, blk_p, error=dbcsr_error)
           IF (fm%use_sp) THEN
              !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
-             blk_1d_sp => dbcsr_get_data_p (bc_mat%m%wms(1)%data_area,&
+             blk_1d_sp => dbcsr_get_data_p (bc_mat%matrix%m%wms(1)%data_area,&
                   coersion=REAL(0.0, KIND=sp), lb=blk_p, ub=blk_p+nze-1)
           ELSE
              !blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
-             blk_1d_dp => dbcsr_get_data_p (bc_mat%m%wms(1)%data_area,&
+             blk_1d_dp => dbcsr_get_data_p (bc_mat%matrix%m%wms(1)%data_area,&
                   coersion=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           ENDIF
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
@@ -2818,15 +2186,15 @@ END FUNCTION cp_dbcsr_get_id_nr
           blk_p = blk_p + nze
        ENDDO bc_cols
     ENDDO bc_rows
-    bc_mat%m%wms(1)%datasize = blk_p - 1
+    bc_mat%matrix%m%wms(1)%datasize = blk_p - 1
     CALL cp_dbcsr_finalize (bc_mat, reshuffle=.FALSE., error=error)
 
     ! Now convert to the desired matrix distribution
     IF (PRESENT (alpha)) THEN
        CALL stop_program(routineN,'no more alpha... cleanme')
     ELSE
-       CALL dbcsr_complete_redistribute (bc_mat, matrix,&
-            keep_sparsity=keep_sparsity, error=dbcsr_error)
+       CALL cp_dbcsr_complete_redistribute (bc_mat, matrix,&
+            keep_sparsity=keep_sparsity, error=error)
     ENDIF
     CALL cp_dbcsr_release (bc_mat, error=error)
 
@@ -2853,7 +2221,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE copy_cfm_to_dbcsr(fm,matrix,keep_sparsity,error)
     TYPE(cp_cfm_type), POINTER               :: fm
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2876,15 +2244,15 @@ END FUNCTION cp_dbcsr_get_id_nr
                                                 rbs
     TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
     TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
-    TYPE(dbcsr_obj)                          :: bc_mat
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
-    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
     CALL timeset(routineN,handle)
 
     group = fm%matrix_struct%para_env%group
@@ -2894,7 +2262,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     nrow_global = fm%matrix_struct%nrow_global
     ncol_global = fm%matrix_struct%ncol_global
     
-    CALL dbcsr_get_info(matrix,&
+    CALL cp_dbcsr_get_info(matrix,&
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
 
@@ -2910,20 +2278,20 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_create_dist_block_cyclic (bc_dist,&
          nfullrows_total, nfullcols_total,& ! Actual full matrix size
          nrow_block, ncol_block,&           ! BLACS parameters
-         dbcsr_distribution_mp (dbcsr_distribution (matrix)),&
+         dbcsr_distribution_mp (cp_dbcsr_distribution (matrix)),&
          row_blk_size, col_blk_size)        ! block-cyclic row/col sizes
 
     ! Create the block-cyclic DBCSR matrix
     CALL cp_dbcsr_init (bc_mat, error)
-    CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//matrix%m%name, bc_dist,&
-         dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
+    CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//matrix%matrix%m%name, bc_dist,&
+         cp_dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
          dbcsr_type_complex_8,error=error) ! type hard coded !
     !call dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (row_blk_size)
     CALL array_release (col_blk_size)
 
-    CALL dbcsr_get_info(bc_mat,&
+    CALL cp_dbcsr_get_info(bc_mat,&
          nblkrows_total=nblkrows_total,&
          nblkcols_total=nblkcols_total,&
          nblkrows_local=nblkrows_local,&
@@ -2976,9 +2344,9 @@ END FUNCTION cp_dbcsr_get_id_nr
           col_size = cbs(col)
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
-          CALL add_work_coordinate(bc_mat%m%wms(1), row, col, blk_p, error=dbcsr_error)
+          CALL add_work_coordinate(bc_mat%matrix%m%wms(1), row, col, blk_p, error=dbcsr_error)
           !blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
-          blk_1d => dbcsr_get_data_p (bc_mat%m%wms(1)%data_area,&
+          blk_1d => dbcsr_get_data_p (bc_mat%matrix%m%wms(1)%data_area,&
                coersion=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
                cp_fatal_level, cp_internal_error, routineN,&
@@ -2990,12 +2358,12 @@ END FUNCTION cp_dbcsr_get_id_nr
           blk_p = blk_p + nze
        ENDDO bc_cols
     ENDDO bc_rows
-    bc_mat%m%wms(1)%datasize = blk_p - 1
+    bc_mat%matrix%m%wms(1)%datasize = blk_p - 1
     CALL cp_dbcsr_finalize (bc_mat, reshuffle=.FALSE., error=error)
 
     ! Now convert to the desired matrix distribution
-    CALL dbcsr_complete_redistribute (bc_mat, matrix, keep_sparsity=keep_sparsity,&
-         error=dbcsr_error)
+    CALL cp_dbcsr_complete_redistribute (bc_mat, matrix, keep_sparsity=keep_sparsity,&
+         error=error)
     CALL cp_dbcsr_release (bc_mat, error=error)
 
     CALL timestop(handle)
@@ -3008,7 +2376,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[out] fm             full matrix
 ! *****************************************************************************
   SUBROUTINE copy_dbcsr_to_fm(matrix, fm, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     TYPE(cp_fm_type), POINTER                :: fm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -3030,10 +2398,10 @@ END FUNCTION cp_dbcsr_get_id_nr
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: fm_block_sp
     TYPE(array_i1d_obj)                      :: cbs, rbs
     TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj)                          :: bc_mat
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3041,7 +2409,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL timeset(routineN,handle)
     CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
-    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
 
     ! info about the full matrix
     group = fm%matrix_struct%para_env%group
@@ -3057,7 +2425,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     nrow_global = fm%matrix_struct%nrow_global
     ncol_global = fm%matrix_struct%ncol_global
 
-    CALL dbcsr_get_info(matrix,&
+    CALL cp_dbcsr_get_info(matrix,&
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
 
@@ -3066,17 +2434,17 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_create_dist_block_cyclic (bc_dist,&
          nfullrows_total, nfullcols_total,&
          nrow_block, ncol_block,&
-         dbcsr_distribution_mp (dbcsr_distribution(matrix)),&
+         dbcsr_distribution_mp (cp_dbcsr_distribution(matrix)),&
          rbs, cbs)
 
     CALL cp_dbcsr_init (bc_mat, error)
-    CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//matrix%m%name, bc_dist,&
+    CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//matrix%matrix%m%name, bc_dist,&
          dbcsr_type_normal, rbs, cbs, 0, 0, error=error)
     CALL cp_dbcsr_finalize (bc_mat, error=error)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (rbs)
     CALL array_release (cbs)
-    CALL dbcsr_complete_redistribute (matrix, bc_mat, error=dbcsr_error)
+    CALL cp_dbcsr_complete_redistribute (matrix, bc_mat, error=error)
 
     ! Find the local extents of the local blocked rows so that index lookups
     ! into the FM matrix work correctly.
@@ -3120,16 +2488,16 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     IF(dbg) THEN
        WRITE(*,*)routineN//" FM data size is", UBOUND(fm_block)
-       WRITE(*,*)routineN//" dbcsr data size is", dbcsr_get_data_size(bc_mat)
+       WRITE(*,*)routineN//" dbcsr data size is", cp_dbcsr_get_data_size(bc_mat)
        WRITE(*,*)routineN//" FM block sizes are",nrow_block,'/',nfullrows_total
        WRITE(*,*)routineN//" FM block sizes are",ncol_block,'/',nfullcols_total
-       WRITE(*,*)routineN//" dbcsr row sizes are",bc_mat%m%row_blk_size%low%data
-       WRITE(*,*)routineN//" dbcsr col sizes are",bc_mat%m%col_blk_size%low%data
+       WRITE(*,*)routineN//" dbcsr row sizes are",bc_mat%matrix%m%row_blk_size%low%data
+       WRITE(*,*)routineN//" dbcsr col sizes are",bc_mat%matrix%m%col_blk_size%low%data
     ENDIF
     !
-    CALL dbcsr_iterator_start(iter, bc_mat)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, blk_2d, tr)
+    CALL cp_dbcsr_iterator_start(iter, bc_mat)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block (iter, row, col, blk_2d, tr)
        ! Convert absolute coordinates to FM-local coordinates
        IF (.NOT. tr) THEN
 
@@ -3158,7 +2526,7 @@ END FUNCTION cp_dbcsr_get_id_nr
           ENDIF
        ENDIF
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat, error=error)
     CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
@@ -3171,7 +2539,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[out] fm             full matrix
 ! *****************************************************************************
   SUBROUTINE copy_dbcsr_to_cfm(matrix, fm, error)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     TYPE(cp_cfm_type), POINTER               :: fm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -3193,10 +2561,10 @@ END FUNCTION cp_dbcsr_get_id_nr
     LOGICAL                                  :: tr
     TYPE(array_i1d_obj)                      :: cbs, rbs
     TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
     TYPE(dbcsr_error_type)                   :: dbcsr_error
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj)                          :: bc_mat
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -3204,7 +2572,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     CALL timeset(routineN,handle)
     CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
-    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
 
     ! info about the full matrix
     group = fm%matrix_struct%para_env%group
@@ -3220,7 +2588,7 @@ END FUNCTION cp_dbcsr_get_id_nr
     nrow_global = fm%matrix_struct%nrow_global
     ncol_global = fm%matrix_struct%ncol_global
 
-    CALL dbcsr_get_info(matrix,&
+    CALL cp_dbcsr_get_info(matrix,&
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
 
@@ -3229,18 +2597,18 @@ END FUNCTION cp_dbcsr_get_id_nr
     CALL dbcsr_create_dist_block_cyclic (bc_dist,&
          nfullrows_total, nfullcols_total,&
          nrow_block, ncol_block,&
-         dbcsr_distribution_mp (dbcsr_distribution(matrix)),&
+         dbcsr_distribution_mp (cp_dbcsr_distribution(matrix)),&
          rbs, cbs)
 
     CALL cp_dbcsr_init (bc_mat, error)
-    CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//matrix%m%name, bc_dist,&
-         dbcsr_type_normal, rbs, cbs, 0, 0, dbcsr_get_data_type(matrix),&
+    CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//matrix%matrix%m%name, bc_dist,&
+         dbcsr_type_normal, rbs, cbs, 0, 0, cp_dbcsr_get_data_type(matrix),&
          error=error)
     CALL cp_dbcsr_finalize (bc_mat, error=error)
     CALL dbcsr_distribution_release (bc_dist)
     CALL array_release (rbs)
     CALL array_release (cbs)
-    CALL dbcsr_complete_redistribute (matrix, bc_mat, error=dbcsr_error)
+    CALL cp_dbcsr_complete_redistribute (matrix, bc_mat, error=error)
 
     ! Find the local extents of the local blocked rows so that index lookups
     ! into the FM matrix work correctly.
@@ -3279,16 +2647,16 @@ END FUNCTION cp_dbcsr_get_id_nr
 
     IF(dbg) THEN
        WRITE(*,*)routineN//" FM data size is", UBOUND(fm_block)
-       WRITE(*,*)routineN//" dbcsr data size is", dbcsr_get_data_size(bc_mat)
+       WRITE(*,*)routineN//" dbcsr data size is", cp_dbcsr_get_data_size(bc_mat)
        WRITE(*,*)routineN//" FM block sizes are",nrow_block,'/',nfullrows_total
        WRITE(*,*)routineN//" FM block sizes are",ncol_block,'/',nfullcols_total
-       WRITE(*,*)routineN//" dbcsr row sizes are",bc_mat%m%row_blk_size%low%data
-       WRITE(*,*)routineN//" dbcsr col sizes are",bc_mat%m%col_blk_size%low%data
+       WRITE(*,*)routineN//" dbcsr row sizes are",bc_mat%matrix%m%row_blk_size%low%data
+       WRITE(*,*)routineN//" dbcsr col sizes are",bc_mat%matrix%m%col_blk_size%low%data
     ENDIF
     !
-    CALL dbcsr_iterator_start(iter, bc_mat)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, blk_2d, tr)
+    CALL cp_dbcsr_iterator_start(iter, bc_mat)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block (iter, row, col, blk_2d, tr)
        ! Convert absolute coordinates to FM-local coordinates
        IF (.NOT. tr) THEN
           IF (dbg) THEN
@@ -3305,7 +2673,7 @@ END FUNCTION cp_dbcsr_get_id_nr
                = TRANSPOSE(CMPLX(blk_2d(:,:)))
        ENDIF
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat, error=error)
     CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
@@ -3322,7 +2690,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 !> \param[in,out] error     cp2k error
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_from_sm(matrix, sm, error, distribution_2d, mp_obj)
-    TYPE(dbcsr_obj), INTENT(OUT)             :: matrix
+    TYPE(cp_dbcsr_type), INTENT(OUT)         :: matrix
     TYPE(real_matrix_type), POINTER          :: sm
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     TYPE(distribution_2d_type), OPTIONAL, &
@@ -3459,13 +2827,13 @@ END FUNCTION cp_dbcsr_get_id_nr
           ! Only add data if the block is associated
           IF (ASSOCIATED (blkdata_2d)) THEN
              IF(SIZE(blkdata_2d).GT.0) THEN
-                CALL dbcsr_put_block(matrix, absrow, block_col, blkdata_2d)
+                CALL cp_dbcsr_put_block(matrix, absrow, block_col, blkdata_2d)
              ENDIF
           ENDIF
           sm_block_node => next_block_node(sm_block_node)
        END DO
     ENDDO
-    matrix%m%sparsity_id = sm%sparsity_id
+    matrix%matrix%m%sparsity_id = sm%sparsity_id
     !
     CALL cp_dbcsr_finalize (matrix, error=error)
     CALL dbcsr_distribution_release (dist)
@@ -3487,7 +2855,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE sm_from_dbcsr (sm, matrix, distribution_2d, error)
     TYPE(real_matrix_type), POINTER          :: sm
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -3508,8 +2876,8 @@ END FUNCTION cp_dbcsr_get_id_nr
     LOGICAL                                  :: sm_filled, symmetric, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blkdata_2d, buff2d
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(dbcsr_error_type)                   :: dbcsr_error
-    TYPE(dbcsr_iterator)                     :: iter
     TYPE(distribution_2d_type), POINTER      :: dist2d
     TYPE(real_block_node_type), POINTER      :: sm_block_node
 
@@ -3518,16 +2886,16 @@ END FUNCTION cp_dbcsr_get_id_nr
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
-    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
     ! Sanity checks.
-    CALL cp_assert (dbcsr_valid_index (matrix), cp_warning_level,&
+    CALL cp_assert (cp_dbcsr_valid_index (matrix), cp_warning_level,&
          cp_caller_error, routineN,&
          "DBCSR Matrix is declared invalid; expect problems.", error=error)
-    CALL cp_assert (dbcsr_get_data_type (matrix) .EQ. dbcsr_type_real_8,&
+    CALL cp_assert (cp_dbcsr_get_data_type (matrix) .EQ. dbcsr_type_real_8,&
          cp_failure_level, cp_unimplemented_error_nr, routineN,&
          "Non double-precision conversions not possible.", error=error)
     ! Get the dbcsr info and dimensions
-    CALL dbcsr_get_info (matrix, nblkrows_total=nblkrows_total,&
+    CALL cp_dbcsr_get_info (matrix, nblkrows_total=nblkrows_total,&
          nblkcols_total=nblkcols_total, nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total, name=name,&
          matrix_type=dbcsr_matrix_type)
@@ -3565,9 +2933,9 @@ END FUNCTION cp_dbcsr_get_id_nr
     ! Get row/column offsets.
     ALLOCATE (sm_first_row(nblkrows_total), sm_last_row(nblkrows_total),&
          sm_first_col(nblkcols_total), sm_last_col(nblkcols_total))
-    CALL convert_sizes_to_offsets (array_data (dbcsr_row_block_sizes (matrix)),&
+    CALL convert_sizes_to_offsets (array_data (cp_dbcsr_row_block_sizes (matrix)),&
          sm_first_row, sm_last_row)
-    CALL convert_sizes_to_offsets (array_data (dbcsr_col_block_sizes (matrix)),&
+    CALL convert_sizes_to_offsets (array_data (cp_dbcsr_col_block_sizes (matrix)),&
          sm_first_col, sm_last_col)
     !
     ! Only fill an existing matrix if it seems to have some
@@ -3591,16 +2959,16 @@ END FUNCTION cp_dbcsr_get_id_nr
             last_col=sm_last_col,&
             matrix_name=TRIM(name),&
             matrix_symmetry=sm_symmetry,&
-            sparsity_id=matrix%m%sparsity_id,&
+            sparsity_id=matrix%matrix%m%sparsity_id,&
             distribution_2d=dist2d, error=error,&
             keep_pointer=.TRUE.)
        DEALLOCATE (sm_first_row, sm_last_row, sm_first_col, sm_last_col)
        !
        NULLIFY (buff2d)
-       CALL dbcsr_iterator_start(iter, matrix)
-       DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_start(iter, matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
           NULLIFY(blkdata_2d)
-          CALL dbcsr_iterator_next_block(iter, stored_row, stored_col,&
+          CALL cp_dbcsr_iterator_next_block(iter, stored_row, stored_col,&
                blkdata_2d, tr, blk)
           !
           IF(SIZE(blkdata_2d).EQ.0) CYCLE
@@ -3629,7 +2997,7 @@ END FUNCTION cp_dbcsr_get_id_nr
              DEALLOCATE (buff2d)
           ENDIF
        ENDDO
-       CALL dbcsr_iterator_stop(iter)
+       CALL cp_dbcsr_iterator_stop(iter)
     ENDIF sm_struct_exists
     CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
     CALL timestop(timing_handle)
@@ -3648,7 +3016,7 @@ END FUNCTION cp_dbcsr_get_id_nr
 ! *****************************************************************************
   SUBROUTINE dbcsr_fill_sm_with_dbcsr (sm, matrix, error)
     TYPE(real_matrix_type), POINTER          :: sm
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_fill_sm_with_dbcsr', &
@@ -3668,9 +3036,9 @@ END FUNCTION cp_dbcsr_get_id_nr
     DEBUG_BODY
     CALL timeset(routineN, timing_handle)
     CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
-    CALL dbcsr_access_flush (matrix, error=dbcsr_error)
+    CALL dbcsr_access_flush (matrix%matrix, error=dbcsr_error)
     !
-    DO sm_row = 1, dbcsr_nblkrows_total(matrix)
+    DO sm_row = 1, cp_dbcsr_nblkrows_total(matrix)
        sm_block_node => first_block_node(sm, sm_row)
        DO WHILE (ASSOCIATED (sm_block_node))
           NULLIFY (blkdata_2d)
@@ -3683,7 +3051,7 @@ END FUNCTION cp_dbcsr_get_id_nr
           !write(*,*)routineN//" row,col,assoc",&
           !     sm_row, sm_col, associated(blkdata_2d)
           IF (ASSOCIATED (blkdata_2d)) THEN
-             CALL dbcsr_get_block (matrix, sm_row, sm_col, blkdata_2d,&
+             CALL cp_dbcsr_get_block (matrix, sm_row, sm_col, blkdata_2d,&
                   .FALSE., found)
              IF (.NOT. found) blkdata_2d(:,:) = 0.0_dp
           ELSEIF (found) THEN

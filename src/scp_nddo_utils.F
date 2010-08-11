@@ -10,11 +10,11 @@
 MODULE scp_nddo_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_diag,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_get_diag,&
+                                             cp_dbcsr_get_info,&
                                              cp_dbcsr_set_diag
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
@@ -37,7 +37,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(dbcsr_obj), POINTER                 :: pscp, ks_scp
+    TYPE(cp_dbcsr_type), POINTER             :: pscp, ks_scp
     REAL(dp), POINTER                        :: ascp_diag( : )
     LOGICAL, INTENT(IN)                      :: energy_only
     REAL(dp), INTENT(out)                    :: escp
@@ -84,7 +84,7 @@ CONTAINS
        DO iparticle=1, SIZE ( atom_list )
           iatom = atom_list ( iparticle )
 
-          CALL dbcsr_get_block_p(matrix=pscp,&
+          CALL cp_dbcsr_get_block_p(matrix=pscp,&
                row=iatom,col=iatom,BLOCK=p_block,tr=tr,found=found)
           CPPrecondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
           DO i=1,SIZE(p_block,1)
@@ -93,7 +93,7 @@ CONTAINS
              END DO
           END DO
           IF(.NOT.energy_only) THEN
-             CALL dbcsr_get_block_p(matrix=ks_scp,&
+             CALL cp_dbcsr_get_block_p(matrix=ks_scp,&
                   row=iatom,col=iatom,BLOCK=ks_block,tr=tr,found=found)
              CPPrecondition(ASSOCIATED(ks_block),cp_failure_level,routineP,error,failure)
              DO i=1,SIZE(ks_block,1) 
@@ -107,7 +107,7 @@ CONTAINS
     escp=escp*0.5_dp
 ! compute constraint force
     IF(.NOT.energy_only) THEN
-       CALL dbcsr_get_info ( ks_scp, nfullrows_total=n_el )
+       CALL cp_dbcsr_get_info ( ks_scp, nfullrows_total=n_el )
        ALLOCATE (ksdiag(n_el),STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 

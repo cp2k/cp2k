@@ -22,11 +22,11 @@
 MODULE kg_gpw_fm_mol_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kg_gpw_fm_mol_types,             ONLY: &
@@ -274,7 +274,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: fmo_coeff, mo_coeff, mol_p, &
                                                 p_block
-    TYPE(dbcsr_obj), POINTER                 :: p_ispin
+    TYPE(cp_dbcsr_type), POINTER             :: p_ispin
 
     CALL timeset(routineN,handle)
 
@@ -344,7 +344,7 @@ CONTAINS
 
         NULLIFY(p_block)
         IF (iatom <= jatom) THEN
-          CALL dbcsr_get_block_p(matrix=p_ispin,&
+          CALL cp_dbcsr_get_block_p(matrix=p_ispin,&
                row=iatom,col=jatom,BLOCK=p_block,tr=tr,found=found)
           icol =  1
           DO icol_mol_p = col_first, col_last
@@ -356,7 +356,7 @@ CONTAINS
             icol = icol + 1
           END DO   ! icol_mol_p
         ELSE
-          CALL dbcsr_get_block_p(matrix=p_ispin,&
+          CALL cp_dbcsr_get_block_p(matrix=p_ispin,&
                row=jatom,col=iatom,BLOCK=p_block,tr=tr,found=found)
           icol =  1
           DO icol_mol_p = col_first, col_last
@@ -820,7 +820,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure, found, tr
     REAL(dp), DIMENSION(:, :), POINTER       :: mol_s, s_block
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
 
     failure = .FALSE.
 
@@ -858,7 +858,7 @@ CONTAINS
 
         NULLIFY(s_block)
         IF (iatom <= jatom) THEN
-          CALL dbcsr_get_block_p(matrix=matrix,&
+          CALL cp_dbcsr_get_block_p(matrix=matrix,&
                row=iatom,col=jatom,BLOCK=s_block,tr=tr,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last
@@ -870,7 +870,7 @@ CONTAINS
             icol = icol + 1
           END DO   ! icol_mol_s
         ELSE
-          CALL dbcsr_get_block_p(matrix=matrix,&
+          CALL cp_dbcsr_get_block_p(matrix=matrix,&
                row=jatom,col=iatom,BLOCK=s_block,tr=tr,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last

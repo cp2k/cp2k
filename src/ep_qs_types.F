@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE ep_qs_types
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -38,7 +38,7 @@ MODULE ep_qs_types
 TYPE ep_qs_type
    INTEGER :: id_nr, ref_count
    LOGICAL :: ep_active
-   TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: dH_coeffs, dS_coeffs
+   TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: dH_coeffs, dS_coeffs
    REAL(kind=dp) :: core_energy,tot_rho
 END TYPE ep_qs_type
 
@@ -123,8 +123,8 @@ END SUBROUTINE ep_qs_release
 ! *****************************************************************************
 SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: dH_coeffs_ptr, dS_coeffs_ptr
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: dH_coeffs_ptr, dS_coeffs_ptr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_set', &

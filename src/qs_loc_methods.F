@@ -25,7 +25,7 @@ MODULE qs_loc_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm
@@ -146,8 +146,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_fm_type), POINTER                :: vectors
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: zij_fm_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -291,8 +291,8 @@ CONTAINS
                                                 nmoloc, output_unit, sweeps
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, nsgf
     LOGICAL                                  :: failure
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_ao_fm_pools
     TYPE(cp_fm_type), POINTER                :: opvec, ov_fm
@@ -628,8 +628,8 @@ CONTAINS
     REAL(dp), DIMENSION(6)                   :: weights
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers, vecbuffer
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm_set
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_sm_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: moloc_coeff
     TYPE(cp_fm_p_type), DIMENSION(:, :), &

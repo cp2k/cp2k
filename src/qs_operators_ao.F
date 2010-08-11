@@ -21,10 +21,10 @@ MODULE qs_operators_ao
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_get_matrix_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type
   USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
                                              dbcsr_type_normal
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -66,8 +66,8 @@ CONTAINS
   SUBROUTINE build_lin_mom_matrix(qs_env,matrix,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix', &
@@ -227,7 +227,7 @@ CONTAINS
 
                    DO i=1,3
                       NULLIFY(integral(i)%block)
-                      CALL dbcsr_get_block_p(matrix=matrix(i)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=matrix(i)%matrix,&
                            row=irow,col=icol,BLOCK=integral(i)%block,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,error,failure)
                    ENDDO
@@ -456,8 +456,8 @@ CONTAINS
   SUBROUTINE build_ang_mom_matrix(qs_env,matrix,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -621,7 +621,7 @@ CONTAINS
 
                    DO i=1,3
                       NULLIFY(INTEGRAL(i)%block)
-                      CALL dbcsr_get_block_p(matrix=matrix(i)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=matrix(i)%matrix,&
                            row=irow,col=icol,BLOCK=INTEGRAL(i)%block,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,error,failure)
                    ENDDO
@@ -874,8 +874,8 @@ CONTAINS
 
   SUBROUTINE p_xyz_ao(op,qs_env,minimum_image,error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: op
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: op
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1097,7 +1097,7 @@ CONTAINS
               ELSE
                 irow = jatom
                 icol = iatom
-                IF(dbcsr_get_matrix_type(op(1)%matrix)==dbcsr_type_antisymmetric) THEN
+                IF(cp_dbcsr_get_matrix_type(op(1)%matrix)==dbcsr_type_antisymmetric) THEN
                 !IF(op(1)%matrix%symmetry=="antisymmetric") THEN
                   alpha = -1.0_dp
                 END IF
@@ -1105,7 +1105,7 @@ CONTAINS
 
               DO i = 1,3
                  NULLIFY(op_dip(i)%block)
-                 CALL dbcsr_get_block_p(matrix=op(i)%matrix,&
+                 CALL cp_dbcsr_get_block_p(matrix=op(i)%matrix,&
                       row=irow,col=icol,block=op_dip(i)%block,tr=tr,found=found)
                  CPPostcondition(ASSOCIATED(op_dip(i)%block),cp_failure_level,routineP,error,failure)
               END DO
@@ -1240,8 +1240,8 @@ CONTAINS
 
   SUBROUTINE rRc_xyz_ao(op,qs_env,rc,order,minimum_image,soft,error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: op
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: op
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
@@ -1477,7 +1477,7 @@ CONTAINS
 
               DO imom = 1, M_dim
                  NULLIFY(op_dip(imom)%block)
-                 CALL dbcsr_get_block_p(matrix=op(imom)%matrix,&
+                 CALL cp_dbcsr_get_block_p(matrix=op(imom)%matrix,&
                       row=irow,col=icol,block=op_dip(imom)%block,tr=tr,found=found)
                  CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
               END DO   ! imom
@@ -1605,10 +1605,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE rRc_xyz_der_ao(op,op_der,qs_env,rc,order,minimum_image,soft,error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: op
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_der
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: op
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_der
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
@@ -1672,7 +1672,7 @@ CONTAINS
     CPPostcondition(ASSOCIATED(op),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(op_der),cp_failure_level,routineP,error,failure)
     !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN
-    IF(.NOT.dbcsr_get_matrix_type(op_der(1,1)%matrix).EQ.dbcsr_type_normal) THEN
+    IF(.NOT.cp_dbcsr_get_matrix_type(op_der(1,1)%matrix).EQ.dbcsr_type_normal) THEN
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -1872,14 +1872,14 @@ CONTAINS
 
               DO imom = 1, M_dim
                  NULLIFY(op_dip(imom)%block)
-                 CALL dbcsr_get_block_p (matrix=op(imom)%matrix,&
+                 CALL cp_dbcsr_get_block_p (matrix=op(imom)%matrix,&
                                          row=irow, col=icol,&
                                          block=op_dip(imom)%block,&
                                          tr=op_tr, found=op_found)
 CPPostcondition(op_found.and.ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
                  DO idir = 1,3
                    NULLIFY(op_dip_der(imom,idir)%block)
-                   CALL dbcsr_get_block_p (matrix=op_der(imom,idir)%matrix,&
+                   CALL cp_dbcsr_get_block_p (matrix=op_der(imom,idir)%matrix,&
                                            row=irow, col=icol,&
                                            block=op_dip_der(imom,idir)%block,&
                                            tr=op_der_tr, found=op_der_found)

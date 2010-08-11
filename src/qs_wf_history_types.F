@@ -14,10 +14,10 @@
 MODULE qs_wf_history_types
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
                                              kg_fm_p_type
@@ -64,8 +64,8 @@ MODULE qs_wf_history_types
      TYPE(kg_fm_p_type),  POINTER              :: wf_mol
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
-     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: rho_ao
-     TYPE(dbcsr_obj), POINTER :: overlap
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
+     TYPE(cp_dbcsr_type), POINTER :: overlap
      TYPE(qs_rho_type), POINTER :: rho_frozen
      REAL(KIND = dp) :: dt
      INTEGER :: id_nr, ref_count

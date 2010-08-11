@@ -24,6 +24,7 @@ MODULE qs_overlap
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
+                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
@@ -31,13 +32,12 @@ MODULE qs_overlap
                                              cp_dbcsr_dist2d_to_dist
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_distribution,&
                                              cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_normal,&
@@ -111,8 +111,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
     TYPE(neighbor_list_set_p_type), &
@@ -273,7 +273,7 @@ CONTAINS
            error=error)
     END DO
 
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     CALL array_release (col_blk_sizes)
 

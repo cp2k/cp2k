@@ -19,6 +19,14 @@ MODULE cp_dbcsr_output
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_get_data_size, cp_dbcsr_get_info, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_name, &
+       cp_dbcsr_row_block_sizes
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
@@ -27,17 +35,7 @@ MODULE cp_dbcsr_output
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
-                                             dbcsr_get_info,&
-                                             dbcsr_get_matrix_type,&
-                                             dbcsr_get_num_blocks
-  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                             dbcsr_obj,&
-                                             dbcsr_type_antisymmetric,&
+  USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_symmetric
   USE input_section_types,             ONLY: section_vals_type
@@ -152,7 +150,7 @@ CONTAINS
                                       first_row,last_row,first_col,last_col,scale,&
                                        output_unit,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: sparse_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: sparse_matrix
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -182,7 +180,7 @@ CONTAINS
 
     CALL mp_sum(matrix,group)
 
-    SELECT CASE(dbcsr_get_matrix_type(sparse_matrix))
+    SELECT CASE(cp_dbcsr_get_matrix_type(sparse_matrix))
     CASE(dbcsr_type_symmetric)
        CALL symmetrize_matrix(matrix,"upper_to_lower")
        print_sym = .TRUE.
@@ -228,7 +226,7 @@ CONTAINS
       matrix=matrix*scale
     END IF
 
-    matrix_name = sparse_matrix%m%name
+    matrix_name = cp_dbcsr_name(sparse_matrix)
     IF (print_sym) THEN
        CALL write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
             row1,row2,col1,col2, output_unit,error=error)
@@ -246,7 +244,7 @@ CONTAINS
 
   SUBROUTINE copy_repl_dbcsr_to_repl_fm(sparse_matrix,fm,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: sparse_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: sparse_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -260,7 +258,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: failure, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     failure = .FALSE.
 
@@ -268,12 +266,12 @@ CONTAINS
 
     IF (ASSOCIATED(fm)) DEALLOCATE (fm)
 
-    CALL dbcsr_get_info(matrix=sparse_matrix,&
+    CALL cp_dbcsr_get_info(matrix=sparse_matrix,&
                         nblkrows_total=nblkrows_total,&
                         nblkcols_total=nblkcols_total)
 
-    col_blk_size => array_data (sparse_matrix%m%col_blk_size)
-    row_blk_size => array_data (sparse_matrix%m%row_blk_size)
+    col_blk_size => array_data (cp_dbcsr_col_block_sizes(sparse_matrix))
+    row_blk_size => array_data (cp_dbcsr_row_block_sizes(sparse_matrix))
 
     !> this should be precomputed somewhere else
     ALLOCATE(r_offset(nblkrows_total),c_offset(nblkcols_total),STAT=istat)
@@ -296,16 +294,16 @@ CONTAINS
 
     fm(:,:) = 0.0_dp
 
-    CALL dbcsr_iterator_start(iter, sparse_matrix)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, DATA, tr, blk)
+    CALL cp_dbcsr_iterator_start(iter, sparse_matrix)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, tr, blk)
        DO j=1,SIZE(DATA,2)
        DO i=1,SIZE(DATA,1)
           fm(r_offset(row)+i-1,c_offset(col)+j-1) = DATA(i,j)
        ENDDO
        ENDDO
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     DEALLOCATE(r_offset,c_offset,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -538,7 +536,7 @@ CONTAINS
 !>      Creation (25.06.2003,MK)
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_write_matrix_distribution(matrix,force_env_section,para_env,error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -584,10 +582,10 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nelement(:) = 0
 
-    nblock(mype) = dbcsr_get_num_blocks(matrix)
-    nelement(mype) = dbcsr_get_data_size(matrix)
+    nblock(mype) = cp_dbcsr_get_num_blocks(matrix)
+    nelement(mype) = cp_dbcsr_get_data_size(matrix)
 
-    CALL dbcsr_get_info(matrix=matrix,&
+    CALL cp_dbcsr_get_info(matrix=matrix,&
                         name=matrix_name,&
                         matrix_type=matrix_type,&
                         nblkrows_total=natom,&

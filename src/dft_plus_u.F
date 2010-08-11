@@ -25,7 +25,12 @@ MODULE dft_plus_u
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_diag,&
+                                             cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_deallocate_matrix,&
@@ -33,7 +38,9 @@ MODULE dft_plus_u
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -46,13 +53,6 @@ MODULE dft_plus_u
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                             dbcsr_obj
   USE f77_blas
   USE input_constants,                 ONLY: plus_u_lowdin,&
                                              plus_u_mulliken,&
@@ -97,8 +97,8 @@ CONTAINS
   SUBROUTINE plus_u(qs_env,matrix_h,matrix_w,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: matrix_h, matrix_w
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_h, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u', &
@@ -204,8 +204,8 @@ CONTAINS
   SUBROUTINE lowdin(qs_env,matrix_h,matrix_w,should_output,output_unit,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: matrix_h, matrix_w
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_h, matrix_w
     LOGICAL, INTENT(IN)                      :: should_output
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -237,12 +237,12 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_q, sm_s, sm_v, &
+                                                sm_w
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
-    TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_q, sm_s, sm_v, &
-                                                sm_w
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
@@ -548,7 +548,7 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL dbcsr_get_block_p(matrix=sm_q,&
+          CALL cp_dbcsr_get_block_p(matrix=sm_q,&
                                  row=atom_a,&
                                  col=atom_a,&
                                  block=q_block,&
@@ -663,7 +663,7 @@ CONTAINS
 
             IF (.NOT.just_energy) THEN
 
-              CALL dbcsr_get_block_p(matrix=sm_v,&
+              CALL cp_dbcsr_get_block_p(matrix=sm_v,&
                                      row=atom_a,&
                                      col=atom_a,&
                                      block=v_block,&
@@ -878,8 +878,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: matrix_h
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_h
     LOGICAL, INTENT(IN)                      :: should_output
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -911,9 +911,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind, kind_a
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
-    TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_q, sm_s, sm_v
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_q, sm_s, sm_v
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
@@ -1047,7 +1047,7 @@ CONTAINS
 
       DO iatom=1,natom
 
-        CALL dbcsr_get_block_p(matrix=sm_p,&
+        CALL cp_dbcsr_get_block_p(matrix=sm_p,&
                                row=iatom,&
                                col=iatom,&
                                block=p_block,&
@@ -1056,7 +1056,7 @@ CONTAINS
 
         IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
-        CALL dbcsr_get_block_p(matrix=sm_q,&
+        CALL cp_dbcsr_get_block_p(matrix=sm_q,&
                                row=iatom,&
                                col=iatom,&
                                block=q_block,&
@@ -1070,7 +1070,7 @@ CONTAINS
             q_block(isgf,isgf) = p_block(isgf,isgf)
           END DO
         ELSE
-          CALL dbcsr_get_block_p(matrix=sm_s,&
+          CALL cp_dbcsr_get_block_p(matrix=sm_s,&
                                  row=iatom,&
                                  col=iatom,&
                                  block=s_block,&
@@ -1183,7 +1183,7 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL dbcsr_get_block_p(matrix=sm_q,&
+          CALL cp_dbcsr_get_block_p(matrix=sm_q,&
                                  row=atom_a,&
                                  col=atom_a,&
                                  block=q_block,&
@@ -1298,7 +1298,7 @@ CONTAINS
 
             IF (.NOT.just_energy) THEN
 
-              CALL dbcsr_get_block_p(matrix=sm_v,&
+              CALL cp_dbcsr_get_block_p(matrix=sm_v,&
                                      row=atom_a,&
                                      col=atom_a,&
                                      block=v_block,&
@@ -1447,7 +1447,7 @@ CONTAINS
 
             atom_a = atom_list(iatom)
 
-            CALL dbcsr_get_block_p(matrix=sm_h,&
+            CALL cp_dbcsr_get_block_p(matrix=sm_h,&
                                    row=atom_a,&
                                    col=atom_a,&
                                    block=h_block,&
@@ -1456,7 +1456,7 @@ CONTAINS
 
             IF (.NOT.ASSOCIATED(h_block)) CYCLE
 
-            CALL dbcsr_get_block_p(matrix=sm_v,&
+            CALL cp_dbcsr_get_block_p(matrix=sm_v,&
                                    row=atom_a,&
                                    col=atom_a,&
                                    block=v_block,&
@@ -1469,7 +1469,7 @@ CONTAINS
                 h_block(isgf,isgf) = h_block(isgf,isgf) + v_block(isgf,isgf)
               END DO
             ELSE
-               CALL dbcsr_get_block_p(matrix=sm_s,&
+               CALL cp_dbcsr_get_block_p(matrix=sm_s,&
                                       row=atom_a,&
                                       col=atom_a,&
                                       block=s_block,&
@@ -1547,8 +1547,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: orthonormal_basis
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: matrix_h, matrix_w
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_h, matrix_w
     LOGICAL, INTENT(IN)                      :: should_output
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1577,10 +1577,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj), POINTER                 :: sm_h, sm_p, sm_s, sm_w
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: sm_h, sm_p, sm_s, sm_w
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
@@ -1708,11 +1708,11 @@ CONTAINS
 
       trps(:) = 0.0_dp
 
-      CALL dbcsr_iterator_start(iter,sm_p)
+      CALL cp_dbcsr_iterator_start(iter,sm_p)
 
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-        CALL dbcsr_iterator_next_block(iter,iatom,jatom,p_block,tr,blk)
+        CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,p_block,tr,blk)
 
         IF (orthonormal_basis) THEN
 
@@ -1728,7 +1728,7 @@ CONTAINS
 
         ELSE
 
-          CALL dbcsr_get_block_p(matrix=sm_s,&
+          CALL cp_dbcsr_get_block_p(matrix=sm_s,&
                                  row=iatom,&
                                  col=jatom,&
                                  block=s_block,&
@@ -1758,7 +1758,7 @@ CONTAINS
 
       END DO ! next atom "iatom"
 
-      CALL dbcsr_iterator_stop(iter)
+      CALL cp_dbcsr_iterator_stop(iter)
 
       CALL mp_sum(trps,qs_env%para_env%group)
 
@@ -1849,7 +1849,7 @@ CONTAINS
 
           ! Get diagonal block
 
-          CALL dbcsr_get_block_p(matrix=sm_p,&
+          CALL cp_dbcsr_get_block_p(matrix=sm_p,&
                                  row=atom_a,&
                                  col=atom_a,&
                                  block=p_block,&
@@ -1919,11 +1919,11 @@ CONTAINS
 
       IF (ASSOCIATED(sm_h)) THEN
 
-        CALL dbcsr_iterator_start(iter,sm_h)
+        CALL cp_dbcsr_iterator_start(iter,sm_h)
 
-        DO WHILE (dbcsr_iterator_blocks_left(iter))
+        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-          CALL dbcsr_iterator_next_block(iter,iatom,jatom,h_block,tr,blk)
+          CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,h_block,tr,blk)
 
           IF (orthonormal_basis) THEN
 
@@ -1941,7 +1941,7 @@ CONTAINS
 
             ! Request katom just to check for consistent sparse matrix pattern
 
-            CALL dbcsr_get_block_p(matrix=sm_s,&
+            CALL cp_dbcsr_get_block_p(matrix=sm_s,&
                                    row=iatom,&
                                    col=jatom,&
                                    block=s_block,&
@@ -1979,7 +1979,7 @@ CONTAINS
 
         END DO ! Next atom "iatom"
 
-        CALL dbcsr_iterator_stop(iter)
+        CALL cp_dbcsr_iterator_stop(iter)
 
       END IF ! An update of the Hamiltonian matrix is requested
 
@@ -1989,11 +1989,11 @@ CONTAINS
 
       IF (ASSOCIATED(sm_w).AND.(.NOT.orthonormal_basis)) THEN
 
-        CALL dbcsr_iterator_start(iter,sm_p)
+        CALL cp_dbcsr_iterator_start(iter,sm_p)
 
-        DO WHILE (dbcsr_iterator_blocks_left(iter))
+        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-          CALL dbcsr_iterator_next_block(iter,iatom,jatom,p_block,tr,blk)
+          CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,p_block,tr,blk)
 
           ! Skip the diagonal blocks of the W matrix
 
@@ -2001,7 +2001,7 @@ CONTAINS
 
           ! Request katom just to check for consistent sparse matrix patterns
 
-          CALL dbcsr_get_block_p(matrix=sm_w,&
+          CALL cp_dbcsr_get_block_p(matrix=sm_w,&
                                  row=iatom,&
                                  col=jatom,&
                                  block=w_block,&
@@ -2037,7 +2037,7 @@ CONTAINS
 
         END DO ! next block node "jatom"
 
-        CALL dbcsr_iterator_stop(iter)
+        CALL cp_dbcsr_iterator_stop(iter)
 
       END IF ! W matrix update requested
 

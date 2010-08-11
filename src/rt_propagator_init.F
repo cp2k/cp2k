@@ -10,7 +10,7 @@
 MODULE rt_propagator_init
 
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_upper_to_full
@@ -71,8 +71,8 @@ CONTAINS
 
     INTEGER                                  :: i
     LOGICAL                                  :: diagonalize
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: s_mat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, mos_old
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -149,8 +149,8 @@ CONTAINS
     REAL(dp)                                 :: max_eval, min_eval, norm2, &
                                                 scale, t
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigval_H
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, s_mat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, s_mat
     TYPE(cp_fm_type), POINTER                :: H_fm, tmp_mat_H
 
     failure=.FALSE.

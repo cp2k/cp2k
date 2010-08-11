@@ -17,7 +17,7 @@ MODULE qs_pdos
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -124,8 +124,8 @@ CONTAINS
       POINTER                                :: pdos_array
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_blacs_env_type), POINTER         :: context
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: s_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: s_matrix
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_shalf, matrix_shalfc, &
                                                 matrix_work, mo_coeff, mo_virt
@@ -543,8 +543,8 @@ CONTAINS
     INTEGER                                  :: nmo, nrow_global, stat
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix, s_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, s_matrix
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env

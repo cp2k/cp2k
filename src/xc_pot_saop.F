@@ -19,7 +19,7 @@ MODULE xc_pot_saop
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
@@ -113,8 +113,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE add_saop_pot(ks_matrix, qs_env, oe_corr, error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: oe_corr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -139,8 +139,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_uniform
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: orbital_density_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: orbital_density_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: single_mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -533,8 +533,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_1d_r_p_type), DIMENSION(:), &
       POINTER                                :: mo_eigenvalues
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: orbital_density_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: orbital_density_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_coeff, single_mo_coeff
     TYPE(grid_atom_type), POINTER            :: atomic_grid

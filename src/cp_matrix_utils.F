@@ -15,14 +15,14 @@
 ! *****************************************************************************
 MODULE cp_matrix_utils
   USE cp_array_utils,                  ONLY: cp_2d_r_write
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_type
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_add_local_block
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                             dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
@@ -400,7 +400,7 @@ END SUBROUTINE sm_s_add_sm_l_blocks_sm
 
 SUBROUTINE sm_s_add_sm_l_blocks_dbcsr(sm_struct,matrix,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_s_add_sm_l_blocks_dbcsr', &
@@ -409,7 +409,7 @@ SUBROUTINE sm_s_add_sm_l_blocks_dbcsr(sm_struct,matrix,error)
     INTEGER                                  :: blk, block_col, block_row, &
                                                 handle
     LOGICAL                                  :: failure
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
   failure=.FALSE.
   
@@ -421,15 +421,15 @@ SUBROUTINE sm_s_add_sm_l_blocks_dbcsr(sm_struct,matrix,error)
      !
      ! appears to be quadratic scaling 
      !  
-     CALL dbcsr_iterator_start(iter, matrix)
-     DO WHILE (dbcsr_iterator_blocks_left (iter))
-        CALL dbcsr_iterator_next_block(iter, block_row, block_col, blk)
+     CALL cp_dbcsr_iterator_start(iter, matrix)
+     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+        CALL cp_dbcsr_iterator_next_block(iter, block_row, block_col, blk)
         !DO WHILE( cp_sm_b_i_next(m_iter, block_row=block_row, &
         !  block_col=block_col,error=error))
         CALL sm_struct_add_local_block(sm_struct, block_row=block_row,&
              block_col=block_col, error=error)
      END DO
-     CALL dbcsr_iterator_stop(iter)
+     CALL cp_dbcsr_iterator_stop(iter)
   END IF
   CALL timestop(handle)
 END SUBROUTINE sm_s_add_sm_l_blocks_dbcsr

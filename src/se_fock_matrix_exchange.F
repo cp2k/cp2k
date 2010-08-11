@@ -18,9 +18,9 @@ MODULE se_fock_matrix_exchange
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: do_multipole_none,&
@@ -72,8 +72,8 @@ CONTAINS
        store_int_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, matrix_p
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -194,10 +194,10 @@ CONTAINS
                       switch = .TRUE.
                    END IF
                    ! Retrieve blocks for KS and P
-                   CALL dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
                         row=irow,col=icol,BLOCK=ks_block_a,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
-                   CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                         row=irow,col=icol,BLOCK=p_block_a,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
                    size_p_block_a(1) = SIZE(p_block_a,1)
@@ -206,10 +206,10 @@ CONTAINS
                    
                    ! Handle more configurations
                    IF ( nspins == 2 ) THEN
-                      CALL dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
                            row=irow,col=icol,BLOCK=ks_block_b,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
-                      CALL dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
                            row=irow,col=icol,BLOCK=p_block_b,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
                       check = (size_p_block_a(1)==SIZE(p_block_b,1)).AND.(size_p_block_a(2)==SIZE(p_block_b,2))

@@ -11,16 +11,14 @@
 ! *****************************************************************************
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_finalize, &
+       cp_dbcsr_init, cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -100,8 +98,8 @@ CONTAINS
     LOGICAL                                  :: failure, my_gapw_xc, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(neighbor_list_set_p_type), &
@@ -193,9 +191,9 @@ CONTAINS
                CALL cp_dbcsr_init(rho%rho_ao(i)%matrix, error=error)
                CALL cp_dbcsr_create(matrix=rho%rho_ao(i)%matrix,&
                     name=TRIM(headline),&
-                    dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric,&
-                    row_blk_size=matrix_s(1)%matrix%m%row_blk_size,&
-                    col_blk_size=matrix_s(1)%matrix%m%col_blk_size,&
+                    dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
+                    row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
+                    col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
                     nblks=0, nze=0,mutable_work=.TRUE.,&
                     error=error)
                CALL cp_dbcsr_finalize(rho%rho_ao(i)%matrix,error=error)

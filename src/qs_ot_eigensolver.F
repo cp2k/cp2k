@@ -14,22 +14,24 @@ MODULE qs_ot_eigensolver
   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init_p, &
-       cp_dbcsr_multiply, cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_trace
+       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_finalize, cp_dbcsr_get_info, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_copy_columns_hack
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
-  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_info, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_row_block_sizes
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_row_dist,&
+                                             dbcsr_mp_npcols,&
+                                             dbcsr_mp_nprows
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default
   USE f77_blas
@@ -70,7 +72,7 @@ CONTAINS
                             matrix_c_fm,preconditioner,eps_gradient, &
                             iter_max,size_ortho_space,silent,ot_settings,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: matrix_h, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_h, matrix_s
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_orthogonal_space_fm
     TYPE(cp_fm_type), POINTER                :: matrix_c_fm
     TYPE(preconditioner_type), OPTIONAL, &
@@ -95,12 +97,12 @@ CONTAINS
     REAL(KIND=dp)                            :: delta, energy
     TYPE(array_i1d_obj) :: col_blk_size, col_blk_size_o, col_dist, &
       col_dist_o, row_blk_size, row_blk_size_o, row_dist, row_dist_o
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_hc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_hc
+    TYPE(cp_dbcsr_type), POINTER :: matrix_buf1_ortho, matrix_buf2_ortho, &
+      matrix_c, matrix_orthogonal_space, matrix_os_ortho, matrix_s_ortho
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj)             :: dist, dist_o_o
-    TYPE(dbcsr_obj), POINTER :: matrix_buf1_ortho, matrix_buf2_ortho, &
-      matrix_c, matrix_orthogonal_space, matrix_os_ortho, matrix_s_ortho
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     CALL timeset(routineN,handle)
@@ -117,21 +119,21 @@ CONTAINS
 
     NULLIFY(matrix_c)! fm->dbcsr
     CALL cp_fm_get_info(matrix_c_fm, nrow_global=n, ncol_global=k,error=error)! fm->dbcsr
-    CALL create_bl_distribution (col_dist, col_blk_size, k, &! fm->dbcsr
-         dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))! fm->dbcsr
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_h)),&! fm->dbcsr
-         dbcsr_distribution_row_dist(dbcsr_distribution(matrix_h)), col_dist)! fm->dbcsr
+    CALL cp_create_bl_distribution (col_dist, col_blk_size, k, &! fm->dbcsr
+         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))! fm->dbcsr
+    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_h)),&! fm->dbcsr
+         dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_h)), col_dist)! fm->dbcsr
     CALL array_release (col_dist)! fm->dbcsr
 
     CALL cp_dbcsr_init_p(matrix_c, error=error)! fm->dbcsr
     CALL cp_dbcsr_create(matrix_c, "matrix_c", dist, dbcsr_type_normal,&! fm->dbcsr
-         dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+         cp_dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
          error=error)! fm->dbcsr
     CALL cp_dbcsr_finalize(matrix_c, error=error)! fm->dbcsr
 
     CALL copy_fm_to_dbcsr(matrix_c_fm,matrix_c, error=error)! fm->dbcsr
 
-    CALL dbcsr_distribution_release (dist)! fm->dbcsr! fm->dbcsr
+    CALL cp_dbcsr_distribution_release (dist)! fm->dbcsr! fm->dbcsr
     CALL array_release (col_blk_size)
 
     iter_total=0
@@ -167,21 +169,21 @@ CONTAINS
       IF (ortho) THEN
          CALL cp_fm_get_info(matrix_orthogonal_space_fm,ncol_global=ortho_space_k,error=error)
 
-         CALL create_bl_distribution (col_dist, col_blk_size, ortho_space_k, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
-         CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_h)),&
-              dbcsr_distribution_row_dist(dbcsr_distribution(matrix_h)), col_dist)
+         CALL cp_create_bl_distribution (col_dist, col_blk_size, ortho_space_k, &
+              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
+         CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_h)),&
+              dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_h)), col_dist)
          CALL array_release (col_dist)
 
          CALL cp_dbcsr_init_p(matrix_orthogonal_space, error=error)
          CALL cp_dbcsr_create(matrix_orthogonal_space, "matrix_orthogonal_space", dist, dbcsr_type_normal,&
-              dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+              cp_dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
               error=error)
          CALL cp_dbcsr_finalize(matrix_orthogonal_space, error=error)
 
          CALL copy_fm_to_dbcsr(matrix_orthogonal_space_fm,matrix_orthogonal_space, error=error)
 
-         CALL dbcsr_distribution_release (dist)
+         CALL cp_dbcsr_distribution_release (dist)
          CALL array_release (col_blk_size)
 
 
@@ -200,17 +202,17 @@ CONTAINS
          CALL cp_dbcsr_init_p(matrix_s_ortho, error=error)
          CALL cp_dbcsr_copy(matrix_s_ortho,matrix_orthogonal_space,name="matrix_s_ortho",error=error)
 
-         CALL create_bl_distribution (col_dist_o, col_blk_size_o, ortho_space_k, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
-         CALL create_bl_distribution (row_dist_o, row_blk_size_o, ortho_space_k, &
-              dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
-         CALL create_bl_distribution (row_dist, row_blk_size, k, &
-              dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
-         CALL create_bl_distribution (col_dist, col_blk_size, k, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_h))))
-         CALL dbcsr_distribution_new (dist_o_o, dbcsr_distribution_mp (dbcsr_distribution(matrix_h)),&
+         CALL cp_create_bl_distribution (col_dist_o, col_blk_size_o, ortho_space_k, &
+              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
+         CALL cp_create_bl_distribution (row_dist_o, row_blk_size_o, ortho_space_k, &
+              dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
+         CALL cp_create_bl_distribution (row_dist, row_blk_size, k, &
+              dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
+         CALL cp_create_bl_distribution (col_dist, col_blk_size, k, &
+              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
+         CALL dbcsr_distribution_new (dist_o_o, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_h)),&
               row_dist_o, col_dist_o)
-         CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_h)),&
+         CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_h)),&
               row_dist_o, col_dist)
          CALL array_release(row_dist_o); CALL array_release(col_dist_o)
          CALL array_release(row_dist); CALL array_release(col_dist)
@@ -233,8 +235,8 @@ CONTAINS
               error=error)
          CALL cp_dbcsr_finalize(matrix_buf2_ortho, error=error)
 
-         CALL dbcsr_distribution_release (dist_o_o)
-         CALL dbcsr_distribution_release (dist)
+         CALL cp_dbcsr_distribution_release (dist_o_o)
+         CALL cp_dbcsr_distribution_release (dist)
          CALL array_release(col_blk_size_o); CALL array_release(row_blk_size_o)
          CALL array_release(row_blk_size); CALL array_release(col_blk_size)
 
@@ -285,7 +287,7 @@ CONTAINS
       ELSE
 
          ! set c0,sc0
-         CALL dbcsr_get_info(matrix_c,nfullcols_total=k)
+         CALL cp_dbcsr_get_info(matrix_c,nfullcols_total=k)
          CALL cp_dbcsr_copy(qs_ot_env(1)%matrix_c0,matrix_c,error=error)
          CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_s,qs_ot_env(1)%matrix_c0, &
            0.0_dp,qs_ot_env(1)%matrix_sc0,last_column=k,error=error)
@@ -320,7 +322,7 @@ CONTAINS
       ENDIF
 
 !     *** Eigensolver loop ***
-      CALL dbcsr_get_info(matrix_c,nfullcols_total=k)
+      CALL cp_dbcsr_get_info(matrix_c,nfullcols_total=k)
       ieigensolver = 0
       eigensolver_loop: DO
 

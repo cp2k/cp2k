@@ -18,18 +18,18 @@ MODULE task_list_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
+                                             cp_dbcsr_finalize,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_get_info,&
+                                             cp_dbcsr_put_block,&
+                                             cp_dbcsr_row_block_sizes,&
                                              cp_dbcsr_work_create
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
-                                             dbcsr_put_block
-  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
-                                             dbcsr_get_info,&
-                                             dbcsr_row_block_sizes
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE f77_blas
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
@@ -2063,13 +2063,13 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_grids
-    TYPE(dbcsr_obj), POINTER                 :: pmat
+    TYPE(cp_dbcsr_type), POINTER             :: pmat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_send, atom_pair_recv
     INTEGER                                  :: natoms
     LOGICAL                                  :: scatter
     TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: hmat
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: hmat
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_matrix', &
       routineP = moduleN//':'//routineN
@@ -2102,13 +2102,13 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
   IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
 
-  CALL dbcsr_get_info (pmat, &
+  CALL cp_dbcsr_get_info (pmat, &
        nblkrows_total=nblkrows_total,&
        nblkcols_total=nblkcols_total)
   ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total),&
             first_col(nblkcols_total), last_col(nblkcols_total))
-  CALL convert_sizes_to_offsets (array_data (dbcsr_row_block_sizes (pmat)), first_row, last_row)
-  CALL convert_sizes_to_offsets (array_data (dbcsr_col_block_sizes (pmat)), first_col, last_col)
+  CALL convert_sizes_to_offsets (array_data (cp_dbcsr_row_block_sizes (pmat)), first_row, last_row)
+  CALL convert_sizes_to_offsets (array_data (cp_dbcsr_col_block_sizes (pmat)), first_col, last_col)
 
   ! set up send buffer sizes
   natom8=natoms
@@ -2155,7 +2155,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      nrow = last_row(arow)-first_row(arow) + 1
      ncol = last_col(acol)-first_col(acol) + 1
 
-     CALL dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
+     CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
           block=p_block,tr=tr,found=found)
      IF ( .NOT. ASSOCIATED ( p_block ) ) THEN 
         CALL stop_program ( "pack_matrix almost there", "Matrix block not found" )
@@ -2219,11 +2219,11 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      nrow = last_row(arow)-first_row(arow) + 1
      ncol = last_col(acol)-first_col(acol) + 1
 
-     CALL dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
+     CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
           BLOCK=p_block,tr=tr,found=found)
 
      IF ( PRESENT ( hmat ) ) THEN
-     CALL dbcsr_get_block_p(matrix=hmat,row=arow,col=acol,&
+     CALL cp_dbcsr_get_block_p(matrix=hmat,row=arow,col=acol,&
           BLOCK=h_block,tr=tr,found=found)
      ENDIF
 
@@ -2234,7 +2234,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
         !ENDIF
      ELSE
         IF(scatter) THEN
-           CALL dbcsr_put_block(pmat, arow, acol,&
+           CALL cp_dbcsr_put_block(pmat, arow, acol,&
                 block=recv_buf_r(recv_disps(l)+recv_sizes(l)+1:recv_disps(l)+recv_sizes(l)+nrow*ncol),&
                 transposed=.FALSE.)
         ENDIF

@@ -17,17 +17,17 @@ MODULE scp_environment
                                              get_atomic_kind_set
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
+                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_diag,&
+                                             cp_dbcsr_get_info,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_dist2d_to_dist
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release,&
-                                             dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj,&
                                              dbcsr_repl_full,&
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
@@ -174,9 +174,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
-    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -249,7 +249,7 @@ CONTAINS
          nblks=0, nze=0, mutable_work=.TRUE., replication_type=dbcsr_repl_full, &
          error=error)
 
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     CALL array_release (col_blk_sizes)
 
@@ -288,7 +288,7 @@ CONTAINS
 
     CALL cp_dbcsr_finalize(pscp,error=error)
 
-    CALL dbcsr_get_info ( pscp, nfullrows_total=nrow )
+    CALL cp_dbcsr_get_info ( pscp, nfullrows_total=nrow )
 
     ALLOCATE (ascp_diag(nrow),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

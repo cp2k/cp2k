@@ -30,6 +30,7 @@ MODULE qs_linres_current_utils
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
+                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
@@ -37,7 +38,7 @@ MODULE qs_linres_current_utils
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -54,7 +55,6 @@ MODULE qs_linres_current_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
@@ -154,8 +154,8 @@ CONTAINS
       POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: op_p_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: op_p_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fm_work_ii, fm_work_iii, &
                                                 h1_psi0, hpsi0_ptr, &
@@ -275,7 +275,7 @@ CONTAINS
        CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix,sab_orb,error=error)
        !
        !
-       CALL dbcsr_distribution_release (dbcsr_dist)
+       CALL cp_dbcsr_distribution_release (dbcsr_dist)
        CALL array_release (row_blk_sizes)
        !
        !

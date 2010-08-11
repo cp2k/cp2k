@@ -24,7 +24,8 @@ MODULE rt_propagation_methods
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_upper_to_full
@@ -43,7 +44,6 @@ MODULE rt_propagation_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_cn,&
@@ -117,8 +117,8 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i
     LOGICAL                                  :: my_force
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, exp_H_new
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -387,8 +387,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, lb, ndim, ub
     LOGICAL                                  :: failure
     REAL(dp)                                 :: t
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: SinvH
     TYPE(cp_fm_type), POINTER                :: B_mat, H_fm, S_inv, SinvB, &
@@ -451,8 +451,8 @@ CONTAINS
 
   SUBROUTINE s_matrices_create (s_mat,rtp,diagonalize,error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: s_mat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: s_mat
     TYPE(rt_prop_type), POINTER              :: rtp
     LOGICAL                                  :: diagonalize
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -534,9 +534,9 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, im_part, re_part
+    TYPE(cp_dbcsr_type), POINTER             :: tmp_rho_im, tmp_rho_re
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
-    TYPE(dbcsr_obj), POINTER                 :: tmp_rho_im, tmp_rho_re
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -595,8 +595,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -658,8 +658,8 @@ CONTAINS
                                                 naspc, ncol_local, nmat
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_cfm_type), POINTER               :: cfm_tmp, cfm_tmp1, csc
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s, s_hist
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, s_hist
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, mos_new
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -810,8 +810,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos, exp_H
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: s_mat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: s_mat
     INTEGER                                  :: ihist
     TYPE(cp_error_type), INTENT(inout)       :: error
 

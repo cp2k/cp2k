@@ -28,7 +28,7 @@ MODULE ep_methods
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply,&
                                              sm_from_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -596,8 +596,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -862,8 +862,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp) :: alpha, Ap_p, Ap_p_s, beta, p_ortho_norm, p_ortho_norm_s, &
       r_norm2, r_norm2_s, r_z, r_z_new, r_z_s
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: Ap, p, p_ortho, r, z
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -1173,8 +1173,8 @@ CONTAINS
     INTEGER                                  :: iao, imo, ispin, ispin2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: v_norm, v_norm_s
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: res, v
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -1358,8 +1358,8 @@ CONTAINS
                                                 uniform_occupation
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1497,8 +1497,8 @@ CONTAINS
     TYPE(cp_2d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: rotatedC0
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s, matrix_w
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi0
@@ -2044,8 +2044,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ep_calc_w_matrix_full(ep_env,w_matrix,error)
     TYPE(ep_env_type), POINTER               :: ep_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: w_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: w_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_w_matrix_full', &
@@ -2237,8 +2237,8 @@ CONTAINS
     REAL(kind=dp)                            :: fdiff(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_b
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: aomo_work1, coeffs_cr, &
@@ -2528,8 +2528,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ierr, ispin, stat
     LOGICAL                                  :: failure
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_b
     TYPE(cp_error_type)                      :: new_error
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(f_env_type), POINTER                :: f_env

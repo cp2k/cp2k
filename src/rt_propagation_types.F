@@ -21,7 +21,7 @@ MODULE rt_propagation_types
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_get_el_struct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -76,7 +76,7 @@ MODULE rt_propagation_types
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:,:)                :: mo_history
     TYPE(cp_fm_p_type),POINTER  ,DIMENSION(:,:)                :: exp_history
     INTEGER                                                    :: mos_or_H
-    TYPE(cp_dbcsr_obj_p_type),POINTER,DIMENSION(:)              :: s_history
+    TYPE(cp_dbcsr_p_type),POINTER,DIMENSION(:)              :: s_history
  END TYPE rtp_history_type
 
 ! *** Public data types ***

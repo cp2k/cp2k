@@ -29,6 +29,7 @@ MODULE qs_mo_types
                                              cp_dbcsr_release_p
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_copy_columns_hack
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
@@ -43,7 +44,6 @@ MODULE qs_mo_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE fermi_utils,                     ONLY: FermiFixed,&
                                              FermiFixedDeriv
   USE input_constants,                 ONLY: smear_energy_window,&
@@ -87,7 +87,7 @@ MODULE qs_mo_types
   TYPE mo_set_type
     ! the actual MO coefficients as a matrix
     TYPE(cp_fm_type), POINTER                 :: mo_coeff
-    TYPE(dbcsr_obj), POINTER                  :: mo_coeff_b
+    TYPE(cp_dbcsr_type), POINTER                  :: mo_coeff_b
     ! we are using the dbcsr mo_coeff_b
     LOGICAL                                   :: use_mo_coeff_b
     ! number of molecular orbitals (# cols in mo_coeff)
@@ -426,7 +426,7 @@ CONTAINS
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: mo_coeff_b
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: mo_coeff_b
     LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kTS, mu
 

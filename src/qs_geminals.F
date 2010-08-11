@@ -20,14 +20,14 @@ MODULE qs_geminals
                                              get_geminal_basis_set,&
                                              get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_types,                     ONLY: dbcsr_iterator
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
                                              hfx_get_mult_cache_elements
@@ -301,10 +301,10 @@ MODULE qs_geminals
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_a, atomic_kind_b, &
                                                 atomic_kind_c
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_p
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_p
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_iterator)                     :: iter
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set_a, &
@@ -369,18 +369,18 @@ MODULE qs_geminals
 
     ehfx2 = 0._dp
 
-    CALL dbcsr_iterator_start(iter, matrix_p(1)%matrix)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block1, tr, blk)
+    CALL cp_dbcsr_iterator_start(iter, matrix_p(1)%matrix)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, p_block1, tr, blk)
        IF ( calculate_fock ) THEN
-          CALL dbcsr_get_block_p(matrix=matrix_ks(1)%matrix,&
+          CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix,&
                row=iatom,col=jatom,BLOCK=ks_block1,tr=tr,found=found)
        END IF
        IF (nspins==2) THEN
-          CALL dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
+          CALL cp_dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
                row=iatom,col=jatom,BLOCK=p_block2,tr=tr,found=found)
           IF ( calculate_fock ) THEN
-             CALL dbcsr_get_block_p(matrix=matrix_ks(2)%matrix,&
+             CALL cp_dbcsr_get_block_p(matrix=matrix_ks(2)%matrix,&
                   row=iatom,col=jatom,BLOCK=ks_block2,tr=tr,found=found)
           ENDIF
        ENDIF
@@ -476,7 +476,7 @@ MODULE qs_geminals
 
        END DO
     END DO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

@@ -13,25 +13,20 @@ MODULE se_core_matrix
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_distribute,&
-                                             cp_dbcsr_get_block_diag,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_replicate_all,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_sum_replicated
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
+       cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_replicate_all, cp_dbcsr_set, cp_dbcsr_sum_replicated
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
@@ -97,10 +92,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h, matrix_p, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: diagmat_h, diagmat_p
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj), POINTER                 :: diagmat_h, diagmat_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -262,11 +257,11 @@ CONTAINS
                CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
                      do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
                  NULLIFY(h_blocka)
-                 CALL dbcsr_get_block_p(diagmat_h,&
+                 CALL cp_dbcsr_get_block_p(diagmat_h,&
                       iatom,iatom,h_blocka,tr,found)
                  CPPostcondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,error,failure)
                  IF(calculate_forces) THEN
-                   CALL dbcsr_get_block_p(diagmat_p,&
+                   CALL cp_dbcsr_get_block_p(diagmat_p,&
                         iatom,iatom,pamat,tr,found)
                    CPPostcondition(ASSOCIATED(pamat),cp_failure_level,routineP,error,failure)
                  END IF
@@ -297,12 +292,12 @@ CONTAINS
                    icol = iatom
                  END IF
                  NULLIFY (h_block)
-                 CALL dbcsr_get_block_p(matrix_h(1)%matrix,&
+                 CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,&
                       irow,icol,h_block,tr,found)
                  CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
                  ! two-centre one-electron term
                  NULLIFY(s_block)
-                 CALL dbcsr_get_block_p(matrix_s(1)%matrix,&
+                 CALL cp_dbcsr_get_block_p(matrix_s(1)%matrix,&
                       irow,icol,s_block,tr,found)
                  CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
                  IF ( irow == iatom ) THEN
@@ -321,12 +316,12 @@ CONTAINS
                  IF(calculate_forces) THEN
                    atom_a = atom_of_kind(iatom)
                    atom_b = atom_of_kind(jatom)
-                   CALL dbcsr_get_block_p(matrix_p(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,&
                         irow,icol,pabmat,tr,found)
                    CPPostcondition(ASSOCIATED(pabmat),cp_failure_level,routineP,error,failure)
                    DO icor=1,3
                      force_ab(icor) = 0._dp
-                     CALL dbcsr_get_block_p(matrix_s(icor+1)%matrix,&
+                     CALL cp_dbcsr_get_block_p(matrix_s(icor+1)%matrix,&
                           irow,icol,dsmat,tr,found)
                      CPPostcondition(ASSOCIATED(dsmat),cp_failure_level,routineP,error,failure)
                      dsmat=2._dp*kh*dsmat*pabmat

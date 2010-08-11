@@ -18,7 +18,7 @@ MODULE kg_scf_post
                                              pbc
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              sm_from_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -98,8 +98,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: moments_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: moments_b
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecule

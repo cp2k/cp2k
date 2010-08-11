@@ -22,14 +22,14 @@ MODULE kg_gpw_collocate_den
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_distribution,&
+                                             cp_dbcsr_get_block_p
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_mp
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
@@ -108,7 +108,7 @@ CONTAINS
                                atom,kind,ratom,compute_tau,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(dbcsr_obj), POINTER                 :: matrix_p
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_r, rho_g
     REAL(dp), INTENT(OUT)                    :: total_rho
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -322,7 +322,7 @@ CONTAINS
 
           ! bad, should do better loop ordering XXXXXXXXXX
           NULLIFY(p_block)
-          CALL dbcsr_get_block_p(matrix=matrix_p,&
+          CALL cp_dbcsr_get_block_p(matrix=matrix_p,&
                row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
           IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
@@ -660,9 +660,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_h, matrix_p
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
-    TYPE(dbcsr_obj), POINTER                 :: matrix_h, matrix_p
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
@@ -681,7 +681,7 @@ CONTAINS
     !CALL cp_dbcsr_init(matrix_h, error)!sm->dbcsr
     CALL cp_dbcsr_from_sm(matrix_p, matrix_p_sm%matrix, error, distribution_2d)!sm->dbcsr
     CALL cp_dbcsr_from_sm(matrix_h, matrix_h_sm%matrix, error, distribution_2d,&
-         mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_p)))!sm->dbcsr
+         mp_obj=dbcsr_distribution_mp (cp_dbcsr_distribution (matrix_p)))!sm->dbcsr
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
     IF (PRESENT(compute_tau)) THEN
@@ -833,12 +833,12 @@ CONTAINS
           END IF
 
           NULLIFY(h_block)
-          CALL dbcsr_get_block_p(matrix=matrix_h,&
+          CALL cp_dbcsr_get_block_p(matrix=matrix_h,&
                row=brow,col=bcol,BLOCK=h_block,tr=tr,found=found)
           CPPrecondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
 
           NULLIFY(p_block)
-          CALL dbcsr_get_block_p(matrix=matrix_p,&
+          CALL cp_dbcsr_get_block_p(matrix=matrix_p,&
                row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
           CPPrecondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
 

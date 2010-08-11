@@ -18,6 +18,7 @@ MODULE stm_images
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_plus_fm_fm_t
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -29,7 +30,6 @@ MODULE stm_images
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -107,12 +107,12 @@ CONTAINS
                                                 stm_biases
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: evals, occupation
+    TYPE(cp_dbcsr_type), POINTER             :: stm_density_ao
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mo_arrays
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj), POINTER                 :: stm_density_ao
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -254,7 +254,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(dbcsr_obj), POINTER                 :: stm_density_ao
+    TYPE(cp_dbcsr_type), POINTER             :: stm_density_ao
     TYPE(pw_p_type)                          :: wf_r, wf_g
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(IN)                             :: mo_arrays

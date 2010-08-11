@@ -13,7 +13,8 @@ MODULE rt_propagation_output
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
@@ -27,7 +28,6 @@ MODULE rt_propagation_output
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_constants,                 ONLY: ehrenfest,&
                                              real_time_propagation
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -70,8 +70,8 @@ CONTAINS
     REAL(dp)                                 :: orthonormality, tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
@@ -170,7 +170,7 @@ CONTAINS
     REAL(KIND=dp)                            :: orthonormality
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: matrix_s
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_calculate_orthonormality', &
@@ -265,12 +265,12 @@ CONTAINS
                                                 newdim, nmo, nspin, re_part
     LOGICAL                                  :: double_col, double_row
     REAL(KIND=dp)                            :: alpha, max_alpha
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrixv_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrixv_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: newstruct, newstruct1, &
                                                 tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: work, work1, work2
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s
     TYPE(rt_prop_type), POINTER              :: rtp
 
    NULLIFY(tmp_fm_struct)

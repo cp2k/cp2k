@@ -18,7 +18,7 @@ MODULE cp_ddapc
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay,&
                                              restraint_functional_force,&
@@ -86,8 +86,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     LOGICAL, INTENT(in)                      :: just_energy
     LOGICAL, INTENT(OUT)                     :: ddapc_restraint_is_spin, &
                                                 explicit_potential

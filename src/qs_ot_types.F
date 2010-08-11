@@ -18,30 +18,28 @@ MODULE qs_ot_types
                                              cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init_p,&
-                                             cp_dbcsr_release_p,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_finalize, cp_dbcsr_get_data_size, cp_dbcsr_init_p, &
+       cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_get_data_size, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_row_block_sizes
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
+                                             dbcsr_distribution_new,&
+                                             dbcsr_distribution_row_dist,&
+                                             dbcsr_mp_npcols,&
+                                             dbcsr_mp_nprows
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj,&
                                              dbcsr_type_complex_default,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_4,&
@@ -129,19 +127,19 @@ MODULE qs_ot_types
      ! these will/might change during iterations
 
      ! OT / TOD
-     TYPE(dbcsr_obj), POINTER :: matrix_p
-     TYPE(dbcsr_obj), POINTER :: matrix_r
-     TYPE(dbcsr_obj), POINTER :: matrix_sinp
-     TYPE(dbcsr_obj), POINTER :: matrix_cosp
-     TYPE(dbcsr_obj), POINTER :: matrix_sinp_b
-     TYPE(dbcsr_obj), POINTER :: matrix_cosp_b
-     TYPE(dbcsr_obj), POINTER :: matrix_buf1
-     TYPE(dbcsr_obj), POINTER :: matrix_buf2
-     TYPE(dbcsr_obj), POINTER :: matrix_buf3
-     TYPE(dbcsr_obj), POINTER :: matrix_buf4
-     TYPE(dbcsr_obj), POINTER :: matrix_os
-     TYPE(dbcsr_obj), POINTER :: matrix_buf1_ortho
-     TYPE(dbcsr_obj), POINTER :: matrix_buf2_ortho
+     TYPE(cp_dbcsr_type), POINTER :: matrix_p
+     TYPE(cp_dbcsr_type), POINTER :: matrix_r
+     TYPE(cp_dbcsr_type), POINTER :: matrix_sinp
+     TYPE(cp_dbcsr_type), POINTER :: matrix_cosp
+     TYPE(cp_dbcsr_type), POINTER :: matrix_sinp_b
+     TYPE(cp_dbcsr_type), POINTER :: matrix_cosp_b
+     TYPE(cp_dbcsr_type), POINTER :: matrix_buf1
+     TYPE(cp_dbcsr_type), POINTER :: matrix_buf2
+     TYPE(cp_dbcsr_type), POINTER :: matrix_buf3
+     TYPE(cp_dbcsr_type), POINTER :: matrix_buf4
+     TYPE(cp_dbcsr_type), POINTER :: matrix_os
+     TYPE(cp_dbcsr_type), POINTER :: matrix_buf1_ortho
+     TYPE(cp_dbcsr_type), POINTER :: matrix_buf2_ortho
 
      REAL(KIND = dp),  DIMENSION(:), POINTER :: evals
      REAL(KIND = dp),  DIMENSION(:), POINTER :: dum
@@ -154,22 +152,22 @@ MODULE qs_ot_types
      TYPE(cp_blacs_env_type), POINTER :: blacs_env
 
      ! mo-like vectors
-     TYPE(dbcsr_obj), POINTER :: matrix_c0,matrix_sc0,matrix_psc0
+     TYPE(cp_dbcsr_type), POINTER :: matrix_c0,matrix_sc0,matrix_psc0
 
      ! OT / IR
-     TYPE(dbcsr_obj), POINTER :: buf1_k_k_nosym, buf2_k_k_nosym, &
+     TYPE(cp_dbcsr_type), POINTER :: buf1_k_k_nosym, buf2_k_k_nosym, &
           buf3_k_k_nosym, buf4_k_k_nosym, &
           buf1_k_k_sym, buf2_k_k_sym, buf3_k_k_sym, buf4_k_k_sym, &
           p_k_k_sym, buf1_n_k, buf1_n_k_dp
 
      ! only here for the ease of programming. These will have to be supplied
      ! explicitly at all times
-     TYPE(dbcsr_obj), POINTER :: matrix_x,matrix_sx, matrix_gx
-     TYPE(dbcsr_obj), POINTER :: matrix_dx, matrix_gx_old
+     TYPE(cp_dbcsr_type), POINTER :: matrix_x,matrix_sx, matrix_gx
+     TYPE(cp_dbcsr_type), POINTER :: matrix_dx, matrix_gx_old
 
      LOGICAL :: use_gx_old, use_dx
 
-     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: matrix_h_e, matrix_h_x
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e, matrix_h_x
 
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: ls_diis
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lss_diis
@@ -194,19 +192,19 @@ MODULE qs_ot_types
      REAL(KIND = dp)  :: largest_eval_upper_bound
 
      ! second part of the variables, if an explicit rotation is required as well
-     TYPE(dbcsr_obj), POINTER :: rot_mat_u ! rotation matrix
-     TYPE(dbcsr_obj), POINTER :: rot_mat_x ! antisymmetric matrix that parametrises rot_matrix_u
-     TYPE(dbcsr_obj), POINTER :: rot_mat_dedu ! derivative of the total energy wrt to u
-     TYPE(dbcsr_obj), POINTER :: rot_mat_chc  ! for convencience, the matrix c^T H c
+     TYPE(cp_dbcsr_type), POINTER :: rot_mat_u ! rotation matrix
+     TYPE(cp_dbcsr_type), POINTER :: rot_mat_x ! antisymmetric matrix that parametrises rot_matrix_u
+     TYPE(cp_dbcsr_type), POINTER :: rot_mat_dedu ! derivative of the total energy wrt to u
+     TYPE(cp_dbcsr_type), POINTER :: rot_mat_chc  ! for convencience, the matrix c^T H c
 
-     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
-     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
-     TYPE(dbcsr_obj), POINTER :: rot_mat_gx
-     TYPE(dbcsr_obj), POINTER :: rot_mat_gx_old
-     TYPE(dbcsr_obj), POINTER :: rot_mat_dx
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rot_mat_h_e
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rot_mat_h_x
+     TYPE(cp_dbcsr_type), POINTER :: rot_mat_gx
+     TYPE(cp_dbcsr_type), POINTER :: rot_mat_gx_old
+     TYPE(cp_dbcsr_type), POINTER :: rot_mat_dx
 
      REAL(KIND = dp),   DIMENSION(:), POINTER :: rot_mat_evals
-     TYPE(dbcsr_obj), POINTER :: rot_mat_evec
+     TYPE(cp_dbcsr_type), POINTER :: rot_mat_evec
      ! *** SCP
      ! third part of the variables, if we are simultaneously
      ! minimizing SCP variables 
@@ -219,12 +217,12 @@ MODULE qs_ot_types
      REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_e 
      REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: h_x 
      ! NDDO
-     TYPE ( dbcsr_obj ), POINTER :: xmat
-     TYPE ( dbcsr_obj ), POINTER :: dxmat
-     TYPE ( dbcsr_obj ), POINTER :: gxmat
-     TYPE ( dbcsr_obj ), POINTER :: gx_oldmat
-     TYPE ( cp_dbcsr_obj_p_type ), POINTER :: he_mat ( : )
-     TYPE ( cp_dbcsr_obj_p_type ), POINTER :: hx_mat ( : )
+     TYPE ( cp_dbcsr_type ), POINTER :: xmat
+     TYPE ( cp_dbcsr_type ), POINTER :: dxmat
+     TYPE ( cp_dbcsr_type ), POINTER :: gxmat
+     TYPE ( cp_dbcsr_type ), POINTER :: gx_oldmat
+     TYPE ( cp_dbcsr_p_type ), POINTER :: he_mat ( : )
+     TYPE ( cp_dbcsr_p_type ), POINTER :: hx_mat ( : )
      INTEGER :: n_el_scp
      ! *** SCP
 
@@ -346,11 +344,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ot_allocate(qs_ot_env, matrix_s, fm_struct_ref, aux_coeff_set, scp_sm, ortho_k,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: scp_sm
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: scp_sm
     INTEGER, OPTIONAL                        :: ortho_k
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -457,60 +455,60 @@ CONTAINS
     NULLIFY(qs_ot_env%buf1_n_k_dp)
     NULLIFY(qs_ot_env%p_k_k_sym)
 
-    CALL create_bl_distribution (col_dist, col_blk_size_k, k, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_s))))
-    CALL create_bl_distribution (col_dist_o, col_blk_size_o, my_ortho_k, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_s))))
-    CALL create_bl_distribution (row_dist, row_blk_size_k, k, &
-         dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(matrix_s))))
-    CALL create_bl_distribution (row_dist_o, row_blk_size_o, my_ortho_k, &
-         dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(matrix_s))))
-    CALL dbcsr_distribution_new (dist_k_k, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
+    CALL cp_create_bl_distribution (col_dist, col_blk_size_k, k, &
+         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
+    CALL cp_create_bl_distribution (col_dist_o, col_blk_size_o, my_ortho_k, &
+         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
+    CALL cp_create_bl_distribution (row_dist, row_blk_size_k, k, &
+         dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
+    CALL cp_create_bl_distribution (row_dist_o, row_blk_size_o, my_ortho_k, &
+         dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
+    CALL dbcsr_distribution_new (dist_k_k, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
          row_dist, col_dist)
-    CALL dbcsr_distribution_new (dist_o_o, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
+    CALL dbcsr_distribution_new (dist_o_o, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
          row_dist_o, col_dist_o)
-    CALL dbcsr_distribution_new (dist_o_k, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
+    CALL dbcsr_distribution_new (dist_o_k, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
          row_dist_o, col_dist)
-    CALL dbcsr_distribution_new (dist_n_k, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
-         dbcsr_distribution_row_dist(dbcsr_distribution(matrix_s)), col_dist)
-    CALL dbcsr_distribution_new (dist_n_o, dbcsr_distribution_mp (dbcsr_distribution(matrix_s)),&
-         dbcsr_distribution_row_dist(dbcsr_distribution(matrix_s)), col_dist_o)
+    CALL dbcsr_distribution_new (dist_n_k, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
+         dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s)), col_dist)
+    CALL dbcsr_distribution_new (dist_n_o, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
+         dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s)), col_dist_o)
     CALL array_release (row_dist); CALL array_release (col_dist)
     CALL array_release (row_dist_o); CALL array_release (col_dist_o)
     !
     ! COMMON MATRICES
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_c0, error=error)
     CALL cp_dbcsr_create(qs_ot_env%matrix_c0, "matrix_c0", dist_n_k, dbcsr_type_normal,&
-         dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+         cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
          error=error)
     CALL cp_dbcsr_finalize(qs_ot_env%matrix_c0, error=error)
 
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_sc0, error=error)
     CALL cp_dbcsr_create(qs_ot_env%matrix_sc0, "matrix_sc0", dist_n_o, dbcsr_type_normal,&
-         dbcsr_row_block_sizes(matrix_s), col_blk_size_o, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+         cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_o, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
          error=error)
     CALL cp_dbcsr_finalize(qs_ot_env%matrix_sc0, error=error)
 
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_x, error=error)
     CALL cp_dbcsr_create(qs_ot_env%matrix_x, "matrix_x", dist_n_k, dbcsr_type_normal,&
-         dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+         cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
          error=error)
     CALL cp_dbcsr_finalize(qs_ot_env%matrix_x, error=error)
 
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_sx, error=error)
     CALL cp_dbcsr_create(qs_ot_env%matrix_sx, "matrix_sx", dist_n_k, dbcsr_type_normal,&
-         dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+         cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
          error=error)
     CALL cp_dbcsr_finalize(qs_ot_env%matrix_sx, error=error)
 
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_gx, error=error)
     IF(mixed_precision) THEN
        CALL cp_dbcsr_create(qs_ot_env%matrix_gx, "matrix_gx", dist_n_k, dbcsr_type_normal,&
-            dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
+            cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
             error=error)
     ELSE
        CALL cp_dbcsr_create(qs_ot_env%matrix_gx, "matrix_gx", dist_n_k, dbcsr_type_normal,&
-            dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+            cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
             error=error)
     ENDIF
     CALL cp_dbcsr_finalize(qs_ot_env%matrix_gx, error=error)
@@ -519,11 +517,11 @@ CONTAINS
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_dx, error=error)
        IF(mixed_precision) THEN
           CALL cp_dbcsr_create(qs_ot_env%matrix_dx, "matrix_dx", dist_n_k, dbcsr_type_normal,&
-               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
+               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
                error=error)
        ELSE
           CALL cp_dbcsr_create(qs_ot_env%matrix_dx, "matrix_dx", dist_n_k, dbcsr_type_normal,&
-               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
                error=error)
        ENDIF
        CALL cp_dbcsr_finalize(qs_ot_env%matrix_dx, error=error)
@@ -533,11 +531,11 @@ CONTAINS
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_gx_old, error=error)
        IF(mixed_precision) THEN
           CALL cp_dbcsr_create(qs_ot_env%matrix_gx_old, "matrix_gx_old", dist_n_k, dbcsr_type_normal,&
-               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
+               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
                error=error)
        ELSE
           CALL cp_dbcsr_create(qs_ot_env%matrix_gx_old, "matrix_gx_old", dist_n_k, dbcsr_type_normal,&
-               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
                error=error)
        ENDIF
        CALL cp_dbcsr_finalize(qs_ot_env%matrix_gx_old, error=error)
@@ -685,14 +683,14 @@ CONTAINS
        !
        CALL cp_dbcsr_init_p(qs_ot_env%buf1_n_k, error=error)
        CALL cp_dbcsr_create(qs_ot_env%buf1_n_k, "buf1_n_k", dist_n_k, dbcsr_type_normal,&
-            dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+            cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
             error=error)
        CALL cp_dbcsr_finalize(qs_ot_env%buf1_n_k, error=error)
        !
        IF(mixed_precision) THEN
           CALL cp_dbcsr_init_p(qs_ot_env%buf1_n_k_dp, error=error)
           CALL cp_dbcsr_create(qs_ot_env%buf1_n_k_dp, "buf1_n_k_dp", dist_n_k, dbcsr_type_normal,&
-               dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
                error=error)
           CALL cp_dbcsr_finalize(qs_ot_env%buf1_n_k_dp, error=error)
        ENDIF
@@ -710,11 +708,11 @@ CONTAINS
           CALL cp_dbcsr_init_p(qs_ot_env%matrix_h_x(i)%matrix, error=error)
           IF(mixed_precision) THEN
              CALL cp_dbcsr_create(qs_ot_env%matrix_h_x(i)%matrix, "matrix_h_x(i)%matrix", dist_n_k, dbcsr_type_normal,&
-                  dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
+                  cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
                   error=error)
           ELSE
              CALL cp_dbcsr_create(qs_ot_env%matrix_h_x(i)%matrix, "matrix_h_x(i)%matrix", dist_n_k, dbcsr_type_normal,&
-                  dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+                  cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
                   error=error)
           ENDIF
           CALL cp_dbcsr_finalize(qs_ot_env%matrix_h_x(i)%matrix, error=error)
@@ -722,11 +720,11 @@ CONTAINS
           CALL cp_dbcsr_init_p(qs_ot_env%matrix_h_e(i)%matrix, error=error)
           IF(mixed_precision) THEN
              CALL cp_dbcsr_create(qs_ot_env%matrix_h_e(i)%matrix, "matrix_h_e(i)%matrix", dist_n_k, dbcsr_type_normal,&
-                  dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
+                  cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, special=.TRUE.,&
                   error=error)
           ELSE
              CALL cp_dbcsr_create(qs_ot_env%matrix_h_e(i)%matrix, "matrix_h_e(i)%matrix", dist_n_k, dbcsr_type_normal,&
-                  dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
+                  cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
                   error=error)
           ENDIF
           CALL cp_dbcsr_finalize(qs_ot_env%matrix_h_e(i)%matrix, error=error)
@@ -889,7 +887,7 @@ CONTAINS
 ! Finding the actuall number of allocated elements in scp_sm.  This will coresspond
 ! to the number of variational degrees of freedom (e.g. coefficients).
      
-      ncoef = dbcsr_get_data_size(scp_sm)
+      ncoef = cp_dbcsr_get_data_size(scp_sm)
      
       qs_ot_env % n_el_scp = ncoef
    
@@ -933,11 +931,11 @@ CONTAINS
     ENDIF
     ! **** SCP
 
-    CALL dbcsr_distribution_release (dist_n_k)
-    CALL dbcsr_distribution_release (dist_n_o)
-    CALL dbcsr_distribution_release (dist_o_k)
-    CALL dbcsr_distribution_release (dist_o_o)
-    CALL dbcsr_distribution_release (dist_k_k)
+    CALL cp_dbcsr_distribution_release (dist_n_k)
+    CALL cp_dbcsr_distribution_release (dist_n_o)
+    CALL cp_dbcsr_distribution_release (dist_o_k)
+    CALL cp_dbcsr_distribution_release (dist_o_o)
+    CALL cp_dbcsr_distribution_release (dist_k_k)
 
     CALL array_release (row_blk_size_k)
     CALL array_release (col_blk_size_k)

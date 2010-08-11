@@ -44,12 +44,11 @@ MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_init_p,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_create_bl_distribution, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_finalize, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_name, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_alloc_block_from_nbl,&
@@ -58,7 +57,8 @@ MODULE qs_scf
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_power
@@ -82,17 +82,11 @@ MODULE qs_scf
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
-  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
-  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
-                                             dbcsr_distribution,&
-                                             dbcsr_distribution_mp,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
-                                             dbcsr_distribution_release,&
                                              dbcsr_distribution_row_dist,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_row_block_sizes
+                                             dbcsr_mp_npcols
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default,&
                                              dbcsr_type_symmetric
@@ -446,11 +440,11 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -843,13 +837,13 @@ CONTAINS
                                               invert=.TRUE.,error=error)
                   DO ispin=1,dft_control%nspins
                      CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                        name=TRIM(rho%rho_ao(ispin)%matrix%m%name),error=error)
+                                        name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
                   END DO
                 CASE(gspace_mixing_nr,pulay_mixing_nr,broyden_mixing_nr,&
                      broyden_mixing_new_nr,multisecant_mixing_nr)
                   DO ispin=1,dft_control%nspins
                      CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                        name=TRIM(rho%rho_ao(ispin)%matrix%m%name),error=error)
+                                        name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
                   END DO
                 END SELECT
              ENDIF
@@ -904,7 +898,7 @@ CONTAINS
           IF (scf_env%mixing_method > 0) THEN
              DO ispin=1,dft_control%nspins
                 CALL cp_dbcsr_copy(rho%rho_ao(ispin)%matrix,scf_env%p_mix_new(ispin)%matrix,&
-                                   name=TRIM(rho%rho_ao(ispin)%matrix%m%name),error=error)
+                                   name=TRIM(cp_dbcsr_name(rho%rho_ao(ispin)%matrix)),error=error)
              END DO
           END IF
 
@@ -997,14 +991,14 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: mo_derivs
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
     REAL(KIND=dp), INTENT(IN)                :: total_energy
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp
     LOGICAL, INTENT(INOUT)                   :: energy_only
     LOGICAL, INTENT(IN)                      :: has_unit_metric
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1014,7 +1008,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
-    TYPE(dbcsr_obj), POINTER                 :: orthogonality_metric
+    TYPE(cp_dbcsr_type), POINTER             :: orthogonality_metric
 
     CALL timeset(routineN,handle)
 
@@ -1249,8 +1243,8 @@ END SUBROUTINE qs_scf_print_summary
     INTEGER                                  :: handle, ispin, iw
     REAL(KIND=dp)                            :: mo_mag_max, mo_mag_min, &
                                                 orthonormality
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_p, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_p, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -1361,12 +1355,12 @@ END SUBROUTINE qs_scf_print_summary
                                                 has_unit_metric, scp_dft, &
                                                 scp_nddo, semi
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, mo_coeff_b, &
+                                                orthogonality_metric, pscp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: ks_scp, mo_coeff_b, &
-                                                orthogonality_metric, pscp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1890,8 +1884,8 @@ CPSourceFileRef)
       my_transition_potential, s_minus_half_available
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h, matrix_ks, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -2090,9 +2084,10 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_ks_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_s, mo_derivs
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_aux_fit
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -2104,7 +2099,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools, S_sm_pools_aux_fit
     TYPE(dbcsr_distribution_obj)             :: dist
-    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(mixing_storage_type), POINTER       :: mixing_store
@@ -2168,16 +2162,16 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
              ! check if we need the mo_coeff_b
              mos(ispin)%mo_set%use_mo_coeff_b = qs_env%scf_control%use_ot .OR.&
                                                 scf_env%method .EQ. ot_diag_method_nr
-             CALL create_bl_distribution (col_dist, col_blk_size, nmo, &! fm->dbcsr
-                  dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_s(1)%matrix))))! fm->dbcsr
-             CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_s(1)%matrix)),&! fm->dbcsr
-                  dbcsr_distribution_row_dist(dbcsr_distribution(matrix_s(1)%matrix)), col_dist)! fm->dbcsr
+             CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo, &! fm->dbcsr
+                  dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s(1)%matrix))))! fm->dbcsr
+             CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s(1)%matrix)),&! fm->dbcsr
+                  dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s(1)%matrix)), col_dist)! fm->dbcsr
              CALL cp_dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b,error=error)
              CALL cp_dbcsr_create(mos(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_normal,&! fm->dbcsr
-                  dbcsr_row_block_sizes(matrix_s(1)%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&!fm->dbcsr
+                  cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&!fm->dbcsr
                   special=.TRUE.,error=error)! fm->dbcsr
              CALL cp_dbcsr_finalize(mos(ispin)%mo_set%mo_coeff_b, error=error)! fm->dbcsr
-             CALL dbcsr_distribution_release (dist)! fm->dbcsr
+             CALL cp_dbcsr_distribution_release (dist)! fm->dbcsr
              CALL array_release (col_blk_size)! fm->dbcsr
              CALL array_release (col_dist)! fm->dbcsr
           ENDIF
@@ -2223,8 +2217,8 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
              NULLIFY(mo_derivs(1)%matrix)
              CALL cp_dbcsr_init_p(mo_derivs(1)%matrix,error=error)
              CALL cp_dbcsr_create(mo_derivs(1)%matrix, "mo_derivs",&
-                  dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
-                  dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
+                  cp_dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
+                  cp_dbcsr_row_block_sizes(mo_coeff_b), cp_dbcsr_col_block_sizes(mo_coeff_b),&
                   0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
              CALL cp_dbcsr_finalize(mo_derivs(1)%matrix, error=error)
           ELSE
@@ -2234,8 +2228,8 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
                 NULLIFY(mo_derivs(ispin)%matrix)
                 CALL cp_dbcsr_init_p(mo_derivs(ispin)%matrix,error=error)
                 CALL cp_dbcsr_create(mo_derivs(ispin)%matrix, "mo_derivs",&
-                     dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
-                     dbcsr_row_block_sizes(mo_coeff_b), dbcsr_col_block_sizes(mo_coeff_b),&
+                     cp_dbcsr_distribution(mo_coeff_b), dbcsr_type_normal,&
+                     cp_dbcsr_row_block_sizes(mo_coeff_b), cp_dbcsr_col_block_sizes(mo_coeff_b),&
                      0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
                 CALL cp_dbcsr_finalize(mo_derivs(ispin)%matrix, error=error)
              ENDDO
@@ -2360,9 +2354,9 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
           END IF
           CALL cp_dbcsr_create(matrix=matrix_ks(ispin)%matrix,&
                name=TRIM(headline)//" (SCF ENV "//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//")",&
-               dist=matrix_s(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric,&
-               row_blk_size=matrix_s(1)%matrix%m%row_blk_size,&
-               col_blk_size=matrix_s(1)%matrix%m%col_blk_size,&
+               dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
+               row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
+               col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
                nblks=0, nze=0, mutable_work=.TRUE.,&
                error=error)
           CALL cp_dbcsr_finalize(matrix_ks(ispin)%matrix,error=error)
@@ -2388,9 +2382,9 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
             CALL cp_dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, &
                  name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
                  "KOHN-SHAM_MATRIX for ADMM", &
-                 dist=qs_env%matrix_s_aux_fit(1)%matrix%m%dist, matrix_type=dbcsr_type_symmetric, &
-                 row_blk_size=qs_env%matrix_s_aux_fit(1)%matrix%m%row_blk_size,&
-                 col_blk_size=qs_env%matrix_s_aux_fit(1)%matrix%m%col_blk_size,&
+                 dist=cp_dbcsr_distribution(qs_env%matrix_s_aux_fit(1)%matrix), matrix_type=dbcsr_type_symmetric, &
+                 row_blk_size=cp_dbcsr_row_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
+                 col_blk_size=cp_dbcsr_col_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
                  nblks=0, nze=0, mutable_work=.TRUE., &
                  error=error)
             CALL cp_dbcsr_finalize(matrix_ks_aux_fit(ispin)%matrix,error=error)

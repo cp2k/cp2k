@@ -19,14 +19,14 @@ MODULE qs_fermi_contact
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -70,8 +70,8 @@ CONTAINS
   SUBROUTINE build_fermi_contact_matrix(qs_env,matrix_fc,rc,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_fc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_fc
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -248,7 +248,7 @@ CONTAINS
                    END IF
 
                    NULLIFY (fcint(1)%block)
-                   CALL dbcsr_get_block_p(matrix=matrix_fc(1)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=matrix_fc(1)%matrix,&
                         row=irow,col=icol,BLOCK=fcint(1)%block,tr=tr,found=found)
                 ENDIF
 

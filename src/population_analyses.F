@@ -19,14 +19,21 @@ MODULE population_analyses
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
                                              write_fm_with_basis_info
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -36,13 +43,6 @@ MODULE population_analyses
                                              cp_fm_get_diag,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                             dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -94,11 +94,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: sm_p, sm_s
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
-    TYPE(dbcsr_obj), POINTER                 :: sm_p, sm_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
@@ -262,10 +262,10 @@ CONTAINS
                                                 s_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_p, matrix_s
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj), POINTER                 :: sm_p, sm_ps, sm_s
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: sm_p, sm_ps, sm_s
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_rho_type), POINTER               :: rho
@@ -345,18 +345,18 @@ CONTAINS
       sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
       ! Calculate Hadamard product of P and S as sparse matrix (Mulliken)
       ! CALL cp_dbcsr_hadamard_product(sm_p,sm_s,sm_ps,error=error)
-      CALL dbcsr_iterator_start(iter,sm_s)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-        CALL dbcsr_iterator_next_block(iter,iatom,jatom,s_block,tr,blk)
+      CALL cp_dbcsr_iterator_start(iter,sm_s)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+        CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,s_block,tr,blk)
         IF (.NOT.(ASSOCIATED(s_block))) CYCLE
-        CALL dbcsr_get_block_p(matrix=sm_p,&
+        CALL cp_dbcsr_get_block_p(matrix=sm_p,&
                                row=iatom,&
                                col=jatom,&
                                block=p_block,&
                                tr=tr,&
                                found=found)
         IF (print_level > 2) THEN
-          CALL dbcsr_get_block_p(matrix=sm_ps,&
+          CALL cp_dbcsr_get_block_p(matrix=sm_ps,&
                                  row=iatom,&
                                  col=jatom,&
                                  block=ps_block,&
@@ -385,15 +385,15 @@ CONTAINS
           END DO
         END IF
       END DO
-      CALL dbcsr_iterator_stop(iter)
+      CALL cp_dbcsr_iterator_stop(iter)
 
       IF (print_level > 2) THEN
         ! Write the full Mulliken net AO and overlap population matrix
         IF (nspin > 1) THEN
           IF (ispin == 1) THEN
-            sm_ps%m%name = TRIM(headline)//" FOR ALPHA SPIN"
+            sm_ps%matrix%m%name = TRIM(headline)//" FOR ALPHA SPIN"
           ELSE
-            sm_ps%m%name = TRIM(headline)//" FOR BETA SPIN"
+            sm_ps%matrix%m%name = TRIM(headline)//" FOR BETA SPIN"
           END IF
         END IF
         CALL cp_dbcsr_write_sparse_matrix(sm_ps,4,6,qs_env,qs_env%para_env,&

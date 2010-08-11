@@ -16,7 +16,7 @@ MODULE xas_env_types
                                              gto_basis_set_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -98,7 +98,7 @@ MODULE xas_env_types
     TYPE( cp_fm_type ), POINTER :: all_vectors
     TYPE( cp_fm_type ), POINTER :: fm_work
     TYPE(mixing_storage_type), POINTER :: mixing_store
-    TYPE( cp_dbcsr_obj_p_type ), DIMENSION(:), POINTER :: ostrength_sm
+    TYPE( cp_dbcsr_p_type ), DIMENSION(:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
     TYPE(smear_type), POINTER   :: smear
 
@@ -125,8 +125,8 @@ CONTAINS
       POINTER                                :: spectrum
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: groundstate_coeff
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: ostrength_sm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ostrength_sm
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dip_fm_set
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: excvec_coeff, excvec_overlap, &

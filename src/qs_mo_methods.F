@@ -15,13 +15,16 @@ MODULE qs_mo_methods
   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd,&
                                              cp_dbcsr_syevx
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set
+       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_finalize, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_release_p, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_syrk,&
@@ -40,16 +43,11 @@ MODULE qs_mo_methods
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_mp,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_get_info,&
                                              dbcsr_mp_npcols,&
                                              dbcsr_mp_nprows
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default
   USE f77_blas
@@ -96,7 +94,7 @@ CONTAINS
   SUBROUTINE make_basis_sm(vmatrix,ncol,matrix_s,error)
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm', &
@@ -183,9 +181,9 @@ CONTAINS
 
   SUBROUTINE make_basis_sv_dbcsr(vmatrix,ncol,svmatrix,para_env,blacs_env,error)
 
-    TYPE(dbcsr_obj)                          :: vmatrix
+    TYPE(cp_dbcsr_type)                      :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
-    TYPE(dbcsr_obj)                          :: svmatrix
+    TYPE(cp_dbcsr_type)                      :: svmatrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -204,7 +202,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     !CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
-    CALL dbcsr_get_info(vmatrix,nfullrows_total=n,nfullcols_total=ncol_global)
+    CALL cp_dbcsr_get_info(vmatrix,nfullrows_total=n,nfullcols_total=ncol_global)
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
 
 
@@ -303,7 +301,7 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_lowdin', &
@@ -439,7 +437,7 @@ CONTAINS
   SUBROUTINE calculate_dm_sparse(mo_set,density_matrix,use_dbcsr,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: density_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: use_dbcsr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -449,8 +447,8 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: my_use_dbcsr
     REAL(KIND=dp)                            :: alpha
+    TYPE(cp_dbcsr_type)                      :: dbcsr_tmp
     TYPE(cp_fm_type), POINTER                :: fm_tmp
-    TYPE(dbcsr_obj)                          :: dbcsr_tmp
 
     CALL timeset(routineN,handle)
 
@@ -525,14 +523,14 @@ CONTAINS
        do_rotation,co_rotate,co_rotate_dbcsr,error)
 
     TYPE(cp_fm_type), POINTER                :: orbitals
-    TYPE(dbcsr_obj), POINTER                 :: ks_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: ks_matrix
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: evals_arg
     LOGICAL, INTENT(IN), OPTIONAL            :: ionode
     INTEGER, INTENT(IN), OPTIONAL            :: scr
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rotation
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: co_rotate
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: co_rotate_dbcsr
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: co_rotate_dbcsr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm', &
@@ -661,13 +659,13 @@ CONTAINS
   SUBROUTINE subspace_eigenvalues_ks_dbcsr(orbitals,ks_matrix,evals_arg,ionode,scr,&
        do_rotation,co_rotate,para_env,blacs_env,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: orbitals, ks_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: orbitals, ks_matrix
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: evals_arg
     LOGICAL, INTENT(IN), OPTIONAL            :: ionode
     INTEGER, INTENT(IN), OPTIONAL            :: scr
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rotation
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: co_rotate
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: co_rotate
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -683,9 +681,9 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
                                                 row_blk_size, row_dist
-    TYPE(dbcsr_distribution_obj)             :: dist
-    TYPE(dbcsr_obj), POINTER                 :: e_vectors, h_block, &
+    TYPE(cp_dbcsr_type), POINTER             :: e_vectors, h_block, &
                                                 weighted_vectors
+    TYPE(dbcsr_distribution_obj)             :: dist
 
     CALL timeset(routineN,handle)
 
@@ -694,7 +692,7 @@ CONTAINS
 
     NULLIFY(e_vectors, h_block, weighted_vectors)
 
-    CALL dbcsr_get_info(matrix=orbitals, &
+    CALL cp_dbcsr_get_info(matrix=orbitals, &
          nfullcols_total=ncol_global, &
          nfullrows_total=nrow_global)
 
@@ -714,11 +712,11 @@ CONTAINS
         CALL cp_dbcsr_init_p(weighted_vectors,error=error)
         CALL cp_dbcsr_copy(weighted_vectors,orbitals,name="weighted_vectors",error=error)
 
-        CALL create_bl_distribution (col_dist, col_blk_size, ncol_global, &
-             dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(orbitals))))
-        CALL create_bl_distribution (row_dist, row_blk_size, ncol_global, &
-             dbcsr_mp_nprows(dbcsr_distribution_mp(dbcsr_distribution(orbitals))))
-        CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(orbitals)),&
+        CALL cp_create_bl_distribution (col_dist, col_blk_size, ncol_global, &
+             dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(orbitals))))
+        CALL cp_create_bl_distribution (row_dist, row_blk_size, ncol_global, &
+             dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(orbitals))))
+        CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(orbitals)),&
              row_dist, col_dist)
         CALL array_release (row_dist); CALL array_release (col_dist)
 
@@ -740,7 +738,7 @@ CONTAINS
            CALL cp_dbcsr_finalize(e_vectors, error=error)
            !CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)
         ENDIF
-        CALL dbcsr_distribution_release (dist)
+        CALL cp_dbcsr_distribution_release (dist)
         CALL array_release (row_blk_size);CALL array_release (col_blk_size)
         !CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
@@ -828,7 +826,7 @@ CONTAINS
     REAL(KIND=dp)                            :: orthonormality
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: matrix_s
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_orthonormality', &

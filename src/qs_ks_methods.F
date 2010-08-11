@@ -29,8 +29,9 @@ MODULE qs_ks_methods
   USE cp_control_types,                ONLY: becke_restraint_type,&
                                              dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_filter, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release_p, &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_filter, cp_dbcsr_get_info, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_release_p, &
        cp_dbcsr_scale_by_vector, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
@@ -39,7 +40,8 @@ MODULE qs_ks_methods
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_ddapc,                        ONLY: cp_ddapc_apply_CD,&
                                              qs_ks_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -64,9 +66,6 @@ MODULE qs_ks_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info,&
-                                             dbcsr_get_occupation
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE dft_plus_u,                      ONLY: plus_u
   USE efield_utils,                    ONLY: efield_potential
   USE ep_qs_types,                     ONLY: ep_qs_type
@@ -290,8 +289,8 @@ CONTAINS
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -323,17 +322,17 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_dv, matrix_h, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_p, matrix_p_aux_fit, &
                                                 matrix_s, mo_derivs, my_rho
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_aux_fit, &
                                                 mo_derivs_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -927,7 +926,7 @@ CONTAINS
              ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
              DO ispin=1,nspins
                 CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
-                                   name=ks_matrix(ispin)%matrix%m%name,error=error)
+                                   name=cp_dbcsr_name(ks_matrix(ispin)%matrix),error=error)
              END DO
           END IF
 
@@ -1227,11 +1226,11 @@ CONTAINS
 
        ! At this point the ks matrix should be up to date, filter it if requested
        DO ispin=1,nspins
-          IF(.FALSE.)WRITE(*,*) 'before',dbcsr_get_occupation(ks_matrix(ispin)%matrix)
+          IF(.FALSE.)WRITE(*,*) 'before',cp_dbcsr_get_occupation(ks_matrix(ispin)%matrix)
           CALL cp_dbcsr_filter(ks_matrix(ispin)%matrix,&
                qs_env%dft_control%qs_control%eps_filter_matrix,&
                error=error)
-          IF(.FALSE.)WRITE(*,*) 'after',dbcsr_get_occupation(ks_matrix(ispin)%matrix)
+          IF(.FALSE.)WRITE(*,*) 'after',cp_dbcsr_get_occupation(ks_matrix(ispin)%matrix)
        ENDDO
 
        ! prepare to add electronic entropic contribution is needed
@@ -1283,7 +1282,7 @@ CONTAINS
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff,&
                   mo_coeff_b=mo_coeff_b, &
                   occupation_numbers=occupation_numbers )
-             CALL dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
+             CALL cp_dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff_b,&
                    0.0_dp,mo_derivs(ispin)%matrix, last_column=k, error=error)
 
@@ -1315,7 +1314,7 @@ CONTAINS
                  CPPrecondition(uniform_occupation, cp_failure_level, routineP, error, failure)
 
                  CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff_b)
-                 CALL dbcsr_get_info(mo_coeff_b,nfullcols_total=k)
+                 CALL cp_dbcsr_get_info(mo_coeff_b,nfullcols_total=k)
                  CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
                             1.0_dp, mo_derivs(1)%matrix, last_column=k,error=error)
              ENDIF
@@ -1484,9 +1483,9 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_obj), POINTER                 :: mo_coeff_b
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -1654,9 +1653,9 @@ CONTAINS
     REAL(KIND=dp)                            :: exc, total_rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h, matrix_p, mo_derivs
-    TYPE(dbcsr_obj), POINTER                 :: dbcsr_deriv, fm_deriv, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p, mo_derivs
+    TYPE(cp_dbcsr_type), POINTER             :: dbcsr_deriv, fm_deriv, &
                                                 fm_scaled, mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -1695,9 +1694,9 @@ CONTAINS
 
     ! basic info
     CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff_b=mo_coeff)
-    CALL dbcsr_get_info(mo_coeff,nfullcols_total=k_alpha)
+    CALL cp_dbcsr_get_info(mo_coeff,nfullcols_total=k_alpha)
     CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff)
-    CALL dbcsr_get_info(mo_coeff,nfullcols_total=k_beta)
+    CALL cp_dbcsr_get_info(mo_coeff,nfullcols_total=k_beta)
 
     ! read the input
     low_spin_roks_section => section_vals_get_subs_vals(input,"DFT%LOW_SPIN_ROKS", error=error)
@@ -1894,14 +1893,14 @@ CONTAINS
     LOGICAL                                  :: failure, uniform_occupation
     REAL(KIND=dp)                            :: ener, exc, total_rho
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type)                :: orb_density_matrix_p, orb_h_p
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: mo_derivs, tmp_dbcsr
+    TYPE(cp_dbcsr_p_type)                    :: orb_density_matrix_p, orb_h_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs, tmp_dbcsr
+    TYPE(cp_dbcsr_type), POINTER             :: orb_density_matrix, orb_h
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs_local
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_hv, matrix_v, mo_coeff
-    TYPE(dbcsr_obj), POINTER                 :: orb_density_matrix, orb_h
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -2483,8 +2482,8 @@ CONTAINS
     LOGICAL                                  :: c_forces, did_update, &
                                                 energy_only, failure
     REAL(KIND=dp)                            :: ecore
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h, matrix_ks
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_ks
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -3230,7 +3229,7 @@ CONTAINS
   SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: w_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: w_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
@@ -3285,7 +3284,7 @@ CONTAINS
   SUBROUTINE calculate_w_matrix_ot(mo_set,mo_deriv,w_matrix,s_matrix,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: mo_deriv, w_matrix, s_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: mo_deriv, w_matrix, s_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_ot', &
@@ -3384,7 +3383,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_w_matrix_roks(mo_set,matrix_ks,matrix_p,matrix_w,error)
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: matrix_ks, matrix_p, matrix_w
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_ks, matrix_p, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks', &

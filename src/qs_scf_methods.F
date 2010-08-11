@@ -14,8 +14,15 @@
 ! *****************************************************************************
 MODULE qs_scf_methods
 
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -31,13 +38,6 @@ MODULE qs_scf_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                             dbcsr_obj
   USE f77_blas
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              cholesky_off,&
@@ -84,11 +84,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_store, rho_ao, para_env, iter_delta,&
                                     iter_count,diis,invert,error)
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: p_mix_new
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_mix_new
     TYPE(mixing_storage_type), POINTER       :: mixing_store
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
     INTEGER, INTENT(IN)                      :: iter_count
@@ -376,11 +376,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_sm_mix(m1,m2,p_mix,delta,para_env,m3,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: m1, m2
+    TYPE(cp_dbcsr_type), POINTER             :: m1, m2
     REAL(KIND=dp), INTENT(IN)                :: p_mix
     REAL(KIND=dp), INTENT(OUT)               :: delta
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: m3
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: m3
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', &
@@ -391,20 +391,20 @@ CONTAINS
     LOGICAL                                  :: failure, found, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_delta_block, p_new_block, &
                                                 p_old_block
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     delta = 0.0_dp
 
-    CALL dbcsr_iterator_start(iter, m1)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, tr, blk)
-       CALL dbcsr_get_block_p(matrix=m2,row=iblock_row,col=iblock_col,&
+    CALL cp_dbcsr_iterator_start(iter, m1)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, tr, blk)
+       CALL cp_dbcsr_get_block_p(matrix=m2,row=iblock_row,col=iblock_col,&
             BLOCK=p_old_block,tr=tr,found=found)
        CPPostcondition(ASSOCIATED(p_old_block),cp_failure_level,routineP,error,failure)
        IF(PRESENT(m3)) THEN
-          CALL dbcsr_get_block_p(matrix=m3,row=iblock_row,col=iblock_col,&
+          CALL cp_dbcsr_get_block_p(matrix=m3,row=iblock_row,col=iblock_col,&
                BLOCK=p_delta_block,tr=tr,found=found)
           CPPostcondition(ASSOCIATED(p_delta_block),cp_failure_level,routineP,error,failure)
 
@@ -424,7 +424,7 @@ CONTAINS
           END DO
        ENDIF
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL mp_max(delta,para_env%group)
 

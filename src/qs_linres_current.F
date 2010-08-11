@@ -28,11 +28,12 @@ MODULE qs_linres_current
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
@@ -41,7 +42,8 @@ MODULE qs_linres_current
                                              cp_dbcsr_dist2d_to_dist,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -61,12 +63,7 @@ MODULE qs_linres_current
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_get_matrix_type
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_normal
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
@@ -214,8 +211,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: density_matrix0, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: density_matrix0, &
                                                 density_matrix_a, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
@@ -357,7 +354,7 @@ CONTAINS
             name="density_matrix_iii",error=error)
     ENDDO
     !
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     !
     !
@@ -617,7 +614,7 @@ CONTAINS
   SUBROUTINE calculate_jrho_resp(mat_d0,mat_jp,mat_jp_rii,mat_jp_riii,iB,idir,&
        current_rs, current_gs, qs_env, current_env, soft_valid, error)
 
-    TYPE(dbcsr_obj), POINTER                 :: mat_d0, mat_jp, mat_jp_rii, &
+    TYPE(cp_dbcsr_type), POINTER             :: mat_d0, mat_jp, mat_jp_rii, &
                                                 mat_jp_riii
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(pw_p_type), INTENT(INOUT)           :: current_rs, current_gs
@@ -667,12 +664,12 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_type), POINTER             :: deltajp_a, deltajp_b, &
+                                                deltajp_c, deltajp_d, mat_a, &
+                                                mat_b, mat_c, mat_d
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
-    TYPE(dbcsr_obj), POINTER                 :: deltajp_a, deltajp_b, &
-                                                deltajp_c, deltajp_d, mat_a, &
-                                                mat_b, mat_c, mat_d
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -853,24 +850,24 @@ CONTAINS
        ENDIF
 
        CALL cp_dbcsr_create(deltajp_a, ' deltajp_a ', &
-            dbcsr_distribution (mat_a), dbcsr_get_matrix_type (mat_a),&
-            mat_a%m%row_blk_size,&
-            mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
+            cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),&
+            cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),&
             error=error)
        CALL cp_dbcsr_create(deltajp_b, ' deltajp_b ', &
-            dbcsr_distribution (mat_a), dbcsr_get_matrix_type (mat_a),&
-            mat_a%m%row_blk_size,&
-            mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
+            cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),&
+            cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),&
             error=error)
        CALL cp_dbcsr_create(deltajp_c, ' deltajp_c ', &
-            dbcsr_distribution (mat_a), dbcsr_get_matrix_type (mat_a),&
-            mat_a%m%row_blk_size,&
-            mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
+            cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),&
+            cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),&
             error=error)
        IF(do_igaim) CALL cp_dbcsr_create(deltajp_d, ' deltajp_d ', &
-            dbcsr_distribution (mat_a), dbcsr_get_matrix_type (mat_a),&
-            mat_a%m%row_blk_size,&
-            mat_a%m%col_blk_size, mat_a%m%nblks, mat_a%m%nze,&
+            cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),&
+            cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),&
             error=error)
     ELSE
        deltajp_a => mat_a !mat_jp
@@ -962,13 +959,13 @@ CONTAINS
                 brow = iatom
                 bcol = jatom
 
-                CALL dbcsr_get_block_p(matrix=mat_a,row=brow,col=bcol,&
+                CALL cp_dbcsr_get_block_p(matrix=mat_a,row=brow,col=bcol,&
                      block=jp_block_a,tr=den_tr,found=den_found_a)
-                CALL dbcsr_get_block_p(matrix=mat_b,row=brow,col=bcol,&
+                CALL cp_dbcsr_get_block_p(matrix=mat_b,row=brow,col=bcol,&
                      block=jp_block_b,tr=den_tr,found=den_found)
-                CALL dbcsr_get_block_p(matrix=mat_c,row=brow,col=bcol,&
+                CALL cp_dbcsr_get_block_p(matrix=mat_c,row=brow,col=bcol,&
                      block=jp_block_c,tr=den_tr,found=den_found)
-                IF(do_igaim) CALL dbcsr_get_block_p(matrix=mat_d,row=brow,col=bcol,&
+                IF(do_igaim) CALL cp_dbcsr_get_block_p(matrix=mat_d,row=brow,col=bcol,&
                      block=jp_block_d,tr=den_tr,found=den_found)
 
                 IF (.NOT.ASSOCIATED(jp_block_a)) THEN
@@ -1162,13 +1159,13 @@ CONTAINS
 
           ENDIF
 
-          CALL dbcsr_get_block_p(matrix=deltajp_a,row=brow,col=bcol,&
+          CALL cp_dbcsr_get_block_p(matrix=deltajp_a,row=brow,col=bcol,&
                block=jp_block_a,tr=den_tr,found=den_found)
-          CALL dbcsr_get_block_p(matrix=deltajp_b,row=brow,col=bcol,&
+          CALL cp_dbcsr_get_block_p(matrix=deltajp_b,row=brow,col=bcol,&
                block=jp_block_b,tr=den_tr,found=den_found)
-          CALL dbcsr_get_block_p(matrix=deltajp_c,row=brow,col=bcol,&
+          CALL cp_dbcsr_get_block_p(matrix=deltajp_c,row=brow,col=bcol,&
                block=jp_block_c,tr=den_tr,found=den_found)
-          IF(do_igaim) CALL dbcsr_get_block_p(matrix=deltajp_d,row=brow,col=bcol,&
+          IF(do_igaim) CALL cp_dbcsr_get_block_p(matrix=deltajp_d,row=brow,col=bcol,&
                block=jp_block_d,tr=den_tr,found=den_found)
 
           IF (.NOT.ASSOCIATED(jp_block_a)) &
@@ -2245,10 +2242,10 @@ CONTAINS
       POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: op_mom_ao, op_p_ao
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_mom_der_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: op_mom_ao, op_p_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_mom_der_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: p_rxp, psi0_order, r_p1, r_p2
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -2392,7 +2389,7 @@ CONTAINS
     ENDDO
     !
     !
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     !
     !
@@ -2705,10 +2702,10 @@ CONTAINS
       POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: op_mom_ao, op_p_ao
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_mom_der_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: op_mom_ao, op_p_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_mom_der_ao
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi0_order
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -2842,7 +2839,7 @@ CONTAINS
     ENDDO
     !
     !
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
     !
     !

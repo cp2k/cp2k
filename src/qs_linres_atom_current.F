@@ -22,9 +22,9 @@ MODULE qs_linres_atom_current
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
                                              current_gauge_r_and_step_func
@@ -90,8 +90,8 @@ CONTAINS
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(current_env_type)                   :: current_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: mat_d0, mat_jp, mat_jp_rii, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: mat_d0, mat_jp, mat_jp_rii, &
                                                 mat_jp_riii
     INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -120,8 +120,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: mat_a, mat_b, mat_c, mat_d
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: mat_a, mat_b, mat_c, mat_d
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -290,19 +290,19 @@ CONTAINS
                    NULLIFY(b_block(ispin)%r_coef)
                    NULLIFY(c_block(ispin)%r_coef)
                    NULLIFY(d_block(ispin)%r_coef)
-                   CALL dbcsr_get_block_p(matrix=mat_a(ispin)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=mat_a(ispin)%matrix,&
                         row=iatom,col=jatom,block=a_block(ispin)%r_coef,&
                         tr=den_tr,found=den_found)
                    jmax = jmax + MAXVAL(ABS(a_block(ispin)%r_coef))
-                   CALL dbcsr_get_block_p(matrix=mat_b(ispin)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=mat_b(ispin)%matrix,&
                         row=iatom,col=jatom,block=b_block(ispin)%r_coef,&
                         tr=den_tr,found=den_found)
                    jmax = jmax + MAXVAL(ABS(b_block(ispin)%r_coef))
-                   CALL dbcsr_get_block_p(matrix=mat_c(ispin)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=mat_c(ispin)%matrix,&
                         row=iatom,col=jatom,block=c_block(ispin)%r_coef,&
                         tr=den_tr,found=den_found)
                    jmax = jmax + MAXVAL(ABS(c_block(ispin)%r_coef))
-                   CALL dbcsr_get_block_p(matrix=mat_d(ispin)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=mat_d(ispin)%matrix,&
                         row=iatom,col=jatom,block=d_block(ispin)%r_coef,&
                         tr=den_tr,found=den_found)
                    jmax = jmax + MAXVAL(ABS(d_block(ispin)%r_coef))

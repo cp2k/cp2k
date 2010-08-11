@@ -14,16 +14,16 @@ MODULE qs_dftb_coulomb
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_types,                     ONLY: dbcsr_iterator
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_1d,&
                                              dg_sum_patch_force_3d
@@ -100,8 +100,8 @@ CONTAINS
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     REAL(dp), DIMENSION(:)                   :: mcharge
     TYPE(qs_energy_type), POINTER            :: energy
@@ -127,11 +127,11 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: gamma_matrix, matrix_p, &
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: gamma_matrix, matrix_p, &
                                                 matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_iterator)                     :: iter
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -183,13 +183,13 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF ( calculate_forces .AND. use_virial ) THEN
-       CALL dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
-       DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
           NULLIFY(gblock)
-          CALL dbcsr_iterator_next_block(iter, iatom, jatom, gblock, tr, blk)
+          CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, gblock, tr, blk)
           DO i=1,3
              NULLIFY(gblock)
-             CALL dbcsr_get_block_p(matrix=gamma_matrix(i+1)%matrix,&
+             CALL cp_dbcsr_get_block_p(matrix=gamma_matrix(i+1)%matrix,&
                   row=iatom,col=jatom,block=gblock,tr=tr,found=found)
              fij(i) = gblock(1,1)*mcharge(iatom)*mcharge(jatom)
           END DO
@@ -197,7 +197,7 @@ CONTAINS
           rij = pbc(rij,cell)
           CALL virial_pair_force ( virial%pv_virial, 1._dp, fij, rij, error)
        ENDDO
-       CALL dbcsr_iterator_stop(iter)
+       CALL cp_dbcsr_iterator_stop(iter)
     END IF
 
     ! 1/R contribution
@@ -299,13 +299,13 @@ CONTAINS
              alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
       END IF
 
-      CALL dbcsr_iterator_start(iter, ks_matrix(1)%matrix)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, tr, blk)
+      CALL cp_dbcsr_iterator_start(iter, ks_matrix(1)%matrix)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, tr, blk)
          NULLIFY(sblock,ksblock_2)
-         IF (SIZE(ks_matrix,1)>1) CALL dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
+         IF (SIZE(ks_matrix,1)>1) CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
               row=iatom,col=jatom,block=ksblock_2,tr=tr,found=found)
-         CALL dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
+         CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
               row=iatom,col=jatom,block=sblock,tr=tr,found=found)
          gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
          ksblock = ksblock - gmij*sblock
@@ -316,11 +316,11 @@ CONTAINS
             jkind  = kind_of(jatom)
             atom_j = atom_of_kind(jatom)
             NULLIFY(pblock)
-            CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+            CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                  row=iatom,col=jatom,block=pblock,tr=tr,found=found)
             DO i=1,3
                NULLIFY(dsblock)
-               CALL dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
+               CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                     row=iatom,col=jatom,block=dsblock,tr=tr,found=found)
                fi = -gmij*SUM(pblock*dsblock)
                force(ikind)%rho_elec(i,atom_i) =&
@@ -337,7 +337,7 @@ CONTAINS
             END IF
          END IF
       END DO
-      CALL dbcsr_iterator_stop(iter)
+      CALL cp_dbcsr_iterator_stop(iter)
       IF ( calculate_forces .AND. SIZE(matrix_p) == 2) THEN
          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
                         alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)

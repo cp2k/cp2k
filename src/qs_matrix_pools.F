@@ -11,7 +11,10 @@
 ! *****************************************************************************
 MODULE qs_matrix_pools
   USE array_types,                     ONLY: array_data
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
+                                             cp_dbcsr_get_info,&
+                                             cp_dbcsr_row_block_sizes
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
@@ -34,9 +37,6 @@ MODULE qs_matrix_pools
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_create,&
                                              sm_struct_release
-  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
-                                             dbcsr_get_info,&
-                                             dbcsr_row_block_sizes
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
@@ -724,8 +724,8 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
      para_env, basis_set_id,distribution_2d, error)
 
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: s
     INTEGER, INTENT(in)                      :: nspins
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -780,14 +780,14 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
             block_begins_at_col=block_begins_at,&
             para_env=para_env, symmetry="symmetric",&
             distribution_2d=distribution_2d,&!s(1)%matrix%m%dist2d,&
-            sparsity_id=s(1)%matrix%m%sparsity_id, &
+            sparsity_id=s(1)%matrix%matrix%m%sparsity_id, &
             error=error)
   
        DEALLOCATE(block_begins_at,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   
 
-       CALL dbcsr_get_info(s(1)%matrix,nblkrows_total=nblkrows_total,&
+       CALL cp_dbcsr_get_info(s(1)%matrix,nblkrows_total=nblkrows_total,&
             nblkcols_total=nblkcols_total)
        !CALL get_matrix_info(s(1)%matrix,first_row=first_row,&
        !     last_row=last_row, first_col=first_col,&
@@ -795,9 +795,9 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
   
        ALLOCATE(first_row(nblkrows_total), last_row(nblkrows_total),&
             first_col(nblkcols_total), last_col(nblkcols_total))
-       CALL convert_sizes_to_offsets (array_data (dbcsr_row_block_sizes (s(1)%matrix)),&
+       CALL convert_sizes_to_offsets (array_data (cp_dbcsr_row_block_sizes (s(1)%matrix)),&
             first_row, last_row)
-       CALL convert_sizes_to_offsets (array_data (dbcsr_col_block_sizes (s(1)%matrix)),&
+       CALL convert_sizes_to_offsets (array_data (cp_dbcsr_col_block_sizes (s(1)%matrix)),&
             first_col, last_col)
 
        CALL cp_assert(ALL(s_mstruct%block_begins_at_row(1:n_atoms)==&

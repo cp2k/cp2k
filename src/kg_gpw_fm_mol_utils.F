@@ -12,10 +12,12 @@
 ! *****************************************************************************
 MODULE kg_gpw_fm_mol_utils
 
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -23,8 +25,6 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -94,7 +94,7 @@ CONTAINS
     REAL(dp)                                 :: eigocc
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: mo, w_block, wmo, wmo_x_mot
-    TYPE(dbcsr_obj), POINTER                 :: w_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: w_matrix
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -172,7 +172,7 @@ CONTAINS
             NULLIFY(w_block)
             IF(iatom <= jatom) THEN
 
-              CALL dbcsr_get_block_p(matrix=w_matrix,&
+              CALL cp_dbcsr_get_block_p(matrix=w_matrix,&
                    row=iatom,col=jatom,block=w_block,tr=tr,found=found)
               CPPrecondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
               CPPrecondition(inao==SIZE(w_block,1),cp_failure_level,routineP,error,failure)
@@ -186,7 +186,7 @@ CONTAINS
 
             ELSE
 
-               CALL dbcsr_get_block_p(matrix=w_matrix,&
+               CALL cp_dbcsr_get_block_p(matrix=w_matrix,&
                     row=jatom,col=iatom,block=w_block,tr=tr,found=found)
               CPPrecondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
               CPPrecondition(jnao==SIZE(w_block,1),cp_failure_level,routineP,error,failure)
@@ -561,7 +561,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure, found, tr
     REAL(dp), DIMENSION(:, :), POINTER       :: s_block
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
 
     failure = .FALSE.
 
@@ -591,7 +591,7 @@ CONTAINS
 
         NULLIFY(s_block)
         IF (iatom <= jatom) THEN
-           CALL dbcsr_get_block_p(matrix=matrix,&
+           CALL cp_dbcsr_get_block_p(matrix=matrix,&
                 row=iatom,col=jatom,BLOCK=s_block,tr=tr,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last
@@ -603,7 +603,7 @@ CONTAINS
             icol = icol + 1
           END DO   ! icol_mol_s
         ELSE
-          CALL dbcsr_get_block_p(matrix=matrix,&
+          CALL cp_dbcsr_get_block_p(matrix=matrix,&
                row=jatom,col=iatom,BLOCK=s_block,tr=tr,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last

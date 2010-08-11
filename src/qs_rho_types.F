@@ -12,7 +12,7 @@
 ! *****************************************************************************
 MODULE qs_rho_types
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type,&
@@ -53,7 +53,7 @@ MODULE qs_rho_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE qs_rho_type
-     TYPE(cp_dbcsr_obj_p_type), DIMENSION(:), POINTER :: rho_ao
+     TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: drho_g, drho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: tau_g, tau_r
@@ -249,8 +249,8 @@ CONTAINS
        rho_r_valid, drho_r_valid, rho_g_valid, drho_g_valid, tau_r_valid, tau_g_valid, &
        rebuild_each, tot_rho_r, soft_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rho_ao
     TYPE(pw_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_r, drho_r, rho_g, drho_g, &
                                                 tau_r, tau_g

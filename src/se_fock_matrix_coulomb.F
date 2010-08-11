@@ -21,23 +21,18 @@ MODULE se_fock_matrix_coulomb
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_distribute,&
-                                             cp_dbcsr_get_block_diag,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_replicate_all,&
-                                             cp_dbcsr_set,&
-                                             cp_dbcsr_sum_replicated
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_distribute, &
+       cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_replicate_all, cp_dbcsr_set, cp_dbcsr_sum_replicated
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -114,8 +109,8 @@ CONTAINS
        store_int_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -142,10 +137,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: diagmat_ks, diagmat_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p
+    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -260,23 +255,23 @@ CONTAINS
                 CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom, nnode=nnode)
                 sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
  
-                CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                      row=iatom,col=iatom,BLOCK=pa_block_a,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
                 check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
                 CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                      row=iatom,col=iatom,BLOCK=ksa_block_a,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
                 IF ( nspins == 2 ) THEN
-                   CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                         row=iatom,col=iatom,BLOCK=pa_block_b,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
                    CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                   CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                         row=iatom,col=iatom,BLOCK=ksa_block_b,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
                    p_block_tot_a(1:natorb_a,1:natorb_a) = pa_block_a + pa_block_b
@@ -284,7 +279,7 @@ CONTAINS
                 END IF
 
                 IF (scp_nddo) THEN
-                   CALL dbcsr_get_block_p(matrix=pscp,&
+                   CALL cp_dbcsr_get_block_p(matrix=pscp,&
                         row=iatom,col=iatom,BLOCK=pscpa_block,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(pscpa_block),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pscpa_block,1)==natorb_a).AND.(SIZE(pscpa_block,2)==natorb_a)
@@ -309,24 +304,24 @@ CONTAINS
                          switch = .TRUE.
                       END IF
                       ! Retrieve blocks for KS and P
-                      CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                            row=jatom,col=jatom,BLOCK=pb_block_a,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
                       check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                      CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                            row=jatom,col=jatom,BLOCK=ksb_block_a,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
                       p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
                       IF ( nspins == 2 ) THEN
-                         CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
+                         CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                               row=jatom,col=jatom,BLOCK=pb_block_b,tr=tr,found=found)
                          CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
                          CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                         CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
+                         CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                               row=jatom,col=jatom,BLOCK=ksb_block_b,tr=tr,found=found)
                          CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))
@@ -336,7 +331,7 @@ CONTAINS
                       END IF
 
                       IF (scp_nddo) THEN
-                         CALL dbcsr_get_block_p(matrix=pscp,&
+                         CALL cp_dbcsr_get_block_p(matrix=pscp,&
                               row=jatom,col=jatom,BLOCK=pscpb_block,tr=tr,found=found)
                          CPPostcondition(ASSOCIATED(pscpb_block),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pscpb_block,1)==natorb_b).AND.(SIZE(pscpb_block,2)==natorb_b)
@@ -529,8 +524,8 @@ CONTAINS
        calculate_forces, store_int_env, error)
    
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
@@ -560,11 +555,11 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: diagmat_ks, diagmat_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p
+    TYPE(cp_dbcsr_type), POINTER             :: dbm, ks_scp, pscp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: dbm, ks_scp, pscp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -694,11 +689,11 @@ CONTAINS
              nparticle_local = local_particles%n_el(ikind)
              DO ilist=1, nparticle_local
                 iatom = local_particles%list(ikind)%array(ilist)
-                CALL dbcsr_get_block_p(matrix=diagmat_p(ispin)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=diagmat_p(ispin)%matrix,&
                      row=iatom,col=iatom,BLOCK=pa_block_a,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
                 IF ( scp_nddo ) THEN
-                   CALL dbcsr_get_block_p(matrix=pscp,&
+                   CALL cp_dbcsr_get_block_p(matrix=pscp,&
                         row=iatom,col=iatom,BLOCK=pscpa_block,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(pscpa_block),cp_failure_level,routineP,error,failure)
                    pa_block_a=pa_block_a + pscpa_block 
@@ -826,7 +821,7 @@ CONTAINS
              node  = node + 1
              iatom = local_particles%list(ikind)%array(ilist)
              DO ispin = 1, nspins
-                CALL dbcsr_get_block_p(matrix=diagmat_ks(ispin)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(ispin)%matrix,&
                      row=iatom,col=iatom,BLOCK=ksa_block_a,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
 
@@ -927,16 +922,16 @@ CONTAINS
        ks_scp, pscp, virial, pv_glob, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
     TYPE(nddo_mpole_type), POINTER           :: se_nddo_mpole
     LOGICAL, DIMENSION(3), INTENT(IN)        :: task
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: diagmat_p, diagmat_ks
-    TYPE(dbcsr_obj), POINTER                 :: ks_scp, pscp
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_p, diagmat_ks
+    TYPE(cp_dbcsr_type), POINTER             :: ks_scp, pscp
     TYPE(virial_type), POINTER               :: virial
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(INOUT)                          :: pv_glob
@@ -1075,23 +1070,23 @@ CONTAINS
                 CALL get_neighbor_list(neighbor_list=sab_lrc_neighbor_list,atom=iatom, nnode=nnode)
                 sab_lrc_neighbor_node => first_node(sab_lrc_neighbor_list)
  
-                CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                      row=iatom,col=iatom,BLOCK=pa_block_a,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
                 check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
                 CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                      row=iatom,col=iatom,BLOCK=ksa_block_a,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
                 IF ( nspins == 2 ) THEN
-                   CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                         row=iatom,col=iatom,BLOCK=pa_block_b,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
                    CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                   CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                         row=iatom,col=iatom,BLOCK=ksa_block_b,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
                    p_block_tot_a(1:natorb_a,1:natorb_a) = pa_block_a + pa_block_b
@@ -1099,7 +1094,7 @@ CONTAINS
                 END IF
 
                 IF (scp_nddo) THEN
-                   CALL dbcsr_get_block_p(matrix=pscp,&
+                   CALL cp_dbcsr_get_block_p(matrix=pscp,&
                         row=iatom,col=iatom,BLOCK=pscpa_block,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(pscpa_block),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pscpa_block,1)==natorb_a).AND.(SIZE(pscpa_block,2)==natorb_a)
@@ -1134,24 +1129,24 @@ CONTAINS
                            ptens32=ptens32, ptens33=ptens33, error=error)
                       
                       ! Retrieve blocks for KS and P
-                      CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                            row=jatom,col=jatom,BLOCK=pb_block_a,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
                       check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                      CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                            row=jatom,col=jatom,BLOCK=ksb_block_a,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
                       p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
                       IF ( nspins == 2 ) THEN
-                         CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
+                         CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                               row=jatom,col=jatom,BLOCK=pb_block_b,tr=tr,found=found)
                          CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
                          CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                         CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
+                         CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                               row=jatom,col=jatom,BLOCK=ksb_block_b,tr=tr,found=found)
                          CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))
@@ -1162,7 +1157,7 @@ CONTAINS
 
                       ! SCP
                       IF ( scp_nddo ) THEN
-                         CALL dbcsr_get_block_p(matrix=pscp,&
+                         CALL cp_dbcsr_get_block_p(matrix=pscp,&
                               row=jatom,col=jatom,BLOCK=pscpb_block,tr=tr,found=found)
                          CPPostcondition(ASSOCIATED(pscpb_block),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pscpb_block,1)==natorb_b).AND.(SIZE(pscpb_block,2)==natorb_b)
@@ -1352,8 +1347,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_fock_matrix_coul_lr_r3(qs_env,ks_matrix,matrix_p,energy,calculate_forces,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix, matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix, matrix_p
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1378,8 +1373,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: diagmat_ks, diagmat_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1494,23 +1489,23 @@ CONTAINS
                 CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,atom=iatom, nnode=nnode)
                 sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
  
-                CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                      row=iatom,col=iatom,BLOCK=pa_block_a,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
                 check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
                 CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                      row=iatom,col=iatom,BLOCK=ksa_block_a,tr=tr,found=found)
                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                 p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
                 pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/)) 
                 IF ( nspins == 2 ) THEN
-                   CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                         row=iatom,col=iatom,BLOCK=pa_block_b,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
                    check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
                    CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                   CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
+                   CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                         row=iatom,col=iatom,BLOCK=ksa_block_b,tr=tr,found=found)
                    CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
                    p_block_tot_a(1:natorb_a,1:natorb_a) = pa_block_a + pa_block_b
@@ -1528,24 +1523,24 @@ CONTAINS
                          switch = .TRUE.
                       END IF
                       ! Retrieve blocks for KS and P
-                      CALL dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                            row=jatom,col=jatom,BLOCK=pb_block_a,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
                       check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                      CALL dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
+                      CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                            row=jatom,col=jatom,BLOCK=ksb_block_a,tr=tr,found=found)
                       CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
                       p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
                       pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/)) 
                       ! Handle more than one configuration
                       IF ( nspins == 2 ) THEN
-                         CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
+                         CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                               row=jatom,col=jatom,BLOCK=pb_block_b,tr=tr,found=found)
                          CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
                          CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                         CALL dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
+                         CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                               row=jatom,col=jatom,BLOCK=ksb_block_b,tr=tr,found=found)
                          CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
                          check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))

@@ -15,7 +15,7 @@ MODULE hfx_derivatives
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -248,7 +248,7 @@ MODULE hfx_derivatives
     LOGICAL                                  :: treat_forces_in_core
     REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
 
-    TYPE(cp_dbcsr_obj_p_type), POINTER, DIMENSION(:) :: rho_ao
+    TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: rho_ao
     INTEGER::ii
     REAL(dp), DIMENSION(:), ALLOCATABLE      :: ede_work_virial, ede_work2_virial,&
                                                 ede_primitives_tmp_virial

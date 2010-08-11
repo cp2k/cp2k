@@ -17,9 +17,9 @@ MODULE core_ppl
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_get_block_p
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE kinds,                           ONLY: dp
@@ -52,8 +52,8 @@ CONTAINS
   SUBROUTINE build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h, matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(virial_type), POINTER               :: virial
@@ -223,12 +223,12 @@ CONTAINS
                       icol = iatom
                    END IF
                    NULLIFY(h_block)
-                   CALL dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,tr,found)
+                   CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,tr,found)
                    !CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
                    IF(ASSOCIATED(h_block)) THEN
                    IF (calculate_forces) THEN
                       NULLIFY(p_block)
-                      CALL dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,tr,found)
+                      CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,tr,found)
                       IF(ASSOCIATED(p_block)) THEN
                          DO iset=1,nseta
                             ncoa = npgfa(iset)*ncoset(la_max(iset))

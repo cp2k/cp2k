@@ -10,13 +10,13 @@
 !> \author Manuel Guidon 
 ! *****************************************************************************
 MODULE hfx_helpers 
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_data_size,&
+                                             cp_dbcsr_get_info,&
+                                             cp_dbcsr_get_matrix_type,&
+                                             cp_dbcsr_get_num_blocks
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_data_size,&
-                                             dbcsr_get_info,&
-                                             dbcsr_get_matrix_type,&
-                                             dbcsr_get_num_blocks
-  USE dbcsr_types,                     ONLY: dbcsr_obj,&
-                                             dbcsr_type_symmetric
+  USE dbcsr_types,                     ONLY: dbcsr_type_symmetric
   USE f77_blas
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -185,7 +185,7 @@ MODULE hfx_helpers
 !> \author Manuel Guidon
 ! *****************************************************************************
 FUNCTION get_occupation(matrix,para_env,error)
-    TYPE(dbcsr_obj), POINTER                 :: matrix
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(dp)                                 :: get_occupation
@@ -215,15 +215,15 @@ FUNCTION get_occupation(matrix,para_env,error)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nelement(:) = 0
 
-    nblock(mype) = dbcsr_get_num_blocks(matrix)
-    nelement(mype) = dbcsr_get_data_size(matrix)
-    CALL dbcsr_get_info(matrix=matrix,nblkrows_total=natom)
+    nblock(mype) = cp_dbcsr_get_num_blocks(matrix)
+    nelement(mype) = cp_dbcsr_get_data_size(matrix)
+    CALL cp_dbcsr_get_info(matrix=matrix,nblkrows_total=natom)
     CALL mp_sum(nblock,group)
     CALL mp_sum(nelement,group)
 
     nblock_sum = SUM(nblock)
 
-    IF (dbcsr_get_matrix_type(matrix) == dbcsr_type_symmetric) THEN
+    IF (cp_dbcsr_get_matrix_type(matrix) == dbcsr_type_symmetric) THEN
       nblock_tot = natom*(natom + 1)/2
     ELSE
       nblock_tot = natom*natom

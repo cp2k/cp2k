@@ -41,8 +41,10 @@ MODULE qs_collocate_density
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_type
@@ -52,8 +54,6 @@ MODULE qs_collocate_density
                                              return_cube,&
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_cp2k2d3
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE gauss_colloc,                    ONLY: collocGauss
@@ -676,7 +676,7 @@ CONTAINS
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
        qs_env, soft_valid, compute_tau, basis_set_id, der_type, error)
 
-    TYPE(dbcsr_obj), POINTER                 :: matrix_p
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_p
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -720,10 +720,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_type), POINTER             :: deltap
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
-    TYPE(dbcsr_obj), POINTER                 :: deltap
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -1020,7 +1020,7 @@ CONTAINS
                   zet=zetb)          
           ENDIF
 
-          CALL dbcsr_get_block_p(matrix=deltap,&
+          CALL cp_dbcsr_get_block_p(matrix=deltap,&
                row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
           IF (.NOT.ASSOCIATED(p_block)) &
                CALL stop_program(routineP,"p_block not associated in deltap")
@@ -1202,7 +1202,7 @@ CONTAINS
   SUBROUTINE calculate_drho_elec(matrix_p,drho,drho_gspace,qs_env,&
              soft_valid,basis_set_id,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: matrix_p
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_p
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: drho, drho_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1245,10 +1245,10 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_type), POINTER             :: deltap
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
-    TYPE(dbcsr_obj), POINTER                 :: deltap
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -1483,7 +1483,7 @@ CONTAINS
                   zet=zetb)          
           ENDIF
 
-          CALL dbcsr_get_block_p(matrix=deltap,&
+          CALL cp_dbcsr_get_block_p(matrix=deltap,&
                row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
           IF (.NOT.ASSOCIATED(p_block)) &
                CALL stop_program(routineP,"p_block not associated in deltap")

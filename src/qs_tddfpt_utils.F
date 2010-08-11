@@ -12,7 +12,7 @@ MODULE qs_tddfpt_utils
   USE cp_control_types,                ONLY: tddfpt_control_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -386,8 +386,8 @@ CONTAINS
   SUBROUTINE normalize(X, tmp_vec, metric, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: metric
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: metric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: n_spins, spin

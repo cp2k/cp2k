@@ -14,26 +14,23 @@ MODULE qs_ot_scf
                                              array_release
   USE cp_array_r_utils,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_diag, &
+       cp_create_bl_distribution, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
+       cp_dbcsr_finalize, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
        cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_set_diag, &
-       cp_dbcsr_trace
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
+       cp_dbcsr_set_diag, cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE dbcsr_dist_operations,           ONLY: create_bl_distribution
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_mp,&
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
-                                             dbcsr_distribution_release,&
                                              dbcsr_distribution_row_dist,&
-                                             dbcsr_get_info,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_row_block_sizes
+                                             dbcsr_mp_npcols
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_real_default
   USE f77_blas
@@ -136,14 +133,14 @@ CONTAINS
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_dedc
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dedc
     TYPE(smear_type), POINTER                :: smear
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     REAL(KIND=dp)                            :: energy
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp
     LOGICAL, INTENT(INOUT)                   :: energy_only
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -160,9 +157,9 @@ CONTAINS
       DIMENSION(:)                           :: expectation_values, &
                                                 occupation_numbers, &
                                                 scaling_factor
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_dedc_scaled
-    TYPE(dbcsr_obj), POINTER                 :: mo_coeff
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dedc_scaled
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
 
     CALL timeset(routineN,handle)
 
@@ -205,7 +202,7 @@ CONTAINS
        IF (qs_ot_env(1)%settings%do_rotation) THEN
           DO ispin=1,SIZE(qs_ot_env)
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff_b=mo_coeff)
-             CALL dbcsr_get_info(mo_coeff,nfullrows_total=n,nfullcols_total=k)
+             CALL cp_dbcsr_get_info(mo_coeff,nfullrows_total=n,nfullcols_total=k)
              CALL cp_dbcsr_multiply('T','N',1.0_dp,mo_coeff,matrix_dedc(ispin)%matrix, &
                   0.0_dp,qs_ot_env(ispin)%rot_mat_chc,error=error)
              CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_buf1,qs_ot_env(ispin)%rot_mat_chc,error=error)
@@ -233,7 +230,7 @@ CONTAINS
           ! transform C^T H C -> U C^T H C U ^ T
           IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
              DO ispin=1,SIZE(qs_ot_env)
-                CALL dbcsr_get_info(qs_ot_env(ispin)%rot_mat_u,nfullcols_total=k)
+                CALL cp_dbcsr_get_info(qs_ot_env(ispin)%rot_mat_u,nfullcols_total=k)
                 CALL cp_dbcsr_multiply('N','N',1.0_dp,qs_ot_env(ispin)%rot_mat_u,qs_ot_env(ispin)%rot_mat_chc, &
                   0.0_dp,qs_ot_env(ispin)%matrix_buf1,error=error)
                 CALL cp_dbcsr_multiply('N','T',1.0_dp,qs_ot_env(ispin)%matrix_buf1,qs_ot_env(ispin)%rot_mat_u, &
@@ -248,7 +245,7 @@ CONTAINS
     IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
        DO ispin=1,SIZE(qs_ot_env)
           ! transform \tilde H to the current basis of C (assuming non-selfconsistent H)
-          CALL dbcsr_get_info(qs_ot_env(ispin)%rot_mat_u,nfullcols_total=k)
+          CALL cp_dbcsr_get_info(qs_ot_env(ispin)%rot_mat_u,nfullcols_total=k)
           CALL cp_dbcsr_multiply('T','N',1.0_dp,qs_ot_env(ispin)%rot_mat_u,qs_ot_env(ispin)%rot_mat_chc, &
             0.0_dp,qs_ot_env(ispin)%matrix_buf1,error=error)
           CALL cp_dbcsr_multiply('N','N',1.0_dp,qs_ot_env(ispin)%matrix_buf1,qs_ot_env(ispin)%rot_mat_u, &
@@ -308,7 +305,7 @@ CONTAINS
     ! generate the orbitals using the new matrix_x
     DO ispin=1,SIZE(qs_ot_env)
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff_b=mo_coeff)
-       CALL dbcsr_get_info(mo_coeff,nfullrows_total=n,nfullcols_total=k)
+       CALL cp_dbcsr_get_info(mo_coeff,nfullrows_total=n,nfullcols_total=k)
        SELECT CASE(qs_ot_env(1)%settings%ot_algorithm)
        CASE("TOD")
           IF (ASSOCIATED(matrix_s)) THEN
@@ -385,12 +382,12 @@ CONTAINS
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: pscp, fscp
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(dbcsr_obj), POINTER                 :: matrix_ks
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_ks
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_init', &
@@ -403,9 +400,9 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: c, fc
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff_fm
     TYPE(dbcsr_distribution_obj)             :: dist
-    TYPE(dbcsr_obj), POINTER                 :: mo_coeff
 
     CALL timeset(routineN,handle)
 
@@ -415,16 +412,16 @@ CONTAINS
           CALL stop_program(routinen,'shouldnt get there')
           ! we do ot then copy fm to dbcsr
           ! allocate that somewhere else ! fm -> dbcsr
-          CALL create_bl_distribution (col_dist, col_blk_size, mo_array(ispin)%mo_set%nmo, &
-               dbcsr_mp_npcols(dbcsr_distribution_mp(dbcsr_distribution(matrix_ks))))
-          CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (dbcsr_distribution(matrix_ks)),&
-               dbcsr_distribution_row_dist(dbcsr_distribution(matrix_ks)), col_dist)
+          CALL cp_create_bl_distribution (col_dist, col_blk_size, mo_array(ispin)%mo_set%nmo, &
+               dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_ks))))
+          CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_ks)),&
+               dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_ks)), col_dist)
           CALL cp_dbcsr_init_p(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
           CALL cp_dbcsr_create(mo_array(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_normal,&
-               dbcsr_row_block_sizes(matrix_ks), col_blk_size, 0, 0, dbcsr_type_real_default,&
+               cp_dbcsr_row_block_sizes(matrix_ks), col_blk_size, 0, 0, dbcsr_type_real_default,&
                special=.TRUE.,error=error)
           CALL cp_dbcsr_finalize(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
-          CALL dbcsr_distribution_release (dist)
+          CALL cp_dbcsr_distribution_release (dist)
           CALL array_release (col_dist)
           CALL array_release (col_blk_size)
        ENDIF
@@ -442,7 +439,7 @@ CONTAINS
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff_b=mo_coeff,mo_coeff=mo_coeff_fm)
        CALL copy_fm_to_dbcsr(mo_coeff_fm,mo_coeff, error=error)!fm -> dbcsr
 
-       CALL dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
+       CALL cp_dbcsr_get_info(mo_coeff, nfullrows_total=n, nfullcols_total=k)
 
        ! **** SCP
        ! allocate

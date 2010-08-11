@@ -14,13 +14,13 @@ MODULE preconditioner_types
                                              cp_blacs_env_retain
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_release_p
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE input_constants,                 ONLY: ot_precond_solver_default
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -41,9 +41,9 @@ MODULE preconditioner_types
 ! *****************************************************************************
   TYPE preconditioner_type
 !    PRIVATE
-       TYPE(dbcsr_obj),    POINTER :: sparse_matrix,sparse_matrix_inner
+       TYPE(cp_dbcsr_type),    POINTER :: sparse_matrix,sparse_matrix_inner
        TYPE(cp_fm_type), POINTER :: fm
-       TYPE(dbcsr_obj), POINTER           :: dbcsr_matrix
+       TYPE(cp_dbcsr_type), POINTER           :: dbcsr_matrix
        TYPE(cp_para_env_type),  POINTER   :: para_env
        TYPE(cp_blacs_env_type), POINTER   :: ctxt
        INTEGER :: in_use, solver

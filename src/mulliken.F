@@ -11,16 +11,16 @@
 MODULE mulliken
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cp_control_types,                ONLY: mulliken_restraint_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_get_info,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info
-  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                             dbcsr_obj
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -69,12 +69,12 @@ CONTAINS
     TYPE(mulliken_restraint_type), &
       INTENT(IN)                             :: mulliken_restraint_control
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: s_matrix
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: p_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
     REAL(KIND=dp), OPTIONAL                  :: energy, order_p
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: ks_matrix, w_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ks_matrix, w_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
@@ -84,12 +84,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_deriv, &
                                                 ks_block, p_block, s_block, &
                                                 w_block
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
 ! here we get the numbers for charges
 
     nspin=SIZE(p_matrix)
-    CALL dbcsr_get_info(s_matrix,nblkrows_total=nblock)
+    CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
 
     ALLOCATE(charges(nblock,nspin))
     ALLOCATE(charges_deriv(nblock,nspin))
@@ -111,10 +111,10 @@ CONTAINS
     IF (PRESENT(ks_matrix)) THEN
 
        DO ispin=1,nspin
-          CALL dbcsr_iterator_start(iter, s_matrix)
-          DO WHILE (dbcsr_iterator_blocks_left(iter))
-             CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
-             CALL dbcsr_get_block_p(matrix=ks_matrix(ispin)%matrix,&
+          CALL cp_dbcsr_iterator_start(iter, s_matrix)
+          DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+             CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
+             CALL cp_dbcsr_get_block_p(matrix=ks_matrix(ispin)%matrix,&
                   row=iblock_row,col=iblock_col,BLOCK=ks_block,tr=tr,found=found)
 
              IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
@@ -126,7 +126,7 @@ CONTAINS
                 ks_block=ks_block+mult*s_block
 
           ENDDO
-          CALL dbcsr_iterator_stop(iter)
+          CALL cp_dbcsr_iterator_stop(iter)
        ENDDO
 
     ENDIF
@@ -134,10 +134,10 @@ CONTAINS
     IF (PRESENT(w_matrix)) THEN
 
        DO ispin=1,nspin
-          CALL dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
-          DO WHILE (dbcsr_iterator_blocks_left(iter))
-             CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, tr, blk)
-             CALL dbcsr_get_block_p(matrix=w_matrix(ispin)%matrix,&
+          CALL cp_dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
+          DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+             CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, tr, blk)
+             CALL cp_dbcsr_get_block_p(matrix=w_matrix(ispin)%matrix,&
                   row=iblock_row,col=iblock_col,BLOCK=w_block,tr=tr,found=found)
 
              ! we can cycle if a block is not present
@@ -150,7 +150,7 @@ CONTAINS
              w_block=w_block+mult*p_block
 
           END DO
-          CALL dbcsr_iterator_stop(iter)
+          CALL cp_dbcsr_iterator_stop(iter)
        ENDDO
 
     ENDIF
@@ -263,9 +263,9 @@ END SUBROUTINE rf_deriv_check
 !>      06.2004 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE compute_charges(p_matrix,s_matrix,charges,para_env)
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: p_matrix
-    TYPE(dbcsr_obj), POINTER                 :: s_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(cp_para_env_type), POINTER          :: para_env
 
@@ -274,19 +274,19 @@ END SUBROUTINE rf_deriv_check
     LOGICAL                                  :: found, tr
     REAL(kind=dp)                            :: mult
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, s_block
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
 ! here we get the numbers for charges
 
     nspin=SIZE(p_matrix)
-    CALL dbcsr_get_info(s_matrix,nblkrows_total=nblock)
+    CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
 
     charges=0.0_dp
     DO ispin=1,nspin
-       CALL dbcsr_iterator_start(iter, s_matrix)
-       DO WHILE (dbcsr_iterator_blocks_left(iter))
-          CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
-          CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
+       CALL cp_dbcsr_iterator_start(iter, s_matrix)
+       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
+          CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
                row=iblock_row,col=iblock_col,BLOCK=p_block,tr=tr,found=found)
 
           ! we can cycle if a block is not present
@@ -303,7 +303,7 @@ END SUBROUTINE rf_deriv_check
                                             mult*SUM(p_block*s_block)
 
        ENDDO
-       CALL dbcsr_iterator_stop(iter)
+       CALL cp_dbcsr_iterator_stop(iter)
     ENDDO
     CALL mp_sum(charges,para_env%group)
 
@@ -321,9 +321,9 @@ END SUBROUTINE rf_deriv_check
   SUBROUTINE mulliken_charges_a(p_matrix,s_matrix,para_env,particle_set, &
                                 scr,title,error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: p_matrix
-    TYPE(dbcsr_obj), POINTER                 :: s_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -341,7 +341,7 @@ END SUBROUTINE rf_deriv_check
 
     ! here we get the numbers for charges
     nspin=SIZE(p_matrix)
-    CALL dbcsr_get_info(s_matrix,nblkrows_total=nblock)
+    CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
 
     ALLOCATE(charges(nblock,nspin))
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
@@ -357,9 +357,9 @@ END SUBROUTINE rf_deriv_check
 ! *****************************************************************************
   SUBROUTINE mulliken_charges_b(p_matrix,s_matrix,para_env,mcharge,error)
 
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: p_matrix
-    TYPE(dbcsr_obj), POINTER                 :: s_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -25,6 +25,7 @@ MODULE  rt_propagation_utils
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
+                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -32,7 +33,7 @@ MODULE  rt_propagation_utils
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -48,7 +49,6 @@ MODULE  rt_propagation_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
@@ -157,8 +157,8 @@ MODULE  rt_propagation_utils
       POINTER                                :: sint
     TYPE(block_p_type), DIMENSION(:, :), &
       POINTER                                :: sintt
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: s_derivs
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: s_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat
     TYPE(cp_fm_type), POINTER                :: B_mat, tmp_mat, tmp_mat2
@@ -264,7 +264,7 @@ MODULE  rt_propagation_utils
             error=error)
     ENDDO
 
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
 
     ! *** Allocate work storage ***
@@ -610,8 +610,8 @@ MODULE  rt_propagation_utils
     LOGICAL                                  :: scp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: p_rmpv
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_rmpv
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array

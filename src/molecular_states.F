@@ -14,6 +14,7 @@ MODULE molecular_states
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -30,7 +31,6 @@ MODULE molecular_states
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE f77_blas
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type,&
@@ -80,7 +80,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(cp_fm_type), POINTER                :: mo_localized, mo_coeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    TYPE(dbcsr_obj), POINTER                 :: Hks, matrix_S
+    TYPE(cp_dbcsr_type), POINTER             :: Hks, matrix_S
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), INTENT(INOUT)           :: wf_r, wf_g
     TYPE(section_vals_type), POINTER         :: localization_section

@@ -28,6 +28,7 @@ MODULE xas_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
                                              cp_dbcsr_create,&
+                                             cp_dbcsr_distribution_release,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_set
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -35,7 +36,7 @@ MODULE xas_methods
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -54,7 +55,6 @@ MODULE xas_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
@@ -182,8 +182,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, op_sm, ostrength_sm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, op_sm, ostrength_sm
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: groundstate_coeff
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
@@ -608,8 +608,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -899,7 +899,7 @@ CONTAINS
            CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
          END DO
 
-         CALL dbcsr_distribution_release (dbcsr_dist)
+         CALL cp_dbcsr_distribution_release (dbcsr_dist)
          CALL array_release (row_blk_sizes)
       END IF
 
@@ -1063,8 +1063,8 @@ CONTAINS
     REAL(dp)                                 :: rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
     REAL(dp), DIMENSION(:, :), POINTER       :: sp_ab, sp_em
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: op_sm, ostrength_sm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: op_sm, ostrength_sm
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: dip_fm_set
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
@@ -1335,8 +1335,8 @@ CONTAINS
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
@@ -1438,8 +1438,8 @@ CONTAINS
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: op_sm
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: excvec, all_vectors

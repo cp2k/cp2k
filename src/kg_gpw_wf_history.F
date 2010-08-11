@@ -15,8 +15,8 @@ MODULE kg_gpw_wf_history
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_from_sm,&
                                              sm_from_dbcsr
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
-  USE dbcsr_types,                     ONLY: dbcsr_obj
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
                                              mol_make_basis,&
@@ -74,8 +74,8 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: beta
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_b
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: matrix_p_b, matrix_s_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_p_b, matrix_s_b
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -248,11 +248,11 @@ distribution_2d=distribution_2d,error=error)
     REAL(dp), INTENT(IN), OPTIONAL           :: beta
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_b
-    TYPE(dbcsr_obj), POINTER                 :: ov_b_b
+    TYPE(cp_dbcsr_type), POINTER             :: ov_b_b
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: set_last
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: matrix_p_b, matrix_s_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_p_b, matrix_s_b
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -451,8 +451,8 @@ ENDIF
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_p_b, matrix_s_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p_b, matrix_s_b
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 

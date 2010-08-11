@@ -20,20 +20,23 @@ MODULE admm_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: admm_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_scale,&
-                                             cp_dbcsr_set
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
+       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_uses_special_memory
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_plus_fm_fm_t
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale,&
@@ -55,18 +58,7 @@ MODULE admm_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: dbcsr_col_block_sizes,&
-                                             dbcsr_distribution,&
-                                             dbcsr_row_block_sizes,&
-                                             dbcsr_uses_special_memory
-  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                             dbcsr_obj,&
-                                             dbcsr_type_normal,&
+  USE dbcsr_types,                     ONLY: dbcsr_type_normal,&
                                              dbcsr_type_symmetric
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: &
@@ -132,7 +124,7 @@ MODULE admm_methods
                                            ispin, nspins, use_dbcsr,error)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: density_matrix, &
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix, &
                                                 density_matrix_aux
     INTEGER                                  :: ispin, nspins
     LOGICAL, INTENT(IN), OPTIONAL            :: use_dbcsr
@@ -203,8 +195,8 @@ MODULE admm_methods
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks_aux_fit
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_merge_mo_derivs', &
@@ -248,8 +240,8 @@ MODULE admm_methods
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_ks_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_s, matrix_p_aux_fit, &
                                                 matrix_p
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -260,7 +252,7 @@ MODULE admm_methods
     INTEGER                                  :: blk, handle, iatom, jatom
     LOGICAL                                  :: failure, tr
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     failure = .FALSE.
 
@@ -298,14 +290,14 @@ MODULE admm_methods
       CASE(do_admm_block_purify_off)
         SELECT CASE(admm_env%block_projection_method)
         CASE (do_admm_block_aux_basis_off)
-          CALL dbcsr_iterator_start(iter, matrix_ks_aux_fit(ispin)%matrix)
-          DO WHILE (dbcsr_iterator_blocks_left (iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+          CALL cp_dbcsr_iterator_start(iter, matrix_ks_aux_fit(ispin)%matrix)
+          DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+            CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
             IF( admm_env%block_map(iatom,jatom) == 0 ) THEN
               sparse_block = 0.0_dp
             END IF
           END DO
-          CALL dbcsr_iterator_stop(iter)
+          CALL cp_dbcsr_iterator_stop(iter)
           CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, 1.0_dp, error)   
         CASE (do_admm_block_aux_basis_on)
         END SELECT
@@ -331,8 +323,8 @@ MODULE admm_methods
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(admm_control_type), POINTER         :: admm_control
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -450,8 +442,8 @@ MODULE admm_methods
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -557,8 +549,8 @@ MODULE admm_methods
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -649,8 +641,8 @@ MODULE admm_methods
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -720,8 +712,8 @@ MODULE admm_methods
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_mixed
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos, mos_aux_fit
@@ -735,8 +727,8 @@ MODULE admm_methods
                                                 nao_aux_fit, nao_orb, nspins
     LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj), POINTER                 :: matrix_s_tilde
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_s_tilde
     TYPE(section_vals_type), POINTER         :: input, xc_section
 
     CALL timeset(routineN,handle)
@@ -762,22 +754,26 @@ MODULE admm_methods
       ALLOCATE(matrix_s_tilde)
       CALL cp_dbcsr_init (matrix_s_tilde, error)
       CALL cp_dbcsr_create(matrix_s_tilde, 'MATRIX s_tilde', &
-           dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
-           dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), matrix_s_aux_fit(1)%matrix%m%nblks, matrix_s_aux_fit(1)%matrix%m%nze,&
-           matrix_s_aux_fit(1)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_s_aux_fit(1)%matrix), error=error)
+           cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_symmetric, &
+           cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
+           cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
+           cp_dbcsr_get_num_blocks(matrix_s_aux_fit(1)%matrix), &
+           cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
+           cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
+           cp_dbcsr_uses_special_memory(matrix_s_aux_fit(1)%matrix), error=error)
       CALL cp_dbcsr_finalize(matrix_s_tilde, error=error)
   
   
       CALL cp_dbcsr_copy(matrix_s_tilde, matrix_s_aux_fit(1)%matrix, error=error)
 
-      CALL dbcsr_iterator_start(iter, matrix_s_tilde)
-      DO WHILE (dbcsr_iterator_blocks_left (iter))
-        CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+      CALL cp_dbcsr_iterator_start(iter, matrix_s_tilde)
+      DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+        CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
         IF( admm_env%block_map(iatom,jatom) == 0 ) THEN
             sparse_block = 0.0_dp
         END IF
       END DO
-      CALL dbcsr_iterator_stop(iter)
+      CALL cp_dbcsr_iterator_stop(iter)
 
 
       CALL copy_dbcsr_to_fm(matrix_s_tilde,admm_env%S_inv,error)
@@ -829,8 +825,8 @@ MODULE admm_methods
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks_aux_fit
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_diag', &
@@ -980,8 +976,8 @@ MODULE admm_methods
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, mo_derivs_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks_aux_fit
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_no_diag', &
@@ -1092,8 +1088,8 @@ MODULE admm_methods
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_s_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s_aux_fit, &
                                                 matrix_s_aux_fit_vs_orb
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER                                  :: iw
@@ -1105,7 +1101,7 @@ MODULE admm_methods
 
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
                                                 neighbor_list_id, nmo
-    TYPE(dbcsr_obj), POINTER                 :: matrix_w_q, matrix_w_s
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_w_q, matrix_w_s
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
 
     CALL timeset(routineN,handle)
@@ -1127,9 +1123,13 @@ MODULE admm_methods
     ALLOCATE(matrix_w_s)
     CALL cp_dbcsr_init (matrix_w_s, error)
     CALL cp_dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
-         dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_normal, dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
-         dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), matrix_s_aux_fit(1)%matrix%m%nblks, matrix_s_aux_fit(1)%matrix%m%nze,&
-         matrix_s_aux_fit(1)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_s_aux_fit(1)%matrix), error=error)
+         cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_normal, &
+         cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
+         cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
+         cp_dbcsr_get_num_blocks(matrix_s_aux_fit(1)%matrix), &
+         cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
+         cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
+         cp_dbcsr_uses_special_memory(matrix_s_aux_fit(1)%matrix), error=error)
     CALL cp_dbcsr_finalize(matrix_w_s, error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s,qs_env%sab_aux_fit_asymm,error=error)
 
@@ -1263,7 +1263,7 @@ MODULE admm_methods
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: matrix_w
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_w
     INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -1481,7 +1481,7 @@ MODULE admm_methods
                 irow = iatom
                 icol = jatom
               END IF
-              CALL dbcsr_get_block_p(matrix=matrix_w,row=irow,col=icol,&
+              CALL cp_dbcsr_get_block_p(matrix=matrix_w,row=irow,col=icol,&
                    block=w_block,tr=tr,found=found)
 
               IF (.NOT.ASSOCIATED(w_block)) CYCLE
@@ -1856,8 +1856,8 @@ MODULE admm_methods
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_ks_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_s, matrix_p_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1869,7 +1869,7 @@ MODULE admm_methods
                                                 nmo
     INTEGER, SAVE                            :: counter = 0
     LOGICAL                                  :: failure
-    TYPE(dbcsr_obj), POINTER                 :: matrix_k_tilde
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
 
     failure = .FALSE.
 
@@ -1969,9 +1969,11 @@ MODULE admm_methods
     ALLOCATE(matrix_k_tilde)
     CALL cp_dbcsr_init (matrix_k_tilde, error)
     CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-         dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
-         dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), matrix_ks(ispin)%matrix%m%nblks, matrix_ks(ispin)%matrix%m%nze,&
-         matrix_ks(ispin)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
+         cp_dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
+         cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), &
+         cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), cp_dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
     CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
 
 
@@ -2002,8 +2004,8 @@ MODULE admm_methods
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_ks_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_s, matrix_p_aux_fit, &
                                                 matrix_p
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -2019,8 +2021,8 @@ MODULE admm_methods
     LOGICAL                                  :: failure, tr
     REAL(dp)                                 :: eig_diff, pole, tmp
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj), POINTER                 :: matrix_k_tilde
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
 
     failure = .FALSE.
 
@@ -2108,9 +2110,12 @@ MODULE admm_methods
     ALLOCATE(matrix_k_tilde)
     CALL cp_dbcsr_init (matrix_k_tilde, error)
     CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-         dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
-         dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), matrix_ks(ispin)%matrix%m%nblks, matrix_ks(ispin)%matrix%m%nze,&
-         matrix_ks(ispin)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
+         cp_dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric,&
+ cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
+         cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), &
+cp_dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
     CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
 
     CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error) 
@@ -2121,14 +2126,14 @@ MODULE admm_methods
          error=error)
 
     ! ** now loop through the list and nullify blocks
-    CALL dbcsr_iterator_start(iter, matrix_k_tilde)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-      CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+    CALL cp_dbcsr_iterator_start(iter, matrix_k_tilde)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+      CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
       IF( admm_env%block_map(iatom,jatom) == 0 ) THEN
          sparse_block = 0.0_dp
       END IF
     END DO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp, error)   
 
@@ -2145,8 +2150,8 @@ MODULE admm_methods
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_ks_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_s, matrix_p_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -2157,7 +2162,7 @@ MODULE admm_methods
                                                 nmo
     INTEGER, SAVE                            :: counter = 0
     LOGICAL                                  :: failure
-    TYPE(dbcsr_obj), POINTER                 :: matrix_k_tilde
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
 
     failure = .FALSE.
 
@@ -2185,9 +2190,10 @@ MODULE admm_methods
     ALLOCATE(matrix_k_tilde)
     CALL cp_dbcsr_init (matrix_k_tilde, error)
     CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-         dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
-         dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), matrix_ks(ispin)%matrix%m%nblks, matrix_ks(ispin)%matrix%m%nze,&
-         matrix_ks(ispin)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
+         cp_dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
+         cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), cp_dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
     CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
 
 
@@ -2230,8 +2236,8 @@ MODULE admm_methods
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_ks_aux_fit
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_ks_matrix', &
@@ -2239,7 +2245,7 @@ MODULE admm_methods
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(dbcsr_obj), POINTER                 :: matrix_k_tilde
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
 
     failure = .FALSE.
 
@@ -2250,9 +2256,10 @@ MODULE admm_methods
     ALLOCATE(matrix_k_tilde)
     CALL cp_dbcsr_init (matrix_k_tilde, error)
     CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-         dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
-         dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), matrix_ks(ispin)%matrix%m%nblks, matrix_ks(ispin)%matrix%m%nze,&
-         matrix_ks(ispin)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
+         cp_dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), &
+         cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), cp_dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
     CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
 
 
@@ -2274,11 +2281,11 @@ MODULE admm_methods
   SUBROUTINE admm_correct_for_eigenvalues(ispin, admm_env, ks_matrix, ks_matrix_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(dbcsr_obj), POINTER                 :: ks_matrix, ks_matrix_aux_fit
+    TYPE(cp_dbcsr_type), POINTER             :: ks_matrix, ks_matrix_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: nao_aux_fit, nao_orb
-    TYPE(dbcsr_obj), POINTER                 :: work
+    TYPE(cp_dbcsr_type), POINTER             :: work
 
     nao_aux_fit = admm_env%nao_aux_fit
     nao_orb = admm_env%nao_orb
@@ -2295,9 +2302,10 @@ MODULE admm_methods
         ALLOCATE(work)
         CALL cp_dbcsr_init (work, error)
         CALL cp_dbcsr_create(work, 'work', &
-             dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix),&
-             dbcsr_col_block_sizes(ks_matrix), ks_matrix%m%nblks, ks_matrix%m%nze,&
-             ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
+             cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
+             cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), &
+             cp_dbcsr_get_data_size(ks_matrix),&
+             cp_dbcsr_get_data_type(ks_matrix), cp_dbcsr_uses_special_memory(ks_matrix), error=error)
         CALL cp_dbcsr_finalize(work, error=error)
 
         CALL cp_dbcsr_copy(work, ks_matrix, error=error)
@@ -2327,9 +2335,9 @@ MODULE admm_methods
         ALLOCATE(work)
         CALL cp_dbcsr_init (work, error)
         CALL cp_dbcsr_create(work, 'work', &
-             dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix),&
-             dbcsr_col_block_sizes(ks_matrix), ks_matrix%m%nblks, ks_matrix%m%nze,&
-             ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
+             cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
+             cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
+             cp_dbcsr_get_data_type(ks_matrix), cp_dbcsr_uses_special_memory(ks_matrix), error=error)
         CALL cp_dbcsr_finalize(work, error=error)
 
         CALL cp_dbcsr_copy(work, ks_matrix, error=error)
@@ -2364,11 +2372,11 @@ MODULE admm_methods
   SUBROUTINE admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_matrix, ks_matrix_aux_fit, error)
     INTEGER, INTENT(IN)                      :: ispin
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(dbcsr_obj), POINTER                 :: ks_matrix, ks_matrix_aux_fit
+    TYPE(cp_dbcsr_type), POINTER             :: ks_matrix, ks_matrix_aux_fit
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: nao_aux_fit, nao_orb
-    TYPE(dbcsr_obj), POINTER                 :: work
+    TYPE(cp_dbcsr_type), POINTER             :: work
 
     nao_aux_fit = admm_env%nao_aux_fit
     nao_orb = admm_env%nao_orb
@@ -2385,9 +2393,9 @@ MODULE admm_methods
         ALLOCATE(work)
         CALL cp_dbcsr_init (work, error)
         CALL cp_dbcsr_create(work, 'work', &
-             dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix),&
-             dbcsr_col_block_sizes(ks_matrix), ks_matrix%m%nblks, ks_matrix%m%nze,&
-             ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
+             cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
+             cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
+             cp_dbcsr_get_data_type(ks_matrix), cp_dbcsr_uses_special_memory(ks_matrix), error=error)
         CALL cp_dbcsr_finalize(work, error=error)
 
         CALL cp_dbcsr_copy(work, ks_matrix, error=error)
@@ -2412,9 +2420,9 @@ MODULE admm_methods
         ALLOCATE(work)
         CALL cp_dbcsr_init (work, error)
         CALL cp_dbcsr_create(work, 'work', &
-             dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(ks_matrix),&
-             dbcsr_col_block_sizes(ks_matrix), ks_matrix%m%nblks, ks_matrix%m%nze,&
-             ks_matrix%m%data_type, dbcsr_uses_special_memory(ks_matrix), error=error)
+             cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
+             cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
+             cp_dbcsr_get_data_type(ks_matrix), cp_dbcsr_uses_special_memory(ks_matrix), error=error)
         CALL cp_dbcsr_finalize(work, error=error)
 
         CALL cp_dbcsr_copy(work, ks_matrix, error=error)
@@ -2438,7 +2446,7 @@ MODULE admm_methods
   SUBROUTINE calculate_dm_mo_no_diag(admm_env,mo_set,density_matrix,ispin,error)
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: density_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix
     INTEGER                                  :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2486,7 +2494,7 @@ MODULE admm_methods
 
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: density_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix
     INTEGER                                  :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2568,7 +2576,7 @@ MODULE admm_methods
   SUBROUTINE blockify_density_matrix(admm_env,density_matrix, density_matrix_aux,&
                                      ispin, nspins, error)
     TYPE(admm_type), POINTER                 :: admm_env
-    TYPE(dbcsr_obj), POINTER                 :: density_matrix, &
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix, &
                                                 density_matrix_aux
     INTEGER                                  :: ispin, nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2579,7 +2587,7 @@ MODULE admm_methods
     INTEGER                                  :: blk, handle, iatom, jatom
     LOGICAL                                  :: failure, found, tr, tr1
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, sparse_block_aux
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     failure = .FALSE.
 
@@ -2589,11 +2597,11 @@ MODULE admm_methods
     CALL cp_dbcsr_set(density_matrix_aux, 0.0_dp, error)
  
     ! ** now loop through the list and copy corresponding blocks
-    CALL dbcsr_iterator_start(iter, density_matrix)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-      CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+    CALL cp_dbcsr_iterator_start(iter, density_matrix)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+      CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
       IF( admm_env%block_map(iatom,jatom) == 1 ) THEN
-        CALL dbcsr_get_block_p(density_matrix_aux,&
+        CALL cp_dbcsr_get_block_p(density_matrix_aux,&
                                row=iatom,col=jatom,BLOCK=sparse_block_aux,tr=tr1,found=found)
         IF( found ) THEN
           sparse_block_aux = sparse_block
@@ -2601,7 +2609,7 @@ MODULE admm_methods
 
       END IF
     END DO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL copy_dbcsr_to_fm(density_matrix_aux,admm_env%P_to_be_purified(ispin)%matrix,error)
     CALL cp_fm_upper_to_full(admm_env%P_to_be_purified(ispin)%matrix, admm_env%work_orb_orb2,error=error)
@@ -2619,8 +2627,8 @@ MODULE admm_methods
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_ks, matrix_ks_aux_fit, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_s, matrix_p_aux_fit, &
                                                 matrix_p
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -2633,7 +2641,7 @@ MODULE admm_methods
     INTEGER, SAVE                            :: counter = 0
     LOGICAL                                  :: failure
     REAL(dp)                                 :: eig_diff, pole, tmp
-    TYPE(dbcsr_obj), POINTER                 :: matrix_k_tilde
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
 
     failure = .FALSE.
 
@@ -2735,9 +2743,10 @@ MODULE admm_methods
     ALLOCATE(matrix_k_tilde)
     CALL cp_dbcsr_init (matrix_k_tilde, error)
     CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-         dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
-         dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), matrix_ks(ispin)%matrix%m%nblks, matrix_ks(ispin)%matrix%m%nze,&
-         matrix_ks(ispin)%matrix%m%data_type, dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
+         cp_dbcsr_distribution(matrix_ks(ispin)%matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix),&
+cp_dbcsr_get_data_size( matrix_ks(ispin)%matrix),&
+cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), cp_dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
     CALL cp_dbcsr_finalize(matrix_k_tilde, error=error)
 
     CALL cp_fm_to_fm(admm_env%work_orb_orb, admm_env%ks_to_be_merged(ispin)%matrix, error=error)
@@ -2758,7 +2767,7 @@ MODULE admm_methods
 
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(dbcsr_obj), POINTER                 :: density_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: density_matrix
     INTEGER                                  :: ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
 

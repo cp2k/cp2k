@@ -19,10 +19,12 @@ MODULE cp_dbcsr_diag
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info
   USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
                                              copy_dbcsr_to_cfm,&
                                              copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_fm_diag,                      ONLY: cp_fm_syevd,&
                                              cp_fm_syevr,&
                                              cp_fm_syevx
@@ -34,8 +36,6 @@ MODULE cp_dbcsr_diag
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dbcsr_methods,                   ONLY: dbcsr_get_info
-  USE dbcsr_types,                     ONLY: dbcsr_obj
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -64,7 +64,7 @@ CONTAINS
     ! especially in parallel with thightly clustered evals
     ! needs more workspace in the worst case, but much better distributed
 
-    TYPE(dbcsr_obj)                          :: matrix, eigenvectors
+    TYPE(cp_dbcsr_type)                      :: matrix, eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
@@ -84,7 +84,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
-    CALL dbcsr_get_info(matrix,nfullrows_total=nfullrows_total)
+    CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total)
 
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
          ncol_global=nfullrows_total,para_env=para_env,error=error)
@@ -119,8 +119,8 @@ CONTAINS
 
     ! Diagonalise the symmetric n by n matrix using the LAPACK library.
 
-    TYPE(dbcsr_obj), POINTER                 :: matrix
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: eigenvectors
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
     INTEGER, INTENT(IN), OPTIONAL            :: neig
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: work_syevx
@@ -139,7 +139,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! by default all
-    CALL dbcsr_get_info(matrix,nfullrows_total=n)
+    CALL cp_dbcsr_get_info(matrix,nfullrows_total=n)
     neig_local=n
     IF (PRESENT(neig)) neig_local=neig
     IF (neig_local == 0) RETURN
@@ -176,8 +176,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_syevr(matrix,eigenvectors,eigenvalues,ilow,iup,para_env,blacs_env,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: matrix
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: eigenvectors
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
     INTEGER, INTENT(IN), OPTIONAL            :: ilow, iup
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -195,7 +195,7 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
-    CALL dbcsr_get_info(matrix,nfullrows_total=n)
+    CALL cp_dbcsr_get_info(matrix,nfullrows_total=n)
 
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=n,&
          ncol_global=n,para_env=para_env,error=error)
@@ -219,8 +219,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_heevd(matrix,eigenvectors,eigenvalues,para_env,blacs_env,error)
 
-    TYPE(dbcsr_obj)                          :: matrix
-    TYPE(dbcsr_obj), OPTIONAL, POINTER       :: eigenvectors
+    TYPE(cp_dbcsr_type)                      :: matrix
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
@@ -239,7 +239,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
-    CALL dbcsr_get_info(matrix,nfullrows_total=nfullrows_total)
+    CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total)
 
     CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=nfullrows_total,&
          ncol_global=nfullrows_total,para_env=para_env,error=error)

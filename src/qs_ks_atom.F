@@ -14,9 +14,9 @@ MODULE qs_ks_atom
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -80,8 +80,8 @@ CONTAINS
   SUBROUTINE update_ks_atom(qs_env,ks,p,forces,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), INTENT(INOUT)            :: ks, p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      INTENT(INOUT)                          :: ks, p
     LOGICAL, INTENT(IN)                      :: forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
@@ -287,19 +287,19 @@ CONTAINS
             DO ispin = 1,nspins
               NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
               IF (iatom <= jatom) THEN
-                CALL dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
                      row=iatom,col=jatom,BLOCK=mat_h(ispin)%array,tr=tr,found=found)
               ELSE
-                CALL dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
+                CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
                      row=jatom,col=iatom,BLOCK=mat_h(ispin)%array,tr=tr,found=found)
               END IF
 
               IF(forces) THEN
                 IF (iatom <= jatom) THEN
-                  CALL dbcsr_get_block_p(matrix=p(ispin)%matrix,&
+                  CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
                        row=iatom,col=jatom,BLOCK=mat_p(ispin)%array,tr=tr,found=found)
                 ELSE
-                  CALL dbcsr_get_block_p(matrix=p(ispin)%matrix,&
+                  CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
                        row=jatom,col=iatom,BLOCK=mat_p(ispin)%array,tr=tr,found=found)
                 END IF
               END IF

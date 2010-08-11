@@ -19,17 +19,17 @@ MODULE qs_core_energies
                                              plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_types,                     ONLY: dbcsr_iterator,&
-                                             dbcsr_obj
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
@@ -84,7 +84,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_ecore(h,p,ecore,para_env,error)
 
-    TYPE(dbcsr_obj), POINTER                 :: h, p
+    TYPE(cp_dbcsr_type), POINTER             :: h, p
     REAL(KIND=dp), INTENT(OUT)               :: ecore
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -97,16 +97,16 @@ CONTAINS
     LOGICAL                                  :: found, tr
     REAL(KIND=dp)                            :: ecore_block
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
-    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN,handle)
     ecore = 0.0_dp
 
-    CALL dbcsr_iterator_start(iter, h)
-    DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, h_block, tr, blk)
+    CALL cp_dbcsr_iterator_start(iter, h)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, h_block, tr, blk)
 
-       CALL dbcsr_get_block_p(matrix=p,&
+       CALL cp_dbcsr_get_block_p(matrix=p,&
             row=iblock_row,col=iblock_col,BLOCK=p_block,tr=tr,found=found)
 
        ! if no block we can cycle
@@ -127,7 +127,7 @@ CONTAINS
        END IF
        
     ENDDO
-    CALL dbcsr_iterator_stop(iter)
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL mp_sum(ecore,para_env%group)
 

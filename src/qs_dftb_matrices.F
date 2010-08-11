@@ -19,29 +19,24 @@ MODULE qs_dftb_matrices
   USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
-                                             cp_dbcsr_copy,&
-                                             cp_dbcsr_create,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init,&
-                                             cp_dbcsr_multiply
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_release, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_init, &
+       cp_dbcsr_multiply
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_obj_p_type
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_distribution_mp,&
-                                             dbcsr_distribution_release,&
-                                             dbcsr_get_info
+  USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_obj,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
@@ -140,8 +135,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(2:4)       :: dgblocks, dsblocks
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: gamma_matrix, matrix_h, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: gamma_matrix, matrix_h, &
                                                 matrix_p, matrix_s, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
@@ -228,7 +223,7 @@ CONTAINS
                       gamma_matrix=gamma_matrix,error=error)
 
       CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error,&
-           mp_obj=dbcsr_distribution_mp (dbcsr_distribution (matrix_s(1)%matrix)))
+           mp_obj=dbcsr_distribution_mp (cp_dbcsr_distribution (matrix_s(1)%matrix)))
       ALLOCATE (rbs(natom), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL convert_offsets_to_sizes (felem, rbs, lelem)
@@ -259,7 +254,7 @@ CONTAINS
               error=error)
       END DO
 
-      CALL dbcsr_distribution_release (dbcsr_dist)
+      CALL cp_dbcsr_distribution_release (dbcsr_dist)
       CALL array_release (row_blk_sizes)
 
       DEALLOCATE (felem,lelem,STAT=istat)
@@ -397,11 +392,11 @@ CONTAINS
                    END IF
                    IF (calculate_forces) THEN
                      NULLIFY (pblock)
-                     CALL dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                     CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                           row=irow,col=icol,block=pblock,tr=tr,found=found)
                      CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,error,failure)
                      NULLIFY (wblock)
-                     CALL dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
+                     CALL cp_dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
                           row=irow,col=icol,block=wblock,tr=tr,found=found)
                      CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
                      IF ( dftb_control%self_consistent ) THEN
@@ -652,8 +647,8 @@ CONTAINS
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: ks_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
@@ -673,12 +668,12 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h, matrix_p, matrix_s, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p, matrix_s, &
                                                 mo_derivs
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_obj), POINTER                 :: mo_coeff
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -782,7 +777,7 @@ CONTAINS
              IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
                 CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
              ENDIF
-             CALL dbcsr_get_info(mo_coeff,nfullcols_total=ncol_global)
+             CALL cp_dbcsr_get_info(mo_coeff,nfullcols_total=ncol_global)
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&
                   0.0_dp,mo_derivs(ispin)%matrix, last_column=ncol_global,error=error)
           ENDDO
@@ -813,8 +808,8 @@ CONTAINS
     TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_obj_p_type), &
-      DIMENSION(:), POINTER                  :: matrix_h, matrix_s
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_s
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
@@ -906,7 +901,7 @@ CONTAINS
       END DO
     END IF
 
-    CALL dbcsr_distribution_release (dbcsr_dist)
+    CALL cp_dbcsr_distribution_release (dbcsr_dist)
     CALL array_release (row_blk_sizes)
 
     CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
