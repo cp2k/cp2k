@@ -11,6 +11,7 @@
 ! *****************************************************************************
 MODULE input_cp2k_distribution
   USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -163,11 +164,19 @@ CONTAINS
        CALL keyword_create(keyword,name="METHOD",&
             description="The clustering method ",&
             usage="METHOD BOX",&
-            enum_c_vals=s2a("NONE","BOX"),&
-            enum_i_vals=(/clustering_none, clustering_box/),&
+            enum_c_vals=s2a("NONE","BOX", "H_ON_HEAVIER"),&
+            enum_i_vals=(/clustering_none, clustering_box, clustering_h_on_heavier/),&
             enum_desc=s2a("none",&
-                          "based on boxes"), &
+                          "based on boxes",&
+                          "hydrogen on heavier atoms"), &
             default_i_val=clustering_none,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="BOX_SIZE",&
+            description="The box size",&
+            usage="BOX_SIZE 10.0", unit_str="angstrom",&
+            default_r_val=cp_unit_to_cp2k(value=4.0_dp,unit_str="angstrom",error=error), error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

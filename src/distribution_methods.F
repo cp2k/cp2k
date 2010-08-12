@@ -464,7 +464,7 @@ CONTAINS
       icluster, imol, imolecule, imolecule_kind, ip, iparticle_kind, ipcol, &
       iprow, istat, iw, kind_a, mypcol, myprow, n, natom, natom_mol, &
       nclusters, nele, nmolecule, nmolecule_kind, nparticle_kind, npcol, &
-      nprow, output_unit
+      nprow, nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:) :: cluster_list, cluster_prices, &
       col_ele, nparticle_local_col, nparticle_local_row, row_ele, work
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_ele_pair
@@ -555,7 +555,7 @@ CONTAINS
             cp_fatal_level, cp_unimplemented_error_nr, routineN,&
             "Clustering can only use basic or no distribution optimization.",&
             error=error)
-       CALL clustering_particles(clusters, clustering_section, cell, particle_kind_set, particle_set, error)
+       CALL clustering_particles(clusters, clustering_section, cell, particle_set, error)
        IF (skip_optimization) THEN
           ALLOCATE(cluster_row_dist(clusters%nclusters),cluster_col_dist(clusters%nclusters))
           DO icluster = 1,clusters%nclusters
@@ -585,7 +585,7 @@ CONTAINS
           CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
           ! Fill in the clusters and their prices
 !$omp parallel do default (none) &
-!$omp          private (icluster, iatom, ip, &
+!$omp          private (icluster, iatom, ip, nsgf, &
 !$omp                   orb_basis_set, lmax_basis, cluster_price) &
 !$omp          shared (natom, nclusters, clusters,&
 !$omp                  cluster_list, cluster_prices, particle_set, cost_model) &
@@ -596,7 +596,14 @@ CONTAINS
              cluster_list(icluster) = icluster
              SELECT CASE (cost_model)
              CASE (model_block_count)
-                cluster_price = 1
+                cluster_price = 0
+                DO ip = clusters%cluster_ptr(icluster),&
+                     clusters%cluster_ptr(icluster+1)-1
+                   iatom = clusters%particle_idx(ip)
+                   CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                        nsgf=nsgf)
+                   cluster_price = cluster_price + nsgf
+                ENDDO
              CASE (model_block_lmax)
                 cluster_price = 0
                 DO ip = clusters%cluster_ptr(icluster),&
@@ -698,7 +705,7 @@ CONTAINS
        CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
        ! Fill in the clusters and their prices
 !$omp parallel do default (none) &
-!$omp          private (iatom, orb_basis_set, lmax_basis, cluster_price) &
+!$omp          private (iatom, orb_basis_set, nsgf, lmax_basis, cluster_price) &
 !$omp          shared (natom, nclusters, &
 !$omp                  cluster_list, cluster_prices, particle_set, cost_model) &
 !$omp          shared (error)
@@ -708,7 +715,9 @@ CONTAINS
           cluster_list(iatom) = iatom
           SELECT CASE (cost_model)
           CASE (model_block_count)
-             cluster_price = 1
+             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                  nsgf=nsgf)
+             cluster_price = nsgf
           CASE (model_block_lmax)
              CALL get_atomic_kind (atomic_kind=particle_set(iatom)%atomic_kind,&
                   orb_basis_set=orb_basis_set)
@@ -1128,8 +1137,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_basic_distribution', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bin, bin_price, cluster, cluster_price, nbins, nclusters, &
-      pcol, pgrid_gcd, prow, timing_handle, cluster_index
+    INTEGER :: bin, bin_price, cluster, cluster_index, cluster_price, nbins, &
+      nclusters, pcol, pgrid_gcd, prow, timing_handle
     LOGICAL                                  :: failure, found, heap_error
     TYPE(heap_t)                             :: bin_heap
 

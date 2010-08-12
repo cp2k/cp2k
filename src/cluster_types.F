@@ -10,9 +10,7 @@
 ! *****************************************************************************
 MODULE cluster_types
 
-  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
-
   IMPLICIT NONE
 
   PRIVATE
@@ -31,7 +29,6 @@ MODULE cluster_types
      INTEGER                            :: nbox_filled = 0
      INTEGER, DIMENSION(:,:,:), POINTER :: box_p => NULL()
      INTEGER, DIMENSION(:), POINTER     :: part_i => NULL()
-     REAL(dp), DIMENSION(:,:), POINTER  :: xyz => NULL()
   END TYPE box_type
 
   TYPE cluster_type

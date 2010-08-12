@@ -10,19 +10,22 @@
 ! *****************************************************************************
 MODULE cluster_methods
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
   USE cluster_types,                   ONLY: box_type,&
                                              cluster_type
   USE input_constants,                 ONLY: clustering_box,&
+                                             clustering_h_on_heavier,&
                                              clustering_none
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: radians
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: angstrom
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -50,12 +53,10 @@ CONTAINS
 !> \author VW (2010)
 ! *****************************************************************************
   SUBROUTINE clustering_particles(clusters, clustering_section, cell, &
-       particle_kind_set, particle_set, error)
+       particle_set, error)
     TYPE(cluster_type)                       :: clusters
     TYPE(section_vals_type), POINTER         :: clustering_section
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: particle_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -65,6 +66,7 @@ CONTAINS
 
     INTEGER                                  :: handle, method
     LOGICAL                                  :: failure
+    REAL(dp)                                 :: box_size
     TYPE(box_type)                           :: boxes
 
     failure = .FALSE.
@@ -72,9 +74,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL section_vals_val_get(clustering_section,"METHOD",i_val=method,error=error)
+    CALL section_vals_val_get(clustering_section,"BOX_SIZE",r_val=box_size,error=error)
     !
     ! box my particles
-    CALL boxing_particles(cell, particle_kind_set, particle_set, boxes, error=error)
+    CALL boxing_particles(cell, particle_set, boxes, box_size, error=error)
     !
     ! cluster my particles
     SELECT CASE(method)
@@ -82,15 +85,19 @@ CONTAINS
        CALL cluster_none(clusters, boxes, error)
     CASE(clustering_box) ! BOX
        CALL cluster_box(clusters, boxes, error)
-    !CASE(clustering_h_on_heavier)
-    ! call cluster_h_on_heavier(clusters, boxes, error)
+    CASE(clustering_h_on_heavier)
+       CALL cluster_h_on_heavier(clusters, boxes, cell, particle_set, error)
     !CASE(clustering_smallest_on_larger)
-    !call cluster_smallest_on_larger(clusters, boxes, particle_kind_set, particle_set, error)
+    !call cluster_smallest_on_larger(clusters, boxes, particle_set, error)
     CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-    IF(dbg) CALL cluster_print(clusters, error)
+    IF(dbg) CALL cluster_print(clusters, cell, particle_set, error)
+
+    !
+    ! check if we didnt loose any particles...
+    CALL cluster_check(clusters, error)
 
     !
     ! cleanup
@@ -207,6 +214,153 @@ CONTAINS
   END SUBROUTINE cluster_smallest_on_larger
 
 ! *****************************************************************************
+!> \brief Clustering the hydrogen particle block on larger one based on boxes
+!> \par History
+!>      none
+!> \author VW (2010)
+! *****************************************************************************
+  SUBROUTINE cluster_h_on_heavier(clusters, boxes, cell, particle_set, error)
+
+    TYPE(cluster_type)                       :: clusters
+    TYPE(box_type)                           :: boxes
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_h_on_heavier', &
+      routineP = moduleN//':'//routineN
+    REAL(dp), PARAMETER                      :: radius = 2.0_dp
+
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER :: i, ibox, ipart, istat, j, jbox, jpart, kbox, lbox, mbox, &
+      mpart, n_part, nbox, nclusters, nnbox(3), npart, nparticles
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: clustered
+    INTEGER, DIMENSION(:), POINTER           :: cluster_ptr, part_i, &
+                                                particle_idx
+    INTEGER, DIMENSION(:, :, :), POINTER     :: box_p
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: dist, r(3)
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+
+    failure = .FALSE.
+
+    nparticles = boxes%npart
+    nclusters = boxes%npart ! worst case
+
+    CALL cluster_allocate(clusters, nclusters, nparticles, error)
+
+    ALLOCATE(clustered(nparticles),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    clustered(:) = 0
+
+    DO ipart = 1,nparticles
+       atom_kind => particle_set(ipart)%atomic_kind
+       CALL get_atomic_kind(atom_kind,element_symbol=element_symbol)
+       IF(TRIM(element_symbol).EQ."H") clustered(ipart) = 1
+    ENDDO
+
+    nclusters = 1
+    nparticles = 0
+    particle_idx => clusters%particle_idx
+    cluster_ptr => clusters%cluster_ptr
+    cluster_ptr(nclusters) = 1
+    box_p => boxes%box_p
+    part_i => boxes%part_i
+    nnbox(:) = boxes%nbox(:)
+    DO kbox = 0,nnbox(3)-1
+    DO jbox = 0,nnbox(2)-1
+    DO ibox = 0,nnbox(1)-1
+       mpart = box_p(ibox+1,jbox,kbox)-box_p(ibox,jbox,kbox)
+       IF(mpart.EQ.0) CYCLE
+       !
+       ! cluster h on heavier
+       DO i = box_p(ibox,jbox,kbox),box_p(ibox+1,jbox,kbox)-1
+          ipart = part_i(i)
+          !
+          ! find a none hydrogen atom
+          IF(clustered(ipart).NE.0) CYCLE
+          !
+          ! add it to the cluster
+          n_part = 1
+          nparticles = nparticles + 1
+          particle_idx(nparticles) = ipart
+          !
+          ! find the hydrogen atoms that are not clustered yet
+          DO nbox = MAX(kbox-1,0),MIN(kbox+1,nnbox(3)-1)
+          DO mbox = MAX(jbox-1,0),MIN(jbox+1,nnbox(2)-1)
+          DO lbox = MAX(ibox-1,0),MIN(ibox+1,nnbox(1)-1)
+             npart = box_p(lbox+1,mbox,nbox)-box_p(lbox,mbox,nbox)
+             IF(npart.EQ.0) CYCLE
+             DO j = box_p(lbox,mbox,nbox),box_p(lbox+1,mbox,nbox)-1
+                jpart = part_i(j)
+                IF(clustered(jpart).NE.1) CYCLE
+                !
+                ! if possible add it to the cluster
+                r = pbc(particle_set(ipart)%r(:), particle_set(jpart)%r(:), cell)
+                dist = SQRT(DOT_PRODUCT(r,r))
+                IF(dist.LE.radius) THEN
+                   clustered(jpart) = -1
+                   n_part = n_part + 1
+                   nparticles = nparticles + 1
+                   particle_idx(nparticles) = jpart
+                ENDIF
+             ENDDO
+          ENDDO !lbox
+          ENDDO !mbox
+          ENDDO !nbox
+          !
+          ! increament the cluster
+          nclusters = nclusters + 1
+          cluster_ptr(nclusters) = cluster_ptr(nclusters-1) + n_part
+       ENDDO !i
+       !
+       !
+    ENDDO !ibox
+    ENDDO !jbox
+    ENDDO !kbox
+    !
+    ! add the remaining hydrogens to the cluster 
+    IF(nparticles.NE.boxes%npart) THEN
+       DO kbox = 0,nnbox(3)-1
+       DO jbox = 0,nnbox(2)-1
+       DO ibox = 0,nnbox(1)-1
+          mpart = box_p(ibox+1,jbox,kbox)-box_p(ibox,jbox,kbox)
+          IF(mpart.EQ.0) CYCLE
+          n_part = 0
+          !
+          ! box remaining h
+          DO i = box_p(ibox,jbox,kbox),box_p(ibox+1,jbox,kbox)-1
+             ipart = part_i(i)
+             !
+             ! find a none clustered hydrogen atom
+             IF(clustered(ipart).NE.1) CYCLE
+             n_part = n_part + 1
+             clustered(ipart) = -1
+             nparticles = nparticles + 1
+             particle_idx(nparticles) = ipart
+          ENDDO
+          !
+          ! increment the cluster if found any particles
+          IF(n_part.GT.0) THEN
+             nclusters = nclusters + 1
+             cluster_ptr(nclusters) = cluster_ptr(nclusters-1) + n_part
+          ENDIF
+       ENDDO !ibox
+       ENDDO !jbox
+       ENDDO !kbox
+    ENDIF
+    !
+    ! reset to the correct value
+    clusters%nclusters = nclusters - 1
+
+    DEALLOCATE(clustered,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE cluster_h_on_heavier
+
+! *****************************************************************************
 !> \brief Clustering none 
 !> \par History
 !>      none
@@ -262,21 +416,18 @@ CONTAINS
 !>      none
 !> \author VW (2010)
 ! *****************************************************************************
-  SUBROUTINE boxing_particles(cell, particle_kind_set,particle_set,&
-       boxes, error)
+  SUBROUTINE boxing_particles(cell, particle_set, boxes, box_size_guess, error)
 
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: particle_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(box_type)                           :: boxes
+    REAL(kind=dp), INTENT(in)                :: box_size_guess
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'boxing_particles', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: box_secure = 1.0_dp, &
-                                                box_size_guess = 8.0_dp
+    REAL(kind=dp), PARAMETER                 :: box_secure = 1.0e-6_dp
 
     INTEGER                                  :: handle, i, iatom, ibox, &
                                                 istat, ixyz, jbox, kbox, &
@@ -290,7 +441,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: xyz, xyz_tmp
     REAL(dp), DIMENSION(3)                   :: abc, cell_center, dbox, lbox
     REAL(dp), DIMENSION(3, 3)                :: g, h, h_inv, u
-    REAL(dp), DIMENSION(:, :), POINTER       :: xyz_p
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -313,57 +463,28 @@ CONTAINS
     !
     ALLOCATE(xyz(3,natms),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    !
-    ! g = canonical h
-    g(:,:) = 0.0_dp
-    g(1,1) = 1.0_dp; g(2,2) = 1.0_dp; g(3,3) = 1.0_dp;
-    SELECT CASE(SUM(periodic))
-    CASE(0)
-    CASE(1)
-       DO ixyz = 1,3
-          IF(periodic(ixyz).EQ.1) g(ixyz,ixyz) = abc(ixyz)
-       ENDDO
-    CASE(2)
-       ! some more work here
-       IF(periodic(3).EQ.0) THEN
-          g(1,1) = abc(1)
-          g(1,2) = abc(2) * COS(radians * abc(3))
-          g(2,2) = abc(2) * SIN(radians * abc(3))
-       ENDIF
-       IF(periodic(2).EQ.0) THEN
-          g(1,1) = abc(1)
-          g(1,3) = abc(2) * COS(radians * abc(3))
-          g(3,3) = abc(2) * SIN(radians * abc(3))
-       ENDIF
-       IF(periodic(1).EQ.0) THEN
-          g(2,2) = abc(1)
-          g(2,3) = abc(2) * COS(radians * abc(3))
-          g(3,3) = abc(2) * SIN(radians * abc(3))
-       ENDIF
-    CASE(3)
-       g(1,1) = abc(1)
-       g(1,2) = abc(2) * COS(radians * gamma)
-       g(2,2) = abc(3) * SIN(radians * gamma)
-       g(1,3) = abc(3) * COS(radians * beta)
-       g(2,3) = (abc(2) * abc(3) * COS(radians * alpha) - g(1,2) * g(1,3)) / g(2,2)
-       g(3,3) = SQRT(abc(3)**2 - g(1,3)**2 - g(2,3)**2)
-    CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT
-    !
-    ! compute u matrix
-    u = MATMUL(g,h_inv)
+
     !
     ! wrap the atoms and center them
     cell_center(:) = 0.5_dp*( h(:,1) + h(:,2) + h(:,3) )
     DO iatom = 1,natms
        xyz(:,iatom) = pbc(particle_set(iatom)%r(:), cell) + cell_center(:)
     ENDDO
+
     !
-    ! center for non periodic
-    DO ixyz = 1,3
-       IF(periodic(ixyz).NE.1) xyz(ixyz,:) = xyz(ixyz,:) - MINVAL(xyz(ixyz,:)) + box_secure / 2.0_dp
-    ENDDO
+    ! g = canonical h
+    g(:,:) = 0.0_dp
+    g(1,1) = abc(1)
+    g(1,2) = abc(2) * COS(radians * gamma)
+    g(2,2) = abc(3) * SIN(radians * gamma)
+    g(1,3) = abc(3) * COS(radians * beta)
+    g(2,3) = ( abc(2) * abc(3) * COS(radians * alpha) - g(1,2) * g(1,3) ) / g(2,2)
+    g(3,3) = SQRT( abc(3)**2 - g(1,3)**2 - g(2,3)**2 )
+
+    !
+    ! compute u matrix
+    u = MATMUL(g,h_inv)
+
     !
     ! rotate coordinate if needed
     IF(.NOT.orthorhombic) THEN
@@ -374,15 +495,14 @@ CONTAINS
        DEALLOCATE(xyz_tmp,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
+
     !
-    ! compute the size of the box
+    ! shift the xyz and set the size of the box and secure it
+    xyz(:,:) = xyz(:,:) + box_secure / 2.0_dp
     DO ixyz = 1,3
-       IF(periodic(ixyz).EQ.1) THEN
-          lbox(ixyz) = g(ixyz,ixyz)
-       ELSE
-          lbox(ixyz) = MAXVAL(xyz(ixyz,:)) + box_secure
-       ENDIF
+       lbox(ixyz) = g(ixyz,ixyz) + box_secure
     ENDDO
+
     !
     ! box the atoms
     nbox(1) = CEILING(lbox(1) / box_size_guess)
@@ -395,25 +515,26 @@ CONTAINS
     !
     !
     IF(dbg) THEN
-       WRITE(*,*) routineN//' natms=',natms
-       WRITE(*,*) routineN//' periodic=',periodic
-       WRITE(*,*) routineN//' h(:,1)=',h(:,1)
-       WRITE(*,*) routineN//' h(:,2)=',h(:,2)
-       WRITE(*,*) routineN//' h(:,3)=',h(:,3)
-       WRITE(*,*) routineN//' g(:,1)=',g(:,1)
-       WRITE(*,*) routineN//' g(:,2)=',g(:,2)
-       WRITE(*,*) routineN//' g(:,3)=',g(:,3)
-       WRITE(*,*) routineN//' u(:,1)=',u(:,1)
-       WRITE(*,*) routineN//' u(:,2)=',u(:,2)
-       WRITE(*,*) routineN//' u(:,3)=',u(:,3)
-       WRITE(*,*) routineN//'  alpha=',alpha
-       WRITE(*,*) routineN//'   beta=',beta
-       WRITE(*,*) routineN//'  gamma=',gamma
-       WRITE(*,*) routineN//'    abc=',abc
-       WRITE(*,*) routineN//'lbox(:)=',lbox(:)
-       WRITE(*,*) routineN//'   nbox=',nbox
-       WRITE(*,*) routineN//'   dbox=',dbox
-       WRITE(*,*) routineN//' box_size_guess=',box_size_guess
+       WRITE(*,'(T2,A,I6)') routineN//' natms=',natms
+       WRITE(*,'(T2,A,3I2)') routineN//' periodic=',periodic
+       WRITE(*,'(T2,A,L1)') routineN//' orthorhombic=',orthorhombic
+       WRITE(*,'(T2,A,3F12.4)') routineN//' h(:,1)=',h(:,1)
+       WRITE(*,'(T2,A,3F12.4)') routineN//' h(:,2)=',h(:,2)
+       WRITE(*,'(T2,A,3F12.4)') routineN//' h(:,3)=',h(:,3)
+       WRITE(*,'(T2,A,3F12.4)') routineN//' g(:,1)=',g(:,1)
+       WRITE(*,'(T2,A,3F12.4)') routineN//' g(:,2)=',g(:,2)
+       WRITE(*,'(T2,A,3F12.4)') routineN//' g(:,3)=',g(:,3)
+       WRITE(*,'(T2,A,3F12.4)') routineN//' u(:,1)=',u(:,1)
+       WRITE(*,'(T2,A,3F12.4)') routineN//' u(:,2)=',u(:,2)
+       WRITE(*,'(T2,A,3F12.4)') routineN//' u(:,3)=',u(:,3)
+       WRITE(*,'(T2,A,F12.4)') routineN//'  alpha=',alpha
+       WRITE(*,'(T2,A,F12.4)') routineN//'   beta=',beta
+       WRITE(*,'(T2,A,F12.4)') routineN//'  gamma=',gamma
+       WRITE(*,'(T2,A,3F12.4)') routineN//'    abc=',abc
+       WRITE(*,'(T2,A,3F12.4)') routineN//'lbox(:)=',lbox(:)
+       WRITE(*,'(T2,A,3I4)') routineN//'   nbox=',nbox
+       WRITE(*,'(T2,A,3F12.4)') routineN//'   dbox=',dbox
+       WRITE(*,'(T2,A,F12.4)') routineN//' box_size_guess=',box_size_guess
     ENDIF
 
     CALL box_allocate(boxes, nbox, natms, error=error)
@@ -439,7 +560,6 @@ CONTAINS
     ! set the table
     box_p => boxes%box_p
     part_i => boxes%part_i
-    xyz_p => boxes%xyz
     i = 1
     boxes%nbox_filled = 0
     DO kbox = 0,boxes%nbox(3)-1
@@ -468,7 +588,6 @@ CONTAINS
        ENDIF
        i = box_p(ibox,jbox,kbox) + cnt(ibox,jbox,kbox) - 1
        part_i(i) = iatom
-       xyz_p(:,i) = xyz(:,iatom)
        cnt(ibox,jbox,kbox) = cnt(ibox,jbox,kbox) - 1
     ENDDO
 
@@ -501,8 +620,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(boxes%part_i(npart),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(boxes%xyz(3,npart),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE box_allocate
 
@@ -526,10 +643,6 @@ CONTAINS
     ENDIF
     IF(ASSOCIATED(boxes%part_i)) THEN
        DEALLOCATE(boxes%part_i,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    IF(ASSOCIATED(boxes%xyz)) THEN
-       DEALLOCATE(boxes%xyz,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
   END SUBROUTINE box_deallocate
@@ -569,14 +682,60 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE cluster_deallocate
 
-  SUBROUTINE cluster_print(clusters, error)
+  SUBROUTINE cluster_check(clusters, error)
     TYPE(cluster_type)                       :: clusters
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_check', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: icluster, ip, iparticle, istat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: icheck
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    ALLOCATE(icheck(clusters%nparticles),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    icheck(:) = 0
+
+    DO icluster = 1,clusters%nclusters
+       DO ip = clusters%cluster_ptr(icluster),clusters%cluster_ptr(icluster+1)-1
+          iparticle = clusters%particle_idx(ip)
+          IF(icheck(iparticle).NE.0) THEN
+             WRITE(*,*) ' ERROR: The particle ',iparticle,' is present more than once...'
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          ELSE
+             icheck(iparticle) =  1
+          ENDIF
+       ENDDO
+    ENDDO
+
+    IF(SUM(icheck).NE.clusters%nparticles) THEN
+       WRITE(*,*) ' ERROR: The number of particles is not correct...'
+       WRITE(*,*) ' clusters%nparticles', clusters%nparticles,' SUM(icheck)',SUM(icheck)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    DEALLOCATE(icheck,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE cluster_check
+
+  SUBROUTINE cluster_print(clusters, cell, particle_set, error)
+    TYPE(cluster_type)                       :: clusters
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cluster_print', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icluster, ip, iparticle
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: icluster, id, ip, iparticle
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
 
     WRITE(*,'(/,/,T2,A)') 'CLUSTERING THE PARTICLES'
     WRITE(*,'(T5,A,I6,A)') 'Found ',clusters%nclusters,' clusters'
@@ -592,6 +751,23 @@ CONTAINS
           ENDDO
        ENDIF
     ENDDO
+ 
+    IF(.TRUE.) THEN
+       id = 126
+       OPEN(id)
+       DO icluster = 1,clusters%nclusters
+          WRITE(id,'(I6)') clusters%cluster_ptr(icluster+1)-clusters%cluster_ptr(icluster)
+          WRITE(id,'(A,I6)') 'icluster',icluster
+          DO ip = clusters%cluster_ptr(icluster),clusters%cluster_ptr(icluster+1)-1
+             iparticle = clusters%particle_idx(ip)
+             atom_kind => particle_set(iparticle)%atomic_kind
+             CALL get_atomic_kind(atom_kind,element_symbol=element_symbol)
+             WRITE(id,'(A,3F15.4)') element_symbol,pbc(particle_set(iparticle)%r(:),cell)*angstrom
+          ENDDO
+       ENDDO
+       CLOSE(id)
+    ENDIF
+
   END SUBROUTINE cluster_print
 
 END MODULE cluster_methods
