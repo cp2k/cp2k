@@ -707,31 +707,59 @@ CONTAINS
 
 
           ! PIMC
+          !
           CALL section_vals_val_get(r_section,"RESTART_HELIUM_POS",l_val=flag,error=error)
           IF(flag) THEN
+               CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+                    explicit=explicit1, error=error)
+               IF ( .NOT. explicit1 ) THEN
+                    CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi,error=error)
+                    CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi,error=error)
+               END IF
                section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%COORD",error=error)
                CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%COORD",section,error=error)
                CALL set_restart_info("HELIUM BEAD POSITIONS",restarted_infos,error)
           END IF
+          !
           CALL section_vals_val_get(r_section,"RESTART_HELIUM_PERMUTATION",l_val=flag,error=error)
           IF(flag) THEN
+               CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+                    explicit=explicit1, error=error)
+               IF ( .NOT. explicit1 ) THEN
+                    CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi,error=error)
+                    CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi,error=error)
+               END IF
                section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%PERM",error=error)
                CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%PERM",section,error=error)
                CALL set_restart_info("HELIUM PERMUTATION STATE",restarted_infos,error)
           END IF
+          !
           CALL section_vals_val_get(r_section,"RESTART_HELIUM_FORCE",l_val=flag,error=error)
           IF(flag) THEN
+               CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+                    explicit=explicit1, error=error)
+               IF ( .NOT. explicit1 ) THEN
+                    CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi,error=error)
+                    CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi,error=error)
+               END IF
                section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%FORCE",error=error)
                CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%FORCE",section,error=error)
                CALL set_restart_info("HELIUM FORCES ON SOLUTE",restarted_infos,error)
           END IF
+          !
           CALL section_vals_val_get(r_section,"RESTART_HELIUM_RNG",l_val=flag,error=error)
           IF(flag) THEN
+               CALL section_vals_val_get(input_file,"MOTION%PINT%HELIUM%NUM_ENV",&
+                    explicit=explicit1, error=error)
+               IF ( .NOT. explicit1 ) THEN
+                    CALL section_vals_val_get(restart_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi,error=error)
+                    CALL section_vals_val_set(input_file,"MOTION%PINT%HELIUM%NUM_ENV",i_val=myi,error=error)
+               END IF
                section => section_vals_get_subs_vals(restart_file,"MOTION%PINT%HELIUM%RNG_STATE",error=error)
                CALL section_vals_set_subs_vals(input_file,"MOTION%PINT%HELIUM%RNG_STATE",section,error=error)
                CALL set_restart_info("HELIUM RNG STATE",restarted_infos,error)
           END IF
-
+          !
           CALL section_vals_val_set(r_section,"RESTART_FILE_NAME", c_val=" ",error=error)
           CALL section_vals_release(restart_file,error=error)
           CALL release_restart_info(restarted_infos, r_file_path, output_unit, error)

@@ -2732,9 +2732,10 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="NUM_PROC", &
-         description="Number of processors used for helium calculations",&
-         repeats=.FALSE.,type_of_var=integer_t,error=error)
+    CALL keyword_create(keyword, name="NUM_ENV", &
+         description="Number of independent helium environments"// &
+         " (only for restarts, do not set explicitly)",&
+         repeats=.FALSE., default_i_val=1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

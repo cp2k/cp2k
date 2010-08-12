@@ -484,7 +484,7 @@ MODULE helium_io
 
       WRITE(unit_nr,*)
       WRITE(unit_nr,'(T2,A,1X,I0)') TRIM(my_label)//&
-        " Number of helium environments:     ", helium%num_proc
+        " Number of helium environments:     ", helium%num_env
 
       WRITE(unit_nr,'(T2,A,1X,I0)') TRIM(my_label)//&
         " Number of solvent atoms:           ", helium%atoms
@@ -808,9 +808,9 @@ MODULE helium_io
 
       IF (unit_nr>0) THEN
 
-        DO i = 1, 3 * helium%num_proc
+        DO i = 1, 3 * helium%num_env
           WRITE(unit_nr,'(F20.9)',ADVANCE='NO') helium%rtmp_3_np_1d(i)
-          IF ( i .LT. 3 * helium%num_proc ) THEN
+          IF ( i .LT. 3 * helium%num_env ) THEN
             WRITE(unit_nr,'(1X)',ADVANCE='NO')
           END IF
         END DO
@@ -936,10 +936,10 @@ MODULE helium_io
       IF (unit_nr>0) THEN
 
         DO i = 1, helium%atoms
-          DO j = 1, helium%num_proc
+          DO j = 1, helium%num_env
             offset = (j-1) * helium%atoms
             WRITE(unit_nr,'(I6)',ADVANCE='NO') helium%itmp_atoms_np_1d(offset+i)
-            IF ( j .LT. helium%num_proc ) THEN
+            IF ( j .LT. helium%num_env ) THEN
               WRITE(unit_nr,'(1X)',ADVANCE='NO')
             END IF
           END DO
@@ -1044,7 +1044,7 @@ MODULE helium_io
     IF (logger%para_env%ionode) THEN
 
       ! iterate over processors/helium environments
-      DO irank = 1, helium%num_proc
+      DO irank = 1, helium%num_env
 
         ! generate one file per processor
         stmp = ""
@@ -1650,7 +1650,7 @@ MODULE helium_io
     IF (logger%para_env%ionode) THEN
 
       ! iterate over processors/helium environments
-      DO irank = 1, helium%num_proc
+      DO irank = 1, helium%num_env
 
         ! generate one file per processor
         stmp = ""

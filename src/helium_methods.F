@@ -159,35 +159,38 @@ MODULE helium_methods
        NULLIFY(logger)
        logger => cp_error_get_logger(error)
 
-       ! get number of processors explicitly from the input
-       ! or from the actual parallel environment
-       CALL section_vals_val_get(helium_section,"NUM_PROC",&
+       ! get number of environments in the restart file (if present)
+       CALL section_vals_val_get(helium_section,"NUM_ENV",&
             explicit=explicit, error=error)
        IF ( explicit ) THEN
-         CALL section_vals_val_get(helium_section,"NUM_PROC",&
+         CALL section_vals_val_get(helium_section,"NUM_ENV",&
               i_val=itmp, error=error)
-         ! go further only if the requested and actual number of cpus match
-!TODO: take care of the other cases
-         IF ( itmp .EQ. logger%para_env%num_pe ) THEN
-           helium%num_proc = itmp
+         CPPostcondition(itmp>=0,cp_failure_level,routineP,error,failure)
+         helium%num_env_restart = itmp
          ELSE
+         helium%num_env_restart = -1
+       END IF
+
+       ! set current number of environments
+       helium%num_env = logger%para_env%num_pe
+       CALL section_vals_val_set(helium%input,&
+            "MOTION%PINT%HELIUM%NUM_ENV",&
+            i_val=helium%num_env, error=error)
+
+       ! exit if the restart contains more environments than the runtime
+       ! since this will cause the data loss in the restart file
+!TODO: take care of this case as well
+       IF ( helium%num_env_restart .GT. helium%num_env ) THEN
            stmp = ""
-           WRITE(stmp,*) itmp
-           msg_str = "Requested " // TRIM(ADJUSTL(stmp)) // &
-             " CPUs for helium but available "
+         WRITE(stmp,*) helium%num_env
+         msg_str = "Number of He environments in the runtime (" // &
+         TRIM(ADJUSTL(stmp)) // ") smaller than in the restart ("
            stmp = ""
-           WRITE(stmp,*) logger%para_env%num_pe
-           msg_str = TRIM(ADJUSTL(msg_str)) // " " // &
-             TRIM(ADJUSTL(stmp)) // "."
+         WRITE(stmp,*) helium%num_env_restart
+         msg_str = TRIM(ADJUSTL(msg_str)) // TRIM(ADJUSTL(stmp)) // ")!"
            CALL cp_assert( .FALSE., cp_failure_level, &
              cp_assertion_failed, routineP, msg_str )
          END IF
-       ELSE
-         helium%num_proc = logger%para_env%num_pe
-         CALL section_vals_val_set(helium%input,&
-              "MOTION%PINT%HELIUM%NUM_PROC",&
-              i_val=helium%num_proc, error=error)
-       END IF
 
        CALL section_vals_val_get(helium_section,"NBEADS",&
               i_val=helium%beads, error=error)
@@ -558,21 +561,21 @@ MODULE helium_methods
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%ltmp_atoms_1d(helium%atoms),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(helium%itmp_atoms_np_1d(helium%atoms*helium%num_proc),STAT=stat)
+       ALLOCATE(helium%itmp_atoms_np_1d(helium%atoms*helium%num_env),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(helium%rtmp_3_np_1d(3*helium%num_proc),STAT=stat)
+       ALLOCATE(helium%rtmp_3_np_1d(3*helium%num_env),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rtmp_p_ndim_1d(helium%solute_beads*&
          helium%solute_atoms*3),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rtmp_p_ndim_np_1d(helium%solute_beads*&
-         helium%solute_atoms*3*helium%num_proc),STAT=stat)
+         helium%solute_atoms*3*helium%num_env),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rtmp_3_atoms_beads_1d(3*helium%atoms*&
          helium%beads),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rtmp_3_atoms_beads_np_1d(3*helium%atoms*&
-         helium%beads*helium%num_proc),STAT=stat)
+         helium%beads*helium%num_env),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(helium%rtmp_p_ndim_2d(helium%solute_beads,&
          helium%solute_atoms*3),STAT=stat)
@@ -789,7 +792,6 @@ MODULE helium_methods
     CALL section_vals_get(sec,explicit=explicit,error=error)
     IF ( explicit ) THEN
       CALL helium_perm_restore( helium, error )
-      CALL helium_write_line("Permutation state read from the input file.",error)
     ELSE
       CALL helium_perm_init( helium, error )
       CALL helium_write_line("Permutation state initialized as identity.",error)
@@ -801,7 +803,6 @@ MODULE helium_methods
     CALL section_vals_get(sec,explicit=explicit,error=error)
     IF ( explicit ) THEN
       CALL helium_coord_restore( helium, error )
-      CALL helium_write_line("Bead coordinates read from the input file.",error)
     ELSE
       CALL helium_coord_init( helium, pint_env, error )
       CALL helium_write_line("Bead coordinates initialized as random.",error)
@@ -813,7 +814,6 @@ MODULE helium_methods
     CALL section_vals_get(sec,explicit=explicit,error=error)
     IF ( explicit ) THEN
       CALL helium_rng_state_restore( helium, error )
-      CALL helium_write_line("RNG state read from the input file.",error)
     ELSE
       CALL helium_write_line("RNG state initialized as new.",error)
     END IF
@@ -825,7 +825,6 @@ MODULE helium_methods
       CALL section_vals_get(sec,explicit=explicit,error=error)
       IF ( explicit ) THEN
         CALL helium_force_restore( helium, error )
-        CALL helium_write_line("Forces on the solute read from the input file.",error)
       ELSE
         CALL helium_force_init( helium, pint_env, error )
         CALL helium_write_line("Forces on the solute initialized as zero.",error)
@@ -890,6 +889,9 @@ MODULE helium_methods
   !> \brief  Restore coordinates from the input structure.
   !> \author Lukasz Walewski
   !> \date   2009-11-09
+  !> \par    History
+  !>         2010-07-22 accomodate additional cpus in the runtime wrt the
+  !>                    restart [lwalewski]
   ! ***************************************************************************
   SUBROUTINE helium_coord_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -899,10 +901,10 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: actlen, msglen, offset, status
+    INTEGER                                  :: actlen, num_env_restart, msglen, offset, status
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :, :), POINTER     :: m
-    REAL(kind=dp), DIMENSION(:), POINTER     :: msg_scatter
+    REAL(kind=dp), DIMENSION(:), POINTER     :: message
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: f
     TYPE(cp_logger_type), POINTER            :: logger
@@ -915,43 +917,18 @@ MODULE helium_methods
 
     ! assign the pointer to the memory location of the input structure, where
     ! the coordinates are stored
-    NULLIFY(msg_scatter)
+    NULLIFY(message)
     CALL section_vals_val_get( helium%input, &
          "MOTION%PINT%HELIUM%COORD%_DEFAULT_KEYWORD_", &
-         r_vals=msg_scatter, error=error)
+         r_vals=message, error=error)
 
     ! check that the number of values in the input match the current runtime
-    msglen = helium%atoms * helium%beads * 3 * logger%para_env%num_pe
-    actlen = SIZE(msg_scatter)
-    err_str = "Invalid size of HELIUM%COORD: received '"
-    stmp = ""
-    WRITE(stmp,*) actlen
-    err_str = TRIM(ADJUSTL(err_str)) // &
-              TRIM(ADJUSTL(stmp)) // "' but expected '"
-    stmp = ""
-    WRITE(stmp,*) msglen
-    err_str = TRIM(ADJUSTL(err_str)) // &
-              TRIM(ADJUSTL(stmp)) // "'."
-    CALL cp_assert(actlen==msglen,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
-
-    ! check if the destination array has correct size
-    msglen = helium%atoms * helium%beads * 3
-    actlen = SIZE(helium%pos)
-    err_str = "Invalid size of helium%pos array: actual '"
-    stmp = ""
-    WRITE(stmp,*) actlen
-    err_str = TRIM(ADJUSTL(err_str)) // &
-              TRIM(ADJUSTL(stmp)) // "' but expected '"
-    stmp = ""
-    WRITE(stmp,*) msglen
-    err_str = TRIM(ADJUSTL(err_str)) // &
-              TRIM(ADJUSTL(stmp)) // "'."
-    CALL cp_assert(actlen==msglen,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    actlen = SIZE(message)
+    num_env_restart = actlen / helium%atoms / helium%beads / 3
 
     ! distribute coordinates over processors (no message passing)
-    offset = msglen * logger%para_env%mepos
+    msglen = helium%atoms * helium%beads * 3
+    offset = msglen * MOD( logger%para_env%mepos, num_env_restart )
     NULLIFY(m,f)
     ALLOCATE(m(3,helium%atoms,helium%beads),STAT=status)
     CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
@@ -959,11 +936,38 @@ MODULE helium_methods
     CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
     m(:,:,:) = .TRUE.
     f(:,:,:) = 0.0_dp
-    helium%pos(:,:,:) = UNPACK(msg_scatter(offset+1:offset+msglen), MASK=m, FIELD=f )
+    helium%pos(:,:,:) = UNPACK(message(offset+1:offset+msglen), MASK=m, FIELD=f )
     DEALLOCATE(f,m,STAT=status)
     CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
 
-    NULLIFY(msg_scatter)
+    IF ( num_env_restart .NE. logger%para_env%num_pe ) THEN
+      err_str = "Reading bead coordinates from the input file."
+      CALL helium_write_line(err_str,error)
+      err_str = "Number of environments in the restart...: '"
+      stmp = ""
+      WRITE(stmp,*) num_env_restart
+      err_str = TRIM(ADJUSTL(err_str)) // TRIM(ADJUSTL(stmp)) // "'."
+      CALL helium_write_line(err_str,error)
+      err_str = "Number of current run time environments.: '"
+      stmp = ""
+      WRITE(stmp,*) logger%para_env%num_pe
+      err_str = TRIM(ADJUSTL(err_str)) // TRIM(ADJUSTL(stmp)) // "'."
+      CALL helium_write_line(err_str,error)
+      IF ( num_env_restart .LT. logger%para_env%num_pe ) THEN
+        err_str = "Replicated bead coordinates from the restarted environments."
+        CALL helium_write_line(err_str,error)
+      END IF
+      IF ( num_env_restart .GT. logger%para_env%num_pe ) THEN
+        err_str = "Dropped bead coordinates from some restarted environments."
+        CALL helium_write_line(err_str,error)
+      END IF
+      err_str = "Done."
+      CALL helium_write_line(err_str,error)
+    ELSE
+      CALL helium_write_line("Bead coordinates read from the input file.",error)
+    END IF
+
+    NULLIFY(message)
 
     RETURN
   END SUBROUTINE helium_coord_restore
@@ -1013,10 +1017,10 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: actlen, msglen, status
+    INTEGER                                  :: actlen, num_env_restart, msglen, status
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :), POINTER        :: m
-    REAL(kind=dp), DIMENSION(:), POINTER     :: msg
+    REAL(kind=dp), DIMENSION(:), POINTER     :: message
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: f
 
     failure=.FALSE.
@@ -1024,10 +1028,14 @@ MODULE helium_methods
 
     ! assign the pointer to the memory location of the input structure, where
     ! the forces are stored
-    NULLIFY(msg)
+    NULLIFY(message)
     CALL section_vals_val_get( helium%input, &
          "MOTION%PINT%HELIUM%FORCE%_DEFAULT_KEYWORD_", &
-         r_vals=msg, error=error)
+         r_vals=message, error=error)
+
+    ! check the number of environments presumably stored in the restart
+    actlen = SIZE(message)
+    num_env_restart = actlen / helium%solute_atoms / helium%solute_beads / 3
 
     ! check if the destination array has correct size
     msglen = helium%solute_atoms * helium%solute_beads * 3
@@ -1052,12 +1060,14 @@ MODULE helium_methods
     CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
     m(:,:) = .TRUE.
     f(:,:) = 0.0_dp
-    helium%force_avrg(:,:) = UNPACK(msg(1:msglen), MASK=m, FIELD=f )
+    helium%force_avrg(:,:) = UNPACK(message(1:msglen), MASK=m, FIELD=f )
     helium%force_inst(:,:) = 0.0_dp
     DEALLOCATE(f,m,STAT=status)
     CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
 
-    NULLIFY(msg)
+    CALL helium_write_line("Forces on the solute read from the input file.",error)
+
+    NULLIFY(message)
 
     RETURN
   END SUBROUTINE helium_force_restore
@@ -1097,6 +1107,9 @@ MODULE helium_methods
   !> \descr  Transfer permutation state from the input tree to the runtime
   !>         data structures on each processor. Inverse permutation array is
   !>         recalculated according to the restored permutation state.
+  !> \par    History
+  !>         2010-07-22 accomodate additional cpus in the runtime wrt the
+  !>                    restart [lwalewski]
   ! ***************************************************************************
   SUBROUTINE helium_perm_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1107,7 +1120,7 @@ MODULE helium_methods
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, ia, ic, msglen, &
-                                                offset, reqlen
+                                                offset, num_env_restart
     INTEGER, DIMENSION(:), POINTER           :: message
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1125,25 +1138,44 @@ MODULE helium_methods
          "MOTION%PINT%HELIUM%PERM%_DEFAULT_KEYWORD_", &
          i_vals=message, error=error)
 
-    ! check that the number of values match the current runtime
-    reqlen = helium%atoms * logger%para_env%num_pe
+    ! check the number of environments presumably stored in the restart
     actlen = SIZE(message)
-    err_str = "Invalid size of HELIUM%PERM: received '"
-    stmp = ""
-    WRITE(stmp,*) actlen
-    err_str = TRIM(ADJUSTL(err_str)) // &
-              TRIM(ADJUSTL(stmp)) // "' but expected '"
-    stmp = ""
-    WRITE(stmp,*) reqlen
-    err_str = TRIM(ADJUSTL(err_str)) // &
-              TRIM(ADJUSTL(stmp)) // "'."
-    CALL cp_assert(actlen==reqlen,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    num_env_restart = actlen / helium%atoms
+!TODO maybe add some sanity checks here:
+! is num_env_restart integer ?
+! is num_env_restart == helium%num_env_restart ?
 
     ! distribute permutation state over processors (no message passing)
     msglen = helium%atoms
-    offset = msglen * logger%para_env%mepos
+    offset = msglen * MOD( logger%para_env%mepos, num_env_restart )
     helium%permutation(:) = message(offset+1:offset+msglen)
+
+    IF ( num_env_restart .NE. logger%para_env%num_pe ) THEN
+      err_str = "Reading permutation state from the input file."
+      CALL helium_write_line(err_str,error)
+      err_str = "Number of environments in the restart...: '"
+      stmp = ""
+      WRITE(stmp,*) num_env_restart
+      err_str = TRIM(ADJUSTL(err_str)) // TRIM(ADJUSTL(stmp)) // "'."
+      CALL helium_write_line(err_str,error)
+      err_str = "Number of current run time environments.: '"
+      stmp = ""
+      WRITE(stmp,*) logger%para_env%num_pe
+      err_str = TRIM(ADJUSTL(err_str)) // TRIM(ADJUSTL(stmp)) // "'."
+      CALL helium_write_line(err_str,error)
+      IF ( num_env_restart .LT. logger%para_env%num_pe ) THEN
+        err_str = "Replicated permutation state from the restarted environments."
+        CALL helium_write_line(err_str,error)
+      END IF
+      IF ( num_env_restart .GT. logger%para_env%num_pe ) THEN
+        err_str = "Dropped permutation state from some restarted environments."
+        CALL helium_write_line(err_str,error)
+      END IF
+      err_str = "Done."
+      CALL helium_write_line(err_str,error)
+    ELSE
+      CALL helium_write_line("Permutation state read from the input file.",error)
+    END IF
 
     ! recalculate the inverse permutation array
     helium%iperm(:) = 0
@@ -1264,6 +1296,9 @@ MODULE helium_methods
   !> \brief  Restore RNG state from the input structure.
   !> \author Lukasz Walewski
   !> \date   2009-11-04
+  !> \par    History
+  !>         2010-07-22 Create new rng streams if more cpus available in the
+  !>         runtime than in the restart [lwalewski]
   ! ***************************************************************************
   SUBROUTINE helium_rng_state_restore( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -1273,12 +1308,13 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: actlen, msglen, offset
+    INTEGER                                  :: actlen, num_env_restart, msglen, offset, rank
     LOGICAL                                  :: failure, lbf
     LOGICAL, DIMENSION(3, 2)                 :: m
     REAL(kind=dp)                            :: bf, bu
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, f, ig
-    REAL(kind=dp), DIMENSION(:), POINTER     :: msg_scatter
+    REAL(kind=dp), DIMENSION(:), POINTER     :: message
+    TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
@@ -1289,36 +1325,27 @@ MODULE helium_methods
 
     ! assign the pointer to the memory location of the input structure
     ! where the RNG state is stored
-    NULLIFY(msg_scatter)
+    NULLIFY(message)
     CALL section_vals_val_get( helium%input, &
          "MOTION%PINT%HELIUM%RNG_STATE%_DEFAULT_KEYWORD_", &
-         r_vals=msg_scatter, error=error)
+         r_vals=message, error=error)
 
-    ! check that the number of values in the input match the current runtime
-    msglen = 40 * logger%para_env%num_pe
-    actlen = SIZE(msg_scatter)
-    err_str = "Invalid size of HELIUM%RNG_STATE: received '"
-    stmp = ""
-    WRITE(stmp,*) actlen
-    err_str = TRIM(ADJUSTL(err_str)) // &
-              TRIM(ADJUSTL(stmp)) // "' but expected '"
-    stmp = ""
-    WRITE(stmp,*) msglen
-    err_str = TRIM(ADJUSTL(err_str)) // &
-              TRIM(ADJUSTL(stmp)) // "'."
-    CALL cp_assert(actlen==msglen,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    ! check the number of environments presumably stored in the restart
+    actlen = SIZE(message)
+    num_env_restart = actlen / 40
+
+    IF ( logger%para_env%mepos .LT. num_env_restart ) THEN
 
     ! unpack the buffer at each processor, set RNG state (no message passing)
     msglen = 40
     offset = msglen * logger%para_env%mepos
     m(:,:) = .TRUE.
     f(:,:) = 0.0_dp
-    bg(:,:) = UNPACK(msg_scatter(offset+1:offset+6), MASK=m, FIELD=f )
-    cg(:,:) = UNPACK(msg_scatter(offset+7:offset+12), MASK=m, FIELD=f )
-    ig(:,:) = UNPACK(msg_scatter(offset+13:offset+18), MASK=m, FIELD=f )
-    bf = msg_scatter(offset+19)
-    bu = msg_scatter(offset+20)
+      bg(:,:) = UNPACK(message(offset+1:offset+6), MASK=m, FIELD=f )
+      cg(:,:) = UNPACK(message(offset+7:offset+12), MASK=m, FIELD=f )
+      ig(:,:) = UNPACK(message(offset+13:offset+18), MASK=m, FIELD=f )
+      bf = message(offset+19)
+      bu = message(offset+20)
     IF ( bf .GT. 0) THEN
       lbf = .TRUE.
     ELSE
@@ -1326,11 +1353,11 @@ MODULE helium_methods
     END IF
     CALL set_rng_stream(helium%rng_stream_uniform,bg=bg,cg=cg,ig=ig,&
          buffer=bu,buffer_filled=lbf,error=error)
-    bg(:,:) = UNPACK(msg_scatter(offset+21:offset+26), MASK=m, FIELD=f )
-    cg(:,:) = UNPACK(msg_scatter(offset+27:offset+32), MASK=m, FIELD=f )
-    ig(:,:) = UNPACK(msg_scatter(offset+33:offset+38), MASK=m, FIELD=f )
-    bf = msg_scatter(offset+39)
-    bu = msg_scatter(offset+40)
+      bg(:,:) = UNPACK(message(offset+21:offset+26), MASK=m, FIELD=f )
+      cg(:,:) = UNPACK(message(offset+27:offset+32), MASK=m, FIELD=f )
+      ig(:,:) = UNPACK(message(offset+33:offset+38), MASK=m, FIELD=f )
+      bf = message(offset+39)
+      bu = message(offset+40)
     IF ( bf .GT. 0) THEN
       lbf = .TRUE.
     ELSE
@@ -1339,7 +1366,141 @@ MODULE helium_methods
     CALL set_rng_stream(helium%rng_stream_gaussian,bg=bg,cg=cg,ig=ig,&
          buffer=bu,buffer_filled=lbf,error=error)
 
-    NULLIFY(msg_scatter)
+    ELSE
+      ! On processors that did not receive rng state from the restart file
+      ! delete rng streams created in helium_rng_state_init and create them
+      ! anew, as they have been initialized with default initial state. Here
+      ! the sequence of rng streams starts from the last stream from the
+      ! restart file, each stream is initialized from the previously created
+      ! one.
+
+      CALL delete_rng_stream(helium%rng_stream_uniform,error)
+      CALL delete_rng_stream(helium%rng_stream_gaussian,error)
+      NULLIFY(prev_rngs, next_rngs)
+      NULLIFY(helium%rng_stream_uniform,helium%rng_stream_gaussian)
+
+      ! take the last uniform rng stream from the restart as a starting point
+      msglen = 40
+      offset = msglen * ( num_env_restart - 1 )
+      m(:,:) = .TRUE.
+      f(:,:) = 0.0_dp
+      bg(:,:) = UNPACK(message(offset+1:offset+6), MASK=m, FIELD=f )
+      cg(:,:) = UNPACK(message(offset+7:offset+12), MASK=m, FIELD=f )
+      ig(:,:) = UNPACK(message(offset+13:offset+18), MASK=m, FIELD=f )
+      bf = message(offset+19)
+      bu = message(offset+20)
+      IF ( bf .GT. 0) THEN
+        lbf = .TRUE.
+      ELSE
+        lbf = .FALSE.
+      END IF
+      ! create new uniform rng from scratch
+      CALL create_rng_stream(prev_rngs,&
+           name="helium_rns_uniform",&
+           distribution_type=UNIFORM,&
+           extended_precision=.TRUE.,&
+           error=error)
+      ! set it to the last uniform rng stream from the restart
+      CALL set_rng_stream(prev_rngs,bg=bg,cg=cg,ig=ig,&
+           buffer=bu,buffer_filled=lbf,error=error)
+      ! use this on the first non-restarted environment as the new rng
+      IF ( logger%para_env%mepos .EQ. num_env_restart ) THEN
+        helium%rng_stream_uniform => prev_rngs
+      END IF
+      ! unpack the last gaussian rng stream from the restart
+      bg(:,:) = UNPACK(message(offset+21:offset+26), MASK=m, FIELD=f )
+      cg(:,:) = UNPACK(message(offset+27:offset+32), MASK=m, FIELD=f )
+      ig(:,:) = UNPACK(message(offset+33:offset+38), MASK=m, FIELD=f )
+      bf = message(offset+39)
+      bu = message(offset+40)
+      IF ( bf .GT. 0) THEN
+        lbf = .TRUE.
+      ELSE
+        lbf = .FALSE.
+      END IF
+      ! create new gaussian rng stream from scratch
+      CALL create_rng_stream(next_rngs,&
+           name="helium_rns_gaussian",&
+           last_rng_stream=prev_rngs,&
+           distribution_type=GAUSSIAN,&
+           extended_precision=.TRUE.,&
+           error=error)
+      ! set it to the last gaussian rng stream from the restart
+      CALL set_rng_stream(next_rngs,bg=bg,cg=cg,ig=ig,&
+           buffer=bu,buffer_filled=lbf,error=error)
+      ! use this on the first non-restarted environment as the new gaussian rng
+      IF ( logger%para_env%mepos .EQ. num_env_restart ) THEN
+        helium%rng_stream_gaussian => next_rngs
+        NULLIFY(prev_rngs)
+      ELSE
+        CALL delete_rng_stream(prev_rngs,error=error)
+        prev_rngs => next_rngs
+      END IF
+      NULLIFY(next_rngs)
+
+      ! At all ranks higher than num_env_restart keep creating new RNG streams
+      ! one from the other (so they are all different) and on each rank cut
+      ! this process at different stage.
+      DO rank = num_env_restart + 1, logger%para_env%mepos
+        CALL create_rng_stream(next_rngs,&
+             name="helium_rns_uniform",&
+             last_rng_stream=prev_rngs,&
+             distribution_type=UNIFORM,&
+             extended_precision=.TRUE.,&
+             error=error)
+        IF ( logger%para_env%mepos .EQ. rank ) THEN
+          helium%rng_stream_uniform => next_rngs
+        END IF
+        CALL delete_rng_stream(prev_rngs,error=error)
+        prev_rngs => next_rngs
+        NULLIFY(next_rngs)
+        CALL create_rng_stream(next_rngs,&
+             name="helium_rns_gaussian",&
+             last_rng_stream=prev_rngs,&
+             distribution_type=GAUSSIAN,&
+             extended_precision=.TRUE.,&
+             error=error)
+        IF ( logger%para_env%mepos .EQ. rank ) THEN
+          helium%rng_stream_gaussian => next_rngs
+          NULLIFY(prev_rngs)
+        ELSE
+          CALL delete_rng_stream(prev_rngs,error=error)
+          prev_rngs => next_rngs
+        END IF
+        NULLIFY(next_rngs)
+      END DO
+
+    END IF
+
+    ! say what has been done
+    IF ( num_env_restart .NE. logger%para_env%num_pe ) THEN
+      err_str = "Reading RNG state from the input file."
+      CALL helium_write_line(err_str,error)
+      err_str = "Number of environments in the restart...: '"
+      stmp = ""
+      WRITE(stmp,*) num_env_restart
+      err_str = TRIM(ADJUSTL(err_str)) // TRIM(ADJUSTL(stmp)) // "'."
+      CALL helium_write_line(err_str,error)
+      err_str = "Number of current run time environments.: '"
+      stmp = ""
+      WRITE(stmp,*) logger%para_env%num_pe
+      err_str = TRIM(ADJUSTL(err_str)) // TRIM(ADJUSTL(stmp)) // "'."
+      CALL helium_write_line(err_str,error)
+      IF ( num_env_restart .LT. logger%para_env%num_pe ) THEN
+        err_str = "Created some new RNGs from the restarted environments."
+        CALL helium_write_line(err_str,error)
+      END IF
+      IF ( num_env_restart .GT. logger%para_env%num_pe ) THEN
+        err_str = "Dropped RNG state from some restarted environments."
+        CALL helium_write_line(err_str,error)
+      END IF
+      err_str = "Done."
+      CALL helium_write_line(err_str,error)
+    ELSE
+      CALL helium_write_line("RNG state read from the input file.",error)
+    END IF
+
+    NULLIFY(message)
 
    RETURN
   END SUBROUTINE helium_rng_state_restore

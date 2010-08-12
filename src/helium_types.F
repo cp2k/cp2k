@@ -45,7 +45,8 @@ MODULE helium_types
 !>    ref_count     - reference count of this data structure
 !>    id_nr         - identification number of this data structure
 !>    input         - input data structure (the whole tree)
-!>    num_proc      - number of processors/independent He environments
+!>    num_env       - number of independent He environments
+!>    num_env_restart - number of He environments present in the restart file
 !>    periodic      - true if bulk liquid helium in periodic box
 !>    cell_shape    - unit cell shape for PBC calculations
 !>    cell_size     - size of the periodic box for helium only
@@ -114,14 +115,14 @@ MODULE helium_types
 !>    force_inst    - instantaneous forces exerted by He on the solute (P, NDIM)
 !>    General purpose temporary arrays
 !>    (performance measure: no allocation in frequently called subroutines)
-!>      rtmp_3_np_1d - real, 1D temp array (3 * NUM_PROC)
+!>    rtmp_3_np_1d - real, 1D temp array (3 * NUM_ENV)
 !>      rtmp_p_ndim_1d - real, 1D temp array (P * NDIM)
-!>      rtmp_p_ndim_np_1d - real, 1D temp array (P * NDIM * NUM_PROC)
+!>    rtmp_p_ndim_np_1d - real, 1D temp array (P * NDIM * NUM_ENV)
 !>      rtmp_p_ndim_2d - real, 2D temp array (P, NDIM)
 !>      rtmp_3_atoms_beads_1d - real, 1D temp array (3 * ATOMS * BEADS)
 !>      ltmp_3_atoms_beads_3d - logical, 3D temp array (3,ATOMS,BEADS) - same as pos
 !>      itmp_atoms_1d    - integer, 1D temp array (ATOMS) - same as permutation
-!>      itmp_atoms_np_1d - integer, 1D temp array (ATOMS*NUM_PROC)
+!>    itmp_atoms_np_1d - integer, 1D temp array (ATOMS*NUM_ENV)
 !>      ltmp_atoms_1d    - logical, 1D temp array (ATOMS) - for unpacking permutation
 !> \author hforbert
 ! *****************************************************************************
@@ -129,7 +130,7 @@ MODULE helium_types
      INTEGER :: id_nr,ref_count
      TYPE(section_vals_type), POINTER :: input
      LOGICAL :: periodic
-     INTEGER :: cell_shape, num_proc, m_value
+     INTEGER :: cell_shape, num_env, num_env_restart, m_value
      REAL(kind=dp) :: cell_size, cell_size_inv, m_ratio
      REAL(kind=dp), DIMENSION(3,3) ::  cell_m_inv
      REAL(kind=dp) :: tau, density, e_corr, hb2m, pweight
