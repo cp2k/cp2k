@@ -52,7 +52,8 @@ MODULE dbcsr_data_methods
   PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative
   PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_hold,&
-            dbcsr_data_release, dbcsr_data_get_size, dbcsr_data_get_type
+            dbcsr_data_release, dbcsr_data_get_size, dbcsr_data_get_type,&
+            dbcsr_data_reset_type, dbcsr_data_query_type
   PUBLIC :: dbcsr_data_resize
   PUBLIC :: dbcsr_get_data, &
             dbcsr_data_set_pointer,&
@@ -93,6 +94,13 @@ MODULE dbcsr_data_methods
   INTERFACE dbcsr_data_get_sizes
      MODULE PROCEDURE dbcsr_data_get_sizes_any
      MODULE PROCEDURE dbcsr_data_get_sizes_1, dbcsr_data_get_sizes_2
+  END INTERFACE
+
+  INTERFACE dbcsr_data_query_type
+     MODULE PROCEDURE query_type_s_1d, query_type_d_1d,&
+                      query_type_c_1d, query_type_z_1d
+     MODULE PROCEDURE query_type_s_2d, query_type_d_2d,&
+                      query_type_c_2d, query_type_z_2d
   END INTERFACE
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
@@ -557,6 +565,29 @@ CONTAINS
     END SELECT
   END SUBROUTINE dbcsr_data_clear_pointer
 
+! *****************************************************************************
+!> \brief Clears pointers from the data area.
+!> \param[inout] area         data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_reset_type (area, new_type)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    CHARACTER, INTENT(IN)                    :: new_type
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_reset_type', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT. ASSOCIATED (area%d)) THEN
+       CALL dbcsr_assert (ASSOCIATED (area%d), dbcsr_fatal_level,&
+            dbcsr_caller_error,&
+            routineN, "Data not initialized.",__LINE__,error)
+    ENDIF
+    CALL dbcsr_data_clear_pointer (area)
+    area%d%data_type = new_type
+  END SUBROUTINE dbcsr_data_reset_type
 
 ! *****************************************************************************
 !> \brief Checks whether a data area is valid

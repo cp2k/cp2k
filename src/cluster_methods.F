@@ -38,11 +38,13 @@ MODULE cluster_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cluster_methods'
 
-  LOGICAL, PARAMETER, PRIVATE          :: dbg = .FALSE.
+  LOGICAL, PARAMETER, PRIVATE          :: dbg = .FALSE., careful_mod = .TRUE.
 
 ! *** Public subroutines ***
 
-  PUBLIC :: clustering_particles, cluster_deallocate
+  PUBLIC :: cluster_allocate, cluster_deallocate
+  PUBLIC :: clustering_particles
+  PUBLIC :: cluster_part2cluster, cluster_member_particles
 
 CONTAINS
 
@@ -769,5 +771,67 @@ CONTAINS
     ENDIF
 
   END SUBROUTINE cluster_print
+
+
+  FUNCTION cluster_part2cluster (clusters, particle, error) RESULT (cluster)
+    TYPE(cluster_type), INTENT(IN)           :: clusters
+    INTEGER, INTENT(IN)                      :: particle
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER                                  :: cluster
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_part2cluster', &
+      routineP = moduleN//':'//routineN
+
+    IF (careful_mod) THEN
+       CALL cp_assert (ASSOCIATED (clusters%particle_to_cluster),&
+            cp_fatal_level, cp_caller_error, routineN,&
+            "Clusters not setup.", error=error)
+       CALL cp_assert (SIZE (clusters%particle_to_cluster) .EQ. clusters%nparticles,&
+            cp_warning_level, cp_internal_error, routineN,&
+            "Mismatch between declared and actual number of particles.",&
+            error=error)
+       CALL cp_assert (particle .LE. SIZE (clusters%particle_to_cluster),&
+            cp_fatal_level, cp_caller_error, routineN,&
+            "Invalid particle number.", error=error)
+    ENDIF
+    cluster = clusters%particle_to_cluster(particle)
+    IF (careful_mod) THEN
+       CALL cp_assert (cluster .LE. clusters%nclusters, cp_warning_level,&
+            cp_internal_error, routineN, "Obtained cluster nonexistent.",&
+            error=error)
+    ENDIF
+  END FUNCTION cluster_part2cluster
+
+  FUNCTION cluster_member_particles (clusters, cluster, error) RESULT (members)
+    TYPE(cluster_type), INTENT(IN)           :: clusters
+    INTEGER, INTENT(IN)                      :: cluster
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    INTEGER, DIMENSION(:), POINTER           :: members
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_member_particles', &
+      routineP = moduleN//':'//routineN
+
+    IF (careful_mod) THEN
+       CALL cp_assert (ASSOCIATED (clusters%cluster_ptr), cp_fatal_level,&
+            cp_caller_error, routineN, "Clusters not setup.", error=error)
+       CALL cp_assert (ASSOCIATED (clusters%particle_idx), cp_fatal_level,&
+            cp_caller_error, routineN, "Clusters not setup.", error=error)
+       CALL cp_assert (SIZE (clusters%cluster_ptr) .EQ. clusters%nclusters+1,&
+            cp_warning_level, cp_internal_error, routineN,&
+            "Mismatch between declared and actual number of particles.",&
+            error=error)
+       CALL cp_assert (cluster .LE. SIZE (clusters%cluster_ptr),&
+            cp_fatal_level, cp_caller_error, routineN,&
+            "Invalid cluster number.", error=error)
+    ENDIF
+    members => clusters%particle_idx(clusters%cluster_ptr(cluster)&
+                                    :clusters%cluster_ptr(cluster+1)-1)
+    IF (careful_mod) THEN
+       CALL cp_assert (cluster .LE. clusters%nclusters, cp_warning_level,&
+            cp_internal_error, routineN, "Obtained cluster nonexistent.",&
+            error=error)
+    ENDIF
+  END FUNCTION cluster_member_particles
+
 
 END MODULE cluster_methods

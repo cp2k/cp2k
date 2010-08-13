@@ -322,4 +322,18 @@
     encapsulated_scalar%c_sp = scalar
   END FUNCTION dbcsr_scalar_c
 
-
+! *****************************************************************************
+!> \brief Used to determine appropriate type for data.
+!> \param[in] data                      data to query
+!> \result data_type                    appropriate data_type
+! *****************************************************************************
+  PURE FUNCTION query_type_c_1d (DATA) RESULT (data_type)
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN) :: DATA
+    CHARACTER                         :: data_type
+    data_type = dbcsr_type_complex_4
+  END FUNCTION query_type_c_1d
+  PURE FUNCTION query_type_c_2d (DATA) RESULT (data_type)
+    COMPLEX(kind=real_4), DIMENSION(:,:), INTENT(IN) :: DATA
+    CHARACTER                           :: data_type
+    data_type = dbcsr_type_complex_4_2d
+  END FUNCTION query_type_c_2d

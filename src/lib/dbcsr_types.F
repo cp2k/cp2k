@@ -254,6 +254,7 @@ MODULE dbcsr_types
 !> \var rcb             Row and column and offset and dimensions of data in the
 !>                      buffer
 !> \var main            Main memory
+!> \var backing         Backing memory (in lieu of main memory)
 !> \var data_type       Data type used for the buffers
 ! *****************************************************************************
   TYPE dbcsr_block_buffer_type
@@ -262,6 +263,7 @@ MODULE dbcsr_types
      TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: buffers
      INTEGER, DIMENSION(:,:), POINTER            :: rcb
      TYPE(dbcsr_data_obj)                        :: main
+     TYPE(dbcsr_data_obj), DIMENSION(:), POINTER :: backing
      CHARACTER                                   :: data_type
   END TYPE dbcsr_block_buffer_type
 

@@ -15,8 +15,8 @@
 MODULE dbcsr_block_buffers
   USE dbcsr_block_operations,          ONLY: dbcsr_block_partial_copy
   USE dbcsr_data_methods,              ONLY: &
-       dbcsr_data_get_sizes, dbcsr_data_get_type, dbcsr_data_hold, &
-       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_clear_pointer, dbcsr_data_get_sizes, dbcsr_data_get_type, &
+       dbcsr_data_hold, dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_resize, dbcsr_type_1d_to_2d, dbcsr_type_is_2d
   USE dbcsr_error_handling
   USE dbcsr_kinds,                     ONLY: real_4,&
@@ -50,6 +50,10 @@ MODULE dbcsr_block_buffers
   PUBLIC :: dbcsr_buffers_set_pointer_2d
 
   PUBLIC :: dbcsr_buffers_2d_needed
+
+  ! For dealing with OpenMP
+  PUBLIC :: dbcsr_buffers_get_num, dbcsr_buffers_which_is_my
+  PUBLIC :: dbcsr_buffers_get_area
 
 
   INTERFACE dbcsr_buffers_set_pointer_2d
@@ -122,12 +126,16 @@ CONTAINS
     buffers%b%refcount = 1
     ALLOCATE (buffers%b%dirty(n), stat=stat)
     buffers%b%dirty(:) = .FALSE.
-    ALLOCATE (buffers%b%rcb(6,n))
+    ALLOCATE (buffers%b%rcb(10,n))
     buffers%b%rcb(:,:) = 0
     ALLOCATE (buffers%b%buffers(n))
+    ALLOCATE (buffers%b%backing(n))
     DO i = 1, n
        CALL dbcsr_data_init (buffers%b%buffers(i))
        CALL dbcsr_data_new (buffers%b%buffers(i),&
+            dbcsr_type_1d_to_2d(dbcsr_data_get_type (data_backing)))
+       CALL dbcsr_data_init (buffers%b%backing(i))
+       CALL dbcsr_data_new (buffers%b%backing(i),&
             dbcsr_type_1d_to_2d(dbcsr_data_get_type (data_backing)))
     ENDDO
 !$OMP END MASTER
@@ -204,6 +212,14 @@ CONTAINS
        NULLIFY (buffers%b%dirty)
        NULLIFY (buffers%b%buffers)
        NULLIFY (buffers%b%rcb)
+       IF (ASSOCIATED (buffers%b%backing)) THEN
+          DO i = 1, n
+             CALL dbcsr_data_clear_pointer (buffers%b%backing(i))
+             CALL dbcsr_data_release (buffers%b%backing(i))
+          ENDDO
+          DEALLOCATE (buffers%b%backing)
+          NULLIFY (buffers%b%backing)
+       ENDIF
        DEALLOCATE (buffers%b)
        NULLIFY (buffers%b)
     ENDIF

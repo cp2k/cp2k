@@ -14,12 +14,23 @@
 ! *****************************************************************************
 MODULE cp_dbcsr_interface
   USE array_types,                     ONLY: array_i1d_obj
+  USE cluster_buffers,                 ONLY: cluster_buffer_flush,&
+                                             cluster_buffer_release
+  USE cp_dbcsr_methods,                ONLY: cp_dbcsr_col_block_offsets,&
+                                             cp_dbcsr_col_block_sizes,&
+                                             cp_dbcsr_mapping_create,&
+                                             cp_dbcsr_mapping_release,&
+                                             cp_dbcsr_row_block_offsets,&
+                                             cp_dbcsr_row_block_sizes
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_type
+  USE cp_dbcsr_xlat,                   ONLY: set_block_pointer_to_cluster
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_reserve_block2d
+  USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_init,&
+                                             dbcsr_buffers_new
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
@@ -29,16 +40,16 @@ MODULE cp_dbcsr_interface
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_distribution, &
-       dbcsr_distribution_release, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_get_occupation, dbcsr_init, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_mp_new, dbcsr_mp_release, dbcsr_name, &
-       dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_local, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_offsets, dbcsr_row_block_sizes, &
-       dbcsr_uses_special_memory, dbcsr_valid_index
+       dbcsr_blk_col_offset, dbcsr_blk_column_size, dbcsr_blk_row_offset, &
+       dbcsr_blk_row_size, dbcsr_distribution, dbcsr_distribution_release, &
+       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
+       dbcsr_init, dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_new, &
+       dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_local, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
+       dbcsr_nfullrows_total, dbcsr_release, dbcsr_uses_special_memory, &
+       dbcsr_valid_index
   USE dbcsr_operations,                ONLY: &
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, dbcsr_filter, &
        dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_diag, &
@@ -50,6 +61,7 @@ MODULE cp_dbcsr_interface
                                              dbcsr_new_transposed,&
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: dbcsr_2d_array_type,&
+                                             dbcsr_block_buffer_obj,&
                                              dbcsr_data_obj,&
                                              dbcsr_distribution_obj,&
                                              dbcsr_mp_obj
@@ -69,6 +81,8 @@ MODULE cp_dbcsr_interface
 
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
+#define CHECKUSAGE CALL cp_assert(.FALSE.,cp_fatal_level,cp_unimplemented_error_nr,routineN,"OBS")
+#define BUFFERME ! buffering code
 
   IMPLICIT NONE
 
@@ -259,6 +273,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_gershgorin_norm', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     norm = dbcsr_gershgorin_norm(matrix%matrix)
 
   END FUNCTION cp_dbcsr_gershgorin_norm
@@ -272,6 +290,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_frobenius_norm', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     norm = dbcsr_frobenius_norm(matrix%matrix, local)
   END FUNCTION cp_dbcsr_frobenius_norm
 
@@ -286,8 +308,12 @@ CONTAINS
       routineN = 'cp_dbcsr_complete_redistribute', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    CALL cluster_buffer_flush (redist%buffers, error=error)
     CALL dbcsr_complete_redistribute(matrix%matrix, redist%matrix, keep_sparsity, dbcsr_error)
 
   END SUBROUTINE cp_dbcsr_complete_redistribute
@@ -304,6 +330,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
 
@@ -321,6 +351,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_s', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
 
@@ -338,6 +372,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_z', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
 
@@ -355,6 +393,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_c', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
 
@@ -416,46 +458,6 @@ CONTAINS
     data_size = dbcsr_get_data_size(matrix%matrix)
 
   END FUNCTION cp_dbcsr_get_data_size
-
-  FUNCTION cp_dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_sizes', &
-      routineP = moduleN//':'//routineN
-
-    row_blk_sizes = dbcsr_row_block_sizes (matrix%matrix)
-  END FUNCTION cp_dbcsr_row_block_sizes
-
-  FUNCTION cp_dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(array_i1d_obj)                      :: col_blk_sizes
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_sizes', &
-      routineP = moduleN//':'//routineN
-
-    col_blk_sizes = dbcsr_col_block_sizes (matrix%matrix)
-  END FUNCTION cp_dbcsr_col_block_sizes
-
-  FUNCTION cp_dbcsr_col_block_offsets (matrix) RESULT (col_blk_offsets)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(array_i1d_obj)                      :: col_blk_offsets
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_offsets', &
-      routineP = moduleN//':'//routineN
-
-    col_blk_offsets = dbcsr_col_block_offsets (matrix%matrix)
-  END FUNCTION cp_dbcsr_col_block_offsets
-
-  FUNCTION cp_dbcsr_row_block_offsets (matrix) RESULT (row_blk_offsets)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    TYPE(array_i1d_obj)                      :: row_blk_offsets
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_offsets', &
-      routineP = moduleN//':'//routineN
-
-    row_blk_offsets = dbcsr_row_block_offsets (matrix%matrix)
-  END FUNCTION cp_dbcsr_row_block_offsets
 
   PURE FUNCTION cp_dbcsr_get_matrix_type (matrix) RESULT (matrix_type)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -840,7 +842,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CALL dbcsr_iterator_stop (iterator)
-
+    
   END SUBROUTINE cp_dbcsr_iterator_stop
 
   SUBROUTINE cp_dbcsr_iterator_start (iterator, matrix, shared, dynamic,&
@@ -854,6 +856,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_iterator_start (iterator, matrix%matrix, shared, dynamic,&
        dynamic_byrows, contiguous_pointers, read_only)
 
@@ -871,6 +879,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block2d_d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
        summation, scale)
 
@@ -888,6 +900,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block2d_s', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
        summation, scale)
 
@@ -906,6 +922,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block2d_z', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
        summation, scale)
 
@@ -924,6 +944,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block2d_c', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
        summation, scale)
 
@@ -941,6 +965,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
        summation, scale)
 
@@ -958,6 +986,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_s', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
        summation, scale)
 
@@ -976,6 +1008,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_z', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
        summation, scale)
 
@@ -994,6 +1030,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_c', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
        summation, scale)
 
@@ -1012,6 +1052,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1030,6 +1076,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_s', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1048,6 +1100,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_c', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1066,6 +1124,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_z', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1081,6 +1145,10 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
 
@@ -1096,6 +1164,10 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
 
@@ -1111,6 +1183,10 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
 
@@ -1126,6 +1202,10 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
 
@@ -1143,9 +1223,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_d', &
       routineP = moduleN//':'//routineN
 
-    CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
-       row_size, col_size)
+    INTEGER                                  :: low_col, low_row
+    LOGICAL                                  :: low_tr
+    REAL(kind=real_8), DIMENSION(:), POINTER :: low_block
+    TYPE(cp_error_type)                      :: error
 
+    IF (.TRUE.) THEN
+       ! Direct
+       CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
+            row_size, col_size)
+    ELSE
+       CALL cp_error_init (error)
+       CALL cluster_buffer_flush (matrix%buffers, error=error)
+       low_row = row
+       low_col = col
+       CALL dbcsr_get_block_p(matrix%matrix,low_row,low_col,low_block,low_tr,found)
+       tr = .FALSE.
+       CALL set_block_pointer_to_cluster (matrix, row, col, block, tr,&
+            contiguous_pointers = .FALSE., read_only = .FALSE.,&
+            low_block=low_block, low_tr=low_tr, error=error)
+       CALL fill_sizes (matrix, row, col, row_size, col_size)
+    ENDIF
   END SUBROUTINE cp_dbcsr_get_2d_block_p_d
 
   SUBROUTINE cp_dbcsr_get_2d_block_p_s(matrix,row,col,block,tr,found,&
@@ -1160,6 +1258,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_s', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
+    BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1177,6 +1280,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_c', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
+    BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1194,6 +1302,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_z', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+
+    CALL cp_error_init (error)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
+    BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1211,6 +1324,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_d', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1227,6 +1347,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_s', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1244,6 +1371,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_c', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1261,6 +1395,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_z', &
       routineP = moduleN//':'//routineN
 
+    TYPE(cp_error_type)                      :: error
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
+
+    CALL cp_error_init (error)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1320,6 +1461,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     IF (PRESENT (norm_scalar)) THEN
        CALL dbcsr_norm(matrix%matrix, which_norm, norm_scalar=norm_scalar,&
             error=dbcsr_error)
@@ -1342,6 +1484,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_replicate_all(matrix%matrix, dbcsr_error)
   END SUBROUTINE cp_dbcsr_replicate_all
 
@@ -1355,6 +1498,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_distribute(matrix%matrix, fast, dbcsr_error)
   END SUBROUTINE cp_dbcsr_distribute
 
@@ -1366,7 +1510,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF(ASSOCIATED(matrix)) THEN
-       CALL dbcsr_release (matrix%matrix)
+       CALL cp_dbcsr_release (matrix, error)
        DEALLOCATE(matrix)
     ENDIF
 
@@ -1379,6 +1523,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_release', &
       routineP = moduleN//':'//routineN
 
+    CALL cluster_buffer_release (matrix%buffers, error=error)
+    CALL cp_dbcsr_mapping_release (matrix%row_mapping, error=error)
+    CALL cp_dbcsr_mapping_release (matrix%col_mapping, error=error)
     CALL dbcsr_release (matrix%matrix)
 
   END SUBROUTINE cp_dbcsr_release
@@ -1391,7 +1538,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CALL dbcsr_init(matrix%matrix)
-
+    CALL dbcsr_buffers_init (matrix%buffers)
+    NULLIFY (matrix%row_mapping, matrix%col_mapping)
+    matrix%ref_count = 0
   END SUBROUTINE cp_dbcsr_init
 
   SUBROUTINE cp_dbcsr_init_p (matrix, error)
@@ -1402,13 +1551,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF(ASSOCIATED(matrix)) THEN
-       CALL dbcsr_release(matrix%matrix)
+       CALL cp_dbcsr_release(matrix, error)
        DEALLOCATE(matrix)
     ENDIF
 
     ALLOCATE(matrix)
-    CALL dbcsr_init(matrix%matrix)
-
+    CALL cp_dbcsr_init (matrix, error)
   END SUBROUTINE cp_dbcsr_init_p
 
   SUBROUTINE cp_dbcsr_print(matrix, nodata, matlab_format, variable_name, error)
@@ -1420,8 +1568,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_print(matrix%matrix, nodata, matlab_format, variable_name, dbcsr_error)
   END SUBROUTINE cp_dbcsr_print
 
@@ -1437,6 +1588,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_trace(matrix_a%matrix, trace, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_trace_a_d
@@ -1453,6 +1605,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_trace(matrix_a%matrix, trace, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_trace_a_s
@@ -1468,9 +1621,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace, trans_a, trans_b, local_sum, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_trace_ab_d
@@ -1486,9 +1644,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace, trans_a, trans_b, local_sum, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_trace_ab_s
@@ -1502,8 +1665,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_checksum', &
       routineP = moduleN//':'//routineN
 
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     checksum = dbcsr_checksum(matrix%matrix, local, error=dbcsr_error)
   END FUNCTION cp_dbcsr_checksum
 
@@ -1516,6 +1682,7 @@ CONTAINS
 
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_sum_replicated (matrix%matrix, dbcsr_error)
   END SUBROUTINE cp_dbcsr_sum_replicated
 
@@ -1529,9 +1696,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_b%buffers, error=error)
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_btriu(matrix_b%matrix, matrix_a%matrix, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_btriu
@@ -1562,6 +1733,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_finalize(matrix%matrix, resort, reshuffle, error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_finalize
@@ -1604,6 +1776,19 @@ CONTAINS
     CALL dbcsr_create(matrix%matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
        mutable_work, replication_type, dbcsr_error)
+    CALL dbcsr_buffers_init (matrix%buffers)
+    CALL dbcsr_buffers_new (matrix%buffers, matrix%matrix%m%data_area,&
+         dbcsr_error)
+    IF (ASSOCIATED (matrix%row_mapping)) THEN
+       CALL cp_dbcsr_mapping_release (matrix%row_mapping, error)
+    ENDIF
+    IF (ASSOCIATED (matrix%col_mapping)) THEN
+       CALL cp_dbcsr_mapping_release (matrix%col_mapping, error)
+    ENDIF
+    NULLIFY (matrix%row_mapping, matrix%col_mapping)
+    CALL cp_dbcsr_mapping_create (matrix%row_mapping, error=error)
+    CALL cp_dbcsr_mapping_create (matrix%col_mapping, error=error)
+    matrix%ref_count = 1
   END SUBROUTINE cp_dbcsr_create
 
   SUBROUTINE cp_dbcsr_filter(matrix, eps, method, use_absolute, filter_diag, error)
@@ -1620,6 +1805,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_filter(matrix%matrix, eps, method, use_absolute, filter_diag, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_filter
@@ -1636,6 +1822,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_set_diag(matrix%matrix, diag, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_diag
@@ -1650,9 +1837,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_get_diag(matrix%matrix, diag, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_get_diag
@@ -1667,9 +1857,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    buffers = matrix%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_get_block_diag(matrix%matrix, diag%matrix, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_get_block_diag
@@ -1687,6 +1880,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_add_on_diag(matrix%matrix, alpha_scalar, first_row, last_row, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_on_diag
@@ -1704,9 +1898,25 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    !call cp_assert (matrix_b%ref_count .gt. 0,&
+    !     cp_warning_level, cp_caller_error, routineN,&
+    !     "Matrix not created.", error=error)
+    IF (matrix_b%ref_count .EQ. 0) THEN
+       CALL cp_dbcsr_create (matrix_b, dbcsr_name (matrix_a%matrix),&
+            dbcsr_distribution (matrix_a%matrix),&
+            dbcsr_get_matrix_type (matrix_a%matrix),&
+            cp_dbcsr_row_block_sizes (matrix_a),&
+            cp_dbcsr_col_block_sizes (matrix_a),&
+            data_type = cp_dbcsr_get_data_type (matrix_a),&
+            error=error)
+    ENDIF
+    CALL cluster_buffer_flush (matrix_b%buffers, error)
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error)
     CALL dbcsr_copy(matrix_b%matrix, matrix_a%matrix, name, keep_sparsity,&
          shallow_data, keep_imaginary, dbcsr_error)
     CALL timestop(timing_handle)
@@ -1737,9 +1947,15 @@ CONTAINS
                                                 trans_b
     INTEGER                                  :: timing_handle, &
                                                 timing_handle_detail
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    CALL cluster_buffer_flush (matrix_c%buffers, error=error)
     trans_a = transa
     trans_b = transb
     CALL uppercase(trans_a)
@@ -1783,10 +1999,15 @@ CONTAINS
                                                 trans_b
     INTEGER                                  :: timing_handle, &
                                                 timing_handle_detail
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
-
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    CALL cluster_buffer_flush (matrix_c%buffers, error=error)
     trans_a = transa
     trans_b = transb
     CALL uppercase(trans_a)
@@ -1830,10 +2051,15 @@ CONTAINS
                                                 trans_b
     INTEGER                                  :: timing_handle, &
                                                 timing_handle_detail
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
-
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    CALL cluster_buffer_flush (matrix_c%buffers, error=error)
     trans_a = transa
     trans_b = transb
     CALL uppercase(trans_a)
@@ -1877,10 +2103,15 @@ CONTAINS
                                                 trans_b
     INTEGER                                  :: timing_handle, &
                                                 timing_handle_detail
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
-
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    CALL cluster_buffer_flush (matrix_c%buffers, error=error)
     trans_a = transa
     trans_b = transb
     CALL uppercase(trans_a)
@@ -1915,9 +2146,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    buffers = normal%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    CALL cluster_buffer_flush (transposed%buffers, error=error)
     CALL dbcsr_new_transposed(transposed%matrix, normal%matrix, shallow_data_copy,&
          transpose_data, transpose_distribution,&
          use_distribution=use_distribution, error=dbcsr_error)
@@ -1933,9 +2168,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    buffers = matrix_a%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
+    CALL cluster_buffer_flush (matrix_c%buffers, error=error)
     CALL dbcsr_hadamard_product(matrix_a%matrix, matrix_b%matrix, matrix_c%matrix, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_hadamard_product
@@ -1955,6 +2196,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_by_vector_d
@@ -1973,6 +2215,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_by_vector_s
@@ -1991,6 +2234,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_by_vector_z
@@ -2009,6 +2253,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_by_vector_c
@@ -2026,6 +2271,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_d
@@ -2043,6 +2289,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_s
@@ -2060,6 +2307,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_z
@@ -2077,6 +2325,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
     CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_c
@@ -2095,10 +2344,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(cp_error_type)                      :: cp_error
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cp_error_init (cp_error)
+    dbcsr_error = error
+    CALL cluster_buffer_flush (matrix_a%buffers, error=cp_error)
     CALL dbcsr_scale(matrix_a%matrix, alpha_matrix, last_column, side, dbcsr_error)
+    error = dbcsr_error
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_d_m
 
@@ -2115,10 +2369,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(cp_error_type)                      :: cp_error
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cp_error_init (cp_error)
+    dbcsr_error = error
+    CALL cluster_buffer_flush (matrix_a%buffers, error=cp_error)
     CALL dbcsr_scale(matrix_a%matrix, alpha_matrix, last_column, side, dbcsr_error)
+    error = dbcsr_error
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_s_m
 
@@ -2135,10 +2394,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(cp_error_type)                      :: cp_error
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    dbcsr_error = error
+    CALL cp_error_init (cp_error)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=cp_error)
     CALL dbcsr_scale(matrix_a%matrix, alpha_matrix, last_column, side, dbcsr_error)
+    error = dbcsr_error
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_z_m
 
@@ -2155,10 +2419,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(cp_error_type)                      :: cp_error
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cp_error_init (cp_error)
+    dbcsr_error = error
+    CALL cluster_buffer_flush (matrix_a%buffers, error=cp_error)
     CALL dbcsr_scale(matrix_a%matrix, alpha_matrix, last_column, side, dbcsr_error)
+    error = dbcsr_error
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_c_m
 
@@ -2175,6 +2444,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_set(matrix%matrix, alpha, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_d
@@ -2191,6 +2461,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_set(matrix%matrix, alpha, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_s
@@ -2207,6 +2478,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_set(matrix%matrix, alpha, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_z
@@ -2223,6 +2495,7 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_set(matrix%matrix, alpha, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_set_c
@@ -2237,9 +2510,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_d
@@ -2254,9 +2531,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_s
@@ -2271,9 +2552,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_z
@@ -2288,11 +2573,46 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
+    CALL cluster_buffer_flush (matrix_a%buffers, error=error)
+    buffers = matrix_b%buffers
+    CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_c
+
+
+  ! Buffer routines
+
+  SUBROUTINE cp_dbcsr_flush_buffers (matrix, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CALL cluster_buffer_flush (matrix%buffers, error)
+  END SUBROUTINE cp_dbcsr_flush_buffers
+
+  SUBROUTINE fill_sizes (matrix, row, col,&
+       row_size, col_size, row_offset, col_offset)
+    TYPE(cp_dbcsr_type), INTENT(in)          :: matrix
+    INTEGER, INTENT(in)                      :: row, col
+    INTEGER, INTENT(out), OPTIONAL           :: row_size, col_size, &
+                                                row_offset, col_offset
+
+    IF (PRESENT (row_size)) THEN
+       row_size = dbcsr_blk_row_size (matrix%matrix, row)
+    ENDIF
+    IF (PRESENT (col_size)) THEN
+       col_size = dbcsr_blk_column_size (matrix%matrix, col)
+    ENDIF
+    IF (PRESENT (row_offset)) THEN
+       row_offset = dbcsr_blk_row_offset (matrix%matrix, row)
+    ENDIF
+    IF (PRESENT (col_offset)) THEN
+       col_offset = dbcsr_blk_col_offset (matrix%matrix, col)
+    ENDIF
+  END SUBROUTINE fill_sizes
 
 END MODULE cp_dbcsr_interface

@@ -53,6 +53,7 @@ OBJECTS_GENERIC =\
  cg_optimizer.o\
  cg_utils.o\
  cg_test.o\
+ cluster_buffers.o\
  cluster_methods.o\
  cluster_types.o\
  colvar_methods.o\
@@ -85,9 +86,11 @@ OBJECTS_GENERIC =\
  cp_dbcsr_cholesky.o\
  cp_dbcsr_diag.o\
  cp_dbcsr_interface.o\
+ cp_dbcsr_methods.o\
  cp_dbcsr_operations.o\
  cp_dbcsr_output.o\
  cp_dbcsr_types.o\
+ cp_dbcsr_xlat.o\
  cp_ddapc.o\
  cp_ddapc_forces.o\
  cp_ddapc_methods.o\

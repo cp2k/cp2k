@@ -11,9 +11,13 @@
 !>
 !> <b>Modification history:</b>
 !> - Created 2010
+!> - Moved basic routines from _operations to 
+!> - 2010-08-12 [UB] Added buffer definitions and mapping type.
 ! *****************************************************************************
 MODULE cp_dbcsr_types
+  USE cluster_types,                   ONLY: cluster_type
   USE dbcsr_types,                     ONLY: cp_dbcsr_iterator=>dbcsr_iterator,&
+                                             dbcsr_block_buffer_obj,&
                                              dbcsr_obj
 
   !$ USE OMP_LIB
@@ -27,15 +31,23 @@ MODULE cp_dbcsr_types
   PUBLIC :: cp_dbcsr_iterator
   PUBLIC :: cp_dbcsr_type
 
+
+  TYPE cp_dbcsr_mapping_type
+     INTEGER :: refcount
+     LOGICAL :: defined, active
+     TYPE(cluster_type) :: clusters
+  END TYPE cp_dbcsr_mapping_type
+
+
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix
   END TYPE cp_dbcsr_p_type
 
   TYPE cp_dbcsr_type
-     INTEGER                      :: ref_count
-     TYPE(dbcsr_obj)              :: matrix
-     !TYPE(mapping_type)           :: mapping
-     !TYPE(dbcsr_block_buffer_obj) :: buffer
+     INTEGER                              :: ref_count
+     TYPE(dbcsr_obj)                      :: matrix
+     TYPE(cp_dbcsr_mapping_type), POINTER :: row_mapping, col_mapping
+     TYPE(dbcsr_block_buffer_obj)         :: buffers
      !TYPE(dbcsr_distribution_obj) :: dbcsr_distribution
      !TYPE(dbcsr_distribution_obj) :: cp_distribution
      !type(array_i1d_obj)          :: cp_col_offsets, cp_row_offsets
