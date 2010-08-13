@@ -614,7 +614,7 @@ CONTAINS
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
              qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
-         DO i=2,size(matrix_h)
+         DO i=2,SIZE(matrix_h)
            CALL cp_dbcsr_write_sparse_matrix(matrix_h(i)%matrix,4,6,qs_env,para_env,&
                 output_unit=iw,error=error)
          END DO
@@ -633,7 +633,7 @@ CONTAINS
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
-         DO i=2,size(matrix_s)
+         DO i=2,SIZE(matrix_s)
            CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,&
                 output_unit=iw,error=error)
          END DO

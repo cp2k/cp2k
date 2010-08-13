@@ -901,7 +901,9 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: actlen, num_env_restart, msglen, offset, status
+    INTEGER                                  :: actlen, msglen, &
+                                                num_env_restart, offset, &
+                                                status
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :, :), POINTER     :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
@@ -1017,7 +1019,8 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: actlen, num_env_restart, msglen, status
+    INTEGER                                  :: actlen, msglen, &
+                                                num_env_restart, status
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :), POINTER        :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
@@ -1120,7 +1123,7 @@ MODULE helium_methods
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, ia, ic, msglen, &
-                                                offset, num_env_restart
+                                                num_env_restart, offset
     INTEGER, DIMENSION(:), POINTER           :: message
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1308,14 +1311,15 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
-    INTEGER                                  :: actlen, num_env_restart, msglen, offset, rank
+    INTEGER                                  :: actlen, msglen, &
+                                                num_env_restart, offset, rank
     LOGICAL                                  :: failure, lbf
     LOGICAL, DIMENSION(3, 2)                 :: m
     REAL(kind=dp)                            :: bf, bu
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, f, ig
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
-    TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
