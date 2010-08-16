@@ -147,7 +147,7 @@ CONTAINS
             clusters%nparticles, error=error)
        map%clusters%cluster_ptr(:) = clusters%cluster_ptr(:)
        map%clusters%particle_idx(:) = clusters%particle_idx(:)
-       STOP "check that p2c is actually allocated now"
+       !STOP "check that p2c is actually allocated now"
        !map%clusters%particle_to_cluster(:) = clusters%particle_to_particle(:)
     ELSE
        map%defined = .FALSE.
@@ -165,14 +165,14 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    CALL cp_assert (ASSOCIATED (map), cp_warning_level, cp_wrong_args_error,&
-         routineN, "Map does not exist.", error=error)
+    !CALL cp_assert (ASSOCIATED (map), cp_warning_level, cp_wrong_args_error,&
+    !     routineN, "Map does not exist.", error=error)
     IF (ASSOCIATED (map)) THEN
        map%refcount = map%refcount - 1
        IF (map%refcount .LE. 0) THEN
           IF (map%defined) THEN
              CALL cluster_deallocate (map%clusters, error=error)
-             STOP "check that p2c is actually deallocated"
+             !STOP "check that p2c is actually deallocated"
              map%defined = .FALSE.
           ENDIF
        ENDIF
