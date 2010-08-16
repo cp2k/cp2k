@@ -30,6 +30,7 @@ MODULE cluster_buffers
   USE dbcsr_util,                      ONLY: swap
   USE kinds,                           ONLY: dp,&
                                              real_8
+
   !$ USE OMP_LIB
 
 #include "cp_common_uses.h"

@@ -165,8 +165,9 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    !CALL cp_assert (ASSOCIATED (map), cp_warning_level, cp_wrong_args_error,&
-    !     routineN, "Map does not exist.", error=error)
+!CALL cp_assert (ASSOCIATED (map), cp_warning_level, cp_wrong_args_error,&
+!     routineN, "Map does not exist.", error=error)
+
     IF (ASSOCIATED (map)) THEN
        map%refcount = map%refcount - 1
        IF (map%refcount .LE. 0) THEN
