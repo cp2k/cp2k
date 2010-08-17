@@ -232,7 +232,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cluster_h_on_heavier', &
       routineP = moduleN//':'//routineN
-    REAL(dp), PARAMETER                      :: radius = 2.0_dp
+    REAL(dp), PARAMETER                      :: radius = 2.6_dp
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER :: i, ibox, ipart, istat, j, jbox, jpart, kbox, lbox, mbox, &
@@ -429,7 +429,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'boxing_particles', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: box_secure = 1.0e-6_dp
+    REAL(kind=dp), PARAMETER                 :: box_secure = 0.0_dp
 
     INTEGER                                  :: handle, i, iatom, ibox, &
                                                 istat, ixyz, jbox, kbox, &
@@ -478,18 +478,19 @@ CONTAINS
     g(:,:) = 0.0_dp
     g(1,1) = abc(1)
     g(1,2) = abc(2) * COS(radians * gamma)
-    g(2,2) = abc(3) * SIN(radians * gamma)
+    g(2,2) = abc(2) * SIN(radians * gamma)
     g(1,3) = abc(3) * COS(radians * beta)
     g(2,3) = ( abc(2) * abc(3) * COS(radians * alpha) - g(1,2) * g(1,3) ) / g(2,2)
     g(3,3) = SQRT( abc(3)**2 - g(1,3)**2 - g(2,3)**2 )
 
     !
-    ! compute u matrix
-    u = MATMUL(g,h_inv)
-
-    !
     ! rotate coordinate if needed
     IF(.NOT.orthorhombic) THEN
+
+       !
+       ! compute u matrix
+       u = MATMUL(g,h_inv)
+
        ALLOCATE(xyz_tmp(3,natms),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL dcopy(3*natms, xyz, 1, xyz_tmp, 1)
@@ -543,18 +544,20 @@ CONTAINS
 
     !
     ! count particles per box
-    ALLOCATE(cnt(0:nbox(1)-1,0:nbox(2)-1,0:nbox(3)-1))
+    ALLOCATE(cnt(0:nbox(1)-1,0:nbox(2)-1,0:nbox(3)-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     cnt(:,:,:) = 0
     DO iatom = 1,natms
-       ibox = FLOOR(xyz(1,iatom) / dbox(1))
-       jbox = FLOOR(xyz(2,iatom) / dbox(2))
-       kbox = FLOOR(xyz(3,iatom) / dbox(3))
-       IF(ibox.EQ.-1.OR.ibox.EQ.nbox(1).OR.&
-          jbox.EQ.-1.OR.jbox.EQ.nbox(2).OR.&
-          kbox.EQ.-1.OR.kbox.EQ.nbox(3)) THEN
-          WRITE(*,*) 'ibox,jbox,kbox',ibox,jbox,kbox,xyz(:,iatom)
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       ENDIF
+       ibox = MODULO(FLOOR(xyz(1,iatom) / dbox(1)),nbox(1))
+       jbox = MODULO(FLOOR(xyz(2,iatom) / dbox(2)),nbox(2))
+       kbox = MODULO(FLOOR(xyz(3,iatom) / dbox(3)),nbox(3))
+       !IF(ibox.LE.-1.OR.ibox.GE.nbox(1).OR.&
+       !   jbox.LE.-1.OR.jbox.GE.nbox(2).OR.&
+       !   kbox.LE.-1.OR.kbox.GE.nbox(3)) THEN
+       !   WRITE(*,*) 'lbox',lbox
+       !   WRITE(*,*) 'ibox,jbox,kbox',ibox,jbox,kbox,xyz(:,iatom)
+       !   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       !ENDIF
        cnt(ibox,jbox,kbox) = cnt(ibox,jbox,kbox) + 1
     ENDDO
 
@@ -579,15 +582,15 @@ CONTAINS
     !
     ! fill the table
     DO iatom = 1,natms
-       ibox = FLOOR(xyz(1,iatom) / dbox(1))
-       jbox = FLOOR(xyz(2,iatom) / dbox(2))
-       kbox = FLOOR(xyz(3,iatom) / dbox(3))
-       IF(ibox.EQ.-1.OR.ibox.EQ.nbox(1).OR.&
-          jbox.EQ.-1.OR.jbox.EQ.nbox(2).OR.&
-          kbox.EQ.-1.OR.kbox.EQ.nbox(3)) THEN
-          WRITE(*,*) 'ibox,jbox,kbox',ibox,jbox,kbox,xyz(:,iatom)
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       ENDIF
+       ibox = MODULO(FLOOR(xyz(1,iatom) / dbox(1)),nbox(1))
+       jbox = MODULO(FLOOR(xyz(2,iatom) / dbox(2)),nbox(2))
+       kbox = MODULO(FLOOR(xyz(3,iatom) / dbox(3)),nbox(3))
+       !IF(ibox.LE.-1.OR.ibox.GE.nbox(1).OR.&
+       !   jbox.LE.-1.OR.jbox.GE.nbox(2).OR.&
+       !   kbox.LE.-1.OR.kbox.GE.nbox(3)) THEN
+       !   WRITE(*,*) 'ibox,jbox,kbox',ibox,jbox,kbox,xyz(:,iatom)
+       !   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       !ENDIF
        i = box_p(ibox,jbox,kbox) + cnt(ibox,jbox,kbox) - 1
        part_i(i) = iatom
        cnt(ibox,jbox,kbox) = cnt(ibox,jbox,kbox) - 1
@@ -760,6 +763,22 @@ CONTAINS
        DO icluster = 1,clusters%nclusters
           WRITE(id,'(I6)') clusters%cluster_ptr(icluster+1)-clusters%cluster_ptr(icluster)
           WRITE(id,'(A,I6)') 'icluster',icluster
+          DO ip = clusters%cluster_ptr(icluster),clusters%cluster_ptr(icluster+1)-1
+             iparticle = clusters%particle_idx(ip)
+             atom_kind => particle_set(iparticle)%atomic_kind
+             CALL get_atomic_kind(atom_kind,element_symbol=element_symbol)
+             WRITE(id,'(A,3F15.4)') element_symbol,pbc(particle_set(iparticle)%r(:),cell)*angstrom
+          ENDDO
+       ENDDO
+       CLOSE(id)
+    ENDIF
+
+    IF(.TRUE.) THEN
+       id = 127
+       OPEN(id)
+       WRITE(id,'(I6)') clusters%nparticles
+       WRITE(id,'(A,I6)') 'ncluster',clusters%nclusters
+       DO icluster = 1,clusters%nclusters
           DO ip = clusters%cluster_ptr(icluster),clusters%cluster_ptr(icluster+1)-1
              iparticle = clusters%particle_idx(ip)
              atom_kind => particle_set(iparticle)%atomic_kind
