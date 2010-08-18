@@ -42,12 +42,10 @@ MODULE qs_overlap
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_normal,&
                                              dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
                                              use_orb_basis_set
-  USE kinds,                           ONLY: dp,&
-                                             int_size
+  USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
                                              ncoset
@@ -62,7 +60,6 @@ MODULE qs_overlap
        neighbor_list_type, neighbor_node_type, next
   USE string_utilities,                ONLY: compress,&
                                              uppercase
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -128,10 +125,8 @@ CONTAINS
     INTEGER :: handle, i, iab, iatom, iblock, icol, ikind, ilist, inode, &
       irow, iset, istat, iw, jatom, jkind, jset, last_jatom, ldai, max_maxco, &
       max_maxlgto, max_maxsgf, maxco, maxder, maxlgto, maxsgf, natom, ncoa, &
-      ncob, nder, neighbor_list_id, nkind, nlist, nnode, nseta, nsetb, &
-      nsgf_a, nsgf_b, sgfa, sgfb
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_a, first_sgf_b, &
-                                                last_sgf_a, last_sgf_b
+      ncob, nder, neighbor_list_id, nkind, nlist, nnode, nseta, nsetb, sgfa, &
+      sgfb
     INTEGER, DIMENSION(:), POINTER           :: cbs, la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, rbs
@@ -181,6 +176,9 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
+    ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     IF (PRESENT(nderivative)) THEN
       nder = nderivative
       return_s_derivatives = .TRUE.
@@ -192,54 +190,29 @@ CONTAINS
     maxder = ncoset(nder)
     CALL cp_dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
 
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_a,basis_set_id=basis_set_id_a)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf_b,basis_set_id=basis_set_id_b)
-
-    ALLOCATE (first_sgf_a(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "first_sgf_a",natom*int_size)
-    ALLOCATE (last_sgf_a(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "last_sgf_a",natom*int_size)
-    ALLOCATE (first_sgf_b(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "first_sgf_b",natom*int_size)
-    ALLOCATE (last_sgf_b(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "last_sgf_b",natom*int_size)
-
-
     CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf_a,&
-                          last_sgf=last_sgf_a,&
+                          nsgf=rbs,&
                           basis_set_id=basis_set_id_a,error=error)
     CALL get_particle_set(particle_set=particle_set,&
-                          first_sgf=first_sgf_b,&
-                          last_sgf=last_sgf_b,&
+                          nsgf=cbs,&
                           basis_set_id=basis_set_id_b,error=error)
 
-   do_symmetric = .TRUE.
-   symmetry_string = dbcsr_type_symmetric
-   IF( basis_set_id_a /= basis_set_id_b ) THEN
-     do_symmetric = .FALSE.
-     symmetry_string = dbcsr_type_normal
-   END IF
-   ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
-   ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
-   ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
-
+    do_symmetric = .TRUE.
+    symmetry_string = dbcsr_type_symmetric
+    IF( basis_set_id_a /= basis_set_id_b ) THEN
+      do_symmetric = .FALSE.
+      symmetry_string = dbcsr_type_normal
+    END IF
+    ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
+    ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
+    ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
 
     ! prepare for allocation
     CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
-    ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf_a, rbs, last_sgf_a)
-    CALL convert_offsets_to_sizes (first_sgf_b, cbs, last_sgf_b)
     CALL array_nullify (row_blk_sizes)
     CALL array_nullify (col_blk_sizes)
     CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
     CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
-
 
     ALLOCATE(matrix_s(1)%matrix)
     CALL cp_dbcsr_init(matrix_s(1)%matrix,error=error)
@@ -249,9 +222,6 @@ CONTAINS
          row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
-
-    DEALLOCATE (first_sgf_a,last_sgf_a,first_sgf_b,last_sgf_b,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     symmetry_string = dbcsr_type_antisymmetric
     IF( basis_set_id_a /= basis_set_id_b) THEN
