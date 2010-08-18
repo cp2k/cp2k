@@ -94,7 +94,7 @@ MODULE qs_core_hamiltonian
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist
-  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_distribution,&
+  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_dist,&
                                              cp_dbcsr_write_sparse_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -1045,7 +1045,7 @@ CONTAINS
     ! *** Print the distribution of the overlap matrix blocks ***
     ! *** this duplicates causes duplicate printing at the force calc ***
     IF (.NOT. calculate_forces) THEN
-       CALL cp_dbcsr_write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
+       CALL cp_dbcsr_write_matrix_dist(matrix_s(1)%matrix,qs_env%input,para_env,error)
     ENDIF
 
     ! *** Print the overlap integral matrix, if requested ***

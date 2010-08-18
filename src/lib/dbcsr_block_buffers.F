@@ -57,11 +57,11 @@ MODULE dbcsr_block_buffers
 
 
   INTERFACE dbcsr_buffers_set_pointer_2d
-     MODULE PROCEDURE dbcsr_buffers_set_pointer_2d_any
-     MODULE PROCEDURE dbcsr_buffers_set_pointer_2d_s,&
-                      dbcsr_buffers_set_pointer_2d_d,&
-                      dbcsr_buffers_set_pointer_2d_c,&
-                      dbcsr_buffers_set_pointer_2d_z
+     MODULE PROCEDURE dbcsr_buffers_set_p_2d_any
+     MODULE PROCEDURE dbcsr_buffers_set_p_2d_s,&
+                      dbcsr_buffers_set_p_2d_d,&
+                      dbcsr_buffers_set_p_2d_c,&
+                      dbcsr_buffers_set_p_2d_z
   END INTERFACE
   !INTERFACE dbcsr_buffer_make_size
   !   MODULE PROCEDURE dbcsr_destroy_2d_array, dbcsr_destroy_1d_array
@@ -588,7 +588,7 @@ CONTAINS
   END SUBROUTINE flush_single_buffer
 
 
-  SUBROUTINE dbcsr_buffers_set_pointer_2d_any (pointer_2d, row, col,&
+  SUBROUTINE dbcsr_buffers_set_p_2d_any (pointer_2d, row, col,&
        rsize, csize, main_tr, base_offset, buffers, buff_tr, error)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: pointer_2d
     INTEGER, INTENT(IN)                      :: row, col, rsize, csize
@@ -599,8 +599,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: buff_tr
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_buffers_set_pointer_2d_any', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_buffers_set_p_2d_any', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler, ibuff
@@ -634,19 +633,19 @@ CONTAINS
     !
     SELECT CASE (dbcsr_data_get_type (pointer_2d))
     CASE (dbcsr_type_real_4_2d)
-       CALL dbcsr_buffers_set_pointer_2d_s (pointer_2d%d%r2_sp, row, col,&
+       CALL dbcsr_buffers_set_p_2d_s (pointer_2d%d%r2_sp, row, col,&
             rsize, csize, main_tr, base_offset,&
             buffers, buff_tr, error=error)
     CASE (dbcsr_type_real_8_2d)
-       CALL dbcsr_buffers_set_pointer_2d_d (pointer_2d%d%r2_dp, row, col,&
+       CALL dbcsr_buffers_set_p_2d_d (pointer_2d%d%r2_dp, row, col,&
             rsize, csize, main_tr, base_offset,&
             buffers, buff_tr, error=error)
     CASE (dbcsr_type_complex_4_2d)
-       CALL dbcsr_buffers_set_pointer_2d_c (pointer_2d%d%c2_sp, row, col,&
+       CALL dbcsr_buffers_set_p_2d_c (pointer_2d%d%c2_sp, row, col,&
             rsize, csize, main_tr, base_offset,&
             buffers, buff_tr, error=error)
     CASE (dbcsr_type_complex_8_2d)
-       CALL dbcsr_buffers_set_pointer_2d_z (pointer_2d%d%c2_dp, row, col,&
+       CALL dbcsr_buffers_set_p_2d_z (pointer_2d%d%c2_dp, row, col,&
             rsize, csize, main_tr, base_offset,&
             buffers, buff_tr, error=error)
     CASE default
@@ -655,7 +654,7 @@ CONTAINS
             "Invalid pointer_2d.",__LINE__,error)
     END SELECT
     CALL dbcsr_error_stop (error_handler, error)
-  END SUBROUTINE dbcsr_buffers_set_pointer_2d_any
+  END SUBROUTINE dbcsr_buffers_set_p_2d_any
 
 
 #include "dbcsr_block_buffers_d.F"

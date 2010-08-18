@@ -60,7 +60,7 @@ MODULE cp_dbcsr_output
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_dbcsr_output'
 
   PUBLIC :: cp_dbcsr_write_sparse_matrix
-  PUBLIC :: cp_dbcsr_write_matrix_distribution
+  PUBLIC :: cp_dbcsr_write_matrix_dist
   PUBLIC :: write_fm_with_basis_info
 
   PRIVATE
@@ -535,14 +535,13 @@ CONTAINS
 !> \par History
 !>      Creation (25.06.2003,MK)
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_write_matrix_distribution(matrix,force_env_section,para_env,error)
+  SUBROUTINE cp_dbcsr_write_matrix_dist(matrix,force_env_section,para_env,error)
     TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_write_matrix_distribution', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_write_matrix_dist', &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
@@ -657,6 +656,6 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE cp_dbcsr_write_matrix_distribution
+  END SUBROUTINE cp_dbcsr_write_matrix_dist
 
 END MODULE cp_dbcsr_output

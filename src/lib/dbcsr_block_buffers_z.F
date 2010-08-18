@@ -1,11 +1,11 @@
-  SUBROUTINE dbcsr_buffers_set_pointer_2d_z (pointer_2d,&
+  SUBROUTINE dbcsr_buffers_set_p_2d_z (pointer_2d,&
        row, col, rsize, csize, main_tr, base_offset, buffers, buff_tr, error)
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER      :: pointer_2d
     INTEGER, INTENT(IN)                   :: row, col, rsize, csize, base_offset
     LOGICAL, INTENT(IN)                   :: main_tr, buff_tr
     TYPE(dbcsr_block_buffer_obj), INTENT(INOUT) :: buffers
     TYPE(dbcsr_error_type), INTENT(INOUT) :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_buffers_set_pointer_2d_z', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_buffers_set_p_2d_z', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handler, ibuff, rs, cs,&
                                              buff_rs, buff_cs, transposes,&
@@ -62,4 +62,4 @@
     buffers%b%rcb(6, ibuff) = transposes
     buffers%b%dirty(ibuff) = .TRUE.
     CALL dbcsr_error_stop (error_handler, error)
-  END SUBROUTINE dbcsr_buffers_set_pointer_2d_z
+  END SUBROUTINE dbcsr_buffers_set_p_2d_z
