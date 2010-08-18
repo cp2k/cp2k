@@ -1,0 +1,29 @@
+# Successfully compiled with the following modules on Rosa
+# module swap PrgEnv-pgi PrgEnv-cray
+# module swap xt-asyncpe xt-asyncpe/3.9
+# module swap xt-mpt xt-mpt/4.1.1
+# module swap xt-libsci xt-libsci/10.4.6
+# module swap cce cce/7.2.5
+# module load fftw/3.2.2.1
+# module load xtpe-istanbul
+
+CC       = cc
+CPP      =
+FC       = ftn -f free -h noomp
+LD       = ftn -h noomp
+AR       = ar -r
+DFLAGS   = -D__CCE -D__FFTW3 -D__FFTSG \
+           -D__parallel -D__BLACS -D__SCALAPACK -D__LIBINT \
+           -D__NO_STATM_ACCESS
+CPPFLAGS = -traditional -C $(DFLAGS) -P
+FCFLAGS  = $(DFLAGS) -e m -O 2 -O ipa1 -h cpu=istanbul
+FCFLAGS2 = $(DFLAGS) -e m -O 1 -h cpu=istanbul
+LDFLAGS  = $(FCFLAGS)
+LIBS     = -L/users/ibethune/libint/lib -lderiv -lint -lstdc++
+
+OBJECTS_ARCHITECTURE = machine_cce.o
+MODDEPS = no
+
+pw_grids.o: pw_grids.F
+	$(FC) -c $(FCFLAGS2) $<
+
