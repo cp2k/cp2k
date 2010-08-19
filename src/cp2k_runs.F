@@ -73,7 +73,8 @@ MODULE cp2k_runs
        pint_run, real_time_propagation, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
-                                             create_global_section
+                                             create_global_section,&
+                                             empty_initial_variables
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
@@ -176,7 +177,8 @@ CONTAINS
     CALL cp_error_init(error, stop_level=cp_fatal_level)
 
     ! parse the input
-    input_file => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
+    input_file => create_cp2k_input_reading(input_file_name,initial_variables=empty_initial_variables, &
+                                            para_env=para_env,error=error)
 
     ! put failure to true if this is what happened on parsing the input
     CALL cp_error_check(error,failure)

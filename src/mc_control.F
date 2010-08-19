@@ -29,7 +29,8 @@ MODULE mc_control
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_qs
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading
+  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
+                                             empty_initial_variables
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -395,7 +396,8 @@ CONTAINS
     CALL globenv_create(globenv, error=error)
 
     ! parse the input
-    root_section => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
+    root_section => create_cp2k_input_reading(input_file_name,initial_variables=empty_initial_variables,&
+                                              para_env=para_env,error=error)
 
     CALL check_cp2k_input(root_section,para_env=para_env,error=error)
 

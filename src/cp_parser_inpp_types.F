@@ -49,8 +49,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date  22.02.2008
 ! *****************************************************************************
-  SUBROUTINE create_inpp_type(inpp, error)
+  SUBROUTINE create_inpp_type(inpp, initial_variables, error)
     TYPE(inpp_type), POINTER                 :: inpp
+    CHARACTER(len=default_path_length), &
+      DIMENSION(:, :), POINTER               :: initial_variables
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_inpp_type', &
@@ -72,6 +74,16 @@ CONTAINS
     inpp%num_variables =0
     NULLIFY(inpp%variable_name,&
             inpp%variable_value)
+
+    IF (ASSOCIATED(initial_variables)) THEN
+       inpp%num_variables =SIZE(initial_variables,2)
+       ALLOCATE(inpp%variable_name(inpp%num_variables),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       inpp%variable_name=initial_variables(1,:)
+       ALLOCATE(inpp%variable_value(inpp%num_variables),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       inpp%variable_value=initial_variables(2,:)
+    ENDIF
 
   END SUBROUTINE create_inpp_type
 

@@ -58,7 +58,8 @@ MODULE f77_interface
                                              do_mixed,&
                                              do_qmmm,&
                                              do_qs
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading
+  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
+                                             empty_initial_variables
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_cp2k_force_eval,           ONLY: create_force_eval_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -510,7 +511,7 @@ CONTAINS
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE create_force_env(new_env_id,input_path,&
-       output_path,mpi_comm,output_unit,owns_out_unit,input,ierr,work_dir)
+       output_path,mpi_comm,output_unit,owns_out_unit,input,ierr,work_dir, initial_variables)
     INTEGER, INTENT(out)                     :: new_env_id
     CHARACTER(len=*), INTENT(in)             :: input_path
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: output_path
@@ -520,6 +521,8 @@ CONTAINS
       POINTER                                :: input
     INTEGER, INTENT(out), OPTIONAL           :: ierr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: work_dir
+    CHARACTER(len=*), DIMENSION(:, :), &
+      OPTIONAL                               :: initial_variables
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
@@ -606,7 +609,11 @@ CONTAINS
     NULLIFY(input_file)
     IF (PRESENT(input)) input_file => input
     IF (.NOT.ASSOCIATED(input_file)) THEN
-       input_file => create_cp2k_input_reading(input_path,para_env=para_env,error=error)
+       IF (PRESENT(initial_variables)) THEN
+         input_file => create_cp2k_input_reading(input_path,initial_variables,para_env=para_env,error=error)
+       ELSE
+         input_file => create_cp2k_input_reading(input_path,empty_initial_variables,para_env=para_env,error=error)
+       ENDIF
     ELSE
        CALL section_vals_retain(input_file,error=error)
     END IF
@@ -1371,7 +1378,8 @@ CPSourceFileRef,&
     CALL cp_logger_release(logger)
     CALL cp_error_init(error,logger=logger,stop_level=cp_fatal_level)
 
-    input_file => create_cp2k_input_reading(input_file_path,para_env=para_env,error=error)
+    input_file => create_cp2k_input_reading(input_file_path,initial_variables=empty_initial_variables, &
+                                            para_env=para_env,error=error)
     IF (my_permissive) CALL cp_error_reset(error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN

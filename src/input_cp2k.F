@@ -14,6 +14,7 @@ MODULE input_cp2k
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             empty_initial_variables,&
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_set_create,&
@@ -51,7 +52,7 @@ MODULE input_cp2k
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k'
   
   PUBLIC :: create_cp2k_root_section, parsed_cp2k_input,&
-       create_global_section, create_cp2k_input_reading
+       create_global_section, create_cp2k_input_reading, empty_initial_variables
 
 CONTAINS
 
@@ -63,8 +64,9 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
+  FUNCTION create_cp2k_input_reading(file_path,initial_variables,para_env,error) RESULT(res)
     CHARACTER(len=*), INTENT(in)             :: file_path
+    CHARACTER(len=*), DIMENSION(:, :)        :: initial_variables
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(section_vals_type), POINTER         :: res
@@ -85,8 +87,8 @@ CONTAINS
     CALL create_cp2k_root_section(input_structure,error=error)
     CALL section_vals_create(res,input_structure, error=error)
     CALL section_release(input_structure,error=error)
-    CALL parser_create(cpparser,file_name=file_path,para_env=para_env,&
-         error=error)
+    CALL parser_create(cpparser,initial_variables=initial_variables,file_name=file_path, &
+         para_env=para_env, error=error)
     CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
     CALL section_vals_parse(res,cpparser,root_section=.FALSE.,&
          default_units=default_units,error=error)

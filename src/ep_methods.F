@@ -89,7 +89,8 @@ MODULE ep_methods
                                              ot_precond_full_kinetic,&
                                              ot_precond_solver_default,&
                                              wfi_use_prev_wf_method_nr
-  USE input_cp2k,                      ONLY: create_cp2k_input_reading
+  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
+                                             empty_initial_variables
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
@@ -450,7 +451,8 @@ CONTAINS
        CALL ep_force_create(ep_env%force,nat=nat,error=error)
        CALL section_vals_val_get(input,"FORCE_EVAL%EP%COMP_INPUT",&
             c_val=comp_path,error=error)
-       comp_input => create_cp2k_input_reading(comp_path,para_env=para_env,error=error)
+       comp_input => create_cp2k_input_reading(comp_path, initial_variables=empty_initial_variables, &
+                                               para_env=para_env,error=error)
        CALL rep_env_create(ep_env%mol_envs, para_env=para_env, input=comp_input,&
             nrep=nmol, prep=1,keep_wf_history=.TRUE.,error=error)
        CALL cp_assert(ASSOCIATED(ep_env%mol_envs),cp_failure_level,&

@@ -48,7 +48,10 @@ MODULE cp_parser_types
   PRIVATE
 
   PUBLIC :: cp_parser_type, parser_release, parser_retain, parser_create,&
-            parser_reset
+            parser_reset, empty_initial_variables
+
+  ! this is a zero sized array by choice, and convenience
+  CHARACTER(LEN=default_path_length), DIMENSION(2,1:0) :: empty_initial_variables
 
 ! *** Private parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser_types'
@@ -84,6 +87,7 @@ MODULE cp_parser_types
      INTEGER                                        :: icol,icol1,icol2
      INTEGER                                        :: input_unit, input_line_number
      LOGICAL                                        :: first_separator, parse_white_lines
+     CHARACTER (len=default_path_length), DIMENSION(:,:), POINTER :: initial_variables
      TYPE(buffer_type), POINTER                     :: buffer
      TYPE(status_type), POINTER                     :: status
      TYPE(cp_para_env_type), POINTER                :: para_env
@@ -144,6 +148,10 @@ CONTAINS
           CALL release_ilist_type(parser%ilist, error)
           CALL release_buffer_type(parser%buffer, error)
           CALL release_status_type(parser%status, error)
+          IF (ASSOCIATED(parser%initial_variables)) THEN
+             DEALLOCATE(parser,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          ENDIF
           DEALLOCATE(parser,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -151,14 +159,14 @@ CONTAINS
   END SUBROUTINE parser_release
 
 ! *****************************************************************************
-!> \brief   Start a parser run.
+!> \brief   Start a parser run. Initial variables allow to @SET stuff before opening the file
 !> \author  MK
 !> \date    14.02.2001
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE parser_create(parser, file_name, unit_nr, para_env, end_section_label,&
        separator_chars, comment_char, continuation_char, section_char, parse_white_lines,&
-       error)
+       initial_variables, error)
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_name
     INTEGER, INTENT(in), OPTIONAL            :: unit_nr
@@ -170,6 +178,8 @@ CONTAINS
                                                 continuation_char, &
                                                 section_char
     LOGICAL, INTENT(IN), OPTIONAL            :: parse_white_lines
+    CHARACTER(len=*), DIMENSION(:, :), &
+      OPTIONAL                               :: initial_variables
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_create', &
@@ -189,6 +199,7 @@ CONTAINS
 
        parser%input_unit=-1
        parser%input_file_name=""
+       NULLIFY(parser%initial_variables)
 
        !   *** Load the default values and overwrite them, if requested ***
        parser%separators = default_separators
@@ -238,6 +249,14 @@ CONTAINS
           END IF
        END IF
 
+       IF (PRESENT(initial_variables)) THEN
+          IF (SIZE(initial_variables,2)>0) THEN
+             ALLOCATE(parser%initial_variables(2,SIZE(initial_variables,2)),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             parser%initial_variables=initial_variables
+          ENDIF
+       ENDIF
+
        parser%input_line_number = 0
        parser%icol=0
        parser%icol1=0
@@ -247,7 +266,7 @@ CONTAINS
        NULLIFY(parser%status)
        NULLIFY(parser%inpp)
        NULLIFY(parser%ilist)
-       CALL create_inpp_type(parser%inpp, error)
+       CALL create_inpp_type(parser%inpp, parser%initial_variables, error)
        CALL create_ilist_type(parser%ilist, error)
        CALL create_buffer_type(parser%buffer, error)
        CALL create_status_type(parser%status, error)
@@ -286,7 +305,7 @@ CONTAINS
        CALL release_buffer_type(parser%buffer, error)
        CALL release_status_type(parser%status, error)
        ! Reallocate substructures
-       CALL create_inpp_type(parser%inpp, error)
+       CALL create_inpp_type(parser%inpp, parser%initial_variables, error)
        CALL create_ilist_type(parser%ilist, error)
        CALL create_buffer_type(parser%buffer, error)
        CALL create_status_type(parser%status, error)
