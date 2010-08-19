@@ -19,7 +19,8 @@ MODULE cluster_methods
                                              cluster_type
   USE input_constants,                 ONLY: clustering_box,&
                                              clustering_h_on_heavier,&
-                                             clustering_none
+                                             clustering_none,&
+                                             clustering_small_on_larger
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -66,9 +67,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'clustering_particles', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, method
+    INTEGER                                  :: handle, &
+                                                max_blk_size_to_be_small, &
+                                                method
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: box_size
+    REAL(dp)                                 :: box_size, radius
     TYPE(box_type)                           :: boxes
 
     failure = .FALSE.
@@ -77,6 +80,9 @@ CONTAINS
 
     CALL section_vals_val_get(clustering_section,"METHOD",i_val=method,error=error)
     CALL section_vals_val_get(clustering_section,"BOX_SIZE",r_val=box_size,error=error)
+    CALL section_vals_val_get(clustering_section,"RADIUS",r_val=radius,error=error)
+    CALL section_vals_val_get(clustering_section,"MAX_BLK_SIZE_TO_BE_SMALL",&
+         i_val=max_blk_size_to_be_small,error=error)
     !
     ! box my particles
     CALL boxing_particles(cell, particle_set, boxes, box_size, error=error)
@@ -88,9 +94,11 @@ CONTAINS
     CASE(clustering_box) ! BOX
        CALL cluster_box(clusters, boxes, error)
     CASE(clustering_h_on_heavier)
-       CALL cluster_h_on_heavier(clusters, boxes, cell, particle_set, error)
-    !CASE(clustering_smallest_on_larger)
-    !call cluster_smallest_on_larger(clusters, boxes, particle_set, error)
+       CALL cluster_smallest_on_larger(clusters, boxes, cell, particle_set, &
+            radius, error=error)
+    CASE(clustering_small_on_larger)
+       CALL cluster_smallest_on_larger(clusters, boxes, cell, particle_set, &
+            radius, max_blk_size_to_be_small, error=error)
     CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
@@ -160,88 +168,35 @@ CONTAINS
   END SUBROUTINE cluster_box
 
 ! *****************************************************************************
-!> \brief Clustering the smallest particle block on larger one based on boxes
-!> \par History
-!>      none
-!> \author VW (2010)
-! *****************************************************************************
-  SUBROUTINE cluster_smallest_on_larger(clusters, boxes, error)
-
-    TYPE(cluster_type)                       :: clusters
-    TYPE(box_type)                           :: boxes
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_smallest_on_larger', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, ibox, jbox, kbox, &
-                                                nclusters, npart, nparticles
-    INTEGER, DIMENSION(:), POINTER           :: part_i
-    INTEGER, DIMENSION(:, :, :), POINTER     :: box_p
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
-!
-! not yet tere...
-
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-
-    nparticles = boxes%npart
-    nclusters = boxes%npart ! worst case
-
-    CALL cluster_allocate(clusters, nclusters, nparticles, error)
-
-    nclusters = 1
-    nparticles = 0
-    clusters%cluster_ptr(nclusters) = 1
-    box_p => boxes%box_p
-    part_i => boxes%part_i
-    DO kbox = 0,boxes%nbox(3)-1
-    DO jbox = 0,boxes%nbox(2)-1
-    DO ibox = 0,boxes%nbox(1)-1
-       npart = box_p(ibox+1,jbox,kbox)-box_p(ibox,jbox,kbox)
-       IF(npart.GT.0) THEN
-          DO i = box_p(ibox,jbox,kbox),box_p(ibox+1,jbox,kbox)-1
-             nparticles = nparticles + 1
-             clusters%particle_idx(nparticles) = part_i(i)
-          ENDDO
-          nclusters = nclusters + 1
-          clusters%cluster_ptr(nclusters) = clusters%cluster_ptr(nclusters-1) + npart
-       ENDIF
-    ENDDO
-    ENDDO
-    ENDDO
-
-  END SUBROUTINE cluster_smallest_on_larger
-
-! *****************************************************************************
 !> \brief Clustering the hydrogen particle block on larger one based on boxes
+!> \brief and clustering the smallest particle block on larger one based on boxes
 !> \par History
 !>      none
 !> \author VW (2010)
 ! *****************************************************************************
-  SUBROUTINE cluster_h_on_heavier(clusters, boxes, cell, particle_set, error)
+  SUBROUTINE cluster_smallest_on_larger(clusters, boxes, cell, particle_set, &
+       radius, max_blk_size_to_be_small, error)
 
     TYPE(cluster_type)                       :: clusters
     TYPE(box_type)                           :: boxes
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    REAL(dp), INTENT(in)                     :: radius
+    INTEGER, INTENT(in), OPTIONAL            :: max_blk_size_to_be_small
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_h_on_heavier', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cluster_smallest_on_larger', &
       routineP = moduleN//':'//routineN
-    REAL(dp), PARAMETER                      :: radius = 2.6_dp
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER :: i, ibox, ipart, istat, j, jbox, jpart, kbox, lbox, mbox, &
-      mpart, n_part, nbox, nclusters, nnbox(3), npart, nparticles
+      mpart, n_part, nbox, nclusters, nnbox(3), npart, nparticles, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: clustered
     INTEGER, DIMENSION(:), POINTER           :: cluster_ptr, part_i, &
                                                 particle_idx
     INTEGER, DIMENSION(:, :, :), POINTER     :: box_p
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: cluster_hydrogen, failure
     REAL(dp)                                 :: dist, r(3)
     TYPE(atomic_kind_type), POINTER          :: atom_kind
 
@@ -249,6 +204,10 @@ CONTAINS
 
     nparticles = boxes%npart
     nclusters = boxes%npart ! worst case
+
+    !
+    ! do we cluster hydrogen
+    cluster_hydrogen = .NOT.PRESENT(max_blk_size_to_be_small)
 
     CALL cluster_allocate(clusters, nclusters, nparticles, error)
 
@@ -259,8 +218,13 @@ CONTAINS
 
     DO ipart = 1,nparticles
        atom_kind => particle_set(ipart)%atomic_kind
-       CALL get_atomic_kind(atom_kind,element_symbol=element_symbol)
-       IF(TRIM(element_symbol).EQ."H") clustered(ipart) = 1
+       IF(cluster_hydrogen) THEN
+          CALL get_atomic_kind(atom_kind,element_symbol=element_symbol)
+          IF(TRIM(element_symbol).EQ."H") clustered(ipart) = 1
+       ELSE
+          CALL get_atomic_kind(atom_kind,nsgf=nsgf)
+          IF(nsgf.LE.max_blk_size_to_be_small) clustered(ipart) = 1
+       ENDIF
     ENDDO
 
     nclusters = 1
@@ -360,7 +324,7 @@ CONTAINS
     DEALLOCATE(clustered,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE cluster_h_on_heavier
+  END SUBROUTINE cluster_smallest_on_larger
 
 ! *****************************************************************************
 !> \brief Clustering none 

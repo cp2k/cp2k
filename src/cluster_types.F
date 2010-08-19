@@ -19,7 +19,7 @@ MODULE cluster_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cluster_types'
 
-! *** Public subroutines ***
+! *** Public types ***
 
   PUBLIC :: cluster_type, box_type
 

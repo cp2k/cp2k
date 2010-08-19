@@ -164,11 +164,15 @@ CONTAINS
        CALL keyword_create(keyword,name="METHOD",&
             description="The clustering method ",&
             usage="METHOD BOX",&
-            enum_c_vals=s2a("NONE","BOX", "H_ON_HEAVIER"),&
-            enum_i_vals=(/clustering_none, clustering_box, clustering_h_on_heavier/),&
+            enum_c_vals=s2a("NONE","BOX", "H_ON_HEAVIER", "SMALLEST_ON_LARGER"),&
+            enum_i_vals=(/clustering_none, &
+                          clustering_box, &
+                          clustering_h_on_heavier, &
+                          clustering_small_on_larger/),&
             enum_desc=s2a("none",&
                           "based on boxes",&
-                          "hydrogen on heavier atoms"), &
+                          "hydrogen on heavier atoms",&
+                          "smallest block on larger"), &
             default_i_val=clustering_none,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -177,6 +181,21 @@ CONTAINS
             description="The box size",&
             usage="BOX_SIZE 10.0", unit_str="angstrom",&
             default_r_val=cp_unit_to_cp2k(value=4.0_dp,unit_str="angstrom",error=error), error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="RADIUS",&
+            description="The radius for clustering",&
+            usage="RADIUS 2.0", unit_str="angstrom",&
+            default_r_val=cp_unit_to_cp2k(value=1.3_dp,unit_str="angstrom",error=error), error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="MAX_BLK_SIZE_TO_BE_SMALL",&
+            description="The maxinum block size to be considered as a small "//&
+            "block (use with METHOD SMALLEST_ON_LARGER)",&
+            usage="MAX_BLK_SIZE_TO_BE_SMALL 12",&
+            default_i_val=10, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

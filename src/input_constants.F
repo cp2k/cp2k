@@ -722,7 +722,8 @@ MODULE input_constants
   ! clustering methods
   INTEGER, PARAMETER, PUBLIC               :: clustering_none=0, &
                                               clustering_box=1, &
-                                              clustering_h_on_heavier=2
+                                              clustering_h_on_heavier=2, &
+                                              clustering_small_on_larger=3
 
   ! HFX potential type
   INTEGER, PARAMETER, PUBLIC               :: do_hfx_potential_coulomb=1,&
