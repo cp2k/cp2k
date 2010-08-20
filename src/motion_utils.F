@@ -491,14 +491,15 @@ CONTAINS
          file_form="FORMATTED", is_new_file=new_file, error=error)
     IF ( box > 0 ) THEN
        IF (new_file) THEN
-          WRITE (box,'("#",3X,A,2X,A,2X,9(6X,A,6X),4X,A)')"Step Nr.","Time[fs]","XX[Ang.]","YX[Ang.]",&
-               "ZX[Ang.]","YX[Ang.]","YY[Ang.]","YZ{Ang.]","ZX[Ang.]","ZY[Ang.]","ZZ[Ang.]","Vol[Ang.^3]"
+         WRITE (box,'(A,9(7X,A2," [Angstrom]"),6X,A)')&
+           "#   Step   Time [fs]","Ax","Ay","Az","Bx","By","Bz","Cx","Cy","Cz",&
+           "Volume [Angstrom^3]"
        END IF
-       WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time,&
-            cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
-            cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
-            cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
-            cell%deth*angstrom*angstrom*angstrom
+       WRITE (UNIT=box,FMT="(I8,F12.3,9F20.10,F25.10)") itimes,time,&
+         cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
+         cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
+         cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
+         cell%deth*angstrom*angstrom*angstrom
        CALL m_flush(box)
     END IF
     CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
