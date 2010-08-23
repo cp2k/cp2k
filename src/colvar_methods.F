@@ -1871,17 +1871,18 @@ CPSourceFileRef)
     norm2 = SQRT(a2)
     CPPrecondition(norm2/=0.0_dp,cp_failure_level,routineP,error,failure)
 
-    ! The value of the angle is defined only between 0 and Pi/2
+    ! The value of the angle is defined only between 0 and Pi
     prod_12  = DOT_PRODUCT(xpn1,xpn2)
 
     d        = norm1*norm2
-    t        = MIN(1.0_dp,prod_12/d)
-    colvar%ss= ACOS(ABS(t))
+    t        = prod_12/d
+    t        = MIN(1.0_dp,ABS(t))*SIGN(1.0_dp,t)
+    colvar%ss= ACOS(t)
 
     IF ((ABS(colvar%ss).LT.tolerance_acos).OR.(ABS(colvar%ss-pi).LT.tolerance_acos)) THEN
        fmod =   0.0_dp
     ELSE
-       fmod = - 1.0_dp / SIN(colvar%ss) * SIGN(1.0_dp,t)
+       fmod = - 1.0_dp / SIN(colvar%ss)
     ENDIF
     ! Compute derivatives
     np = 0
