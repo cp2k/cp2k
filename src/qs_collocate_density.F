@@ -927,7 +927,7 @@ CONTAINS
 !$omp          private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,p_block,tr,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
 !$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,lb,ub,n), &
-!$omp          private(lb_l,nn,segment)
+!$omp          private(lb_l,nn,segment,itask,i)
 
     ithread = 0
 !$  ithread = omp_get_thread_num()

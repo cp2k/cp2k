@@ -1247,7 +1247,6 @@ CONTAINS
     END DO loop_gridlevels
 
 !$omp end parallel
-!$omp barrier
 
     IF (debug_this_module) &
       DEALLOCATE(block_touched)
