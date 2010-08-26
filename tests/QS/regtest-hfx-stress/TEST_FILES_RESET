@@ -3,3 +3,8 @@
 #
 # uninitialized variable
 ch3-admm.inp
+# Numerical noise after adding _dp 
+ch3-admm.inp
+ch3.inp
+ch4-admm.inp
+h2o.inp

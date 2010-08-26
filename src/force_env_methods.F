@@ -347,7 +347,7 @@ CONTAINS
                                              extension=".stress_tensor",error=error)
           IF (output_unit > 0) THEN
              CALL force_env_get(force_env,cell=cell,error=error)
-             stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth*pascal*1.0E-9
+             stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth*pascal*1.0E-9_dp
              CALL section_vals_val_get(force_env%force_env_section,"PRINT%STRESS_TENSOR%NDIGITS",&
                                        i_val=ndigits,error=error)
              ndigits = MIN(MAX(1,ndigits),20)
