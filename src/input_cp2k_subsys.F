@@ -11,6 +11,7 @@
 ! *****************************************************************************
 MODULE input_cp2k_subsys
   USE bibliography,                    ONLY: Goedecker1996,&
+                                             Guidon2010,&
                                              Hartwigsen1998,&
                                              Krack2005,&
                                              VandeVondele2005a,&
@@ -1101,6 +1102,7 @@ CONTAINS
             variants=s2a("AUXILIARY_FIT_BASIS_SET", "AUX_FIT_BASIS"),&
             description="The auxliliary basis set (GTO type) for auxiliary density matrix method",&
             usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
+            citations=(/Guidon2010/),&
             n_var=1, required=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

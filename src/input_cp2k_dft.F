@@ -12,7 +12,7 @@
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
        Avezac2005, Blochl1995, Dewar1977, Dewar1985, Dudarev1997, &
-       Dudarev1998, Elstner1998, Hu2007, Hunt2003, Iannuzzi2005, &
+       Dudarev1998, Elstner1998, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
        Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
        Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
        Repasky2002, Rocha2006, Schenter2008, Seifert1996, Stewart1982, &
@@ -2479,6 +2479,7 @@ CONTAINS
        CALL section_create(section,"AUXILIARY_DENSITY_MATRIX_METHOD",&
             description="Parameters needed to set wavefunction fitting",&
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            citations=(/Guidon2010/),&
             error=error)
 
        CALL keyword_create(&
@@ -2490,6 +2491,7 @@ CONTAINS
             enum_i_vals=(/do_admm_basis_set_projection, do_admm_block_density_matrix/),&
             enum_desc=s2a("Construct auxiliary density matrix from auxiliary basis", &
                           "Construct auxiliary density from a blocked Fock matrix"), &
+            citations=(/Guidon2010/),&
             default_i_val=do_admm_basis_set_projection, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2507,6 +2509,7 @@ CONTAINS
                           "Apply McWeeny purification via Cauchy representation in occupied subspace", &
                           "Calculate MO derivatives via Cauchy representation by diagonalization", &
                           "Calculate MO derivatives via Cauchy representation by inversion"), &
+            citations=(/Guidon2010/),&
             default_i_val=do_admm_purify_mo_diag, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

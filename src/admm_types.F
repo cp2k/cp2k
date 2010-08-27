@@ -11,6 +11,8 @@
 ! *****************************************************************************
 MODULE admm_types
   USE ai_overlap_new,                  ONLY: overlap
+  USE bibliography,                    ONLY: Guidon2010,&
+                                             cite_reference
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -167,6 +169,8 @@ MODULE admm_types
       fm_struct_aux_orb, fm_struct_nmo_nmo, fm_struct_orb_aux, &
       fm_struct_orb_nmo, fm_struct_orb_orb
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    CALL cite_reference(Guidon2010)
 
     ALLOCATE(admm_env, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

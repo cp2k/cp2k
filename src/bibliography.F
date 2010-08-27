@@ -55,7 +55,7 @@ MODULE bibliography
              Stewart1982, E2002, Laino2008, Blochl1995, Tao2003, VandeVondele2006, Hu2007,&
              Grimme2006,Branduardi2007,Schenter2008,BeckeRoussel1989, Proynov2007,&
              VandenCic2006,Becke1997, Foiles1986, Ricci2003, Kolafa2004, Kuhne2007,Kunert2003,&
-             Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010
+             Ceriotti2009,ceriotti2009b,Guidon2009,BarducBus2008,Grimme2010,Guidon2010
 
 CONTAINS
 
@@ -1841,6 +1841,39 @@ CONTAINS
          "UT ISI:000252471200008",&
          "ER"),&
          DOI="10.1103/PhysRevLett.100.020603")
+
+    CALL add_reference(key=Guidon2010, ISI_record=s2a(&
+         "AU Guidon, M",&
+         "   Hutter, J",&
+         "   VandeVondele, J",&
+         "AF Guidon, Manuel",&
+         "   Hutter, Jurg",&
+         "   VandeVondele, Joost",&
+         "TI Auxiliary Density Matrix Methods for Hartree-Fock Exchange Calculations",&
+         "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+         "LA English",&
+         "DT Article",&
+         "NR 65",&
+         "TC 0",&
+         "PU AMER CHEMICAL SOC",&
+         "PI WASHINGTON",&
+         "PA 1155 16TH ST, NW, WASHINGTON, DC 20036 USA",&
+         "SN 1549-9618",&
+         "J9 J CHEM THEORY COMPUT",&
+         "JI J. Chem. Theory Comput.",&
+         "PD AUG",&
+         "PY 2010",&
+         "VL 6",&
+         "IS 8",&
+         "BP 2348",&
+         "EP 2364",&
+         "DI 10.1021/ct1002225",&
+         "PG 17",&
+         "SC Chemistry, Physical; Physics, Atomic, Molecular & Chemical",&
+         "GA 635NE",&
+         "UT ISI:000280661600009",&
+         "ER"),& 
+         DOI="10.1021/ct1002225")
 
   END SUBROUTINE add_all_references
 
