@@ -61,3 +61,13 @@ dftd3_t9.inp
 dftd3_t10.inp
 dftd3_t11.inp
 dftd3_t12.inp
+# New definition of vdW radius and LRC
+dftd2_t3.inp
+dftd3_t3.inp
+dftd3_t6.inp
+dftd3_t7.inp
+dftd3_t8.inp
+dftd3_t9.inp
+dftd3_t10.inp
+dftd3_t11.inp
+dftd3_t12.inp

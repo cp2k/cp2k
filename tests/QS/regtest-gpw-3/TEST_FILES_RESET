@@ -842,3 +842,5 @@ H2O-ref-1.inp
 H2O-ref-2.inp
 # Numerics due to DBCSR images. 
 H2O-ata.inp
+# New definition of vdW radius
+ghost_overlap_vdw.inp

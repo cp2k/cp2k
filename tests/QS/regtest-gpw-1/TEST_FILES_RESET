@@ -440,8 +440,12 @@ h2o_dip_berry.inp
 #  
 h2o_dip_iso.inp
 #
-vdW_PP_GRIMME_p1.inp 33
-vdW_PP_GRIMME_p2.inp 33
+vdW_PP_GRIMME_p1.inp 
+vdW_PP_GRIMME_p2.inp
 Ar-13.inp
 # Update of atomic weights 
 H2O-MD-harris.inp
+# New definition of vdW radius
+vdW_PP_GRIMME_p1.inp 
+vdW_PP_GRIMME_p2.inp
+Ar-13.inp

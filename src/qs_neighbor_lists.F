@@ -950,7 +950,7 @@ CONTAINS
        IF ( dispersion_env%type == xc_vdw_fun_pairpot ) THEN
           ALLOCATE (c_radius(nkind),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          c_radius(:) = 0.5_dp*dispersion_env%rc_disp
+          c_radius(:) = dispersion_env%rc_disp
           default_present=.TRUE. !include all atoms in vdW (even without basis)
 
           CALL build_neighbor_lists(sab_vdw,atom,cell,r_skin,maxatom_local,&

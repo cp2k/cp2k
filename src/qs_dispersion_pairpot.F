@@ -705,7 +705,7 @@ CONTAINS
          rcpbc(:,iatom) = pbc(particle_set(iatom)%r(:),cell)
        END DO
 
-       rcut = dispersion_env%rc_disp
+       rcut = 2._dp*dispersion_env%rc_disp
        rc2  = rcut*rcut
        IF ( dispersion_env%pp_type == "DFTD2" ) THEN
           s6 = dispersion_env%scaling
@@ -949,7 +949,7 @@ CONTAINS
 
                    ! vdW potential
                    dr = SQRT(SUM(rij(:)**2))
-                   IF (dr <= 2._dp*rcut) THEN
+                   IF (dr <= rcut) THEN
                       IF ( disp_a%type == dftd2_pp .AND. dr > 0.001_dp ) THEN
                          nab = nab+1._dp
                          fac = 1._dp
@@ -1062,12 +1062,12 @@ CONTAINS
                                        rc(2) = rcpbc(2,katom)+rc0(2)
                                        rc(3) = rcpbc(3,katom)+rc0(3)
                                        r2bc = SUM( (rb-rc)**2 )
-                                       IF (r2bc >= 4._dp*rc2) CYCLE
+                                       IF (r2bc >= rc2) CYCLE
                                        r2ca = SUM( (rc-ra)**2 )
-                                       IF (r2ca >= 4._dp*rc2) CYCLE
+                                       IF (r2ca >= rc2) CYCLE
                                        r2abc = r2ab*r2bc*r2ca
                                        ! this is an empirical scaling
-                                       IF (r2abc <= 0.01*64._dp*rc2*rc2*rc2) THEN
+                                       IF (r2abc <= 0.01*rc2*rc2*rc2) THEN
                                           kkind=kind_of(katom)
                                           atom_c = atom_of_kind(katom)
                                           zc=atomnumber(kkind)
@@ -1308,14 +1308,14 @@ CONTAINS
                          CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,zb,zc,&
                             cnkind(jkind),cnkind(kkind),dispersion_env%k3,cc6bc,dcc6aba,dcc6abb)
                          c9 = -SQRT(cc6ab*cc6bc*cc6ca)
-                         elrc9 = elrc9 - s9*8._dp*twopi*REAL(na*nb*nc,KIND=dp)*c9/(6._dp*rcut**3*cell%deth**2)
+                         elrc9 = elrc9 - s9*64._dp*twopi*REAL(na*nb*nc,KIND=dp)*c9/(6._dp*rcut**3*cell%deth**2)
                       END DO
                    END IF
                 END DO
              END DO
              IF ( use_virial ) THEN
                DO i=1,3
-                 virial%pv_virial(i,i) = virial%pv_virial(i,i) + (elrc6+elrc8+2._dp*elrc9)/cell%deth
+                 virial%pv_virial(i,i) = virial%pv_virial(i,i) + (elrc6+elrc8+2._dp*elrc9)
                END DO
              END IF
              DEALLOCATE (cnkind,STAT=istat)
