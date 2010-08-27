@@ -2139,8 +2139,6 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   ALLOCATE(send_buf_r(SUM(send_sizes)),STAT=stat)
   IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",SUM(send_sizes))
 
-  send_buf_r = 0
-
   ! do packing
   send_sizes=0
   DO i = 1, SIZE(atom_pair_send)
@@ -2196,8 +2194,6 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
 
   ALLOCATE(recv_buf_r(SUM(recv_sizes)),STAT=stat)
   IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",SUM(recv_sizes))
-
-  recv_buf_r = 0
 
   ! do communication
   CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
