@@ -23,3 +23,6 @@ F_3.inp  35
 F_4.inp  35
 F_5.inp  35
 U.inp  35
+# New default eps_eigenvalue
+H.inp  35
+U.inp  35

@@ -458,7 +458,7 @@ CONTAINS
        CALL keyword_create(keyword, name="EPS_EIGENVALUE",&
             description="Cutoff of overlap matrix eigenvalues included into basis",&
             usage="EPS_EIGENVALUE real",&
-            default_r_val=1.e-8_dp,error=error)
+            default_r_val=1.e-12_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
