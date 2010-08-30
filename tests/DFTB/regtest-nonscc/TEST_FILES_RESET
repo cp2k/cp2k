@@ -74,3 +74,5 @@ h2o-32_4.inp
 ch2o-3.inp
 ch2o-r.inp
 MoS.inp
+# direct regtest of differences between numerical and analytical stress tensor 
+h2o-32_4.inp

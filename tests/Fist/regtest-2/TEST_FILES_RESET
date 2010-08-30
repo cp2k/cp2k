@@ -165,3 +165,5 @@ H2O-32_SPME_fixed_mol.inp
 nacl_wat.inp
 H2O-32_SPME_fixed_clv.inp
 H2O-32_SPME_fixed_cross_clv.inp
+# direct regtest of differences between numerical and analytical stress tensor 
+H2O-ST_debug.inp

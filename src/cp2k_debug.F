@@ -151,17 +151,17 @@ CPSourceFileRef,&
              
              ! Print results
              IF (iw>0) THEN
-                WRITE (UNIT=iw,FMT="(/,'  *** DEBUG PV_VIRIAL - START ***',/)")
-                WRITE (UNIT=iw,FMT="((T34,A))") "Numerical pv_virial"
-                WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial_numerical%pv_virial(i,1:3), i=1,3)
-                WRITE (UNIT=iw,FMT="(/)")
-                WRITE (UNIT=iw,FMT="((T34,A))") "Analytical pv_virial"
-                WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial_analytical%pv_virial(i,1:3), i=1,3)
-                WRITE (UNIT=iw,FMT="(/)")
-                WRITE (UNIT=iw,FMT="((T34,A))") "Difference pv_virial"
-                WRITE (UNIT=iw,FMT="((T34,3F16.10))")&
-                     (virial_numerical%pv_virial(i,1:3)-virial_analytical%pv_virial(i,1:3), i=1,3)
-                WRITE (UNIT=iw,FMT="(/,'  *** DEBUG PV_VIRIAL - END   ***',/)")
+                WRITE (UNIT=iw,FMT="(/,' *** DEBUG PV_VIRIAL - START ***',/)")
+                WRITE (UNIT=iw,FMT="((T2,A))") "Numerical pv_virial"
+                WRITE (UNIT=iw,FMT="((T3,3F16.10))") (virial_numerical%pv_virial(i,1:3), i=1,3)
+                WRITE (UNIT=iw,FMT="(/,(T2,A))") "Analytical pv_virial"
+                WRITE (UNIT=iw,FMT="((T3,3F16.10))") (virial_analytical%pv_virial(i,1:3), i=1,3)
+                WRITE (UNIT=iw,FMT="(/,(T2,A))") "Difference pv_virial"
+                WRITE (UNIT=iw,FMT="((T3,3F16.10))")&
+                  (virial_numerical%pv_virial(i,1:3)-virial_analytical%pv_virial(i,1:3), i=1,3)
+                WRITE (UNIT=iw,FMT="(/,T2,A,F16.10)") "Sum of differences in pv_virial: ",&
+                  SUM(ABS(virial_numerical%pv_virial(:,:)-virial_analytical%pv_virial(:,:)))
+                WRITE (UNIT=iw,FMT="(/,' *** DEBUG PV_VIRIAL - END   ***',/)")
              END IF
              
              ! Checkd and abort (in case..)

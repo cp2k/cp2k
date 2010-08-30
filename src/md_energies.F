@@ -707,8 +707,8 @@ CPSourceFileRef,&
           WRITE (iw,'( A,T61,A20)') ' ENSEMBLE TYPE                = ', &
                ADJUSTR(TRIM(enum_i2c(enum,simpar%ensemble,error=error)))
           WRITE (iw,'( A,T71,I10 )') ' STEP NUMBER                  = ', itimes
-          IF(simpar%variable_dt) THEN
-            WRITE (iw,'( A,T60,1(1X,F20.6) )') ' TIME STEP [FS]             = ', dt*femtoseconds
+          IF (simpar%variable_dt) THEN
+            WRITE (iw,'( A,T60,1(1X,F20.6) )') ' TIME STEP [FS]               = ', dt*femtoseconds
           END IF
           WRITE (iw,'( A,T60,1(1X,F20.6) )') ' TIME [FS]                    = ', time*femtoseconds
           WRITE (iw,'( A,T60,1(1X,E20.12) )') ' CONSERVED QNTY               = ', &

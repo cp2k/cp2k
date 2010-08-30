@@ -176,30 +176,24 @@ CONTAINS
 !> \author CJM & fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
-       consistent_energies, skip_external_control, eval_energy_forces, &
-       eval_stress_tensor, error)
+       consistent_energies, skip_external_control, eval_energy_forces, error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL :: calc_force, consistent_energies, &
-      skip_external_control, eval_energy_forces, eval_stress_tensor
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
+                                                consistent_energies, &
+                                                skip_external_control, &
+                                                eval_energy_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=15)                        :: fmtstr3
-    CHARACTER(LEN=16)                        :: fmtstr4
-    CHARACTER(LEN=22)                        :: fmtstr2
-    CHARACTER(LEN=27)                        :: fmtstr5
-    CHARACTER(LEN=31)                        :: fmtstr1
     INTEGER                                  :: nat, ndigits, output_unit, &
                                                 print_forces, stat
-    LOGICAL                                  :: energy_consistency, eval_ef, &
-                                                eval_st, failure, my_skip, &
-                                                need_f
+    LOGICAL                                  :: calculate_forces, &
+                                                energy_consistency, eval_ef, &
+                                                failure, my_skip
     REAL(kind=dp)                            :: e_pot
-    REAL(KIND=dp), DIMENSION(3)              :: eigval
-    REAL(KIND=dp), DIMENSION(3, 3)           :: eigvec, stress_tensor
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -209,18 +203,16 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
 
-    NULLIFY(logger,results)
+    NULLIFY (logger,results)
     logger => cp_error_get_logger(error)
-    failure =.FALSE.
-    need_f  =.TRUE.
-    eval_ef =.TRUE.
-    eval_st =.TRUE.
-    my_skip =.FALSE.
-    energy_consistency=.FALSE.
+    failure = .FALSE.
+    eval_ef = .TRUE.
+    my_skip = .FALSE.
+    calculate_forces = .TRUE.
+    energy_consistency = .FALSE.
     IF (PRESENT(eval_energy_forces)) eval_ef = eval_energy_forces
-    IF (PRESENT(eval_stress_tensor)) eval_st = eval_stress_tensor
     IF (PRESENT(skip_external_control)) my_skip = skip_external_control
-    IF (PRESENT(calc_force)) need_f=calc_force
+    IF (PRESENT(calc_force)) calculate_forces = calc_force
     IF (PRESENT(consistent_energies)) energy_consistency = consistent_energies
 
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -238,18 +230,19 @@ CONTAINS
                   force_env_section=force_env%force_env_section, error=error)
              CALL get_fist_env(fist_env=force_env%fist_env,results=results,error=error)
           CASE (use_ep_force)
-             CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
+             CALL ep_env_calc_e_f(force_env%ep_env,calculate_forces,error=error)
           CASE ( use_qs_force )
-             IF (.NOT.need_f) THEN
+             IF (.NOT.calculate_forces) THEN
                 CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
-                     consistent_energies=energy_consistency, calc_forces=need_f, error=error)
+                     consistent_energies=energy_consistency, calc_forces=calculate_forces, &
+                     error=error)
              ELSE
                 CALL qs_forces(force_env%qs_env,force_env%globenv, error=error)
              END IF
              CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)         
           CASE ( use_kg_force )
-             IF (.NOT.need_f) THEN
-                root_section=>force_env%root_section
+             IF (.NOT.calculate_forces) THEN
+                root_section => force_env%root_section
                 CALL kg_energies ( force_env%kg_env,root_section, force_env%globenv, error=error )
              ELSE
                 CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
@@ -261,15 +254,15 @@ CONTAINS
                 CALL eip_bazant(force_env, error=error)
              END IF
           CASE ( use_qmmm )
-             CALL qmmm_energy_and_forces(force_env,need_f,error=error)
+             CALL qmmm_energy_and_forces(force_env,calculate_forces,error=error)
           CASE ( use_mixed_force )
-             CALL mixed_energy_forces(force_env,need_f,error=error)
+             CALL mixed_energy_forces(force_env,calculate_forces,error=error)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
        END IF
        ! In case it is requested, we evaluate the stress tensor numerically
-       IF (virial%pv_availability.AND.eval_st) THEN
+       IF (virial%pv_availability.AND.calculate_forces) THEN
           IF (virial%pv_numer) THEN
              ! Compute the numerical stress tensor
              CALL force_env_calc_num_pressure(force_env, error=error)
@@ -312,7 +305,7 @@ CONTAINS
        ! Print always Energy in the same format for all methods
        output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".Log",error=error)
-       IF (output_unit>0) THEN
+       IF (output_unit > 0) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
           WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
                ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
@@ -323,7 +316,7 @@ CONTAINS
        ! Print Forces, if requested
        print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&
             extension=".xyz",error=error)
-       IF (print_forces>0 .AND. need_f) THEN
+       IF ((print_forces > 0).AND.calculate_forces) THEN
           CALL force_env_get(force_env, subsys=subsys, error=error)         
           CALL cp_subsys_get(subsys, particles=particles, error=error)
           CALL write_particle_coordinates(particles%els,print_forces,dump_xmol,"FORCE"," FORCES| (a.u.) ",&
@@ -338,61 +331,26 @@ CONTAINS
        END IF
     END IF
 
-    ! Variable precision output for the stress tensor
+    ! Write stress tensor
     IF (virial%pv_availability) THEN
        ! If the virial is defined but we are not computing forces let's zero the
        ! virial for consistency
-       IF (need_f) THEN
+       IF (calculate_forces) THEN
           output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
                                              extension=".stress_tensor",error=error)
           IF (output_unit > 0) THEN
-             CALL force_env_get(force_env,cell=cell,error=error)
-             stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth*pascal*1.0E-9_dp
              CALL section_vals_val_get(force_env%force_env_section,"PRINT%STRESS_TENSOR%NDIGITS",&
                                        i_val=ndigits,error=error)
-             ndigits = MIN(MAX(1,ndigits),20)
-             fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
-             WRITE (UNIT=fmtstr1(22:23),FMT="(I2)") ndigits + 7
-             fmtstr2 = "(T3,A,T5,3(1X,F  .  ))"
-             WRITE (UNIT=fmtstr2(16:17),FMT="(I2)") ndigits + 7
-             WRITE (UNIT=fmtstr2(19:20),FMT="(I2)") ndigits
-             fmtstr3 = "(/,T3,A,F  .  )"
-             WRITE (UNIT=fmtstr3(10:11),FMT="(I2)") ndigits + 8
-             WRITE (UNIT=fmtstr3(13:14),FMT="(I2)") ndigits
-             WRITE (UNIT=output_unit,FMT=fmtstr1)&
-               "STRESS TENSOR [GPa]","X","Y","Z"
-             WRITE (UNIT=output_unit,FMT=fmtstr2) "X",stress_tensor(1,1:3)
-             WRITE (UNIT=output_unit,FMT=fmtstr2) "Y",stress_tensor(2,1:3)
-             WRITE (UNIT=output_unit,FMT=fmtstr2) "Z",stress_tensor(3,1:3)
-             fmtstr4 = "(/,T3,A,ES  .  )"
-             WRITE (UNIT=fmtstr4(11:12),FMT="(I2)") ndigits + 8
-             WRITE (UNIT=fmtstr4(14:15),FMT="(I2)") ndigits
-             WRITE (UNIT=output_unit,FMT=fmtstr4)&
-               "1/3 Trace(stress tensor): ",(stress_tensor(1,1) +&
-                                             stress_tensor(2,2) +&
-                                             stress_tensor(3,3))/3.0_dp,&
-               "Det(stress tensor)      : ",det_3x3(stress_tensor(:,1),&
-                                                    stress_tensor(:,2),&
-                                                    stress_tensor(:,3))
-             eigval(:) = 0.0_dp
-             eigvec(:,:) = 0.0_dp
-             CALL jacobi(stress_tensor,eigval,eigvec)
-             fmtstr5 = "(/,/,T2,A,/,/,T5,3F  .  ,/)"
-             WRITE (UNIT=fmtstr5(20:21),FMT="(I2)") ndigits + 8
-             WRITE (UNIT=fmtstr5(23:24),FMT="(I2)") ndigits
-             WRITE (UNIT=output_unit,FMT=fmtstr5)&
-               "EIGENVECTORS AND EIGENVALUES OF THE STRESS TENSOR",&
-               eigval(1:3)
-             WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(1,1:3)
-             WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(2,1:3)
-             WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(3,1:3)
+             CALL force_env_get(force_env,cell=cell,error=error)
+             CALL write_stress_tensor(virial%pv_virial,output_unit,cell,ndigits,virial%pv_numer)
           END IF
           CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
-               "PRINT%STRESS_TENSOR",error=error)
+                                            "PRINT%STRESS_TENSOR",error=error)
        ELSE
           CALL zero_virial(virial,reset=.FALSE.)
        END IF
     END IF
+
   END SUBROUTINE force_env_calc_energy_force
 
 ! *****************************************************************************
@@ -404,6 +362,7 @@ CONTAINS
 !> \author JCS
 ! *****************************************************************************
   SUBROUTINE force_env_calc_num_pressure(force_env, dx, error)
+
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: dx
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -412,8 +371,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: default_dx = 0.001_dp
 
-    INTEGER                                  :: i, ip, iq, iseq, iw, j, k, &
-                                                stat
+    INTEGER                                  :: i, ip, iq, iseq, j, k, &
+                                                output_unit, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx_w
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
@@ -422,7 +381,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pos_ref
     TYPE(cell_type), POINTER                 :: cell, cell_local, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(particle_type), DIMENSION(:), &
@@ -431,22 +389,21 @@ CONTAINS
 
     NULLIFY(cell_local)
     failure = .FALSE.
-    logger=>cp_error_get_logger(error)
+    logger => cp_error_get_logger(error)
+
     IF (.NOT.failure) THEN
        dx_w = default_dx
        IF (PRESENT(dx)) dx_w = dx
-       ! Copy atomic positions into pos_ref
        CALL force_env_get(force_env,subsys=subsys,globenv=globenv,error=error)
-       para_env=>force_env%para_env
-       iw = cp_logger_get_default_io_unit(logger)
-
-       IF (iw>0) THEN
-          WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
-               'NUMERICAL STRESS ********************************'
+       output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
+                                          extension=".stress_tensor",error=error)
+       IF (output_unit > 0) THEN
+          WRITE (output_unit,'(/A,A/)') ' **************************** ', &
+            'NUMERICAL STRESS ********************************'
        END IF
-
+       ! Copy atomic positions into pos_ref
        iseq = subsys%particles%n_els
-       ALLOCATE( pos_ref(iseq,3), stat=stat)
+       ALLOCATE (pos_ref(iseq,3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        iseq = 0
        particles => subsys%particles%els
@@ -455,10 +412,10 @@ CONTAINS
           pos_ref(iseq,:) = particles(ip)%r
        END DO
        CALL force_env_get(force_env,cell=cell,cell_ref=cell_ref,&
-            virial=virial, error=error)
+                          virial=virial, error=error)
        CALL cell_create(cell_local,error=error)
        CALL cell_clone(cell,cell_local,error=error)
-       ! First change box.
+       ! First change box
        DO ip = 1, 3
           DO iq = 1, 3
              IF ( virial%pv_diagonal .AND. ip /= iq ) CYCLE
@@ -466,7 +423,7 @@ CONTAINS
                 cell%hmat(ip,iq) = cell_local%hmat(ip,iq)  - (-1.0_dp)**k * dx_w
                 CALL init_cell(cell)
                 iseq = 0
-                ! Then scale positions.
+                ! Then scale positions
                 particles => subsys%particles%els
                 DO j = 1, subsys%particles%n_els
                    iseq = iseq + 1
@@ -477,7 +434,7 @@ CONTAINS
                 CALL force_env_set_cell(force_env, cell=cell, error=error)
                 ! Compute energies
                 CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.,&
-                     consistent_energies=.TRUE., eval_stress_tensor=.FALSE., error=error)
+                     consistent_energies=.TRUE., error=error)
                 CALL force_env_get(force_env, potential_energy=numer_energy(k), error=error)
                 ! Reset cell
                 cell%hmat(ip,iq) = cell_local%hmat(ip,iq)
@@ -487,15 +444,18 @@ CONTAINS
           END DO
        END DO
 
-       ! Reset postions and rebuild environment.
+       ! Reset positions and rebuild original environment
        iseq = 0
        particles => subsys%particles%els
        DO ip = 1, subsys%particles%n_els
           iseq = iseq + 1
           particles(ip)%r = pos_ref(iseq,:)
        END DO
-       CALL init_cell(cell)
-       
+       CALL force_env_set_cell(force_env,cell=cell,error=error)
+       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.,&
+                                        consistent_energies=.TRUE.,&
+                                        error=error)
+
        ! computing pv_test
        virial%pv_virial = 0.0_dp
        DO i = 1, 3
@@ -506,26 +466,33 @@ CONTAINS
              END DO
           END DO
        END DO
-       IF (globenv%run_type_id.EQ.debug_run) THEN
-          IF (iw>0) THEN
-             WRITE (UNIT=iw,FMT="((T34,A))") "Numerical pv_virial"
-             WRITE (UNIT=iw,FMT="((T34,3F16.10))") (virial%pv_virial(i,1:3), i=1,3)
+       IF (globenv%run_type_id == debug_run) THEN
+          IF (output_unit > 0) THEN
+             WRITE (UNIT=output_unit,FMT="((T2,A))") "Numerical pv_virial"
+             WRITE (UNIT=output_unit,FMT="((T3,3F16.10))") (virial%pv_virial(i,1:3), i=1,3)
           END IF
        END IF
 
-       ! Rebuild the appropriate environments to obtain original environment
-       CALL force_env_set_cell(force_env, cell=cell, error=error)
+       ! Write numerical stress tensor
+       !IF (output_unit > 0) THEN
+       !   CALL section_vals_val_get(force_env%force_env_section,"PRINT%STRESS_TENSOR%NDIGITS",&
+       !                             i_val=ndigits,error=error)
+       !   CALL write_stress_tensor(virial%pv_virial,output_unit,cell,ndigits,numerical=.TRUE.)
+       !END IF
 
-       IF (iw>0) THEN
-          WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
-               'NUMERICAL STRESS END *****************************'
+       IF (output_unit > 0) THEN
+          WRITE (output_unit,'(/,A,/)') ' **************************** '//&
+            'NUMERICAL STRESS END *****************************'
        END IF
 
-       IF (ASSOCIATED( pos_ref )) THEN
-          DEALLOCATE( pos_ref, stat=stat )
+       CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
+                                         "PRINT%STRESS_TENSOR",error=error)
+ 
+       IF (ASSOCIATED(pos_ref)) THEN
+          DEALLOCATE (pos_ref,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       IF (ASSOCIATED( cell_local )) CALL cell_release( cell_local ,error=error)
+       IF (ASSOCIATED(cell_local)) CALL cell_release(cell_local,error=error)
     END IF
 
   END SUBROUTINE force_env_calc_num_pressure
@@ -544,6 +511,7 @@ CONTAINS
   SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,&
        qs_env,kg_env,meta_env,sub_force_env,qmmm_env,eip_env,ep_env,force_env_section,&
        mixed_env,error)
+
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -636,10 +604,13 @@ CONTAINS
              CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
              force_env%in_use=use_fist_force
              force_env%fist_env => fist_env
-             CALL fist_env_retain ( fist_env, error = error )
+             CALL fist_env_retain(fist_env,error=error)
              ! Virial controlled through the external request
-             CALL virial_create ( force_env % virial, error=error)
-             CALL virial_set ( force_env % virial, pv_availability=pv_availability)
+             CALL virial_create(force_env%virial,error=error)
+             CALL virial_set(force_env%virial,&
+                             pv_availability=pv_availability,&
+                             pv_numer=pv_numerical,&
+                             pv_diagonal=pv_diagonal)
           END IF
        END IF
        IF (PRESENT(kg_env)) THEN
@@ -674,10 +645,10 @@ CONTAINS
              CALL qs_env_retain(qs_env,error=error)
              CALL virial_create(force_env%virial, error=error)
              ! Virial controlled through the external request
-             CALL virial_set (virial=force_env%virial,&
-                              pv_availability=pv_availability,&
-                              pv_numer=pv_numerical,&
-                              pv_diagonal=pv_diagonal)
+             CALL virial_set(virial=force_env%virial,&
+                             pv_availability=pv_availability,&
+                             pv_numer=pv_numerical,&
+                             pv_diagonal=pv_diagonal)
              qs_env%virial => force_env%virial
              CALL virial_retain(qs_env%virial,error=error)
           END IF
@@ -776,6 +747,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ep_create_force_env(force_env, root_section, para_env, globenv,&
      force_env_section, error)
+
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -811,6 +783,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
+
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -820,7 +793,7 @@ CONTAINS
 
     INTEGER                                  :: ip, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: failure, need_f, &
+    LOGICAL                                  :: calculate_forces, failure, &
                                                 qmmm_added_chrg, qmmm_link, &
                                                 qmmm_link_imomm
     REAL(KIND=dp)                            :: energy_mm, energy_qm
@@ -833,15 +806,15 @@ CONTAINS
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(section_vals_type), POINTER         :: force_env_section
 
-    min_coord       =  HUGE(0.0_dp)
-    max_coord       = -HUGE(0.0_dp)
-    failure         = .FALSE.
-    need_f          = .TRUE.
-    qmmm_link       = .FALSE.
-    qmmm_link_imomm = .FALSE.
-    qmmm_added_chrg = .FALSE.
+    min_coord        =  HUGE(0.0_dp)
+    max_coord        = -HUGE(0.0_dp)
+    failure          = .FALSE.
+    calculate_forces = .TRUE.
+    qmmm_link        = .FALSE.
+    qmmm_link_imomm  = .FALSE.
+    qmmm_added_chrg  = .FALSE.
     logger => cp_error_get_logger(error)
-    IF (PRESENT(calc_force)) need_f=calc_force
+    IF (PRESENT(calc_force)) calculate_forces = calc_force
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
     NULLIFY(force_env_section)
     force_env_section => force_env%sub_force_env(qs_subsys)%force_env%force_env_section
@@ -890,7 +863,7 @@ CONTAINS
   
     ! Fist
     CALL force_env_calc_energy_force(force_env%sub_force_env(fist_subsys)%force_env,&
-         calc_force=need_f,skip_external_control=.TRUE.,error=error)
+         calc_force=calculate_forces,skip_external_control=.TRUE.,error=error)
 
     ! Print Out information on fist energy calculation...
     CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
@@ -898,7 +871,7 @@ CONTAINS
                        error=error)
     ! QS
     CALL force_env_calc_energy_force(force_env%sub_force_env(qs_subsys)%force_env,&
-         calc_force=need_f,skip_external_control=.TRUE.,error=error)
+         calc_force=calculate_forces,skip_external_control=.TRUE.,error=error)
     ! Print Out information on QS energy calculation...
     CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                        potential_energy=energy_qm,&
@@ -907,7 +880,8 @@ CONTAINS
     CALL qmmm_forces(force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
                      force_env%qmmm_env,particles_mm,&
                      mm_cell=mm_cell,&
-                     calc_force=need_f,error=error)
+                     calc_force=calculate_forces,&
+                     error=error)
     ! Forces of quadratic wall on QM atoms
     CALL apply_qmmm_walls(force_env,error)
   
@@ -916,7 +890,7 @@ CONTAINS
                        potential_energy=energy_qm,&
                        error=error)
   
-    IF (need_f) THEN
+    IF (calculate_forces) THEN
        ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_forces(qmmm_links,particles_qm,qm_atom_index,error)
        particles_mm => subsys_mm%particles%els
@@ -931,10 +905,10 @@ CONTAINS
              extension=".Log",error=error)
     IF (output_unit>0) THEN
        WRITE (unit=output_unit,fmt='(/1X,A,F15.9)')"Energy after QMMM calculation: ",energy_qm
-       IF (need_f) THEN
+       IF (calculate_forces) THEN
           WRITE (unit=output_unit,fmt='(/1X,A)')"Derivatives on all atoms after QMMM calculation: "
           DO ip=1,SIZE(particles_mm)
-             WRITE (unit=output_unit,fmt='(1X,3F15.9)')particles_mm(ip)%f
+             WRITE (unit=output_unit,fmt='(1X,3F15.9)') particles_mm(ip)%f
           END DO
        END IF
     END IF
@@ -954,9 +928,10 @@ CONTAINS
 !>       04.08  reorganizing the genmix structure (collecting common code)
 !> \author Florian Schiffmann
 ! *****************************************************************************
-  SUBROUTINE mixed_energy_forces(force_env, need_f, error)
+  SUBROUTINE mixed_energy_forces(force_env, calculate_forces, error)
+
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN)                      :: need_f
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mixed_energy_forces', &
@@ -1070,7 +1045,7 @@ CONTAINS
 
        ! Calculate energy and forces for each sub_force_env
        CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env,&
-                                        calc_force=need_f,&
+                                        calc_force=calculate_forces,&
                                         skip_external_control=.TRUE.,&
                                         error=my_error)
        ! Only the rank 0 process collect info for each computation
@@ -1283,6 +1258,7 @@ CONTAINS
   SUBROUTINE mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces,&
       virials, results, factor, iforce_eval, nforce_eval, map_index, mixed_section,&
       mapping_section, overwrite, error)
+
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(virial_type), POINTER               :: virial_mix
     TYPE(cp_result_type), POINTER            :: results_mix
@@ -1368,6 +1344,7 @@ CONTAINS
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! *****************************************************************************
   SUBROUTINE get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
+
     TYPE(section_vals_type), POINTER         :: mapping_section
     INTEGER, INTENT(IN)                      :: natom, iforce_eval, &
                                                 nforce_eval
@@ -1482,6 +1459,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm,&
        pos,vel,compold,reset,error)
+
     TYPE(force_env_type), POINTER            :: force_env
     REAL(kind=dp), INTENT(IN), OPTIONAL      :: dt
     REAL(kind=dp), INTENT(IN)                :: shake_tol
@@ -1661,6 +1639,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm,&
        vel,reset,error)
+
     TYPE(force_env_type), POINTER            :: force_env
     REAL(kind=dp), INTENT(in), OPTIONAL      :: dt
     REAL(kind=dp), INTENT(in)                :: shake_tol
@@ -1839,5 +1818,78 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE rescale_forces
+
+! *****************************************************************************
+!> \brief Variable precision output of the stress tensor
+!>
+!> \author MK (26.08.2010)
+! *****************************************************************************
+  SUBROUTINE write_stress_tensor(pv_virial,output_unit,cell,ndigits,numerical)
+
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: pv_virial
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: ndigits
+    LOGICAL, INTENT(IN)                      :: numerical
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_tensor', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=15)                        :: fmtstr3
+    CHARACTER(LEN=16)                        :: fmtstr4
+    CHARACTER(LEN=22)                        :: fmtstr2
+    CHARACTER(LEN=27)                        :: fmtstr5
+    CHARACTER(LEN=31)                        :: fmtstr1
+    INTEGER                                  :: n
+    REAL(KIND=dp), DIMENSION(3)              :: eigval
+    REAL(KIND=dp), DIMENSION(3, 3)           :: eigvec, stress_tensor
+
+    IF (output_unit > 0) THEN
+      stress_tensor(:,:) = pv_virial(:,:)/cell%deth*pascal*1.0E-9_dp
+      n = MIN(MAX(1,ndigits),20)
+      fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
+      WRITE (UNIT=fmtstr1(22:23),FMT="(I2)") n + 7
+      fmtstr2 = "(T3,A,T5,3(1X,F  .  ))"
+      WRITE (UNIT=fmtstr2(16:17),FMT="(I2)") n + 7
+      WRITE (UNIT=fmtstr2(19:20),FMT="(I2)") n
+      fmtstr3 = "(/,T3,A,F  .  )"
+      WRITE (UNIT=fmtstr3(10:11),FMT="(I2)") n + 8
+      WRITE (UNIT=fmtstr3(13:14),FMT="(I2)") n
+      IF (numerical) THEN
+        WRITE (UNIT=output_unit,FMT=fmtstr1)&
+          "NUMERICAL STRESS TENSOR [GPa]","X","Y","Z"
+      ELSE
+        WRITE (UNIT=output_unit,FMT=fmtstr1)&
+          "STRESS TENSOR [GPa]","X","Y","Z"
+      END IF
+      WRITE (UNIT=output_unit,FMT=fmtstr2) "X",stress_tensor(1,1:3)
+      WRITE (UNIT=output_unit,FMT=fmtstr2) "Y",stress_tensor(2,1:3)
+      WRITE (UNIT=output_unit,FMT=fmtstr2) "Z",stress_tensor(3,1:3)
+      fmtstr4 = "(/,T3,A,ES  .  )"
+      WRITE (UNIT=fmtstr4(11:12),FMT="(I2)") n + 8
+      WRITE (UNIT=fmtstr4(14:15),FMT="(I2)") n
+      WRITE (UNIT=output_unit,FMT=fmtstr4)&
+        "1/3 Trace(stress tensor): ",(stress_tensor(1,1) +&
+                                      stress_tensor(2,2) +&
+                                      stress_tensor(3,3))/3.0_dp,&
+        "Det(stress tensor)      : ",det_3x3(stress_tensor(:,1),&
+                                             stress_tensor(:,2),&
+                                             stress_tensor(:,3))
+      eigval(:) = 0.0_dp
+      eigvec(:,:) = 0.0_dp
+      CALL jacobi(stress_tensor,eigval,eigvec)
+      fmtstr5 = "(/,/,T2,A,/,/,T5,3F  .  ,/)"
+      WRITE (UNIT=fmtstr5(20:21),FMT="(I2)") n + 8
+      WRITE (UNIT=fmtstr5(23:24),FMT="(I2)") n
+      WRITE (UNIT=output_unit,FMT=fmtstr5)&
+        "EIGENVECTORS AND EIGENVALUES OF THE STRESS TENSOR",&
+        eigval(1:3)
+      WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(1,1:3)
+      WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(2,1:3)
+      WRITE (UNIT=output_unit,FMT=fmtstr2) " ",eigvec(3,1:3)
+    END IF
+
+  END SUBROUTINE write_stress_tensor
 
 END MODULE force_env_methods

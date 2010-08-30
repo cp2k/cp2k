@@ -103,10 +103,10 @@ multipole_quadrupole.dbg_f_rec.inp   11
 deca_ala_avg2.inp                     2
 deca_ala_noavg.inp                    2
 # multipole stress tensor
-multipole_ch_dip.dbg_st.inp          11
-multipole_ch_dip_qu.dbg_st.inp       11
-multipole_ch_qu.dbg_st.inp           11
-multipole_charge.dbg_st.inp          11
-multipole_dip_qu.dbg_st.inp          11
-multipole_dipole.dbg_st.inp          11
-multipole_quadrupole.dbg_st.inp      11
+multipole_ch_dip.dbg_st.inp          42
+multipole_ch_dip_qu.dbg_st.inp       42
+multipole_ch_qu.dbg_st.inp           42
+multipole_charge.dbg_st.inp          42
+multipole_dip_qu.dbg_st.inp          42
+multipole_dipole.dbg_st.inp          42
+multipole_quadrupole.dbg_st.inp      42

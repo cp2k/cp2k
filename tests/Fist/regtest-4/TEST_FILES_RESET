@@ -295,3 +295,5 @@ ethene_colv1_growth_lim.inp
 H2O-restraint_2.inp
 H2O-restraint_2r.inp
 H2O-meta-combine.inp
+# direct regtest of differences between numerical and analytical stress tensor 
+nh3-meta-walks_2r.inp
