@@ -18,6 +18,9 @@ LIB3_OBJECTS = array_types.o\
                dbcsr_data_operations.o\
                dbcsr_dist_operations.o\
                dbcsr_error_handling.o\
+               dbcsr_example_1.o\
+               dbcsr_example_2.o\
+               dbcsr_example_3.o\
                dbcsr_index_operations.o\
                dbcsr_internal_operations.o\
                dbcsr_io.o\
@@ -34,4 +37,3 @@ LIB3_OBJECTS = array_types.o\
                dbcsr_work_operations.o\
                dbcsr_util.o\
 	       min_heap.o
-
