@@ -49,18 +49,21 @@ MODULE dbcsr_work_operations
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
                                              dbcsr_iterator_stop
-  USE dbcsr_kinds,                     ONLY: int_8,&
+  USE dbcsr_kinds,                     ONLY: default_string_length,&
+                                             int_8,&
                                              real_4,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_allocate
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_destroy_array, dbcsr_destroy_image_dist, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_release, &
-       dbcsr_get_data_type, dbcsr_init, dbcsr_is_initialized, &
-       dbcsr_modify_lock, dbcsr_modify_unlock, dbcsr_mutable_destroy, &
-       dbcsr_mutable_init, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
-       dbcsr_mutable_release, dbcsr_switch_data_area, &
+       dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
+       dbcsr_distribution, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
+       dbcsr_distribution_release, dbcsr_get_data_type, &
+       dbcsr_get_matrix_type, dbcsr_get_replication_type, dbcsr_init, &
+       dbcsr_is_initialized, dbcsr_modify_lock, dbcsr_modify_unlock, &
+       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
+       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_name, &
+       dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_use_mutable, &
        dbcsr_uses_special_memory, dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
@@ -95,6 +98,9 @@ MODULE dbcsr_work_operations
   PUBLIC :: dbcsr_work_destroy, dbcsr_add_wm_from_matrix,&
             add_work_coordinate
 
+  INTERFACE dbcsr_create
+     MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
+  END INTERFACE
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
@@ -133,7 +139,7 @@ CONTAINS
 !>                                 \see dbcsr_types.F
 !> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_create(matrix, name, dist, matrix_type,&
+  SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
        mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -147,7 +153,7 @@ CONTAINS
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_new', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler, my_nblks, &
@@ -344,7 +350,95 @@ CONTAINS
     ENDIF
 !$  CALL OMP_INIT_LOCK (matrix%m%modification_lock)
     CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_create
+  END SUBROUTINE dbcsr_create_new
+
+  SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
+       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
+       mutable_work, replication_type, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: template
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(IN), OPTIONAL                   :: dist
+    CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
+    TYPE(array_i1d_obj), INTENT(IN), &
+      OPTIONAL                               :: row_blk_size, col_blk_size
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
+    CHARACTER, INTENT(IN), OPTIONAL          :: data_type
+    LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
+    CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_template', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: new_data_type, &
+                                                new_matrix_type, &
+                                                new_replication_type
+    CHARACTER(len=default_string_length)     :: new_name
+    LOGICAL                                  :: new_mutable_work, new_special
+    TYPE(array_i1d_obj)                      :: new_col_blk_size, &
+                                                new_row_blk_size
+    TYPE(dbcsr_distribution_obj)             :: new_dist
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT (name)) THEN
+       new_name = TRIM(name)
+    ELSE
+       new_name = TRIM(dbcsr_name (template))
+    ENDIF
+    IF (PRESENT (dist)) THEN
+       new_dist = dist
+    ELSE
+       new_dist = dbcsr_distribution (template)
+    ENDIF
+    IF (PRESENT (matrix_type)) THEN
+       new_matrix_type = matrix_type
+    ELSE
+       new_matrix_type = dbcsr_get_matrix_type (template)
+    ENDIF
+    IF (PRESENT (row_blk_size)) THEN
+       new_row_blk_size = row_blk_size
+    ELSE
+       new_row_blk_size = dbcsr_row_block_sizes (template)
+    ENDIF
+    IF (PRESENT (col_blk_size)) THEN
+       new_col_blk_size = col_blk_size
+    ELSE
+       new_col_blk_size = dbcsr_col_block_sizes (template)
+    ENDIF
+    IF (PRESENT (data_type)) THEN
+       new_data_type = data_type
+    ELSE
+       new_data_type = dbcsr_get_data_type (template)
+    ENDIF
+    IF (PRESENT (special)) THEN
+       new_special = special
+    ELSE
+       new_special = dbcsr_uses_special_memory (template)
+    ENDIF
+    IF (PRESENT (replication_type)) THEN
+       new_replication_type = replication_type
+    ELSE
+       new_replication_type = dbcsr_get_replication_type (template)
+    ENDIF
+    IF (PRESENT (mutable_work)) THEN
+       new_mutable_work = mutable_work
+    ELSE
+       new_mutable_work = dbcsr_use_mutable (template%m)
+    ENDIF
+    CALL dbcsr_create (matrix, name=new_name, dist=new_dist,&
+         matrix_type = new_matrix_type,&
+         row_blk_size = new_row_blk_size,&
+         col_blk_size = new_col_blk_size,&
+         nblks = nblks, nze = nze,&
+         data_type = new_data_type,&
+         special = new_special,&
+         mutable_work = new_mutable_work,&
+         replication_type = new_replication_type,&
+         error=error)
+  END SUBROUTINE dbcsr_create_template
 
 
 ! *****************************************************************************

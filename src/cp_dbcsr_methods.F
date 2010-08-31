@@ -19,10 +19,6 @@ MODULE cp_dbcsr_methods
   USE cluster_types,                   ONLY: cluster_type
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_mapping_type,&
                                              cp_dbcsr_type
-  USE dbcsr_methods,                   ONLY: dbcsr_col_block_offsets,&
-                                             dbcsr_col_block_sizes,&
-                                             dbcsr_row_block_offsets,&
-                                             dbcsr_row_block_sizes
 
   !$ USE OMP_LIB
 #include "cp_common_uses.h"
@@ -39,7 +35,8 @@ MODULE cp_dbcsr_methods
   PUBLIC :: cp_dbcsr_col_block_offsets, cp_dbcsr_row_block_offsets
   PUBLIC :: cp_dbcsr_mapping_create, cp_dbcsr_mapping_hold,&
             cp_dbcsr_mapping_release
-  PUBLIC :: cp_dbcsr_has_mapping
+  PUBLIC :: cp_dbcsr_mapping_defined, cp_dbcsr_has_mapping,&
+            cp_dbcsr_mapping_activate
 
 
 CONTAINS
@@ -76,7 +73,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_sizes', &
       routineP = moduleN//':'//routineN
 
-    row_blk_sizes = dbcsr_row_block_sizes (matrix%matrix)
+    row_blk_sizes = matrix%cp_row_sizes
   END FUNCTION cp_dbcsr_row_block_sizes
 
   FUNCTION cp_dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
@@ -86,7 +83,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_sizes', &
       routineP = moduleN//':'//routineN
 
-    col_blk_sizes = dbcsr_col_block_sizes (matrix%matrix)
+    col_blk_sizes = matrix%cp_col_sizes
   END FUNCTION cp_dbcsr_col_block_sizes
 
   FUNCTION cp_dbcsr_col_block_offsets (matrix) RESULT (col_blk_offsets)
@@ -96,7 +93,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_col_block_offsets', &
       routineP = moduleN//':'//routineN
 
-    col_blk_offsets = dbcsr_col_block_offsets (matrix%matrix)
+    col_blk_offsets = matrix%cp_col_offsets
   END FUNCTION cp_dbcsr_col_block_offsets
 
   FUNCTION cp_dbcsr_row_block_offsets (matrix) RESULT (row_blk_offsets)
@@ -106,7 +103,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_row_block_offsets', &
       routineP = moduleN//':'//routineN
 
-    row_blk_offsets = dbcsr_row_block_offsets (matrix%matrix)
+    row_blk_offsets = matrix%cp_row_offsets
   END FUNCTION cp_dbcsr_row_block_offsets
 
 
@@ -117,6 +114,13 @@ CONTAINS
     has_mapping = map%defined .AND. map%active
   END FUNCTION cp_dbcsr_has_mapping
 
+  elemental FUNCTION cp_dbcsr_mapping_defined (map) RESULT (mapping_defined)
+    TYPE(cp_dbcsr_mapping_type), INTENT(in)  :: map
+    LOGICAL                                  :: mapping_defined
+
+    mapping_defined = map%defined
+  END FUNCTION cp_dbcsr_mapping_defined
+
 
   SUBROUTINE cp_dbcsr_mapping_create (map, clusters, error)
     TYPE(cp_dbcsr_mapping_type), POINTER     :: map
@@ -126,8 +130,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_mapping_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: nclusters, nparticles, stat
     LOGICAL                                  :: failure
+
+!   ---------------------------------------------------------------------------
 
     failure = .TRUE.
     CALL cp_assert (.NOT. ASSOCIATED (map), cp_warning_level,&
@@ -137,23 +143,67 @@ CONTAINS
     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
     map%refcount = 1
     IF (PRESENT (clusters)) THEN
+       nparticles = clusters%nparticles
+       nclusters = clusters%nclusters
        map%defined = .TRUE.
        map%active = .FALSE.
        map%clusters = clusters
        NULLIFY (map%clusters%cluster_ptr)
        NULLIFY (map%clusters%particle_idx)
        NULLIFY (map%clusters%particle_to_cluster)
-       CALL cluster_allocate (map%clusters, clusters%nclusters,&
-            clusters%nparticles, error=error)
-       map%clusters%cluster_ptr(:) = clusters%cluster_ptr(:)
-       map%clusters%particle_idx(:) = clusters%particle_idx(:)
-       !STOP "check that p2c is actually allocated now"
-       !map%clusters%particle_to_cluster(:) = clusters%particle_to_particle(:)
+       CALL cluster_allocate (map%clusters, nclusters,&
+            nparticles, error=error)
+       CALL cp_assert (SIZE (clusters%cluster_ptr)-1 .GE. clusters%nclusters,&
+            cp_fatal_level, cp_internal_error, routineN,&
+            "Cluster index size does not match number of clusters.",&
+            error=error)
+       map%clusters%cluster_ptr(1:nclusters+1)&
+            = clusters%cluster_ptr(1:nclusters+1)
+       map%clusters%particle_idx(1:nparticles) = clusters%particle_idx(1:nparticles)
+       map%clusters%particle_to_cluster(1:nparticles) = clusters%particle_to_cluster(1:nparticles)
+       !@@@
+       !write(*,*)routineN//" The mapping arrays"
+       !write(*,'(10(1X,I5)))')map%clusters%cluster_ptr(1:nclusters+1)
+       !write(*,'(10(1X,I5)))')map%clusters%particle_idx(1:nparticles)
+       !write(*,'(10(1X,I5)))')map%clusters%particle_to_cluster(1:nparticles)
     ELSE
        map%defined = .FALSE.
        map%active = .FALSE.
     ENDIF
   END SUBROUTINE cp_dbcsr_mapping_create
+
+  SUBROUTINE cp_dbcsr_mapping_create_idem (map, nparticles, error)
+    TYPE(cp_dbcsr_mapping_type), POINTER     :: map
+    INTEGER, INTENT(IN)                      :: nparticles
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_mapping_create_idem', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure = .TRUE.
+    CALL cp_assert (.NOT. ASSOCIATED (map), cp_warning_level,&
+         cp_wrong_args_error, routineN,&
+         "Map is associated or not null.", error=error)
+    ALLOCATE (map, stat=stat)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    map%refcount = 1
+    map%defined = .TRUE.
+    map%active = .FALSE.
+    NULLIFY (map%clusters%cluster_ptr)
+    NULLIFY (map%clusters%particle_idx)
+    NULLIFY (map%clusters%particle_to_cluster)
+    CALL cluster_allocate (map%clusters, nparticles,&
+         nparticles, error=error)
+    map%clusters%cluster_ptr(1:nparticles) = (/(i,i=1,nparticles+1)/)
+    map%clusters%particle_idx(1:nparticles) = (/(i,i=1,nparticles+1)/)
+    map%clusters%particle_to_cluster(1:nparticles) = (/(i,i=1,nparticles+1)/)
+  END SUBROUTINE cp_dbcsr_mapping_create_idem
+
 
   SUBROUTINE cp_dbcsr_mapping_release (map, error)
     TYPE(cp_dbcsr_mapping_type), POINTER     :: map
@@ -165,6 +215,7 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
+!   ---------------------------------------------------------------------------
 !CALL cp_assert (ASSOCIATED (map), cp_warning_level, cp_wrong_args_error,&
 !     routineN, "Map does not exist.", error=error)
 
@@ -173,14 +224,13 @@ CONTAINS
        IF (map%refcount .LE. 0) THEN
           IF (map%defined) THEN
              CALL cluster_deallocate (map%clusters, error=error)
-             !STOP "check that p2c is actually deallocated"
              map%defined = .FALSE.
           ENDIF
+          failure = .TRUE.
+          DEALLOCATE (map, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          NULLIFY (map)
        ENDIF
-       failure = .TRUE.
-       DEALLOCATE (map, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       NULLIFY (map)
     ENDIF
   END SUBROUTINE cp_dbcsr_mapping_release
 
@@ -196,6 +246,19 @@ CONTAINS
     map%refcount = map%refcount + 1
   END SUBROUTINE cp_dbcsr_mapping_hold
 
+  SUBROUTINE cp_dbcsr_mapping_activate (old_map, new_map, activation, error)
+    TYPE(cp_dbcsr_mapping_type), POINTER     :: old_map, new_map
+    LOGICAL, INTENT(IN)                      :: activation
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_mapping_activate', &
+      routineP = moduleN//':'//routineN
+
+    CALL cp_assert (ASSOCIATED (old_map), cp_fatal_level, cp_wrong_args_error,&
+         routineN, "Map does not exist.", error=error)
+    NULLIFY (new_map)
+    CALL cp_dbcsr_mapping_create (new_map, old_map%clusters, error=error)
+    new_map%active = activation
+  END SUBROUTINE cp_dbcsr_mapping_activate
 
 END MODULE cp_dbcsr_methods

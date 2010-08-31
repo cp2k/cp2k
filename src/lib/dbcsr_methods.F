@@ -94,6 +94,8 @@ MODULE dbcsr_methods
   PUBLIC :: dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
             dbcsr_distribution_make_threads, dbcsr_distribution_no_threads,&
             dbcsr_distribution_num_threads
+  PUBLIC :: dbcsr_distribution_add_row_map, dbcsr_distribution_add_col_map,&
+            dbcsr_distribution_del_row_map, dbcsr_distribution_del_col_map
   PUBLIC :: dbcsr_get_info, dbcsr_distribution,&
             dbcsr_get_matrix_type, dbcsr_get_data_type, dbcsr_get_replication_type,&
             dbcsr_row_block_sizes, dbcsr_col_block_sizes,&
@@ -921,6 +923,8 @@ CONTAINS
     !WRITE(*,*)' col_dist', array_data(dist%d%col_dist)
     !WRITE(*,*)' loc_rows', array_data(dist%d%local_rows)
     !WRITE(*,*)' loc_cols', array_data(dist%d%local_cols)
+    CALL array_nullify (dist%d%row_map)
+    CALL array_nullify (dist%d%col_map)
   END SUBROUTINE dbcsr_distribution_new
 
 ! *****************************************************************************
@@ -955,6 +959,8 @@ CONTAINS
           CALL array_release (dist%d%local_cols)
           CALL dbcsr_mp_release (dist%d%mp_env)
           CALL array_release (dist%d%thread_dist)
+          CALL array_release (dist%d%row_map)
+          CALL array_release (dist%d%col_map)
           DEALLOCATE (dist%d)
           CALL dbcsr_distribution_init (dist)
        ENDIF
@@ -967,6 +973,37 @@ CONTAINS
 
     NULLIFY (dist%d)
   END SUBROUTINE dbcsr_distribution_init
+
+  SUBROUTINE dbcsr_distribution_add_row_map (dist, row_map)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+    TYPE(array_i1d_obj), INTENT(IN)          :: row_map
+
+    dist%d%row_map = row_map
+    CALL array_hold (dist%d%row_map)
+  END SUBROUTINE dbcsr_distribution_add_row_map
+  SUBROUTINE dbcsr_distribution_add_col_map (dist, col_map)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+    TYPE(array_i1d_obj), INTENT(IN)          :: col_map
+
+    dist%d%col_map = col_map
+    CALL array_hold (dist%d%col_map)
+  END SUBROUTINE dbcsr_distribution_add_col_map
+  SUBROUTINE dbcsr_distribution_del_row_map (dist)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+
+    CALL array_release (dist%d%row_map)
+    CALL array_nullify (dist%d%row_map)
+  END SUBROUTINE dbcsr_distribution_del_row_map
+  SUBROUTINE dbcsr_distribution_del_col_map (dist)
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(INOUT)                          :: dist
+
+    CALL array_release (dist%d%col_map)
+    CALL array_nullify (dist%d%col_map)
+  END SUBROUTINE dbcsr_distribution_del_col_map
 
   FUNCTION dbcsr_distribution_mp(dist) RESULT (mp_env)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -1036,8 +1073,20 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: row, col
     INTEGER                                  :: processor
 
-    processor = dist%d%mp_env%mp%pgrid(dist%d%row_dist%low%data(row),&
-         dist%d%col_dist%low%data(col))
+    INTEGER                                  :: c, r
+
+    IF (ASSOCIATED (dist%d%row_map%low)) THEN ! instead of array_exists
+       r = dist%d%row_map%low%data(row)
+    ELSE
+       r = row
+    ENDIF
+    IF (ASSOCIATED (dist%d%col_map%low)) THEN ! instead of array_exists
+       c = dist%d%col_map%low%data(col)
+    ELSE
+       c = col
+    ENDIF
+    processor = dist%d%mp_env%mp%pgrid(dist%d%row_dist%low%data(r),&
+         dist%d%col_dist%low%data(c))
   END FUNCTION dbcsr_distribution_processor
 
   FUNCTION dbcsr_distribution_thread_dist(dist) RESULT (thread_dist)

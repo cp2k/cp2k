@@ -22,6 +22,7 @@ MODULE distribution_methods
                                              clustering_particles
   USE cluster_types,                   ONLY: cluster_type
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
+  USE cp_dbcsr_interface,              ONLY: save_map
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -556,6 +557,7 @@ CONTAINS
             "Clustering can only use basic or no distribution optimization.",&
             error=error)
        CALL clustering_particles(clusters, clustering_section, cell, particle_set, error)
+       CALL save_map (clusters, aosize=clusters%nparticles, error=error)
        IF (skip_optimization) THEN
           ALLOCATE(cluster_row_dist(clusters%nclusters),cluster_col_dist(clusters%nclusters))
           DO icluster = 1,clusters%nclusters

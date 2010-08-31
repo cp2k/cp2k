@@ -18,6 +18,7 @@ MODULE environment
        compile_arch, compile_date, compile_host, compile_lastcvs, cp2k_home, &
        cp2k_version, cp2k_year, get_runtime_info, id_cp2k_version, &
        r_host_name, r_pid, r_user_name
+  USE cp_dbcsr_interface,              ONLY: trash_map
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -848,6 +849,10 @@ CONTAINS
     CALL deallocate_spherical_harmonics()
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()
+
+    !UB temporary release the block<->cluster mapping
+    CALL trash_map (error)
+    !UB
 
     ! finalize the fft (i.e. writes the wisdom)
     CALL finalize_fft(para_env,error)

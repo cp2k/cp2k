@@ -13,24 +13,44 @@
 !> - Created 2010
 ! *****************************************************************************
 MODULE cp_dbcsr_interface
-  USE array_types,                     ONLY: array_i1d_obj
+  USE array_types,                     ONLY: array_data,&
+                                             array_hold,&
+                                             array_i1d_obj,&
+                                             array_new,&
+                                             array_nullify,&
+                                             array_release,&
+                                             array_size
   USE cluster_buffers,                 ONLY: cluster_buffer_flush,&
                                              cluster_buffer_release
-  USE cp_dbcsr_methods,                ONLY: cp_dbcsr_col_block_offsets,&
-                                             cp_dbcsr_col_block_sizes,&
-                                             cp_dbcsr_mapping_create,&
-                                             cp_dbcsr_mapping_release,&
-                                             cp_dbcsr_row_block_offsets,&
-                                             cp_dbcsr_row_block_sizes
+  USE cluster_types,                   ONLY: cluster_type
+  USE cp_dbcsr_methods,                ONLY: &
+       cp_dbcsr_col_block_offsets, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_has_mapping, cp_dbcsr_mapping_activate, &
+       cp_dbcsr_mapping_create, cp_dbcsr_mapping_hold, &
+       cp_dbcsr_mapping_release, cp_dbcsr_row_block_offsets, &
+       cp_dbcsr_row_block_sizes
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
+                                             cp_dbcsr_mapping_type,&
                                              cp_dbcsr_type
-  USE cp_dbcsr_xlat,                   ONLY: set_block_pointer_to_cluster
+  USE cp_dbcsr_xlat,                   ONLY: blksizes_blk_to_cluster,&
+                                             blksizes_blk_to_cluster4,&
+                                             dist_blk_to_cluster,&
+                                             get4blksizes,&
+                                             set_block_pointer_to_cluster
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_reserve_block2d
   USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_init,&
                                              dbcsr_buffers_new
+  USE dbcsr_block_operations,          ONLY: dbcsr_block_partial_copy,&
+                                             dbcsr_data_clear
+  USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
+                                             dbcsr_data_init,&
+                                             dbcsr_data_new,&
+                                             dbcsr_data_release,&
+                                             dbcsr_data_set_pointer,&
+                                             dbcsr_type_1d_to_2d
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
@@ -41,10 +61,14 @@ MODULE cp_dbcsr_interface
                                              dbcsr_iterator_stop
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_col_offset, dbcsr_blk_column_size, dbcsr_blk_row_offset, &
-       dbcsr_blk_row_size, dbcsr_distribution, dbcsr_distribution_release, &
-       dbcsr_get_data_size, dbcsr_get_data_type, dbcsr_get_info, &
-       dbcsr_get_matrix_type, dbcsr_get_num_blocks, dbcsr_get_occupation, &
-       dbcsr_init, dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_new, &
+       dbcsr_blk_row_size, dbcsr_distribution, &
+       dbcsr_distribution_add_col_map, dbcsr_distribution_add_row_map, &
+       dbcsr_distribution_del_col_map, dbcsr_distribution_del_row_map, &
+       dbcsr_distribution_hold, dbcsr_distribution_init, &
+       dbcsr_distribution_release, dbcsr_get_data_size, dbcsr_get_data_type, &
+       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_get_occupation, dbcsr_has_symmetry, dbcsr_init, &
+       dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_new, &
        dbcsr_mp_release, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_local, dbcsr_nfullcols_total, dbcsr_nfullrows_local, &
@@ -59,23 +83,29 @@ MODULE cp_dbcsr_interface
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_distribute,&
                                              dbcsr_new_transposed,&
+                                             dbcsr_redistribute,&
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: dbcsr_2d_array_type,&
                                              dbcsr_block_buffer_obj,&
                                              dbcsr_data_obj,&
                                              dbcsr_distribution_obj,&
+                                             dbcsr_iterator,&
                                              dbcsr_mp_obj
-  USE dbcsr_util,                      ONLY: dbcsr_checksum,&
-                                             dbcsr_verify_matrix
+  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
+                                             dbcsr_checksum,&
+                                             dbcsr_verify_matrix,&
+                                             swap
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
+                                             int_size,&
                                              real_4,&
                                              real_8
   USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -159,6 +189,11 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_frobenius_norm
   PUBLIC :: cp_dbcsr_name
 
+
+  INTERFACE cp_dbcsr_create
+     MODULE PROCEDURE cp_dbcsr_create_new
+     MODULE PROCEDURE cp_dbcsr_create_template
+  END INTERFACE
 
   INTERFACE cp_dbcsr_trace
      MODULE PROCEDURE cp_dbcsr_trace_ab_d
@@ -248,7 +283,46 @@ MODULE cp_dbcsr_interface
 
   PRIVATE
 
+  TYPE(cp_dbcsr_mapping_type), POINTER, SAVE :: saved_ao_map => NULL()
+  INTEGER, SAVE                     :: map_size = -1
+  PUBLIC :: save_map, trash_map
+
 CONTAINS
+
+  SUBROUTINE save_map (clusters, aosize, error)
+    TYPE(cluster_type), INTENT(IN)           :: clusters
+    INTEGER, INTENT(in)                      :: aosize
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+!
+
+    NULLIFY (saved_ao_map)
+    CALL cp_dbcsr_mapping_create (saved_ao_map, clusters, error=error)
+    map_size = aosize
+  END SUBROUTINE save_map
+
+  SUBROUTINE trash_map (error)
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+!
+
+    CALL cp_dbcsr_mapping_release (saved_ao_map, error=error)
+    NULLIFY (saved_ao_map)
+  END SUBROUTINE trash_map
+
+  FUNCTION okay_size (matrix)
+    TYPE(cp_dbcsr_type), INTENT(in)          :: matrix
+    LOGICAL                                  :: okay_size
+
+!okay_size = (cp_dbcsr_nblkrows_total (matrix) .eq. map_size .and.&
+!     cp_dbcsr_nblkcols_total (matrix) .eq. map_size)
+
+    IF (okay_size) &
+         WRITE(*,*)"Testing", map_size,&
+         cp_dbcsr_nblkrows_total (matrix),&
+         cp_dbcsr_nblkcols_total (matrix)
+    okay_size = .TRUE.
+  END FUNCTION okay_size
 
 ! *****************************************************************************
 !> \brief cp2k interface to libdbcsr.
@@ -1526,6 +1600,14 @@ CONTAINS
     CALL cluster_buffer_release (matrix%buffers, error=error)
     CALL cp_dbcsr_mapping_release (matrix%row_mapping, error=error)
     CALL cp_dbcsr_mapping_release (matrix%col_mapping, error=error)
+    CALL dbcsr_distribution_release (matrix%dbcsr_distribution)
+    CALL dbcsr_distribution_release (matrix%cp_distribution)
+    !
+    CALL array_release (matrix%cp_row_sizes)
+    CALL array_release (matrix%cp_col_sizes)
+    CALL array_release (matrix%cp_row_offsets)
+    CALL array_release (matrix%cp_col_offsets)
+    !
     CALL dbcsr_release (matrix%matrix)
 
   END SUBROUTINE cp_dbcsr_release
@@ -1540,6 +1622,12 @@ CONTAINS
     CALL dbcsr_init(matrix%matrix)
     CALL dbcsr_buffers_init (matrix%buffers)
     NULLIFY (matrix%row_mapping, matrix%col_mapping)
+    CALL dbcsr_distribution_init (matrix%dbcsr_distribution)
+    CALL dbcsr_distribution_init (matrix%cp_distribution)
+    CALL array_nullify (matrix%cp_row_sizes)
+    CALL array_nullify (matrix%cp_col_sizes)
+    CALL array_nullify (matrix%cp_row_offsets)
+    CALL array_nullify (matrix%cp_col_offsets)
     matrix%ref_count = 0
   END SUBROUTINE cp_dbcsr_init
 
@@ -1703,6 +1791,8 @@ CONTAINS
     CALL cluster_buffer_flush (matrix_b%buffers, error=error)
     buffers = matrix_a%buffers
     CALL cluster_buffer_flush (buffers, error=error)
+    CALL cp_dbcsr_create (matrix_b, name="BTRIU of"//cp_dbcsr_name (matrix_a),&
+         template=matrix_a, error=error)
     CALL dbcsr_btriu(matrix_b%matrix, matrix_a%matrix, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_btriu
@@ -1754,9 +1844,9 @@ CONTAINS
          work_mutable, dbcsr_error)
   END SUBROUTINE cp_dbcsr_work_create
 
-  SUBROUTINE cp_dbcsr_create(matrix, name, dist, matrix_type,&
+  SUBROUTINE cp_dbcsr_create_new(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
-       mutable_work, replication_type, error)
+       mutable_work, replication_type, error, row_mapping, col_mapping,round_blk_size_up)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -1767,18 +1857,26 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(cp_dbcsr_mapping_type), OPTIONAL, &
+      POINTER                                :: row_mapping, col_mapping
+    LOGICAL, INTENT(IN), OPTIONAL            :: round_blk_size_up
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create_new', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: as, handle, stat
+    INTEGER, DIMENSION(:), POINTER           :: offsets
+    LOGICAL                                  :: col_mapping_active, round_up, &
+                                                row_mapping_active
+    TYPE(array_i1d_obj)                      :: low_cbs, low_rbs
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_create(matrix%matrix, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
-       mutable_work, replication_type, dbcsr_error)
-    CALL dbcsr_buffers_init (matrix%buffers)
-    CALL dbcsr_buffers_new (matrix%buffers, matrix%matrix%m%data_area,&
-         dbcsr_error)
+    CALL timeset (routineN, handle)
+    IF (PRESENT (round_blk_size_up)) THEN
+       round_up = round_blk_size_up
+    ELSE
+       round_up = .FALSE.
+    ENDIF
     IF (ASSOCIATED (matrix%row_mapping)) THEN
        CALL cp_dbcsr_mapping_release (matrix%row_mapping, error)
     ENDIF
@@ -1786,10 +1884,192 @@ CONTAINS
        CALL cp_dbcsr_mapping_release (matrix%col_mapping, error)
     ENDIF
     NULLIFY (matrix%row_mapping, matrix%col_mapping)
-    CALL cp_dbcsr_mapping_create (matrix%row_mapping, error=error)
-    CALL cp_dbcsr_mapping_create (matrix%col_mapping, error=error)
+    IF (PRESENT (row_mapping)) THEN
+       matrix%row_mapping => row_mapping
+       CALL cp_dbcsr_mapping_hold (matrix%row_mapping, error=error)
+       row_mapping_active = cp_dbcsr_has_mapping (row_mapping)
+    ELSE
+       CALL cp_dbcsr_mapping_create (matrix%row_mapping, error=error)
+       row_mapping_active = .FALSE.
+    ENDIF
+    IF (PRESENT (col_mapping)) THEN
+       matrix%col_mapping => col_mapping
+       CALL cp_dbcsr_mapping_hold (matrix%col_mapping, error=error)
+       col_mapping_active = cp_dbcsr_has_mapping (col_mapping)
+    ELSE       
+       CALL cp_dbcsr_mapping_create (matrix%col_mapping, error=error)
+       col_mapping_active = .FALSE.
+    ENDIF
+    !
+    IF (.NOT. col_mapping_active .AND. .NOT. row_mapping_active) THEN
+       matrix%dbcsr_distribution = dist
+       CALL dbcsr_distribution_hold (matrix%dbcsr_distribution)
+    ELSE
+       ! Create a clustered distribution.
+       CALL dist_blk_to_cluster (dist, matrix%row_mapping, matrix%col_mapping,&
+            matrix%dbcsr_distribution, error=error)
+    ENDIF
+    matrix%cp_distribution = dist
+    CALL dbcsr_distribution_hold (matrix%cp_distribution)
+    !
+    IF (row_mapping_active) THEN
+       IF (round_up) THEN
+          CALL blksizes_blk_to_cluster4 (row_blk_size, matrix%row_mapping,&
+               low_rbs, error)
+       ELSE
+          CALL blksizes_blk_to_cluster (row_blk_size, matrix%row_mapping,&
+               low_rbs, error)
+       ENDIF
+    ELSE
+       low_rbs = row_blk_size
+       CALL array_hold (low_rbs)
+    ENDIF
+    IF (col_mapping_active) THEN
+       IF (round_up) THEN
+          CALL blksizes_blk_to_cluster4 (col_blk_size, matrix%col_mapping,&
+               low_cbs, error)
+       ELSE
+          CALL blksizes_blk_to_cluster (col_blk_size, matrix%col_mapping,&
+               low_cbs, error)
+       ENDIF
+    ELSE
+       low_cbs = col_blk_size
+       CALL array_hold (low_cbs)
+    ENDIF
+    CALL dbcsr_create(matrix%matrix, name, matrix%dbcsr_distribution,&
+         matrix_type,&
+       low_rbs, low_cbs, nblks, nze, data_type, special, reuse,&
+       mutable_work, replication_type, dbcsr_error)
+    CALL array_release (low_rbs)
+    CALL array_release (low_cbs)
+    CALL dbcsr_buffers_init (matrix%buffers)
+    CALL dbcsr_buffers_new (matrix%buffers, matrix%matrix%m%data_area,&
+         dbcsr_error)
+    !
+    matrix%cp_row_sizes = row_blk_size
+    CALL array_hold (matrix%cp_row_sizes)
+    matrix%cp_col_sizes = col_blk_size
+    CALL array_hold (matrix%cp_col_sizes)
+    IF (row_mapping_active) THEN
+       as = array_size(row_blk_size)+1
+       ALLOCATE (offsets(as), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineN, moduleN, __LINE__,&
+            "offsets", int_size*as)
+       CALL convert_sizes_to_offsets (array_data (row_blk_size), offsets)
+       CALL array_new (matrix%cp_row_offsets, offsets, gift=.TRUE.)
+    ELSE
+       matrix%cp_row_offsets = matrix%matrix%m%row_blk_offset
+       CALL array_hold (matrix%cp_row_offsets)
+    ENDIF
+    IF (col_mapping_active) THEN
+       as = array_size(col_blk_size)+1
+       ALLOCATE (offsets(as), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineN, moduleN, __LINE__,&
+            "offsets", int_size*as)
+       CALL convert_sizes_to_offsets (array_data (col_blk_size), offsets)
+       CALL array_new (matrix%cp_col_offsets, offsets, gift=.TRUE.)
+    ELSE
+       matrix%cp_col_offsets = matrix%matrix%m%col_blk_offset
+       CALL array_hold (matrix%cp_col_offsets)
+    ENDIF
+    !
     matrix%ref_count = 1
-  END SUBROUTINE cp_dbcsr_create
+    CALL timestop (handle)
+  END SUBROUTINE cp_dbcsr_create_new
+
+  SUBROUTINE cp_dbcsr_create_template(matrix, name, template,&
+       dist, matrix_type,&
+       row_blk_size, col_blk_size, nblks, nze, data_type, special, reuse,&
+       mutable_work, replication_type, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: template
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(IN), OPTIONAL                   :: dist
+    CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
+    TYPE(array_i1d_obj), INTENT(IN), &
+      OPTIONAL                               :: row_blk_size, col_blk_size
+    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze
+    CHARACTER, INTENT(IN), OPTIONAL          :: data_type
+    LOGICAL, INTENT(IN), OPTIONAL            :: special, reuse, mutable_work
+    CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create_template', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    INTEGER, DIMENSION(:), POINTER           :: offsets
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset (routineN, handle)
+    CALL dbcsr_create(matrix%matrix, template%matrix,&
+         name=name, dist=dist, matrix_type=matrix_type,&
+         row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
+         nblks=nblks, nze=nze, data_type=data_type, special=special,&
+         reuse=reuse, mutable_work=mutable_work,&
+         replication_type=replication_type,&
+         error=dbcsr_error)
+    CALL dbcsr_buffers_init (matrix%buffers)
+    CALL dbcsr_buffers_new (matrix%buffers, matrix%matrix%m%data_area,&
+         dbcsr_error)
+    !
+    IF (ASSOCIATED (matrix%row_mapping)) THEN
+       CALL cp_dbcsr_mapping_release (matrix%row_mapping, error)
+    ENDIF
+    IF (ASSOCIATED (matrix%col_mapping)) THEN
+       CALL cp_dbcsr_mapping_release (matrix%col_mapping, error)
+    ENDIF
+    IF (ASSOCIATED (template%row_mapping)) THEN
+       matrix%row_mapping => template%row_mapping
+       CALL cp_dbcsr_mapping_hold (matrix%row_mapping, error=error)
+    ENDIF
+    IF (ASSOCIATED (template%col_mapping)) THEN
+       matrix%col_mapping => template%col_mapping
+       CALL cp_dbcsr_mapping_hold (matrix%col_mapping, error=error)
+    ENDIF
+    !
+    IF (PRESENT (row_blk_size)) THEN
+       matrix%cp_row_sizes = row_blk_size
+       ALLOCATE (offsets (cp_dbcsr_nblkrows_total(template)+1), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineN, moduleN, __LINE__, "offsets",&
+            int_size*(cp_dbcsr_nblkrows_total(template)+1))
+       CALL convert_sizes_to_offsets (array_data (matrix%cp_row_sizes), offsets)
+       CALL array_new (matrix%cp_row_offsets, offsets, gift=.TRUE.)
+    ELSE
+       matrix%cp_row_sizes = cp_dbcsr_row_block_sizes (template)
+       matrix%cp_row_offsets = cp_dbcsr_row_block_offsets (template)
+       CALL array_hold (matrix%cp_row_offsets)
+    ENDIF
+    CALL array_hold (matrix%cp_row_sizes)
+    !
+    IF (PRESENT (col_blk_size)) THEN
+       matrix%cp_col_sizes = col_blk_size
+       ALLOCATE (offsets (cp_dbcsr_nblkcols_total(template)+1), stat=stat)
+       IF (stat /= 0) CALL stop_memory (routineN, moduleN, __LINE__, "offsets",&
+            int_size*(cp_dbcsr_nblkcols_total(template)+1))
+       CALL convert_sizes_to_offsets (array_data (matrix%cp_col_sizes), offsets)
+       CALL array_new (matrix%cp_col_offsets, offsets, gift=.TRUE.)
+    ELSE
+       matrix%cp_col_sizes = cp_dbcsr_col_block_sizes (template)
+       matrix%cp_col_offsets = cp_dbcsr_col_block_offsets (template)
+       CALL array_hold (matrix%cp_col_offsets)
+    ENDIF
+    CALL array_hold (matrix%cp_col_sizes)
+    !
+    IF (PRESENT (dist)) THEN
+       matrix%cp_distribution = dist
+    ELSE
+       matrix%cp_distribution = cp_dbcsr_distribution (template)
+    ENDIF
+    CALL dbcsr_distribution_hold (matrix%cp_distribution)
+    matrix%dbcsr_distribution = dbcsr_distribution (matrix%matrix)
+    CALL dbcsr_distribution_hold (matrix%dbcsr_distribution)
+    !
+    matrix%ref_count = 1
+    CALL timestop (handle)
+  END SUBROUTINE cp_dbcsr_create_template
+
 
   SUBROUTINE cp_dbcsr_filter(matrix, eps, method, use_absolute, filter_diag, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
@@ -1863,6 +2143,9 @@ CONTAINS
     CALL timeset(routineN, timing_handle)
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
+    CALL cp_dbcsr_create (diag, "Diagonal of "//TRIM(cp_dbcsr_name (matrix)),&
+         template=matrix,&
+         error=error)
     CALL dbcsr_get_block_diag(matrix%matrix, diag%matrix, dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_get_block_diag
@@ -1905,16 +2188,11 @@ CONTAINS
     !call cp_assert (matrix_b%ref_count .gt. 0,&
     !     cp_warning_level, cp_caller_error, routineN,&
     !     "Matrix not created.", error=error)
+    CALL cluster_buffer_flush (matrix_b%buffers, error)
     IF (matrix_b%ref_count .EQ. 0) THEN
-       CALL cp_dbcsr_create (matrix_b, dbcsr_name (matrix_a%matrix),&
-            dbcsr_distribution (matrix_a%matrix),&
-            dbcsr_get_matrix_type (matrix_a%matrix),&
-            cp_dbcsr_row_block_sizes (matrix_a),&
-            cp_dbcsr_col_block_sizes (matrix_a),&
-            data_type = cp_dbcsr_get_data_type (matrix_a),&
+       CALL cp_dbcsr_create (matrix_b, template=matrix_a,&
             error=error)
     ENDIF
-    CALL cluster_buffer_flush (matrix_b%buffers, error)
     buffers = matrix_a%buffers
     CALL cluster_buffer_flush (buffers, error)
     CALL dbcsr_copy(matrix_b%matrix, matrix_a%matrix, name, keep_sparsity,&
@@ -1994,20 +2272,112 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_d', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: prnt = .FALSE., &
+                                                verify = .FALSE.
 
     CHARACTER(LEN=1)                         :: shape_a, shape_b, trans_a, &
                                                 trans_b
     INTEGER                                  :: timing_handle, &
+                                                timing_handle_clustering, &
                                                 timing_handle_detail
+    REAL(kind=dp)                            :: cs_b, cs_c
+    TYPE(cp_dbcsr_type)                      :: clustered_a, clustered_b, &
+                                                clustered_c
     TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL timeset(routineN, timing_handle)
     buffers = matrix_a%buffers
     CALL cluster_buffer_flush (buffers, error=error)
     buffers = matrix_b%buffers
     CALL cluster_buffer_flush (buffers, error=error)
     CALL cluster_buffer_flush (matrix_c%buffers, error=error)
+    !
+    IF (.FALSE.) THEN
+       IF (prnt) &
+            WRITE(*,*)routineN//" Multiply======================", alpha, beta
+       CALL cp_dbcsr_init (clustered_a, error)
+       CALL cp_dbcsr_docluster (matrix_a, clustered_a, error=error)
+       IF (prnt) THEN
+          CALL cp_dbcsr_print (matrix_a, matlab_format=.TRUE.,&
+               variable_name="mao", error=error)
+          CALL cp_dbcsr_print (clustered_a, matlab_format=.TRUE.,&
+               variable_name="man", error=error)
+       ENDIF
+       CALL cp_dbcsr_init (clustered_b, error)
+       CALL cp_dbcsr_docluster (matrix_b, clustered_b, error=error)
+       IF (prnt) THEN
+          CALL cp_dbcsr_print (matrix_b, matlab_format=.TRUE.,&
+               variable_name="mbo", error=error)
+          CALL cp_dbcsr_print (clustered_b, matlab_format=.TRUE.,&
+               variable_name="mbn", error=error)
+       ENDIF
+       CALL cp_dbcsr_init (clustered_c, error)
+       CALL cp_dbcsr_docluster (matrix_c, clustered_c, error=error)
+       IF (prnt) THEN
+          CALL cp_dbcsr_print (matrix_c, matlab_format=.TRUE.,&
+               variable_name="mco", error=error)
+          CALL cp_dbcsr_print (clustered_c, matlab_format=.TRUE.,&
+               variable_name="mcn", error=error)
+       ENDIF
+       CALL timeset ("multiply_clustering", timing_handle_clustering)
+       CALL dbcsr_multiply (transa, transb,&
+            alpha, clustered_a%matrix, clustered_b%matrix, beta, clustered_c%matrix,&
+            first_row, last_row, first_column, last_column, first_k, last_k,&
+            retain_sparsity, left_set, right_set, dbcsr_error, flop)
+       IF (verify) cs_c = cp_dbcsr_checksum (clustered_c, error=error)
+       IF (prnt) THEN
+          CALL cp_dbcsr_print (clustered_c, matlab_format=.TRUE.,&
+               variable_name="mpn", error=error)
+       ENDIF
+       CALL cp_dbcsr_release (clustered_a, error)
+       CALL cp_dbcsr_release (clustered_b, error)
+       CALL cp_dbcsr_release (clustered_c, error)
+       CALL timestop (timing_handle_clustering)
+       !!
+       IF (prnt) &
+            WRITE(*,*)routineN//" Multiply2======================", alpha, beta
+       CALL cp_dbcsr_init (clustered_a, error)
+       CALL cp_dbcsr_docluster (matrix_a, clustered_a, round_blk_size_up=.TRUE., error=error)
+       IF (prnt) THEN
+          CALL cp_dbcsr_print (matrix_a, matlab_format=.TRUE.,&
+               variable_name="mao", error=error)
+          CALL cp_dbcsr_print (clustered_a, matlab_format=.TRUE.,&
+               variable_name="man", error=error)
+       ENDIF
+       CALL cp_dbcsr_init (clustered_b, error)
+       CALL cp_dbcsr_docluster (matrix_b, clustered_b, round_blk_size_up=.TRUE., error=error)
+       IF (prnt) THEN
+          CALL cp_dbcsr_print (matrix_b, matlab_format=.TRUE.,&
+               variable_name="mbo", error=error)
+          CALL cp_dbcsr_print (clustered_b, matlab_format=.TRUE.,&
+               variable_name="mbn", error=error)
+       ENDIF
+       CALL cp_dbcsr_init (clustered_c, error)
+       CALL cp_dbcsr_docluster (matrix_c, clustered_c, round_blk_size_up=.TRUE., error=error)
+       IF (prnt) THEN
+          CALL cp_dbcsr_print (matrix_c, matlab_format=.TRUE.,&
+               variable_name="mco", error=error)
+          CALL cp_dbcsr_print (clustered_c, matlab_format=.TRUE.,&
+               variable_name="mcn", error=error)
+       ENDIF
+       CALL timeset ("multiply_clustering4", timing_handle_clustering)
+       CALL dbcsr_multiply (transa, transb,&
+            alpha, clustered_a%matrix, clustered_b%matrix, beta, clustered_c%matrix,&
+            first_row, last_row, first_column, last_column, first_k, last_k,&
+            retain_sparsity, left_set, right_set, dbcsr_error, flop)
+       IF (verify) cs_c = cp_dbcsr_checksum (clustered_c, error=error)
+       IF (prnt) THEN
+          CALL cp_dbcsr_print (clustered_c, matlab_format=.TRUE.,&
+               variable_name="mpn", error=error)
+       ENDIF
+       CALL cp_dbcsr_release (clustered_a, error)
+       CALL cp_dbcsr_release (clustered_b, error)
+       CALL cp_dbcsr_release (clustered_c, error)
+       CALL timestop (timing_handle_clustering)
+    ENDIF
+    !!
+    CALL timeset(routineN, timing_handle)
+    !
     trans_a = transa
     trans_b = transb
     CALL uppercase(trans_a)
@@ -2022,8 +2392,22 @@ CONTAINS
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, left_set, right_set, dbcsr_error, flop)
+    IF (prnt) THEN
+       CALL cp_dbcsr_print (matrix_c, matlab_format=.TRUE.,&
+            variable_name="mpo", error=error)
+    ENDIF
+    IF (verify) cs_b = cp_dbcsr_checksum (matrix_c, error=error)
     CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
+    IF (verify) THEN
+       WRITE(*,'(A,4(1X,E9.3))')routineN//" checksums", cs_c, cs_b,&
+            cs_c-cs_b, ABS(cs_c-cs_b)/cs_b
+       WRITE(*,*)routineN//" multiply type",&
+            trans_a//shape_a//cp_dbcsr_get_matrix_type(matrix_a)//'_'&
+            //trans_b//shape_b//cp_dbcsr_get_matrix_type(matrix_b)
+       
+       IF (ABS(cs_c-cs_b) .GT. 0.00001) STOP "Bad multiply"
+    ENDIF
   END SUBROUTINE cp_dbcsr_multiply_d
 
   SUBROUTINE cp_dbcsr_multiply_c(transa, transb,&
@@ -2614,5 +2998,245 @@ CONTAINS
        col_offset = dbcsr_blk_col_offset (matrix%matrix, col)
     ENDIF
   END SUBROUTINE fill_sizes
+
+! *****************************************************************************
+!> \brief Converts a non-clustered matrix to a clustered.
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_docluster (matrix, clustered_matrix, round_blk_size_up, error)
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
+    TYPE(cp_dbcsr_type), INTENT(OUT)         :: clustered_matrix
+    LOGICAL, INTENT(IN), OPTIONAL            :: round_blk_size_up
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_docluster', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: block_col, block_col_size, block_row, block_row_size, &
+      cluster_col, cluster_col_size, cluster_row, cluster_row_size, &
+      col_offset, icopy, max_blk_size, ncopies, row_offset, timing_handle
+    LOGICAL                                  :: block_tr, cluster_found, &
+                                                cluster_tr, mirrored
+    TYPE(array_i1d_obj)                      :: col_map, row_map
+    TYPE(cp_dbcsr_mapping_type), POINTER     :: cl_col_mapping, cl_row_mapping
+    TYPE(cp_dbcsr_type)                      :: predistributed
+    TYPE(dbcsr_data_obj)                     :: block_data, buffer_data, &
+                                                cluster_data
+    TYPE(dbcsr_distribution_obj)             :: block_distribution
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+    TYPE(dbcsr_iterator)                     :: block_iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset (routineN, timing_handle)
+    !
+    NULLIFY (cl_row_mapping, cl_col_mapping)
+    !CALL cp_dbcsr_mapping_activate (matrix%row_mapping, cl_row_mapping,&
+    !     activation=.TRUE., error=error)
+    !CALL cp_dbcsr_mapping_activate (matrix%col_mapping, cl_col_mapping,&
+    !     activation=.TRUE., error=error)
+    !write(*,*)"row, col", cp_dbcsr_nblkrows_total (matrix) .eq. map_size,&
+    !     cp_dbcsr_nblkcols_total (matrix) .eq. map_size
+    IF (cp_dbcsr_nblkrows_total (matrix) .EQ. map_size) THEN
+       CALL cp_dbcsr_mapping_activate (saved_ao_map, cl_row_mapping,&
+            activation=.TRUE., error=error)
+    ELSE
+       CALL cp_dbcsr_mapping_create (cl_row_mapping, error=error)
+    ENDIF
+    IF (cp_dbcsr_nblkcols_total (matrix) .EQ. map_size) THEN
+       CALL cp_dbcsr_mapping_activate (saved_ao_map, cl_col_mapping,&
+            activation=.TRUE., error=error)
+    ELSE
+       CALL cp_dbcsr_mapping_create (cl_col_mapping, error=error)
+    ENDIF
+    !
+    block_distribution = dbcsr_distribution (matrix%matrix)
+    IF (cp_dbcsr_has_mapping (cl_row_mapping)) THEN
+       CALL array_new (row_map, cl_row_mapping%clusters%particle_to_cluster,&
+            lb=1)
+       CALL dbcsr_distribution_add_row_map (block_distribution, row_map)
+       CALL array_release (row_map)
+    ENDIF
+    IF (cp_dbcsr_has_mapping (cl_col_mapping)) THEN
+       CALL array_new (col_map, cl_col_mapping%clusters%particle_to_cluster,&
+            lb=1)
+       CALL dbcsr_distribution_add_col_map (block_distribution, col_map)
+       CALL array_release (col_map)
+    ENDIF
+    !
+    CALL cp_dbcsr_init (predistributed, error=error)
+    CALL cp_dbcsr_create (predistributed, dbcsr_name (matrix%matrix),&
+         block_distribution,&
+         dbcsr_get_matrix_type (matrix%matrix),&
+         cp_dbcsr_row_block_sizes (matrix),&
+         cp_dbcsr_col_block_sizes (matrix),&
+         data_type = cp_dbcsr_get_data_type (matrix),&
+         error=error)
+    !call cp_dbcsr_redistribute (matrix, predistributed, error=error)
+    CALL dbcsr_redistribute (matrix%matrix, predistributed%matrix, error=dbcsr_error)
+    IF (cp_dbcsr_has_mapping (cl_row_mapping)) THEN
+       CALL dbcsr_distribution_del_row_map (block_distribution)
+    ENDIF
+    IF (cp_dbcsr_has_mapping (cl_col_mapping)) THEN
+       CALL dbcsr_distribution_del_col_map (block_distribution)
+    ENDIF
+    !
+    !
+    !CALL dbcsr_distribution_init (clustered_distribution)
+    !CALL blksizes_blk_to_cluster (matrix%cp_row_sizes,&
+    !     matrix%row_mapping, clustered_row_blk_sizes, error=error)
+    !CALL blksizes_blk_to_cluster (matrix%cp_col_sizes,&
+    !     matrix%col_mapping, clustered_col_blk_sizes, error=error)
+    !CALL dist_blk_to_cluster (matrix%cp_distribution, matrix%row_mapping,&
+    !     matrix%col_mapping, clustered_distribution, error=error)
+    !!
+    !CALL cp_dbcsr_init (clustered_matrix, error=error)
+    !CALL cp_dbcsr_create (clustered_matrix, dbcsr_name (matrix%matrix),&
+    !     clustered_distribution, dbcsr_get_matrix_type (matrix%matrix),&
+    !     clustered_row_blk_sizes, clustered_col_blk_sizes,&
+    !     nze=dbcsr_get_data_size (matrix%matrix),&
+    !     data_type=dbcsr_get_data_type(matrix%matrix),&
+    !     row_mapping = cl_row_mapping, col_mapping = cl_col_mapping,&
+    !     error=error)
+    !CALL cp_dbcsr_mapping_release (cl_row_mapping, error)
+    !CALL cp_dbcsr_mapping_release (cl_col_mapping, error)
+    !CALL array_release (clustered_row_blk_sizes)
+    !CALL array_release (clustered_col_blk_sizes)
+    !CALL dbcsr_distribution_release (clustered_distribution)
+    CALL cp_dbcsr_create (clustered_matrix, dbcsr_name (matrix%matrix),&
+         matrix%cp_distribution, dbcsr_get_matrix_type (matrix%matrix),&
+         matrix%cp_row_sizes, matrix%cp_col_sizes,&
+         nze=dbcsr_get_data_size (matrix%matrix),&
+         data_type=dbcsr_get_data_type(matrix%matrix),&
+         row_mapping = cl_row_mapping, col_mapping = cl_col_mapping,&
+         round_blk_size_up=round_blk_size_up,&
+         error=error)
+    CALL cp_dbcsr_finalize (clustered_matrix, error=error)
+    CALL dbcsr_work_create (clustered_matrix%matrix, work_mutable=.TRUE., error=dbcsr_error)
+    !
+    CALL dbcsr_data_init (block_data)
+    CALL dbcsr_data_init (cluster_data)
+    CALL dbcsr_data_init (buffer_data)
+    CALL dbcsr_data_new (block_data,&
+         dbcsr_type_1d_to_2d (dbcsr_get_data_type (matrix%matrix)))
+    CALL dbcsr_data_new (cluster_data,&
+         dbcsr_type_1d_to_2d (dbcsr_get_data_type (matrix%matrix)))
+    max_blk_size = MAX (dbcsr_max_row_size (clustered_matrix%matrix),&
+            dbcsr_max_col_size (clustered_matrix%matrix))
+    CALL dbcsr_data_new (buffer_data,&
+         dbcsr_type_1d_to_2d (dbcsr_get_data_type (matrix%matrix)),&
+         max_blk_size, max_blk_size)
+    !!@@@
+    !write(*,*)routineN//" high rbs", array_data(dbcsr_row_block_sizes (matrix%matrix))
+    !write(*,*)routineN//" high cbs", array_data(dbcsr_col_block_sizes (matrix%matrix))
+    !write(*,*)routineN//" low rbs", array_data(dbcsr_row_block_sizes (clustered_matrix%matrix))
+    !write(*,*)routineN//" low cbs", array_data(dbcsr_col_block_sizes (clustered_matrix%matrix))
+    CALL dbcsr_iterator_start (block_iter, predistributed%matrix, read_only=.TRUE.,&
+         contiguous_pointers=.FALSE.)
+    block_iteration: DO WHILE (dbcsr_iterator_blocks_left (block_iter))
+       CALL dbcsr_iterator_next_block (block_iter, &
+            row=block_row, column=block_col, transposed=block_tr,&
+            block=block_data,&
+            row_size=block_row_size, col_size=block_col_size)
+       ! Warnings about aliasing here are OK.
+       CALL get4blksizes (clustered_matrix,&
+            high_row=block_row, high_col=block_col,&
+            low_r=cluster_row, low_c=cluster_col,&
+            low_rs=cluster_row_size, low_cs=cluster_col_size,&
+            row_off=row_offset,  col_off=col_offset, error=error)
+       !
+       mirrored = .FALSE.
+       ncopies = 1
+       IF (dbcsr_has_symmetry (clustered_matrix%matrix)) THEN
+          IF (cluster_row .GT. cluster_col) THEN
+             mirrored = .TRUE.
+             CALL swap (cluster_row, cluster_col)
+          ELSEIF (cluster_row .EQ. cluster_col .AND. block_row .NE. block_col) THEN
+             ncopies = 2
+          ENDIF
+       ENDIF
+       !
+       cluster_tr = .FALSE.
+       CALL dbcsr_get_block_p (clustered_matrix%matrix,&
+            cluster_row, cluster_col, cluster_data, cluster_tr, cluster_found,&
+            row_size=cluster_row_size, col_size=cluster_col_size)
+       IF (.NOT. cluster_found) THEN
+          CALL dbcsr_data_set_pointer (cluster_data,&
+               rsize=cluster_row_size, csize=cluster_col_size,&
+               pointee=buffer_data)
+          CALL dbcsr_data_clear (cluster_data)
+          !cluster_tr = mirrored
+       ENDIF
+       IF (mirrored) THEN
+          CALL swap (cluster_row_size, cluster_col_size)
+       ENDIF
+       cluster_tr = cluster_tr .NEQV. mirrored
+       DO icopy = 1, ncopies
+          IF (icopy .EQ. 2) THEN
+             CALL swap (block_row_size, block_col_size)
+             CALL swap (row_offset, col_offset)
+             block_tr = .NOT. block_tr
+          ENDIF
+          !!@@@
+          !!write(*,*)routineN//" blk row,col", block_row, block_col
+          !!write(*,*)routineN//" cls row,col",&
+          !!     cluster_row, cluster_col, cluster_found, row_offset, col_offset,&
+          !!     cluster_row_size, cluster_col_size, cluster_tr, mirrored
+          !!@@@
+          !write(*,'(A,4(1X,I5),2(1X,L1))')"Block row, col -> cluster row, col, m, f",&
+          !     block_row, block_col, cluster_row, cluster_col, mirrored, cluster_found
+          !write(*,'(A,6(1X,I5),1X,L1)')"Block, cluster row, col size, offsets, tr",&
+          !     block_row_size, block_col_size,&
+          !     cluster_row_size, cluster_col_size,&
+          !     row_offset, col_offset,&
+          !     cluster_tr
+          !call dbcsr_print2dmat (block_data%d%r2_dp)
+          CALL dbcsr_block_partial_copy(&
+               dst=cluster_data, dst_tr=cluster_tr,&
+               dst_rs=cluster_row_size, dst_cs=cluster_col_size,&
+               dst_r_lb=row_offset, dst_c_lb=col_offset,&
+               src=block_data, src_rs=block_row_size, src_cs=block_col_size,&
+               src_tr=block_tr, src_r_lb=1, src_c_lb=1,&
+               nrow=block_row_size, ncol=block_col_size)
+          !call dbcsr_print2dmat (cluster_data%d%r2_dp)
+       ENDDO
+       IF (.NOT. cluster_found) THEN
+          cluster_tr = .FALSE.
+          CALL dbcsr_put_block (clustered_matrix%matrix,&
+               cluster_row, cluster_col, cluster_data, cluster_tr)
+       ENDIF
+    ENDDO block_iteration
+    CALL dbcsr_iterator_stop (block_iter)
+    CALL cp_dbcsr_release (predistributed, error=error)
+    CALL dbcsr_data_clear_pointer (block_data)
+    CALL dbcsr_data_clear_pointer (cluster_data)
+    CALL dbcsr_data_release (block_data)
+    CALL dbcsr_data_release (cluster_data)
+    CALL dbcsr_data_release (buffer_data)
+    CALL dbcsr_finalize (clustered_matrix%matrix, error=dbcsr_error)
+    ! Can't use this because blocks are not in the same positions.
+    !!!call cp_dbcsr_complete_redistribute (matrix, clustered_matrix, error=error)
+    !@@@
+    !!write(*,*)routineN//" sizesO",&
+    !!     dbcsr_get_data_size_referenced (matrix%matrix),&
+    !!     dbcsr_get_data_size(matrix%matrix), cp_dbcsr_get_occupation (matrix)
+    !!write(*,*)routineN//" sizesN",&
+    !!     dbcsr_get_data_size_referenced (clustered_matrix%matrix),&
+    !!     dbcsr_get_data_size(clustered_matrix%matrix),&
+    !!     cp_dbcsr_get_occupation (clustered_matrix)
+    !!!a = REAL(dbcsr_get_data_size_referenced (matrix%matrix), KIND=dp)
+    !!!b = REAL(dbcsr_get_data_size_referenced (clustered_matrix%matrix), KIND=dp)
+    !!a = cp_dbcsr_get_occupation (matrix)
+    !!b = cp_dbcsr_get_occupation (clustered_matrix)
+    !!if (a .gt. 0.0001) THEN
+    !!   size_inflation = (b-a)/a
+    !!else
+    !!   size_inflation = 0.0_dp
+    !!endif
+    !!write(*,'(1X,A,3(1X,F9.3))')routineN//" Inflation", size_inflation, a, b
+    !call cp_dbcsr_print (matrix, nodata=.true., error=error)
+    !call cp_dbcsr_print (clustered_matrix, nodata=.true., error=error)
+    CALL timestop (timing_handle)
+  END SUBROUTINE cp_dbcsr_docluster
+
 
 END MODULE cp_dbcsr_interface

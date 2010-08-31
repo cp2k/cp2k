@@ -23,10 +23,12 @@ MODULE cluster_methods
                                              clustering_small_on_larger
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE mathconstants,                   ONLY: radians
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -46,6 +48,7 @@ MODULE cluster_methods
   PUBLIC :: cluster_allocate, cluster_deallocate
   PUBLIC :: clustering_particles
   PUBLIC :: cluster_part2cluster, cluster_member_particles
+  PUBLIC :: cluster_get_nparticles, cluster_get_nclusters
 
 CONTAINS
 
@@ -157,6 +160,7 @@ CONTAINS
           DO i = box_p(ibox,jbox,kbox),box_p(ibox+1,jbox,kbox)-1
              nparticles = nparticles + 1
              clusters%particle_idx(nparticles) = part_i(i)
+             clusters%particle_to_cluster(part_i(i)) = nclusters
           ENDDO
           nclusters = nclusters + 1
           clusters%cluster_ptr(nclusters) = clusters%cluster_ptr(nclusters-1) + npart
@@ -252,6 +256,7 @@ CONTAINS
           n_part = 1
           nparticles = nparticles + 1
           particle_idx(nparticles) = ipart
+          clusters%particle_to_cluster(ipart) = nclusters
           !
           ! find the hydrogen atoms that are not clustered yet
           DO nbox = MAX(kbox-1,0),MIN(kbox+1,nnbox(3)-1)
@@ -271,6 +276,7 @@ CONTAINS
                    n_part = n_part + 1
                    nparticles = nparticles + 1
                    particle_idx(nparticles) = jpart
+                   clusters%particle_to_cluster(jpart) = nclusters
                 ENDIF
              ENDDO
           ENDDO !lbox
@@ -306,6 +312,7 @@ CONTAINS
              clustered(ipart) = -1
              nparticles = nparticles + 1
              particle_idx(nparticles) = ipart
+             clusters%particle_to_cluster(ipart) = nclusters
           ENDDO
           !
           ! increment the cluster if found any particles
@@ -366,6 +373,7 @@ CONTAINS
           DO i = box_p(ibox,jbox,kbox),box_p(ibox+1,jbox,kbox)-1
              nparticles = nparticles + 1
              clusters%particle_idx(nparticles) = part_i(i)
+             clusters%particle_to_cluster(part_i(i)) = nclusters
              nclusters = nclusters + 1
              clusters%cluster_ptr(nclusters) = clusters%cluster_ptr(nclusters-1) + 1
           ENDDO
@@ -633,6 +641,9 @@ CONTAINS
     clusters%nparticles = nparticles
     ALLOCATE(clusters%cluster_ptr(nclusters+1), clusters%particle_idx(nparticles),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (clusters%particle_to_cluster(nparticles), STAT=istat)
+    IF (istat /= 0) CALL stop_memory (routineN, moduleN, __LINE__,&
+         "clusters%particle_to_clusteR", int_size*nparticles)
   END SUBROUTINE cluster_allocate
 
   SUBROUTINE cluster_deallocate(clusters, error)
@@ -649,6 +660,8 @@ CONTAINS
 
     DEALLOCATE(clusters%cluster_ptr, clusters%particle_idx,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(clusters%particle_to_cluster, STAT=istat)
+    IF (istat /= 0) CALL stop_memory (routineP, "cluster%particle_to_cluster")
   END SUBROUTINE cluster_deallocate
 
   SUBROUTINE cluster_check(clusters, error)
@@ -765,7 +778,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cluster_part2cluster', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
     IF (careful_mod) THEN
+       CALL timeset (routineN, handle)
        CALL cp_assert (ASSOCIATED (clusters%particle_to_cluster),&
             cp_fatal_level, cp_caller_error, routineN,&
             "Clusters not setup.", error=error)
@@ -779,9 +795,15 @@ CONTAINS
     ENDIF
     cluster = clusters%particle_to_cluster(particle)
     IF (careful_mod) THEN
-       CALL cp_assert (cluster .LE. clusters%nclusters, cp_warning_level,&
-            cp_internal_error, routineN, "Obtained cluster nonexistent.",&
+       CALL cp_assert (cluster .GE. 1, cp_warning_level,&
+            cp_internal_error, routineN,&
+            "Obtained cluster nonexistent, too small.",&
             error=error)
+       CALL cp_assert (cluster .LE. clusters%nclusters, cp_warning_level,&
+            cp_internal_error, routineN,&
+            "Obtained cluster nonexistent, too large.",&
+            error=error)
+       CALL timestop (handle)
     ENDIF
   END FUNCTION cluster_part2cluster
 
@@ -794,7 +816,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cluster_member_particles', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
     IF (careful_mod) THEN
+       CALL timeset (routineN, handle)
        CALL cp_assert (ASSOCIATED (clusters%cluster_ptr), cp_fatal_level,&
             cp_caller_error, routineN, "Clusters not setup.", error=error)
        CALL cp_assert (ASSOCIATED (clusters%particle_idx), cp_fatal_level,&
@@ -813,8 +838,23 @@ CONTAINS
        CALL cp_assert (cluster .LE. clusters%nclusters, cp_warning_level,&
             cp_internal_error, routineN, "Obtained cluster nonexistent.",&
             error=error)
+       CALL timestop (handle)
     ENDIF
   END FUNCTION cluster_member_particles
+
+  FUNCTION cluster_get_nparticles (cluster) RESULT (nparticles)
+    TYPE(cluster_type), INTENT(in)           :: cluster
+    INTEGER                                  :: nparticles
+
+    nparticles = cluster%nparticles
+  END FUNCTION cluster_get_nparticles
+
+  FUNCTION cluster_get_nclusters (cluster) RESULT (nclusters)
+    TYPE(cluster_type), INTENT(in)           :: cluster
+    INTEGER                                  :: nclusters
+
+    nclusters = cluster%nclusters
+  END FUNCTION cluster_get_nclusters
 
 
 END MODULE cluster_methods

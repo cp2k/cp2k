@@ -647,7 +647,7 @@ CONTAINS
             col_blk_size_right_in)
        CALL cp_dbcsr_init(in, error)
        CALL cp_dbcsr_create(in, "D", dist_right_in, dbcsr_type_normal, &
-            matrix%matrix%m%row_blk_size, col_blk_size_right_in,&
+            cp_dbcsr_row_block_sizes(matrix), col_blk_size_right_in,&
             0, 0, error=error)
        CALL cp_dbcsr_finalize(in, error=error)
 
