@@ -18,8 +18,9 @@ MODULE qs_ot_scf
        cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
        cp_dbcsr_finalize, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
        cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
-       cp_dbcsr_set_diag, cp_dbcsr_trace
+       cp_dbcsr_replicate, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_set_diag, &
+       cp_dbcsr_trace
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
                                              cp_dbcsr_type
@@ -296,6 +297,11 @@ CONTAINS
 
     ! notice we use qs_ot_env(1) for driving all output and the minimization in case of LSD
     qs_ot_env(1)%etotal=energy+ener_nondiag
+
+    IF ( PRESENT ( fscp ) ) CALL cp_dbcsr_replicate (fscp, restrict_source=0, replicate_rows=.TRUE., &
+                            replicate_columns=.TRUE., error=error )
+    IF ( PRESENT ( pscp ) ) CALL cp_dbcsr_replicate (pscp, restrict_source=0, replicate_rows=.TRUE., &
+                            replicate_columns=.TRUE., error=error )
 
     CALL ot_mini(qs_ot_env,matrix_dedc_scaled,aux_coeff_set,pscp,fscp,error=error)
 

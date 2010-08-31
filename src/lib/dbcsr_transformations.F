@@ -116,7 +116,7 @@ MODULE dbcsr_transformations
             dbcsr_new_transposed,&
             dbcsr_complete_redistribute,&
             dbcsr_redistribute, dbcsr_make_untransposed_blocks
-  PUBLIC :: dbcsr_replicate_all, dbcsr_distribute
+  PUBLIC :: dbcsr_replicate_all, dbcsr_distribute, dbcsr_replicate
   PUBLIC :: dbcsr_make_dense, dbcsr_make_undense, dbcsr_make_images_dense
   PUBLIC :: dbcsr_make_images
 

@@ -84,6 +84,7 @@ MODULE cp_dbcsr_interface
                                              dbcsr_distribute,&
                                              dbcsr_new_transposed,&
                                              dbcsr_redistribute,&
+                                             dbcsr_replicate,&
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: dbcsr_2d_array_type,&
                                              dbcsr_block_buffer_obj,&
@@ -148,6 +149,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_release_p
   PUBLIC :: cp_dbcsr_distribute
   PUBLIC :: cp_dbcsr_replicate_all
+  PUBLIC :: cp_dbcsr_replicate
   PUBLIC :: cp_dbcsr_norm
   PUBLIC :: cp_dbcsr_get_info
   PUBLIC :: cp_dbcsr_get_block
@@ -1561,6 +1563,24 @@ CONTAINS
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_replicate_all(matrix%matrix, dbcsr_error)
   END SUBROUTINE cp_dbcsr_replicate_all
+
+  SUBROUTINE cp_dbcsr_replicate(matrix, replicate_rows, replicate_columns,&
+       restrict_source, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    LOGICAL, INTENT(IN)                      :: replicate_rows, &
+                                                replicate_columns
+    INTEGER, INTENT(IN), OPTIONAL            :: restrict_source
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_replicate', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL cluster_buffer_flush (matrix%buffers, error=error)
+    CALL dbcsr_replicate(matrix%matrix, replicate_rows, replicate_columns,&
+         restrict_source, dbcsr_error)
+  END SUBROUTINE cp_dbcsr_replicate
 
   SUBROUTINE cp_dbcsr_distribute(matrix, fast, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
