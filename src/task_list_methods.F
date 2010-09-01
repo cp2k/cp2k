@@ -2061,6 +2061,8 @@ END SUBROUTINE get_atom_pair
 SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      natoms, scatter, error, hmat )
 
+!$  USE omp_lib
+
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_grids
     TYPE(cp_dbcsr_type), POINTER             :: pmat
@@ -2077,16 +2079,20 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
     INTEGER                                  :: acol, arow, handle, i, j, k, &
                                                 l, nblkcols_total, &
                                                 nblkrows_total, ncol, nrow, &
-                                                stat
+                                                stat,nthread
     INTEGER(KIND=int_8)                      :: natom8, pair
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 recv_disps, recv_sizes, &
-                                                send_disps, send_sizes
+                                                send_disps, send_sizes, &
+                                                send_pair_count,recv_pair_count, &
+                                                send_pair_disps,recv_pair_disps
     LOGICAL                                  :: found, tr
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(realspace_grid_type), POINTER       :: rs
+
+!$  INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
 
   CALL timeset(routineN,handle)
 
@@ -2101,6 +2107,14 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
   ALLOCATE(recv_disps(rs%desc%group_size),STAT=stat)
   IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
+  ALLOCATE(send_pair_count(rs%desc%group_size),STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_pair_count",rs%desc%group_size)
+  ALLOCATE(recv_pair_count(rs%desc%group_size),STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_pair_count",rs%desc%group_size)
+  ALLOCATE(send_pair_disps(rs%desc%group_size),STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_pair_disps",rs%desc%group_size)
+  ALLOCATE(recv_pair_disps(rs%desc%group_size),STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_pair_disps",rs%desc%group_size)
 
   CALL cp_dbcsr_get_info (pmat, &
        nblkrows_total=nblkrows_total,&
@@ -2114,6 +2128,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   natom8=natoms
 
   send_sizes = 0
+  send_pair_count = 0
   DO i = 1, SIZE(atom_pair_send)
 
      ! proc we're sending this block to
@@ -2128,12 +2143,15 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      ncol = last_col(acol) - first_col(acol) + 1       
 
      send_sizes(k) = send_sizes(k) + nrow * ncol        
+     send_pair_count(k) = send_pair_count(k) + 1
 
   ENDDO
 
   send_disps = 0
+  send_pair_disps = 0
   DO i = 2, rs % desc % group_size
      send_disps(i) = send_disps(i-1) + send_sizes(i-1)
+     send_pair_disps(i) = send_pair_disps(i-1) + send_pair_count(i-1)
   ENDDO
 
   ALLOCATE(send_buf_r(SUM(send_sizes)),STAT=stat)
@@ -2141,11 +2159,16 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
 
   ! do packing
   send_sizes=0
-  DO i = 1, SIZE(atom_pair_send)
-
-     l = atom_pair_send(i) / natom8**2 + 1
-
-     pair = MOD(atom_pair_send(i),natom8**2)
+!$omp parallel do default(none), &
+!$omp             shared(rs,send_pair_count,send_pair_disps,natom8),&
+!$omp             shared(last_row,first_row,last_col,first_col),&
+!$omp             shared(pmat,send_buf_r,send_disps,send_sizes),&
+!$omp             shared(atom_pair_send),&
+!$omp             private(i,pair,arow,acol,nrow,ncol,p_block,tr),&
+!$omp             private(found,k,j)
+  DO l =1, rs%desc%group_size
+    DO i = 1, send_pair_count(l)
+     pair = MOD(atom_pair_send(send_pair_disps(l)+i),natom8**2)
 
      arow = pair / natom8 + 1
      acol = MOD(pair, natom8) + 1
@@ -2165,11 +2188,14 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
         ENDDO
      ENDDO
      send_sizes(l)=send_sizes(l)+nrow*ncol
+    ENDDO
   ENDDO
+!$omp end parallel do
 
   ! set up recv buffer
 
   recv_sizes = 0
+  recv_pair_count = 0
   DO i = 1, SIZE(atom_pair_recv)
 
      ! proc we're receiving this data from
@@ -2184,12 +2210,15 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      ncol = last_col(acol) - first_col(acol) + 1       
 
      recv_sizes(k) = recv_sizes(k) + nrow * ncol        
+     recv_pair_count(k) = recv_pair_count(k) + 1
 
   ENDDO
 
   recv_disps = 0     
+  recv_pair_disps = 0
   DO i = 2, rs % desc % group_size
      recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
+     recv_pair_disps(i) = recv_pair_disps(i-1) + recv_pair_count(i-1)
   ENDDO
 
   ALLOCATE(recv_buf_r(SUM(recv_sizes)),STAT=stat)
@@ -2199,15 +2228,38 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   CALL mp_alltoall(send_buf_r, send_sizes, send_disps,&
        recv_buf_r, recv_sizes, recv_disps, rs % desc % group)
 
+  recv_sizes=0
+
+!$omp parallel default(none),&
+!$omp          shared(pmat,atom_pair_recv,recv_buf_r,rs,recv_pair_count),&
+!$omp          shared(recv_pair_disps,natom8,last_row,first_row),&
+!$omp          shared(last_col, first_col,hmat,scatter,recv_sizes),&
+!$omp          shared(recv_disps,locks,nblkrows_total),&
+!$omp          private(error,i,pair,arow,acol,nrow,ncol,p_block),&
+!$omp          private(tr,found,h_block,j,k,nthread)
+  nthread = 1
+!$ nthread = omp_get_num_threads()
+
   CALL cp_dbcsr_work_create(pmat,work_mutable=.TRUE.,&
-      nblks_guess=SIZE(atom_pair_recv),sizedata_guess=SIZE(recv_buf_r),&
-      error=error)
+      nblks_guess=SIZE(atom_pair_recv)/nthread,sizedata_guess=SIZE(recv_buf_r)/nthread,&
+      n=nthread,error=error)
 
   !do unpacking
-  recv_sizes=0
-  DO i = 1, SIZE(atom_pair_recv)
-     l = atom_pair_recv(i) / natom8**2 + 1
-     pair = MOD(atom_pair_recv(i),natom8**2)
+!$omp single
+!$  ALLOCATE(locks(nthread*10))
+!$omp end single
+
+!$omp do
+!$  do i=1,nthread*10
+!$    call omp_init_lock(locks(i))
+!$  end do
+!$omp end do
+
+  !do unpacking
+!$omp do
+  DO l = 1, rs%desc%group_size
+    DO i = 1, recv_pair_count(l)
+     pair = MOD(atom_pair_recv(recv_pair_disps(l)+i),natom8**2)
 
      arow = pair / natom8 + 1
      acol = MOD(pair, natom8) + 1
@@ -2236,17 +2288,32 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
         ENDIF
      ENDIF
 
-     DO k = 1, ncol
-        DO j = 1, nrow
-           IF (.NOT. scatter ) THEN
+!$  call omp_set_lock(locks(arow*nthread*10/nblkrows_total))
+     IF (.NOT. scatter ) THEN
+        DO k = 1, ncol
+           DO j = 1, nrow
               h_block(j,k) = h_block(j,k) + recv_buf_r( recv_disps(l) + recv_sizes(l)+ j + (k-1)*nrow )
-           ENDIF
+           ENDDO
         ENDDO
-     ENDDO
+     ENDIF
+!$  call omp_unset_lock(locks(arow*nthread*10/nblkrows_total))
      recv_sizes(l)=recv_sizes(l)+nrow*ncol
+    ENDDO
   ENDDO
+!$omp end do
+
+!$omp do
+!$  do i=1,nthread*10
+!$    call omp_destroy_lock(locks(i))
+!$  end do
+!$omp end do
 
   CALL cp_dbcsr_finalize(pmat, error=error)
+!$omp end parallel
+
+
+!$  DEALLOCATE(locks,STAT=stat)
+!$  IF (stat/=0) CALL stop_memory("get_my_tasks","locks")
 
   DEALLOCATE(send_buf_r,STAT=stat)
   IF (stat/=0) CALL stop_memory("get_my_tasks","send_buf_r",rs%desc%group_size)
@@ -2261,11 +2328,18 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
   IF (stat/=0) CALL stop_memory("get_my_tasks","send_disps",rs%desc%group_size)
   DEALLOCATE(recv_disps,STAT=stat)
   IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%desc%group_size)
+  DEALLOCATE(send_pair_count,STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_pair_count",rs%desc%group_size)
+  DEALLOCATE(recv_pair_count,STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_pair_count",rs%desc%group_size)
+  DEALLOCATE(send_pair_disps,STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","send_pair_disps",rs%desc%group_size)
+  DEALLOCATE(recv_pair_disps,STAT=stat)
+  IF (stat/=0) CALL stop_memory("get_my_tasks","recv_pair_disps",rs%desc%group_size)
 
   DEALLOCATE (first_row, last_row, first_col, last_col)
-
   CALL timestop(handle)
-  
+
 END SUBROUTINE distribute_matrix
 
 ! *****************************************************************************
