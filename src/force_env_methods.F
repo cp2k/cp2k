@@ -473,13 +473,6 @@ CONTAINS
           END IF
        END IF
 
-       ! Write numerical stress tensor
-       !IF (output_unit > 0) THEN
-       !   CALL section_vals_val_get(force_env%force_env_section,"PRINT%STRESS_TENSOR%NDIGITS",&
-       !                             i_val=ndigits,error=error)
-       !   CALL write_stress_tensor(virial%pv_virial,output_unit,cell,ndigits,numerical=.TRUE.)
-       !END IF
-
        IF (output_unit > 0) THEN
           WRITE (output_unit,'(/,A,/)') ' **************************** '//&
             'NUMERICAL STRESS END *****************************'
