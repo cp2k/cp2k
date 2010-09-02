@@ -76,6 +76,7 @@ MODULE dbcsr_internal_operations
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
                                              dbcsr_work_create
+  USE dbcsr_plasma_interface, ONLY: dbcsr_plasma_init, dbcsr_plasma_finalize
 
   !$ USE OMP_LIB
 
@@ -151,13 +152,13 @@ CONTAINS
 !> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_mult_m_e_e (left_set, right_set, product_matrix,&
-       submatrix_selection, error, retain_sparsity, alpha, beta, flop)
+       submatrix_selection, error, retain_sparsity, use_plasma, alpha, beta, flop)
     TYPE(dbcsr_2d_array_type), &
       INTENT(INOUT), TARGET                  :: left_set, right_set
     TYPE(dbcsr_obj), INTENT(INOUT)           :: product_matrix
     INTEGER, DIMENSION(6), INTENT(IN)        :: submatrix_selection
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity, use_plasma
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha, beta
     INTEGER(KIND=int_8), INTENT(OUT), &
@@ -208,6 +209,7 @@ CONTAINS
                                                 right_index_rp, right_index_sp
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
                                                 right_pgrid
+    LOGICAL                                  :: my_use_plasma
     REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
                                                 trun, trun_t, tstart, tstop
     TYPE(dbcsr_2d_array_type), POINTER       :: left_buffer_calc, &
@@ -232,15 +234,18 @@ CONTAINS
                                                 right_recv_subtypes, &
                                                 right_send_subtypes
 
-!TYPE(cp_logger_type), POINTER            :: logger
-
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
     t_all = 0.0_dp
     t_dgemm = 0.0_dp
-!$omp parallel default (none) &
+
+    my_use_plasma = .FALSE.
+    IF(PRESENT(use_plasma)) my_use_plasma = use_plasma
+
+!$omp parallel if( .NOT. my_use_plasma ) &
+!$omp default (none) &
 !$omp shared (nthreads, product_matrix, error)
 !$omp single
     nthreads = 1
@@ -249,9 +254,9 @@ CONTAINS
     CALL dbcsr_work_create(product_matrix,&
          work_mutable=.FALSE., n=nthreads, error=error)
 !$omp end parallel
-    !logger => cp_error_get_logger (error)
+
+
     output_unit = default_output_unit
-    !cp_logger_get_default_io_unit (logger)
     tstart = 0.0_dp ; tstop = 0.0_dp ; trun = 0.0_dp
     t_dgemm = 0.0_dp ; t_all = 0.0_dp
     flop_total = 0
@@ -886,20 +891,24 @@ CONTAINS
              ENDIF
              tstart = m_walltime ()
              flop_single = 0
-!$omp parallel default (none) &
+!$omp parallel if( .NOT. my_use_plasma ) &
+!$omp default (none) &
 !$omp shared (left_buffer_calc, right_buffer_calc, &
 !$omp         v_ki, &
 !$omp         product_matrix, submatrix_selection, &
-!$omp         retain_sparsity, alpha, error) &
+!$omp         retain_sparsity, alpha, use_plasma, error) &
 !$omp reduction (+: flop_single, t_all, t_dgemm)
+
              CALL dbcsr_nn_mult_lin(&
                   left_buffer_calc%mats(1, v_ki+1)%m,&
                   right_buffer_calc%mats(v_ki+1, 1)%m,&
                   product_matrix%m, submatrix_box=submatrix_selection,&
                   retain_sparsity=retain_sparsity,&
+                  use_plasma=use_plasma,&
                   alpha=alpha,&
                   flop=flop_single,&
                   t_all=t_all, t_dgemm=t_dgemm, error=error)
+
 !$omp end parallel
              flop_total = flop_total + flop_single
              tstop = m_walltime ()
@@ -1013,8 +1022,6 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE setup_buffer_matrices
 
-
-
 ! *****************************************************************************
 !> \brief Multiplies two DBCSR matrices, using the current local data.
 !>
@@ -1030,14 +1037,14 @@ CONTAINS
 !>                            floating point operations performed
 ! *****************************************************************************
   SUBROUTINE dbcsr_nn_mult_lin(left, right, product, submatrix_box, flop,&
-       retain_sparsity, alpha,&
+       retain_sparsity, use_plasma, alpha,&
        t_all, t_dgemm, error)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     INTEGER, DIMENSION(6), INTENT(in)        :: submatrix_box
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
-    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity, use_plasma
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha
     REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
@@ -1430,6 +1437,7 @@ CONTAINS
                      left%data_area, right%data_area,&
                      product%wms(ithread+1)%data_area,&
                      !lflop=one_flop,ltime=one_time,error=error)
+                     use_plasma=use_plasma,&
                      lflop=one_flop,error=error)
                 !mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
                 mt_t_dgemm = mt_t_dgemm + one_time
@@ -1466,6 +1474,7 @@ CONTAINS
                   left%data_area, right%data_area,&
                   product%wms(ithread+1)%data_area,&
                   !lflop=one_flop,ltime=one_time,error=error)
+                  use_plasma=use_plasma,&
                   lflop=one_flop,error=error)
              mt_t_dgemm = mt_t_dgemm + one_time
              stack_p = 0
@@ -1492,6 +1501,7 @@ CONTAINS
             left%data_area, right%data_area,&
             product%wms(ithread+1)%data_area,&
             !lflop=one_flop,ltime=one_time,error=error)
+            use_plasma=use_plasma,&
             lflop=one_flop,error=error)
        !mt_t_dgemm = mt_t_dgemm + (m_walltime() - epoch)
        mt_t_dgemm = mt_t_dgemm + one_time
@@ -1664,7 +1674,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE process_dgemm_stack(params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
-       left_data_area, right_data_area, product_data_area, lflop, ltime, error)
+       left_data_area, right_data_area, product_data_area, use_plasma,&
+       lflop, ltime, error)
     INTEGER, INTENT(INOUT)                   :: stack_size, stack_size_c, &
                                                 stack_size_b, stack_size_a
     TYPE(dgemm_join), &
@@ -1678,6 +1689,7 @@ CONTAINS
     TYPE(dbcsr_data_obj), INTENT(IN)         :: left_data_area, &
                                                 right_data_area
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: product_data_area
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_plasma
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: lflop
     REAL(KIND=real_8), INTENT(OUT), OPTIONAL :: ltime
@@ -1702,22 +1714,22 @@ CONTAINS
        CALL process_dgemm_stack_s (params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
        left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area,&
-       lflop=lflop, ltime=ltime, error=error)
+       use_plasma=use_plasma, lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_real_8)
        CALL process_dgemm_stack_d (params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
        left_data_area%d%r_dp, right_data_area%d%r_dp, product_data_area,&
-       lflop=lflop, ltime=ltime, error=error)
+       use_plasma=use_plasma, lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_complex_4)
        CALL process_dgemm_stack_c (params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
        left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area,&
-       lflop=lflop, ltime=ltime, error=error)
+       use_plasma=use_plasma, lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_complex_8)
        CALL process_dgemm_stack_z (params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
        left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area,&
-       lflop=lflop, ltime=ltime, error=error)
+       use_plasma=use_plasma, lflop=lflop, ltime=ltime, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Invalid data type",__LINE__,error)
@@ -1864,6 +1876,20 @@ CONTAINS
     ENDIF
   END FUNCTION blas_mat_type
 
+#ifdef __PLASMA
+  ELEMENTAL FUNCTION plasma_mat_type (t)
+    LOGICAL, INTENT(IN)                      :: t
+    INTEGER                                  :: plasma_mat_type
+
+    INCLUDE 'plasmaf.h'
+
+    IF (t) THEN
+       plasma_mat_type = PlasmaTrans
+    ELSE
+       plasma_mat_type = PlasmaNoTrans
+    ENDIF
+  END FUNCTION plasma_mat_type
+#endif
 
   ELEMENTAL FUNCTION flip_type (t)
     CHARACTER, INTENT(IN)                    :: t

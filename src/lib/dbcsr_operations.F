@@ -87,6 +87,8 @@ MODULE dbcsr_operations
        dbcsr_switch_data_area, dbcsr_valid_index
   USE dbcsr_mp_operations,             ONLY: dbcsr_recv_any,&
                                              dbcsr_send_any
+  USE dbcsr_plasma_interface,          ONLY: dbcsr_plasma_finalize,&
+                                             dbcsr_plasma_init
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
                                              pointer_view
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
@@ -340,8 +342,8 @@ CONTAINS
                                                 f_row, i, l_col, l_k, l_row
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, left_set_given, &
-      new_left, new_right, product_reindex, release_tdist, right_set_given, &
-      use_dense_mult
+      new_left, new_right, plasma_is_set, product_reindex, release_tdist, &
+      right_set_given, use_dense_mult, use_plasma
     REAL(KIND=dp)                            :: cs
     TYPE(array_i1d_obj) :: old_product_col_blk_offsets, &
       old_product_col_blk_sizes, old_product_row_blk_offsets, &
@@ -571,6 +573,16 @@ CONTAINS
        CALL dbcsr_distribution_hold (old_product_distribution)
        CALL dbcsr_make_dense (product_matrix, error=error)
     ENDIF
+
+    !
+    ! if we need a scpecial core gemm, we set it here
+    !
+    ! initialize plasma
+    CALL dbcsr_plasma_init(plasma_is_set, error)
+    use_plasma = plasma_is_set.AND.use_dense_mult
+
+    !
+    !
     ! The thread distribution must reflect the current (possibly
     ! dense) distribution
     !CALL dbcsr_assert (dbcsr_distribution_has_threads(product_matrix%m%dist),&
@@ -601,7 +613,8 @@ CONTAINS
        CALL dbcsr_assert (.NOT. ASSOCIATED (product_matrix%m%wms),&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Product matrix should be finalized!", __LINE__, error=error)
-!$omp parallel default (none) shared (product_matrix, i, error)
+!$omp parallel if( .NOT. use_plasma ) &
+!$omp default (none) shared (product_matrix, i, error)
        ! For the multiply logic to work correctly, existing data must
        ! be added only after the index has been transformed into the
        ! canonical form.
@@ -709,7 +722,7 @@ CONTAINS
     CALL dbcsr_mult_m_e_e (m2s_left, m2s_right, product_matrix,&
          (/ f_row, l_row, f_col, l_col, f_k, l_k /),&
          alpha=alpha, beta=beta, retain_sparsity=retain_sparsity,&
-         error=error, flop=my_flop)
+         use_plasma=use_plasma, error=error, flop=my_flop)
     IF (PRESENT (flop)) flop = my_flop
     !
     IF (new_left) CALL dbcsr_release (matrix_left)
@@ -766,6 +779,11 @@ CONTAINS
        cs = dbcsr_checksum (matrix_c, error=error)
        WRITE(*,*)routineN//" Product checksum", cs
     ENDIF
+
+    !
+    ! finalize special core gemm
+    CALL dbcsr_plasma_finalize(error)
+
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_multiply_anytype
   

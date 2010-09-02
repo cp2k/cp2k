@@ -1155,9 +1155,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_threads', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: first, ithread, last, nlrows, &
-                                                nrows, nthreads, rpt, &
-                                                size_local, size_sum, t
+    INTEGER                                  :: ithread, nlrows, nrows, &
+                                                nthreads, t
     INTEGER, DIMENSION(:), POINTER           :: lrows, td
     TYPE(dbcsr_error_type)                   :: error
 
@@ -1177,47 +1176,12 @@ CONTAINS
     CALL array_release (dist%d%thread_dist)
     ALLOCATE (td(nrows))
     CALL array_new (dist%d%thread_dist, td, gift=.TRUE.)
-!$OMP END SINGLE
+
     td => array_data (dist%d%thread_dist)
-    rpt = CEILING (REAL(nrows) / REAL(nthreads))
-    t = ithread
-    first = MIN (t*rpt+1, nrows)
-    last = MIN ((t+1)*rpt, nrows)
-    IF(first.GE.1.AND.last.LE.nrows) THEN
-       td(first:last) = t
-    ENDIF
-!$OMP BARRIER
-    ! Calculate row distribution
-    IF (PRESENT (row_sizes)) THEN
-       size_local = 0
-       DO t = 1, nlrows
-          size_local = size_local + row_sizes(lrows(t))
-       END DO
-       rpt = CEILING (REAL(size_local) / REAL(nthreads))
-       first = MIN (ithread*rpt, nlrows)
-       last = MIN ((ithread+1)*rpt, nlrows)
-       size_sum = 0
-       DO t = 1, nlrows
-          IF (size_sum .GE. first .AND. size_sum .LT. last) THEN
-             td(lrows(t)) = ithread
-          ELSEIF (size_sum .GE. size_local) THEN
-             td(lrows(t)) = nthreads-1
-          ENDIF
-          size_sum = size_sum + row_sizes(lrows(t))
-          IF (size_sum .LT. last) EXIT
-       ENDDO
-    ELSE
-       size_local = nlrows
-       rpt = CEILING (REAL(nlrows) / REAL(nthreads))
-       first = MIN (ithread*rpt+1, nlrows)
-       last = MIN ((ithread+1)*rpt, nlrows)
-       IF(first.GE.1.AND.last.LE.nlrows) THEN
-          FORALL (t = first:last)
-             td(lrows(t)) = ithread
-          END FORALL
-       ENDIF
-    ENDIF
-!$OMP BARRIER
+    FORALL (t = 1:nrows)
+       td(t) = MOD(t-1, nthreads)
+    END FORALL
+!$OMP END SINGLE
   END SUBROUTINE make_threads
 
 
