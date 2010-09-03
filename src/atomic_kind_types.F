@@ -384,7 +384,7 @@ CONTAINS
        aux_basis_set, aux_fit_basis_set, orb_basis_set, geminal_basis_set, &
        element_symbol, name, mass, kind_number, natom, atom_list, &
        alpha_core_charge, ccore_charge, core_charge, alpha_scp, I_scp, &
-       core_charge_radius, ncgf, nsgf, rcov, z, zeff, qeff, apol, mm_radius, &
+       core_charge_radius, ncgf, nsgf, rcov, z, zeff, qeff, apol, cpol, mm_radius, &
        soft_basis_set, elec_conf, hard_basis_set, paw_proj_set, softb, &
        paw_atom,qm_atom, hard_radius, hard0_radius, max_rad_local, &
        gpw_type_forced, harmonics, max_iso_not0, max_s_harm, grid_atom, &
@@ -425,7 +425,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcov
     INTEGER, INTENT(OUT), OPTIONAL           :: z
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff, apol, mm_radius
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff, apol, cpol, mm_radius
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: soft_basis_set
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
@@ -664,6 +664,13 @@ CONTAINS
              CALL get_potential(potential=atomic_kind%fist_potential,apol=apol)
           ELSE
              apol = -HUGE(0.0_dp)
+          END IF
+       END IF
+       IF (PRESENT(cpol)) THEN
+          IF (ASSOCIATED(atomic_kind%fist_potential)) THEN
+             CALL get_potential(potential=atomic_kind%fist_potential,cpol=cpol)
+          ELSE
+             cpol = -HUGE(0.0_dp)
           END IF
        END IF
        IF (PRESENT(mm_radius)) THEN

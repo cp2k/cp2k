@@ -2189,7 +2189,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: kind_name
     INTEGER                                  :: handle, i, j
     LOGICAL                                  :: found
-    REAL(KIND=dp)                            :: apol
+    REAL(KIND=dp)                            :: apol, cpol
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_potential_type), POINTER       :: fist_potential
 
@@ -2200,7 +2200,7 @@ CPSourceFileRef,&
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             fist_potential=fist_potential,&
                             name=kind_name)
-       CALL get_potential(potential=fist_potential, apol=apol)
+       CALL get_potential(potential=fist_potential, apol=apol, cpol=cpol)
        CALL uppercase(kind_name)
        found = .FALSE.
 
@@ -2217,7 +2217,19 @@ CPSourceFileRef,&
           END DO
        END IF
 
-       CALL set_potential(potential=fist_potential, apol=apol)
+       IF(ASSOCIATED(inp_info%cpol_atm)) THEN
+          DO j=1,SIZE(inp_info%cpol_atm)
+             IF (iw>0) WRITE(iw,*) "Matching kinds for CPOL :: '", &
+                TRIM(kind_name), "' with '", TRIM(inp_info%cpol_atm(j)), "'"
+             IF((inp_info%cpol_atm(j))==kind_name) THEN
+                cpol = inp_info%cpol(j)
+                CALL issue_duplications(found,routineP, "CPOL", kind_name, error=error)
+                found = .TRUE.
+             END IF
+          END DO
+       END IF
+
+       CALL set_potential(potential=fist_potential, apol=apol, cpol=cpol)
     END DO
     CALL timestop(handle)
   END SUBROUTINE force_field_pack_pol

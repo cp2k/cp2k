@@ -91,7 +91,7 @@ MODULE external_potential_types
      CHARACTER(LEN=default_string_length)     :: name
      CHARACTER(LEN=default_string_length),&
           DIMENSION(1)                        :: description
-     REAL(KIND = dp)                          :: apol, mm_radius, qeff, &
+     REAL(KIND = dp)                          :: apol, cpol,  mm_radius, qeff, &
                                                  qmmm_corr_radius, qmmm_radius
 
   END TYPE fist_potential_type
@@ -282,6 +282,7 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     potential%apol = 0.0_dp
+    potential%cpol = 0.0_dp
     potential%mm_radius = 0.0_dp
     potential%qeff = 0.0_dp
     potential%qmmm_radius = 0.0_dp
@@ -571,12 +572,12 @@ CONTAINS
 !> \author  Toon.Verstraelen@UGent.be
 !> \date    05.03-2010
 ! *****************************************************************************
-  SUBROUTINE get_fist_potential(potential, name, apol, mm_radius, qeff, &
+  SUBROUTINE get_fist_potential(potential, name, apol, cpol, mm_radius, qeff, &
         qmmm_corr_radius, qmmm_radius)
     TYPE(fist_potential_type), POINTER       :: potential
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: apol, mm_radius, qeff, &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: apol,cpol, mm_radius, qeff, &
                                                 qmmm_corr_radius, qmmm_radius
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_potential', &
@@ -586,6 +587,7 @@ CONTAINS
 
        IF (PRESENT(name)) name = potential%name
        IF (PRESENT(apol)) apol = potential%apol
+       IF (PRESENT(cpol)) cpol = potential%cpol
        IF (PRESENT(mm_radius)) mm_radius = potential%mm_radius
        IF (PRESENT(qeff)) qeff = potential%qeff
        IF (PRESENT(qmmm_corr_radius)) qmmm_corr_radius = potential%qmmm_corr_radius
@@ -2036,12 +2038,12 @@ CONTAINS
 !> \author  Toon.Verstraelen@gmail.com
 !> \date    05.03.2010
 ! *****************************************************************************
-  SUBROUTINE set_fist_potential(potential, name, apol, qeff, mm_radius, &
+  SUBROUTINE set_fist_potential(potential, name, apol, cpol, qeff, mm_radius, &
         qmmm_corr_radius, qmmm_radius)
     TYPE(fist_potential_type), POINTER       :: potential
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: apol, qeff, mm_radius, &
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: apol, cpol, qeff, mm_radius, &
                                                 qmmm_corr_radius, qmmm_radius
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_potential', &
@@ -2050,6 +2052,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
 
        IF (PRESENT(apol)) potential%apol = apol
+       IF (PRESENT(cpol)) potential%cpol = cpol
        IF (PRESENT(mm_radius)) potential%mm_radius = mm_radius
        IF (PRESENT(qeff)) potential%qeff = qeff
        IF (PRESENT(qmmm_corr_radius)) potential%qmmm_corr_radius = qmmm_corr_radius

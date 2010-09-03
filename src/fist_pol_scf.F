@@ -130,14 +130,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_pol_evaluate_sc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, &
+    INTEGER :: ewald_type, handle, i, j, iatom, ii, ikind, iter, iw, iw2, &
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, iwarn
-    REAL(KIND=dp)                            :: apol, eps_pol, &
-                                                pot_nonbond_local, rmsd
+    REAL(KIND=dp)                            :: apol, cpol, eps_pol, &
+                                                pot_nonbond_local, rmsd, tmp_trace
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: efield1
+      DIMENSION(:, :)                        :: efield1, efield2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -157,6 +157,8 @@ CONTAINS
     natoms = SIZE ( particle_set )
     ALLOCATE (efield1(3,natoms), STAT=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (efield2(9,natoms), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     nkind = SIZE(atomic_kind_set)
     IF (iw>0) WRITE(iw,FMT='(/,T5,"POL_SCF|","Method: self-consistent")')
@@ -168,31 +170,70 @@ CONTAINS
             multipoles, do_correction_bonded=.TRUE., do_forces=.FALSE., &
             do_stress=.FALSE., do_efield=.TRUE., iw2=iw2, do_debug=.FALSE.,&
             atomic_kind_set=atomic_kind_set, mm_section=mm_section,&
-            efield1=efield1, error=error)
+            efield1=efield1, efield2=efield2, error=error)
        CALL mp_sum(pot_nonbond_local,logger%para_env%group)
 
-       ! compute the new dipoles and check for convergence
+       ! compute the new dipoles, qudrupoles, and check for convergence
        ntot = 0
        rmsd = 0.0_dp
        thermo%e_induction = 0.0_dp
        DO ikind = 1, nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind, apol=apol, natom=natom_of_kind, atom_list=atom_list)
-          ! ignore atoms with polarizability zero
-          IF ( apol == 0 ) CYCLE
-          ntot = ntot + natom_of_kind
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind, apol=apol, cpol=cpol, natom=natom_of_kind, atom_list=atom_list)
+          ! ignore atoms with dipole and quadrupole polarizability zero
+          IF ( apol == 0 .AND. cpol == 0 ) CYCLE
+          ! increment counter correctly
+          IF ( apol /= 0 ) ntot = ntot + natom_of_kind
+          IF ( cpol /= 0 ) ntot = ntot + natom_of_kind
+
           DO iatom = 1, natom_of_kind
              ii = atom_list(iatom)
-             DO i=1, 3
+             IF ( apol /= 0 ) THEN
+               DO i=1, 3
                 ! the rmsd of the derivatives of the energy towards the
                 ! components of the atomic dipole moments
-                rmsd = rmsd + (multipoles%dipoles(i,ii)/apol - efield1(i,ii))**2
-             END DO
+                 rmsd = rmsd + (multipoles%dipoles(i,ii)/apol - efield1(i,ii))**2
+               END DO
+             END IF
+             IF ( cpol /= 0 ) THEN
+                rmsd = rmsd + (multipoles%quadrupoles(1,1,ii)/cpol - efield2(1,ii))**2
+                rmsd = rmsd + (multipoles%quadrupoles(2,1,ii)/cpol - efield2(2,ii))**2
+                rmsd = rmsd + (multipoles%quadrupoles(3,1,ii)/cpol - efield2(3,ii))**2
+                rmsd = rmsd + (multipoles%quadrupoles(1,2,ii)/cpol - efield2(4,ii))**2
+                rmsd = rmsd + (multipoles%quadrupoles(2,2,ii)/cpol - efield2(5,ii))**2
+                rmsd = rmsd + (multipoles%quadrupoles(3,2,ii)/cpol - efield2(6,ii))**2
+                rmsd = rmsd + (multipoles%quadrupoles(1,3,ii)/cpol - efield2(7,ii))**2
+                rmsd = rmsd + (multipoles%quadrupoles(2,3,ii)/cpol - efield2(8,ii))**2
+                rmsd = rmsd + (multipoles%quadrupoles(3,3,ii)/cpol - efield2(9,ii))**2
+             END IF
+! compute dipole
              multipoles%dipoles(:,ii) = apol*efield1(:,ii)
-             ! Compute the new induction term while we are here
-             thermo%e_induction = thermo%e_induction + &
-                  DOT_PRODUCT(multipoles%dipoles(:,ii), &
-                              multipoles%dipoles(:,ii))/apol/2.0_dp
+! compute quadrupole
+             multipoles%quadrupoles(1,1,ii) = cpol*efield2(1,ii)
+             multipoles%quadrupoles(2,1,ii) = cpol*efield2(2,ii)
+             multipoles%quadrupoles(3,1,ii) = cpol*efield2(3,ii)
+             multipoles%quadrupoles(1,2,ii) = cpol*efield2(4,ii)
+             multipoles%quadrupoles(2,2,ii) = cpol*efield2(5,ii)
+             multipoles%quadrupoles(3,2,ii) = cpol*efield2(6,ii)
+             multipoles%quadrupoles(1,3,ii) = cpol*efield2(7,ii)
+             multipoles%quadrupoles(2,3,ii) = cpol*efield2(8,ii)
+             multipoles%quadrupoles(3,3,ii) = cpol*efield2(9,ii)
+        ! Compute the new induction term while we are here
+             IF ( apol /= 0 ) THEN
+               thermo%e_induction = thermo%e_induction + &
+                    DOT_PRODUCT(multipoles%dipoles(:,ii), &
+                                multipoles%dipoles(:,ii))/apol/2.0_dp
+             END IF
+             IF ( cpol /= 0 ) THEN
+               tmp_trace = 0._dp
+               DO i = 1, 3
+                 DO j = 1, 3
+                    tmp_trace = tmp_trace  + &
+                    multipoles%quadrupoles ( i, j, ii ) * multipoles%quadrupoles ( i, j, ii )
+                 END DO
+               END DO
+               thermo%e_induction = thermo%e_induction + tmp_trace/cpol/6.0_dp
+             END IF
           END DO
        END DO
        rmsd = SQRT (rmsd/REAL(ntot,KIND=dp))
@@ -233,6 +274,8 @@ CONTAINS
 
     ! Deallocate working arrays
     DEALLOCATE(efield1,stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(efield2,stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,&
          "PRINT%EWALD_INFO",error=error)
@@ -586,7 +629,7 @@ CONTAINS
   SUBROUTINE eval_pol_ewald(ewald_type, ewald_env, ewald_pw, fist_nonbond_env,&
        cell, particle_set, local_particles, vg_coulomb, pot_nonbond, thermo,&
        multipoles, do_correction_bonded, do_forces, do_stress, do_efield, iw2,&
-       do_debug, atomic_kind_set, mm_section, efield0, efield1, forces_local,&
+       do_debug, atomic_kind_set, mm_section, efield0, efield1, efield2, forces_local,&
        forces_glob, pv_local, pv_glob, error)
 
     INTEGER, INTENT(IN)                      :: ewald_type
@@ -609,7 +652,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: mm_section
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: efield0
-    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: efield1
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: efield1, efield2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: forces_local, forces_glob, &
                                                 pv_local, pv_glob
@@ -636,7 +679,8 @@ CONTAINS
             dipoles=multipoles%dipoles, quadrupoles=multipoles%quadrupoles,&
             forces_local=forces_local, forces_glob=forces_glob, pv_local=pv_local,&
             pv_glob=pv_glob, iw=iw2, do_debug=do_debug, atomic_kind_set=atomic_kind_set,&
-            mm_section=mm_section, efield0=efield0, efield1=efield1, error=error)
+            mm_section=mm_section, efield0=efield0, efield1=efield1, efield2=efield2, &
+           error=error)
     CASE(do_ewald_pme)
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="Multipole Ewald not yet implemented within a PME scheme!", &

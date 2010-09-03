@@ -93,6 +93,8 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: charge(:)
     CHARACTER (LEN=default_string_length), POINTER :: apol_atm(:)
     REAL(KIND=dp), POINTER                         :: apol(:)
+    CHARACTER (LEN=default_string_length), POINTER :: cpol_atm(:)
+    REAL(KIND=dp), POINTER                         :: cpol(:)
     INTEGER, POINTER                               :: bond_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
@@ -664,6 +666,8 @@ CONTAINS
     NULLIFY(inp_info%charge)
     NULLIFY(inp_info%apol_atm)
     NULLIFY(inp_info%apol)
+    NULLIFY(inp_info%cpol_atm)
+    NULLIFY(inp_info%cpol)
     NULLIFY(inp_info%bond_kind)
     NULLIFY(inp_info%bond_a)
     NULLIFY(inp_info%bond_b)
@@ -1138,6 +1142,14 @@ CONTAINS
     END IF
     IF(ASSOCIATED(inp_info%apol)) THEN
        DEALLOCATE(inp_info%apol,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%cpol_atm)) THEN
+       DEALLOCATE(inp_info%cpol_atm,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(inp_info%cpol)) THEN
+       DEALLOCATE(inp_info%cpol,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(inp_info%bond_kind)) THEN

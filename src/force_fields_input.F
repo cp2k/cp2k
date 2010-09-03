@@ -279,6 +279,14 @@ CPSourceFileRef,&
           CALL reallocate(inp_info%apol,1,nchg)
           CALL read_apol_section(inp_info%apol_atm,inp_info%apol,tmp_section,ntot,error)
        END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"QUADRUPOLE",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%cpol_atm,1,nchg)
+          CALL reallocate(inp_info%cpol,1,nchg)
+          CALL read_cpol_section(inp_info%cpol_atm,inp_info%cpol,tmp_section,ntot,error)
+       END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"SHELL",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nshell,error=error)
        IF (explicit) THEN
@@ -1081,6 +1089,36 @@ CPSourceFileRef,&
             error=error)
     END DO
   END SUBROUTINE read_apol_section
+
+! *****************************************************************************
+!> \brief Reads the QUADRUPOLE POLARIZABILITY section
+!> \author Marcel Baer
+! *****************************************************************************
+  SUBROUTINE read_cpol_section(cpol_atm, cpol, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: cpol_atm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cpol
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_cpol_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: atm_name
+    INTEGER                                  :: isec, n_items
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=atm_name,&
+            error=error)
+       cpol_atm(start+isec) = atm_name
+       CALL uppercase(cpol_atm(start+isec))
+       CALL section_vals_val_get(section,"CPOL",i_rep_section=isec,r_val=cpol(start+isec),&
+            error=error)
+    END DO
+  END SUBROUTINE read_cpol_section
+
 
 ! *****************************************************************************
 !> \brief Reads the SHELL section
