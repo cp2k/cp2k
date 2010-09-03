@@ -16,7 +16,6 @@ MODULE dbcsr_internal_operations
   USE array_types,                     ONLY: array_data
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
-  USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_init, dbcsr_data_new, &
@@ -88,6 +87,13 @@ MODULE dbcsr_internal_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_internal_operations'
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
+
+
+#if defined (__INTERNAL_GEMM)
+  LOGICAL, PARAMETER                   :: internal_gemm = .TRUE.
+#else
+  LOGICAL, PARAMETER                   :: internal_gemm = .FALSE.
+#endif
 
 
   PUBLIC :: dbcsr_mult_m_e_e
@@ -1699,7 +1705,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL, PARAMETER                          :: resize_factor = 1.618034
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: error_handler, maxs, sp, sp_c
+    LOGICAL                                  :: do_resize
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -1709,26 +1716,66 @@ CONTAINS
     !CALL print_dgemm_parameters (params(1:stack_size),&
     !     params_a, params_b, params_c)
     !WRITE(*,*)routineN//"========== END of multiplies"
+    ! Increase product data area size if necessary.
+    do_resize = .FALSE.
+    !if (remote_memory) then
+    !   min_size_a = dbcsr_data_get_size(left_data_area)
+    !   min_size_b = dbcsr_data_get_size(right_data_area)
+    !   min_size_c = dbcsr_data_get_size(product_data_area)
+    !   max_size_a = 1
+    !   max_size_b = 1
+    !   max_size_c = 1
+    !endif
+    maxs = dbcsr_data_get_size(product_data_area)
+    DO sp = 1, stack_size
+       sp_c = params(sp)%p_c
+       IF (params_c(sp_c)%offset+params_c(sp_c)%nze-1 .GT. maxs) THEN
+          maxs = params_c(sp_c)%offset+params_c(sp_c)%nze-1
+          do_resize = .TRUE.
+       ENDIF
+       !if (remote_memory) then
+       !   sp_a = params(sp)%p_a
+       !   min_size_a = MIN (min_size_a, params_a(sp_a)%offset)
+       !   max_size_a = MAX (max_size_a, params_a(sp_a)%offset&
+       !                                +params_a(sp_a)%nze-1)
+       !   sp_b = params(sp)%p_b
+       !   min_size_b = MIN (min_size_b, params_b(sp_b)%offset)
+       !   max_size_b = MAX (max_size_b, params_b(sp_b)%offset&
+       !                                +params_b(sp_b)%nze-1)
+       !   sp_c = params(sp)%p_c
+       !   min_size_c = MIN (min_size_c, params_c(sp_c)%offset)
+       !   max_size_c = MAX (max_size_c, params_c(sp_c)%offset&
+       !                                +params_c(sp_c)%nze-1)
+       !endif
+    ENDDO
+    IF (maxs .GT. dbcsr_data_get_size_referenced (product_data_area)) THEN
+       CALL dbcsr_data_set_size_referenced (product_data_area, maxs)
+    ENDIF
+    IF (do_resize) THEN
+       CALL dbcsr_data_ensure_size (product_data_area,&
+            maxs, factor=resize_factor, error=error)
+    ENDIF
+    !
     SELECT CASE (product_data_area%d%data_type)
     CASE (dbcsr_type_real_4)
        CALL process_dgemm_stack_s (params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
-       left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area,&
+       left_data_area%d%r_sp, right_data_area%d%r_sp, product_data_area%d%r_sp,&
        use_plasma=use_plasma, lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_real_8)
        CALL process_dgemm_stack_d (params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
-       left_data_area%d%r_dp, right_data_area%d%r_dp, product_data_area,&
+       left_data_area%d%r_dp, right_data_area%d%r_dp, product_data_area%d%r_dp,&
        use_plasma=use_plasma, lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_complex_4)
        CALL process_dgemm_stack_c (params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
-       left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area,&
+       left_data_area%d%c_sp, right_data_area%d%c_sp, product_data_area%d%c_sp,&
        use_plasma=use_plasma, lflop=lflop, ltime=ltime, error=error)
     CASE (dbcsr_type_complex_8)
        CALL process_dgemm_stack_z (params, params_a, params_b, params_c,&
        stack_size, stack_size_a, stack_size_b, stack_size_c,&
-       left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area,&
+       left_data_area%d%c_dp, right_data_area%d%c_dp, product_data_area%d%c_dp,&
        use_plasma=use_plasma, lflop=lflop, ltime=ltime, error=error)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
