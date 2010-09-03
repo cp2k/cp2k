@@ -26,3 +26,7 @@ Solv_alch_chng_simpl.inp
 Solv_alch_chng.inp
 Solv_alch_chng_dist.inp
 Solv_alch_chng_simpl.inp
+# Numerical noise due to fixing of two single-precision constants 
+Solv_alch_chng.inp
+Solv_alch_chng_dist.inp
+Solv_alch_chng_simpl.inp

@@ -562,3 +562,26 @@ multipole_charge.dbg_st.inp
 multipole_dip_qu.dbg_st.inp
 multipole_dipole.dbg_st.inp
 multipole_quadrupole.dbg_st.inp
+# Numerical noise due to fixing of two single-precision constants 
+gmax.inp
+water_2_rescaleF.inp
+water32_hbonds_2.inp
+butane.inp
+deca_ala.inp
+deca_ala2.inp
+deca_ala2_xyz.inp
+deca_ala2_xyz_pdb.inp
+deca_ala3.inp
+deca_ala_reftraj.inp
+deca_ala4.inp
+deca_ala_reftraj2.inp
+deca_ala_reftraj3.inp
+deca_ala5.inp
+h2po4.inp
+multi_psf.inp
+multi_frag.inp
+multi_frag_check.inp
+h2o-32-g3x3-mult.inp
+deca_ala_include.inp
+deca_ala_avg2.inp
+deca_ala_noavg.inp

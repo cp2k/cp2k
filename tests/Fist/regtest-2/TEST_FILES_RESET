@@ -167,3 +167,25 @@ H2O-32_SPME_fixed_clv.inp
 H2O-32_SPME_fixed_cross_clv.inp
 # direct regtest of differences between numerical and analytical stress tensor 
 H2O-ST_debug.inp
+# Numerical noise due to fixing of two single-precision constants 
+H2O-32_ewald.inp
+H2O-32_PME.inp
+H2O-32_SPME.inp
+H2O-32_SPME_avg2.inp
+H2O-32_SPME_res_1.inp
+H2O-32_SPME_res_2.inp
+H2O-32_SPME_res_3.inp
+H2O-32_SPME_res_4.inp
+H2O-32_NPT.inp
+H2O-32_NPT_res_1.inp
+H2O-32_NPT_res_2.inp
+H2O-32_NPT_res_3.inp
+H2O-32_NPT_res_4.inp
+H2O-32_NPT_res_5.inp
+water_IPBV.inp
+water_IPBV_flex.inp
+H2O-32_SPME_fixed.inp
+H2O-32_SPME_fixed_mol.inp
+nacl_wat.inp
+H2O-ST_debug.inp
+H2O-32_SPME_fixed_clv.inp

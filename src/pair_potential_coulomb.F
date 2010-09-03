@@ -9,6 +9,7 @@ MODULE pair_potential_coulomb
                                              erfc
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: oorootpi
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -24,8 +25,8 @@ CONTAINS
 !> \brief Evaluates the electrostatic energy and force
 !> \author Toon.Verstraelen@gmail.com
 ! *****************************************************************************
-  FUNCTION potential_coulomb(r2, fscalar, qfac, ewald_type, alpha, mm_radius, &
-      interaction_cutoff)
+  FUNCTION potential_coulomb(r2,fscalar,qfac,ewald_type,alpha,mm_radius,&
+                             interaction_cutoff)
 
     REAL(KIND=dp), INTENT(IN)                :: r2
     REAL(KIND=dp), INTENT(INOUT)             :: fscalar
@@ -35,7 +36,7 @@ CONTAINS
                                                 interaction_cutoff
     REAL(KIND=dp)                            :: potential_coulomb
 
-    REAL(KIND=dp), PARAMETER :: two_over_sqrt_pi = 1.128379167095512573
+    REAL(KIND=dp), PARAMETER :: two_over_sqrt_pi = 2.0_dp*oorootpi
 
     REAL(KIND=dp)                            :: r, x1, x2
 
@@ -55,7 +56,7 @@ CONTAINS
        END IF
     ELSE
        IF (ewald_type == do_ewald_none) THEN
-          potential_coulomb = 1.0/r
+          potential_coulomb = 1.0_dp/r
           fscalar = fscalar + qfac*potential_coulomb/r2
        ELSE
           x1 = alpha*r
@@ -64,8 +65,9 @@ CONTAINS
             two_over_sqrt_pi*EXP(-x1*x1)*alpha)/r2
        END IF
     END IF
+
     potential_coulomb = qfac*(potential_coulomb - interaction_cutoff)
+
   END FUNCTION potential_coulomb
 
 END MODULE pair_potential_coulomb
-

@@ -21,3 +21,7 @@
 2gly_IT-NEB-CV.inp
 2gly_IT-NEB-CV-res.inp
 NEB-MIXED.inp
+# Numerical noise due to fixing of two single-precision constants 
+NEB-MIXED.inp
+2gly_IT-NEB-CV.inp
+2gly_IT-NEB-CV-res.inp

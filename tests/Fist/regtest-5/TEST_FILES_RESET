@@ -212,3 +212,10 @@ liquid.inp
 H2O-1-GENPOT.inp
 H2O-1-GENPOT-2.inp
 I3.inp
+# Numerical noise due to fixing of two single-precision constants 
+JAC.inp
+JAC_us.inp
+JAC_gen.inp
+liquid.inp
+wat125.inp
+H2OFe-5_75.inp

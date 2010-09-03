@@ -180,3 +180,9 @@ h2_dbg_1.inp
 water_3_NOwalls.inp
 water_3_walls.inp
 water_3_walls_q.inp
+# Numerical noise due to fixing of two single-precision constants 
+mol.inp
+mol_CSVR_gen1.inp
+mol_CSVR_gen2.inp
+mol_CSVR_gen3.inp
+mol_sph_cut.inp

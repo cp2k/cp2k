@@ -42,3 +42,8 @@ G87_2.inp
 G87.inp
 G96_ei_scale.inp
 G96.inp
+# Numerical noise due to fixing of two single-precision constants 
+G87.inp
+G87_2.inp
+G96.inp
+G96_ei_scale.inp

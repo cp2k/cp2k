@@ -20,3 +20,12 @@ metadyn5.inp
 metadyn6.inp
 metadyn7.inp
 metadyn8.inp
+# Numerical noise due to fixing of two single-precision constants 
+metadyn1.inp
+metadyn2.inp
+metadyn3.inp
+metadyn4.inp
+metadyn5.inp
+metadyn6.inp
+metadyn7.inp
+metadyn8.inp

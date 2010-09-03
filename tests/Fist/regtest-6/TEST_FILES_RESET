@@ -130,3 +130,10 @@ water_3_dist_centers.inp
 water_3_dist_centers2.inp
 water_3_dist_centers3.inp
 water_3_dist_xyz.inp
+# Numerical noise due to fixing of two single-precision constants 
+NaCl_fe.inp
+water_3_ddist.inp
+JAC_distr.inp
+H2O-32_PME_distr.inp
+water_3_ddist_g.inp
+uo2_buckmorse_nve.inp

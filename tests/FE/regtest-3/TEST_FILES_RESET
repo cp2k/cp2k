@@ -19,3 +19,6 @@ Solv_alch_chng_res.inp
 # Update of atomic weights 
 Solv_alch_chng.inp
 Solv_alch_chng_res.inp
+# Numerical noise due to fixing of two single-precision constants 
+Solv_alch_chng.inp
+Solv_alch_chng_res.inp

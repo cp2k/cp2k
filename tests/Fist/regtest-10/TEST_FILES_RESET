@@ -75,3 +75,10 @@ water_2_angvel_zero_002.inp
 c60_pl_pl_angl1_restr.inp
 c60_pl_pl_angl2_restr.inp
 c60_meta_lagr.inp
+# Numerical noise due to fixing of two single-precision constants 
+nh3-meta-2.inp
+nh3-meta-3.inp
+nh3-meta-4.inp
+2gly_mtd_rp_dp_rmsd.inp
+2gly_mtd_rprmsd.inp
+2gly_mtd_dprmsd.inp

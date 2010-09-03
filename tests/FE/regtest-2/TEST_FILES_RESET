@@ -10,3 +10,5 @@ Solv_alch_chng.inp
 Solv_alch_chng.inp
 # analytic electrostatic in Fist
 Solv_alch_chng.inp
+# Numerical noise due to fixing of two single-precision constants 
+Solv_alch_chng.inp

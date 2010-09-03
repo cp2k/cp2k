@@ -21,3 +21,6 @@
 # analytic electrostatic in Fist
 2gly_IT-NEB.inp
 2gly_IT-NEB-res.inp
+# Numerical noise due to fixing of two single-precision constants 
+2gly_IT-NEB.inp
+2gly_IT-NEB-res.inp

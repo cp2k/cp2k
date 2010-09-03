@@ -29,3 +29,5 @@ ignore.inp
 #
 argon-gle.inp
 argon-gle_r.inp
+# Numerical noise due to fixing of two single-precision constants 
+lamol.inp

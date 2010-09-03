@@ -297,3 +297,14 @@ H2O-restraint_2r.inp
 H2O-meta-combine.inp
 # direct regtest of differences between numerical and analytical stress tensor 
 nh3-meta-walks_2r.inp
+# Numerical noise due to fixing of two single-precision constants 
+acn.inp
+H2O-32_SPME_fp.inp
+loop.inp
+cyhex.inp
+gly_amber.inp
+acn_respa.inp
+nh3-meta-walks_1.inp
+nh3-meta-walks_2.inp
+nh3-meta-walks_1r.inp
+nh3-meta-walks_2r.inp

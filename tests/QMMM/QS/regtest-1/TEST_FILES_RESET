@@ -374,3 +374,8 @@ H2O-qmmm-gauss-9.inp
 H2O-qmmm-gauss-10.inp
 H2O-qmmm-gauss-12.inp
 H2O-qmmm-gauss-13.inp
+# Numerical noise due to fixing of two single-precision constants 
+H2O-qmmm-gauss-3.inp
+H2O-qmmm-gauss-7.inp
+H2O-qmmm-gauss-9.inp
+H2O-qmmm-none-1.inp

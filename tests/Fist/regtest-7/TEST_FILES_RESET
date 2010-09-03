@@ -246,3 +246,26 @@ uo2_shell_nvt_tkind.inp
 # Fixed a typo in fist_nonbond_force
 uo2_nvt-1.inp
 uo2_nvt.inp
+# Numerical noise due to fixing of two single-precision constants 
+uo2_shell_nve_r.inp
+uo2_shell_nvt_res.inp
+uo2_shell_nvt_res_2.inp
+uo2_shell_npti_b.inp
+uo2_shell_npti.inp
+uo2_shell_npt300.inp
+uo2_shell_npt_msd.inp
+uo2_nvt-1.inp
+uo2_nvt.inp
+uo2_shell_nvt_shnose_r.inp
+uo2_shell_nvt_shnose_b.inp
+uo2_shell_nvt_shnosemass.inp
+uo2_shell_nvt_shnosemass_r.inp
+uo2_shell_nve_shnose.inp
+uo2_shell_npe_1.inp
+uo2_shell_npe_2res.inp
+uo2_shell_npe_6.inp
+uo2_shell_nve_vdt.inp
+uo2_shell_nve_vdt_r.inp
+uo2_shell_npt_vdt.inp
+uo2_shell_npt_vdt_2.inp
+uo2_shell_npt_dsc.inp
