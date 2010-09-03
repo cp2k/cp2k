@@ -209,15 +209,17 @@ CONTAINS
 ! compute dipole
              multipoles%dipoles(:,ii) = apol*efield1(:,ii)
 ! compute quadrupole
-             multipoles%quadrupoles(1,1,ii) = cpol*efield2(1,ii)
-             multipoles%quadrupoles(2,1,ii) = cpol*efield2(2,ii)
-             multipoles%quadrupoles(3,1,ii) = cpol*efield2(3,ii)
-             multipoles%quadrupoles(1,2,ii) = cpol*efield2(4,ii)
-             multipoles%quadrupoles(2,2,ii) = cpol*efield2(5,ii)
-             multipoles%quadrupoles(3,2,ii) = cpol*efield2(6,ii)
-             multipoles%quadrupoles(1,3,ii) = cpol*efield2(7,ii)
-             multipoles%quadrupoles(2,3,ii) = cpol*efield2(8,ii)
-             multipoles%quadrupoles(3,3,ii) = cpol*efield2(9,ii)
+             IF ( cpol /= 0 ) THEN
+               multipoles%quadrupoles(1,1,ii) = cpol*efield2(1,ii)
+               multipoles%quadrupoles(2,1,ii) = cpol*efield2(2,ii)
+               multipoles%quadrupoles(3,1,ii) = cpol*efield2(3,ii)
+               multipoles%quadrupoles(1,2,ii) = cpol*efield2(4,ii)
+               multipoles%quadrupoles(2,2,ii) = cpol*efield2(5,ii)
+               multipoles%quadrupoles(3,2,ii) = cpol*efield2(6,ii)
+               multipoles%quadrupoles(1,3,ii) = cpol*efield2(7,ii)
+               multipoles%quadrupoles(2,3,ii) = cpol*efield2(8,ii)
+               multipoles%quadrupoles(3,3,ii) = cpol*efield2(9,ii)
+             END IF
         ! Compute the new induction term while we are here
              IF ( apol /= 0 ) THEN
                thermo%e_induction = thermo%e_induction + &
