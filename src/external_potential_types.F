@@ -577,7 +577,7 @@ CONTAINS
     TYPE(fist_potential_type), POINTER       :: potential
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: apol,cpol, mm_radius, qeff, &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: apol, cpol, mm_radius, qeff, &
                                                 qmmm_corr_radius, qmmm_radius
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_potential', &

@@ -130,12 +130,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_pol_evaluate_sc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ewald_type, handle, i, j, iatom, ii, ikind, iter, iw, iw2, &
+    INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, j, &
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, iwarn
     REAL(KIND=dp)                            :: apol, cpol, eps_pol, &
-                                                pot_nonbond_local, rmsd, tmp_trace
+                                                pot_nonbond_local, rmsd, &
+                                                tmp_trace
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: efield1, efield2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

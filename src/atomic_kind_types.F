@@ -425,7 +425,8 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcov
     INTEGER, INTENT(OUT), OPTIONAL           :: z
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff, apol, cpol, mm_radius
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff, apol, cpol, &
+                                                mm_radius
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: soft_basis_set
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
