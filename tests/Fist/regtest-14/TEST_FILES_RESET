@@ -31,3 +31,12 @@ argon-gle.inp
 argon-gle_r.inp
 # Numerical noise due to fixing of two single-precision constants 
 lamol.inp
+# Bug fix for forces and stress tensor of the core-shell model 
+11_exvdw_12_exei.inp
+11_exvdw_11_exei.inp
+12_exvdw_12_exei.inp
+12_exvdw_12_exei_list_1.inp
+12_exvdw_12_exei_list_1_check.inp
+12_exvdw_12_exei_list_2.inp
+12_exvdw_12_exei_list_2_c.inp
+12_exvdw_12_exei_list_empty.inp

@@ -85,9 +85,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ilist, &
-      ipair, istart, kind_a, kind_b, nkinds, npairs, shell_a, shell_b, &
-      shell_type
+    INTEGER :: atom_a, atom_b, ewald_type, handle, i, iend, igrp, ikind, &
+      ilist, ipair, istart, jkind, kind_a, kind_b, nkinds, npairs, shell_a, &
+      shell_b, shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_ei, &
                                                 do_multipoles, do_vdw, &
@@ -180,36 +180,48 @@ CONTAINS
              CPPrecondition(.NOT.do_multipoles,cp_failure_level,routineP,error,failure)
              CPPostcondition(shell_present,cp_failure_level,routineP,error,failure)
           END IF
-          IF (.NOT.do_multipoles) THEN
-             ! electrostatic parameters for atom a
-             atomic_kind => atomic_kind_set(kind_a)
-             CALL get_atomic_kind(atomic_kind, qeff=qeff_a, &
-                  mm_radius=mm_radius_a, shell=shell_kind)
-             IF (ASSOCIATED(shell_kind)) THEN
-                CALL get_shell(shell=shell_kind, charge_core=qcore_a, &
-                               charge_shell=qshell_a, error=error)
-             ELSE
-                qcore_a = qeff_a
-                qshell_a = HUGE(0.0_dp)
-             END IF
-             ! electrostatic parameters for atom b
-             atomic_kind => atomic_kind_set(kind_b)
-             CALL get_atomic_kind(atomic_kind, qeff=qeff_b, &
-                  mm_radius=mm_radius_b, shell=shell_kind)
-             IF (ASSOCIATED(shell_kind)) THEN
-                CALL get_shell(shell=shell_kind, charge_core=qcore_b, &
-                               charge_shell=qshell_b, error=error)
-             ELSE
-                qcore_b = qeff_b
-                qshell_b = HUGE(0.0_dp)
-             END IF
-             ! combine parameters
-             mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
-          END IF
           rab2_max = pot%rcutsq
           Pairs: DO ipair = istart, iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
+             ! Get actual atomic kinds, since atom_a is not always of
+             ! kind_a and atom_b of kind_b, ie. they might be swapped
+             ikind = particle_set(atom_a)%atomic_kind%kind_number
+             jkind = particle_set(atom_b)%atomic_kind%kind_number
+             IF (.NOT.do_multipoles) THEN
+                ! Get electrostatic parameters for atom a
+                atomic_kind => atomic_kind_set(ikind)
+                CALL get_atomic_kind(atomic_kind,&
+                                     qeff=qeff_a,&
+                                     mm_radius=mm_radius_a,&
+                                     shell=shell_kind)
+                IF (ASSOCIATED(shell_kind)) THEN
+                   CALL get_shell(shell=shell_kind,&
+                                  charge_core=qcore_a,&
+                                  charge_shell=qshell_a,&
+                                  error=error)
+                ELSE
+                   qcore_a = qeff_a
+                   qshell_a = HUGE(0.0_dp)
+                END IF
+                ! Get electrostatic parameters for atom b
+                atomic_kind => atomic_kind_set(jkind)
+                CALL get_atomic_kind(atomic_kind,&
+                                     qeff=qeff_b,&
+                                     mm_radius=mm_radius_b,&
+                                     shell=shell_kind)
+                IF (ASSOCIATED(shell_kind)) THEN
+                   CALL get_shell(shell=shell_kind,&
+                                  charge_core=qcore_b,&
+                                  charge_shell=qshell_b,&
+                                  error=error)
+                ELSE
+                   qcore_b = qeff_b
+                   qshell_b = HUGE(0.0_dp)
+                END IF
+                ! combine parameters
+                mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
+             END IF
              fac    = fac_kind
              IF ((.NOT.full_nl).AND.(atom_a==atom_b)) fac = fac*0.5_dp
              ! decide which interactions to compute
