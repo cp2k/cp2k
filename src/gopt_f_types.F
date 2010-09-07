@@ -14,12 +14,15 @@ MODULE gopt_f_types
   USE cell_opt_types,                  ONLY: cell_opt_env_create,&
                                              cell_opt_env_release,&
                                              cell_opt_env_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE dimer_types,                     ONLY: dimer_env_create,&
                                              dimer_env_release,&
                                              dimer_env_retain,&
                                              dimer_env_type
   USE f77_blas
-  USE force_env_types,                 ONLY: force_env_get_natom,&
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_get_natom,&
                                              force_env_release,&
                                              force_env_retain,&
                                              force_env_type
@@ -35,6 +38,7 @@ MODULE gopt_f_types
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length
+  USE particle_list_types,             ONLY: particle_list_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -79,6 +83,7 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE gopt_f_create(gopt_env, gopt_param, force_env, globenv, geo_opt_section,&
        eval_opt_geo, error)
+
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(force_env_type), POINTER            :: force_env
@@ -90,14 +95,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: natom, stat
+    INTEGER                                  :: natom, nshell, stat
     LOGICAL                                  :: failure
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(particle_list_type), POINTER        :: particles, shell_particles
     TYPE(section_vals_type), POINTER         :: dimer_section, rot_opt_section
 
-    failure=.FALSE.
+    failure = .FALSE.
     CPPostcondition(.NOT.ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
-    ALLOCATE(gopt_env, stat=stat)
+    ALLOCATE (gopt_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    nshell = 0
+
     IF (.NOT.failure) THEN
        NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env)
        gopt_env%ref_count=1
@@ -115,8 +124,15 @@ CONTAINS
 
        gopt_env%type_id        = gopt_param%type_id
        SELECT CASE(gopt_env%type_id)
-       CASE(default_ts_method_id,default_minimization_method_id)
-          gopt_env%nfree   = force_env%subsys%particles%n_els
+       CASE (default_ts_method_id,default_minimization_method_id)
+          CALL force_env_get(force_env,subsys=subsys,error=error)
+          CALL cp_subsys_get(subsys,&
+                             particles=particles,&
+                             shell_particles=shell_particles,&
+                             error=error)
+          IF (ASSOCIATED(shell_particles)) nshell = shell_particles%n_els
+          ! The same number of shell and core particles is assumed
+          gopt_env%nfree   = particles%n_els + nshell
           gopt_env%label   = "GEO_OPT"
           gopt_env%tag     = "GEOMETRY"
           SELECT CASE(gopt_param%type_id)

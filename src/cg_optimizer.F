@@ -52,8 +52,9 @@ CONTAINS
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,&
-  geo_section, gopt_env, x0, do_update, error)
+  RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,geo_section,&
+                                 gopt_env,x0,do_update,error)
+
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
@@ -71,13 +72,14 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    logger       => cp_error_get_logger(error)
+
+    logger => cp_error_get_logger(error)
 
     failure = .FALSE.
+
     IF (.NOT.failure) THEN
        output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".geoLog",error=error)
-
        CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
        CALL  cp_cg_main(force_env, x0, gopt_param,  output_unit, globenv,&
              gopt_env, do_update=my_do_update,  error=error)
@@ -87,6 +89,7 @@ CONTAINS
     END IF
     
     CALL timestop(handle)
+
   END SUBROUTINE geoopt_cg
 
 ! *****************************************************************************

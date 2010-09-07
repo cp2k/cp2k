@@ -13,6 +13,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE force_env_methods
+
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
@@ -84,8 +85,8 @@ MODULE force_env_methods
   USE input_constants,                 ONLY: &
        debug_run, do_stress_analytical, do_stress_diagonal_anal, &
        do_stress_diagonal_numer, do_stress_none, do_stress_numerical, &
-       dump_xmol, mix_coupled, mix_generic, mix_linear_combination, &
-       mix_minimum, mix_restrained, use_bazant_eip, use_lenosky_eip
+       mix_coupled, mix_generic, mix_linear_combination, mix_minimum, &
+       mix_restrained, use_bazant_eip, use_lenosky_eip
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_retain,&
@@ -116,8 +117,7 @@ MODULE force_env_methods
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             update_particle_set,&
-                                             write_particle_coordinates
+                                             update_particle_set
   USE physcon,                         ONLY: debye,&
                                              pascal
   USE qmmm_gpw_energy,                 ONLY: qmmm_el_coupling
@@ -199,7 +199,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
 
@@ -223,7 +224,7 @@ CONTAINS
     CALL force_env_set(force_env,additional_potential=0.0_dp,error=error)
     IF (virial%pv_availability) CALL zero_virial(virial,reset=.FALSE.)
     IF (.NOT.failure) THEN
-       IF (eval_ef) THEN 
+       IF (eval_ef) THEN
           SELECT CASE ( force_env%in_use )
           CASE ( use_fist_force )
              CALL fist_force_control( force_env%fist_env, virial, force_env%para_env, &
@@ -239,7 +240,7 @@ CONTAINS
              ELSE
                 CALL qs_forces(force_env%qs_env,force_env%globenv, error=error)
              END IF
-             CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)         
+             CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)
           CASE ( use_kg_force )
              IF (.NOT.calculate_forces) THEN
                 root_section => force_env%root_section
@@ -311,21 +312,33 @@ CONTAINS
                ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
-            "PRINT%PROGRAM_RUN_INFO",error=error)
+                                         "PRINT%PROGRAM_RUN_INFO",error=error)
 
        ! Print Forces, if requested
        print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&
-            extension=".xyz",error=error)
+                                           extension=".xyz",error=error)
        IF ((print_forces > 0).AND.calculate_forces) THEN
-          CALL force_env_get(force_env, subsys=subsys, error=error)         
-          CALL cp_subsys_get(subsys, particles=particles, error=error)
-          CALL write_particle_coordinates(particles%els,print_forces,dump_xmol,"FORCE"," FORCES| (a.u.) ",&
-               error=error)
-       ENDIF
+          CALL force_env_get(force_env,subsys=subsys,error=error)
+          CALL cp_subsys_get(subsys,&
+                             core_particles=core_particles,&
+                             particles=particles,&
+                             shell_particles=shell_particles,&
+                             error=error)
+          ! Variable precision output of the forces
+          CALL section_vals_val_get(force_env%force_env_section,"PRINT%FORCES%NDIGITS",&
+                                    i_val=ndigits,error=error)
+          CALL write_forces(particles,print_forces,"ATOMIC",ndigits,error)
+          IF (ASSOCIATED(core_particles)) THEN
+             CALL write_forces(core_particles,print_forces,"CORE",ndigits,error)
+          END IF
+          IF (ASSOCIATED(shell_particles)) THEN
+             CALL write_forces(shell_particles,print_forces,"SHELL",ndigits,error)
+          END IF
+       END IF
        CALL cp_print_key_finished_output(print_forces,logger,force_env%force_env_section,"PRINT%FORCES",&
             error=error)
 
-       ! Store results 
+       ! Store results
        IF(ASSOCIATED(results))THEN
           CALL cp_result_copy(results_in=results,results_out=force_env%results,error=error)
        END IF
@@ -342,7 +355,8 @@ CONTAINS
              CALL section_vals_val_get(force_env%force_env_section,"PRINT%STRESS_TENSOR%NDIGITS",&
                                        i_val=ndigits,error=error)
              CALL force_env_get(force_env,cell=cell,error=error)
-             CALL write_stress_tensor(virial%pv_virial,output_unit,cell,ndigits,virial%pv_numer)
+             CALL write_stress_tensor(virial%pv_virial,output_unit,cell,ndigits,virial%pv_numer,&
+                                      error=error)
           END IF
           CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                             "PRINT%STRESS_TENSOR",error=error)
@@ -480,7 +494,7 @@ CONTAINS
 
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%STRESS_TENSOR",error=error)
- 
+
        IF (ASSOCIATED(pos_ref)) THEN
           DEALLOCATE (pos_ref,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -537,7 +551,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     failure=.FALSE.
-  
+
     ALLOCATE ( force_env, stat=stat )
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
     IF (.NOT. failure) THEN
@@ -554,44 +568,44 @@ CONTAINS
        force_env%ref_count=1
        force_env%in_use=0
        force_env%additional_potential=0.0_dp
-  
+
        force_env%globenv => globenv
        CALL globenv_retain(force_env%globenv,error=error)
-  
+
        force_env%root_section => root_section
        CALL section_vals_retain(root_section,error=error)
-  
+
        force_env%para_env=>para_env
        CALL cp_para_env_retain(force_env%para_env, error=error)
-  
+
        CALL section_vals_retain(force_env_section,error=error)
        force_env%force_env_section => force_env_section
-  
+
        ! Should we compute the virial?
        CALL section_vals_val_get(force_env_section,"STRESS_TENSOR",i_val=stress_tensor,error=error)
        SELECT CASE(stress_tensor)
        CASE(do_stress_none)
-          pv_availability=.FALSE.        
+          pv_availability=.FALSE.
           pv_numerical=.FALSE.
           pv_diagonal=.FALSE.
        CASE(do_stress_analytical)
-          pv_availability=.TRUE.        
+          pv_availability=.TRUE.
           pv_numerical=.FALSE.
           pv_diagonal=.FALSE.
        CASE(do_stress_numerical)
-          pv_availability=.TRUE.        
+          pv_availability=.TRUE.
           pv_numerical=.TRUE.
           pv_diagonal=.FALSE.
        CASE(do_stress_diagonal_anal)
-          pv_availability=.TRUE.        
+          pv_availability=.TRUE.
           pv_numerical=.FALSE.
           pv_diagonal=.TRUE.
        CASE(do_stress_diagonal_numer)
-          pv_availability=.TRUE.        
+          pv_availability=.TRUE.
           pv_numerical=.TRUE.
           pv_diagonal=.TRUE.
        END SELECT
-  
+
        IF (PRESENT(fist_env)) THEN
           IF (ASSOCIATED(fist_env)) THEN
              CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
@@ -657,7 +671,7 @@ CONTAINS
           CALL virial_set ( virial=force_env%virial,&
                             pv_availability=pv_availability,&
                             pv_numer=pv_numerical,&
-                            pv_diagonal=pv_diagonal)        
+                            pv_diagonal=pv_diagonal)
        END IF
        IF (PRESENT(mixed_env)) THEN
           CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
@@ -682,16 +696,15 @@ CONTAINS
           END IF
        END IF
        CPPostcondition(force_env%in_use/=0,cp_failure_level,routineP,error,failure)
-  
+
        IF (PRESENT(sub_force_env)) THEN
           force_env%sub_force_env => sub_force_env
        END IF
-  
-   
+
        IF (PRESENT(meta_env)) THEN
           force_env%meta_env => meta_env
           CALL meta_env_retain(meta_env,error=error)
-       ELSE 
+       ELSE
           NULLIFY(force_env%meta_env)
        END IF
        CALL cp_result_create(results=force_env%results,error=error)
@@ -726,8 +739,9 @@ CONTAINS
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-  
+
     END IF
+
   END SUBROUTINE force_env_create
 
 ! *****************************************************************************
@@ -755,7 +769,7 @@ CONTAINS
     TYPE(ep_env_type), POINTER               :: ep_env
 
     failure=.FALSE.
-  
+
     IF (.NOT. failure) THEN
        NULLIFY(ep_env)
        CALL ep_env_create(ep_env, root_section, para_env, globenv=globenv,&
@@ -811,12 +825,12 @@ CONTAINS
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
     NULLIFY(force_env_section)
     force_env_section => force_env%sub_force_env(qs_subsys)%force_env%force_env_section
-    
+
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  
+
     CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
                        cell=mm_cell,subsys=subsys_mm,error=error)
     CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
@@ -830,10 +844,10 @@ CONTAINS
        IF (ASSOCIATED(qmmm_links%imomm)) qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
     END IF
     CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
-  
+
     ! Possibly translate the system
     CALL apply_qmmm_translate(force_env, error)
-  
+
     particles_mm => subsys_mm%particles%els
     particles_qm => subsys_qm%particles%els
 
@@ -842,18 +856,18 @@ CONTAINS
 
     ! If add charges get their position NOW!
     IF (qmmm_added_chrg) CALL qmmm_added_chrg_coord(force_env%qmmm_env, particles_mm, error)
-  
+
     ! Initialize ks_qmmm_env
     CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
          qmmm_env=force_env%qmmm_env,error=error)
-  
+
     ! Compute the short range QM/MM Electrostatic Potential
     CALL qmmm_el_coupling( qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
          qmmm_env=force_env%qmmm_env,&
          mm_particles=particles_mm,&
          mm_cell=mm_cell,&
          error=error)
-  
+
     ! Fist
     CALL force_env_calc_energy_force(force_env%sub_force_env(fist_subsys)%force_env,&
          calc_force=calculate_forces,skip_external_control=.TRUE.,error=error)
@@ -877,12 +891,12 @@ CONTAINS
                      error=error)
     ! Forces of quadratic wall on QM atoms
     CALL apply_qmmm_walls(force_env,error)
-  
+
     ! Print Out information on QS energy calculation...
     CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                        potential_energy=energy_qm,&
                        error=error)
-  
+
     IF (calculate_forces) THEN
        ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_forces(qmmm_links,particles_qm,qm_atom_index,error)
@@ -893,7 +907,7 @@ CONTAINS
        ! If add charges get rid of their derivatives right NOW!
        IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(force_env%qmmm_env, particles_mm, error)
     END IF
-  
+
     output_unit = cp_print_key_unit_nr(logger,force_env_section,"QMMM%PRINT%DERIVATIVES",&
              extension=".Log",error=error)
     IF (output_unit>0) THEN
@@ -910,8 +924,8 @@ CONTAINS
   END SUBROUTINE qmmm_energy_and_forces
 
 ! *****************************************************************************
-!> \brief ****f* force_env_methods/mixed_energy_forces  [1.0] 
-!> 
+!> \brief ****f* force_env_methods/mixed_energy_forces  [1.0]
+!>
 !>     Computes energy and forces for a mixed force_env type
 !> \par History
 !>       11.06  created [fschiff]
@@ -1050,7 +1064,7 @@ CONTAINS
                              results=loc_results,&
                              error=my_error)
           energies(iforce_eval)    = energy
-          glob_natoms(iforce_eval) = natom 
+          glob_natoms(iforce_eval) = natom
           CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
           CALL cp_result_copy(loc_results, results(iforce_eval)%results, error)
        END IF
@@ -1068,7 +1082,7 @@ CONTAINS
  CPSourceFileRef,&
          error,failure)
 
-    ! Handling Parallel execution 
+    ! Handling Parallel execution
     CALL mp_sync(force_env%para_env%group)
     ! Let's transfer energy, natom, forces, virials
     CALL mp_sum(energies, force_env%para_env%group)
@@ -1326,7 +1340,7 @@ CONTAINS
        CALL cp_results_erase(results=results_mix,description=description,error=error)
        CALL put_results(results=results_mix,description=description,values=dip_mix,error=error)
     END IF
-    
+
   END SUBROUTINE mixed_map_forces
 
 ! *****************************************************************************
@@ -1435,9 +1449,9 @@ CONTAINS
           END DO
        END IF
     END IF
-    
+
   END SUBROUTINE get_subsys_map_index
-     
+
 ! *****************************************************************************
 !> \brief perform shake (enforcing of constraints)
 !> \param force_env the force env to shake
@@ -1799,12 +1813,12 @@ CONTAINS
     IF (.NOT.failure.AND.explicit) THEN
        CALL section_vals_val_get(rescale_force_section,"MAX_FORCE",r_val=max_value,error=error)
        CALL force_env_get(force_env,subsys=subsys,error=error)
-       CALL cp_subsys_get(subsys,particles=particles,error=error) 
+       CALL cp_subsys_get(subsys,particles=particles,error=error)
        DO iparticle = 1, SIZE(particles%els)
           force = particles%els(iparticle)%f(:)
           mod_force = SQRT(DOT_PRODUCT(force,force))
           IF ((mod_force > max_value).AND.(mod_force /= 0.0_dp)) THEN
-             force = force / mod_force * max_value 
+             force = force / mod_force * max_value
              particles%els(iparticle)%f(:) = force
           END IF
        END DO
@@ -1817,7 +1831,8 @@ CONTAINS
 !>
 !> \author MK (26.08.2010)
 ! *****************************************************************************
-  SUBROUTINE write_stress_tensor(pv_virial,output_unit,cell,ndigits,numerical)
+  SUBROUTINE write_stress_tensor(pv_virial,output_unit,cell,ndigits,numerical,&
+                                 error)
 
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: pv_virial
@@ -1825,6 +1840,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: ndigits
     LOGICAL, INTENT(IN)                      :: numerical
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_tensor', &
       routineP = moduleN//':'//routineN
@@ -1835,10 +1851,14 @@ CONTAINS
     CHARACTER(LEN=27)                        :: fmtstr5
     CHARACTER(LEN=31)                        :: fmtstr1
     INTEGER                                  :: n
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: eigval
     REAL(KIND=dp), DIMENSION(3, 3)           :: eigvec, stress_tensor
 
+    failure = .FALSE.
+
     IF (output_unit > 0) THEN
+      CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
       stress_tensor(:,:) = pv_virial(:,:)/cell%deth*pascal*1.0E-9_dp
       n = MIN(MAX(1,ndigits),20)
       fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
@@ -1884,5 +1904,57 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_stress_tensor
+
+! *****************************************************************************
+!> \brief Write forces
+!>
+!> \author MK (06.09.2010)
+! *****************************************************************************
+  SUBROUTINE write_forces(particles,output_unit,label,ndigits,error)
+
+    TYPE(particle_list_type), POINTER        :: particles
+    INTEGER, INTENT(IN)                      :: output_unit
+    CHARACTER(LEN=*), INTENT(IN)             :: label
+    INTEGER, INTENT(IN)                      :: ndigits
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_forces', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=23)                        :: fmtstr3
+    CHARACTER(LEN=36)                        :: fmtstr2
+    CHARACTER(LEN=46)                        :: fmtstr1
+    INTEGER                                  :: ikind, iparticle, n
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: total_force
+
+    failure = .FALSE.
+
+    IF (output_unit > 0) THEN
+      CPPrecondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
+      n = MIN(MAX(1,ndigits),20)
+      fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A1,2(  X,A1))"
+      WRITE (UNIT=fmtstr1(39:40),FMT="(I2)") n + 6
+      fmtstr2 = "(T2,I6,1X,I6,T21,A,T28,3(1X,F  .  ))"
+      WRITE (UNIT=fmtstr2(33:34),FMT="(I2)") n
+      WRITE (UNIT=fmtstr2(30:31),FMT="(I2)") n + 6
+      fmtstr3 = "(T2,A,T28,4(1X,F  .  ))"
+      WRITE (UNIT=fmtstr3(20:21),FMT="(I2)") n
+      WRITE (UNIT=fmtstr3(17:18),FMT="(I2)") n + 6
+      WRITE (UNIT=output_unit,FMT=fmtstr1)&
+        label//" FORCES in [a.u.]","# Atom","Kind","Element","X","Y","Z"
+      total_force(1:3) = 0.0_dp
+      DO iparticle=1,particles%n_els
+        ikind = particles%els(iparticle)%atomic_kind%kind_number
+        WRITE (UNIT=output_unit,FMT=fmtstr2)&
+          iparticle,ikind,particles%els(iparticle)%atomic_kind%element_symbol,&
+          particles%els(iparticle)%f(1:3)
+        total_force(1:3) = total_force(1:3) + particles%els(iparticle)%f(1:3)
+      END DO
+      WRITE (UNIT=output_unit,FMT=fmtstr3)&
+        "SUM OF "//label//" FORCES",total_force(1:3),SQRT(SUM(total_force(:)**2))
+    END IF
+
+  END SUBROUTINE write_forces
 
 END MODULE force_env_methods

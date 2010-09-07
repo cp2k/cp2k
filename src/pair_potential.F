@@ -402,7 +402,7 @@ CPSourceFileRef,&
     IF (iw2>0) THEN
        dx2 = (hicut - locut)/REAL(5000+1,KIND=dp)
        x2  = locut + dx2
-       WRITE(1000+n,*)"KINDS: ",i,j,"  SPLINE NUMBER:",ncount
+       WRITE (1000+n,*) "# KINDS: ",i,j,"  SPLINE NUMBER:",ncount
        DO jx = 1, 5000
           x = x2
           e = ener_pot(pot, x , energy_cutoff)

@@ -10,11 +10,11 @@
 !> \param x the position where the function should be evaluated
 !> \param f the function value
 !> \param gradient the value of its gradient
-!> \param error variable to control error logging, stopping,... 
-!>             see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
 !> \par History
 !>       CELL OPTIMIZATION:  Teodoro Laino [tlaino] - University of Zurich - 03.2008
-!>      
+!>
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
@@ -65,9 +65,10 @@
                                                timestop
     USE virial_methods,                  ONLY: virial_update
     USE virial_types,                    ONLY: cp_virial,&
-                                               virial_create,&                                               
+                                               virial_create,&
                                                virial_release,&
                                                virial_type
+                                               USE physcon
 #include "cp_common_uses.h"
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
@@ -81,9 +82,10 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at', moduleN='gopt_f77_methods',&
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ensemble, handle, idg, idir, ip, shell_index, stat
+    INTEGER                                  :: ensemble, handle, i, idg, idir, ip, shell_index, stat
     LOGICAL                                  :: failure, explicit, is_shell
-    REAL(KIND=dp)                            :: f_ts, mass, potential_energy
+    REAL(KIND=dp)                            :: f_ts, mass, potential_energy,&
+    mass_core, mass_shell
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient_ts
@@ -100,63 +102,114 @@
     TYPE(section_vals_type), POINTER         :: work, avgs_section
     TYPE(shell_kind_type), POINTER           :: shell
 
-    failure=.FALSE.
-    NULLIFY(particles, shell_particles, core_particles, subsys, cell, gradient_ts, virial, averages)
+    failure = .FALSE.
+
+    NULLIFY (averages)
+    NULLIFY (cell)
+    NULLIFY (core_particles)
+    NULLIFY (gradient_ts)
+    NULLIFY (particles)
+    NULLIFY (shell_particles)
+    NULLIFY (subsys)
+    NULLIFY (virial)
 
     CALL timeset(routineN,handle)
-    CALL force_env_get(gopt_env%force_env, subsys=subsys, cell=cell, error=error)
-    CALL cp_subsys_get(subsys, particles=particles, error=error)
-    SELECT CASE(gopt_env%type_id)
-    CASE(default_minimization_method_id,default_ts_method_id)
-       idg=0
-       DO ip=1,particles%n_els
-          DO idir=1,3
-             idg=idg+1
-             particles%els(ip)%r(idir)=x(idg)
+    CALL force_env_get(gopt_env%force_env,subsys=subsys,cell=cell,error=error)
+    CALL cp_subsys_get(subsys,&
+                       core_particles=core_particles,&
+                       particles=particles,&
+                       shell_particles=shell_particles,&
+                       error=error)
+    SELECT CASE (gopt_env%type_id)
+    CASE (default_minimization_method_id,default_ts_method_id)
+      idg = 0
+      DO ip=1,particles%n_els
+        shell_index = particles%els(ip)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            idg = idg + 1
+            particles%els(ip)%r(i) = x(idg)
           END DO
-       END DO
-       CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
-       
-       SELECT CASE(gopt_env%type_id)
-       CASE(default_minimization_method_id)
-          ! Geometry Minimization
-          CALL force_env_calc_energy_force(gopt_env%force_env,&
-               calc_force=PRESENT(gradient),error=error)
-          
-          ! Possibly take the potential energy
-          IF (PRESENT(f)) THEN
-             CALL force_env_get(gopt_env%force_env,potential_energy=f,error=error)
-          END IF
-          
-          ! Possibly take the gradients
-          IF (PRESENT(gradient)) THEN
-             IF (master==para_env%mepos) THEN ! we are on the master
-                CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
-                CALL force_env_get(gopt_env%force_env, subsys=subsys,error=error)
-                idg=0
-                CALL cp_subsys_get(subsys, particles=particles, error=error)
-                DO ip=1,particles%n_els
-                   DO idir=1,3
-                      idg=idg+1
-                      CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                      gradient(idg)=-particles%els(ip)%f(idir)
-                   END DO
+        END IF
+      END DO
+      DO ip=1,particles%n_els
+        shell_index = particles%els(ip)%shell_index
+        IF (shell_index /= 0) THEN
+          DO i=1,3
+            idg = idg + 1
+            core_particles%els(shell_index)%r(i) = x(idg)
+          END DO
+          DO i=1,3
+            idg = idg + 1
+            shell_particles%els(shell_index)%r(i) = x(idg)
+          END DO
+          mass_core = core_particles%els(shell_index)%atomic_kind%shell%mass_core
+          mass_shell = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell
+          mass = particles%els(ip)%atomic_kind%mass
+          particles%els(ip)%r(:) = (mass_core*core_particles%els(shell_index)%r(:) +&
+                                    mass_shell*shell_particles%els(shell_index)%r(:))/mass
+        END IF
+      END DO
+      CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
+      SELECT CASE (gopt_env%type_id)
+      CASE (default_minimization_method_id)
+        ! Geometry Minimization
+        CALL force_env_calc_energy_force(gopt_env%force_env,&
+                                         calc_force=PRESENT(gradient),&
+                                         error=error)
+        ! Possibly take the potential energy
+        IF (PRESENT(f)) THEN
+          CALL force_env_get(gopt_env%force_env,potential_energy=f,error=error)
+        END IF
+        ! Possibly take the gradients
+        IF (PRESENT(gradient)) THEN
+          IF (master == para_env%mepos) THEN ! we are on the master
+            CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
+            CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
+            CALL cp_subsys_get(subsys,&
+                               core_particles=core_particles,&
+                               particles=particles,&
+                               shell_particles=shell_particles,&
+                               error=error)
+            idg = 0
+            DO ip=1,particles%n_els
+              shell_index = particles%els(ip)%shell_index
+              IF (shell_index == 0) THEN
+                DO i=1,3
+                  idg = idg + 1
+                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
+                  gradient(idg) = -particles%els(ip)%f(i)
                 END DO
-             END IF
+              END IF
+            END DO
+            DO ip=1,particles%n_els
+              shell_index = particles%els(ip)%shell_index
+              IF (shell_index /= 0) THEN
+                DO i=1,3
+                  idg = idg + 1
+                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
+                  gradient(idg) = -core_particles%els(shell_index)%f(i)
+                END DO
+                DO i=1,3
+                  idg = idg + 1
+                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
+                  gradient(idg) = -shell_particles%els(shell_index)%f(i)
+                END DO
+              END IF
+            END DO
           END IF
-       CASE(default_ts_method_id)
+        END IF
+      CASE (default_ts_method_id)
           ! Transition State Optimization
           ALLOCATE(gradient_ts(particles%n_els*3),stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          
           ! Real calculation of energy and forces for transition state optimization:
           ! When doing dimer methods forces have to be always computed since the function
           ! to minimize is not the energy but the effective force
           CALL cp_eval_at_ts (gopt_env, x, f_ts, gradient_ts, calc_force=.TRUE., error=error)
-          
           ! Possibly take the potential energy
           IF (PRESENT(f)) f = f_ts
-          
+
           ! Possibly take the gradients
           IF (PRESENT(gradient)) THEN
              IF (master==para_env%mepos) THEN ! we are on the master
@@ -166,18 +219,37 @@
           END IF
           DEALLOCATE(gradient_ts, stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       END SELECT
-       
-       ! This call is necessary for QM/MM if a Translation is applied
-       ! this makes the geometry optimizer consistent
-       idg=0
-       CALL cp_subsys_get(subsys, particles=particles,error=error)
-       DO ip=1,particles%n_els
-          DO idir=1,3
-             idg=idg+1
-             particles%els(ip)%r(idir)=x(idg)
+      END SELECT
+      ! This call is necessary for QM/MM if a Translation is applied
+      ! this makes the geometry optimizer consistent
+      idg = 0
+      DO ip=1,particles%n_els
+        shell_index = particles%els(ip)%shell_index
+        IF (shell_index == 0) THEN
+          DO i=1,3
+            idg = idg + 1
+            particles%els(ip)%r(i) = x(idg)
           END DO
-       END DO
+        END IF
+      END DO
+      DO ip=1,particles%n_els
+        shell_index = particles%els(ip)%shell_index
+        IF (shell_index /= 0) THEN
+          DO i=1,3
+            idg = idg + 1
+            core_particles%els(shell_index)%r(i) = x(idg)
+          END DO
+          DO i=1,3
+            idg = idg + 1
+            shell_particles%els(shell_index)%r(i) = x(idg)
+          END DO
+          mass_core = core_particles%els(shell_index)%atomic_kind%shell%mass_core
+          mass_shell = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell
+          mass = particles%els(ip)%atomic_kind%mass
+          particles%els(ip)%r(:) = (mass_core*core_particles%els(shell_index)%r(:) +&
+                                    mass_shell*shell_particles%els(shell_index)%r(:))/mass
+        END IF
+      END DO
     CASE(default_cell_method_id)
        ! Check for VIRIAL
        CALL force_env_get(gopt_env%force_env,virial=virial,error=error)
@@ -185,7 +257,7 @@
             "Cell optimization requested but FORCE_EVAL%STRESS_TENSOR was not defined! "//&
             "Activate the evaluation of the stress tensor for cell optimization! "//&
 CPSourceFileRef,&
-            only_ionode=.TRUE.) 
+            only_ionode=.TRUE.)
 
        ! Getting Scaled coordinates
        DO ip=1,particles%n_els
@@ -210,7 +282,7 @@ CPSourceFileRef,&
           CALL scaled_to_real(r,particles%els(ip)%r,cell)
           particles%els(ip)%r = r
        END DO
-       
+
        ! Possibly output the new cell used for the next calculation
        CALL write_cell(cell,gopt_env%geo_section,error=error)
 
@@ -224,7 +296,7 @@ CPSourceFileRef,&
                "Cell optimization at 0K was requested. GEO_OPT section MUST be provided in the "//&
                "input file! "//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)           
+               only_ionode=.TRUE.)
           ! Perform a geometry optimization
           CALL gopt_new_error_create(new_error, gopt_env%force_env%root_section, para_env,&
                project_name, id_run=geo_opt_run, error=error)
@@ -263,7 +335,7 @@ CPSourceFileRef,&
        CALL gopt_new_error_release(new_error, gopt_env%force_env%root_section, para_env, project_name,&
             cell_opt_run, error)
 
-       ! Update the virial 
+       ! Update the virial
        CALL virial_update(virial_avg, subsys, para_env, error)
 
        ! Possibly take give back the potential energy
@@ -275,16 +347,7 @@ CPSourceFileRef,&
        IF (PRESENT(gradient)) THEN
           CPPrecondition(ANY(virial_avg%pv_total/=0),cp_failure_level,routineP,error,failure)
           ! Convert the average ptens
-          av_ptens(1,1)=virial_avg%pv_total(1,1)/cell%deth
-          av_ptens(2,1)=virial_avg%pv_total(2,1)/cell%deth
-          av_ptens(3,1)=virial_avg%pv_total(3,1)/cell%deth
-          av_ptens(1,2)=virial_avg%pv_total(1,2)/cell%deth
-          av_ptens(2,2)=virial_avg%pv_total(2,2)/cell%deth
-          av_ptens(3,2)=virial_avg%pv_total(3,2)/cell%deth
-          av_ptens(1,3)=virial_avg%pv_total(1,3)/cell%deth
-          av_ptens(2,3)=virial_avg%pv_total(2,3)/cell%deth
-          av_ptens(3,3)=virial_avg%pv_total(3,3)/cell%deth
-
+          av_ptens(:,:) = virial_avg%pv_total(:,:)/cell%deth
           IF (master==para_env%mepos) THEN ! we are on the master
              CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
              ! Compute the gradients on the cell
@@ -298,40 +361,41 @@ CPSourceFileRef,&
             core_particles=core_particles,  error=error)
        idg=0
        DO ip=1,particles%n_els
-         NULLIFY(atomic_kind)
+         NULLIFY (atomic_kind)
          atomic_kind => particles%els(ip)%atomic_kind
          CALL get_atomic_kind(atomic_kind=atomic_kind,shell_active=is_shell,mass=mass,shell=shell)
-         IF(is_shell) THEN 
+         IF (is_shell) THEN
            shell_index = particles%els(ip)%shell_index
            DO idir=1,3
-              idg= 3*(shell_index-1)+idir
-              shell_particles%els(shell_index)%r(idir) = core_particles%els(ip)%r(idir)-x(idg)
+              idg = 3*(shell_index-1) + idir
+              shell_particles%els(shell_index)%r(idir) = core_particles%els(ip)%r(idir) - x(idg)
            END DO
          END IF
        END DO
        CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
-       
+
        ! Shell-core optimization
        CALL force_env_calc_energy_force(gopt_env%force_env,&
-               calc_force=PRESENT(gradient),error=error)
-          
+                                        calc_force=PRESENT(gradient),&
+                                        error=error)
+
        ! Possibly take the potential energy
        IF (PRESENT(f)) THEN
           CALL force_env_get(gopt_env%force_env,potential_energy=f,error=error)
        END IF
-          
+
        ! Possibly take the gradients
        IF (PRESENT(gradient)) THEN
          IF (master==para_env%mepos) THEN ! we are on the master
             CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
             CALL force_env_get(gopt_env%force_env, subsys=subsys,error=error)
-            idg=0
+            idg = 0
             CALL cp_subsys_get(subsys, shell_particles=shell_particles, core_particles=core_particles, error=error)
             DO ip=1,shell_particles%n_els
                shell_index = core_particles%els(ip)%shell_index
                DO idir=1,3
-                 idg=idg+1
-                 gradient(idg)=-(core_particles%els(ip)%f(idir)-shell_particles%els(ip)%f(idir))
+                 idg = idg + 1
+                 gradient(idg) = -(core_particles%els(ip)%f(idir) - shell_particles%els(ip)%f(idir))
                END DO
             END DO
          END IF
@@ -341,4 +405,5 @@ CPSourceFileRef,&
     END SELECT
 
     CALL timestop(handle)
+
   END SUBROUTINE cp_eval_at
