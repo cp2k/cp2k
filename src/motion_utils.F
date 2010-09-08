@@ -395,7 +395,9 @@ CONTAINS
 !> \date    02.2008
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_stress_tensor(virial, cell, motion_section, itimes, time, pos, act, error)
+  SUBROUTINE write_stress_tensor(virial,cell,motion_section,itimes,time,pos,&
+                                 act,error)
+
     TYPE(virial_type), POINTER               :: virial
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: motion_section
@@ -405,55 +407,57 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: pos, act
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_stress_tensor', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_stress_tensor', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: my_act, my_pos
-    INTEGER                                  :: str
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: new_file
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_total_bar
     TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
+    NULLIFY (logger)
     logger => cp_error_get_logger(error)
-    
-    IF( virial % pv_availability ) THEN
+
+    IF (virial%pv_availability) THEN
       my_pos = "APPEND"
       my_act = "WRITE"
       IF (PRESENT(pos)) my_pos = pos
       IF (PRESENT(act)) my_act = act
-      str = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
-           extension=".stress", file_position=my_pos, file_action=my_act,&
-           file_form="FORMATTED", error=error)
+      output_unit = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
+                                 extension=".stress",file_position=my_pos,&
+                                 file_action=my_act,file_form="FORMATTED",&
+                                 is_new_file=new_file,error=error)
     ELSE
-      str = 0
+      output_unit = 0
     END IF
-    IF ( str > 0 ) THEN
-       pv_total_bar(1,1) = cp_unit_from_cp2k(virial%pv_total(1,1)/cell%deth,"bar",error=error)
-       pv_total_bar(1,2) = cp_unit_from_cp2k(virial%pv_total(1,2)/cell%deth,"bar",error=error)
-       pv_total_bar(1,3) = cp_unit_from_cp2k(virial%pv_total(1,3)/cell%deth,"bar",error=error)
-       pv_total_bar(2,1) = cp_unit_from_cp2k(virial%pv_total(2,1)/cell%deth,"bar",error=error)
-       pv_total_bar(2,2) = cp_unit_from_cp2k(virial%pv_total(2,2)/cell%deth,"bar",error=error)
-       pv_total_bar(2,3) = cp_unit_from_cp2k(virial%pv_total(2,3)/cell%deth,"bar",error=error)
-       pv_total_bar(3,1) = cp_unit_from_cp2k(virial%pv_total(3,1)/cell%deth,"bar",error=error)
-       pv_total_bar(3,2) = cp_unit_from_cp2k(virial%pv_total(3,2)/cell%deth,"bar",error=error)
-       pv_total_bar(3,3) = cp_unit_from_cp2k(virial%pv_total(3,3)/cell%deth,"bar",error=error)
-       
-       WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,time,&
-                                                 pv_total_bar(1,1),&
-                                                 pv_total_bar(1,2),&
-                                                 pv_total_bar(1,3),&
-                                                 pv_total_bar(2,1),&
-                                                 pv_total_bar(2,2),&
-                                                 pv_total_bar(2,3),& 
-                                                 pv_total_bar(3,1),&
-                                                 pv_total_bar(3,2),&
-                                                 pv_total_bar(3,3)
-       CALL m_flush(str)
+
+    IF (output_unit > 0) THEN
+      IF (new_file) THEN
+        WRITE (UNIT=output_unit,FMT='(A,9(12X,A2," [bar]"),6X,A)')&
+          "#   Step   Time [fs]","xx","xy","xz","yx","yy","yz","zx","zy","zz"
+      END IF
+      pv_total_bar(1,1) = cp_unit_from_cp2k(virial%pv_total(1,1)/cell%deth,"bar",error=error)
+      pv_total_bar(1,2) = cp_unit_from_cp2k(virial%pv_total(1,2)/cell%deth,"bar",error=error)
+      pv_total_bar(1,3) = cp_unit_from_cp2k(virial%pv_total(1,3)/cell%deth,"bar",error=error)
+      pv_total_bar(2,1) = cp_unit_from_cp2k(virial%pv_total(2,1)/cell%deth,"bar",error=error)
+      pv_total_bar(2,2) = cp_unit_from_cp2k(virial%pv_total(2,2)/cell%deth,"bar",error=error)
+      pv_total_bar(2,3) = cp_unit_from_cp2k(virial%pv_total(2,3)/cell%deth,"bar",error=error)
+      pv_total_bar(3,1) = cp_unit_from_cp2k(virial%pv_total(3,1)/cell%deth,"bar",error=error)
+      pv_total_bar(3,2) = cp_unit_from_cp2k(virial%pv_total(3,2)/cell%deth,"bar",error=error)
+      pv_total_bar(3,3) = cp_unit_from_cp2k(virial%pv_total(3,3)/cell%deth,"bar",error=error)
+      WRITE (UNIT=output_unit,FMT='(I8,F12.3,9(1X,F19.10))') itimes,time,&
+        pv_total_bar(1,1),pv_total_bar(1,2),pv_total_bar(1,3),&
+        pv_total_bar(2,1),pv_total_bar(2,2),pv_total_bar(2,3),&
+        pv_total_bar(3,1),pv_total_bar(3,2),pv_total_bar(3,3)
+      CALL m_flush(output_unit)
     END IF
-    IF( virial % pv_availability ) THEN
-      CALL cp_print_key_finished_output(str,logger,motion_section,&
-           "PRINT%STRESS", error=error)
+
+    IF (virial%pv_availability) THEN
+      CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
+                                        "PRINT%STRESS",error=error)
     END IF
+
   END SUBROUTINE write_stress_tensor
 
 ! *****************************************************************************
@@ -462,7 +466,9 @@ CONTAINS
 !> \date    02.2008
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_simulation_cell(cell, motion_section, itimes, time, pos, act, error)
+  SUBROUTINE write_simulation_cell(cell,motion_section,itimes,time,pos,act,&
+                                   error)
+
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: motion_section
     INTEGER, INTENT(IN)                      :: itimes
@@ -471,38 +477,43 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: pos, act
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_simulation_cell', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_simulation_cell', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: my_act, my_pos
-    INTEGER                                  :: box
+    INTEGER                                  :: output_unit
     LOGICAL                                  :: new_file
     TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
+    NULLIFY (logger)
     logger => cp_error_get_logger(error)
     
     my_pos = "APPEND"
     my_act = "WRITE"
     IF (PRESENT(pos)) my_pos = pos
     IF (PRESENT(act)) my_act = act
-    box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
-         extension=".cell", file_position=my_pos, file_action=my_act,&
-         file_form="FORMATTED", is_new_file=new_file, error=error)
-    IF ( box > 0 ) THEN
-       IF (new_file) THEN
-         WRITE (box,'(A,9(7X,A2," [Angstrom]"),6X,A)')&
-           "#   Step   Time [fs]","Ax","Ay","Az","Bx","By","Bz","Cx","Cy","Cz",&
-           "Volume [Angstrom^3]"
-       END IF
-       WRITE (UNIT=box,FMT="(I8,F12.3,9F20.10,F25.10)") itimes,time,&
-         cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
-         cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
-         cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
-         cell%deth*angstrom*angstrom*angstrom
-       CALL m_flush(box)
+
+    output_unit = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
+                               extension=".cell",file_position=my_pos,&
+                               file_action=my_act,file_form="FORMATTED",&
+                               is_new_file=new_file,error=error)
+
+    IF (output_unit > 0) THEN
+      IF (new_file) THEN
+        WRITE (UNIT=output_unit,FMT='(A,9(7X,A2," [Angstrom]"),6X,A)')&
+          "#   Step   Time [fs]","Ax","Ay","Az","Bx","By","Bz","Cx","Cy","Cz",&
+          "Volume [Angstrom^3]"
+      END IF
+      WRITE (UNIT=output_unit,FMT="(I8,F12.3,9(1X,F19.10),1X,F24.10)") itimes,time,&
+        cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
+        cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
+        cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
+        cell%deth*angstrom*angstrom*angstrom
+      CALL m_flush(output_unit)
     END IF
-    CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
+
+    CALL cp_print_key_finished_output(output_unit,logger,motion_section,&
+                                      "PRINT%CELL",error=error)
 
   END SUBROUTINE write_simulation_cell
 
