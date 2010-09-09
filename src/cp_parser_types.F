@@ -149,7 +149,7 @@ CONTAINS
           CALL release_buffer_type(parser%buffer, error)
           CALL release_status_type(parser%status, error)
           IF (ASSOCIATED(parser%initial_variables)) THEN
-             DEALLOCATE(parser,stat=stat)
+             DEALLOCATE(parser%initial_variables,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           ENDIF
           DEALLOCATE(parser,stat=stat)
