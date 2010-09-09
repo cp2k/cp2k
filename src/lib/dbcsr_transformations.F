@@ -1313,6 +1313,7 @@ CONTAINS
        ENDDO ! symmetry_i
     ENDDO ! iterator
     CALL dbcsr_iterator_stop(iter)
+    DEALLOCATE (lsmp, lsdp)
 !$omp end parallel
     ! Exchange the data and metadata structures.
     SELECT CASE (data_type)
