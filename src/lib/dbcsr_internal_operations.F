@@ -347,6 +347,10 @@ CONTAINS
          "Product/Right matrix process grid mismatch",__LINE__,error)
     !
     ! Setup product work areas
+!$omp parallel do schedule (static, 1) default(none) &
+!$omp          private (i) &
+!$omp          shared (product_matrix) &
+!$omp          shared (error, nthreads)
     DO i = 1, nthreads
        CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
             MAX(product_matrix%m%wms(i)%datasize,&
@@ -362,6 +366,7 @@ CONTAINS
        CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
             ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
     ENDDO
+!$omp end parallel do
     !
     ! Exchange size data
     ALLOCATE (my_sizes(4, MAX (left_row_nimages, right_row_nimages),&

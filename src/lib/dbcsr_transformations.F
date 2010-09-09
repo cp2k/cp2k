@@ -1062,16 +1062,16 @@ CONTAINS
 !$     CALL dbcsr_distribution_make_threads (old_dist)
 !$  ENDIF
     ! Create and allocate the imaged matrices.
-!$omp single
+!$omp master
 !$  nthreads = omp_get_num_threads()
     ! C
-!$omp end single nowait
+!$omp end master
     ALLOCATE (myt_send_count(2, nrow_images, ncol_images, 0:numproc-1))
     ALLOCATE (myt_total_send_count(2, 0:numproc-1))
     myt_send_count(:,:,:,:) = 0
-!$omp single
+!$omp master
     ALLOCATE (all_total_send_offset(2, 0:numproc-1))
-!$omp end single nowait
+!$omp end master
     prev_dst_p = -1
     ! Count sizes for sending.
     CALL dbcsr_iterator_start(iter, ism, shared=.TRUE.)
@@ -1141,12 +1141,14 @@ CONTAINS
        myt_total_send_count(2, dst_p) = SUM(myt_send_count(2,:,:,dst_p))
     END FORALL
     ! Merge the send counts
-!$omp single
+!$omp master
     send_count(:,:,:,:) = 0
-!$omp end single
+!$omp end master
+!$omp barrier
 !$omp critical
     send_count(:,:,:,:) = send_count(:,:,:,:) + myt_send_count(:,:,:,:)
 !$omp end critical
+    DEALLOCATE (myt_send_count)
 !$omp barrier
 !$omp master
     CALL mp_alltoall(send_count, recv_count, 2*nrow_images*ncol_images,&
@@ -1161,7 +1163,7 @@ CONTAINS
 !$omp end master
 !$omp barrier
     ! Allocate data structures needed for data exchange.
-!$omp single
+!$omp master
     CALL dbcsr_data_init (recv_data_area)
     CALL dbcsr_data_new (recv_data_area, data_type, SUM(recv_count(2, :, :, :)))
     ALLOCATE (recv_meta(metalen*SUM(recv_count(1, :, :, :))))
@@ -1183,7 +1185,8 @@ CONTAINS
        rd_disp(dst_p) = rd_disp(dst_p-1)&
                         + total_recv_count(2, dst_p-1)
     ENDDO
-!$omp end single
+!$omp end master
+!$omp barrier
     ! Thread-local pointers of the current adding position into the
     ! send buffers
     ALLOCATE (lsmp(0:numproc-1), lsdp(0:numproc-1))
@@ -1197,21 +1200,22 @@ CONTAINS
        ENDIF
     ENDIF
 !$omp barrier
-    DO t = 1, nthreads-1
-       IF (ithread .EQ. t) THEN
-          lsmp(:) = all_total_send_offset(1,:)
-          lsdp(:) = all_total_send_offset(2,:)
-          all_total_send_offset(1,:) &
-               = all_total_send_offset(1,:) + metalen*myt_total_send_count(1,:)
-          all_total_send_offset(2,:) &
-               = all_total_send_offset(2,:) + myt_total_send_count(2,:)
-       ENDIF
-!$omp barrier
-    ENDDO
+    IF (ithread .GT. 0) THEN
+!$omp critical
+       lsmp(:) = all_total_send_offset(1,:)
+       lsdp(:) = all_total_send_offset(2,:)
+       all_total_send_offset(1,:) &
+            = all_total_send_offset(1,:) + metalen*myt_total_send_count(1,:)
+       all_total_send_offset(2,:) &
+            = all_total_send_offset(2,:) + myt_total_send_count(2,:)
+!$omp flush
+!$omp end critical
+    ENDIF
+    DEALLOCATE (myt_total_send_count)
     ! Prepares some indices needed for the last DO loop that copies
     ! from buffer to local space. Placed early to take advantage of
     ! the SECTIONS.
-!$omp single
+!$omp master
     ALLOCATE (blk_ps(nrow_images, ncol_images))
     ALLOCATE (blks (nrow_images, ncol_images))
     blk_ps(:,:) = 1
@@ -1223,19 +1227,24 @@ CONTAINS
     received_data_area = recv_data_area
     CALL dbcsr_data_hold(received_data_area)
     !received_data_area%d%r_dp => recv_data
-!$omp end single
+!$omp end master
+!$omp barrier
+!$omp master
+    DEALLOCATE (all_total_send_offset)
+!$omp end master
     t_error = dbcsr_error
     DO row_img = 1, nrow_images
        DO col_img = 1, ncol_images
           CALL dbcsr_work_create(ums%mats(row_img, col_img),&
                SUM(recv_count(1,row_img,col_img,:)), n=1, error=t_error)
-!$omp single
+!$omp master
           CALL dbcsr_data_hold (received_data_area)
           CALL dbcsr_data_release (ums%mats(row_img,col_img)%m%wms(1)%data_area)
           ums%mats(row_img,col_img)%m%wms(1)%data_area = received_data_area
-!$omp end single
+!$omp end master
        ENDDO
     ENDDO
+!$omp barrier
     prev_dst_p = -1
     ! Copies metadata and actual data to be sent into the send buffers.
     CALL dbcsr_iterator_start(iter, ism, shared=.TRUE.)
