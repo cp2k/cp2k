@@ -2288,7 +2288,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
         ENDIF
      ENDIF
 
-!$  call omp_set_lock(locks(arow*nthread*10/nblkrows_total))
+!$  call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
      IF (.NOT. scatter ) THEN
         DO k = 1, ncol
            DO j = 1, nrow
@@ -2296,7 +2296,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
            ENDDO
         ENDDO
      ENDIF
-!$  call omp_unset_lock(locks(arow*nthread*10/nblkrows_total))
+!$  call omp_unset_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
      recv_sizes(l)=recv_sizes(l)+nrow*ncol
     ENDDO
   ENDDO
