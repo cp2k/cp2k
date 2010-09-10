@@ -33,6 +33,10 @@ MODULE dbcsr_blas_operations
   ! BLAS routines
   PUBLIC :: dbcsr_blas_copy, dbcsr_blas_gemm, dbcsr_blas_scal
 
+  ! LAPACK routine
+  PUBLIC :: dbcsr_lapack_larnv
+
+
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
 #define DBGI IF (info) WRITE(*,*)routineN//" ",
@@ -45,6 +49,41 @@ MODULE dbcsr_blas_operations
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
 
 CONTAINS
+
+!\> Interface to LAPACK larnv
+  SUBROUTINE dbcsr_lapack_larnv( idist, iseed, n, x, error )
+    INTEGER, INTENT(IN)                      :: idist
+    INTEGER, DIMENSION(:), INTENT(IN)        :: iseed
+    INTEGER, INTENT(IN)                      :: n
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: x
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_lapack_larnv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handler
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handler, error)
+
+    SELECT CASE (x%d%data_type)
+    CASE (dbcsr_type_real_4)
+       CALL slarnv( idist, iseed, n, x%d%r_sp)
+    CASE (dbcsr_type_real_8)
+       CALL dlarnv( idist, iseed, n, x%d%r_dp)
+    CASE (dbcsr_type_complex_4)
+       CALL clarnv( idist, iseed, n, x%d%c_sp)
+    CASE (dbcsr_type_complex_8)
+       CALL zlarnv( idist, iseed, n, x%d%c_dp)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type",__LINE__,error)
+    END SELECT
+
+    CALL dbcsr_error_stop(error_handler, error)
+
+  END SUBROUTINE dbcsr_lapack_larnv
 
 !\> Interface to BLAS SCAL
   SUBROUTINE dbcsr_blas_scal (N, alpha, x, INCX)

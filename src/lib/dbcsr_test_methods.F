@@ -19,13 +19,15 @@ MODULE dbcsr_test_methods
                                              array_nullify,&
                                              array_release,&
                                              array_size
+  USE dbcsr_blas_operations,           ONLY: dbcsr_lapack_larnv
   USE dbcsr_block_access
   USE dbcsr_data_methods
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
-  USE dbcsr_kinds,                     ONLY: real_8
+  USE dbcsr_kinds,                     ONLY: default_string_length,&
+                                             real_8
   USE dbcsr_message_passing,           ONLY: mp_comm_null,&
                                              mp_environ
   USE dbcsr_methods
@@ -43,11 +45,34 @@ MODULE dbcsr_test_methods
   PRIVATE
 
   PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix, dbcsr_make_null_mp, &
-       dbcsr_make_random_block_sizes, dbcsr_make_null_dist
+       dbcsr_make_random_block_sizes, dbcsr_make_null_dist, dbcsr_test_read_args, &
+       atoi, atol, ator
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
 
 CONTAINS
+
+  SUBROUTINE dbcsr_test_read_args(narg, args)
+    INTEGER, INTENT(out)                     :: narg
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(out)                            :: args
+
+    CHARACTER(len=default_string_length)     :: line
+    INTEGER                                  :: istat
+
+    narg = 0
+    DO
+       READ(5,*,IOSTAT=istat) line
+       IF(istat.NE.0) EXIT
+       IF(line(1:1).EQ.'#') CYCLE
+       narg = narg + 1
+       args(narg) = line
+       !WRITE(*,*) 'we read <'//TRIM(args(narg))//'>'
+    ENDDO
+
+  END SUBROUTINE dbcsr_test_read_args
+
+
 
   SUBROUTINE dbcsr_random_dist (dist_array, dist_size, nbins)
     TYPE(array_i1d_obj), INTENT(out)         :: dist_array
@@ -73,23 +98,25 @@ CONTAINS
 !> \brief Creates a random matrix.
 !>        Only the master process gets the data.
   SUBROUTINE dbcsr_make_random_matrix (matrix, row_blk_sizes, col_blk_sizes,&
-       name, sparsity, mp_group, error)
+       name, sparsity, mp_group, data_type, symmetry, error)
     TYPE(dbcsr_obj), INTENT(out)             :: matrix
     TYPE(array_i1d_obj), INTENT(in)          :: row_blk_sizes, col_blk_sizes
     CHARACTER(len=*), INTENT(in)             :: name
     REAL(kind=real_8), INTENT(in)            :: sparsity
     INTEGER, INTENT(in)                      :: mp_group
+    CHARACTER, INTENT(in), OPTIONAL          :: data_type, symmetry
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_random_matrix', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: my_data_type, my_symmetry
     INTEGER                                  :: col, max_nze, nze, row
+    INTEGER, DIMENSION(4)                    :: iseed = (/4,3,2,1/)
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     REAL(kind=real_8)                        :: my_sparsity
-    REAL(kind=real_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: values
     REAL(kind=real_8), DIMENSION(1)          :: value
+    TYPE(dbcsr_data_obj)                     :: data_values
     TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------
@@ -98,12 +125,16 @@ CONTAINS
     CALL dbcsr_make_null_dist (dist, array_size (row_blk_sizes),&
          array_size (col_blk_sizes), group=mp_group)
     CALL dbcsr_init (matrix)
+    my_data_type = dbcsr_type_real_default
+    IF(PRESENT(data_type)) my_data_type = data_type
+    my_symmetry = dbcsr_type_normal
+    IF(PRESENT(symmetry)) my_symmetry = symmetry
     CALL dbcsr_create (matrix, name,&
-            dist, dbcsr_type_normal,&
-            row_blk_sizes,&
-            col_blk_sizes,&
-            data_type=dbcsr_type_real_default,&
-            error=error)
+         dist, my_symmetry,&
+         row_blk_sizes,&
+         col_blk_sizes,&
+         data_type=my_data_type,&
+         error=error)
     rbs => array_data (row_blk_sizes)
     cbs => array_data (col_blk_sizes)
     !
@@ -118,20 +149,31 @@ CONTAINS
             nblks_guess=INT(dbcsr_nblkrows_total(matrix)*dbcsr_nblkcols_total(matrix)*(1.0-sparsity)),&
             sizedata_guess=INT(dbcsr_nfullrows_total(matrix)*dbcsr_nfullcols_total(matrix)*(1.0-sparsity)),&
             work_mutable = .FALSE.,error=error)
-       ALLOCATE (values (max_nze))
+
+       CALL dbcsr_data_init (data_values)
+       CALL dbcsr_data_new (data_values, my_data_type, data_size=max_nze)
+
        DO row = 1, dbcsr_nblkrows_total (matrix)
           DO col = 1, dbcsr_nblkcols_total (matrix)
-             CALL RANDOM_NUMBER (value)
+             !
+             ! build the upper matrix if some symmetry
+             IF(my_symmetry.NE.dbcsr_type_normal.AND.col.LT.row) CYCLE
+
+             CALL dlarnv( 1, iseed, 1, value )
              IF (value(1) .LT. my_sparsity) CYCLE
              nze = rbs(row) * cbs(col)
-             CALL RANDOM_NUMBER (values (1:nze))
-             CALL dbcsr_put_block (matrix, row, col, values(1:nze))
+             CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
+             CALL dbcsr_put_block (matrix, row, col, data_values)
           ENDDO
        ENDDO
+
+       CALL dbcsr_data_release (data_values)
+
     ENDIF
     CALL dbcsr_distribution_release (dist)
     CALL dbcsr_finalize (matrix, error=error)
     CALL dbcsr_verify_matrix (matrix, error=error)
+
   END SUBROUTINE dbcsr_make_random_matrix
 
   SUBROUTINE dbcsr_make_random_block_sizes(block_sizes, size_sum, size_mix)
@@ -144,7 +186,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: block_size, current_sum, &
-                                                nblocks, nsize_mix, selector
+                                                istat, nblocks, nsize_mix, &
+                                                selector
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mixer
     INTEGER, DIMENSION(:), POINTER           :: sizes
     TYPE(dbcsr_error_type)                   :: error
@@ -183,6 +226,10 @@ CONTAINS
     current_sum = SUM (array_data (block_sizes))
     CALL dbcsr_assert (current_sum, "EQ", size_sum, dbcsr_fatal_level,&
          dbcsr_internal_error, routineN, "Incorrect block sizes",__LINE__,error)
+    DEALLOCATE(mixer, sizes, STAT=istat)
+    CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
+         routineN, "deallocation error",__LINE__,error)
+        
   END SUBROUTINE dbcsr_make_random_block_sizes
 
 
@@ -223,5 +270,26 @@ CONTAINS
     CALL array_release (col_dist)
     CALL dbcsr_mp_release (mp_env)
   END SUBROUTINE dbcsr_make_null_dist
+
+  FUNCTION atoi(a)
+    CHARACTER(len=*), INTENT(in)             :: a
+    INTEGER                                  :: atoi
+
+    READ(a,'(I6)') atoi
+  END FUNCTION atoi
+
+  FUNCTION atol(a)
+    CHARACTER(len=*), INTENT(in)             :: a
+    LOGICAL                                  :: atol
+
+    READ(a,'(L1)') atol
+  END FUNCTION atol
+
+  FUNCTION ator(a)
+    CHARACTER(len=*), INTENT(in)             :: a
+    REAL(real_8)                             :: ator
+
+    READ(a,'(E26.15)') ator
+  END FUNCTION ator
 
 END MODULE dbcsr_test_methods

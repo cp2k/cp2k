@@ -134,6 +134,7 @@ MODULE dbcsr_message_passing
                       mp_bcast_z, mp_bcast_zv, mp_bcast_zm, mp_bcast_z3
      MODULE PROCEDURE mp_bcast_b!, mp_bcast_bv
 !     MODULE PROCEDURE mp_bcast_av, mp_bcast_am
+     MODULE PROCEDURE mp_bcast_charv
   END INTERFACE
 
   INTERFACE mp_sum
@@ -1424,6 +1425,33 @@ CONTAINS
     t_end = m_walltime ( )
 #endif
   END SUBROUTINE mp_bcast_b
+
+! *****************************************************************************
+!> \brief Broadcasts a datum to all processes.
+!> \par MPI mapping
+!>      mpi_bcast
+!> \param[in] msg             Datum to broadcast
+!> \param[in] source          Processes which broadcasts
+!> \param[in] gid             Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_bcast_charv(msg,source,gid)
+    CHARACTER(LEN=*), DIMENSION(:)           :: msg
+    INTEGER, INTENT(IN)                      :: source, gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_bcast_charv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, msglen
+
+    ierr = 0
+    msglen = SIZE(msg)*LEN(msg)
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_bcast(msg,msglen,MPI_CHARACTER,source,gid,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ "//routineN )
+    t_end = m_walltime ( )
+#endif
+  END SUBROUTINE mp_bcast_charv
 
 
 ! *****************************************************************************

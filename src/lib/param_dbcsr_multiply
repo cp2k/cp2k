@@ -1,0 +1,32 @@
+# operation
+dbcsr_multiply
+# matrix sizes
+230
+230
+230
+# sparsity
+0.1d0
+0.1d0
+0.1d0
+# alpha (real, imag)
+1.0d0
+0.0d0
+# beta (real, imag)
+0.0d0
+0.0d0          
+# limits (0 means full size)
+# row
+0
+0
+# col
+0
+0
+# k
+0
+0
+# symmetries A B C
+N
+N
+N
+# retain sparsity (T/F)
+F
