@@ -38,7 +38,7 @@ MODULE cp2k_info
   INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
 #endif
 
-  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.1.372"
+  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.1.373"
   CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2010"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
   CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://cp2k.berlios.de/"
