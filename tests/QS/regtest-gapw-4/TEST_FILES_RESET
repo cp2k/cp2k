@@ -217,3 +217,7 @@ Fe.inp
 H2O_allnopaw.inp
 # Numerics due to DBCSR images (extra)
 H2O_Hnopaw_pp.inp
+#
+CO_xastpxfh.inp
+CO_xastpxfh_locall.inp
+CO_xastpxfh_150Ry.inp  

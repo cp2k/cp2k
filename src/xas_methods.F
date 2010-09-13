@@ -400,20 +400,21 @@ CONTAINS
     END IF
 
     !some further setup depending on the mixing method
+    scf_env%mixing_method=xas_env%mixing_method
+    scf_env%p_mix_alpha = xas_env%mixing_store%alpha
+    scf_env%skip_diis = .FALSE.
     IF(xas_env%mixing_method>direct_mixing_nr) THEN
       scf_env%skip_diis = .TRUE.
-      scf_env%p_mix_alpha = xas_env%mixing_store%alpha
       IF(xas_env%mixing_store%beta==0.0_dp) THEN
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"Mixing employing the Kerker damping factor: choose BETA /= 0.0",error,failure)
+              routineP,"CLS: Mixing employing the Kerker damping factor needs BETA /= 0.0",error,failure)
       END IF
     END IF
-    IF (scf_env%mixing_method==direct_mixing_nr) THEN
-        scf_env%p_mix_alpha = xas_env%mixing_store%alpha
+    IF (xas_env%mixing_method==direct_mixing_nr) THEN
         IF(xas_env%eps_diis<qs_env%scf_control%eps_scf) THEN
           scf_env%skip_diis = .TRUE.
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                        "the DIIS scheme is disabled, since EPS_DIIS < EPS_SCF",&
+                        "CLS: the DIIS scheme is disabled, since EPS_DIIS < EPS_SCF",&
                         error,failure)
         END IF
     END IF
@@ -428,7 +429,10 @@ CONTAINS
            occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
       IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
-         CPPrecondition(.NOT.(nmo<(nelectron+1)),cp_failure_level,routineP,error,failure)
+!         CPPrecondition(.NOT.(nmo<(nelectron+1)),cp_failure_level,routineP,error,failure)
+         CALL cp_assert(nmo>(nelectron+1),cp_failure_level,cp_assertion_failed,&
+              routineP,"CLS: the required method needs added_mos to the ground state",error,failure)
+
       END IF
       occupation_numbers(1:homo)  = 1.0_dp
       ! If the restart file for this atom exists, the mos and the

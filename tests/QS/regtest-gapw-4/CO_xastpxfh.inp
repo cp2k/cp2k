@@ -37,7 +37,7 @@
       EPS_DIIS 0.4
       MAX_SCF 5
        
-      ADDED_MOS  1 1
+      ADDED_MOS  2 2
       &OT OFF
         PRECONDITIONER FULL_ALL
       &END OT

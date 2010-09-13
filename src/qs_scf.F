@@ -340,7 +340,7 @@ CONTAINS
             scf_env%p_mix_alpha = scf_env%mixing_store%alpha
             IF(scf_env%mixing_store%beta==0.0_dp) THEN
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"Mixing employing the Kerker damping factor: choose BETA /= 0.0",error,failure)
+                     routineP,"Mixing employing the Kerker damping factor needs BETA /= 0.0",error,failure)
             END IF
           END IF
 
@@ -1937,8 +1937,10 @@ CPSourceFileRef)
 
     IF((scf_env%method == ot_method_nr) .AND. &
        (scf_control%added_mos(1)+scf_control%added_mos(2)) > 0) THEN
-       IF (output_unit>0) WRITE(output_unit,*) "OT with ADDED_MOS/=0 not implemented"
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"OT with ADDED_MOS/=0 not implemented", error,failure)
+!       IF (output_unit>0) WRITE(output_unit,*) "OT with ADDED_MOS/=0 not implemented"
+!       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
 

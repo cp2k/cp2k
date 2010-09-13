@@ -237,7 +237,7 @@ CONTAINS
                cp_to_string(xas_control%scf_method),error,failure)
 
        CASE(xas_scf_general) ! diagonalisation (default)
-
+          scf_env%iter_count=iter_count
           CALL do_general_diag(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
                                diis_step,use_jacobi,xas_env,error)

@@ -148,6 +148,7 @@ CONTAINS
     ELSE
        eps_diis = scf_control%eps_diis
     END IF
+
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
       CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
                           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
@@ -177,7 +178,9 @@ CONTAINS
         scf_env%iter_method = "DIIS/Diag."
       END IF
     ELSE
-      IF(scf_env%mixing_method ==1) THEN
+      IF(scf_env%mixing_method ==0) THEN
+        scf_env%iter_method = "NoMix/Diag."
+      ELSE IF(scf_env%mixing_method ==1) THEN
         scf_env%iter_param = scf_env%p_mix_alpha
         IF (use_jacobi) THEN
           scf_env%iter_method = "P_Mix/Jacobi"
