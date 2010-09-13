@@ -1360,9 +1360,7 @@ CPSourceFileRef,&
 
     
     IF(reftraj_env%info%variable_volume)THEN
-       cell%hmat(1:3,1) = h(1:3,1)
-       cell%hmat(1:3,2) = h(1:3,2)
-       cell%hmat(1:3,3) = h(1:3,3)
+       cell%hmat = h
        CALL init_cell(cell)
        CALL force_env_set_cell(force_env, cell, error)
     END IF
