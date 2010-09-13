@@ -71,3 +71,6 @@ c8_pmix_gapw_all.inp
 c8_pmix_gapw_all_xashh.inp
 # Numerics due to DBCSR images. 
 c8_broy_gapw_all_xashh.inp
+#
+CO_xastphh_r.inp
+CO_xastpfh.inp
