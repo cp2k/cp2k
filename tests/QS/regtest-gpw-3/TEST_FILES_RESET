@@ -844,3 +844,13 @@ H2O-ref-2.inp
 H2O-ata.inp
 # New definition of vdW radius
 ghost_overlap_vdw.inp
+# Numerics differences due to different distribution 
+H2O-bloechl.inp
+# Numerics differences due to different distribution 
+H2O-bloechl-restraint.inp
+# Numerics differences due to different distribution 
+H2O-ata.inp
+# Numerics differences due to different distribution 
+H2O-solv.inp
+# Numerics differences due to different distribution 
+dynamics.inp

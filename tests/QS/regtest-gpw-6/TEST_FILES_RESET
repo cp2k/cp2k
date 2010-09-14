@@ -281,3 +281,19 @@ si8_lsd_broy_wc_rst.inp
 si8_lsd_broy_wc_list.inp
 # Numerics due to DBCSR images. 
 si8_lsd_broy_wc_list_rst.inp
+# Numerics differences due to different distribution 
+si8_noort_broy_wc_jacobi_ene1.inp
+# Numerics differences due to different distribution 
+si8_noort_broy_wc_direct_ene.inp
+# Numerics differences due to different distribution 
+si8_lsd_broy_wc_ene.inp
+# Numerics differences due to different distribution 
+si8_lsd_broy_wc.inp
+# Numerics differences due to different distribution 
+si8_lsd_broy_wc_rst.inp
+# Numerics differences due to different distribution 
+si8_lsd_broy_wc_list.inp
+# Numerics differences due to different distribution 
+si8_lsd_broy_wc_list_rst.inp
+# Numerics differences due to different distribution 
+c8_broy_gapw_gop.inp

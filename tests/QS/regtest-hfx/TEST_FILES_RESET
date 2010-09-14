@@ -324,3 +324,9 @@ H2O-hfx-emd-restart.inp
 4H2O-mix-disk-ram.inp
 # Numerics due to DBCSR images. 
 4H2O-mix-disk-ram-on-the-fly.inp
+# Numerics differences due to different distribution 
+4H2O-disk.inp
+# Numerics differences due to different distribution 
+4H2O-mix-disk-ram.inp
+# Numerics differences due to different distribution 
+4H2O-mix-disk-ram-on-the-fly.inp

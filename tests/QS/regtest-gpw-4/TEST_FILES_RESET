@@ -813,3 +813,17 @@ He3_multi_ddapc.inp
 h2o-otdiag.inp
 # Numerics due to DBCSR images. 
 2H2O_meta_welltemp.inp
+# Numerics differences due to different distribution 
+spin_restraint.inp
+# Numerics differences due to different distribution 
+NO2-EFG-1.inp
+# Numerics differences due to different distribution 
+basis_none_1.inp
+# Numerics differences due to different distribution 
+He3_multi_ddapc.inp
+# Numerics differences due to different distribution 
+h2o-otdiag.inp
+# Numerics differences due to different distribution 
+h2o-otdiag-lsd.inp
+# Numerics differences due to different distribution 
+2H2O_meta_welltemp.inp

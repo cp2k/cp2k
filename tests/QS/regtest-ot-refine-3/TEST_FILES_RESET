@@ -145,3 +145,11 @@ h2o_ot_precond_2_mp.inp
 h2o_ot_precond_3_mp.inp
 #  
 h2o_ot_precond_4_mp.inp
+# Numerics differences due to different distribution 
+h2o_ot_precond_1_mp.inp
+# Numerics differences due to different distribution 
+h2o_ot_precond_2_mp.inp
+# Numerics differences due to different distribution 
+h2o_ot_precond_3_mp.inp
+# Numerics differences due to different distribution 
+h2o_ot_precond_4_mp.inp

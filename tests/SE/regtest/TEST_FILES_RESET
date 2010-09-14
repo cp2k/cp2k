@@ -554,3 +554,15 @@ dimer3.inp
 dimer4.inp
 # Numerics due to DBCSR images. 
 h2o_gks_p.inp
+# Numerics differences due to different distribution 
+st.inp
+# Numerics differences due to different distribution 
+h2op_2.inp
+# Numerics differences due to different distribution 
+h2po4.inp
+# Numerics differences due to different distribution 
+b2h6_pm6.inp
+# Numerics differences due to different distribution 
+dimer2.inp
+# Numerics differences due to different distribution 
+dimer3.inp

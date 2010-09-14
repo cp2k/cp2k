@@ -275,3 +275,13 @@ si8_pulay_reduce.inp
 si8_pmix_otdiag.inp
 # Numerics due to DBCSR images. 
 si8_broy_wc.inp
+# Numerics differences due to different distribution 
+si8_pulay_inverse.inp
+# Numerics differences due to different distribution 
+si8_broy_kry.inp
+# Numerics differences due to different distribution 
+si8_broy_kry_r.inp
+# Numerics differences due to different distribution 
+si8_broy_wc.inp
+# Numerics differences due to different distribution 
+si8_broy_wc_crazy.inp

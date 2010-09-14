@@ -742,3 +742,5 @@ no-gapw-3.inp
 no-gapw-4.inp
 # analytic electrostatic in Fist
 no-gapw-gpw-1.inp
+# Numerics differences due to different distribution 
+no-gapw-1-distributed.inp

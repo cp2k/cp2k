@@ -161,3 +161,5 @@ water_g3x3_excl_qm.inp
 Si_tersoff_qmmm.inp
 # reset for numerics with a bunch of compilers/libs (all smaller than 1E-9)
 Si_tersoff_qmmm.inp
+# Numerics differences due to different distribution 
+Si_tersoff_qmmm.inp

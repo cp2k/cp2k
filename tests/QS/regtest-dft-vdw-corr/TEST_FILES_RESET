@@ -71,3 +71,5 @@ dftd3_t9.inp
 dftd3_t10.inp
 dftd3_t11.inp
 dftd3_t12.inp
+# Numerics differences due to different distribution 
+ch4-ch4-gpw-vdw.inp

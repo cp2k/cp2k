@@ -884,3 +884,23 @@ C_ot.inp
 Al_fermi.inp
 # Numerics due to DBCSR images. 
 H2O.inp
+# Numerics differences due to different distribution 
+N3-2.inp
+# Numerics differences due to different distribution 
+N3-3.inp
+# Numerics differences due to different distribution 
+N3-4.inp
+# Numerics differences due to different distribution 
+N3-5.inp
+# Numerics differences due to different distribution 
+N3-6.inp
+# Numerics differences due to different distribution 
+N3-7.inp
+# Numerics differences due to different distribution 
+N3-8.inp
+# Numerics differences due to different distribution 
+N3-9.inp
+# Numerics differences due to different distribution 
+N3-10.inp
+# Numerics differences due to different distribution 
+H2O.inp

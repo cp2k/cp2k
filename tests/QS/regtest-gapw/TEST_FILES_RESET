@@ -307,3 +307,7 @@ H2S-gapw-gop-ot.inp
 Be_GAPW.inp
 # Update of atomic weights 
 He2-all-md.inp
+# Numerics differences due to different distribution 
+h2o_dist.inp
+# Numerics differences due to different distribution 
+H2S-gapw-gop.inp

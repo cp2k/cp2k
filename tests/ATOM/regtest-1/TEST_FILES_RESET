@@ -220,3 +220,5 @@ Yb.inp  35
 Y.inp  35
 Zn.inp  35
 Zr.inp  35
+# Numerics differences due to different distribution 
+Er.inp

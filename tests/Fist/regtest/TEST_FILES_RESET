@@ -585,3 +585,5 @@ h2o-32-g3x3-mult.inp
 deca_ala_include.inp
 deca_ala_avg2.inp
 deca_ala_noavg.inp
+# Numerics differences due to different distribution 
+multipole_dip_qu.dbg_st.inp

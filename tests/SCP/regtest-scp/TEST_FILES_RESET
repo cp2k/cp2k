@@ -225,3 +225,9 @@ w2.inp
 w2-r1.inp
 # Numerics due to DBCSR images. 
 w2-r2.inp
+# Numerics differences due to different distribution 
+w2.inp
+# Numerics differences due to different distribution 
+w2-r1.inp
+# Numerics differences due to different distribution 
+w2-r2.inp

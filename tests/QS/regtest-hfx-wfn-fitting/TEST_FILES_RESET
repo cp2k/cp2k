@@ -32,3 +32,15 @@ CH4-HSE06.inp
 CH4-PBE0.inp
 # Numerics due to DBCSR images. 
 CH4-PBE0_TC.inp
+# Numerics differences due to different distribution 
+CH3-HSE06.inp
+# Numerics differences due to different distribution 
+CH3-PBE0.inp
+# Numerics differences due to different distribution 
+CH3-PBE0_TC.inp
+# Numerics differences due to different distribution 
+CH4-HSE06.inp
+# Numerics differences due to different distribution 
+CH4-PBE0.inp
+# Numerics differences due to different distribution 
+CH4-PBE0_TC.inp

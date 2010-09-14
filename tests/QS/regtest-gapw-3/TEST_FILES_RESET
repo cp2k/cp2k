@@ -230,3 +230,7 @@ CO_xastpval.inp
 CO_xastpxhh.inp
 # Numerics due to DBCSR images. 
 CO_xastpxhh_loclist.inp
+# Numerics differences due to different distribution 
+CO_xastpxhh.inp
+# Numerics differences due to different distribution 
+CO_xastpxhh_loclist.inp

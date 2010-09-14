@@ -71,3 +71,23 @@ CH4-BP-NONE.inp
 CH4-BP-CAUCHY_SUBSPACE.inp
 # Numerics due to DBCSR images. 
 CH4-BP-CAUCHY.inp
+# Numerics differences due to different distribution 
+CH3-BP-MO_DIAG.inp
+# Numerics differences due to different distribution 
+CH3-BP-MO_NO_DIAG.inp
+# Numerics differences due to different distribution 
+CH3-BP-NONE.inp
+# Numerics differences due to different distribution 
+CH3-BP-CAUCHY_SUBSPACE.inp
+# Numerics differences due to different distribution 
+CH3-BP-CAUCHY.inp
+# Numerics differences due to different distribution 
+CH4-BP-MO_DIAG.inp
+# Numerics differences due to different distribution 
+CH4-BP-MO_NO_DIAG.inp
+# Numerics differences due to different distribution 
+CH4-BP-NONE.inp
+# Numerics differences due to different distribution 
+CH4-BP-CAUCHY_SUBSPACE.inp
+# Numerics differences due to different distribution 
+CH4-BP-CAUCHY.inp

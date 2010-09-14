@@ -71,6 +71,13 @@ c8_pmix_gapw_all.inp
 c8_pmix_gapw_all_xashh.inp
 # Numerics due to DBCSR images. 
 c8_broy_gapw_all_xashh.inp
+<<<<<<< TEST_FILES_RESET
+# Numerics differences due to different distribution 
+c8_pmix_gapw_all.inp
+# Numerics differences due to different distribution 
+c8_pmix_gapw_all_xashh.inp
+=======
 #
 CO_xastphh_r.inp
 CO_xastpfh.inp
+>>>>>>> 1.15

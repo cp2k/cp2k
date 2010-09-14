@@ -374,3 +374,11 @@ hcl_z.inp
 H2O-32.inp
 # Numerics due to DBCSR images. 
 zn_1w_debug.inp
+# Numerics differences due to different distribution 
+ZrF2-PM6.inp
+# Numerics differences due to different distribution 
+Pt-cis-2xpet3Cl2-si.inp
+# Numerics differences due to different distribution 
+zn_1w_debug.inp
+# Numerics differences due to different distribution 
+H2O-32.inp

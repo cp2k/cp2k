@@ -28,3 +28,7 @@ extrap-7-far.inp
 extrap-8-far.inp
 extrap-9-far.inp
 extrap-10-far.inp
+# Numerics differences due to different distribution 
+extrap-7.inp
+# Numerics differences due to different distribution 
+extrap-4-far.inp

@@ -73,7 +73,7 @@ CONTAINS
             enum_desc=s2a("the number of blocks",&
                           "the number of blocks weighted by the number elements per block",&
                           "the number of blocks weighted by the sum of the lmax"), &
-            default_i_val=model_block_surface,error=error)
+            default_i_val=model_block_count,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -100,7 +100,7 @@ CONTAINS
 "Creates a distribution based on a few heuristics using only minimal memory "//&
 "and CPU time.",&
             usage="BASIC_OPTIMIZATION TRUE",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
 

@@ -102,3 +102,11 @@ cu2cl6_m3_std.inp
 cu2cl6_m1_clp6cud9.inp
 # Numerics due to DBCSR images. 
 cu2cl6_m3_clp6cud9.inp
+# Numerics differences due to different distribution 
+cu2cl6_m1_std.inp
+# Numerics differences due to different distribution 
+cu2cl6_m3_std.inp
+# Numerics differences due to different distribution 
+cu2cl6_m1_clp6cud9.inp
+# Numerics differences due to different distribution 
+cu2cl6_m3_clp6cud9.inp

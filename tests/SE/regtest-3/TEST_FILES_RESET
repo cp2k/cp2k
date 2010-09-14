@@ -216,3 +216,19 @@ N3_rp_md.inp
 N3_dp_md.inp
 # Numerics due to DBCSR images (extra)
 Co_complex.inp
+# Numerics differences due to different distribution 
+N3-rp_colvar.inp
+# Numerics differences due to different distribution 
+Periclase.inp
+# Numerics differences due to different distribution 
+SiO2.inp
+# Numerics differences due to different distribution 
+H2O-4.inp
+# Numerics differences due to different distribution 
+Co_complex.inp
+# Numerics differences due to different distribution 
+N3_rp_md.inp
+# Numerics differences due to different distribution 
+N3_dp_md.inp
+# Numerics differences due to different distribution 
+N3_rp_dp_md.inp

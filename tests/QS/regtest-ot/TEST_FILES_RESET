@@ -772,3 +772,15 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 # Numerics due to DBCSR images. 
 He2_ddapc_constraint-4.inp
+# Numerics differences due to different distribution 
+He2_ddapc_constraint-2.inp
+# Numerics differences due to different distribution 
+He2_ddapc_constraint-3.inp
+# Numerics differences due to different distribution 
+He2_none_full_inverse.inp
+# Numerics differences due to different distribution 
+H2O-geo-ot-mols.inp
+# Numerics differences due to different distribution 
+sic_ddapc_rt.inp
+# Numerics differences due to different distribution 
+He2_ddapc_constraint-4.inp
