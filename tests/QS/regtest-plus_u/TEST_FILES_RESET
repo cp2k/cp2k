@@ -349,3 +349,5 @@ H2O-uks-otcg-mulliken.inp
 H2O-rks-otcg-lowdin.inp
 # Numerics differences due to different distribution 
 H2O-uks-otcg-lowdin.inp
+# Acceptable numerical noise due to recent changes
+H2O-rks-diag.inp
