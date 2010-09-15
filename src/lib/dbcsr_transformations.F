@@ -308,16 +308,14 @@ CONTAINS
     IF (tr_index) DEALLOCATE (blk_p)
     !
     IF (PRESENT (redistribute)) THEN
-       redist = .TRUE.
+       redist = redistribute
     ELSE
        redist = .NOT. tr_dist .AND. .NOT. shallow
     ENDIF
     IF (redist) THEN
        !write (*,*)routineN//" redistributing"
        CALL dbcsr_init (t2)
-       CALL dbcsr_create (t2, transposed%m%name, transposed%m%dist,&
-            dbcsr_type_normal, transposed%m%row_blk_size, transposed%m%col_blk_size,&
-            0, 0, transposed%m%data_type, error=error)
+       CALL dbcsr_create (t2, template=transposed, error=error)
        CALL dbcsr_redistribute (transposed, t2, error=error)
        CALL dbcsr_release (transposed)
        transposed = t2
