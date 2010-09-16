@@ -232,3 +232,7 @@ N3_rp_md.inp
 N3_dp_md.inp
 # Numerics differences due to different distribution 
 N3_rp_dp_md.inp
+#  
+SiO2_lr_quad.inp
+#  
+Al2O3.inp

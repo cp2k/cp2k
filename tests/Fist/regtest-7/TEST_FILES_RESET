@@ -308,3 +308,7 @@ uo2_shell_nve_dsc.inp
 uo2_shell_npt_dsc.inp
 uo2_shell_nve_zbl.inp
 uo2_shell_nve_cascade.inp
+#  
+UO2-4x4x4-core-forces.inp
+#  
+UO2-4x4x4-shell-forces.inp
