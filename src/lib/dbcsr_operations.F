@@ -396,9 +396,18 @@ CONTAINS
        new_left = .FALSE.
     CASE('T','t')
        CALL dbcsr_init(matrix_left)
-       CALL dbcsr_new_transposed (matrix_left, matrix_a,&
-            shallow_data_copy=.TRUE., redistribute=.false.,&
-            transpose_distribution=.FALSE., error=error)
+       IF(dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) THEN
+          !
+          ! For antisymmetric matrix, we need to do a hard copy 
+          ! shallow_data_copy=.TRUE. doesnt handle properly antisymm matrices
+          CALL dbcsr_new_transposed (matrix_left, matrix_a,&
+               shallow_data_copy=.FALSE., redistribute=.FALSE., &
+               transpose_distribution=.FALSE., error=error)
+       ELSE
+          CALL dbcsr_new_transposed (matrix_left, matrix_a,&
+               shallow_data_copy=.TRUE., redistribute=.false.,&
+               transpose_distribution=.FALSE., error=error)
+       ENDIF
        new_left = .TRUE.
     CASE('C','c')
        CALL dbcsr_init(matrix_left)
@@ -418,9 +427,18 @@ CONTAINS
        new_right = .FALSE.
     CASE('T','t')
        CALL dbcsr_init(matrix_right)
-       CALL dbcsr_new_transposed (matrix_right, matrix_b,&
-            shallow_data_copy=.TRUE., redistribute=.false.,&
-            transpose_distribution=.FALSE., error=error)
+       IF(dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric) THEN
+          !
+          ! For antisymmetric matrix, we need to do a hard copy 
+          ! shallow_data_copy=.TRUE. doesnt handle properly antisymm matrices
+          CALL dbcsr_new_transposed (matrix_right, matrix_b,&
+               shallow_data_copy=.FALSE., redistribute=.FALSE.,&
+               transpose_distribution=.FALSE., error=error)
+       ELSE
+          CALL dbcsr_new_transposed (matrix_right, matrix_b,&
+               shallow_data_copy=.TRUE., redistribute=.false.,&
+               transpose_distribution=.FALSE., error=error)
+       ENDIF
        new_right = .TRUE.
     CASE('C','c')
        CALL dbcsr_init(matrix_right)
@@ -526,6 +544,7 @@ CONTAINS
     CALL dbcsr_assert (f_col .LE. l_col, dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN, "Last col smaller than first col", &
          __LINE__, error)
+
     !
     !
     ! Product data needs to be retained when
@@ -556,7 +575,7 @@ CONTAINS
     ENDIF
     ! Product can not be made dense; however, A & B may still be made
     ! dense unless previously determined otherwise.
-    IF (product_reindex) THEN
+    IF (product_reindex.OR.keep_sparsity) THEN
        use_dense_mult = .FALSE.
     ENDIF
     product_matrix = matrix_c

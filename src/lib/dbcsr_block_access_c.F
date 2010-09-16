@@ -710,6 +710,10 @@
              IF (found) THEN
                 CALL caxpy (nze, CMPLX(1.0, 0.0, real_4), block(1), 1,&
                      data_block2%p(1,1), 1)
+                CALL dbcsr_assert (ASSOCIATED (data_block%p), dbcsr_warning_level,&
+                     dbcsr_internal_error, routineN,&
+                     "Data was not present in block",__LINE__,error)
+                IF (ASSOCIATED (data_block%p)) DEALLOCATE (data_block%p)
              ENDIF
           ENDIF
           IF (.NOT. found) THEN

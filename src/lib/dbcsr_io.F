@@ -191,7 +191,13 @@ CONTAINS
                             CALL dbcsr_printmat(r_dp(blk_p:blk_p+mn-1),m,n, tr=tr)
                          ENDIF
                       CASE (dbcsr_type_real_4)
-                         CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                         IF(my_matlab_format) THEN
+                            CALL dbcsr_printmat_matlab_s(r_sp(blk_p:blk_p+mn-1),m,n, &
+                                 row_blk_offset(br), col_blk_offset(bc),tr=tr, &
+                                 variable_name=variable_name)
+                         ELSE
+                            CALL dbcsr_printmat(r_sp(blk_p:blk_p+mn-1),m,n, tr=tr)
+                         ENDIF
                       CASE (dbcsr_type_complex_8)
                          IF(my_matlab_format) THEN
                             CALL dbcsr_printmat_matlab_z(c_dp(blk_p:blk_p+mn-1),m,n, &
@@ -270,6 +276,56 @@ CONTAINS
     ENDDO
     ENDDO
   END SUBROUTINE dbcsr_printmat_matlab_d
+
+  SUBROUTINE dbcsr_printmat_matlab_s(matrix, rows, cols, r_offset, c_offset, tr, variable_name)
+    REAL(KIND=real_4), DIMENSION(:), &
+      INTENT(IN)                             :: matrix
+    INTEGER, INTENT(IN)                      :: rows, cols, r_offset, c_offset
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: variable_name
+
+    INTEGER                                  :: c, c_off, m, n, r, r_off
+    LOGICAL                                  :: t
+
+!   ---------------------------------------------------------------------------
+
+    m = rows
+    n = cols
+    r_off = r_offset
+    c_off = c_offset
+    t = .FALSE.
+    IF(PRESENT(tr)) THEN
+       IF(tr) THEN
+          t = .TRUE.
+          m = cols
+          n = rows
+          r_off = c_offset
+          c_off = r_offset
+       ENDIF
+    ENDIF
+
+    DO c = 1,cols
+    DO r = 1,rows
+       IF(.NOT.t) THEN
+          IF(ABS(matrix(r+(c-1)*rows)).GT.1e-8_real_4) THEN
+          IF(PRESENT(variable_name)) THEN
+              WRITE(*,'(A,I4,A,I4,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
+          ELSE
+             WRITE(*,'(A,I4,A,I4,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
+          ENDIF
+          ENDIF
+       ELSE
+          IF(ABS(matrix((r-1)*cols+c)).GT.1e-8_real_4) THEN
+          IF(PRESENT(variable_name)) THEN
+             WRITE(*,'(A,I4,A,I4,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
+          ELSE
+             WRITE(*,'(A,I4,A,I4,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
+          ENDIF
+          ENDIF
+       ENDIF
+    ENDDO
+    ENDDO
+  END SUBROUTINE dbcsr_printmat_matlab_s
 
   SUBROUTINE dbcsr_printmat_matlab_z(matrix, rows, cols, r_offset, c_offset, tr, variable_name)
     COMPLEX(KIND=real_8), DIMENSION(:), &

@@ -1,13 +1,13 @@
 # operation
 dbcsr_multiply
 # matrix sizes
-230
-230
-230
-# sparsity
-0.1d0
-0.1d0
-0.1d0
+10
+10
+10
+# sparsity (A, B, C)
+0.0d0
+0.0d0
+0.5d0
 # alpha (real, imag)
 1.0d0
 0.0d0
@@ -24,9 +24,5 @@ dbcsr_multiply
 # k
 0
 0
-# symmetries A B C
-N
-N
-N
 # retain sparsity (T/F)
-F
+T

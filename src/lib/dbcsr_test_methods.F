@@ -21,11 +21,13 @@ MODULE dbcsr_test_methods
                                              array_size
   USE dbcsr_blas_operations,           ONLY: dbcsr_lapack_larnv
   USE dbcsr_block_access
+  USE dbcsr_block_operations,          ONLY: dbcsr_block_transpose
   USE dbcsr_data_methods
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
+  USE dbcsr_io
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_comm_null,&
@@ -116,7 +118,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     REAL(kind=real_8)                        :: my_sparsity
     REAL(kind=real_8), DIMENSION(1)          :: value
-    TYPE(dbcsr_data_obj)                     :: data_values
+    TYPE(dbcsr_data_obj)                     :: data_values, data_values_tr
     TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------
@@ -148,10 +150,12 @@ CONTAINS
        CALL dbcsr_work_create (matrix,&
             nblks_guess=INT(dbcsr_nblkrows_total(matrix)*dbcsr_nblkcols_total(matrix)*(1.0-sparsity)),&
             sizedata_guess=INT(dbcsr_nfullrows_total(matrix)*dbcsr_nfullcols_total(matrix)*(1.0-sparsity)),&
-            work_mutable = .FALSE.,error=error)
+            work_mutable = .TRUE.,error=error)
 
        CALL dbcsr_data_init (data_values)
        CALL dbcsr_data_new (data_values, my_data_type, data_size=max_nze)
+       CALL dbcsr_data_init (data_values_tr)
+       CALL dbcsr_data_new (data_values_tr, my_data_type, data_size=max_nze)
 
        DO row = 1, dbcsr_nblkrows_total (matrix)
           DO col = 1, dbcsr_nblkcols_total (matrix)
@@ -164,10 +168,24 @@ CONTAINS
              nze = rbs(row) * cbs(col)
              CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
              CALL dbcsr_put_block (matrix, row, col, data_values)
+             IF(my_symmetry.NE.dbcsr_type_normal.AND.col.EQ.row) THEN
+                IF(my_symmetry.EQ.dbcsr_type_symmetric) THEN
+                   CALL dbcsr_block_transpose (data_values_tr, data_values, &
+                        row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                        error=error)
+                ELSEIF(my_symmetry.EQ.dbcsr_type_antisymmetric) THEN
+                   CALL dbcsr_block_transpose (data_values_tr, data_values, &
+                        row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                        scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
+                        error=error)
+                ENDIF
+                CALL dbcsr_put_block (matrix, row, col, data_values_tr, summation=.TRUE.)
+             ENDIF
           ENDDO
        ENDDO
 
        CALL dbcsr_data_release (data_values)
+       CALL dbcsr_data_release (data_values_tr)
 
     ENDIF
     CALL dbcsr_distribution_release (dist)

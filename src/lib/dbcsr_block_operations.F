@@ -43,6 +43,7 @@ MODULE dbcsr_block_operations
   PUBLIC :: dbcsr_block_copy, dbcsr_block_partial_copy
   PUBLIC :: set_block_diagonal, dbcsr_data_clear
   PUBLIC :: set_block2d_diagonal, get_block2d_diagonal
+  PUBLIC :: dbcsr_block_scale
 
   PUBLIC :: block_set
   PUBLIC :: block_add_on_diag
@@ -338,6 +339,91 @@ CONTAINS
     END SELECT
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_block_transpose_aa
+
+
+! *****************************************************************************
+!> \brief Scale a data area.
+!>
+!> There are no checks done for correctness!
+!> \param[in] src        source data area
+!> \param[in] row_size   row size of existing block
+!> \param[in] col_size   column size of existing block
+!> \param[in] lb         (optional) lower bound for destination (and source if
+!>                       not given explicity)
+!> \param[in] source_lb  (optional) lower bound of source
+!> \param[in] scale      (optional) scale data
+!> \param[in] lb2        (optional) lower bound of 2nd dimension for target
+!> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+! *****************************************************************************
+  SUBROUTINE dbcsr_block_scale (dst, scale,& 
+       row_size, col_size, lb, lb2, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: scale
+    INTEGER, INTENT(IN)                      :: row_size, col_size
+    INTEGER, INTENT(IN), OPTIONAL            :: lb, lb2
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_scale', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: data_size, error_handler, &
+                                                lb2_t, lb_t, ub_t
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (bcsr_debug) THEN
+       CALL dbcsr_assert (ASSOCIATED(dst%d),&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+            "Data area must be setup.",__LINE__,error)
+       CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_8_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_real_4_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8_2d&
+            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4_2d,&
+            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
+    ENDIF
+    CALL dbcsr_assert (scale%data_type, &
+         'EQ', dbcsr_type_2d_to_1d (dst%d%data_type),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Incompatible data types",__LINE__,error)
+
+    data_size = row_size*col_size
+    lb_t = 1
+    IF (PRESENT (lb)) lb_t = lb
+    ub_t = lb_t + data_size - 1
+    lb2_t = 1
+    IF (PRESENT (lb2)) lb2_t = lb2
+    SELECT CASE (dst%d%data_type)
+    CASE (dbcsr_type_real_8)
+       dst%d%r_dp(lb_t:ub_t) = dst%d%r_dp(lb_t:ub_t) * scale%r_dp
+    CASE (dbcsr_type_real_4)
+       dst%d%r_sp(lb_t:ub_t) = dst%d%r_sp(lb_t:ub_t) * scale%r_sp
+    CASE (dbcsr_type_complex_8)
+       dst%d%c_dp(lb_t:ub_t) = dst%d%c_dp(lb_t:ub_t) * scale%c_dp
+    CASE (dbcsr_type_complex_4)
+       dst%d%c_sp(lb_t:ub_t) = dst%d%c_sp(lb_t:ub_t) * scale%c_sp
+    CASE (dbcsr_type_real_8_2d)
+       dst%d%r2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+            dst%d%r2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) * scale%r_dp
+    CASE (dbcsr_type_real_4_2d)
+       dst%d%r2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+            dst%d%r2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) * scale%r_sp
+    CASE (dbcsr_type_complex_8_2d)
+       dst%d%c2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+            dst%d%c2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) * scale%c_dp
+    CASE (dbcsr_type_complex_4_2d)
+       dst%d%c2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
+            dst%d%c2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) * scale%c_sp
+    CASE default
+       CALL dbcsr_assert (.FALSE.,&
+            dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)
+    END SELECT
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_block_scale
 
 ! *****************************************************************************
 !> \brief In-place transpose of encapsulated data

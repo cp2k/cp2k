@@ -710,6 +710,10 @@
              IF (found) THEN
                 CALL daxpy (nze, 1.0_real_8, block(1), 1,&
                      data_block2%p(1,1), 1)
+                CALL dbcsr_assert (ASSOCIATED (data_block%p), dbcsr_warning_level,&
+                     dbcsr_internal_error, routineN,&
+                     "Data was not present in block",__LINE__,error)
+                IF (ASSOCIATED (data_block%p)) DEALLOCATE (data_block%p)
              ENDIF
           ENDIF
           IF (.NOT. found) THEN
