@@ -110,3 +110,11 @@ cu2cl6_m3_std.inp
 cu2cl6_m1_clp6cud9.inp
 # Numerics differences due to different distribution 
 cu2cl6_m3_clp6cud9.inp
+# reset numerics, fix upper limits in multiply
+cu2cl6_m1_std.inp
+# reset numerics, fix upper limits in multiply
+cu2cl6_m3_std.inp
+# reset numerics, fix upper limits in multiply
+cu2cl6_m1_clp6cud9.inp
+# reset numerics, fix upper limits in multiply
+cu2cl6_m3_clp6cud9.inp

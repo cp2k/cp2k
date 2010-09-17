@@ -186,3 +186,5 @@ H2O_excit_emd.inp
 wfn_mix_1.inp
 # Numerics differences due to different distribution 
 wfn_mix_1.inp
+# reset numerics, fix upper limits in multiply
+wfn_mix_1.inp

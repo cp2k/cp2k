@@ -236,3 +236,23 @@ N3_rp_dp_md.inp
 SiO2_lr_quad.inp
 #  
 Al2O3.inp
+# reset numerics, fix upper limits in multiply
+N3-rp_colvar.inp
+# reset numerics, fix upper limits in multiply
+Periclase.inp
+# reset numerics, fix upper limits in multiply
+LM-KSDO-D.inp
+# reset numerics, fix upper limits in multiply
+SiO2.inp
+# reset numerics, fix upper limits in multiply
+H2O-4.inp
+# reset numerics, fix upper limits in multiply
+SiO2_lr_quad.inp
+# reset numerics, fix upper limits in multiply
+Al2O3.inp
+# reset numerics, fix upper limits in multiply
+Co_complex.inp
+# reset numerics, fix upper limits in multiply
+N3_rp_md.inp
+# reset numerics, fix upper limits in multiply
+N3_rp_dp_md.inp

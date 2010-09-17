@@ -188,3 +188,5 @@ mol_CSVR_gen3.inp
 mol_sph_cut.inp
 #  
 zwitt.inp
+# reset numerics, fix upper limits in multiply
+zwitt.inp

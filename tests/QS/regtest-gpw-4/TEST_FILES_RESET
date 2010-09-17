@@ -827,3 +827,11 @@ h2o-otdiag.inp
 h2o-otdiag-lsd.inp
 # Numerics differences due to different distribution 
 2H2O_meta_welltemp.inp
+# reset numerics, fix upper limits in multiply
+basis_none_1.inp
+# reset numerics, fix upper limits in multiply
+He3_multi_ddapc.inp
+# reset numerics, fix upper limits in multiply
+h2o-otdiag.inp
+# reset numerics, fix upper limits in multiply
+h2o-otdiag-lsd.inp

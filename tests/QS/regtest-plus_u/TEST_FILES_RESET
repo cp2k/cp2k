@@ -351,3 +351,15 @@ H2O-rks-otcg-lowdin.inp
 H2O-uks-otcg-lowdin.inp
 # Acceptable numerical noise due to recent changes
 H2O-rks-diag.inp
+# reset numerics, fix upper limits in multiply
+H2O-rks-otcg.inp
+# reset numerics, fix upper limits in multiply
+H2O-uks-otcg.inp
+# reset numerics, fix upper limits in multiply
+H2O-rks-otcg-mulliken.inp
+# reset numerics, fix upper limits in multiply
+H2O-uks-otcg-mulliken.inp
+# reset numerics, fix upper limits in multiply
+H2O-rks-otcg-lowdin.inp
+# reset numerics, fix upper limits in multiply
+H2O-uks-otcg-lowdin.inp

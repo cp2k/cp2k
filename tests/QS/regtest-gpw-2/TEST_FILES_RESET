@@ -698,3 +698,9 @@ hcn_ts_r.inp
 Au13ico_mtd.inp
 # Numerics differences due to different distribution 
 Au12_rmsd_mtd.inp
+# reset numerics, fix upper limits in multiply
+hcn_ts_r.inp
+# reset numerics, fix upper limits in multiply
+Au13ico_mtd.inp
+# reset numerics, fix upper limits in multiply
+Au12_rmsd_mtd.inp

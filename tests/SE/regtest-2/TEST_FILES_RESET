@@ -382,3 +382,7 @@ Pt-cis-2xpet3Cl2-si.inp
 zn_1w_debug.inp
 # Numerics differences due to different distribution 
 H2O-32.inp
+# reset numerics, fix upper limits in multiply
+ZrF2-PM6.inp
+# reset numerics, fix upper limits in multiply
+zn_1w_debug.inp

@@ -784,3 +784,9 @@ H2O-geo-ot-mols.inp
 sic_ddapc_rt.inp
 # Numerics differences due to different distribution 
 He2_ddapc_constraint-4.inp
+# reset numerics, fix upper limits in multiply
+He2_ddapc_constraint-3.inp
+# reset numerics, fix upper limits in multiply
+H2O-geo-ot-mols.inp
+# reset numerics, fix upper limits in multiply
+sic_ddapc_rt.inp
