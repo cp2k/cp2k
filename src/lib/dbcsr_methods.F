@@ -58,9 +58,9 @@ MODULE dbcsr_methods
        dbcsr_distribution_obj, dbcsr_imagedistribution_type, &
        dbcsr_magic_number, dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
-       dbcsr_type_complex_8, dbcsr_type_conjugate, dbcsr_type_normal, &
+       dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_no_symmetry, &
        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
-       dbcsr_type_transposed, dbcsr_work_type
+       dbcsr_work_type
 
   !$ USE OMP_LIB
   IMPLICIT NONE
@@ -107,7 +107,7 @@ MODULE dbcsr_methods
             dbcsr_is_real, dbcsr_is_complex,&
             dbcsr_name, dbcsr_may_be_dense,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
-            dbcsr_is_transposed, dbcsr_get_data_size
+            dbcsr_get_data_size
   PUBLIC :: dbcsr_get_data_size_used, dbcsr_get_data_size_referenced
   PUBLIC :: dbcsr_col_block_offsets, dbcsr_row_block_offsets
   PUBLIC :: dbcsr_data_area, dbcsr_switch_data_area
@@ -1415,18 +1415,19 @@ CONTAINS
     IF (PRESENT (matrix_type)) THEN
        ! Doesn't check all valid types
        matrix_type = '0' ! Invalid
-       IF (matrix%m%transpose) THEN
-          matrix_type = dbcsr_type_transposed
-       ELSEIF (matrix%m%symmetry) THEN
+       IF (matrix%m%symmetry) THEN
           IF (.NOT. matrix%m%negate_real .AND. matrix%m%negate_imaginary) THEN
-             matrix_type = dbcsr_type_conjugate
+             matrix_type = dbcsr_type_hermitian
           ELSEIF (matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
              matrix_type = dbcsr_type_antisymmetric
           ELSEIF (.NOT. matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
              matrix_type = dbcsr_type_symmetric
+          ELSE
+             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+                  routineN, "Incorrect symmetry",__LINE__,error)
           ENDIF
        ELSE
-          matrix_type = dbcsr_type_normal
+          matrix_type = dbcsr_type_no_symmetry
        ENDIF
     ENDIF
     IF (PRESENT (data_type)) data_type = matrix%m%data_type
@@ -1596,18 +1597,16 @@ CONTAINS
 ! Doesn't check all valid types
 
     matrix_type = '0' ! Invalid
-    IF (matrix%m%transpose) THEN
-       matrix_type = dbcsr_type_transposed
-    ELSEIF (matrix%m%symmetry) THEN
+    IF (matrix%m%symmetry) THEN
        IF (.NOT. matrix%m%negate_real .AND. matrix%m%negate_imaginary) THEN
-          matrix_type = dbcsr_type_conjugate
+          matrix_type = dbcsr_type_hermitian
        ELSEIF (matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
           matrix_type = dbcsr_type_antisymmetric
        ELSEIF (.NOT. matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
           matrix_type = dbcsr_type_symmetric
        ENDIF
     ELSE
-       matrix_type = dbcsr_type_normal
+       matrix_type = dbcsr_type_no_symmetry
     ENDIF
   END FUNCTION dbcsr_get_matrix_type
 
@@ -1628,12 +1627,12 @@ CONTAINS
 !> \param matrix          query this matrix
 !> \result transposed     matrix is transposed
 ! *****************************************************************************
-  PURE FUNCTION dbcsr_is_transposed (matrix) RESULT (transposed)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    LOGICAL                                  :: transposed
-
-    transposed = matrix%m%transpose
-  END FUNCTION dbcsr_is_transposed
+  !PURE FUNCTION dbcsr_is_transposed (matrix) RESULT (transposed)
+  !  TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+  !  LOGICAL                                  :: transposed
+  !
+  !  transposed = matrix%m%transpose
+  !END FUNCTION dbcsr_is_transposed
 
 ! *****************************************************************************
 !> \brief Returns the data type stored in the matrix

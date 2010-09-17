@@ -91,7 +91,7 @@ MODULE dbcsr_transformations
        dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
        dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_type, &
        dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_normal, dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: &
        convert_sizes_to_offsets, dbcsr_checksum, dbcsr_pack_meta, &
        dbcsr_set_debug, dbcsr_unpack_meta, dbcsr_verify_matrix, &
@@ -275,7 +275,7 @@ CONTAINS
        transposed%m%row_p(:) = normal%m%row_p(:)
        transposed%m%col_i(:) = normal%m%col_i(:)
        blk_p(:) = normal%m%blk_p(:)
-       transposed%m%transpose = .TRUE.
+       !transposed%m%transpose = .TRUE.
     ENDIF
     ! Copy the data
     IF (shallow) THEN
@@ -438,7 +438,7 @@ CONTAINS
     ALLOCATE (rm_disp(0:numproc-1))
     !vw should be created before calling this procedure
     CALL dbcsr_create(desm, 'desym '//sm%m%name, sm%m%dist,&
-         dbcsr_type_normal, sm%m%row_blk_size, sm%m%col_blk_size,&
+         dbcsr_type_no_symmetry, sm%m%row_blk_size, sm%m%col_blk_size,&
          0,0, dbcsr_get_data_type(sm), special=sm%m%special_memory,&
          error=error)
     IF (dbcsr_get_matrix_type (sm) .EQ. dbcsr_type_antisymmetric) THEN
@@ -711,7 +711,7 @@ CONTAINS
        CALL dbcsr_init(distributed)
        CALL dbcsr_create(distributed, 'Distributed '//matrix%m%name,&
             matrix%m%dist,&
-            dbcsr_type_normal, matrix%m%row_blk_size, matrix%m%col_blk_size,&
+            dbcsr_type_no_symmetry, matrix%m%row_blk_size, matrix%m%col_blk_size,&
             0, 0, matrix%m%data_type, special=matrix%m%special_memory, &
             error=error)
        distributed%m%replication_type = dbcsr_repl_none
@@ -1024,11 +1024,11 @@ CONTAINS
           CALL dbcsr_init (ums%mats(row_img, col_img))
           CALL dbcsr_create(ums%mats(row_img, col_img), "imaged "//sm%name,&
                target_dist,&
-               dbcsr_type_normal, sm%row_blk_size, sm%col_blk_size,&
+               dbcsr_type_no_symmetry, sm%row_blk_size, sm%col_blk_size,&
                0,0, sm%data_type, special=special, error=dbcsr_error)
           ums%mats(row_img, col_img)%m%negate_real = sm%negate_real
           ums%mats(row_img, col_img)%m%negate_imaginary = sm%negate_imaginary
-          ums%mats(row_img, col_img)%m%transpose = sm%transpose
+          !ums%mats(row_img, col_img)%m%transpose = sm%transpose
        ENDDO
     ENDDO
 !$omp parallel default (none) &
@@ -2264,7 +2264,7 @@ CONTAINS
     CALL dbcsr_init (replicated)
     CALL dbcsr_create(replicated, 'Replicated '//TRIM(matrix%m%name),&
          matrix%m%dist,&
-         dbcsr_type_normal, matrix%m%row_blk_size, matrix%m%col_blk_size,&
+         dbcsr_type_no_symmetry, matrix%m%row_blk_size, matrix%m%col_blk_size,&
          0, 0, matrix%m%data_type, special=matrix%m%special_memory,&
          replication_type=rep_type, error=error)
     ! Count initial sizes for sending. Also, ensure that blocks are on their

@@ -40,7 +40,7 @@ MODULE qs_overlap
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
-                                             dbcsr_type_normal,&
+                                             dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: use_aux_fit_basis_set,&
@@ -201,7 +201,7 @@ CONTAINS
     symmetry_string = dbcsr_type_symmetric
     IF( basis_set_id_a /= basis_set_id_b ) THEN
       do_symmetric = .FALSE.
-      symmetry_string = dbcsr_type_normal
+      symmetry_string = dbcsr_type_no_symmetry
     END IF
     ! XXXXXXX, sparsity_id, does this result in the same overlap matrix
     ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have
@@ -225,7 +225,7 @@ CONTAINS
 
     symmetry_string = dbcsr_type_antisymmetric
     IF( basis_set_id_a /= basis_set_id_b) THEN
-      symmetry_string = dbcsr_type_normal
+      symmetry_string = dbcsr_type_no_symmetry
     END IF
     DO i=2,maxder
       cgfsym = cgf_symbol(1,indco(1:3,i))

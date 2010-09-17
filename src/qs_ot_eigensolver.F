@@ -32,7 +32,7 @@ MODULE qs_ot_eigensolver
                                              dbcsr_mp_npcols,&
                                              dbcsr_mp_nprows
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_normal,&
+                                             dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -126,7 +126,7 @@ CONTAINS
     CALL array_release (col_dist)! fm->dbcsr
 
     CALL cp_dbcsr_init_p(matrix_c, error=error)! fm->dbcsr
-    CALL cp_dbcsr_create(matrix_c, "matrix_c", dist, dbcsr_type_normal,&! fm->dbcsr
+    CALL cp_dbcsr_create(matrix_c, "matrix_c", dist, dbcsr_type_no_symmetry,&! fm->dbcsr
          cp_dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
          error=error)! fm->dbcsr
     CALL cp_dbcsr_finalize(matrix_c, error=error)! fm->dbcsr
@@ -176,7 +176,7 @@ CONTAINS
          CALL array_release (col_dist)
 
          CALL cp_dbcsr_init_p(matrix_orthogonal_space, error=error)
-         CALL cp_dbcsr_create(matrix_orthogonal_space, "matrix_orthogonal_space", dist, dbcsr_type_normal,&
+         CALL cp_dbcsr_create(matrix_orthogonal_space, "matrix_orthogonal_space", dist, dbcsr_type_no_symmetry,&
               cp_dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
               error=error)
          CALL cp_dbcsr_finalize(matrix_orthogonal_space, error=error)
@@ -218,19 +218,19 @@ CONTAINS
          CALL array_release(row_dist); CALL array_release(col_dist)
          
          CALL cp_dbcsr_init_p(matrix_os_ortho, error=error)
-         CALL cp_dbcsr_create(matrix_os_ortho, "matrix_os_ortho", dist_o_o, dbcsr_type_normal,&
+         CALL cp_dbcsr_create(matrix_os_ortho, "matrix_os_ortho", dist_o_o, dbcsr_type_no_symmetry,&
               row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default, special=.TRUE.,& 
               error=error)
          CALL cp_dbcsr_finalize(matrix_os_ortho, error=error)
 
          CALL cp_dbcsr_init_p(matrix_buf1_ortho, error=error)
-         CALL cp_dbcsr_create(matrix_buf1_ortho, "matrix_buf1_ortho", dist, dbcsr_type_normal,&
+         CALL cp_dbcsr_create(matrix_buf1_ortho, "matrix_buf1_ortho", dist, dbcsr_type_no_symmetry,&
               row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
               error=error)
          CALL cp_dbcsr_finalize(matrix_buf1_ortho, error=error)
 
          CALL cp_dbcsr_init_p(matrix_buf2_ortho, error=error)
-         CALL cp_dbcsr_create(matrix_buf2_ortho, "matrix_buf2_ortho", dist, dbcsr_type_normal,&
+         CALL cp_dbcsr_create(matrix_buf2_ortho, "matrix_buf2_ortho", dist, dbcsr_type_no_symmetry,&
               row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
               error=error)
          CALL cp_dbcsr_finalize(matrix_buf2_ortho, error=error)

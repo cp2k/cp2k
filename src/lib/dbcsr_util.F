@@ -67,6 +67,8 @@ MODULE dbcsr_util
             nfull_elements,&
             dbcsr_calc_block_sizes
   PUBLIC :: swap, sgn
+  ! string routines
+  PUBLIC :: uppercase
   ! math routines
   PUBLIC :: gcd, lcm, ceil_log2
 
@@ -480,8 +482,8 @@ CONTAINS
     meta(dbcsr_slot_nfullcols_local) = matrix%nfullcols_local
     meta(dbcsr_slot_dense) = 0
     meta(dbcsr_slot_type) = 0
-    IF (matrix%transpose)&
-         meta(dbcsr_slot_type) = IBSET (meta(dbcsr_slot_type), 0)
+    !IF (matrix%transpose)&
+    !     meta(dbcsr_slot_type) = IBSET (meta(dbcsr_slot_type), 0)
     IF (matrix%symmetry)&
          meta(dbcsr_slot_type) = IBSET (meta(dbcsr_slot_type), 1)
     IF (matrix%negate_real)&
@@ -516,7 +518,7 @@ CONTAINS
     matrix%nfullrows_local = meta(dbcsr_slot_nfullrows_local)
     matrix%nfullcols_local = meta(dbcsr_slot_nfullcols_local)
     matrix%index(dbcsr_slot_dense) = 0
-    matrix%transpose = BTEST (meta(dbcsr_slot_type), 0)
+    !matrix%transpose = BTEST (meta(dbcsr_slot_type), 0)
     matrix%symmetry = BTEST (meta(dbcsr_slot_type), 1)
     matrix%negate_real = BTEST (meta(dbcsr_slot_type), 2)
     matrix%negate_imaginary = BTEST (meta(dbcsr_slot_type), 3)
@@ -650,9 +652,19 @@ CONTAINS
   END SUBROUTINE dbcsr_unpack_i8_2i4
 
 
+  SUBROUTINE uppercase(string)
+    CHARACTER(LEN=*), INTENT(INOUT)          :: string
 
+    INTEGER                                  :: i, iascii
 
+    DO i=1,LEN_TRIM(string)
+       iascii = ICHAR(string(i:i))
+       IF ((iascii >= 97).AND.(iascii <= 122)) THEN
+          string(i:i) = CHAR(iascii - 32)
+       END IF
+    END DO
 
+  END SUBROUTINE uppercase
 
   ELEMENTAL FUNCTION gcd(a,b)
     INTEGER, INTENT(IN)                      :: a, b
@@ -911,8 +923,8 @@ CONTAINS
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
     IF (PRESENT (verbosity)) dbg = verbosity
-    IF (dbg.GE.3) WRITE(*,'(1X,A,A,A,1X,4(L1))')r//'Matrix name: ', m%m%name,&
-         " of types ",m%m%transpose, m%m%symmetry, m%m%negate_real,&
+    IF (dbg.GE.3) WRITE(*,'(1X,A,A,1X,4(L1))')r//'Matrix name: ', m%m%name,&
+         " of types ", m%m%symmetry, m%m%negate_real,&
          m%m%negate_imaginary
     IF (dbg.GE.3) THEN
        WRITE(*,'(1X,A,I5,"x",I5,A,I5,"x",I5)')r//' Size blocked',&

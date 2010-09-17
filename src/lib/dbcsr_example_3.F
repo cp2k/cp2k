@@ -118,7 +118,7 @@ PROGRAM dbcsr_example_3
   CALL dbcsr_create (matrix=matrix_a,&
        name="this is my matrix a",&
        dist=dist, &
-       matrix_type=dbcsr_type_normal,&
+       matrix_type=dbcsr_type_no_symmetry,&
        row_blk_size=row_blk_sizes,&
        col_blk_size=col_blk_sizes,&
        data_type=dbcsr_type_real_8,&
@@ -127,7 +127,7 @@ PROGRAM dbcsr_example_3
   CALL dbcsr_create (matrix=matrix_b,&
        name="this is my matrix b",&
        dist=dist, &
-       matrix_type=dbcsr_type_normal,&
+       matrix_type=dbcsr_type_no_symmetry,&
        row_blk_size=row_blk_sizes,&
        col_blk_size=col_blk_sizes,&
        data_type=dbcsr_type_real_8,&
@@ -136,7 +136,7 @@ PROGRAM dbcsr_example_3
   CALL dbcsr_create (matrix=matrix_c,&
        name="this is my matrix c",&
        dist=dist, &
-       matrix_type=dbcsr_type_normal,&
+       matrix_type=dbcsr_type_no_symmetry,&
        row_blk_size=row_blk_sizes,&
        col_blk_size=col_blk_sizes,&
        data_type=dbcsr_type_real_8,&

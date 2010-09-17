@@ -32,7 +32,7 @@ MODULE qs_ot_scf
                                              dbcsr_distribution_row_dist,&
                                              dbcsr_mp_npcols
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_normal,&
+                                             dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
@@ -423,7 +423,7 @@ CONTAINS
           CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_ks)),&
                dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_ks)), col_dist)
           CALL cp_dbcsr_init_p(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
-          CALL cp_dbcsr_create(mo_array(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_normal,&
+          CALL cp_dbcsr_create(mo_array(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_no_symmetry,&
                cp_dbcsr_row_block_sizes(matrix_ks), col_blk_size, 0, 0, dbcsr_type_real_default,&
                special=.TRUE.,error=error)
           CALL cp_dbcsr_finalize(mo_array(ispin)%mo_set%mo_coeff_b, error=error)

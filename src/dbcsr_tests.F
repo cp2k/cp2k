@@ -279,7 +279,7 @@ CONTAINS
        ! Redistribute the matrices
        ! A
        CALL dbcsr_create (m_a, "Test for "//TRIM(dbcsr_name (matrix_a)),&
-            dist_a, dbcsr_type_normal,&
+            dist_a, dbcsr_type_no_symmetry,&
             dbcsr_row_block_sizes (matrix_a),&
             dbcsr_col_block_sizes (matrix_a),&
             data_type=dbcsr_get_data_type (matrix_a),&
@@ -288,7 +288,7 @@ CONTAINS
        CALL dbcsr_redistribute (matrix_a, m_a, error=dbcsr_error)
        ! B
        CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name (matrix_b)),&
-            dist_b, dbcsr_type_normal,&
+            dist_b, dbcsr_type_no_symmetry,&
             dbcsr_row_block_sizes (matrix_b),&
             dbcsr_col_block_sizes (matrix_b),&
             data_type=dbcsr_get_data_type (matrix_b),&
@@ -297,7 +297,7 @@ CONTAINS
        CALL dbcsr_redistribute (matrix_b, m_b, error=dbcsr_error)
        ! C
        CALL dbcsr_create (m_c, "Test for "//TRIM(dbcsr_name (matrix_c)),&
-            dist_c, dbcsr_type_normal,&
+            dist_c, dbcsr_type_no_symmetry,&
             dbcsr_row_block_sizes (matrix_c),&
             dbcsr_col_block_sizes (matrix_c),&
             data_type=dbcsr_get_data_type (matrix_c),&

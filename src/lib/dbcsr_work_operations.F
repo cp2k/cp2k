@@ -327,11 +327,11 @@ CONTAINS
     matrix%m%symmetry = .FALSE.
     matrix%m%negate_real = .FALSE.
     matrix%m%negate_imaginary = .FALSE.
-    matrix%m%transpose = .FALSE.
+    !matrix%m%transpose = .FALSE.
     SELECT CASE (matrix_type)
     CASE ('N', 'n')
     CASE ('T', 't')
-       matrix%m%transpose = .TRUE.
+       !matrix%m%transpose = .TRUE.
     CASE ('S', 's')
        matrix%m%symmetry = .TRUE.
     CASE ('A', 'a')

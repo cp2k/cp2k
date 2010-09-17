@@ -265,7 +265,7 @@ CONTAINS
     iterator%roff => array_data (matrix%m%row_blk_offset)
     iterator%coff => array_data (matrix%m%col_blk_offset)
 
-    iterator%transpose = matrix%m%transpose
+    iterator%transpose = .FALSE.!matrix%m%transpose
     iterator%nblks = matrix%m%nblks
     IF (iterator%transpose) THEN
        iterator%nblkrows_total = matrix%m%nblkcols_total

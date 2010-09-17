@@ -112,7 +112,7 @@ CONTAINS
     yesprint = .TRUE.
     IF (PRESENT (nodata)) yesprint = .NOT. nodata
     WRITE(*,*)routineP//' Contents of matrix named ', matrix%m%name
-    WRITE(*,*)routineP//' Flags ', matrix%m%transpose, matrix%m%symmetry,&
+    WRITE(*,*)routineP//' Flags ', matrix%m%symmetry,&
          matrix%m%negate_real, matrix%m%negate_imaginary
     WRITE(*,'(1X,A,3(1X,I9,1X,A))')routineP, matrix%m%nblks, "blocks",&
          matrix%m%nze, "nzes,", dbcsr_get_data_size (matrix), "data els"

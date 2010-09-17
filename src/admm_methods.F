@@ -58,7 +58,7 @@ MODULE admm_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_type_normal,&
+  USE dbcsr_types,                     ONLY: dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE input_constants,                 ONLY: &
@@ -1123,7 +1123,7 @@ MODULE admm_methods
     ALLOCATE(matrix_w_s)
     CALL cp_dbcsr_init (matrix_w_s, error)
     CALL cp_dbcsr_create(matrix_w_s, 'W MATRIX AUX S', &
-         cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_normal, &
+         cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
          cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
          cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
          cp_dbcsr_get_num_blocks(matrix_s_aux_fit(1)%matrix), &

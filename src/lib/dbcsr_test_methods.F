@@ -129,7 +129,7 @@ CONTAINS
     CALL dbcsr_init (matrix)
     my_data_type = dbcsr_type_real_default
     IF(PRESENT(data_type)) my_data_type = data_type
-    my_symmetry = dbcsr_type_normal
+    my_symmetry = dbcsr_type_no_symmetry
     IF(PRESENT(symmetry)) my_symmetry = symmetry
     CALL dbcsr_create (matrix, name,&
          dist, my_symmetry,&
@@ -161,14 +161,14 @@ CONTAINS
           DO col = 1, dbcsr_nblkcols_total (matrix)
              !
              ! build the upper matrix if some symmetry
-             IF(my_symmetry.NE.dbcsr_type_normal.AND.col.LT.row) CYCLE
+             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.LT.row) CYCLE
 
              CALL dlarnv( 1, iseed, 1, value )
              IF (value(1) .LT. my_sparsity) CYCLE
              nze = rbs(row) * cbs(col)
              CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
              CALL dbcsr_put_block (matrix, row, col, data_values)
-             IF(my_symmetry.NE.dbcsr_type_normal.AND.col.EQ.row) THEN
+             IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.EQ.row) THEN
                 IF(my_symmetry.EQ.dbcsr_type_symmetric) THEN
                    CALL dbcsr_block_transpose (data_values_tr, data_values, &
                         row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &

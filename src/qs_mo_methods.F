@@ -48,7 +48,7 @@ MODULE qs_mo_methods
                                              dbcsr_mp_npcols,&
                                              dbcsr_mp_nprows
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_normal,&
+                                             dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_default
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -725,14 +725,14 @@ CONTAINS
         !                                        para_env=orbitals%matrix_struct%para_env, &
         !                                        context=orbitals%matrix_struct%context,error=error)
         CALL cp_dbcsr_init_p(h_block,error=error)
-        CALL cp_dbcsr_create(h_block, "h_block", dist, dbcsr_type_normal,&
+        CALL cp_dbcsr_create(h_block, "h_block", dist, dbcsr_type_no_symmetry,&
              row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
              error=error)
         CALL cp_dbcsr_finalize(h_block, error=error)
         !CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
         IF (compute_evecs) THEN
            CALL cp_dbcsr_init_p(e_vectors,error=error)
-           CALL cp_dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_normal,&
+           CALL cp_dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
                 row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, special=.TRUE.,&
                 error=error)
            CALL cp_dbcsr_finalize(e_vectors, error=error)

@@ -65,7 +65,7 @@ MODULE qs_linres_current
   USE cube_utils,                      ONLY: cube_info_type
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_type_antisymmetric,&
-                                             dbcsr_type_normal
+                                             dbcsr_type_no_symmetry
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
@@ -329,7 +329,7 @@ CONTAINS
        CALL cp_dbcsr_init(density_matrix0(ispin)%matrix,error=error)
        CALL cp_dbcsr_create(matrix=density_matrix0(ispin)%matrix, &
             name="density_matrix0", &
-            dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
+            dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
             nblks=0, nze=0, mutable_work=.TRUE., &
             error=error)
@@ -2344,7 +2344,7 @@ CONTAINS
     CALL cp_dbcsr_init(op_mom_ao(1)%matrix,error=error)
     CALL cp_dbcsr_create(matrix=op_mom_ao(1)%matrix, &
          name="op_mom", &
-         dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
+         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)
@@ -2794,7 +2794,7 @@ CONTAINS
     CALL cp_dbcsr_init(op_mom_ao(1)%matrix,error=error)
     CALL cp_dbcsr_create(matrix=op_mom_ao(1)%matrix, &
          name="op_mom", &
-         dist=dbcsr_dist, matrix_type=dbcsr_type_normal,&
+         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
          nblks=0, nze=0, mutable_work=.TRUE., &
          error=error)

@@ -70,7 +70,7 @@ MODULE preconditioner
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_norm_frobenius,&
-                                             dbcsr_type_normal,&
+                                             dbcsr_type_no_symmetry,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_default
   USE input_constants,                 ONLY: &
@@ -341,12 +341,12 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
      CALL cp_dbcsr_init_p(preconditioner_env%dbcsr_matrix,error=error)
      IF(my_mixed_precision) THEN
         CALL cp_dbcsr_create(preconditioner_env%dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
-             cp_dbcsr_distribution(matrix_h), dbcsr_type_normal,&
+             cp_dbcsr_distribution(matrix_h), dbcsr_type_no_symmetry,&
              cp_dbcsr_row_block_sizes(matrix_h), cp_dbcsr_col_block_sizes(matrix_h), &
              0, 0, dbcsr_type_real_4, special=.TRUE.,error=error)
      ELSE
         CALL cp_dbcsr_create(preconditioner_env%dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
-             cp_dbcsr_distribution(matrix_h), dbcsr_type_normal,&
+             cp_dbcsr_distribution(matrix_h), dbcsr_type_no_symmetry,&
              cp_dbcsr_row_block_sizes(matrix_h), cp_dbcsr_col_block_sizes(matrix_h), &
              0, 0, dbcsr_type_real_default, special=.TRUE.,error=error)
      ENDIF
@@ -2110,7 +2110,7 @@ END SUBROUTINE make_full_all_ortho
     ! copy matrices
     CALL cp_dbcsr_init (mat_t, error)
     CALL cp_dbcsr_create(mat_t, 'mat t', &
-         cp_dbcsr_distribution(matrix_s), dbcsr_type_normal, cp_dbcsr_row_block_sizes(matrix_s),&
+         cp_dbcsr_distribution(matrix_s), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(matrix_s),&
          cp_dbcsr_col_block_sizes(matrix_s), 0, 0,&
          cp_dbcsr_get_data_type(matrix_s), cp_dbcsr_uses_special_memory(matrix_s), error=error)
     CALL cp_dbcsr_finalize(mat_t, error=error)
@@ -2127,13 +2127,13 @@ END SUBROUTINE make_full_all_ortho
 
     CALL cp_dbcsr_init (mat_li,error=error)
     CALL cp_dbcsr_create(mat_li, 'matrix li', &
-         cp_dbcsr_distribution(mat_t), dbcsr_type_normal, cp_dbcsr_row_block_sizes(mat_t),&
+         cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), 0, 0,&
          cp_dbcsr_get_data_type(mat_t), cp_dbcsr_uses_special_memory(mat_t), error=error)
     CALL cp_dbcsr_finalize(mat_li, error=error)
     CALL cp_dbcsr_init (mat_v,error=error)
     CALL cp_dbcsr_create(mat_v, 'matrix v', &
-         cp_dbcsr_distribution(mat_t), dbcsr_type_normal, cp_dbcsr_row_block_sizes(mat_t),&
+         cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), 0, 0,&
          cp_dbcsr_get_data_type(mat_t), cp_dbcsr_uses_special_memory(mat_t), error=error)
     CALL cp_dbcsr_finalize(mat_v, error=error)
@@ -2154,7 +2154,7 @@ END SUBROUTINE make_full_all_ortho
     ALLOCATE(prcnd)
     CALL cp_dbcsr_init(prcnd,error=error)
     CALL cp_dbcsr_create(prcnd, ' PRECONDITIONER ', &
-         cp_dbcsr_distribution(mat_t), dbcsr_type_normal, cp_dbcsr_row_block_sizes(mat_t),&
+         cp_dbcsr_distribution(mat_t), dbcsr_type_no_symmetry, cp_dbcsr_row_block_sizes(mat_t),&
          cp_dbcsr_col_block_sizes(mat_t), cp_dbcsr_get_num_blocks(mat_t), cp_dbcsr_get_data_size(mat_t),&
          cp_dbcsr_get_data_type(mat_t), cp_dbcsr_uses_special_memory(mat_t), error=error)
     CALL cp_dbcsr_finalize(prcnd, error=error)
@@ -2473,7 +2473,7 @@ END SUBROUTINE make_full_all_ortho
        WRITE(*,*) 'trace(Li^t*Lt)/n-1=',trace / REAL(SUM(row_blk_size),dp) - 1.0_dp
 
        CALL cp_dbcsr_init(mat_tmp, error=error)
-       CALL cp_dbcsr_create (mat_tmp, "tmp mat_t", cp_dbcsr_distribution (mat_t), dbcsr_type_normal,&
+       CALL cp_dbcsr_create (mat_tmp, "tmp mat_t", cp_dbcsr_distribution (mat_t), dbcsr_type_no_symmetry,&
             cp_dbcsr_row_block_sizes (mat_t), cp_dbcsr_col_block_sizes (mat_t),&
             error=error)
        CALL cp_dbcsr_finalize(mat_tmp,error=error)

@@ -36,7 +36,7 @@ MODULE cp_dbcsr_output
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
-                                             dbcsr_type_normal,&
+                                             dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
@@ -187,7 +187,7 @@ CONTAINS
     CASE(dbcsr_type_antisymmetric)
        CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
        print_sym = .TRUE.
-    CASE(dbcsr_type_normal)
+    CASE(dbcsr_type_no_symmetry)
        print_sym = .FALSE.
     CASE DEFAULT
        CALL stop_program(routineN,"WRONG")

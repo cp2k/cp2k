@@ -72,9 +72,9 @@ MODULE dbcsr_types
             dbcsr_type_real_default, dbcsr_type_complex_default,&
             dbcsr_type_real_4_2d, dbcsr_type_real_8_2d,&
             dbcsr_type_complex_4_2d, dbcsr_type_complex_8_2d
-  PUBLIC :: dbcsr_type_normal, dbcsr_type_symmetric,&
-            dbcsr_type_antisymmetric, dbcsr_type_transposed,&
-            dbcsr_type_conjugate
+  PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric,&
+            dbcsr_type_antisymmetric, dbcsr_type_hermitian, dbcsr_type_antihermitian
+  PUBLIC :: dbcsr_no_transpose, dbcsr_transpose, dbcsr_conjugate_transpose
   PUBLIC :: dbcsr_repl_none, dbcsr_repl_row, dbcsr_repl_col, dbcsr_repl_full
 
   PUBLIC :: dbcsr_filter_frobenius
@@ -435,7 +435,7 @@ MODULE dbcsr_types
      INTEGER                 :: nfullrows_local, nfullcols_local
      CHARACTER               :: data_type, replication_type
      LOGICAL                 :: symmetry, negate_real, negate_imaginary
-     LOGICAL                 :: transpose
+     !LOGICAL                 :: transpose
      LOGICAL                 :: bcsc
      LOGICAL                 :: special_memory
      TYPE(dbcsr_block_buffer_obj) :: buffers
@@ -450,11 +450,17 @@ MODULE dbcsr_types
 
   INTEGER, PARAMETER :: dbcsr_magic_number = 879546213
 
-  CHARACTER, PARAMETER        :: dbcsr_type_normal = 'N'
+  CHARACTER, PARAMETER        :: dbcsr_type_no_symmetry = 'N'
   CHARACTER, PARAMETER        :: dbcsr_type_symmetric = 'S'
   CHARACTER, PARAMETER        :: dbcsr_type_antisymmetric = 'A'
-  CHARACTER, PARAMETER        :: dbcsr_type_conjugate = 'C'
-  CHARACTER, PARAMETER        :: dbcsr_type_transposed = 'T'
+  CHARACTER, PARAMETER        :: dbcsr_type_hermitian = 'H'
+  CHARACTER, PARAMETER        :: dbcsr_type_antihermitian = 'K'
+
+  !
+  ! multiply transpositions
+  CHARACTER, PARAMETER        :: dbcsr_no_transpose = 'N'
+  CHARACTER, PARAMETER        :: dbcsr_transpose = 'T'
+  CHARACTER, PARAMETER        :: dbcsr_conjugate_transpose = 'C'
 
   CHARACTER, PARAMETER        :: dbcsr_repl_none = 'N'
   CHARACTER, PARAMETER        :: dbcsr_repl_row = 'R'

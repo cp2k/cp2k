@@ -201,8 +201,9 @@ CONTAINS
     LOGICAL                                  :: straight
 
 ! The old way
+!straight = matrix%transpose .OR. matrix%symmetry
 
-    straight = matrix%transpose .OR. matrix%symmetry
+    straight = matrix%symmetry
     straight = (.NOT. matrix%symmetry)&
          .OR.&
          (straight .EQV. .NOT.checker_tr(row, column))

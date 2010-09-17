@@ -97,20 +97,23 @@ MODULE dbcsr_operations
                                              dbcsr_make_undense,&
                                              dbcsr_new_transposed
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_distribution_obj, &
-       dbcsr_filter_frobenius, dbcsr_imagedistribution_type, dbcsr_iterator, &
-       dbcsr_mp_obj, dbcsr_norm_column, dbcsr_norm_frobenius, &
+       dbcsr_2d_array_type, dbcsr_conjugate_transpose, dbcsr_data_obj, &
+       dbcsr_distribution_obj, dbcsr_filter_frobenius, &
+       dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_mp_obj, &
+       dbcsr_no_transpose, dbcsr_norm_column, dbcsr_norm_frobenius, &
        dbcsr_norm_gershgorin, dbcsr_norm_maxabsnorm, dbcsr_obj, &
        dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
-       dbcsr_scalar_type, dbcsr_type, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_normal, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_scalar_type, dbcsr_transpose, dbcsr_type, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: ceil_log2,&
                                              convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
                                              dbcsr_set_debug,&
                                              dbcsr_verify_matrix,&
-                                             swap
+                                             swap,&
+                                             uppercase
   USE dbcsr_work_operations,           ONLY: dbcsr_add_wm_from_matrix,&
                                              dbcsr_create,&
                                              dbcsr_finalize,&
@@ -138,7 +141,7 @@ MODULE dbcsr_operations
             dbcsr_replace_blocks, dbcsr_conjg,&
             dbcsr_btriu, dbcsr_triu, dbcsr_tril,&
             dbcsr_symmetrize_block_diag, dbcsr_copy_columns,&
-            dbcsr_init_random, dbcsr_lanczos
+            dbcsr_init_random, dbcsr_lanczos, dbcsr_block_in_limits
   PUBLIC :: dbcsr_sum_replicated
   PUBLIC :: dbcsr_norm, &
             dbcsr_gershgorin_norm, dbcsr_maxabs, dbcsr_frobenius_norm
@@ -338,6 +341,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(real_8), PARAMETER                  :: make_dense_occ_thresh = 1.0_dp
 
+    CHARACTER                                :: transa_l, transb_l
     INTEGER                                  :: error_handler, f_col, f_k, &
                                                 f_row, i, l_col, l_k, l_row
     INTEGER(KIND=int_8)                      :: my_flop
@@ -362,14 +366,20 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
     !
     ! check parameters
-    CALL dbcsr_assert(transa.EQ.'N'.OR.transa.EQ.'T'.OR.transa.EQ.'C'.OR.&
-                   transa.EQ.'n'.OR.transa.EQ.'t'.OR.transa.EQ.'c',&
+    transa_l = transa
+    transb_l = transb
+    CALL uppercase(transa_l)
+    CALL uppercase(transb_l)
+    CALL dbcsr_assert(transa_l.EQ.dbcsr_no_transpose.OR.&
+                      transa_l.EQ.dbcsr_transpose.OR.&
+                      transa_l.EQ.dbcsr_conjugate_transpose,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Invalid transa = "//transa, __LINE__, error)
-    CALL dbcsr_assert(transb.EQ.'N'.OR.transb.EQ.'T'.OR.transb.EQ.'C'.OR.&
-                   transb.EQ.'n'.OR.transb.EQ.'t'.OR.transb.EQ.'c',&
+         "Invalid transa_l = "//transa_l, __LINE__, error)
+    CALL dbcsr_assert(transb_l.EQ.dbcsr_no_transpose.OR.&
+                      transb_l.EQ.dbcsr_transpose.OR.&
+                      transb_l.EQ.dbcsr_conjugate_transpose,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Invalid transb = "//transb, __LINE__, error)
+         "Invalid transb_l = "//transb_l, __LINE__, error)
 
     IF (dbg) THEN
        WRITE(*,*)'========== MULTIPLICATION ========================'
@@ -390,11 +400,11 @@ CONTAINS
     CALL dbcsr_access_flush (matrix_c, error=error)
     !
     ! transpose/conjg left and/or right matrices if needed 
-    SELECT CASE(transa)
-    CASE('N','n')
+    SELECT CASE(transa_l)
+    CASE(dbcsr_no_transpose)
        matrix_left = matrix_a
        new_left = .FALSE.
-    CASE('T','t')
+    CASE(dbcsr_transpose)
        CALL dbcsr_init(matrix_left)
        IF(dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) THEN
           !
@@ -405,11 +415,11 @@ CONTAINS
                transpose_distribution=.FALSE., error=error)
        ELSE
           CALL dbcsr_new_transposed (matrix_left, matrix_a,&
-               shallow_data_copy=.TRUE., redistribute=.false.,&
+               shallow_data_copy=.TRUE., redistribute=.FALSE.,&
                transpose_distribution=.FALSE., error=error)
        ENDIF
        new_left = .TRUE.
-    CASE('C','c')
+    CASE(dbcsr_conjugate_transpose)
        CALL dbcsr_init(matrix_left)
        CALL dbcsr_new_transposed (matrix_left, matrix_a,&
             shallow_data_copy=.FALSE., redistribute=.FALSE.,&
@@ -418,14 +428,14 @@ CONTAINS
        new_left = .TRUE.
     CASE DEFAULT
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
-            routineN, "wrong transa = "//transa, __LINE__, error)
+            routineN, "wrong transa_l = "//transa_l, __LINE__, error)
     END SELECT
 
-    SELECT CASE(transb)
-    CASE('N','n')
+    SELECT CASE(transb_l)
+    CASE(dbcsr_no_transpose)
        matrix_right = matrix_b
        new_right = .FALSE.
-    CASE('T','t')
+    CASE(dbcsr_transpose)
        CALL dbcsr_init(matrix_right)
        IF(dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric) THEN
           !
@@ -436,11 +446,11 @@ CONTAINS
                transpose_distribution=.FALSE., error=error)
        ELSE
           CALL dbcsr_new_transposed (matrix_right, matrix_b,&
-               shallow_data_copy=.TRUE., redistribute=.false.,&
+               shallow_data_copy=.TRUE., redistribute=.FALSE.,&
                transpose_distribution=.FALSE., error=error)
        ENDIF
        new_right = .TRUE.
-    CASE('C','c')
+    CASE(dbcsr_conjugate_transpose)
        CALL dbcsr_init(matrix_right)
        CALL dbcsr_new_transposed (matrix_right, matrix_b,&
             shallow_data_copy=.FALSE., redistribute=.FALSE.,&
@@ -449,7 +459,7 @@ CONTAINS
        new_right = .TRUE.
     CASE DEFAULT
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
-            routineN, "wrong transb = "//transb, __LINE__, error)
+            routineN, "wrong transb_l = "//transb_l, __LINE__, error)
     END SELECT
     !
     ! we skip dense multiply for (anti)symmetric matrices (slowdown for S/H * C)
@@ -546,6 +556,10 @@ CONTAINS
          __LINE__, error)
 
     !
+    ! if we have limits we need to turn of make dense for the moment...
+    IF(ANY((/ f_row, l_row, f_col, f_k /)==0)) use_dense_mult = .FALSE.
+
+    !
     !
     ! Product data needs to be retained when
     ! * beta != 0; or
@@ -622,7 +636,7 @@ CONTAINS
     IF (dbg) THEN
        WRITE(*,*)routineN//" Matrices ", dbcsr_get_matrix_type(matrix_a),&
             dbcsr_get_matrix_type(matrix_b), dbcsr_get_matrix_type(matrix_c)
-       WRITE(*,*)routineN//" Matrices ", transA, transB, "keep", keep_product_data
+       WRITE(*,*)routineN//" Matrices ", transa_l, transb_l, "keep", keep_product_data
     ENDIF
     IF (keep_product_data) THEN
        IF (product_reindex) THEN
@@ -3709,6 +3723,29 @@ CONTAINS
   END SUBROUTINE dbcsr_trace_a_b_d
 
 
+! *****************************************************************************
+!> \brief check if a block is not in the limits
+!> \param[in] row, col
+!> \param[in] block_row_limits, block_column_limits
+!>
+! *****************************************************************************
+  FUNCTION dbcsr_block_in_limits(row, col, block_row_limits, block_column_limits)
+    INTEGER, INTENT(in)                      :: row, col
+    INTEGER, DIMENSION(2), INTENT(in), &
+      OPTIONAL                               :: block_row_limits, &
+                                                block_column_limits
+    LOGICAL                                  :: dbcsr_block_in_limits
+
+    dbcsr_block_in_limits = .TRUE.
+    IF (PRESENT (block_row_limits)) THEN
+       IF (row .LT. block_row_limits(1)) dbcsr_block_in_limits = .FALSE.
+       IF (row .GT. block_row_limits(2)) dbcsr_block_in_limits = .FALSE.
+    ENDIF
+    IF (PRESENT (block_column_limits)) THEN
+       IF (col .LT. block_column_limits(1)) dbcsr_block_in_limits = .FALSE.
+       IF (col .GT. block_column_limits(2)) dbcsr_block_in_limits = .FALSE.
+    ENDIF
+  END FUNCTION dbcsr_block_in_limits
 
 ! *****************************************************************************
 !> \brief compute the extremal eigenvalues of a symmetric real matrix 
@@ -3760,17 +3797,17 @@ CONTAINS
          dbcsr_distribution_row_dist(dbcsr_distribution(matrix)), col_dist)
 
     CALL dbcsr_init(v)
-    CALL dbcsr_create(v, 'v', dist, dbcsr_type_normal, matrix%m%row_blk_size,&
+    CALL dbcsr_create(v, 'v', dist, dbcsr_type_no_symmetry, matrix%m%row_blk_size,&
          col_blk_size, 0, 0, error=error)
     CALL dbcsr_finalize(v, error=error)
 
     CALL dbcsr_init(v0)
-    CALL dbcsr_create(v0, 'v0', dist, dbcsr_type_normal, matrix%m%row_blk_size,&
+    CALL dbcsr_create(v0, 'v0', dist, dbcsr_type_no_symmetry, matrix%m%row_blk_size,&
          col_blk_size, 0, 0, error=error)
     CALL dbcsr_finalize(v0, error=error)
 
     CALL dbcsr_init(f)
-    CALL dbcsr_create(f, 'f', dist, dbcsr_type_normal, matrix%m%row_blk_size,&
+    CALL dbcsr_create(f, 'f', dist, dbcsr_type_no_symmetry, matrix%m%row_blk_size,&
          col_blk_size, 0, 0, error=error)
     CALL dbcsr_finalize(f, error=error)
 

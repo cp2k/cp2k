@@ -26,7 +26,7 @@ MODULE qs_operators_ao
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
-                                             dbcsr_type_normal
+                                             dbcsr_type_no_symmetry
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -1672,7 +1672,7 @@ CONTAINS
     CPPostcondition(ASSOCIATED(op),cp_failure_level,routineP,error,failure)
     CPPostcondition(ASSOCIATED(op_der),cp_failure_level,routineP,error,failure)
     !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN
-    IF(.NOT.cp_dbcsr_get_matrix_type(op_der(1,1)%matrix).EQ.dbcsr_type_normal) THEN
+    IF(.NOT.cp_dbcsr_get_matrix_type(op_der(1,1)%matrix).EQ.dbcsr_type_no_symmetry) THEN
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
