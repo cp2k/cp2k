@@ -186,6 +186,7 @@ MODULE qs_ot_types
      CHARACTER(LEN=8) :: OT_METHOD_FULL
      INTEGER          :: OT_count
      REAL(KIND = dp)  :: ds_min
+     REAL(KIND = dp)  :: broyden_adaptive_sigma
 
      LOGICAL          :: do_taylor
      INTEGER          :: taylor_order

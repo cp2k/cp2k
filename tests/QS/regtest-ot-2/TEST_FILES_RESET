@@ -906,3 +906,5 @@ N3-10.inp
 H2O.inp
 # reset numerics, fix upper limits in multiply
 H2O.inp
+#  
+H2O-broy.inp

@@ -312,3 +312,7 @@ uo2_shell_nve_cascade.inp
 UO2-4x4x4-core-forces.inp
 #  
 UO2-4x4x4-shell-forces.inp
+#  
+UO2-4x4x4-core-forces.inp
+#  
+UO2-4x4x4-shell-forces.inp

@@ -1044,6 +1044,7 @@ CONTAINS
 
     scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
     scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
+    qs_env%broyden_adaptive_sigma=scf_env%qs_ot_env(1)%broyden_adaptive_sigma
 
     CALL timestop(handle)
 
@@ -1634,6 +1635,7 @@ CPSourceFileRef)
              SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
              CASE(ot_precond_none)
                 CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                     broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                      qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                      error=error)
              CASE(ot_precond_full_all,ot_precond_full_single_inverse)
@@ -1674,10 +1676,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
                         error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env = scf_env%qs_ot_env,matrix_ks=matrix_ks(1)%matrix,&
                         error=error)
                 END IF
@@ -1693,10 +1697,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
                         error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                         error=error)
                 END IF
@@ -1723,10 +1729,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                         error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                     broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                      qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
                      error=error)
                 END IF
@@ -1739,10 +1747,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, pscp=pscp, ks_scp=ks_scp, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, pscp=pscp, fscp=ks_scp, &
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                         error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                         error=error)
                 END IF
@@ -1756,10 +1766,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set=aux_coeff_set, &
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
                         error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix, &
                         error=error)
                 ENDIF
@@ -1792,10 +1804,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set=aux_coeff_set, &
+                                    broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                                     qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                                     error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                         error=error)
                 ENDIF
@@ -1823,10 +1837,12 @@ CPSourceFileRef)
                    CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
                    CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
                    CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set=aux_coeff_set, &
+                                   broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                                    qs_ot_env=scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                                    error=error)
                 ELSE
                    CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        broyden_adaptive_sigma=qs_env%broyden_adaptive_sigma,&
                         qs_ot_env = scf_env%qs_ot_env, matrix_ks=matrix_ks(1)%matrix,&
                         error=error)
                 ENDIF

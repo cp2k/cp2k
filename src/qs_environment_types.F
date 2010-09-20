@@ -392,6 +392,8 @@ MODULE qs_environment_types
     TYPE(nddo_mpole_type), POINTER                        :: se_nddo_mpole
     TYPE(fist_nonbond_env_type), POINTER                  :: se_nonbond_env
     TYPE(rt_prop_type),POINTER                            :: rtp
+    ! a history for the broyden ot 
+    REAL(KIND = dp)                                       :: broyden_adaptive_sigma
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -817,6 +819,7 @@ CONTAINS
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
     qs_env%outer_scf_ihistory=0
+    qs_env%broyden_adaptive_sigma=-1
     qs_env%neighbor_list_id=-1
     
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)

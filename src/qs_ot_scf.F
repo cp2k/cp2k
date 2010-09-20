@@ -384,7 +384,7 @@ CONTAINS
   ! and that the mimizization can be started.
   !
 ! *****************************************************************************
-  SUBROUTINE ot_scf_init ( mo_array, matrix_s, aux_coeff_set, pscp, fscp, qs_ot_env, matrix_ks, error )
+  SUBROUTINE ot_scf_init ( mo_array, matrix_s, aux_coeff_set, pscp, fscp, qs_ot_env, matrix_ks, broyden_adaptive_sigma, error )
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -393,7 +393,8 @@ CONTAINS
       POINTER                                :: aux_coeff_set
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_ks
+    TYPE(cp_dbcsr_type), POINTER                 :: matrix_ks
+    REAL(KIND=dp)                            :: broyden_adaptive_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_init', &
@@ -433,6 +434,10 @@ CONTAINS
        ENDIF
     ENDDO
 
+    ! *** set a history for broyden
+    DO ispin=1,SIZE(qs_ot_env)
+       qs_ot_env(ispin)%broyden_adaptive_sigma=broyden_adaptive_sigma
+    ENDDO
 
     ! **** SCP
     NULLIFY ( local_coeffs, c, fc )

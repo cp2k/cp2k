@@ -5066,8 +5066,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="BROYDEN_BETA",&
             description="Underrelaxation for the broyden mixer",&
-            usage="BROYDEN_BETA 0.8",&
-            default_r_val=0.7_dp,error=error)
+            usage="BROYDEN_BETA 0.9",&
+            default_r_val=0.9_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5080,8 +5080,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="BROYDEN_SIGMA",&
             description="Weight of initial guess for inverse Hessian.",&
-            usage="BROYDEN_SIGMA 0.5",&
-            default_r_val=0.5_dp,error=error)
+            usage="BROYDEN_SIGMA 1.0",&
+            default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
