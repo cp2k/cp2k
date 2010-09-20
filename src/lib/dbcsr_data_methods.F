@@ -50,7 +50,8 @@ MODULE dbcsr_data_methods
 
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
   PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
-            dbcsr_scalar_are_equal, dbcsr_scalar_negative
+            dbcsr_scalar_are_equal, dbcsr_scalar_negative,&
+            dbcsr_scalar_get_type, dbcsr_scalar_fill_all
   PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_get_size, dbcsr_data_get_type,&
             dbcsr_data_reset_type, dbcsr_data_query_type
@@ -1532,6 +1533,49 @@ CONTAINS
        negated = dbcsr_scalar_zero (s%data_type)
     END SELECT
   END FUNCTION dbcsr_scalar_negative
+
+! *****************************************************************************
+!> \brief Returns data type of a scalar
+!> \param[in] scalar       scalar
+!> \result data_type       data type of the scalar
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_get_type (scalar) RESULT (data_type)
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: scalar
+    CHARACTER                                :: data_type
+
+    data_type = scalar%data_type
+  END FUNCTION dbcsr_scalar_get_type
+
+! *****************************************************************************
+!> \brief Fills all data and precision types from the set one
+!> \param[in,out] scalara         data area
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE dbcsr_scalar_fill_all (scalar)
+    TYPE(dbcsr_scalar_type), INTENT(INOUT)   :: scalar
+
+    SELECT CASE(scalar%data_type)
+       CASE (dbcsr_type_real_4)
+          !scalar%r_sp = 0
+          scalar%r_dp = REAL(scalar%r_sp, KIND=real_8)
+          scalar%c_sp = CMPLX(scalar%r_sp, 0, KIND=real_4)
+          scalar%c_dp = CMPLX(scalar%r_sp, 0, KIND=real_8)
+       CASE (dbcsr_type_real_8)
+          scalar%r_sp = REAL(scalar%r_dp, KIND=real_4)
+          !scalar%r_dp = REAL(scalar%r_dp, KIND=real_8)
+          scalar%c_sp = CMPLX(scalar%r_dp, 0, KIND=real_4)
+          scalar%c_dp = CMPLX(scalar%r_dp, 0, KIND=real_8)
+       CASE (dbcsr_type_complex_4)
+          scalar%r_sp = REAL(scalar%c_sp, KIND=real_4)
+          scalar%r_dp = REAL(scalar%c_sp, KIND=real_8)
+          !scalar%c_sp = CMPLX(scalar%c_sp, KIND=real_4)
+          scalar%c_dp = CMPLX(scalar%c_sp, KIND=real_8)
+       CASE (dbcsr_type_complex_8)
+          scalar%r_sp = REAL(scalar%c_dp, KIND=real_4)
+          scalar%r_dp = REAL(scalar%c_dp, KIND=real_8)
+          scalar%c_sp = CMPLX(scalar%c_dp, KIND=real_4)
+          !scalar%c_dp = CMPLX(scalar%r_dp, 0, KIND=real_8)
+    END SELECT
+  END SUBROUTINE dbcsr_scalar_fill_all
 
 
 ! *****************************************************************************

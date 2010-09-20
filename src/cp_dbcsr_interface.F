@@ -78,8 +78,8 @@ MODULE cp_dbcsr_interface
        dbcsr_add, dbcsr_add_on_diag, dbcsr_btriu, dbcsr_copy, dbcsr_filter, &
        dbcsr_frobenius_norm, dbcsr_gershgorin_norm, dbcsr_get_block_diag, &
        dbcsr_get_diag, dbcsr_hadamard_product, dbcsr_multiply, dbcsr_norm, &
-       dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, &
-       dbcsr_sum_replicated, dbcsr_trace
+       dbcsr_scale, dbcsr_scale_by_vector, dbcsr_scale_mat, dbcsr_set, &
+       dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_distribute,&
                                              dbcsr_new_transposed,&
@@ -2735,12 +2735,10 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_scale_c
 
 
-  SUBROUTINE cp_dbcsr_scale_d_m(matrix_a, alpha_matrix,&
-       last_column, side, error)
+  SUBROUTINE cp_dbcsr_scale_d_m(matrix_a, alpha_matrix, side, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(kind=real_8), DIMENSION(:), &
       INTENT(IN), TARGET                     :: alpha_matrix
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -2755,17 +2753,15 @@ CONTAINS
     CALL cp_error_init (cp_error)
     dbcsr_error = error
     CALL cluster_buffer_flush (matrix_a%buffers, error=cp_error)
-    CALL dbcsr_scale(matrix_a%matrix, alpha_matrix, last_column, side, dbcsr_error)
+    CALL dbcsr_scale_mat(matrix_a%matrix, alpha_matrix, side, error=dbcsr_error)
     error = dbcsr_error
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_d_m
 
-  SUBROUTINE cp_dbcsr_scale_s_m(matrix_a, alpha_matrix,&
-       last_column, side, error)
+  SUBROUTINE cp_dbcsr_scale_s_m(matrix_a, alpha_matrix, side, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     REAL(kind=real_4), DIMENSION(:), &
       INTENT(IN), TARGET                     :: alpha_matrix
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -2780,17 +2776,15 @@ CONTAINS
     CALL cp_error_init (cp_error)
     dbcsr_error = error
     CALL cluster_buffer_flush (matrix_a%buffers, error=cp_error)
-    CALL dbcsr_scale(matrix_a%matrix, alpha_matrix, last_column, side, dbcsr_error)
+    CALL dbcsr_scale_mat(matrix_a%matrix, alpha_matrix, side, error=dbcsr_error)
     error = dbcsr_error
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_s_m
 
-  SUBROUTINE cp_dbcsr_scale_z_m(matrix_a, alpha_matrix,&
-       last_column, side, error)
+  SUBROUTINE cp_dbcsr_scale_z_m(matrix_a, alpha_matrix, side, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     COMPLEX(kind=real_8), DIMENSION(:), &
       INTENT(IN), TARGET                     :: alpha_matrix
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -2805,17 +2799,15 @@ CONTAINS
     dbcsr_error = error
     CALL cp_error_init (cp_error)
     CALL cluster_buffer_flush (matrix_a%buffers, error=cp_error)
-    CALL dbcsr_scale(matrix_a%matrix, alpha_matrix, last_column, side, dbcsr_error)
+    CALL dbcsr_scale_mat(matrix_a%matrix, alpha_matrix, side, error=dbcsr_error)
     error = dbcsr_error
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_z_m
 
-  SUBROUTINE cp_dbcsr_scale_c_m(matrix_a, alpha_matrix,&
-       last_column, side, error)
+  SUBROUTINE cp_dbcsr_scale_c_m(matrix_a, alpha_matrix, side, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     COMPLEX(kind=real_4), DIMENSION(:), &
       INTENT(IN), TARGET                     :: alpha_matrix
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -2830,7 +2822,7 @@ CONTAINS
     CALL cp_error_init (cp_error)
     dbcsr_error = error
     CALL cluster_buffer_flush (matrix_a%buffers, error=cp_error)
-    CALL dbcsr_scale(matrix_a%matrix, alpha_matrix, last_column, side, dbcsr_error)
+    CALL dbcsr_scale_mat(matrix_a%matrix, alpha_matrix, side, error=dbcsr_error)
     error = dbcsr_error
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_scale_c_m

@@ -19,8 +19,7 @@ MODULE dbcsr_operations
                                              array_i1d_obj,&
                                              array_release
   USE dbcsr_blas_operations,           ONLY: dbcsr_blas_copy,&
-                                             dbcsr_blas_gemm,&
-                                             dbcsr_blas_scal
+                                             dbcsr_blas_gemm
   USE dbcsr_block_access,              ONLY: dbcsr_access_flush,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
@@ -28,6 +27,7 @@ MODULE dbcsr_operations
                                              dbcsr_reserve_blocks
   USE dbcsr_block_operations,          ONLY: block_add_on_diag,&
                                              dbcsr_block_partial_copy,&
+                                             dbcsr_block_scale,&
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              get_block2d_diagonal,&
@@ -37,7 +37,8 @@ MODULE dbcsr_operations
        dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_get_data, &
        dbcsr_get_data_p, dbcsr_scalar, dbcsr_scalar_are_equal, &
-       dbcsr_scalar_one, dbcsr_scalar_zero, dbcsr_type_1d_to_2d
+       dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_one, &
+       dbcsr_scalar_zero, dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_operations,           ONLY: checker_square_proc,&
@@ -108,7 +109,6 @@ MODULE dbcsr_operations
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: ceil_log2,&
-                                             convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
                                              dbcsr_set_debug,&
                                              dbcsr_verify_matrix,&
@@ -133,7 +133,7 @@ MODULE dbcsr_operations
 
   PUBLIC :: dbcsr_multiply,&
             dbcsr_mult_m_e_e, dbcsr_trace, dbcsr_add_on_diag,&
-            dbcsr_set, dbcsr_scale, dbcsr_add, dbcsr_copy,&
+            dbcsr_set, dbcsr_scale, dbcsr_scale_mat, dbcsr_add, dbcsr_copy,&
             dbcsr_copy_submatrix, &
             dbcsr_get_diag, dbcsr_set_diag, &
             dbcsr_get_block_diag, dbcsr_hadamard_product, &
@@ -166,6 +166,10 @@ MODULE dbcsr_operations
      MODULE PROCEDURE dbcsr_scale_anytype
      MODULE PROCEDURE dbcsr_scale_s, dbcsr_scale_d,&
                       dbcsr_scale_c, dbcsr_scale_z
+  END INTERFACE
+
+  INTERFACE dbcsr_scale_mat
+     MODULE PROCEDURE dbcsr_scale_mat_any
      MODULE PROCEDURE dbcsr_scale_s_m, dbcsr_scale_d_m,&
                       dbcsr_scale_c_m, dbcsr_scale_z_m
   END INTERFACE
@@ -573,9 +577,12 @@ CONTAINS
          .OR. (l_col .GT. 0 .AND. l_col .LT. dbcsr_nfullcols_total(matrix_c))
     !
     IF (.NOT. dbcsr_scalar_are_equal (beta, dbcsr_scalar_one(beta%data_type)) .AND. keep_product_data) THEN
-       CALL dbcsr_scale (matrix_c, scale_type='S',&
-            alpha_scalar=beta, &
-            last_column=last_column, error=error)
+       IF (PRESENT (last_column)) THEN
+          CALL dbcsr_scale (matrix_c, alpha_scalar=beta, &
+               limits=(/0,0,0,last_column/), error=error)
+       ELSE
+          CALL dbcsr_scale (matrix_c, alpha_scalar=beta, error=error)
+       ENDIF
     ENDIF
     !
     ! The index of the product matrix is twiddled into canonical form
@@ -941,32 +948,177 @@ CONTAINS
 !> \brief Scales a DBCSR matrix by alpha
 !> \param[inout] matrix_a       DBCSR matrix
 !> \param[in] alpha_scalar      (optional) a scalar
-!> \param[in] alpha_matrix      (optional) a list of matrices
-!> \param[in] side              (optional) ?
-!> \param[in] last_column       (optional) only scale up to this full column
-!> \param[in] scale type        corresponds to scalar, vector, matrix
+!> \param[in] limits            (optional) Scale only a subbox
+!> \param[in,out] error         error
+!> \par Limits
+!> A 4-tuple describing (first_row, last_row, first_column, last_column). Set
+!> to 0 to avoid limiting.
 ! *****************************************************************************
-  SUBROUTINE dbcsr_scale_anytype(matrix_a, last_column, error, scale_type,&
-         side,&
-         alpha_scalar, alpha_matrix)
+  SUBROUTINE dbcsr_scale_anytype(matrix_a, alpha_scalar, limits, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
+    TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha_scalar
+    INTEGER, DIMENSION(4), INTENT(IN), &
+      OPTIONAL                               :: limits
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    CHARACTER, INTENT(IN)                    :: scale_type
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
-    TYPE(dbcsr_scalar_type), INTENT(IN), &
-      OPTIONAL                               :: alpha_scalar
-    TYPE(dbcsr_data_obj), INTENT(IN), &
-      OPTIONAL                               :: alpha_matrix
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_anytype', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: first_col_i = 3, &
+                                                first_row_i = 1, &
+                                                last_col_i = 4, last_row_i = 2
 
-    INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
-      col_offset, error_handler, i, last_col, row_offset
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: col_end, col_start, m_offset
+    INTEGER :: a_col, a_col_size, a_row, a_row_size, col_offset, &
+      error_handler, row_offset, scale_col_offset, scale_col_size, &
+      scale_row_offset, scale_row_size
+    INTEGER, DIMENSION(4)                    :: my_limits
+    LOGICAL                                  :: do_scale, has_limits, tr
+    TYPE(dbcsr_data_obj)                     :: data_any
+    TYPE(dbcsr_iterator)                     :: iter
+    TYPE(dbcsr_scalar_type)                  :: one
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    ! Limits are only honored if the argument is present and any are
+    ! non-zero.
+    IF (PRESENT (limits)) THEN
+       has_limits = ANY (limits(:) .NE. 0)
+    ELSE
+       has_limits = .FALSE.
+    ENDIF
+    my_limits(first_row_i) = 1
+    my_limits(last_row_i)  = dbcsr_nfullrows_total (matrix_a)
+    my_limits(first_col_i) = 1
+    my_limits(last_col_i)  = dbcsr_nfullcols_total (matrix_a)
+    IF (has_limits) THEN
+       IF (limits(last_col_i) .NE. 0) THEN
+          CALL dbcsr_assert (limits(last_col_i) .GE. 0, "AND",&
+               limits(last_col_i) .LE. dbcsr_nfullcols_total (matrix_a),&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Specified last column is out of bounds.",__LINE__,error)
+          my_limits(last_col_i) = limits(last_col_i)
+       ENDIF
+       IF (limits(first_col_i) .NE. 0) THEN
+          CALL dbcsr_assert (limits(first_col_i) .GE. 0, "AND",&
+               limits(first_col_i) .LE. dbcsr_nfullcols_total (matrix_a),&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Specified first column is out of bounds.",__LINE__,error)
+          my_limits(first_col_i) = limits(first_col_i)
+       ENDIF
+       IF (limits(last_row_i) .NE. 0) THEN
+          CALL dbcsr_assert (limits(last_row_i) .GE. 0, "AND",&
+               limits(last_row_i) .LE. dbcsr_nfullrows_total (matrix_a),&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Specified last rowumn is out of bounds.",__LINE__,error)
+          my_limits(last_row_i) = limits(last_row_i)
+       ENDIF
+       IF (limits(first_row_i) .NE. 0) THEN
+          CALL dbcsr_assert (limits(first_row_i) .GE. 0, "AND",&
+               limits(first_row_i) .LE. dbcsr_nfullrows_total (matrix_a),&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Specified first rowumn is out of bounds.",__LINE__,error)
+          my_limits(first_row_i) = limits(first_row_i)
+       ENDIF
+    ENDIF
+    !
+    ! quick return if possible
+    one = dbcsr_scalar_one (dbcsr_scalar_get_type (alpha_scalar))
+    do_scale = .NOT. dbcsr_scalar_are_equal (alpha_scalar, one)
+    !
+    ! let's go
+    IF(do_scale) THEN
+       !$OMP PARALLEL DEFAULT (none) &
+       !$OMP          PRIVATE (iter, data_any) &
+       !$OMP          PRIVATE (a_row, a_col, tr, a_row_size, a_col_size, &
+       !$OMP                   row_offset, col_offset) &
+       !$OMP          PRIVATE (scale_row_size, scale_col_size,&
+       !$OMP                   scale_row_offset, scale_col_offset) &
+       !$OMP          SHARED (matrix_a, my_limits, error, alpha_scalar)
+       CALL dbcsr_data_init (data_any)
+       CALL dbcsr_data_new (data_any, dbcsr_type_1d_to_2d (dbcsr_get_data_type (matrix_a)))
+       CALL dbcsr_iterator_start(iter, matrix_a, read_only=.FALSE.,&
+            contiguous_pointers = .FALSE., dynamic = .TRUE.,&
+            dynamic_byrows = .TRUE.)
+       iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
+          CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_any, tr,&
+               row_size=a_row_size, col_size=a_col_size, &
+               row_offset=row_offset, col_offset=col_offset)
+          IF (a_row_size .GT. 0 .AND. a_col_size .GT. 0) THEN
+             CALL frame_block_limit (a_row_size, row_offset,&
+                  my_limits(first_row_i), my_limits(last_row_i),&
+                  scale_row_size, scale_row_offset)
+             CALL frame_block_limit (a_col_size, col_offset,&
+                  my_limits(first_col_i), my_limits(last_col_i),&
+                  scale_col_size, scale_col_offset)
+             IF (tr) THEN
+                CALL swap (scale_row_size, scale_col_size)
+                CALL swap (scale_row_offset, scale_col_offset)
+             ENDIF
+             CALL dbcsr_block_scale (data_any, scale=alpha_scalar,&
+                  row_size=scale_row_size, col_size=scale_col_size,&
+                  lb=scale_row_offset, lb2=scale_col_offset, error=error)
+          ENDIF
+       ENDDO iterations
+       CALL dbcsr_iterator_stop(iter)
+       CALL dbcsr_data_clear_pointer (data_any)
+       CALL dbcsr_data_release (data_any)
+       !$OMP END PARALLEL
+    ENDIF
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_scale_anytype
+
+
+! *****************************************************************************
+!> \brief Determines the effect of limits on a block
+!> \param[in] block_size     size of block
+!> \param[in] block_offset   global offset of block
+!> \param[in] first_limit    lower limit
+!> \param[in] last_limit     upper limit
+!> \param[out] frame_size    size of block region within the limits
+!> \param[out] frame_offset  starting position of the block region 
+!>                           that is within the limits
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE frame_block_limit (block_size, block_offset,&
+       first_limit, last_limit,&
+       frame_size, frame_offset)
+    INTEGER, INTENT(IN)                      :: block_size, block_offset, &
+                                                first_limit, last_limit
+    INTEGER, INTENT(OUT)                     :: frame_size, frame_offset
+
+    INTEGER                                  :: f, l
+
+    f = MAX (block_offset, first_limit)
+    l = MIN (block_offset + block_size - 1, last_limit)
+    frame_size = MAX(l - f + 1, 0)
+    frame_offset = MIN(f - block_offset + 1, block_size)
+  END SUBROUTINE frame_block_limit
+
+
+! *****************************************************************************
+!> \brief Scales a DBCSR matrix by a vector or a matrix
+!> \param[inout] matrix_a       DBCSR matrix
+!> \param[in] alpha_matrix      (optional) a list of matrices
+!> \param[in] side              (optional) ?
+!> \param[in] scale type        corresponds to scalar, vector, matrix
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE dbcsr_scale_mat_any(matrix_a, alpha_matrix, side, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: alpha_matrix
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: side
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_mat_any', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: a_blk, a_col, a_col_size, &
+                                                a_nze, a_row, a_row_size, &
+                                                col_offset, error_handler, &
+                                                row_offset
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: m_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: do_scale, limit_col, right, tr
+    LOGICAL                                  :: right, tr
     TYPE(dbcsr_data_obj)                     :: buffer, data_any, mat_tmp
     TYPE(dbcsr_iterator)                     :: iter
 
@@ -974,21 +1126,6 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, error_handler, error)
 
-    CALL dbcsr_assert (.NOT. PRESENT (last_column) .OR. scale_type .EQ. 'S', &
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Column limiting supported only with scalar scaling",__LINE__,error)
-    last_col = 0
-    IF (PRESENT (last_column)) THEN
-       CALL dbcsr_assert (last_column .GE. 0 .AND. last_column .LE.&
-            dbcsr_nfullcols_total (matrix_a), dbcsr_fatal_level,&
-            dbcsr_wrong_args_error, routineN,&
-            "Specified last column is out of bounds.",__LINE__,error)
-       last_col = last_column
-       ALLOCATE (col_start(dbcsr_nblkcols_total(matrix_a)))
-       ALLOCATE (col_end(dbcsr_nblkcols_total(matrix_a)))
-       CALL convert_sizes_to_offsets(array_data (matrix_a%m%col_blk_size), &
-            col_start, col_end)
-    ENDIF
     !
     ! set vars
     right = .TRUE.
@@ -1002,238 +1139,90 @@ CONTAINS
                "wrong side="//side,__LINE__,error)
        END SELECT
     ENDIF
-    IF(scale_type .EQ. 'M') THEN     ! Matrix scaling
-       CALL dbcsr_data_init (buffer)
-       ! Clean up these maxvalues
-       CALL dbcsr_data_new (buffer, dbcsr_get_data_type(matrix_a),&
-            data_size=MAXVAL(array_data (matrix_a%m%row_blk_size)) &
-            *MAXVAL(array_data (matrix_a%m%col_blk_size)))
-       CALL dbcsr_data_clear (buffer) ! Zero the buffer
-       !
-       ! TODO: Clean up these offsets using the matrix-supplied ones
-       row_blk_size => array_data (matrix_a%m%row_blk_size)
-       col_blk_size => array_data (matrix_a%m%col_blk_size)
-       ALLOCATE(m_offset(dbcsr_nblkrows_total(matrix_a)))
-       m_offset(1) = 1
-       IF(right) THEN
-          DO a_col = 2,dbcsr_nblkcols_total(matrix_a)
-             a_col_size = col_blk_size(a_col-1)
-             m_offset(a_col) = m_offset(a_col-1) + a_col_size**2
-          ENDDO
-       ELSE
-          DO a_row = 2,dbcsr_nblkrows_total(matrix_a)
-             a_row_size = row_blk_size(a_row-1)
-             m_offset(a_row) = m_offset(a_row-1) + a_row_size**2
-          ENDDO
-       ENDIF
-       !
-       ! This data area holds the current column
-       CALL dbcsr_data_init (mat_tmp)
-       CALL dbcsr_data_new (mat_tmp, dbcsr_data_get_type (alpha_matrix))
+    !
+    CALL dbcsr_data_init (buffer)
+    ! Clean up these maxvalues
+    CALL dbcsr_data_new (buffer, dbcsr_get_data_type(matrix_a),&
+         data_size=MAXVAL(array_data (matrix_a%m%row_blk_size)) &
+         *MAXVAL(array_data (matrix_a%m%col_blk_size)))
+    CALL dbcsr_data_clear (buffer) ! Zero the buffer
+    !
+    ! TODO: Clean up these offsets using the matrix-supplied ones
+    row_blk_size => array_data (matrix_a%m%row_blk_size)
+    col_blk_size => array_data (matrix_a%m%col_blk_size)
+    ALLOCATE(m_offset(dbcsr_nblkrows_total(matrix_a)))
+    m_offset(1) = 1
+    IF(right) THEN
+       DO a_col = 2,dbcsr_nblkcols_total(matrix_a)
+          a_col_size = col_blk_size(a_col-1)
+          m_offset(a_col) = m_offset(a_col-1) + a_col_size**2
+       ENDDO
+    ELSE
+       DO a_row = 2,dbcsr_nblkrows_total(matrix_a)
+          a_row_size = row_blk_size(a_row-1)
+          m_offset(a_row) = m_offset(a_row-1) + a_row_size**2
+       ENDDO
     ENDIF
     !
-    ! quick return if possible
-    do_scale = .TRUE.
-    IF (PRESENT (alpha_scalar)) THEN
-       SELECT CASE (alpha_scalar%data_type)
-       CASE (dbcsr_type_real_4)
-          IF (alpha_scalar%r_sp .EQ. 1.0_real_4) do_scale = .FALSE.
-       CASE (dbcsr_type_real_8)
-          IF (alpha_scalar%r_dp .EQ. 1.0_real_8) do_scale = .FALSE.
-       CASE (dbcsr_type_complex_4)
-          IF (alpha_scalar%c_sp .EQ. CMPLX(1.0, 0.0, real_4)) do_scale = .FALSE.
-       CASE (dbcsr_type_complex_8)
-          IF (alpha_scalar%c_dp .EQ. CMPLX(1.0, 0.0, real_8)) do_scale = .FALSE.
-       END SELECT
-    END IF
+    ! This data area holds the current column
+    CALL dbcsr_data_init (mat_tmp)
+    CALL dbcsr_data_new (mat_tmp, dbcsr_data_get_type (alpha_matrix))
     !
     ! let's go
-    IF(do_scale) THEN
-       CALL dbcsr_data_init (data_any)
-       CALL dbcsr_data_new (data_any, dbcsr_get_data_type (matrix_a))
-       CALL dbcsr_iterator_start(iter, matrix_a)
-       iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
-          CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_any, tr,&
-               block_number=a_blk,&
-               row_size=a_row_size, col_size=a_col_size, &
-               row_offset=row_offset, col_offset=col_offset)
-          ! ### UB: Find where the transposed blocks come from.
-          !CALL cp_assert (.NOT. tr, dbcsr_fatal_level, cp_unimplemented_error_nr,&
-          !     routineN, "No support for transposed blocks.")
-          a_nze = a_row_size * a_col_size
-          IF (a_nze .EQ. 0) CYCLE ! Skip empty blocks
-          !
-          ! let's scale
-          IF(scale_type .EQ. 'S') THEN
-             limit_col = last_col .GT. 0
-             IF (limit_col) limit_col = col_end(a_col).gt.last_col
-             IF (limit_col) THEN
-                IF (col_start(a_col) .LE. last_col) THEN
-                   i = MIN(last_col, col_end(a_col)) - col_start(a_col) + 1
-                   a_nze = a_row_size*i
-                ELSE
-                   ! Nothing to do, the block is beyond the boundry.
-                   a_nze = 0
-                ENDIF
-             ENDIF
-             IF (a_nze .GT. 0) THEN
-                CALL dbcsr_blas_scal (a_nze, alpha_scalar, data_any, 1)
-             ENDIF
-          ELSEIF(scale_type .EQ. 'M') THEN
-             IF(right) THEN
-                !A = A * alpha
-                mat_tmp = pointer_view (mat_tmp, alpha_matrix, m_offset(a_col))
-                CALL dbcsr_blas_gemm ('N','N',&
-                     a_row_size, a_col_size, a_col_size,&
-                     dbcsr_scalar_one (alpha_matrix%d%data_type),&
-                     data_any, a_row_size,&
-                     mat_tmp, a_col_size,&
-                     dbcsr_scalar_zero (alpha_matrix%d%data_type),&
-                     buffer, a_row_size)
-                !CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
-                !     1.0_dp,data_any%d%r_dp(1),a_row_size,&
-                !     alpha_matrix%d%r_dp(m_offset(a_col)),a_col_size,&
-                !     0.0_dp,buffer%d%r_dp(1),a_row_size)
-                CALL dbcsr_blas_copy (a_nze, buffer, 1, data_any, 1)
-             ELSE
-                !A = alpha * A
-                mat_tmp = pointer_view (mat_tmp, alpha_matrix, m_offset(a_row))
-                CALL dbcsr_blas_gemm ('N','N',&
-                     a_row_size, a_col_size, a_row_size,&
-                     dbcsr_scalar_one (alpha_matrix%d%data_type),&
-                     mat_tmp, a_row_size,&
-                     data_any, a_row_size,&
-                     dbcsr_scalar_zero (alpha_matrix%d%data_type),&
-                     buffer, a_row_size)
-                !CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
-                !        &     1.0_dp,alpha_matrix%d%r_dp(m_offset(a_col)),a_row_size,&
-                !        &            data_any%d%r_dp(1),a_row_size,&
-                !        &     0.0_dp,buffer%d%r_dp(1),a_row_size)
-                CALL dbcsr_blas_copy(a_nze, buffer, 1, data_any, 1)
-             ENDIF
-          ELSE
-             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,&
-                  dbcsr_wrong_args_error, routineN,&
-                  "wrong logic",__LINE__,error)
-          ENDIF
-       ENDDO iterations
-       CALL dbcsr_iterator_stop(iter)
-       CALL dbcsr_data_clear_pointer (data_any)
-       CALL dbcsr_data_release (data_any)
-    ENDIF
+    CALL dbcsr_data_init (data_any)
+    CALL dbcsr_data_new (data_any, dbcsr_get_data_type (matrix_a))
+    CALL dbcsr_iterator_start(iter, matrix_a)
+    iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
+       CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_any, tr,&
+            block_number=a_blk,&
+            row_size=a_row_size, col_size=a_col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+       a_nze = a_row_size * a_col_size
+       IF (a_nze .EQ. 0) CYCLE ! Skip empty blocks
+       !
+       ! let's scale
+       IF(right) THEN
+          !A = A * alpha
+          mat_tmp = pointer_view (mat_tmp, alpha_matrix, m_offset(a_col))
+          CALL dbcsr_blas_gemm ('N','N',&
+               a_row_size, a_col_size, a_col_size,&
+               dbcsr_scalar_one (alpha_matrix%d%data_type),&
+               data_any, a_row_size,&
+               mat_tmp, a_col_size,&
+               dbcsr_scalar_zero (alpha_matrix%d%data_type),&
+               buffer, a_row_size)
+          !CALL dgemm('N','N',a_row_size,a_col_size,a_col_size,&
+          !     1.0_dp,data_any%d%r_dp(1),a_row_size,&
+          !     alpha_matrix%d%r_dp(m_offset(a_col)),a_col_size,&
+          !     0.0_dp,buffer%d%r_dp(1),a_row_size)
+          CALL dbcsr_blas_copy (a_nze, buffer, 1, data_any, 1)
+       ELSE
+          !A = alpha * A
+          mat_tmp = pointer_view (mat_tmp, alpha_matrix, m_offset(a_row))
+          CALL dbcsr_blas_gemm ('N','N',&
+               a_row_size, a_col_size, a_row_size,&
+               dbcsr_scalar_one (alpha_matrix%d%data_type),&
+               mat_tmp, a_row_size,&
+               data_any, a_row_size,&
+               dbcsr_scalar_zero (alpha_matrix%d%data_type),&
+               buffer, a_row_size)
+          !CALL dgemm('N','N',a_row_size,a_col_size,a_row_size,&
+          !        &     1.0_dp,alpha_matrix%d%r_dp(m_offset(a_col)),a_row_size,&
+          !        &            data_any%d%r_dp(1),a_row_size,&
+          !        &     0.0_dp,buffer%d%r_dp(1),a_row_size)
+          CALL dbcsr_blas_copy(a_nze, buffer, 1, data_any, 1)
+       ENDIF
+    ENDDO iterations
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_data_clear_pointer (data_any)
+    CALL dbcsr_data_release (data_any)
+    DEALLOCATE(m_offset)
+    !WRITE(*,*)"refs:", buffer%d%refcount, buffer%d%data_type
+    CALL dbcsr_data_release (buffer)
+    CALL dbcsr_data_clear_pointer (mat_tmp)
+    CALL dbcsr_data_release (mat_tmp)
+   END SUBROUTINE dbcsr_scale_mat_any
 
-    IF(scale_type .EQ. 'M') THEN
-       DEALLOCATE(m_offset)
-       WRITE(*,*)"refs:", buffer%d%refcount, buffer%d%data_type
-       CALL dbcsr_data_release (buffer)
-       CALL dbcsr_data_clear_pointer (mat_tmp)
-       CALL dbcsr_data_release (mat_tmp)
-    ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_scale_anytype
-
-  !> \brief Interface for matrix scaling by a scalar
-  SUBROUTINE dbcsr_scale_d(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(real_8), INTENT(IN)                 :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_d', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER                                :: scale_type
-    INTEGER                                  :: error_handler
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    scale_type = 'S'
-    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8) THEN
-       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
-            scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
-    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4) THEN
-       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
-            scale_type=scale_type, alpha_scalar=dbcsr_scalar (REAL(alpha_scalar,real_4)))
-    ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type",__LINE__,error)
-    ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_scale_d
-
-  SUBROUTINE dbcsr_scale_s(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    REAL(real_4), INTENT(IN)                 :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_s', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER                                :: scale_type
-    INTEGER                                  :: error_handler
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    scale_type = 'S'
-    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4) THEN
-       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
-            scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
-    ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type",__LINE__,error)
-    ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_scale_s
-  
-  SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    COMPLEX(real_8), INTENT(IN)              :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_z', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER                                :: scale_type
-    INTEGER                                  :: error_handler
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    scale_type = 'S'
-    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_8) THEN
-       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
-            scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
-    ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_4) THEN
-       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
-            scale_type=scale_type, alpha_scalar=dbcsr_scalar (CMPLX(alpha_scalar,KIND=real_4)))
-    ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type",__LINE__,error)
-    ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_scale_z
-
-  SUBROUTINE dbcsr_scale_c(matrix_a, alpha_scalar, last_column, error)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
-    COMPLEX(real_4), INTENT(IN)              :: alpha_scalar
-    INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_c', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER                                :: scale_type
-    INTEGER                                  :: error_handler
-
-    CALL dbcsr_error_set(routineN, error_handler, error)
-    scale_type = 'S'
-    IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_4) THEN
-       CALL dbcsr_scale_anytype(matrix_a, last_column, error,&
-            scale_type=scale_type, alpha_scalar=dbcsr_scalar (alpha_scalar))
-    ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type",__LINE__,error)
-    ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_scale_c
 
 ! *****************************************************************************
 !> \brief Scales a DBCSR matrix by alpha
@@ -1465,8 +1454,7 @@ CONTAINS
     do_scale = dbcsr_scalar_are_equal (&
          my_beta_scalar, dbcsr_scalar_one (data_type_b))
 
-    CALL dbcsr_scale(matrix_a,scale_type='S',&
-         alpha_scalar=my_alpha_scalar,error=error)
+    CALL dbcsr_scale(matrix_a, alpha_scalar=my_alpha_scalar, error=error)
 
     ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
     size_a = dbcsr_get_data_size (matrix_a)
@@ -1561,8 +1549,7 @@ CONTAINS
     ! Scale target matrix
     do_scale = dbcsr_scalar_are_equal (&
          my_beta_scalar, dbcsr_scalar_one (data_type_b))
-    CALL dbcsr_scale(matrix_a,scale_type='S',&
-         alpha_scalar=my_alpha_scalar,error=error)
+    CALL dbcsr_scale(matrix_a, alpha_scalar=my_alpha_scalar, error=error)
     !
     IF(.NOT.dbcsr_scalar_are_equal(my_beta_scalar,&
          dbcsr_scalar_zero(data_type_b))) THEN

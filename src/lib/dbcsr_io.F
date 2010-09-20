@@ -48,6 +48,7 @@ MODULE dbcsr_io
 
   INTERFACE dbcsr_printmat
      MODULE PROCEDURE printmat_s, printmat_d, printmat_c, printmat_z
+     MODULE PROCEDURE printmat_s_2d, printmat_d_2d, printmat_c_2d, printmat_z_2d
   END INTERFACE
 
   ! Main
@@ -439,6 +440,19 @@ CONTAINS
     ENDDO
   END SUBROUTINE printmat_s
 
+  SUBROUTINE printmat_s_2d(matrix, title, tr)
+    REAL(KIND=real_4), DIMENSION(:, :), &
+      INTENT(IN)                             :: matrix
+    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
+         SIZE(matrix, 1), SIZE(matrix, 2), title=title, tr=tr)
+  END SUBROUTINE printmat_s_2d
+
+
   SUBROUTINE printmat_d(matrix, rows, cols, title, tr)
     REAL(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
@@ -460,6 +474,19 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE printmat_d
+
+  SUBROUTINE printmat_d_2d(matrix, title, tr)
+    REAL(KIND=real_8), DIMENSION(:, :), &
+      INTENT(IN)                             :: matrix
+    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
+         SIZE(matrix, 1), SIZE(matrix, 2), title=title, tr=tr)
+  END SUBROUTINE printmat_d_2d
+
 
   SUBROUTINE printmat_c(matrix, rows, cols, title, tr)
     COMPLEX(KIND=real_4), DIMENSION(:), &
@@ -483,6 +510,18 @@ CONTAINS
     ENDIF
   END SUBROUTINE printmat_c
 
+  SUBROUTINE printmat_c_2d(matrix, title, tr)
+    COMPLEX(KIND=real_4), DIMENSION(:, :), &
+      INTENT(IN)                             :: matrix
+    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
+         SIZE(matrix, 1), SIZE(matrix, 2), title=title, tr=tr)
+  END SUBROUTINE printmat_c_2d
+
   SUBROUTINE printmat_z(matrix, rows, cols, title, tr)
     COMPLEX(KIND=real_8), DIMENSION(:), &
       INTENT(IN)                             :: matrix
@@ -504,6 +543,18 @@ CONTAINS
        ENDIF
     ENDIF
   END SUBROUTINE printmat_z
+
+  SUBROUTINE printmat_z_2d(matrix, title, tr)
+    COMPLEX(KIND=real_8), DIMENSION(:, :), &
+      INTENT(IN)                             :: matrix
+    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
+    LOGICAL, INTENT(IN), OPTIONAL            :: tr
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_printmat(RESHAPE(matrix, (/ SIZE(matrix) /)),&
+         SIZE(matrix, 1), SIZE(matrix, 2), title=title, tr=tr)
+  END SUBROUTINE printmat_z_2d
 
 
 ! *****************************************************************************

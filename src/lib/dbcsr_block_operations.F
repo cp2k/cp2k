@@ -354,6 +354,9 @@ CONTAINS
 !> \param[in] scale      (optional) scale data
 !> \param[in] lb2        (optional) lower bound of 2nd dimension for target
 !> \param[in] source_lb2 (optional) lower bound of 2nd dimension for source
+!> \par History
+!> - 2010-09 [??] Copied from block_transpose?
+!> - 2010-09-20 [UB] Swaps/corrects row/column definitions for 2-D bounds
 ! *****************************************************************************
   SUBROUTINE dbcsr_block_scale (dst, scale,& 
        row_size, col_size, lb, lb2, error)
@@ -407,17 +410,17 @@ CONTAINS
     CASE (dbcsr_type_complex_4)
        dst%d%c_sp(lb_t:ub_t) = dst%d%c_sp(lb_t:ub_t) * scale%c_sp
     CASE (dbcsr_type_real_8_2d)
-       dst%d%r2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
-            dst%d%r2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) * scale%r_dp
+       dst%d%r2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) =&
+       dst%d%r2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) * scale%r_dp
     CASE (dbcsr_type_real_4_2d)
-       dst%d%r2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
-            dst%d%r2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) * scale%r_sp
+       dst%d%r2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) =&
+       dst%d%r2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) * scale%r_sp
     CASE (dbcsr_type_complex_8_2d)
-       dst%d%c2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
-            dst%d%c2_dp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) * scale%c_dp
+       dst%d%c2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) =&
+       dst%d%c2_dp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) * scale%c_dp
     CASE (dbcsr_type_complex_4_2d)
-       dst%d%c2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) =&
-            dst%d%c2_sp(lb_t:lb_t+col_size-1,lb2_t:lb2_t+row_size-1) * scale%c_sp
+       dst%d%c2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) =&
+       dst%d%c2_sp(lb_t:lb_t+row_size-1,lb2_t:lb2_t+col_size-1) * scale%c_sp
     CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__,error)

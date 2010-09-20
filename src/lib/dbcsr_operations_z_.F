@@ -286,6 +286,34 @@
 
   END SUBROUTINE bcast_block_z
 
+  !> \brief Interface for matrix scaling by a scalar
+  SUBROUTINE dbcsr_scale_z(matrix_a, alpha_scalar, last_column, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    COMPLEX(kind=real_8), INTENT(IN)                      :: alpha_scalar
+    INTEGER, INTENT(IN), OPTIONAL            :: last_column
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_z', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handler
+    TYPE(dbcsr_scalar_type)                  :: sc
+
+    sc = dbcsr_scalar (alpha_scalar)
+    CALL dbcsr_scalar_fill_all (sc)
+    sc%data_type = dbcsr_get_data_type (matrix_a)
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (PRESENT (last_column)) THEN
+       CALL dbcsr_scale_anytype(matrix_a,&
+            alpha_scalar=sc,&
+            limits=(/0,0,0,last_column/), error=error)
+    ELSE
+       CALL dbcsr_scale_anytype(matrix_a,&
+            alpha_scalar=sc, error=error)
+    ENDIF
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_scale_z
+
   !> \brief Interface for matrix scaling by a vector
   SUBROUTINE dbcsr_scale_by_vector_z(matrix_a, alpha, side, error)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix_a
@@ -308,25 +336,22 @@
 
   !> \brief Interface for matrix scaling by a matrix
   SUBROUTINE dbcsr_scale_z_m(matrix_a, alpha_matrix,&
-       last_column, side, error)
+       side, error)
     TYPE(dbcsr_obj), INTENT(INOUT)             :: matrix_a
     COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN), TARGET  :: alpha_matrix
-    INTEGER, INTENT(IN), OPTIONAL              :: last_column
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL     :: side
     TYPE(dbcsr_error_type), INTENT(INOUT)      :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_z_m', &
       routineP = moduleN//':'//routineN
     COMPLEX(kind=real_8), DIMENSION(:), POINTER             :: tmp_p
-    CHARACTER                                  :: scale_type
     TYPE(dbcsr_data_obj)                       :: enc_alpha_mat
 
-    scale_type = 'M'
     CALL dbcsr_data_init (enc_alpha_mat)
     CALL dbcsr_data_new (enc_alpha_mat, dbcsr_type_complex_8)
     tmp_p => alpha_matrix
     CALL dbcsr_data_set_pointer (enc_alpha_mat, tmp_p)
-    CALL dbcsr_scale_anytype(matrix_a, last_column, error, scale_type,&
-         side=side, alpha_matrix = enc_alpha_mat)
+    CALL dbcsr_scale_mat (matrix_a, side=side, alpha_matrix = enc_alpha_mat,&
+         error=error)
     CALL dbcsr_data_clear_pointer (enc_alpha_mat)
     CALL dbcsr_data_release (enc_alpha_mat)
   END SUBROUTINE dbcsr_scale_z_m

@@ -66,7 +66,7 @@ MODULE preconditioner
        dbcsr_distribution_row_dist, dbcsr_mp_group, dbcsr_mp_mynode, &
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes
-  USE dbcsr_operations,                ONLY: dbcsr_scale
+  USE dbcsr_operations,                ONLY: dbcsr_scale_mat
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_norm_frobenius,&
@@ -2417,16 +2417,16 @@ END SUBROUTINE make_full_all_ortho
     CALL cp_dbcsr_add_on_diag(mat_lt, s, error=error)
     !chksum = cp_dbcsr_checksum(mat_lt,error)
     !WRITE(*,*) 'checksum(lt)_2',chksum,SUM(ABS(pkd_inv_d))
-    CALL dbcsr_scale(mat_lt%matrix, alpha_matrix=pkd_inv_d, side='left', error=dbcsr_error)
+    CALL dbcsr_scale_mat(mat_lt%matrix, alpha_matrix=pkd_inv_d, side='left', error=dbcsr_error)
     !chksum = cp_dbcsr_checksum(mat_lt,error)
     !WRITE(*,*) 'checksum(lt)_3',chksum
     CALL cp_dbcsr_init (mat_li_scaled,error=error)
     CALL cp_dbcsr_copy(mat_li_scaled, mat_li, error=error)
-    CALL dbcsr_scale(mat_li_scaled%matrix, alpha_matrix=pkd_inv_d, side='left', error=dbcsr_error)
+    CALL dbcsr_scale_mat(mat_li_scaled%matrix, alpha_matrix=pkd_inv_d, side='left', error=dbcsr_error)
 
     CALL cp_dbcsr_init (mat_lt_scaled,error=error)
     CALL cp_dbcsr_copy(mat_lt_scaled, mat_lt, error=error)
-    CALL dbcsr_scale(mat_lt_scaled%matrix, alpha_matrix=pkd_d, side='left', error=dbcsr_error)
+    CALL dbcsr_scale_mat(mat_lt_scaled%matrix, alpha_matrix=pkd_d, side='left', error=dbcsr_error)
 
     occ_in = cp_dbcsr_get_occupation(mat_lt)
     occ_out = cp_dbcsr_get_occupation(mat_li)
