@@ -330,8 +330,9 @@ CONTAINS
                 CALL dbcsr_copy(matrix_b, matrix_a, error=error)
                 !print*, a_symm,b_symm,dbcsr_get_matrix_type(matrix_a),dbcsr_get_matrix_type(matrix_b)
                 IF( c_symm.EQ.dbcsr_type_antisymmetric ) THEN
-                   CALL dbcsr_scale(matrix_b, error=error, scale_type='S',&
-                        alpha_scalar=dbcsr_scalar_negative(dbcsr_scalar_one(TYPE)))
+                   CALL dbcsr_scale(matrix_b, &
+                        alpha_scalar=dbcsr_scalar_negative(&
+                                dbcsr_scalar_one(TYPE)), error=error)
                 ENDIF
              ENDIF
 
