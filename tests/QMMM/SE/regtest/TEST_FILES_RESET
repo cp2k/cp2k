@@ -190,3 +190,5 @@ mol_sph_cut.inp
 zwitt.inp
 # reset numerics, fix upper limits in multiply
 zwitt.inp
+#
+zwitt.inp
