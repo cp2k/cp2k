@@ -584,3 +584,19 @@ h2o_gks_p.inp
 h2o_gks_e.inp
 # reset numerics, fix upper limits in multiply
 ice-scp-ewald_gks.inp
+#
+h2po4.inp
+#
+dimer.inp
+#
+dimer2.inp
+#
+dimer3.inp
+#
+dimer4.inp
+#
+h2o_gks_p.inp
+#
+ice-scp-ewald.inp
+#
+ice-scp-ewald_gks.inp

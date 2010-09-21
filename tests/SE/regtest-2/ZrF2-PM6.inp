@@ -15,7 +15,7 @@
       &END
     &END QS
     &SCF
-      MAX_SCF 50
+      MAX_SCF 10
       EPS_SCF 1.0E-6
       SCF_GUESS mopac
       &MIXING
@@ -30,7 +30,7 @@
       &END
       &OUTER_SCF
         EPS_SCF 1.0E-6
-        MAX_SCF 5
+        MAX_SCF 2
       &END
     &END SCF
   &END DFT

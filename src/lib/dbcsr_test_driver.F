@@ -84,7 +84,6 @@ PROGRAM dbcsr_test_driver
   IF(mynode.eq.0) CALL dbcsr_test_read_args(narg, args)
   CALL mp_bcast(narg, 0, group)
   CALL mp_bcast(args, 0, group)
-  WRITE(*,*) 'narg',narg
 
   CALL dbcsr_assert( narg.GE.1 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
        routineN, "nargs not correct", __LINE__, error )

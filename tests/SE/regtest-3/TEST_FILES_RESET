@@ -256,3 +256,17 @@ Co_complex.inp
 N3_rp_md.inp
 # reset numerics, fix upper limits in multiply
 N3_rp_dp_md.inp
+#
+N3-rp_colvar.inp
+#
+Periclase.inp
+#
+SiO2.inp
+#
+H2O-4.inp
+#
+SiO2_lr_quad.inp
+#
+Co_complex.inp
+#
+N3_dp_md.inp

@@ -561,7 +561,7 @@ CONTAINS
 
     !
     ! if we have limits we need to turn of make dense for the moment...
-    IF(ANY((/ f_row, l_row, f_col, f_k /)==0)) use_dense_mult = .FALSE.
+    IF(ANY((/ f_row, l_row, f_col, l_col, f_k, l_k /).NE.0)) use_dense_mult = .FALSE.
 
     !
     !
@@ -574,15 +574,12 @@ CONTAINS
     !
     keep_product_data = keep_sparsity&
          .OR. .NOT. dbcsr_scalar_are_equal (beta, dbcsr_scalar_zero(beta%data_type))&
-         .OR. (l_col .GT. 0 .AND. l_col .LT. dbcsr_nfullcols_total(matrix_c))
+         .OR. (l_col .GT. 0 .AND. l_col .LT. dbcsr_nfullcols_total(matrix_c)) &
+         .OR. (l_row .GT. 0 .AND. l_row .LT. dbcsr_nfullrows_total(matrix_c))
     !
     IF (.NOT. dbcsr_scalar_are_equal (beta, dbcsr_scalar_one(beta%data_type)) .AND. keep_product_data) THEN
-       IF (PRESENT (last_column)) THEN
-          CALL dbcsr_scale (matrix_c, alpha_scalar=beta, &
-               limits=(/0,0,0,last_column/), error=error)
-       ELSE
-          CALL dbcsr_scale (matrix_c, alpha_scalar=beta, error=error)
-       ENDIF
+       CALL dbcsr_scale (matrix_c, alpha_scalar=beta, &
+            limits=(/f_row,l_row,f_col,l_col/), error=error)
     ENDIF
     !
     ! The index of the product matrix is twiddled into canonical form

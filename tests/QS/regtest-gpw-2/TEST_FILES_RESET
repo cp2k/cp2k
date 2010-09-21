@@ -704,3 +704,7 @@ hcn_ts_r.inp
 Au13ico_mtd.inp
 # reset numerics, fix upper limits in multiply
 Au12_rmsd_mtd.inp
+#
+hcn_ts.inp
+#
+hcn_ts_r.inp

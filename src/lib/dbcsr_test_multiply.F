@@ -13,7 +13,8 @@
 !> - Created 2010
 ! *****************************************************************************
 MODULE dbcsr_test_multiply
-  USE array_types,                     ONLY: array_i1d_obj,&
+  USE array_types,                     ONLY: array_data,&
+                                             array_i1d_obj,&
                                              array_release
   USE dbcsr_block_access
   USE dbcsr_block_operations,          ONLY: dbcsr_block_partial_copy,&
@@ -37,7 +38,8 @@ MODULE dbcsr_test_multiply
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              real_4,&
                                              real_8
-  USE dbcsr_message_passing,           ONLY: mp_cart_create,&
+  USE dbcsr_message_passing,           ONLY: mp_bcast,&
+                                             mp_cart_create,&
                                              mp_cart_rank,&
                                              mp_comm_null,&
                                              mp_dims_create,&
@@ -214,6 +216,18 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handler, error)
 
     !
+    ! print
+    CALL mp_environ (numnodes, mynode, mp_group)
+    IF (io_unit .GT. 0) THEN
+       WRITE(io_unit,*) 'numnodes',numnodes
+       WRITE(io_unit,*) 'matrix_sizes',matrix_sizes
+       WRITE(io_unit,*) 'sparsities',sparsities
+       WRITE(io_unit,*) 'alpha_in',alpha_in
+       WRITE(io_unit,*) 'beta_in',beta_in
+       WRITE(io_unit,*) 'limits',limits
+       WRITE(io_unit,*) 'retain_sparsity',retain_sparsity
+    ENDIF
+    !
     !
     ! loop over symmetry
     DO isymm = 1,SIZE(symmetries,2)
@@ -259,7 +273,11 @@ CONTAINS
              ! if C has a symmetry, we need special transpositions
              IF( c_symm.NE.dbcsr_type_no_symmetry ) THEN
                 IF(.NOT.(transa.EQ.dbcsr_no_transpose.AND.transb.EQ.dbcsr_transpose.OR.&
-                         transa.EQ.dbcsr_transpose.AND.transb.EQ.dbcsr_no_transpose)) CYCLE
+                         transa.EQ.dbcsr_transpose.AND.transb.EQ.dbcsr_no_transpose.OR.&
+                         transa.EQ.dbcsr_no_transpose.AND.transb.EQ.dbcsr_conjugate_transpose.AND.&
+                         .NOT.do_complex.OR.&
+                         transa.EQ.dbcsr_conjugate_transpose.AND.transb.EQ.dbcsr_no_transpose.AND.&
+                         .NOT.do_complex)) CYCLE
              ENDIF
              !
              ! if C has symmetry and special limits
@@ -349,9 +367,9 @@ CONTAINS
              CALL dbcsr_data_new ( data_b, dbcsr_type_1d_to_2d(TYPE), data_size=b_r, data_size2=b_c )
              CALL dbcsr_data_new ( data_c, dbcsr_type_1d_to_2d(TYPE), data_size=c_r, data_size2=c_c )
              CALL dbcsr_data_new ( data_c_dbcsr, dbcsr_type_1d_to_2d(TYPE), data_size=c_r, data_size2=c_c )
-             CALL dbcsr_to_dense_local ( matrix_a, data_a, limits(1:2), limits(5:6), error=error )
-             CALL dbcsr_to_dense_local ( matrix_b, data_b, limits(5:6), limits(3:4), error=error )
-             CALL dbcsr_to_dense_local ( matrix_c, data_c, limits(1:2), limits(3:4), error=error )
+             CALL dbcsr_to_dense_local ( matrix_a, data_a, error=error )
+             CALL dbcsr_to_dense_local ( matrix_b, data_b, error=error )
+             CALL dbcsr_to_dense_local ( matrix_c, data_c, error=error )
 
              !
              ! Prepare test parameters
@@ -441,6 +459,7 @@ CONTAINS
                                                 test
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
     INTEGER, DIMENSION(2)                    :: myploc, npdims
+    INTEGER, DIMENSION(:), POINTER           :: blk_offsets
     LOGICAL                                  :: i_am_alive, success
     REAL(real_8)                             :: occ_a, occ_b, occ_c_in, &
                                                 occ_c_out
@@ -534,12 +553,18 @@ CONTAINS
        CALL dbcsr_distribution_release (dist_c)
        CALL dbcsr_redistribute (matrix_c, m_c, error=error)
 
-!!$          CALL dbcsr_print(m_a, matlab_format=.false., variable_name='a_', error=error)
-!!$          CALL dbcsr_print(m_b, matlab_format=.false., variable_name='b_', error=error)
-!!$          CALL dbcsr_print(m_c, matlab_format=.FALSE., variable_name='c_out_', error=error)
+       IF(.FALSE.) THEN
+          blk_offsets => array_data(dbcsr_row_block_offsets(matrix_c))
+          WRITE(*,*) 'row_block_offsets(matrix_c)',blk_offsets
+          blk_offsets => array_data(dbcsr_col_block_offsets(matrix_c))
+          WRITE(*,*) 'col_block_offsets(matrix_c)',blk_offsets
+       ENDIF
 
        IF(.FALSE.) THEN
           CALL dbcsr_print(m_c, matlab_format=.FALSE., variable_name='c_in_', error=error)
+          CALL dbcsr_print(m_a, matlab_format=.FALSE., variable_name='a_', error=error)
+          CALL dbcsr_print(m_b, matlab_format=.FALSE., variable_name='b_', error=error)
+          CALL dbcsr_print(m_c, matlab_format=.FALSE., variable_name='c_out_', error=error)
        ENDIF
 
        occ_a    = dbcsr_get_occupation(m_a)
@@ -572,11 +597,10 @@ CONTAINS
           CALL dbcsr_print(m_c, matlab_format=.FALSE., variable_name='c_out_', error=error)
        ENDIF
 
-
        CALL dbcsr_replicate_all( m_c, error=error )
-       CALL dbcsr_to_dense_local( m_c, data_c_dbcsr, limits(1:2), limits(3:4), error=error)
+       CALL dbcsr_to_dense_local( m_c, data_c_dbcsr, error=error)
        CALL dbcsr_check_multiply( m_c, data_c_dbcsr, data_a, data_b, data_c, &
-            transa, transb, alpha, beta, limits, retain_sparsity, io_unit, &
+            transa, transb, alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
             success, error=error )
 
        r_a = dbcsr_nfullrows_total( m_a )
@@ -604,8 +628,8 @@ CONTAINS
                   ", ",dbcsr_get_matrix_type( m_c ),&
              ") ... FAILED !"
              WRITE(io_unit, *) REPEAT("*",70)
-             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-                  routineN, 'for the moment, we stop', __LINE__, error)
+             !CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
+             !     routineN, 'for the moment, we stop', __LINE__, error)
           ENDIF
        ENDIF
        CALL dbcsr_mp_release (mp_env)
@@ -630,10 +654,9 @@ CONTAINS
 !> \param[out] success                  if passed the check success=T
 !> \param[inout] error                  dbcsr error 
 !>
-!> !!!! missing limits !!!!
 ! *****************************************************************************
   SUBROUTINE dbcsr_check_multiply(matrix_c, dense_c_dbcsr, dense_a, dense_b, dense_c,&
-       transa, transb, alpha, beta, limits, retain_sparsity, io_unit, &
+       transa, transb, alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
        success, error)
 
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_c
@@ -643,7 +666,7 @@ CONTAINS
     TYPE(dbcsr_scalar_type), INTENT(in)      :: alpha, beta
     INTEGER, DIMENSION(6), INTENT(in)        :: limits
     LOGICAL, INTENT(in)                      :: retain_sparsity
-    INTEGER, INTENT(IN)                      :: io_unit
+    INTEGER, INTENT(IN)                      :: io_unit, mp_group
     LOGICAL, INTENT(out)                     :: success
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
@@ -651,7 +674,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER :: a_col, a_m, a_n, a_row, b_col, b_m, b_n, b_row, c_col, &
       c_col_size, c_row, c_row_size, error_handler, i, istat, j, k, lda, ldb, &
-      ldc, m, n
+      ldc, lwork, m, mynode, n, numnodes
     CHARACTER, PARAMETER                     :: norm = 'I'
 
     LOGICAL                                  :: valid
@@ -664,6 +687,8 @@ CONTAINS
     REAL(real_8), EXTERNAL                   :: dlamch, dlange, zlange
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL mp_environ (numnodes, mynode, mp_group)
 
     CALL dbcsr_data_get_sizes (dense_c, c_row_size, c_col_size, valid, error)
     CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -708,17 +733,20 @@ CONTAINS
        b_col = i
     ENDIF
     !
+    ! set the size of the work array
+    lwork = MAXVAL( (/ lda, ldb, ldb /) )
+    !
     !
     SELECT CASE (dense_a%d%data_type)
     CASE (dbcsr_type_real_8_2d)
-       ALLOCATE(work(MAX(K,MAX(M, N))), STAT=istat)
+       ALLOCATE(work(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, "allocattion problem",__LINE__,error)
        eps          = dlamch('eps')
        a_norm       = dlange(norm, a_m, a_n, dense_a%d%r2_dp(a_row,a_col), lda, work)
        b_norm       = dlange(norm, b_m, b_n, dense_b%d%r2_dp(b_row,b_col), ldb, work)
-       c_norm_in    = dlange(norm,   m,   n, dense_c%d%r2_dp(c_row,c_col), ldc, work)
-       c_norm_dbcsr = dlange(norm,   m,   n, dense_c_dbcsr%d%r2_dp(c_row,c_col), ldc, work)
+       c_norm_in    = dlange(norm, c_row_size, c_col_size, dense_c%d%r2_dp(1,1), ldc, work)
+       c_norm_dbcsr = dlange(norm, c_row_size, c_col_size, dense_c_dbcsr%d%r2_dp(1,1), ldc, work)
        !
        CALL dgemm(transa, transb, m, n, k, alpha%r_dp, dense_a%d%r2_dp(a_row,a_col), lda, &
             dense_b%d%r2_dp(b_row,b_col), ldb, beta%r_dp, dense_c%d%r2_dp(c_row,c_col), ldc)
@@ -737,17 +765,18 @@ CONTAINS
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, "deallocattion problem",__LINE__,error)
     CASE (dbcsr_type_real_4_2d)
-       ALLOCATE(work_sp(MAX(K,MAX(M, N))), STAT=istat)
+       ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, "allocattion problem",__LINE__,error)
        eps          = slamch('eps')
        a_norm       = slange(norm, a_m, a_n, dense_a%d%r2_sp(a_row,a_col), lda, work_sp)
        b_norm       = slange(norm, b_m, b_n, dense_b%d%r2_sp(b_row,b_col), ldb, work_sp)
-       c_norm_in    = slange(norm,   m,   n, dense_c%d%r2_sp(c_row,c_col), ldc, work_sp)
-       c_norm_dbcsr = slange(norm,   m,   n, dense_c_dbcsr%d%r2_sp(c_row,c_col), ldc, work_sp)
+       c_norm_in    = slange(norm, c_row_size, c_col_size, dense_c%d%r2_sp(1,1), ldc, work_sp)
+       c_norm_dbcsr = slange(norm, c_row_size, c_col_size, dense_c_dbcsr%d%r2_sp(1,1), ldc, work_sp)
        !
 
        IF(.FALSE.) THEN
+       !IF(io_unit .GT. 0) THEN
           DO j=1,SIZE(dense_a%d%r2_sp,2)
           DO i=1,SIZE(dense_a%d%r2_sp,1)
              WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'a(',i,',',j,')=',dense_a%d%r2_sp(i,j),';'
@@ -765,7 +794,6 @@ CONTAINS
           ENDDO
        ENDIF
 
-          !write(*,*) 'sgemm ',transa, transb, m, n, k, alpha%r_sp,a_row,a_col,lda,b_row,b_col,ldb,beta%r_sp,c_row,c_col,ldc
        CALL sgemm(transa, transb, m, n, k, alpha%r_sp, dense_a%d%r2_sp(a_row,a_col), lda, &
             dense_b%d%r2_sp(b_row,b_col), ldb, beta%r_sp, dense_c%d%r2_sp(c_row,c_col), ldc)
        !
@@ -773,6 +801,7 @@ CONTAINS
        IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_c, dense_c, error=error)
 
        IF(.FALSE.) THEN
+       !IF(io_unit .GT. 0) THEN
           DO j=1,SIZE(dense_c%d%r2_sp,2)
           DO i=1,SIZE(dense_c%d%r2_sp,1)
              WRITE(*,'(A,I3,A,I3,A,E15.7,A)')'c_out(',i,',',j,')=',dense_c%d%r2_sp(i,j),';'
@@ -791,20 +820,19 @@ CONTAINS
        dense_c%d%r2_sp = dense_c%d%r2_sp - dense_c_dbcsr%d%r2_sp
        !
        ! compute the residual
-       residual     = slange(norm, c_row_size, c_col_size, dense_c%d%r2_sp(1,1), ldc, work_sp)
+       residual     = REAL(slange(norm, c_row_size, c_col_size, dense_c%d%r2_sp(1,1), ldc, work_sp),real_8)
        DEALLOCATE(work_sp, STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, "deallocattion problem",__LINE__,error)
-
     CASE (dbcsr_type_complex_8_2d)
-       ALLOCATE(work(MAX(K,MAX(M, N))), STAT=istat)
+       ALLOCATE(work(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, "allocattion problem",__LINE__,error)
        eps          = dlamch('eps')
        a_norm       = zlange(norm, a_m, a_n, dense_a%d%c2_dp(a_row,a_col), lda, work)
        b_norm       = zlange(norm, b_m, b_n, dense_b%d%c2_dp(b_row,b_col), ldb, work)
-       c_norm_in    = zlange(norm,   m,   n, dense_c%d%c2_dp(c_row,c_col), ldc, work)
-       c_norm_dbcsr = zlange(norm,   m,   n, dense_c_dbcsr%d%c2_dp(c_row,c_col), ldc, work)
+       c_norm_in    = zlange(norm, c_row_size, c_col_size, dense_c%d%c2_dp(1,1), ldc, work)
+       c_norm_dbcsr = zlange(norm, c_row_size, c_col_size, dense_c_dbcsr%d%c2_dp(1,1), ldc, work)
        !
        CALL zgemm(transa, transb, m, n, k, alpha%c_dp, dense_a%d%c2_dp(a_row,a_col), lda, &
             dense_b%d%c2_dp(b_row,b_col), ldb, beta%c_dp, dense_c%d%c2_dp(c_row,c_col), ldc)
@@ -823,14 +851,14 @@ CONTAINS
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, "deallocattion problem",__LINE__,error)
     CASE (dbcsr_type_complex_4_2d)
-       ALLOCATE(work_sp(MAX(K,MAX(M, N))), STAT=istat)
+       ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, "allocattion problem",__LINE__,error)
-       eps          = slamch('eps')
-       a_norm       = clange('f', a_m, a_n, dense_a%d%c2_sp(a_row,a_col), lda, work_sp)
+       eps          = REAL(slamch('eps'),real_8)
+       a_norm       = clange(norm, a_m, a_n, dense_a%d%c2_sp(a_row,a_col), lda, work_sp)
        b_norm       = clange(norm, b_m, b_n, dense_b%d%c2_sp(b_row,b_col), ldb, work_sp)
-       c_norm_in    = clange(norm,   m,   n, dense_c%d%c2_sp(c_row,c_col), ldc, work_sp)
-       c_norm_dbcsr = clange(norm,   m,   n, dense_c_dbcsr%d%c2_sp(c_row,c_col), ldc, work_sp)
+       c_norm_in    = clange(norm, c_row_size, c_col_size, dense_c%d%c2_sp(1,1), ldc, work_sp)
+       c_norm_dbcsr = clange(norm, c_row_size, c_col_size, dense_c_dbcsr%d%c2_sp(1,1), ldc, work_sp)
        !
        CALL cgemm(transa, transb, m, n, k, alpha%c_sp, dense_a%d%c2_sp(a_row,a_col), lda, &
             dense_b%d%c2_sp(b_row,b_col), ldb, beta%c_sp, dense_c%d%c2_sp(c_row,c_col), ldc)
@@ -852,6 +880,17 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect or 1-D data type", __LINE__, error )
     END SELECT
+
+    IF(mynode.EQ.0) THEN
+       IF(residual / ((a_norm + b_norm + c_norm_in) * REAL(n,real_8) * eps).GT.10.0_real_8) THEN
+          success = .FALSE.
+       ELSE
+          success = .TRUE.
+       ENDIF
+    ENDIF
+    !
+    ! syncronize the result...
+    CALL mp_bcast(success, 0, mp_group)
     !
     ! printing
     IF(io_unit .GT. 0) THEN
@@ -862,12 +901,10 @@ CONTAINS
             residual / ((a_norm + b_norm + c_norm_in) * n * eps)
        !
        ! check for nan or inf here
-       IF(residual / ((a_norm + b_norm + c_norm_in) * n * eps).GT.10.0_real_8) THEN
-          WRITE(io_unit,'(A)') ' The solution is suspicious !'
-          success = .FALSE.
-       ELSE
+       IF(success) THEN
           WRITE(io_unit,'(A)') ' The solution is CORRECT !'
-          success = .TRUE.
+       ELSE
+          WRITE(io_unit,'(A)') ' The solution is suspicious !'
        ENDIF
 
     ENDIF
@@ -966,10 +1003,9 @@ CONTAINS
 
   END SUBROUTINE dbcsr_impose_sparsity
 
-  SUBROUTINE dbcsr_to_dense_local (sparse, dense, row_limits, col_limits, error)
+  SUBROUTINE dbcsr_to_dense_local (sparse, dense, error)
     TYPE(dbcsr_obj), INTENT(in)              :: sparse
     TYPE(dbcsr_data_obj), INTENT(inout)      :: dense
-    INTEGER, DIMENSION(2), INTENT(in)        :: row_limits, col_limits
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_to_dense_local', &
@@ -999,28 +1035,19 @@ CONTAINS
        CALL dbcsr_iterator_next_block( iter, row, col, block, tr, &
             row_size=row_size, col_size=col_size, &
             row_offset=row_offset, col_offset=col_offset )
-
-!write(*,*) 'row, col',row_offset, col_offset, row_limits, col_limits,&
-!dbcsr_block_in_limits( row_offset, col_offset, row_limits, col_limits )
-
-!       IF( dbcsr_block_in_limits( row_offset, col_offset, row_limits, col_limits ) ) THEN
           CALL dbcsr_block_partial_copy(dst=dense,&
                dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.FALSE.,&
                dst_r_lb=row_offset, dst_c_lb=col_offset,&
                src=block, src_rs=row_size, src_cs=col_size, src_tr=tr,&
                src_r_lb=1, src_c_lb=1, nrow=row_size, ncol=col_size)
-!       ENDIF
        IF(symm.NE.dbcsr_type_no_symmetry.AND.row.NE.col) THEN
           IF(symm.EQ.dbcsr_type_symmetric) THEN
-!             IF( dbcsr_block_in_limits( col_offset, row_offset, row_limits, col_limits ) ) THEN
                 CALL dbcsr_block_partial_copy(dst=dense,&
                      dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
                      dst_r_lb=row_offset, dst_c_lb=col_offset,&
                      src=block, src_rs=row_size, src_cs=col_size, src_tr=tr,&
                      src_r_lb=1, src_c_lb=1, nrow=row_size, ncol=col_size)
-!             ENDIF
           ELSEIF(symm.EQ.dbcsr_type_antisymmetric) THEN
-!             IF( dbcsr_block_in_limits( col_offset, row_offset, row_limits, col_limits ) ) THEN
                 CALL dbcsr_block_partial_copy(dst=dense,&
                      dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
                      dst_r_lb=row_offset, dst_c_lb=col_offset,&
@@ -1028,9 +1055,8 @@ CONTAINS
                      src_r_lb=1, src_c_lb=1, nrow=row_size, ncol=col_size)
                 CALL dbcsr_block_scale (dense, dbcsr_scalar_negative(dbcsr_scalar_one(&
                      dbcsr_type_2d_to_1d(data_type))),&
-                     row_size=row_size, col_size=col_size, &
+                     row_size=col_size, col_size=row_size, &
                      lb=col_offset, lb2=row_offset, error=error)
-!             ENDIF
           ELSE
              CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
                   dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",__LINE__,error)
