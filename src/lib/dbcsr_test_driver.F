@@ -14,45 +14,38 @@
 ! *****************************************************************************
 PROGRAM dbcsr_test_driver
 
-  USE array_types,                     ONLY: array_i1d_obj
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
-  USE dbcsr_kinds,                     ONLY: default_string_length,&
-                                             real_8
+  USE dbcsr_kinds,                     ONLY: default_string_length
   USE dbcsr_message_passing,           ONLY: mp_bcast,&
                                              mp_cart_create,&
+                                             mp_cart_rank,&
                                              mp_environ,&
                                              mp_world_finalize,&
                                              mp_world_init
+  USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
+                                             dbcsr_mp_release
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_mp_obj
+  USE dbcsr_types,                     ONLY: dbcsr_mp_obj
 
   !$ USE OMP_LIB
 
   IMPLICIT NONE
 
 
-  TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
-  INTEGER, DIMENSION(:), POINTER           :: rbs, cbs, nproc, bs_m, bs_n, bs_k
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-       prow, pcol, nblkrows_total, nblkcols_total, ionode, narg, matrix_sizes(3), error_handler,&
-       limits(6)
+       prow, pcol, ionode, narg, error_handler
   INTEGER, DIMENSION(2)                    :: npdims, myploc
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
-  REAL(real_8)                             :: sparsities(3), beta(2), alpha(2)
-  TYPE(array_i1d_obj)                      :: col_dist, row_dist
-  TYPE(dbcsr_distribution_obj)             :: dist
   TYPE(dbcsr_mp_obj)                       :: mp_env
   TYPE(dbcsr_error_type)                   :: error
   CHARACTER(len=default_string_length)     :: operation, args(100)
-  CHARACTER :: symmetries(3)
-  LOGICAL :: reatain_sparsity
+
   
   CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_multiply'
 
@@ -75,6 +68,21 @@ PROGRAM dbcsr_test_driver
   CALL mp_environ (numnodes, mynode, group)
 
   !
+  !
+  ALLOCATE (pgrid(0:npdims(1)-1, 0:npdims(2)-1))
+  DO prow = 0, npdims(1)-1
+     DO pcol = 0, npdims(2)-1
+        CALL mp_cart_rank (group, (/ prow, pcol /), pgrid(prow, pcol))
+     ENDDO
+  ENDDO
+
+  !
+  ! setup the mp enviroment
+  CALL dbcsr_mp_new (mp_env, pgrid, group, mynode, numnodes,&
+       myprow=myploc(1), mypcol=myploc(2))
+  DEALLOCATE(pgrid)
+
+  !
   ! set parameters
   ionode = 0
   IF(mynode.EQ.0) ionode = 6
@@ -92,15 +100,20 @@ PROGRAM dbcsr_test_driver
   SELECT CASE(args(1))
      !CASE()
   CASE('dbcsr_multiply')
-     CALL dbcsr_test_multiplies( group, ionode, nproc, narg, args, error=error)
+     CALL dbcsr_test_multiplies( group, mp_env, npdims, ionode, narg, args, error=error)
   CASE DEFAULT
      CALL dbcsr_assert( .FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
           routineN, "operation not found", __LINE__, error )
   END SELECT
 
   !
+  ! clean mp enviroment
+  CALL dbcsr_mp_release (mp_env)
+
+  !
   ! finalize mpi
   CALL mp_world_finalize()
+
 
   CALL dbcsr_error_stop(error_handler, error)
 
