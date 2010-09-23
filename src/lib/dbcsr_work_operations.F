@@ -43,8 +43,7 @@ MODULE dbcsr_work_operations
                                              dbcsr_count_row_index,&
                                              dbcsr_make_dbcsr_index,&
                                              dbcsr_repoint_index,&
-                                             dbcsr_sort_indices,&
-                                             sort
+                                             dbcsr_sort_indices
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -83,7 +82,8 @@ MODULE dbcsr_work_operations
                                              dbcsr_set_debug,&
                                              dbcsr_unpack_i8_2i4,&
                                              dbcsr_verify_matrix,&
-                                             meta_from_dist
+                                             meta_from_dist,&
+                                             sort
 
   !$ USE OMP_LIB
 

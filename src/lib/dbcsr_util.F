@@ -71,10 +71,17 @@ MODULE dbcsr_util
   PUBLIC :: uppercase
   ! math routines
   PUBLIC :: gcd, lcm, ceil_log2
+  ! utility routines
+  PUBLIC :: sort
 
   INTERFACE swap
      MODULE PROCEDURE iswap, bswap
   END INTERFACE
+
+  INTERFACE sort
+     MODULE PROCEDURE sort_i4, sort_i8
+  END INTERFACE
+
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
 #define DBGV IF (bcsr_verbose) WRITE(*,*)routineN//" ",
@@ -1084,5 +1091,222 @@ CONTAINS
 
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_verify_matrix
+
+  SUBROUTINE sort_i4 ( arr, n, index )
+    INTEGER, INTENT(IN)                      :: n
+    INTEGER(KIND=int_4), INTENT(INOUT)       :: arr(1:n)
+    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_i4', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m = 7, nstack = 50
+
+    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
+                                                itemp, j, jstack, k, l
+    INTEGER(kind=int_4)                      :: a, temp
+
+    IF (n==0) RETURN
+    DO i = 1, n
+       INDEX(i) = i
+    END DO
+    !
+    IF (ALL(arr==arr(1))) RETURN ! Nothing to order..
+    jstack = 0
+    l = 1
+    ir = n
+1   IF (ir-l<m) THEN
+       DO j = l + 1, ir
+          a = arr(j)
+          ib = INDEX(j)
+          DO i = j - 1, 1, -1
+             IF (arr(i)<=a) GO TO 2
+             arr(i+1) = arr(i)
+             INDEX(i+1) = INDEX(i)
+          END DO
+          i = 0
+2         arr(i+1) = a
+          INDEX(i+1) = ib
+       END DO
+       IF (jstack==0) RETURN
+       ir = istack(jstack)
+       l = istack(jstack-1)
+       jstack = jstack - 2
+    ELSE
+       k = (l+ir)/2
+       temp = arr(k)
+       arr(k) = arr(l+1)
+       arr(l+1) = temp
+       itemp = INDEX(k)
+       INDEX(k) = INDEX(l+1)
+       INDEX(l+1) = itemp
+       IF (arr(l+1)>arr(ir)) THEN
+          temp = arr(l+1)
+          arr(l+1) = arr(ir)
+          arr(ir) = temp
+          itemp = INDEX(l+1)
+          INDEX(l+1) = INDEX(ir)
+          INDEX(ir) = itemp
+       END IF
+       IF (arr(l)>arr(ir)) THEN
+          temp = arr(l)
+          arr(l) = arr(ir)
+          arr(ir) = temp
+          itemp = INDEX(l)
+          INDEX(l) = INDEX(ir)
+          INDEX(ir) = itemp
+       END IF
+       IF (arr(l+1)>arr(l)) THEN
+          temp = arr(l+1)
+          arr(l+1) = arr(l)
+          arr(l) = temp
+          itemp = INDEX(l+1)
+          INDEX(l+1) = INDEX(l)
+          INDEX(l) = itemp
+       END IF
+       i = l + 1
+       j = ir
+       a = arr(l)
+       ib = INDEX(l)
+3      CONTINUE
+       i = i + 1
+       IF (arr(i)<a) GO TO 3
+4      CONTINUE
+       j = j - 1
+       IF (arr(j)>a) GO TO 4
+       IF (j<i) GO TO 5
+       temp = arr(i)
+       arr(i) = arr(j)
+       arr(j) = temp
+       itemp = INDEX(i)
+       INDEX(i) = INDEX(j)
+       INDEX(j) = itemp
+       GO TO 3
+5      arr(l) = arr(j)
+       arr(j) = a
+       INDEX(l) = INDEX(j)
+       INDEX(j) = ib
+       jstack = jstack + 2
+       IF (jstack>nstack) STOP ' Nstack too small in sortr'
+       IF (ir-i+1>=j-l) THEN
+          istack(jstack) = ir
+          istack(jstack-1) = i
+          ir = j - 1
+       ELSE
+          istack(jstack) = j - 1
+          istack(jstack-1) = l
+          l = i
+       END IF
+    END IF
+    GO TO 1
+  END SUBROUTINE sort_i4
+
+
+  SUBROUTINE sort_i8 ( arr, n, index )
+    INTEGER, INTENT(IN)                      :: n
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: arr(1:n)
+    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort_i8', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: m = 7, nstack = 50
+
+    INTEGER                                  :: i, ib, ir, istack(1:nstack), &
+                                                itemp, j, jstack, k, l
+    INTEGER(kind=int_8)                      :: a, temp
+
+    IF (n==0) RETURN
+    DO i = 1, n
+       INDEX(i) = i
+    END DO
+    !
+    IF (ALL(arr==arr(1))) RETURN ! Nothing to order..
+    jstack = 0
+    l = 1
+    ir = n
+1   IF (ir-l<m) THEN
+       DO j = l + 1, ir
+          a = arr(j)
+          ib = INDEX(j)
+          DO i = j - 1, 1, -1
+             IF (arr(i)<=a) GO TO 2
+             arr(i+1) = arr(i)
+             INDEX(i+1) = INDEX(i)
+          END DO
+          i = 0
+2         arr(i+1) = a
+          INDEX(i+1) = ib
+       END DO
+       IF (jstack==0) RETURN
+       ir = istack(jstack)
+       l = istack(jstack-1)
+       jstack = jstack - 2
+    ELSE
+       k = (l+ir)/2
+       temp = arr(k)
+       arr(k) = arr(l+1)
+       arr(l+1) = temp
+       itemp = INDEX(k)
+       INDEX(k) = INDEX(l+1)
+       INDEX(l+1) = itemp
+       IF (arr(l+1)>arr(ir)) THEN
+          temp = arr(l+1)
+          arr(l+1) = arr(ir)
+          arr(ir) = temp
+          itemp = INDEX(l+1)
+          INDEX(l+1) = INDEX(ir)
+          INDEX(ir) = itemp
+       END IF
+       IF (arr(l)>arr(ir)) THEN
+          temp = arr(l)
+          arr(l) = arr(ir)
+          arr(ir) = temp
+          itemp = INDEX(l)
+          INDEX(l) = INDEX(ir)
+          INDEX(ir) = itemp
+       END IF
+       IF (arr(l+1)>arr(l)) THEN
+          temp = arr(l+1)
+          arr(l+1) = arr(l)
+          arr(l) = temp
+          itemp = INDEX(l+1)
+          INDEX(l+1) = INDEX(l)
+          INDEX(l) = itemp
+       END IF
+       i = l + 1
+       j = ir
+       a = arr(l)
+       ib = INDEX(l)
+3      CONTINUE
+       i = i + 1
+       IF (arr(i)<a) GO TO 3
+4      CONTINUE
+       j = j - 1
+       IF (arr(j)>a) GO TO 4
+       IF (j<i) GO TO 5
+       temp = arr(i)
+       arr(i) = arr(j)
+       arr(j) = temp
+       itemp = INDEX(i)
+       INDEX(i) = INDEX(j)
+       INDEX(j) = itemp
+       GO TO 3
+5      arr(l) = arr(j)
+       arr(j) = a
+       INDEX(l) = INDEX(j)
+       INDEX(j) = ib
+       jstack = jstack + 2
+       IF (jstack>nstack) STOP ' Nstack too small in sortr'
+       IF (ir-i+1>=j-l) THEN
+          istack(jstack) = ir
+          istack(jstack-1) = i
+          ir = j - 1
+       ELSE
+          istack(jstack) = j - 1
+          istack(jstack-1) = l
+          l = i
+       END IF
+    END IF
+    GO TO 1
+  END SUBROUTINE sort_i8
 
 END MODULE dbcsr_util
