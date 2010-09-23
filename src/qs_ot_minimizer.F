@@ -1782,7 +1782,7 @@ SUBROUTINE hess_G(G, S, H, n)
 !
 ! *****************************************************************************
 #if defined (__NAG)
-    USE IEEE_ARITHMETIC
+    USE IEEE_ARITHMETIC,                  ONLY: ISNAN => IEEE_IS_NAN
 #endif
     REAL(KIND=dp), DIMENSION(:, :)           :: G, S, H
     INTEGER                                  :: n
@@ -1813,7 +1813,7 @@ SUBROUTINE hess_G(G, S, H, n)
         ENDDO
         IF (i .LT. k) THEN
             tmp = SQRT(DOT_PRODUCT(v, MATMUL(S, v)))
-            IF (IEEE_IS_NAN(tmp)) THEN
+            IF (ISNAN(tmp)) THEN
                 n = i
                 EXIT
             ENDIF
