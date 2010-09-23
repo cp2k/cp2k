@@ -16,13 +16,14 @@ MODULE qs_ot_minimizer
                                              cp_dbcsr_get_info,&
                                              cp_dbcsr_scale,&
                                              cp_dbcsr_set,&
-                                             cp_dbcsr_trace, cp_dbcsr_get_info
-  USE dbcsr_operations,                ONLY: dbcsr_init_random
+                                             cp_dbcsr_trace
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
+                                             cp_dbcsr_type
   USE dbcsr_error_handling,            ONLY: dbcsr_error_type
-  USE mathlib,                         ONLY: diamat_all
-  USE cp_dbcsr_types,                     ONLY: cp_dbcsr_type, cp_dbcsr_p_type
+  USE dbcsr_operations,                ONLY: dbcsr_init_random
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_sum
   USE preconditioner,                  ONLY: apply_preconditioner
   USE qs_ot,                           ONLY: qs_ot_get_derivative,&
@@ -1429,27 +1430,28 @@ END SUBROUTINE ot_diis_step
 !> \author Kurt Baarman (09.2010)
 ! *****************************************************************************
 SUBROUTINE ot_broyden_step(qs_ot_env,error)
-    TYPE(qs_ot_type), DIMENSION(:), POINTER ::  qs_ot_env
-    TYPE(cp_error_type), INTENT(inout)      ::  error
-    TYPE(dbcsr_error_type)                  ::  dbcsr_error
+    TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER             ::  routineN = 'ot_broyden_step', &
-                                                routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'ot_broyden_step', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                 ::  diis_bound, diis_m, i, ispin, &
+    INTEGER                                  :: diis_bound, diis_m, i, ispin, &
                                                 itmp, j, k, n, nspin
-    INTEGER, ALLOCATABLE, DIMENSION(:)      ::  circ_index
-    LOGICAL                                 ::  do_ener, do_ks, do_scp_dft, &
-                                                do_scp_nddo, forget_history, &
-                                                btrk_flag
-    REAL(KIND=dp)                           ::  beta, gamma, sigma, tmp, tmp2
-    REAL(KIND=dp)                           ::  sigma_inc, sigma_dec, sigma_min
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)::  f, x
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: circ_index
+    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
+                                                do_scp_nddo, forget_history
+    REAL(KIND=dp)                            :: beta, gamma, sigma, &
+                                                sigma_dec, sigma_inc, &
+                                                sigma_min, tmp, tmp2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f, x
     REAL(KIND=dp), ALLOCATABLE, &
-        DIMENSION(:, :)                     ::  G, S
-    TYPE(cp_logger_type), POINTER           ::  logger
+      DIMENSION(:, :)                        :: G, S
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    ! control adaptive behaviour
+! control adaptive behaviour
+
     sigma_inc = 1.1_dp
     sigma_dec = 0.7_dp
     sigma_min = 0.1_dp
@@ -1753,14 +1755,15 @@ FUNCTION new_sigma(G, S, n) RESULT(sigma)
 !
 ! *****************************************************************************
 
-    IMPLICIT NONE
 
-    REAL(KIND=dp)                               :: sigma, tmp, tmp2
-    REAL(KIND=dp), DIMENSION(:,:)               :: G, S
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: H
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)    :: eigv
-    INTEGER                                     :: n, i, j
-    TYPE(cp_error_type)                         :: error
+    REAL(KIND=dp), DIMENSION(:, :)           :: G, S
+    INTEGER                                  :: n
+    REAL(KIND=dp)                            :: sigma
+
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigv
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: H
+    TYPE(cp_error_type)                      :: error
 
     ALLOCATE(H(n,n))
     CALL hess_G(G, S, H, n)
@@ -1778,12 +1781,17 @@ SUBROUTINE hess_G(G, S, H, n)
 ! Possible lucky breakdown at n.
 !
 ! *****************************************************************************
-    IMPLICIT NONE
-    REAL(KIND=dp), DIMENSION(:,:)               :: G, S, H
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: Q
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)    :: v
-    REAL(KIND=dp)                               :: tmp
-    INTEGER                                     :: i, j, k, n
+#if defined (__NAG)
+    USE IEEE_ARITHMETIC
+#endif
+    REAL(KIND=dp), DIMENSION(:, :)           :: G, S, H
+    INTEGER                                  :: n
+
+    INTEGER                                  :: i, j, k
+    REAL(KIND=dp)                            :: tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: v
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Q
 
     i = SIZE(G, 1)
     k = SIZE(H, 1)
@@ -1805,7 +1813,7 @@ SUBROUTINE hess_G(G, S, H, n)
         ENDDO
         IF (i .LT. k) THEN
             tmp = SQRT(DOT_PRODUCT(v, MATMUL(S, v)))
-            IF (ISNAN(tmp)) THEN
+            IF (IEEE_IS_NAN(tmp)) THEN
                 n = i
                 EXIT
             ENDIF
