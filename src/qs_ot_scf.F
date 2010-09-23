@@ -393,7 +393,7 @@ CONTAINS
       POINTER                                :: aux_coeff_set
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: pscp, fscp
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(cp_dbcsr_type), POINTER                 :: matrix_ks
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_ks
     REAL(KIND=dp)                            :: broyden_adaptive_sigma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
