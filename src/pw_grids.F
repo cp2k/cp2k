@@ -1544,10 +1544,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: allocstat
+    INTEGER                                  :: allocstat, handle
     LOGICAL                                  :: failure
 
-!------------------------------------------------------------------------------
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
@@ -1585,6 +1585,8 @@ CONTAINS
     ALLOCATE ( pw_grid % mapn % neg ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
          STAT = allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
 
   END SUBROUTINE pw_grid_allocate
 
