@@ -5079,9 +5079,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BROYDEN_SIGMA",&
-            description="Weight of initial guess for inverse Hessian.",&
-            usage="BROYDEN_SIGMA 1.0",&
-            default_r_val=1.0_dp,error=error)
+            description="Dampening parameter.",&
+            usage="BROYDEN_SIGMA 0.7",&
+            default_r_val=0.7_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

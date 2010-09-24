@@ -1454,7 +1454,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
 
     sigma_inc = 1.1_dp
     sigma_dec = 0.7_dp
-    sigma_min = 0.1_dp
+    sigma_min = 0.05_dp
     forget_history = .FALSE.
 
     do_ks = qs_ot_env ( 1 ) % settings % ks
@@ -1464,11 +1464,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
 
     beta=qs_ot_env ( 1 ) % settings % broyden_beta
     gamma=qs_ot_env ( 1 ) % settings % broyden_gamma
-    IF (qs_ot_env ( 1 ) % broyden_adaptive_sigma <= 0.0_dp) THEN
-        sigma=qs_ot_env ( 1 ) % settings % broyden_sigma
-    ELSE
-        sigma=qs_ot_env ( 1 ) % broyden_adaptive_sigma
-    ENDIF
+    sigma=qs_ot_env ( 1 ) % broyden_adaptive_sigma
 
     ! simplify our life....
     IF (do_ener .OR. do_scp_nddo .OR. do_scp_dft .OR. .NOT. do_ks .OR. &
@@ -1707,7 +1703,8 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
         ENDDO
 
         tmp = new_sigma(G, S, diis_bound)
-        sigma = MAX(MIN(sigma_inc * sigma, tmp), sigma_min)
+        tmp = tmp * qs_ot_env ( 1 ) % settings % broyden_sigma
+        sigma = MIN(sigma_inc * sigma, tmp) 
 
         ! compute the inner product of direction of the step and gradient
         tmp = 0.0_dp
@@ -1744,7 +1741,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
 
     ! update for next round
     qs_ot_env(1)%diis_iter=qs_ot_env(1)%diis_iter+1
-    qs_ot_env(1)%broyden_adaptive_sigma=sigma
+    qs_ot_env(1)%broyden_adaptive_sigma=MAX(sigma, sigma_min)
 
 END SUBROUTINE ot_broyden_step
 
@@ -1781,9 +1778,6 @@ SUBROUTINE hess_G(G, S, H, n)
 ! Possible lucky breakdown at n.
 !
 ! *****************************************************************************
-#if defined (__NAG)
-    USE IEEE_ARITHMETIC,                  ONLY: ISNAN => IEEE_IS_NAN
-#endif
     REAL(KIND=dp), DIMENSION(:, :)           :: G, S, H
     INTEGER                                  :: n
 
@@ -1812,11 +1806,12 @@ SUBROUTINE hess_G(G, S, H, n)
             v = v - H(j,i) * Q(:,j)
         ENDDO
         IF (i .LT. k) THEN
-            tmp = SQRT(DOT_PRODUCT(v, MATMUL(S, v)))
-            IF (ISNAN(tmp)) THEN
+            tmp = DOT_PRODUCT(v, MATMUL(S, v))
+            IF (tmp .LE. 0.0_dp) THEN
                 n = i
                 EXIT
             ENDIF
+            tmp = SQRT(tmp)
             ! Lucky breakdown
             IF (ABS(tmp) .LT. 1e-9_dp) THEN
                 n = i
