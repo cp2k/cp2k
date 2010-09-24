@@ -1128,9 +1128,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: imolecule_kind, nbend, nbond, nimpr, nmolecule_kind, nonfo, &
-      nopbend, ntors, ntotal, nub, output_unit
-    LOGICAL                                  :: failure
+    INTEGER :: imolecule_kind, natom, nbend, nbond, nimpr, nmolecule, &
+      nmolecule_kind, nonfo, nopbend, ntors, ntotal, nub, output_unit
+    LOGICAL                                  :: all_single_atoms, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
@@ -1145,10 +1145,22 @@ CONTAINS
 
         nmolecule_kind = SIZE(molecule_kind_set)
 
+        all_single_atoms=.TRUE.
         DO imolecule_kind=1,nmolecule_kind
-          molecule_kind => molecule_kind_set(imolecule_kind)
-          CALL write_molecule_kind(molecule_kind,output_unit,error)
-        END DO
+           natom = SIZE(molecule_kind_set(imolecule_kind)%atom_list)
+           nmolecule = SIZE(molecule_kind_set(imolecule_kind)%molecule_list)
+           IF (natom*nmolecule>1) all_single_atoms=.FALSE.
+        ENDDO
+
+        IF (all_single_atoms) THEN
+           WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") &
+              "All atoms are their own molecule, skipping detailed information"
+        ELSE
+           DO imolecule_kind=1,nmolecule_kind
+             molecule_kind => molecule_kind_set(imolecule_kind)
+             CALL write_molecule_kind(molecule_kind,output_unit,error)
+           END DO
+        ENDIF
 
         CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
                                    nbond=nbond,&
