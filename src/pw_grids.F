@@ -1617,12 +1617,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_sort', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: allocstat, handle, ig, ih, &
+    INTEGER                                  :: allocstat, handle, i, ig, ih, &
                                                 ip, is, it, ng, ngr
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx, int_tmp
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: int_tmp
     LOGICAL                                  :: failure, g_found
     REAL(KIND=dp)                            :: gig, gigr
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: real_tmp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: real_tmp
 
 !------------------------------------------------------------------------------
 
@@ -1633,34 +1635,43 @@ CONTAINS
     ng = SIZE ( pw_grid % gsq  )
     ALLOCATE ( idx ( ng ), STAT = allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-    ALLOCATE ( int_tmp ( ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-    ALLOCATE ( real_tmp ( ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
     ! grids are (locally) ordered by length of G-vectors
     CALL sort ( pw_grid % gsq, ng, idx )
     ! within shells order wrt x,y,z
     CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx, error )
 
-    real_tmp ( 1:ng ) = pw_grid % g ( 1, 1:ng )
-    pw_grid % g ( 1, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-    real_tmp ( 1:ng ) = pw_grid % g ( 2, 1:ng )
-    pw_grid % g ( 2, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-    real_tmp ( 1:ng ) = pw_grid % g ( 3, 1:ng )
-    pw_grid % g ( 3, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-    int_tmp ( 1:ng ) = pw_grid % g_hat ( 1, 1:ng )
-    pw_grid % g_hat ( 1, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-    int_tmp ( 1:ng ) = pw_grid % g_hat ( 2, 1:ng )
-    pw_grid % g_hat ( 2, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-    int_tmp ( 1:ng ) = pw_grid % g_hat ( 3, 1:ng )
-    pw_grid % g_hat ( 3, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-
-    DEALLOCATE ( idx, STAT = allocstat )
+    ALLOCATE ( real_tmp ( 3, ng ), STAT = allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    DO i=1,ng
+       real_tmp(1,i)= pw_grid % g (1,idx (i))
+       real_tmp(2,i)= pw_grid % g (2,idx (i))
+       real_tmp(3,i)= pw_grid % g (3,idx (i))
+    ENDDO
+    DO i=1,ng
+       pw_grid % g (1,i)=real_tmp(1,i)
+       pw_grid % g (2,i)=real_tmp(2,i)
+       pw_grid % g (3,i)=real_tmp(3,i)
+    ENDDO
+    DEALLOCATE ( real_tmp, STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE ( int_tmp ( 3, ng ), STAT = allocstat )
+    CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
+    DO i=1,ng
+       int_tmp(1,i)= pw_grid % g_hat (1,idx (i))
+       int_tmp(2,i)= pw_grid % g_hat (2,idx (i))
+       int_tmp(3,i)= pw_grid % g_hat (3,idx (i))
+    ENDDO
+    DO i=1,ng
+       pw_grid % g_hat (1,i)=int_tmp(1,i)
+       pw_grid % g_hat (2,i)=int_tmp(2,i)
+       pw_grid % g_hat (3,i)=int_tmp(3,i)
+    ENDDO
     DEALLOCATE ( int_tmp, STAT = allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE ( real_tmp, STAT = allocstat )
+
+    DEALLOCATE ( idx, STAT = allocstat )
     CPPrecondition(allocstat == 0,cp_failure_level,routineP,error,failure)
 
     ! check if ordering is compatible to reference grid
@@ -1797,9 +1808,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: small = 5.e-16_dp
 
-    INTEGER                                  :: ig, ng, s1, s2
+    INTEGER                                  :: handle, ig, ng, s1, s2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: s_begin
+
+    CALL timeset(routineN,handle)
 
 ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
 ! might need to call lapack for machine precision.
@@ -1822,6 +1835,8 @@ CONTAINS
        END IF
     END DO
     CALL redist ( g_hat, idx, s1, s2, error )
+
+    CALL timestop(handle)
 
   END SUBROUTINE sort_shells
 
