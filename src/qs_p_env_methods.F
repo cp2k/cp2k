@@ -51,7 +51,6 @@ MODULE qs_p_env_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE f77_blas
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
@@ -469,8 +468,6 @@ END SUBROUTINE p_env_did_change
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -481,7 +478,7 @@ END SUBROUTINE p_env_did_change
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
-         S_sm_pools,logger, input,lr_section)
+         logger, input,lr_section)
     logger => cp_error_get_logger(error)
     n_spins = qs_env%dft_control%nspins
 
@@ -494,7 +491,7 @@ END SUBROUTINE p_env_did_change
        CALL get_qs_env(qs_env,&
             mos=mos, matrix_s=matrix_s, para_env=para_env, ks_env=ks_env, rho=rho,&
             input=input,error=error)
-       CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools,&
+       CALL mpools_get(qs_env%mpools,&
             ao_mo_fm_pools=ao_mo_fm_pools, error=error)
        ! def my_psi0
        IF (PRESENT(psi0)) THEN

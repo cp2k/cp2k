@@ -47,7 +47,6 @@ MODULE qs_wf_history_methods
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -311,8 +310,6 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -325,12 +322,12 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
 
   failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, mo_coeff,&
-       rho, rho_r,rho_g,rho_ao, S_sm_pools,s_array)
+       rho, rho_r,rho_g,rho_ao, s_array)
   CALL get_qs_env(qs_env, pw_env=pw_env,&
        dft_control=dft_control,rho=rho,matrix_s=s_array,&
        error=error)
   CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools, &
-       S_sm_pools=S_sm_pools, error=error)
+       error=error)
   CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
 
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
@@ -452,8 +449,6 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
      IF (wf_history%store_overlap) THEN
         CPPrecondition(ASSOCIATED(s_array),cp_failure_level,routineP,error,failure)
         CPPrecondition(ASSOCIATED(s_array(1)%matrix),cp_failure_level,routineP,error,failure)
-        !        CALL sm_pool_create_matrix(S_sm_pools(1)%pool,&
-        !             snapshot%overlap,"snapshot%overlap",error=error)
         ALLOCATE(snapshot%overlap)
         CALL cp_dbcsr_init(snapshot%overlap,error=error)
         CALL cp_dbcsr_copy(snapshot%overlap,s_array(1)%matrix,error=error)

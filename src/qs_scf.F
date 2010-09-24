@@ -81,7 +81,6 @@ MODULE qs_scf
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
                                              dbcsr_distribution_row_dist,&
@@ -2114,8 +2113,6 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct, ao_mo_fmstruct
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools, S_sm_pools_aux_fit
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -2129,8 +2126,8 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     CALL timeset(routineN,handle)
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
-            dft_control, mos, S_sm_pools, ks_env,&
-            ao_mo_fm_pools_aux_fit, matrix_ks_aux_fit, S_sm_pools_aux_fit)
+            dft_control, mos, ks_env,&
+            ao_mo_fm_pools_aux_fit, matrix_ks_aux_fit)
     NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control, mo_coeff_aux_fit,&
             mo_derivs_aux_fit,para_env,distribution_2d,xas_env)
 
@@ -2152,11 +2149,9 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
-         S_sm_pools=S_sm_pools,&
          error=error)
     IF( dft_control%do_admm) THEN
       CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
-           S_sm_pools=S_sm_pools_aux_fit,&
            error=error)
     END IF
 
@@ -2595,19 +2590,15 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
 
     INTEGER                                  :: handle, ispin, stat
     LOGICAL                                  :: failure
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    NULLIFY(S_sm_pools)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools,error=error)
 
 !   *** Release SCF work storage ***
 

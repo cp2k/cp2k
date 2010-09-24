@@ -1521,14 +1521,9 @@ CONTAINS
              CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_h,error)
           ENDIF
           IF (ASSOCIATED(qs_env%matrix_ks)) THEN
-             !CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
-             !CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
              CALL cp_dbcsr_deallocate_matrix_set(qs_env % matrix_ks,error)
-             !
           ENDIF
           IF (ASSOCIATED(qs_env%matrix_ks_aux_fit)) THEN
-             !CALL mpools_get(qs_env%mpools_aux_fit, S_sm_pools=S_sm_pools, error=error)
-             !CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks_aux_fit,error=error)
              CALL cp_dbcsr_deallocate_matrix_set(qs_env % matrix_ks_aux_fit,error)
           ENDIF
           IF (ASSOCIATED(qs_env%matrix_s)) CALL cp_dbcsr_deallocate_matrix_set(qs_env%matrix_s,error)

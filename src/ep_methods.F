@@ -61,7 +61,6 @@ MODULE ep_methods
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_plus_fm_fm_t
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_2d_types,           ONLY: distribution_2d_get,&
@@ -1366,8 +1365,6 @@ CONTAINS
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1378,7 +1375,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, dft_control, mos, &
-         S_sm_pools, ks_env)
+         ks_env)
     NULLIFY(atomic_kind_set, mo_coeff)
     logger => cp_error_get_logger(error)
     failure=.FALSE.
@@ -1396,7 +1393,7 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
-         S_sm_pools=S_sm_pools, error=error)
+         error=error)
 
 
     !   *** finish initialization of the MOs ***
@@ -2636,8 +2633,6 @@ CONTAINS
     INTEGER                                  :: i, ierr, ispin, stat
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: new_error
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: sub_qs_env
 
@@ -2651,14 +2646,11 @@ CONTAINS
        CALL f_env_add_defaults(ep_env%f_env_id,f_env=f_env,&
             new_error=new_error,failure=failure)
        CALL force_env_get(f_env%force_env,qs_env=sub_qs_env,error=new_error)
-       CALL mpools_get(sub_qs_env%mpools,S_sm_pools=S_sm_pools,error=new_error)
        DO i=1,SIZE(local_sm,2)
           DO ispin=1,ep_env%nspins
              IF (ASSOCIATED(local_sm(ispin,i)%matrix)) THEN
 
                 CALL deallocate_matrix(local_sm(ispin,i)%matrix,error=error)
-                !CALL sm_pool_give_back_matrix(S_sm_pools(ispin)%pool,&
-                !     local_sm(ispin,i)%matrix,error=new_error)
 
              END IF
           END DO

@@ -1738,10 +1738,7 @@ CONTAINS
 !!   *** Release SCF work storage ***
 !
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-
-          CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_mix_new,&
-          !CALL sm_pools_give_back_matrix_vect(S_sm_pools,p_mix_new,&
-               error=error)
+          CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_mix_new,error=error)
           CALL sm_pools_flush_cache(S_sm_pools,error=error)
        END IF
 

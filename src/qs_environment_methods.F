@@ -53,8 +53,7 @@ MODULE qs_environment_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
-  USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools,&
-                                             mpools_rebuild_s_sm_pools
+  USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_scf_types,                    ONLY: scf_env_did_change
@@ -262,24 +261,12 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
          distribution_2d=distribution_2d,&
          error=error)
 
-    ! *** rebuilds the S_sm_pools ***
-    CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
-         nspins=dft_control%nspins,particle_set=particle_set,&
-         para_env=para_env, distribution_2d=distribution_2d,error=error)
-
     ! *** deallocate matrices that will have the wrong structure ***
     CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error=error)
     CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
 
     
     IF( dft_control%do_admm) THEN
-      ! *** rebuilds the S_sm_pools ***
-      CALL mpools_rebuild_s_sm_pools(qs_env%mpools_aux_fit,s=qs_env%matrix_s_aux_fit,&
-           nspins=dft_control%nspins,particle_set=particle_set,&
-           para_env=para_env, basis_set_id=use_aux_fit_basis_set, &
-           distribution_2d=distribution_2d,&
-           error=error)
-
       ! *** deallocate matrices that will have the wrong structure ***
       CALL cp_dbcsr_deallocate_matrix_set(matrix_ks_aux_fit,error=error)
       CALL set_qs_env(qs_env,matrix_ks_aux_fit=matrix_ks_aux_fit,error=error)

@@ -41,19 +41,11 @@ MODULE cp_matrix_utils
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_matrix_utils'
-! types
-  PUBLIC :: cp_matrix_block_iterator
 
-  ! underliying methods
-  PUBLIC :: cp_sm_b_i_init,&
-            cp_sm_b_i_get,&
-            cp_sm_b_i_next,&
-            cp_sm_write,&
-            sm_struct_add_sm_local_blocks
+  PUBLIC :: sm_struct_add_sm_local_blocks
 
 INTERFACE sm_struct_add_sm_local_blocks
-   MODULE PROCEDURE sm_s_add_sm_l_blocks_sm
-   MODULE PROCEDURE sm_s_add_sm_l_blocks_dbcsr
+   MODULE PROCEDURE sm_s_add_sm_l_blocks_dbcsr, sm_s_add_sm_l_blocks_sm
 END INTERFACE
 
 ! *****************************************************************************

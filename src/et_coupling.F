@@ -28,7 +28,6 @@ MODULE et_coupling
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get
   USE f77_blas
   USE input_constants,                 ONLY: do_spin_density
@@ -90,11 +89,9 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: inverse_mat, SMO, Tinverse, &
                                                 tmp2
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: S_sm_pools
     TYPE(section_vals_type), POINTER         :: et_coupling_section
 
-    NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct, S_sm_pools,rest_MO)
+    NULLIFY(tmp2,SMO,rest_MO,mo_mo_fmstruct, rest_MO)
 
     CALL timeset(routineN,handle)
 
@@ -112,7 +109,6 @@ CONTAINS
     ALLOCATE(S_det(qs_env%dft_control%nspins))
 
     CALL mpools_get(qs_env%mpools, mo_mo_fm_pools=mo_mo_fm_pools,&
-         S_sm_pools=S_sm_pools,&
          error=error)
     mo_mo_fmstruct => fm_pool_get_el_struct(mo_mo_fm_pools(1)%pool,&
          error=error)    

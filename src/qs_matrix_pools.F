@@ -823,9 +823,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
   
        ! at the moment read from s, maybe in the future s will take its structure
        ! from this
-       CALL sm_struct_add_sm_local_blocks(s_mstruct,&
-            matrix=s(1)%matrix,&
-            error=error)
+       CALL sm_struct_add_sm_local_blocks(s_mstruct, matrix=s(1)%matrix, error=error)
   
        ALLOCATE(mpools%S_sm_pools(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -937,9 +935,7 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
   
        ! at the moment read from s, maybe in the future s will take its structure
        ! from this
-       CALL sm_struct_add_sm_local_blocks(s_mstruct,&
-            matrix=s(1)%matrix,&
-            error=error)
+       CALL sm_struct_add_sm_local_blocks(s_mstruct, matrix=s(1)%matrix, error=error)
   
        ALLOCATE(mpools%S_sm_pools(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

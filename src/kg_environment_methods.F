@@ -176,8 +176,6 @@ CONTAINS
 
 !dbg
     IF(ASSOCIATED(matrix_ks)) THEN
-       !CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
-!CALL sm_pools_give_back_matrix_vect(S_sm_pools, matrix_ks,error=error)
         CALL cp_dbcsr_deallocate_matrix_set(matrix_ks,error)
         CALL set_qs_env(qs_env,matrix_ks=matrix_ks,error=error)
     END IF
