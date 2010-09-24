@@ -49,7 +49,7 @@ MODULE dbcsr_data_methods
 
 
   PUBLIC :: dbcsr_type_is_2d, dbcsr_type_2d_to_1d, dbcsr_type_1d_to_2d
-  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
+  PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_i, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative,&
             dbcsr_scalar_get_type, dbcsr_scalar_fill_all
   PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_hold,&
@@ -1458,6 +1458,28 @@ CONTAINS
        one%c_dp = CMPLX(1.0, 0.0, real_8)
     END SELECT
   END FUNCTION dbcsr_scalar_one
+
+! *****************************************************************************
+!> \brief Returns an encapsulated scalar "sqrt(-1)"
+!> \param[in] data_type       use the data type
+!> \result one                enpsulated value of one
+! *****************************************************************************
+  ELEMENTAL FUNCTION dbcsr_scalar_i (data_type) RESULT (i)
+    CHARACTER, INTENT(IN)                    :: data_type
+    TYPE(dbcsr_scalar_type)                  :: i
+
+    i%data_type = data_type
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       i%r_sp = 0.0_real_4
+    CASE (dbcsr_type_real_8)
+       i%r_dp = 0.0_real_8
+    CASE (dbcsr_type_complex_4)
+       i%c_sp = CMPLX(0.0, 1.0, real_4)
+    CASE (dbcsr_type_complex_8)
+       i%c_dp = CMPLX(0.0, 1.0, real_8)
+    END SELECT
+  END FUNCTION dbcsr_scalar_i
 
 ! *****************************************************************************
 !> \brief Returns an encapsulated scalar "0"

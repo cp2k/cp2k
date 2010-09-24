@@ -75,15 +75,18 @@ MODULE dbcsr_work_operations
        dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
        dbcsr_slot_nfullrows_local, dbcsr_slot_nfullrows_total, &
        dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_work_type
+       dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_work_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_calc_block_sizes,&
                                              dbcsr_set_debug,&
                                              dbcsr_unpack_i8_2i4,&
                                              dbcsr_verify_matrix,&
                                              meta_from_dist,&
-                                             sort
+                                             sort,&
+                                             uppercase
 
   !$ USE OMP_LIB
 
@@ -156,6 +159,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_new', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER                                :: matrix_type_l
     INTEGER                                  :: error_handler, my_nblks, &
                                                 my_nze, stat
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, row_blk_offset
@@ -328,13 +332,20 @@ CONTAINS
     matrix%m%negate_real = .FALSE.
     matrix%m%negate_imaginary = .FALSE.
     !matrix%m%transpose = .FALSE.
-    SELECT CASE (matrix_type)
-    CASE ('N', 'n')
-    CASE ('T', 't')
-       !matrix%m%transpose = .TRUE.
-    CASE ('S', 's')
+    matrix_type_l = matrix_type
+    CALL uppercase(matrix_type_l)
+    SELECT CASE (matrix_type_l)
+    CASE (dbcsr_type_no_symmetry)
+    CASE (dbcsr_type_symmetric)
        matrix%m%symmetry = .TRUE.
-    CASE ('A', 'a')
+    CASE (dbcsr_type_antisymmetric)
+       matrix%m%symmetry = .TRUE.
+       matrix%m%negate_real = .TRUE.
+       matrix%m%negate_imaginary = .TRUE.
+    CASE (dbcsr_type_hermitian)
+       matrix%m%symmetry = .TRUE.
+       matrix%m%negate_imaginary = .TRUE.
+    CASE (dbcsr_type_antihermitian)
        matrix%m%symmetry = .TRUE.
        matrix%m%negate_real = .TRUE.
     CASE DEFAULT

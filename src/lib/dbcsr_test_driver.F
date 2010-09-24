@@ -29,6 +29,7 @@ PROGRAM dbcsr_test_driver
                                              mp_world_init
   USE dbcsr_methods,                   ONLY: dbcsr_mp_new,&
                                              dbcsr_mp_release
+  USE dbcsr_test_add,                  ONLY: dbcsr_test_adds
   USE dbcsr_test_methods,              ONLY: dbcsr_test_read_args
   USE dbcsr_test_multiply,             ONLY: dbcsr_test_multiplies
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
@@ -99,6 +100,8 @@ PROGRAM dbcsr_test_driver
   ! Select the operation
   SELECT CASE(args(1))
      !CASE()
+  CASE('dbcsr_add')
+     CALL dbcsr_test_adds( group, mp_env, npdims, ionode, narg, args, error=error)
   CASE('dbcsr_multiply')
      CALL dbcsr_test_multiplies( group, mp_env, npdims, ionode, narg, args, error=error)
   CASE DEFAULT

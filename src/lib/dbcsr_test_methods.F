@@ -20,25 +20,50 @@ MODULE dbcsr_test_methods
                                              array_release,&
                                              array_size
   USE dbcsr_blas_operations,           ONLY: dbcsr_lapack_larnv
-  USE dbcsr_block_access
-  USE dbcsr_block_operations,          ONLY: dbcsr_block_transpose
-  USE dbcsr_data_methods
+  USE dbcsr_block_access,              ONLY: dbcsr_put_block
+  USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
+                                             dbcsr_block_partial_copy,&
+                                             dbcsr_block_scale,&
+                                             dbcsr_block_transpose,&
+                                             dbcsr_data_clear,&
+                                             dbcsr_data_set
+  USE dbcsr_data_methods,              ONLY: &
+       dbcsr_data_clear_pointer, dbcsr_data_get_sizes, dbcsr_data_get_type, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_type_1d_to_2d, &
+       dbcsr_type_2d_to_1d
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
-                                             dbcsr_internal_error
-  USE dbcsr_io
+                                             dbcsr_internal_error,&
+                                             dbcsr_wrong_args_error
+  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                             dbcsr_iterator_next_block,&
+                                             dbcsr_iterator_start,&
+                                             dbcsr_iterator_stop
   USE dbcsr_kinds,                     ONLY: default_string_length,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_comm_null,&
                                              mp_environ
-  USE dbcsr_methods
-  USE dbcsr_operations
-  USE dbcsr_ptr_util
-  USE dbcsr_transformations
-  USE dbcsr_types
-  USE dbcsr_util
-  USE dbcsr_work_operations
+  USE dbcsr_methods,                   ONLY: &
+       dbcsr_distribution_mp, dbcsr_distribution_new, &
+       dbcsr_distribution_release, dbcsr_get_matrix_type, dbcsr_init, &
+       dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, &
+       dbcsr_mp_release, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total
+!  USE dbcsr_transformations, only:dbcsr_put_block
+  USE dbcsr_ptr_util,                  ONLY: ensure_array_size
+  USE dbcsr_types,                     ONLY: &
+       dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
+       dbcsr_obj, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
+       dbcsr_type_symmetric
+  USE dbcsr_util,                      ONLY: dbcsr_verify_matrix
+  USE dbcsr_work_operations,           ONLY: dbcsr_create,&
+                                             dbcsr_finalize,&
+                                             dbcsr_work_create
 
   !$ USE OMP_LIB
 
@@ -46,6 +71,7 @@ MODULE dbcsr_test_methods
 
   PRIVATE
 
+  PUBLIC :: dbcsr_to_dense_local, dbcsr_impose_sparsity
   PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix, dbcsr_make_null_mp, &
        dbcsr_make_random_block_sizes, dbcsr_make_null_dist, dbcsr_test_read_args, &
        atoi, atol, ator
@@ -75,6 +101,221 @@ CONTAINS
   END SUBROUTINE dbcsr_test_read_args
 
 
+! *****************************************************************************
+!> \brief Impose sparsity on a dense matrix based on a dbcsr
+!> \param[in] sparse          sparse matrix
+!> \param[inout] dense        dense matrix
+!> \param[inout] error        dbcsr error 
+!>
+!> Take into account the symmetry of the sparse matrix. 
+!> The dense matrix need to be valid.
+!> The operation is done localy.
+! *****************************************************************************
+  SUBROUTINE dbcsr_impose_sparsity(sparse, dense, error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: sparse
+    TYPE(dbcsr_data_obj), INTENT(inout)      :: dense
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_impose_sparsity', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: data_type, symm
+    INTEGER :: blk, col, col_offset, col_size, dense_col_size, &
+      dense_row_size, error_handler, row, row_offset, row_size
+    LOGICAL                                  :: valid
+    TYPE(dbcsr_data_obj)                     :: tmp
+    TYPE(dbcsr_iterator)                     :: iter
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL dbcsr_data_get_sizes ( dense, dense_row_size, dense_col_size, valid, error )
+    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
+         routineN, "dense matrix not valid",__LINE__,error)
+    data_type = dbcsr_data_get_type( dense )
+    symm = dbcsr_get_matrix_type(sparse)
+
+    CALL dbcsr_data_init ( tmp )
+    CALL dbcsr_data_new ( tmp, dbcsr_type_1d_to_2d(data_type), data_size=dense_row_size, &
+         data_size2=dense_col_size )
+    CALL dbcsr_data_set ( dst=tmp, lb=1, data_size=dense_row_size, src=dense, source_lb=1,&
+         lb2=1, data_size2=dense_col_size, source_lb2=1 )
+    CALL dbcsr_data_clear(dense)
+
+    CALL dbcsr_iterator_start( iter, sparse )
+    DO WHILE( dbcsr_iterator_blocks_left(iter) )
+       CALL dbcsr_iterator_next_block( iter, row, col, blk, &
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset )
+       CALL dbcsr_block_partial_copy(&
+            dst=dense,&
+            dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.FALSE.,&
+            dst_r_lb=row_offset, dst_c_lb=col_offset,&
+            src=tmp,&
+            src_rs=dense_row_size, src_cs=dense_col_size, src_tr=.FALSE.,&
+            src_r_lb=row_offset, src_c_lb=col_offset,&
+            nrow=row_size, ncol=col_size)
+       IF(symm.NE.dbcsr_type_no_symmetry) THEN
+          SELECT CASE(symm)
+          CASE(dbcsr_type_symmetric)
+             CALL dbcsr_block_partial_copy(&
+                  dst=dense,&
+                  dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
+                  dst_r_lb=row_offset, dst_c_lb=col_offset,&
+                  src=tmp,&
+                  src_rs=dense_row_size, src_cs=dense_col_size, src_tr=.FALSE.,&
+                  src_r_lb=row_offset, src_c_lb=col_offset,&
+                  nrow=row_size, ncol=col_size)
+          CASE(dbcsr_type_antisymmetric)
+             CALL dbcsr_block_partial_copy(&
+                  dst=dense,&
+                  dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
+                  dst_r_lb=row_offset, dst_c_lb=col_offset,&
+                  src=tmp,&
+                  src_rs=dense_row_size, src_cs=dense_col_size, src_tr=.FALSE.,&
+                  src_r_lb=row_offset, src_c_lb=col_offset,&
+                  nrow=row_size, ncol=col_size)
+             CALL dbcsr_block_scale (dense, dbcsr_scalar_negative(dbcsr_scalar_one(&
+                  dbcsr_type_2d_to_1d(data_type))),&
+                  row_size=col_size, col_size=row_size, &
+                  lb=col_offset, lb2=row_offset, error=error)
+          CASE(dbcsr_type_hermitian)
+             CALL dbcsr_block_partial_copy(&
+                  dst=dense,&
+                  dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
+                  dst_r_lb=row_offset, dst_c_lb=col_offset,&
+                  src=tmp,&
+                  src_rs=dense_row_size, src_cs=dense_col_size, src_tr=.FALSE.,&
+                  src_r_lb=row_offset, src_c_lb=col_offset,&
+                  nrow=row_size, ncol=col_size)
+             CALL dbcsr_block_conjg (dense, row_size=col_size, col_size=row_size, &
+                  lb=col_offset, lb2=row_offset, error=error)
+          CASE(dbcsr_type_antihermitian)
+             CALL dbcsr_block_partial_copy(&
+                  dst=dense,&
+                  dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
+                  dst_r_lb=row_offset, dst_c_lb=col_offset,&
+                  src=tmp,&
+                  src_rs=dense_row_size, src_cs=dense_col_size, src_tr=.FALSE.,&
+                  src_r_lb=row_offset, src_c_lb=col_offset,&
+                  nrow=row_size, ncol=col_size)
+             CALL dbcsr_block_scale (dense, dbcsr_scalar_negative(dbcsr_scalar_one(&
+                  dbcsr_type_2d_to_1d(data_type))),&
+                  row_size=col_size, col_size=row_size, &
+                  lb=col_offset, lb2=row_offset, error=error)
+             CALL dbcsr_block_conjg (dense, row_size=col_size, col_size=row_size, &
+                  lb=col_offset, lb2=row_offset, error=error)
+          CASE DEFAULT
+             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
+                  dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",__LINE__,error)
+          END SELECT
+       ENDIF
+    ENDDO
+    CALL dbcsr_iterator_stop ( iter )
+
+    CALL dbcsr_data_release ( tmp )
+
+    CALL dbcsr_error_stop(error_handler, error)
+
+  END SUBROUTINE dbcsr_impose_sparsity
+
+! *****************************************************************************
+!> \brief Convert a sparse matrix to a dense matrix
+!> \param[in] sparse          sparse matrix
+!> \param[inout] dense        dense matrix
+!> \param[inout] error        dbcsr error 
+!>
+!> Take into account the symmetry of the sparse matrix. 
+!> The dense matrix need to be valid.
+!> The operation is done localy.
+! *****************************************************************************
+  SUBROUTINE dbcsr_to_dense_local (sparse, dense, error)
+    TYPE(dbcsr_obj), INTENT(in)              :: sparse
+    TYPE(dbcsr_data_obj), INTENT(inout)      :: dense
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_to_dense_local', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: data_type, symm
+    INTEGER :: col, col_offset, col_size, dense_col_size, dense_row_size, &
+      error_handler, row, row_offset, row_size
+    LOGICAL                                  :: tr, valid
+    TYPE(dbcsr_data_obj)                     :: block
+    TYPE(dbcsr_iterator)                     :: iter
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL dbcsr_data_get_sizes (dense, dense_row_size, dense_col_size, valid, error)
+    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
+         routineN, "dense matrix not valid",__LINE__,error)
+
+    symm = dbcsr_get_matrix_type(sparse)
+    data_type = dbcsr_data_get_type(dense)
+
+    CALL dbcsr_data_clear(dense)
+    CALL dbcsr_data_init (block)
+    CALL dbcsr_data_new (block, dbcsr_type_1d_to_2d(data_type))
+    CALL dbcsr_iterator_start( iter, sparse )
+    DO WHILE( dbcsr_iterator_blocks_left(iter) )
+       CALL dbcsr_iterator_next_block( iter, row, col, block, tr, &
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset )
+          CALL dbcsr_block_partial_copy(dst=dense,&
+               dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.FALSE.,&
+               dst_r_lb=row_offset, dst_c_lb=col_offset,&
+               src=block, src_rs=row_size, src_cs=col_size, src_tr=tr,&
+               src_r_lb=1, src_c_lb=1, nrow=row_size, ncol=col_size)
+       IF(symm.NE.dbcsr_type_no_symmetry.AND.row.NE.col) THEN
+          SELECT CASE(symm)
+          CASE(dbcsr_type_symmetric)
+             CALL dbcsr_block_partial_copy(dst=dense,&
+                  dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
+                  dst_r_lb=row_offset, dst_c_lb=col_offset,&
+                  src=block, src_rs=row_size, src_cs=col_size, src_tr=tr,&
+                  src_r_lb=1, src_c_lb=1, nrow=row_size, ncol=col_size)
+          CASE(dbcsr_type_antisymmetric)
+             CALL dbcsr_block_partial_copy(dst=dense,&
+                  dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
+                  dst_r_lb=row_offset, dst_c_lb=col_offset,&
+                  src=block, src_rs=row_size, src_cs=col_size, src_tr=tr,&
+                     src_r_lb=1, src_c_lb=1, nrow=row_size, ncol=col_size)
+             CALL dbcsr_block_scale (dense, dbcsr_scalar_negative(dbcsr_scalar_one(&
+                  dbcsr_type_2d_to_1d(data_type))),&
+                  row_size=col_size, col_size=row_size, &
+                  lb=col_offset, lb2=row_offset, error=error)
+          CASE(dbcsr_type_hermitian)
+             CALL dbcsr_block_partial_copy(dst=dense,&
+                  dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
+                  dst_r_lb=row_offset, dst_c_lb=col_offset,&
+                  src=block, src_rs=row_size, src_cs=col_size, src_tr=tr,&
+                     src_r_lb=1, src_c_lb=1, nrow=row_size, ncol=col_size)
+             CALL dbcsr_block_conjg (dense, row_size=col_size, col_size=row_size, &
+                  lb=col_offset, lb2=row_offset, error=error)
+          CASE(dbcsr_type_antihermitian)
+             CALL dbcsr_block_partial_copy(dst=dense,&
+                  dst_rs=dense_row_size, dst_cs=dense_col_size, dst_tr=.TRUE.,&
+                  dst_r_lb=row_offset, dst_c_lb=col_offset,&
+                  src=block, src_rs=row_size, src_cs=col_size, src_tr=tr,&
+                  src_r_lb=1, src_c_lb=1, nrow=row_size, ncol=col_size)
+             CALL dbcsr_block_scale (dense, dbcsr_scalar_negative(dbcsr_scalar_one(&
+                  dbcsr_type_2d_to_1d(data_type))),&
+                  row_size=col_size, col_size=row_size, &
+                  lb=col_offset, lb2=row_offset, error=error)
+             CALL dbcsr_block_conjg (dense, row_size=col_size, col_size=row_size, &
+                  lb=col_offset, lb2=row_offset, error=error)
+          CASE DEFAULT
+             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
+                  dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",__LINE__,error)
+          END SELECT
+       ENDIF
+    END DO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_data_clear_pointer (block)
+    CALL dbcsr_data_release (block)
+
+    CALL dbcsr_error_stop(error_handler, error)
+
+  END SUBROUTINE dbcsr_to_dense_local
 
   SUBROUTINE dbcsr_random_dist (dist_array, dist_size, nbins)
     TYPE(array_i1d_obj), INTENT(out)         :: dist_array
@@ -169,16 +410,34 @@ CONTAINS
              CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
              CALL dbcsr_put_block (matrix, row, col, data_values)
              IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.col.EQ.row) THEN
-                IF(my_symmetry.EQ.dbcsr_type_symmetric) THEN
+                SELECT CASE(my_symmetry)
+                CASE(dbcsr_type_symmetric)
                    CALL dbcsr_block_transpose (data_values_tr, data_values, &
                         row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
                         error=error)
-                ELSEIF(my_symmetry.EQ.dbcsr_type_antisymmetric) THEN
+                CASE(dbcsr_type_antisymmetric)
                    CALL dbcsr_block_transpose (data_values_tr, data_values, &
                         row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
                         scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
                         error=error)
-                ENDIF
+                CASE(dbcsr_type_hermitian)
+                   CALL dbcsr_block_transpose (data_values_tr, data_values, &
+                        row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                        error=error)
+                   CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(col), col_size=rbs(row), &
+                        lb=1, error=error)
+                CASE(dbcsr_type_antihermitian)
+                   CALL dbcsr_block_transpose (data_values_tr, data_values, &
+                        row_size=rbs(row), col_size=cbs(col), lb=1, source_lb=1, &
+                        scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
+                        error=error)
+                   CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(col), col_size=rbs(row), &
+                        lb=1, error=error)
+                CASE DEFAULT
+                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
+                        dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",&
+                        __LINE__,error)
+                END SELECT
                 CALL dbcsr_put_block (matrix, row, col, data_values_tr, summation=.TRUE.)
              ENDIF
           ENDDO

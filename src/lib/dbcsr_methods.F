@@ -57,10 +57,10 @@ MODULE dbcsr_methods
        dbcsr_array_type, dbcsr_block_buffer_obj, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_imagedistribution_type, &
        dbcsr_magic_number, dbcsr_mp_obj, dbcsr_mutable_obj, dbcsr_obj, &
-       dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
-       dbcsr_type_complex_8, dbcsr_type_hermitian, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric, &
-       dbcsr_work_type
+       dbcsr_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
+       dbcsr_type_invalid, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_work_type
 
   !$ USE OMP_LIB
   IMPLICIT NONE
@@ -1413,22 +1413,9 @@ CONTAINS
     IF (PRESENT (name)) name = matrix%m%name
     IF (PRESENT (data_area)) data_area = matrix%m%data_area
     IF (PRESENT (matrix_type)) THEN
-       ! Doesn't check all valid types
-       matrix_type = '0' ! Invalid
-       IF (matrix%m%symmetry) THEN
-          IF (.NOT. matrix%m%negate_real .AND. matrix%m%negate_imaginary) THEN
-             matrix_type = dbcsr_type_hermitian
-          ELSEIF (matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
-             matrix_type = dbcsr_type_antisymmetric
-          ELSEIF (.NOT. matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
-             matrix_type = dbcsr_type_symmetric
-          ELSE
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-                  routineN, "Incorrect symmetry",__LINE__,error)
-          ENDIF
-       ELSE
-          matrix_type = dbcsr_type_no_symmetry
-       ENDIF
+       matrix_type = dbcsr_get_matrix_type (matrix)
+       CALL dbcsr_assert (matrix_type.NE.dbcsr_type_invalid, dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Incorrect symmetry",__LINE__,error)
     ENDIF
     IF (PRESENT (data_type)) data_type = matrix%m%data_type
     IF (PRESENT (local_rows)) &
@@ -1594,15 +1581,15 @@ CONTAINS
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     CHARACTER                                :: matrix_type
 
-! Doesn't check all valid types
-
-    matrix_type = '0' ! Invalid
+    matrix_type = dbcsr_type_invalid
     IF (matrix%m%symmetry) THEN
-       IF (.NOT. matrix%m%negate_real .AND. matrix%m%negate_imaginary) THEN
+       IF ( (.NOT.matrix%m%negate_real).AND. matrix%m%negate_imaginary ) THEN
           matrix_type = dbcsr_type_hermitian
-       ELSEIF (matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
+       ELSEIF ( matrix%m%negate_real .AND. (.NOT.matrix%m%negate_imaginary) ) THEN
+          matrix_type = dbcsr_type_antihermitian
+       ELSEIF (matrix%m%negate_real .AND. matrix%m%negate_imaginary) THEN
           matrix_type = dbcsr_type_antisymmetric
-       ELSEIF (.NOT. matrix%m%negate_real .AND. .NOT. matrix%m%negate_imaginary) THEN
+       ELSEIF ( (.NOT.matrix%m%negate_real) .AND. (.NOT.matrix%m%negate_imaginary)) THEN
           matrix_type = dbcsr_type_symmetric
        ENDIF
     ELSE
