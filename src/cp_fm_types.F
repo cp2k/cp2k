@@ -147,12 +147,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ncol_local, npcol, nprow, &
-                                                nrow_local, stat
+    INTEGER                                  :: handle, ncol_local, npcol, &
+                                                nprow, nrow_local, stat
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
 
     failure=.FALSE.
+
+    CALL timeset(routineN,handle)
 
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -209,6 +211,9 @@ CPSourceFileRef,&
           matrix%name='full matrix'//cp_to_string(matrix%id_nr)
        END IF
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE cp_fm_create
 
 ! *****************************************************************************
@@ -255,10 +260,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
+
+    CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(matrix)) THEN
        CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -279,6 +286,8 @@ CPSourceFileRef,&
        END IF
     END IF
     NULLIFY(matrix)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_release
 
