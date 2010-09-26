@@ -973,6 +973,9 @@ CONTAINS
 
     ALLOCATE(load_all(maxdest*ncpu),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    !
+    ! XXXXX this allocation can cause an out-of-memory if the number of MPI tasks is sufficient
+    !
     ALLOCATE(load_per_source(maxdest*ncpu*ncpu),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(list_global(2,maxdest,ncpu),STAT=stat)
@@ -1788,7 +1791,7 @@ CONTAINS
 
        ! First round of balancing on the distributed grids
        ! we just balance each of the distributed grids independently
-
+       ! XXXX this call to load_balance_distributed can be a memory hog XXXX
        DO igrid_level=1,SIZE(rs_rho)
          IF ( rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
 
