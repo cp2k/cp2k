@@ -1130,15 +1130,6 @@ CONTAINS
 !$       dbcsr_distribution_thread_dist (product%dist))
     left_local_rows => array_data (dbcsr_distribution_local_rows (left%dist))
     ! Submatrix handling
-!vw    CALL dbcsr_assert (submatrix_box(1) .EQ. 0,&
-!vw         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-!vw         "Limiting first row not supported",__LINE__,error)
-!vw    CALL dbcsr_assert (submatrix_box(3) .EQ. 0,&
-!vw         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-!vw         "Limiting first column not supported",__LINE__,error)
-!vw    CALL dbcsr_assert (submatrix_box(5) .EQ. 0,&
-!vw         dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-!vw         "Limiting first k not supported",__LINE__,error)
     left_limit_rows = MAXVAL (submatrix_box(1:2)) .GT. 0
     right_limit_cols = MAXVAL (submatrix_box(3:4)) .GT. 0
     limit_k = MAXVAL (submatrix_box(5:6)) .GT. 0
@@ -1189,8 +1180,8 @@ CONTAINS
     first_mergeable = 1
     stack_p = 0 ; stack_p_a = 0 ; stack_p_b = 0 ; stack_p_c = 0
     new_blk = 0
-    DO a_row_l = 1, left%nblkrows_total !vw need that for the limits !left%nblkrows_local
-       a_row_logical = a_row_l !vw need that for the limits !left_local_rows (a_row_l)
+    DO a_row_l = 1, left%nblkrows_local
+       a_row_logical = left_local_rows (a_row_l)
 !$     IF (product_thread_dist(a_row_logical) .ne. ithread) CYCLE
        IF (dbg) WRITE(*,*)ithread,routineN//" A row", a_row_logical
        blk_start = left_row_blk_offset(a_row_logical)

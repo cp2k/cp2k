@@ -468,7 +468,7 @@ CONTAINS
                     dbcsr_get_data_type( m_a ),&
                ", ",dbcsr_get_matrix_type( m_a ),&
                ", ",dbcsr_get_matrix_type( m_b ),&
-               ") ........................ PASSED !"
+               ") ............................. PASSED !"
           WRITE(io_unit, *) REPEAT("*",70)
        ELSE
           WRITE(io_unit, *) REPEAT("*",70)
@@ -476,10 +476,10 @@ CONTAINS
                      dbcsr_get_data_type( m_a ),&
                 ", ",dbcsr_get_matrix_type( m_a ),&
                 ", ",dbcsr_get_matrix_type( m_b ),&
-                ") ............ FAILED !"
+                ") ................. FAILED !"
           WRITE(io_unit, *) REPEAT("*",70)
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-               routineN, 'for the moment, we stop', __LINE__, error)
+          !CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
+          !     routineN, 'for the moment, we stop', __LINE__, error)
        ENDIF
     ENDIF
 
