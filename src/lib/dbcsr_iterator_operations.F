@@ -199,9 +199,9 @@ CONTAINS
     CALL dbcsr_error_set (routineN, error_handle, error)
     iterator%shared = .TRUE.
 !$  iterator%shared = omp_in_parallel()
-!$  CALL dbcsr_assert (omp_in_parallel(), "IMP", PRESENT (shared),&
-!$       dbcsr_warning_level, dbcsr_caller_error, routineN,&
-!$       "SHARED must be specified in OMP invocation.", __LINE__, error)
+!ub!$  CALL dbcsr_assert (omp_in_parallel(), "IMP", PRESENT (shared),&
+!ub!$       dbcsr_warning_level, dbcsr_caller_error, routineN,&
+!ub!$       "SHARED must be specified in OMP invocation.", __LINE__, error)
     IF (PRESENT (shared)) iterator%shared = shared
     iterator%dynamic = .TRUE.
 !$  iterator%dynamic = .FALSE.
@@ -234,6 +234,11 @@ CONTAINS
     !Synchronize the positions
     NULLIFY (iterator%common_pos)
     IF (iterator%dynamic) THEN
+       ! All threads point into the master thread's data space
+       ! (temporarily using the common_int_pointer variable). This is
+       ! not the nicest OpenMP way of doing this but it is also not
+       ! explicity forbidden.
+       !
        !$OMP BARRIER
        !$OMP MASTER
        ALLOCATE (iterator%common_pos)
@@ -295,7 +300,16 @@ CONTAINS
        CALL dbcsr_buffers_flush (iterator%buffer_2d, error=error)
     ENDIF
     !
+    !$ IF (iterator%dynamic) THEN
+          !$OMP SINGLE
+    !$    IF (iterator%dynamic_byrows) THEN
+    !$       iterator%common_pos = omp_get_num_threads()
+    !$    ENDIF
+          !$OMP END SINGLE
+    !$    CALL dbcsr_iterator_seek (iterator, omp_get_thread_num()+1)
+    !$ ELSE
     CALL dbcsr_iterator_seek (iterator, 1)
+    !$ ENDIF
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_iterator_start
 
@@ -334,6 +348,8 @@ CONTAINS
        !$OMP MASTER
        common_int_pointer => iterator%common_pos
        DEALLOCATE (common_int_pointer)
+       NULLIFY (common_int_pointer)
+       !$OMP FLUSH (common_int_pointer)
        !$OMP END MASTER
        !$OMP BARRIER
        NULLIFY (iterator%common_pos)
@@ -360,8 +376,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
+!IF (pos .LT. 1) pos = 1
 
-    IF (pos .LT. 1) pos = 1
     DO WHILE (pos .LE. maxpos)
        IF (blk_p(pos) .EQ. 0) THEN
           !WRITE(*,*)routineN//" Skipping deleted block."
@@ -447,7 +463,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (maxpos .GE. 1) THEN
-       IF (pos.EQ.0) pos = 1
+       !IF (pos.EQ.0) pos = 1
        CALL find_first_valid_block (pos, maxpos, blk_p)
        CALL find_proper_row(pos, row, maxrows, row_p)
        row_inrange = row .NE. 0 .AND. row .LE. maxrows
@@ -484,7 +500,8 @@ CONTAINS
   SUBROUTINE iterator_advance (iterator)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
 
-    INTEGER                                  :: ithread, my_old_row, next_row
+    INTEGER                                  :: ithread, my_old_row, &
+                                                next_row, p
     LOGICAL                                  :: advance, jumped_row
 
 !   ---------------------------------------------------------------------------
@@ -493,6 +510,8 @@ CONTAINS
 !$  ithread = omp_get_thread_num()
     IF (iterator%dynamic .AND. iterator%shared) THEN
        IF (iterator%dynamic_byrows) THEN
+          ! In this case common_row holds the last assigned row.
+          !
           ! The idea is to advance in this thread's row. If it gets bumped
           ! into the next row, then we have to find the correct one.
           advance = .TRUE.
@@ -503,34 +522,39 @@ CONTAINS
                   iterator%row, iterator%nblks, iterator%nblkrows_total,&
                   iterator%blk_p, iterator%row_p)
              jumped_row = iterator%row .GT. my_old_row
-             advance = .FALSE.
-             !$OMP CRITICAL
+             advance = jumped_row
              IF (jumped_row) THEN
-                next_row = MAX(iterator%common_pos+1, iterator%row) &
-                     - iterator%common_pos
+                !$OMP CRITICAL (common_row)
+                ! Set the common_pos to the next available row.
+                next_row = MAX (iterator%common_pos + 1,  iterator%row)
+                next_row = next_row - iterator%common_pos
                 !$OMP ATOMIC
-                iterator%common_pos = iterator%common_pos+next_row
+                iterator%common_pos = iterator%common_pos + next_row
                 iterator%row = iterator%common_pos
                 IF (iterator%row .GT. iterator%nblkrows_total) THEN
-                   iterator%pos = iterator%nblks+1
+                   iterator%pos = 0
+                   iterator%row = 0
+                   advance = .FALSE.
                 ELSE
+                   ! To be incremented in the next loop.
                    iterator%pos = iterator%row_p(iterator%row)
                 ENDIF
-                advance = .TRUE.
+                !$OMP END CRITICAL (common_row)
              ENDIF
-             !$OMP END CRITICAL
           ENDDO
        ELSE
+          ! In this case common_pos holds the last-assigned block.
+          !
           !$OMP CRITICAL
           !$OMP ATOMIC
           iterator%common_pos = iterator%common_pos + 1
-          CALL find_proper_position(iterator%common_pos,&
+          iterator%pos = iterator%common_pos
+          CALL find_proper_position(iterator%pos,&
                iterator%row, iterator%nblks, iterator%nblkrows_total,&
                iterator%blk_p, iterator%row_p)
-          ! This seems to be the most efficient way
-          iterator%pos = iterator%common_pos
+          p = iterator%pos
           !$OMP ATOMIC
-          iterator%common_pos = MAX(iterator%common_pos, 0)
+          iterator%common_pos = MAX(iterator%common_pos, p)
           !$OMP END CRITICAL
        ENDIF
     ELSEIF (iterator%shared) THEN
@@ -586,7 +610,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error)
-    IF (iterator%nblks .GT. 0) THEN
+    IF (iterator%nblks .GT. 0 .AND. row .LE. iterator%nblkrows_total) THEN
        iterator%row = row
        ! This line is replaced because iterator_advance increments the block
        ! number
