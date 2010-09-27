@@ -1036,7 +1036,7 @@ CONTAINS
        CALL dbcsr_data_new (data_any, dbcsr_type_1d_to_2d (dbcsr_get_data_type (matrix_a)))
        CALL dbcsr_iterator_start(iter, matrix_a, read_only=.FALSE.,&
             contiguous_pointers = .FALSE., dynamic = .TRUE.,&
-            dynamic_byrows = .TRUE.)
+            dynamic_byrows = .TRUE., shared=.TRUE.)
        iterations: DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block(iter, a_row, a_col, data_any, tr,&
                row_size=a_row_size, col_size=a_col_size, &
