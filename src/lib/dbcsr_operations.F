@@ -416,6 +416,7 @@ CONTAINS
           ! shallow_data_copy=.TRUE. doesnt handle properly antisymm matrices
           CALL dbcsr_new_transposed (matrix_left, matrix_a,&
                shallow_data_copy=.FALSE., redistribute=.FALSE., &
+               transpose_data=.FALSE.,&
                transpose_distribution=.FALSE., error=error)
        ELSE
           CALL dbcsr_new_transposed (matrix_left, matrix_a,&
@@ -427,6 +428,7 @@ CONTAINS
        CALL dbcsr_init(matrix_left)
        CALL dbcsr_new_transposed (matrix_left, matrix_a,&
             shallow_data_copy=.FALSE., redistribute=.FALSE.,&
+            transpose_data=.FALSE.,&
             transpose_distribution=.FALSE., error=error)
        CALL dbcsr_conjg(matrix_left, error=error)
        new_left = .TRUE.
