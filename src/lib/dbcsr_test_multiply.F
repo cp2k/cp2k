@@ -36,8 +36,7 @@ MODULE dbcsr_test_multiply
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
   USE dbcsr_message_passing,           ONLY: mp_bcast,&
-                                             mp_environ,&
-                                             mp_sync
+                                             mp_environ
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, &
        dbcsr_distribution_new, dbcsr_distribution_release, &
@@ -582,7 +581,6 @@ CONTAINS
 
     !
     ! Perform multiply
-    CALL mp_sync (mp_group)
     IF (ALL (limits==0)) THEN
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, " limits shouldnt be 0 ",__LINE__,error)

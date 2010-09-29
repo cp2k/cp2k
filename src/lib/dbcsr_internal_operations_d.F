@@ -146,8 +146,9 @@
           IF (PRESENT (ltime)) ltime = m_walltime() - ltime
           IF (PRESENT (lflop)) &
                lflop = lflop + INT(2, int_8) * &
-               INT(params_c(sp_c)%logical_rows &
-               * params(sp)%last_n * params(sp)%last_k, int_8)
+               INT(params_c(sp_c)%logical_rows, int_8)* &
+               INT(params(sp)%last_n, int_8) *&
+               INT(params(sp)%last_k, int_8)
        ELSE
           IF (PRESENT (ltime)) ltime = ltime + m_walltime()
           IF(my_use_plasma) THEN
@@ -195,8 +196,9 @@
           IF (PRESENT (ltime)) ltime = m_walltime() - ltime
           IF (PRESENT (lflop)) &
                lflop = lflop + INT(2, int_8) * &
-               INT(params(sp)%last_n &
-               * params_c(sp_c)%logical_cols * params(sp)%last_k, int_8)
+               INT(params(sp)%last_n, int_8) * &
+               INT(params_c(sp_c)%logical_cols, int_8) * &
+               INT(params(sp)%last_k, int_8)
        ENDIF
     ENDDO
   END SUBROUTINE process_dgemm_stack_d

@@ -1,0 +1,52 @@
+# operation
+dbcsr_multiply
+# matrix sizes
+5000
+5000
+5000
+# sparsity (A, B, C)
+0.1d0
+0.1d0
+0.1d0
+# transposition for A and B (N, T, C)
+N
+N
+# symmetry for A, B and C (N, S, A, H, K)
+N
+N
+N
+# matrix type (real, REAL, complex, COMPLEX)
+real
+# alpha (real, imag)
+1.0d0
+0.0d0
+# beta (real, imag)
+0.0d0
+0.0d0          
+# limits (0 means full size)
+# row
+0
+0
+# col
+0
+0
+# k
+0
+0
+# retain sparsity (T/F)
+F
+# number of repetitions
+5
+# number of different blocks to read (m, n, k)
+1
+1
+1
+# the m blocks (multiplicity, block size, ...)
+1
+20
+# the n blocks (multiplicity, block size, ...)
+1
+20
+# the k blocks (multiplicity, block size, ...)
+1
+20
