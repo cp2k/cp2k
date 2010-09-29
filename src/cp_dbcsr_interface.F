@@ -771,6 +771,8 @@ CONTAINS
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
        block_number, row_size, col_size, row_offset, col_offset)
+    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_2d_block_d
 
@@ -789,6 +791,8 @@ CONTAINS
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
+    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_1d_block_d
 
@@ -810,6 +814,8 @@ CONTAINS
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
        block_number, row_size, col_size, row_offset, col_offset)
+    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_2d_block_s
 
@@ -828,6 +834,8 @@ CONTAINS
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
+    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_1d_block_s
 
@@ -849,6 +857,8 @@ CONTAINS
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
        block_number, row_size, col_size, row_offset, col_offset)
+    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_2d_block_z
 
@@ -868,6 +878,8 @@ CONTAINS
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
+    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_1d_block_z
 
@@ -889,6 +901,8 @@ CONTAINS
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
        block_number, row_size, col_size, row_offset, col_offset)
+    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_2d_block_c
 
@@ -908,6 +922,8 @@ CONTAINS
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
+    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_1d_block_c
 
@@ -1308,6 +1324,8 @@ CONTAINS
        ! Direct
        CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
             row_size, col_size)
+       CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
+            routineN, "CP2K does not handle transposed blocks.")
     ELSE
        CALL cp_error_init (error)
        CALL cluster_buffer_flush (matrix%buffers, error=error)
@@ -1341,6 +1359,8 @@ CONTAINS
     BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
+    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_dbcsr_get_2d_block_p_s
 
@@ -1363,6 +1383,8 @@ CONTAINS
     BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
+    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_dbcsr_get_2d_block_p_c
 
@@ -1385,6 +1407,8 @@ CONTAINS
     BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
+    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_dbcsr_get_2d_block_p_z
 
@@ -1409,6 +1433,8 @@ CONTAINS
     BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
+    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_dbcsr_get_block_p_d
 
@@ -1432,6 +1458,8 @@ CONTAINS
     BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
+    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_dbcsr_get_block_p_s
 
@@ -1456,6 +1484,8 @@ CONTAINS
     BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
+    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_dbcsr_get_block_p_c
 
@@ -1480,6 +1510,8 @@ CONTAINS
     BUFFERME
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
+    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
+         routineN, "CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_dbcsr_get_block_p_z
 
