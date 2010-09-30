@@ -94,8 +94,7 @@ CONTAINS
                                                 itype, iw, natom, natorb_a, &
                                                 nkind, stat
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: anag, defined, failure, &
-                                                found, tr
+    LOGICAL                                  :: anag, defined, failure, found
     REAL(KIND=dp)                            :: enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -183,7 +182,7 @@ CONTAINS
              ! Give back block
              NULLIFY(h_block_a)
              CALL cp_dbcsr_get_block_p(matrix=ks_qmmm_env_loc%matrix_h(1)%matrix,&
-                  row=iatom,col=iatom,BLOCK=h_block_a,tr=tr,found=found)
+                  row=iatom,col=iatom,BLOCK=h_block_a,found=found)
 
              IF (ASSOCIATED(h_block_a)) THEN
                 h_block_a = 0.0_dp

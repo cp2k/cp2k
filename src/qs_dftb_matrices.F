@@ -116,7 +116,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem, &
                                                 rbs
     LOGICAL                                  :: defined, failure, found, &
-                                                hb_sr_damp, new_atom_b, tr, &
+                                                hb_sr_damp, new_atom_b, &
                                                 use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, f0, foab, fow, ga, &
@@ -393,11 +393,11 @@ CONTAINS
                    IF (calculate_forces) THEN
                      NULLIFY (pblock)
                      CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
-                          row=irow,col=icol,block=pblock,tr=tr,found=found)
+                          row=irow,col=icol,block=pblock,found=found)
                      CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,error,failure)
                      NULLIFY (wblock)
                      CALL cp_dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
-                          row=irow,col=icol,block=wblock,tr=tr,found=found)
+                          row=irow,col=icol,block=wblock,found=found)
                      CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
                      IF ( dftb_control%self_consistent ) THEN
                        DO i=2,4

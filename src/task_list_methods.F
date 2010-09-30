@@ -2180,7 +2180,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      ncol = last_col(acol)-first_col(acol) + 1
 
      CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
-          block=p_block,tr=tr,found=found)
+          block=p_block,found=found)
      IF ( .NOT. ASSOCIATED ( p_block ) ) THEN 
         CALL stop_program ( "pack_matrix almost there", "Matrix block not found" )
      ENDIF
@@ -2271,11 +2271,11 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      ncol = last_col(acol)-first_col(acol) + 1
 
      CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
-          BLOCK=p_block,tr=tr,found=found)
+          BLOCK=p_block,found=found)
 
      IF ( PRESENT ( hmat ) ) THEN
      CALL cp_dbcsr_get_block_p(matrix=hmat,row=arow,col=acol,&
-          BLOCK=h_block,tr=tr,found=found)
+          BLOCK=h_block,found=found)
      ENDIF
 
      IF ( ASSOCIATED ( p_block ) .AND. l .NE. rs%desc%my_pos+1) THEN
@@ -2286,8 +2286,7 @@ SUBROUTINE distribute_matrix( rs_grids, pmat, atom_pair_send, atom_pair_recv, &
      ELSE
         IF(scatter) THEN
            CALL cp_dbcsr_put_block(pmat, arow, acol,&
-                block=recv_buf_r(recv_disps(l)+recv_sizes(l)+1:recv_disps(l)+recv_sizes(l)+nrow*ncol),&
-                transposed=.FALSE.)
+                block=recv_buf_r(recv_disps(l)+recv_sizes(l)+1:recv_disps(l)+recv_sizes(l)+nrow*ncol))
         ENDIF
      ENDIF
 

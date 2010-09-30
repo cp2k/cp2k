@@ -81,7 +81,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b, tr
+    LOGICAL                                  :: failure, found, new_atom_b
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -228,7 +228,7 @@ CONTAINS
                    DO i=1,3
                       NULLIFY(integral(i)%block)
                       CALL cp_dbcsr_get_block_p(matrix=matrix(i)%matrix,&
-                           row=irow,col=icol,BLOCK=integral(i)%block,tr=tr,found=found)
+                           row=irow,col=icol,BLOCK=integral(i)%block,found=found)
                       CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,error,failure)
                    ENDDO
                 END IF
@@ -472,7 +472,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b, tr
+    LOGICAL                                  :: failure, found, new_atom_b
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -622,7 +622,7 @@ CONTAINS
                    DO i=1,3
                       NULLIFY(INTEGRAL(i)%block)
                       CALL cp_dbcsr_get_block_p(matrix=matrix(i)%matrix,&
-                           row=irow,col=icol,BLOCK=INTEGRAL(i)%block,tr=tr,found=found)
+                           row=irow,col=icol,BLOCK=INTEGRAL(i)%block,found=found)
                       CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,error,failure)
                    ENDDO
                 END IF
@@ -1106,7 +1106,7 @@ CONTAINS
               DO i = 1,3
                  NULLIFY(op_dip(i)%block)
                  CALL cp_dbcsr_get_block_p(matrix=op(i)%matrix,&
-                      row=irow,col=icol,block=op_dip(i)%block,tr=tr,found=found)
+                      row=irow,col=icol,block=op_dip(i)%block,found=found)
                  CPPostcondition(ASSOCIATED(op_dip(i)%block),cp_failure_level,routineP,error,failure)
               END DO
             END IF  ! new_atom_b
@@ -1478,7 +1478,7 @@ CONTAINS
               DO imom = 1, M_dim
                  NULLIFY(op_dip(imom)%block)
                  CALL cp_dbcsr_get_block_p(matrix=op(imom)%matrix,&
-                      row=irow,col=icol,block=op_dip(imom)%block,tr=tr,found=found)
+                      row=irow,col=icol,block=op_dip(imom)%block,found=found)
                  CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
               END DO   ! imom
             END IF  ! new_atom_b
@@ -1875,14 +1875,14 @@ CONTAINS
                  CALL cp_dbcsr_get_block_p (matrix=op(imom)%matrix,&
                                          row=irow, col=icol,&
                                          block=op_dip(imom)%block,&
-                                         tr=op_tr, found=op_found)
+                                         found=op_found)
 CPPostcondition(op_found.and.ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,error,failure)
                  DO idir = 1,3
                    NULLIFY(op_dip_der(imom,idir)%block)
                    CALL cp_dbcsr_get_block_p (matrix=op_der(imom,idir)%matrix,&
                                            row=irow, col=icol,&
                                            block=op_dip_der(imom,idir)%block,&
-                                           tr=op_der_tr, found=op_der_found)
+                                           found=op_der_found)
 CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_failure_level,routineP,error,failure)
                 END DO  ! idir
               END DO   ! imom

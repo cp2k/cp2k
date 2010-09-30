@@ -106,8 +106,8 @@ CONTAINS
       output_unit
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
-    LOGICAL :: den_found, den_tr, dista, distab, distb, failure, &
-      is_not_associated, paw_atom, sgf_soft_only_a, sgf_soft_only_b
+    LOGICAL :: den_found, dista, distab, distb, failure, is_not_associated, &
+      paw_atom, sgf_soft_only_a, sgf_soft_only_b
     REAL(dp)                                 :: eps_cpc, hard_radius_a, &
                                                 hard_radius_b, hard_radius_c, &
                                                 jmax, nbr_dbl, rab(3), rbc(3)
@@ -292,19 +292,19 @@ CONTAINS
                    NULLIFY(d_block(ispin)%r_coef)
                    CALL cp_dbcsr_get_block_p(matrix=mat_a(ispin)%matrix,&
                         row=iatom,col=jatom,block=a_block(ispin)%r_coef,&
-                        tr=den_tr,found=den_found)
+                        found=den_found)
                    jmax = jmax + MAXVAL(ABS(a_block(ispin)%r_coef))
                    CALL cp_dbcsr_get_block_p(matrix=mat_b(ispin)%matrix,&
                         row=iatom,col=jatom,block=b_block(ispin)%r_coef,&
-                        tr=den_tr,found=den_found)
+                        found=den_found)
                    jmax = jmax + MAXVAL(ABS(b_block(ispin)%r_coef))
                    CALL cp_dbcsr_get_block_p(matrix=mat_c(ispin)%matrix,&
                         row=iatom,col=jatom,block=c_block(ispin)%r_coef,&
-                        tr=den_tr,found=den_found)
+                        found=den_found)
                    jmax = jmax + MAXVAL(ABS(c_block(ispin)%r_coef))
                    CALL cp_dbcsr_get_block_p(matrix=mat_d(ispin)%matrix,&
                         row=iatom,col=jatom,block=d_block(ispin)%r_coef,&
-                        tr=den_tr,found=den_found)
+                        found=den_found)
                    jmax = jmax + MAXVAL(ABS(d_block(ispin)%r_coef))
                 ENDDO
                 !

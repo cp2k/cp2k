@@ -250,7 +250,7 @@ MODULE admm_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, handle, iatom, jatom
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -292,7 +292,7 @@ MODULE admm_methods
         CASE (do_admm_block_aux_basis_off)
           CALL cp_dbcsr_iterator_start(iter, matrix_ks_aux_fit(ispin)%matrix)
           DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-            CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+            CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
             IF( admm_env%block_map(iatom,jatom) == 0 ) THEN
               sparse_block = 0.0_dp
             END IF
@@ -725,7 +725,6 @@ MODULE admm_methods
 
     INTEGER                                  :: blk, handle, iatom, jatom, &
                                                 nao_aux_fit, nao_orb, nspins
-    LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type), POINTER             :: matrix_s_tilde
@@ -768,7 +767,7 @@ MODULE admm_methods
 
       CALL cp_dbcsr_iterator_start(iter, matrix_s_tilde)
       DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-        CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+        CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
         IF( admm_env%block_map(iatom,jatom) == 0 ) THEN
             sparse_block = 0.0_dp
         END IF
@@ -1285,7 +1284,7 @@ MODULE admm_methods
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, found, new_atom_b, &
-                                                return_s_derivatives, tr
+                                                return_s_derivatives
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: ai_work
@@ -1482,7 +1481,7 @@ MODULE admm_methods
                 icol = jatom
               END IF
               CALL cp_dbcsr_get_block_p(matrix=matrix_w,row=irow,col=icol,&
-                   block=w_block,tr=tr,found=found)
+                   block=w_block,found=found)
 
               IF (.NOT.ASSOCIATED(w_block)) CYCLE
             END IF
@@ -2018,7 +2017,7 @@ MODULE admm_methods
                                                 jatom, nao_aux_fit, nao_orb, &
                                                 nmo, nspins
     INTEGER, SAVE                            :: counter = 0
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: eig_diff, pole, tmp
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -2128,7 +2127,7 @@ cp_dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
     ! ** now loop through the list and nullify blocks
     CALL cp_dbcsr_iterator_start(iter, matrix_k_tilde)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-      CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+      CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
       IF( admm_env%block_map(iatom,jatom) == 0 ) THEN
          sparse_block = 0.0_dp
       END IF
@@ -2585,7 +2584,7 @@ cp_dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, handle, iatom, jatom
-    LOGICAL                                  :: failure, found, tr, tr1
+    LOGICAL                                  :: failure, found
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, sparse_block_aux
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -2599,10 +2598,10 @@ cp_dbcsr_uses_special_memory(matrix_ks(ispin)%matrix), error=error)
     ! ** now loop through the list and copy corresponding blocks
     CALL cp_dbcsr_iterator_start(iter, density_matrix)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-      CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+      CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
       IF( admm_env%block_map(iatom,jatom) == 1 ) THEN
         CALL cp_dbcsr_get_block_p(density_matrix_aux,&
-                               row=iatom,col=jatom,BLOCK=sparse_block_aux,tr=tr1,found=found)
+                               row=iatom,col=jatom,BLOCK=sparse_block_aux,found=found)
         IF( found ) THEN
           sparse_block_aux = sparse_block
         END IF

@@ -319,8 +319,8 @@
 
 !   ---------------------------------------------------------------------------
 
-    extent_out = RESHAPE(TRANSPOSE(&
-         RESHAPE(extent_in, (/rows, columns/))), (/rows*columns/))
+    extent_out(1:rows*columns) = RESHAPE(TRANSPOSE(&
+         RESHAPE(extent_in(1:rows*columns), (/rows, columns/))), (/rows*columns/))
   END SUBROUTINE block_transpose_copy_s
 
 ! *****************************************************************************

@@ -500,7 +500,7 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
 
     INTEGER                                  :: blk, handle, iblock_col, &
                                                 iblock_row, n, nblocks
-    LOGICAL                                  :: found, tr
+    LOGICAL                                  :: found
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -522,9 +522,9 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
 
   CALL cp_dbcsr_iterator_start(iter, matrix_h)
   DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-     CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, tr, blk)
+     CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, blk)
      CALL cp_dbcsr_get_block_p(matrix=matrix_s,&
-          row=iblock_row,col=iblock_col,BLOCK=block_s,tr=tr,found=found)
+          row=iblock_row,col=iblock_col,BLOCK=block_s,found=found)
 
      IF(.NOT.ASSOCIATED(block_s))CALL stop_program("qs preconditioner",".NOT.ASSOCIATED(block_s)")
 
@@ -1093,7 +1093,6 @@ SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
     INTEGER                                  :: col, col_offset, col_size, &
                                                 handle, i, j, k, n, row, &
                                                 row_offset, row_size
-    LOGICAL                                  :: tr
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -1111,7 +1110,7 @@ SUBROUTINE apply_all(preconditioner_env, matrix_in, matrix_out, error)
   ! do the right scaling
   CALL cp_dbcsr_iterator_start(iter, matrix_tmp)
   DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-     CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, tr,&
+     CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, &
           row_size=row_size, col_size=col_size, &
           row_offset=row_offset, col_offset=col_offset)
      DO j=1,col_size
@@ -1385,7 +1384,6 @@ SUBROUTINE make_sparse_diag_ortho(preconditioner_env, matrix_h, energy_homo, ene
 
     INTEGER                                  :: blk, handle, i, iblock_col, &
                                                 iblock_row, n, nblocks
-    LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_h, block_pre, block_s
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -1407,7 +1405,7 @@ SUBROUTINE make_sparse_diag_ortho(preconditioner_env, matrix_h, energy_homo, ene
 
   CALL cp_dbcsr_iterator_start(iter, matrix_h)
   DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-     CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, tr, blk)
+     CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, blk)
 
      IF (iblock_col .EQ. iblock_row) THEN
         n=SIZE(block_h,1)
@@ -1723,7 +1721,7 @@ END SUBROUTINE make_full_all_ortho
                                                 iblock_row, info, istat, &
                                                 liwork, lwork, n, nblocks
     INTEGER, DIMENSION(:), POINTER           :: iwork
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: block_evec
@@ -1751,7 +1749,7 @@ END SUBROUTINE make_full_all_ortho
 
     CALL cp_dbcsr_iterator_start(iter, sm)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, block_h, blk)
 
        IF (iblock_col .EQ. iblock_row) THEN
           n = SIZE(block_h,1)
@@ -2243,7 +2241,7 @@ END SUBROUTINE make_full_all_ortho
        !
        !v(k,k)=v(k,k)-s;
        IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
-          CALL cp_dbcsr_get_block_p(mat_v, k, k, blk_p, tr, found)
+          CALL cp_dbcsr_get_block_p(mat_v, k, k, blk_p, found)
           IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
           CALL block_add_on_diag(row_blk_size(k), blk_p, -s)
        ENDIF
@@ -2371,7 +2369,7 @@ END SUBROUTINE make_full_all_ortho
        !
        ! d(k,k) = v(k,k) / s + eye(k);
        IF(proc_holds_diag_blk .EQ. dbcsr_mp_mynode (mp_obj)) THEN
-          CALL cp_dbcsr_get_block(mat_v, k, k, blk, .FALSE., found)
+          CALL cp_dbcsr_get_block(mat_v, k, k, blk, found)
           IF(.NOT.found) CALL stop_program(routineP, "Matrix block not found" )
           CALL dscal(row_blk_size(k)**2, 1.0_dp/s, blk, 1)
           CALL block_add_on_diag(row_blk_size(k), blk, 1.0_dp)

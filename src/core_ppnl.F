@@ -90,7 +90,7 @@ CONTAINS
                                                 nprj_ppnl, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: failure, found, new_atom_b, &
-                                                ppnl_present, tr
+                                                ppnl_present
     REAL(KIND=dp)                            :: dac, f0, ppnl_radius
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sab, work
@@ -354,11 +354,11 @@ CONTAINS
                           icol = iatom
                        END IF
                        NULLIFY(h_block)
-                       CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,tr,found)
+                       CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,found)
                        !CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
                        IF (calculate_forces) THEN
                           NULLIFY(p_block)
-                          CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,tr,found)
+                          CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,found)
                        END IF
                     END IF
 

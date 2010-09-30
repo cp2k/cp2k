@@ -85,7 +85,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: found, new_atom_b, tr
+    LOGICAL                                  :: found, new_atom_b
     REAL(KIND=dp)                            :: dab, max_radius_a, &
                                                 max_radius_b, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -249,7 +249,7 @@ CONTAINS
 
                    NULLIFY (fcint(1)%block)
                    CALL cp_dbcsr_get_block_p(matrix=matrix_fc(1)%matrix,&
-                        row=irow,col=icol,BLOCK=fcint(1)%block,tr=tr,found=found)
+                        row=irow,col=icol,BLOCK=fcint(1)%block,found=found)
                 ENDIF
 
                 DO iset=1,nseta

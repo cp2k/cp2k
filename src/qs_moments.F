@@ -114,7 +114,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -279,7 +279,7 @@ CONTAINS
             DO i=1,nm
               NULLIFY (mint(i)%block)
               CALL cp_dbcsr_get_block_p(matrix=moments(i)%matrix,&
-                   row=irow,col=icol,BLOCK=mint(i)%block,tr=tr,found=found)
+                   row=irow,col=icol,BLOCK=mint(i)%block,found=found)
               mint(i)%block = 0._dp
             END DO
 
@@ -396,7 +396,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: failure, found
     REAL(dp), DIMENSION(:, :), POINTER       :: cblock, cosab, sblock, sinab, &
                                                 work
     REAL(KIND=dp)                            :: dab
@@ -522,10 +522,10 @@ CONTAINS
 
             NULLIFY (cblock)
             CALL cp_dbcsr_get_block_p(matrix=cosmat,&
-                 row=irow,col=icol,BLOCK=cblock,tr=tr,found=found)
+                 row=irow,col=icol,BLOCK=cblock,found=found)
             NULLIFY (sblock)
             CALL cp_dbcsr_get_block_p(matrix=sinmat,&
-                 row=irow,col=icol,BLOCK=sblock,tr=tr,found=found)
+                 row=irow,col=icol,BLOCK=sblock,found=found)
             IF(ASSOCIATED(cblock).AND..NOT.ASSOCIATED(sblock).OR.&
                .NOT.ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)

@@ -256,7 +256,7 @@ CONTAINS
                                                 ispin, jatom, jsgf, natom, &
                                                 nsgf, nspin, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
-    LOGICAL                                  :: failure, found, print_gop, tr
+    LOGICAL                                  :: failure, found, print_gop
     REAL(KIND=dp)                            :: ps
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orbpop, p_block, ps_block, &
                                                 s_block
@@ -347,20 +347,18 @@ CONTAINS
       ! CALL cp_dbcsr_hadamard_product(sm_p,sm_s,sm_ps,error=error)
       CALL cp_dbcsr_iterator_start(iter,sm_s)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-        CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,s_block,tr,blk)
+        CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,s_block,blk)
         IF (.NOT.(ASSOCIATED(s_block))) CYCLE
         CALL cp_dbcsr_get_block_p(matrix=sm_p,&
                                row=iatom,&
                                col=jatom,&
                                block=p_block,&
-                               tr=tr,&
                                found=found)
         IF (print_level > 2) THEN
           CALL cp_dbcsr_get_block_p(matrix=sm_ps,&
                                  row=iatom,&
                                  col=jatom,&
                                  block=ps_block,&
-                                 tr=tr,&
                                  found=found)
           CPPostcondition(ASSOCIATED(ps_block),cp_failure_level,routineP,error,failure)
         END IF

@@ -738,15 +738,16 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_mp_new
 
   SUBROUTINE cp_iterator_next_block_index (iterator, row, column, blk,&
-       transposed, blk_p, row_size, col_size, row_offset, col_offset)
+       blk_p, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column, blk
-    LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: blk_p, row_size, col_size, &
                                                 row_offset, col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_block_index', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column, blk,&
        transposed, blk_p, row_size, col_size, row_offset, col_offset)
@@ -754,19 +755,20 @@ CONTAINS
   END SUBROUTINE cp_iterator_next_block_index
 
   SUBROUTINE cp_iterator_next_2d_block_d (iterator, row, column,&
-       block, transposed,&
+       block,&
        block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     REAL(kind=real_8), DIMENSION(:, :), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_2d_block_d', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
@@ -777,17 +779,18 @@ CONTAINS
   END SUBROUTINE cp_iterator_next_2d_block_d
 
   SUBROUTINE cp_iterator_next_1d_block_d (iterator, row, column, block,&
-       transposed, block_number, row_size, col_size, row_offset, col_offset)
+       block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     REAL(kind=real_8), DIMENSION(:), POINTER :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_1d_block_d', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
@@ -797,19 +800,20 @@ CONTAINS
   END SUBROUTINE cp_iterator_next_1d_block_d
 
   SUBROUTINE cp_iterator_next_2d_block_s (iterator, row, column,&
-       block, transposed,&
+       block,&
        block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     REAL(kind=real_4), DIMENSION(:, :), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_2d_block_s', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
@@ -820,17 +824,18 @@ CONTAINS
   END SUBROUTINE cp_iterator_next_2d_block_s
 
   SUBROUTINE cp_iterator_next_1d_block_s (iterator, row, column, block,&
-       transposed, block_number, row_size, col_size, row_offset, col_offset)
+       block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     REAL(kind=real_4), DIMENSION(:), POINTER :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_1d_block_s', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
@@ -840,19 +845,20 @@ CONTAINS
   END SUBROUTINE cp_iterator_next_1d_block_s
 
   SUBROUTINE cp_iterator_next_2d_block_z (iterator, row, column,&
-       block, transposed,&
+       block,&
        block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     COMPLEX(kind=real_8), DIMENSION(:, :), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_2d_block_z', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
@@ -863,18 +869,19 @@ CONTAINS
   END SUBROUTINE cp_iterator_next_2d_block_z
 
   SUBROUTINE cp_iterator_next_1d_block_z (iterator, row, column, block,&
-       transposed, block_number, row_size, col_size, row_offset, col_offset)
+       block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     COMPLEX(kind=real_8), DIMENSION(:), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_1d_block_z', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
@@ -884,19 +891,20 @@ CONTAINS
   END SUBROUTINE cp_iterator_next_1d_block_z
 
   SUBROUTINE cp_iterator_next_2d_block_c (iterator, row, column,&
-       block, transposed,&
+       block,&
        block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     COMPLEX(kind=real_4), DIMENSION(:, :), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_2d_block_c', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
@@ -907,18 +915,19 @@ CONTAINS
   END SUBROUTINE cp_iterator_next_2d_block_c
 
   SUBROUTINE cp_iterator_next_1d_block_c (iterator, row, column, block,&
-       transposed, block_number, row_size, col_size, row_offset, col_offset)
+       block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)   :: iterator
     INTEGER, INTENT(OUT)                     :: row, column
     COMPLEX(kind=real_4), DIMENSION(:), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: transposed
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number, row_size, &
                                                 col_size, row_offset, &
                                                 col_offset
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iterator_next_1d_block_c', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: transposed
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
@@ -959,13 +968,13 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_iterator_start
 
-  SUBROUTINE cp_dbcsr_put_block2d_d(matrix, row, col, block, transposed,&
+  SUBROUTINE cp_dbcsr_put_block2d_d(matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:, :), &
       INTENT(IN)                             :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
     REAL(kind=real_8), INTENT(IN), OPTIONAL  :: scale
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block2d_d', &
@@ -975,18 +984,18 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
-       summation, scale)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+       summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block2d_d
 
-  SUBROUTINE cp_dbcsr_put_block2d_s(matrix, row, col, block, transposed,&
+  SUBROUTINE cp_dbcsr_put_block2d_s(matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:, :), &
       INTENT(IN)                             :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
     REAL(kind=real_4), INTENT(IN), OPTIONAL  :: scale
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block2d_s', &
@@ -996,18 +1005,18 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
-       summation, scale)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+       summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block2d_s
 
-  SUBROUTINE cp_dbcsr_put_block2d_z(matrix, row, col, block, transposed,&
+  SUBROUTINE cp_dbcsr_put_block2d_z(matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_8), DIMENSION(:, :), &
       INTENT(IN)                             :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
     COMPLEX(kind=real_8), INTENT(IN), &
       OPTIONAL                               :: scale
 
@@ -1018,18 +1027,18 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
-       summation, scale)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+       summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block2d_z
 
-  SUBROUTINE cp_dbcsr_put_block2d_c(matrix, row, col, block, transposed,&
+  SUBROUTINE cp_dbcsr_put_block2d_c(matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:, :), &
       INTENT(IN)                             :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
     COMPLEX(kind=real_4), INTENT(IN), &
       OPTIONAL                               :: scale
 
@@ -1040,18 +1049,18 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
-       summation, scale)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+       summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block2d_c
 
-  SUBROUTINE cp_dbcsr_put_block_d(matrix, row, col, block, transposed,&
+  SUBROUTINE cp_dbcsr_put_block_d(matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), &
       INTENT(IN)                             :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
     REAL(kind=real_8), INTENT(IN), OPTIONAL  :: scale
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_d', &
@@ -1061,18 +1070,18 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
-       summation, scale)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+       summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block_d
 
-  SUBROUTINE cp_dbcsr_put_block_s(matrix, row, col, block, transposed,&
+  SUBROUTINE cp_dbcsr_put_block_s(matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:), &
       INTENT(IN)                             :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
     REAL(kind=real_4), INTENT(IN), OPTIONAL  :: scale
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_s', &
@@ -1082,18 +1091,18 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
-       summation, scale)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+       summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block_s
 
-  SUBROUTINE cp_dbcsr_put_block_z(matrix, row, col, block, transposed,&
+  SUBROUTINE cp_dbcsr_put_block_z(matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_8), DIMENSION(:), &
       INTENT(IN)                             :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
     COMPLEX(kind=real_8), INTENT(IN), &
       OPTIONAL                               :: scale
 
@@ -1104,18 +1113,18 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
-       summation, scale)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+       summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block_z
 
-  SUBROUTINE cp_dbcsr_put_block_c(matrix, row, col, block, transposed,&
+  SUBROUTINE cp_dbcsr_put_block_c(matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:), &
       INTENT(IN)                             :: block
-    LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    LOGICAL, INTENT(IN), OPTIONAL            :: summation
     COMPLEX(kind=real_4), INTENT(IN), &
       OPTIONAL                               :: scale
 
@@ -1126,24 +1135,24 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_put_block(matrix%matrix, row, col, block, transposed,&
-       summation, scale)
+    CALL dbcsr_put_block(matrix%matrix, row, col, block,&
+       summation=summation, scale=scale)
 
   END SUBROUTINE cp_dbcsr_put_block_c
 
-  SUBROUTINE cp_dbcsr_get_block_d(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_block_d(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), &
       INTENT(OUT)                            :: block
-    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_d', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
@@ -1155,19 +1164,19 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_block_d
 
-  SUBROUTINE cp_dbcsr_get_block_s(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_block_s(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:), &
       INTENT(OUT)                            :: block
-    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_s', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
@@ -1179,19 +1188,19 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_block_s
 
-  SUBROUTINE cp_dbcsr_get_block_c(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_block_c(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:), &
       INTENT(OUT)                            :: block
-    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_c', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
@@ -1203,19 +1212,19 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_block_c
 
-  SUBROUTINE cp_dbcsr_get_block_z(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_block_z(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_8), DIMENSION(:), &
       INTENT(OUT)                            :: block
-    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_z', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
@@ -1227,16 +1236,16 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_block_z
 
-  SUBROUTINE cp_dbcsr_get_2d_block_d(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_2d_block_d(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:, :), &
       INTENT(OUT)                            :: block
-    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
 
     CALL cp_error_init (error)
@@ -1246,16 +1255,16 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_2d_block_d
 
-  SUBROUTINE cp_dbcsr_get_2d_block_s(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_2d_block_s(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:, :), &
       INTENT(OUT)                            :: block
-    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
 
     CALL cp_error_init (error)
@@ -1265,16 +1274,16 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_2d_block_s
 
-  SUBROUTINE cp_dbcsr_get_2d_block_c(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_2d_block_c(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:, :), &
       INTENT(OUT)                            :: block
-    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
 
     CALL cp_error_init (error)
@@ -1284,16 +1293,16 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_2d_block_c
 
-  SUBROUTINE cp_dbcsr_get_2d_block_z(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_2d_block_z(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_8), DIMENSION(:, :), &
       INTENT(OUT)                            :: block
-    LOGICAL, INTENT(IN)                      :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
 
     CALL cp_error_init (error)
@@ -1303,20 +1312,20 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_2d_block_z
 
-  SUBROUTINE cp_dbcsr_get_2d_block_p_d(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_2d_block_p_d(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:, :), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: low_col, low_row
-    LOGICAL                                  :: low_tr
+    LOGICAL                                  :: low_tr, tr
     REAL(kind=real_8), DIMENSION(:), POINTER :: low_block
     TYPE(cp_error_type)                      :: error
 
@@ -1340,18 +1349,19 @@ CONTAINS
     ENDIF
   END SUBROUTINE cp_dbcsr_get_2d_block_p_d
 
-  SUBROUTINE cp_dbcsr_get_2d_block_p_s(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_2d_block_p_s(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:, :), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_s', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
 
     CALL cp_error_init (error)
@@ -1364,18 +1374,19 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_2d_block_p_s
 
-  SUBROUTINE cp_dbcsr_get_2d_block_p_c(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_2d_block_p_c(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:, :), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_c', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
 
     CALL cp_error_init (error)
@@ -1388,18 +1399,19 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_2d_block_p_c
 
-  SUBROUTINE cp_dbcsr_get_2d_block_p_z(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_2d_block_p_z(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_8), DIMENSION(:, :), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_2d_block_p_z', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
 
     CALL cp_error_init (error)
@@ -1413,17 +1425,18 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_get_2d_block_p_z
 
 
-  SUBROUTINE cp_dbcsr_get_block_p_d(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_block_p_d(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), POINTER :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_d', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
@@ -1438,17 +1451,18 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_block_p_d
 
-  SUBROUTINE cp_dbcsr_get_block_p_s(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_block_p_s(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_4), DIMENSION(:), POINTER :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_s', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
@@ -1463,18 +1477,19 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_block_p_s
 
-  SUBROUTINE cp_dbcsr_get_block_p_c(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_block_p_c(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_4), DIMENSION(:), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_c', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
@@ -1489,18 +1504,19 @@ CONTAINS
 
   END SUBROUTINE cp_dbcsr_get_block_p_c
 
-  SUBROUTINE cp_dbcsr_get_block_p_z(matrix,row,col,block,tr,found,&
+  SUBROUTINE cp_dbcsr_get_block_p_z(matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     COMPLEX(kind=real_8), DIMENSION(:), &
       POINTER                                :: block
-    LOGICAL, INTENT(OUT)                     :: tr, found
+    LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_p_z', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: tr
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 

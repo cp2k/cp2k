@@ -81,7 +81,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b, tr
+    LOGICAL                                  :: failure, found, new_atom_b
     REAL(KIND=dp)                            :: alpha_ppl, dab, dac, dbc, f0, &
                                                 ppl_radius
     REAL(KIND=dp), ALLOCATABLE, &
@@ -223,12 +223,12 @@ CONTAINS
                       icol = iatom
                    END IF
                    NULLIFY(h_block)
-                   CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,tr,found)
+                   CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,found)
                    !CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
                    IF(ASSOCIATED(h_block)) THEN
                    IF (calculate_forces) THEN
                       NULLIFY(p_block)
-                      CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,tr,found)
+                      CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,found)
                       IF(ASSOCIATED(p_block)) THEN
                          DO iset=1,nseta
                             ncoa = npgfa(iset)*ncoset(la_max(iset))

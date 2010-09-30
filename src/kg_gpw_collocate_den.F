@@ -133,8 +133,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
     LOGICAL                                  :: distributed_rs_grids, &
                                                 failure, found, &
-                                                map_consistent, &
-                                                my_compute_tau, tr
+                                                map_consistent, my_compute_tau
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -323,7 +322,7 @@ CONTAINS
           ! bad, should do better loop ordering XXXXXXXXXX
           NULLIFY(p_block)
           CALL cp_dbcsr_get_block_p(matrix=matrix_p,&
-               row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
+               row=brow,col=bcol,BLOCK=p_block,found=found)
           IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
           IF (.NOT. map_consistent) THEN
@@ -646,7 +645,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
     LOGICAL                                  :: calculate_forces, failure, &
                                                 found, map_consistent, &
-                                                my_compute_tau, tr
+                                                my_compute_tau
     REAL(dp)                                 :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, rab2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
@@ -834,12 +833,12 @@ CONTAINS
 
           NULLIFY(h_block)
           CALL cp_dbcsr_get_block_p(matrix=matrix_h,&
-               row=brow,col=bcol,BLOCK=h_block,tr=tr,found=found)
+               row=brow,col=bcol,BLOCK=h_block,found=found)
           CPPrecondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
 
           NULLIFY(p_block)
           CALL cp_dbcsr_get_block_p(matrix=matrix_p,&
-               row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
+               row=brow,col=bcol,BLOCK=p_block,found=found)
           CPPrecondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
 
           rab2 = 0.0_dp

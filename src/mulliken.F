@@ -79,7 +79,7 @@ CONTAINS
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
                                                 ispin, nblock, nspin
-    LOGICAL                                  :: found, tr
+    LOGICAL                                  :: found
     REAL(kind=dp)                            :: mult, my_energy, my_order_p
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_deriv, &
                                                 ks_block, p_block, s_block, &
@@ -113,9 +113,9 @@ CONTAINS
        DO ispin=1,nspin
           CALL cp_dbcsr_iterator_start(iter, s_matrix)
           DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-             CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
+             CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block,blk)
              CALL cp_dbcsr_get_block_p(matrix=ks_matrix(ispin)%matrix,&
-                  row=iblock_row,col=iblock_col,BLOCK=ks_block,tr=tr,found=found)
+                  row=iblock_row,col=iblock_col,BLOCK=ks_block,found=found)
 
              IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
                 CALL stop_program("Mulliken","unexpected s / ks structure")
@@ -136,9 +136,9 @@ CONTAINS
        DO ispin=1,nspin
           CALL cp_dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
           DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-             CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, tr, blk)
+             CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, blk)
              CALL cp_dbcsr_get_block_p(matrix=w_matrix(ispin)%matrix,&
-                  row=iblock_row,col=iblock_col,BLOCK=w_block,tr=tr,found=found)
+                  row=iblock_row,col=iblock_col,BLOCK=w_block,found=found)
 
              ! we can cycle if a block is not present
              IF ( .NOT. (ASSOCIATED(w_block) .AND. ASSOCIATED(p_block) ) ) CYCLE
@@ -271,7 +271,7 @@ END SUBROUTINE rf_deriv_check
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
                                                 ispin, nblock, nspin
-    LOGICAL                                  :: found, tr
+    LOGICAL                                  :: found
     REAL(kind=dp)                            :: mult
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, s_block
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -285,9 +285,9 @@ END SUBROUTINE rf_deriv_check
     DO ispin=1,nspin
        CALL cp_dbcsr_iterator_start(iter, s_matrix)
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, tr, blk)
+          CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
           CALL cp_dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix,&
-               row=iblock_row,col=iblock_col,BLOCK=p_block,tr=tr,found=found)
+               row=iblock_row,col=iblock_col,BLOCK=p_block,found=found)
 
           ! we can cycle if a block is not present
           IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block) ) ) CYCLE

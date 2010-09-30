@@ -285,7 +285,7 @@ MODULE qs_geminals
       nb, nd, nder, ngem, nkind, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list, atom_of_kind, &
                                                 kind_of
-    LOGICAL                                  :: failure = .FALSE., found, tr
+    LOGICAL                                  :: failure = .FALSE., found
     REAL(KIND=dp)                            :: ehfx2, eps_screening, f0, &
                                                 fij, xfraction
     REAL(KIND=dp), ALLOCATABLE, &
@@ -371,17 +371,17 @@ MODULE qs_geminals
 
     CALL cp_dbcsr_iterator_start(iter, matrix_p(1)%matrix)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, p_block1, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, p_block1, blk)
        IF ( calculate_fock ) THEN
           CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix,&
-               row=iatom,col=jatom,BLOCK=ks_block1,tr=tr,found=found)
+               row=iatom,col=jatom,BLOCK=ks_block1,found=found)
        END IF
        IF (nspins==2) THEN
           CALL cp_dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
-               row=iatom,col=jatom,BLOCK=p_block2,tr=tr,found=found)
+               row=iatom,col=jatom,BLOCK=p_block2,found=found)
           IF ( calculate_fock ) THEN
              CALL cp_dbcsr_get_block_p(matrix=matrix_ks(2)%matrix,&
-                  row=iatom,col=jatom,BLOCK=ks_block2,tr=tr,found=found)
+                  row=iatom,col=jatom,BLOCK=ks_block2,found=found)
           ENDIF
        ENDIF
 

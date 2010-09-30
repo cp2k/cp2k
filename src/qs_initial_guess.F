@@ -501,7 +501,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
           CALL cp_dbcsr_iterator_start(iter, p_rmpv(ispin)%matrix)
           DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-             CALL cp_dbcsr_iterator_next_block(iter, irow, icol, DATA, tr, blk)
+             CALL cp_dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
              ikind = kind_of(irow)
              IF(icol.EQ.irow) DATA(:,:) =  pmat(ikind)%mat(:,:)*scale
           ENDDO
@@ -651,7 +651,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           !
           CALL cp_dbcsr_iterator_start(iter, p_rmpv(ispin)%matrix)
           DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-             CALL cp_dbcsr_iterator_next_block(iter, irow, icol, DATA, tr, blk)
+             CALL cp_dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
              ikind = kind_of(irow)
              IF(icol.EQ.irow) DATA(:,:) =  pmat(ikind)%mat(:,:)*scale
           ENDDO

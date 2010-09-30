@@ -256,7 +256,7 @@ CONTAINS
                                                 nblkrows_total, nc, nr, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_offset, r_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -296,7 +296,7 @@ CONTAINS
 
     CALL cp_dbcsr_iterator_start(iter, sparse_matrix)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, blk)
        DO j=1,SIZE(DATA,2)
        DO i=1,SIZE(DATA,1)
           fm(r_offset(row)+i-1,c_offset(col)+j-1) = DATA(i,j)

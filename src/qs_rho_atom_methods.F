@@ -490,7 +490,7 @@ MODULE qs_rho_atom_methods
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: a_list, list_a, list_b
     LOGICAL                                  :: dista, distab, distb, &
-                                                failure, found, paw_atom, tr
+                                                failure, found, paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: p_matrix
     REAL(KIND=dp)                            :: eps_cpc, factor, pmax
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
@@ -643,7 +643,7 @@ MODULE qs_rho_atom_methods
                NULLIFY(p_block_spin(ispin)%r_coef)
                CALL cp_dbcsr_get_block_p(matrix=rho_ao(ispin)%matrix,&
                     row=irow,col=icol,BLOCK=p_block_spin(ispin)%r_coef,&
-                    tr=tr,found=found)
+                    found=found)
                pmax = pmax+MAXVAL(ABS(p_block_spin(ispin)%r_coef))
             ENDDO
 

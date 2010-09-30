@@ -117,7 +117,7 @@ CONTAINS
                                                 jkind, natom, nmat
     INTEGER, DIMENSION(3)                    :: periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
-    LOGICAL                                  :: do_ewald, failure, found, tr, &
+    LOGICAL                                  :: do_ewald, failure, found, &
                                                 use_virial
     REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
@@ -186,11 +186,11 @@ CONTAINS
        CALL cp_dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
           NULLIFY(gblock)
-          CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, gblock, tr, blk)
+          CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, gblock, blk)
           DO i=1,3
              NULLIFY(gblock)
              CALL cp_dbcsr_get_block_p(matrix=gamma_matrix(i+1)%matrix,&
-                  row=iatom,col=jatom,block=gblock,tr=tr,found=found)
+                  row=iatom,col=jatom,block=gblock,found=found)
              fij(i) = gblock(1,1)*mcharge(iatom)*mcharge(jatom)
           END DO
           rij = particle_set(iatom)%r - particle_set(jatom)%r
@@ -301,12 +301,12 @@ CONTAINS
 
       CALL cp_dbcsr_iterator_start(iter, ks_matrix(1)%matrix)
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, tr, blk)
+         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, blk)
          NULLIFY(sblock,ksblock_2)
          IF (SIZE(ks_matrix,1)>1) CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
-              row=iatom,col=jatom,block=ksblock_2,tr=tr,found=found)
+              row=iatom,col=jatom,block=ksblock_2,found=found)
          CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
-              row=iatom,col=jatom,block=sblock,tr=tr,found=found)
+              row=iatom,col=jatom,block=sblock,found=found)
          gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
          ksblock = ksblock - gmij*sblock
          IF (SIZE(ks_matrix,1)>1) ksblock_2 = ksblock_2 - gmij*sblock
@@ -317,11 +317,11 @@ CONTAINS
             atom_j = atom_of_kind(jatom)
             NULLIFY(pblock)
             CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
-                 row=iatom,col=jatom,block=pblock,tr=tr,found=found)
+                 row=iatom,col=jatom,block=pblock,found=found)
             DO i=1,3
                NULLIFY(dsblock)
                CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
-                    row=iatom,col=jatom,block=dsblock,tr=tr,found=found)
+                    row=iatom,col=jatom,block=dsblock,found=found)
                fi = -gmij*SUM(pblock*dsblock)
                force(ikind)%rho_elec(i,atom_i) =&
                     force(ikind)%rho_elec(i,atom_i) + fi

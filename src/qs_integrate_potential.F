@@ -946,14 +946,14 @@ CONTAINS
           END IF
 
           NULLIFY(h_block)
-          CALL cp_dbcsr_get_block_p(dh,brow,bcol,h_block,tr,found)
+          CALL cp_dbcsr_get_block_p(dh,brow,bcol,h_block,found)
           IF (.NOT.ASSOCIATED(h_block)) THEN
                CALL cp_dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
           END IF
           IF (has_dv) THEN
              DO idir=1,3
                 CALL cp_dbcsr_get_block_p(matrix=ddv(idir)%matrix,&
-                     row=brow,col=bcol,BLOCK=dv_block(idir)%array,tr=tr,found=found)
+                     row=brow,col=bcol,BLOCK=dv_block(idir)%array,found=found)
 
                 IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
                      CALL cp_dbcsr_add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array ,error=error)
@@ -962,7 +962,7 @@ CONTAINS
 
           IF (pab_required) THEN
              CALL cp_dbcsr_get_block_p(matrix=deltap,&
-                  row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
+                  row=brow,col=bcol,BLOCK=p_block,found=found)
 
              IF (.NOT.ASSOCIATED(p_block)) &
                   CALL stop_program(routineP,"p_block not associated in deltap")

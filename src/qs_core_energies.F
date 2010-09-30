@@ -94,7 +94,7 @@ CONTAINS
 
     INTEGER                                  :: blk, handle, i, iblock_col, &
                                                 iblock_row, j
-    LOGICAL                                  :: found, tr
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: ecore_block
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -104,10 +104,10 @@ CONTAINS
 
     CALL cp_dbcsr_iterator_start(iter, h)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, h_block, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, h_block,  blk)
 
        CALL cp_dbcsr_get_block_p(matrix=p,&
-            row=iblock_row,col=iblock_col,BLOCK=p_block,tr=tr,found=found)
+            row=iblock_row,col=iblock_col,BLOCK=p_block,found=found)
 
        ! if no block we can cycle
        IF ( .NOT. ASSOCIATED ( p_block ) ) CYCLE

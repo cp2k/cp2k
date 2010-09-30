@@ -83,7 +83,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b, tr
+    LOGICAL                                  :: failure, found, new_atom_b
     REAL(KIND=dp)                            :: alpha_c, core_charge, &
                                                 core_radius, dab, dac, dbc, &
                                                 f0, rab2, rac2, rbc2, zeta_c
@@ -226,11 +226,11 @@ CONTAINS
                    END IF
                    NULLIFY(h_block)
                    CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
-                        row=irow,col=icol,BLOCK=h_block,tr=tr,found=found)
+                        row=irow,col=icol,BLOCK=h_block,found=found)
                    IF (calculate_forces) THEN
                       NULLIFY(p_block)
                       CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
-                           row=irow,col=icol,BLOCK=p_block,tr=tr,found=found)
+                           row=irow,col=icol,BLOCK=p_block,found=found)
                       CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
                       ! *** Decontract density matrix block ***
                       DO iset=1,nseta

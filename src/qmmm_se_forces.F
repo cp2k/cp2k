@@ -86,8 +86,7 @@ CONTAINS
                                                 natorb_a, nkind, &
                                                 number_qm_atoms, stat
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: anag, defined, failure, &
-                                                found, tr
+    LOGICAL                                  :: anag, defined, failure, found
     REAL(KIND=dp)                            :: delta, enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces_QM, p_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -158,7 +157,7 @@ CONTAINS
                 ! Give back block
                 NULLIFY(p_block_a)
                 CALL cp_dbcsr_get_block_p(matrix=matrix_p(ispin)%matrix,&
-                     row=iatom,col=iatom,BLOCK=p_block_a,tr=tr,found=found)
+                     row=iatom,col=iatom,BLOCK=p_block_a,found=found)
 
                 IF (ASSOCIATED(p_block_a)) THEN
                    ! Expand derivative of geometrical factors

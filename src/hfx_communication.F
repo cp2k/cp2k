@@ -101,7 +101,7 @@ MODULE hfx_communication
       istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, &
       req(2), source, source_cpu
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: failure, found
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, &
@@ -119,7 +119,7 @@ MODULE hfx_communication
     i=1
     CALL cp_dbcsr_iterator_start(iter, rho, shared=.FALSE.)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
 
       ikind = kind_of(iatom)
       nseta = basis_parameter(ikind)%nset
@@ -129,7 +129,7 @@ MODULE hfx_communication
         nsgfb => basis_parameter(jkind)%nsgf
         IF( get_max_vals_spin ) THEN
           CALL cp_dbcsr_get_block_p(rho_beta,&
-               row=iatom,col=jatom,BLOCK=sparse_block_beta,tr=tr,found=found)
+               row=iatom,col=jatom,BLOCK=sparse_block_beta,found=found)
           pa = 0
           DO iset = 1,nseta
             pb = 0
@@ -236,7 +236,7 @@ MODULE hfx_communication
       ikind, iset, istat, jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, &
       pa1, pb, pb1, req(2), source
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: my_fac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
@@ -281,7 +281,7 @@ MODULE hfx_communication
     i = 1
     CALL cp_dbcsr_iterator_start(iter, ks_matrix, shared=.FALSE.)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
 
       ikind = kind_of(iatom)
       nseta = basis_parameter(ikind)%nset
@@ -480,7 +480,7 @@ MODULE hfx_communication
                                                 counter, rcount, rdispl
     INTEGER, DIMENSION(:), POINTER           :: iatom_list, jatom_list, &
                                                 nsgfa, nsgfb
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -497,7 +497,7 @@ MODULE hfx_communication
     !
     CALL cp_dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
        ikind = kind_of(iatom)
         jkind = kind_of(jatom)
         number_of_p_blocks = number_of_p_blocks + 1
@@ -526,7 +526,7 @@ MODULE hfx_communication
 
     CALL cp_dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
 
         buffer_in(ibuf+1)=iatom
         buffer_in(ibuf+2)=jatom

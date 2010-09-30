@@ -643,7 +643,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, den_found, den_found_a, den_tr, &
+    LOGICAL :: atom_pair_changed, den_found, den_found_a, &
       distributed_rs_grids, do_igaim, failure, map_consistent, &
       my_minimum_image, my_soft
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_current, my_gauge, my_rho
@@ -960,13 +960,13 @@ CONTAINS
                 bcol = jatom
 
                 CALL cp_dbcsr_get_block_p(matrix=mat_a,row=brow,col=bcol,&
-                     block=jp_block_a,tr=den_tr,found=den_found_a)
+                     block=jp_block_a,found=den_found_a)
                 CALL cp_dbcsr_get_block_p(matrix=mat_b,row=brow,col=bcol,&
-                     block=jp_block_b,tr=den_tr,found=den_found)
+                     block=jp_block_b,found=den_found)
                 CALL cp_dbcsr_get_block_p(matrix=mat_c,row=brow,col=bcol,&
-                     block=jp_block_c,tr=den_tr,found=den_found)
+                     block=jp_block_c,found=den_found)
                 IF(do_igaim) CALL cp_dbcsr_get_block_p(matrix=mat_d,row=brow,col=bcol,&
-                     block=jp_block_d,tr=den_tr,found=den_found)
+                     block=jp_block_d,found=den_found)
 
                 IF (.NOT.ASSOCIATED(jp_block_a)) THEN
                    sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -1160,13 +1160,13 @@ CONTAINS
           ENDIF
 
           CALL cp_dbcsr_get_block_p(matrix=deltajp_a,row=brow,col=bcol,&
-               block=jp_block_a,tr=den_tr,found=den_found)
+               block=jp_block_a,found=den_found)
           CALL cp_dbcsr_get_block_p(matrix=deltajp_b,row=brow,col=bcol,&
-               block=jp_block_b,tr=den_tr,found=den_found)
+               block=jp_block_b,found=den_found)
           CALL cp_dbcsr_get_block_p(matrix=deltajp_c,row=brow,col=bcol,&
-               block=jp_block_c,tr=den_tr,found=den_found)
+               block=jp_block_c,found=den_found)
           IF(do_igaim) CALL cp_dbcsr_get_block_p(matrix=deltajp_d,row=brow,col=bcol,&
-               block=jp_block_d,tr=den_tr,found=den_found)
+               block=jp_block_d,found=den_found)
 
           IF (.NOT.ASSOCIATED(jp_block_a)) &
                CALL stop_program(routineP,"p_block not associated in deltap")

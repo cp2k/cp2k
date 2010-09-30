@@ -87,7 +87,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: size_p_block_a
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, &
-                                                failure, found, switch, tr, &
+                                                failure, found, switch, &
                                                 use_virial
     REAL(KIND=dp)                            :: delta, dr
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
@@ -195,10 +195,10 @@ CONTAINS
                    END IF
                    ! Retrieve blocks for KS and P
                    CALL cp_dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
-                        row=irow,col=icol,BLOCK=ks_block_a,tr=tr,found=found)
+                        row=irow,col=icol,BLOCK=ks_block_a,found=found)
                    CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
                    CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
-                        row=irow,col=icol,BLOCK=p_block_a,tr=tr,found=found)
+                        row=irow,col=icol,BLOCK=p_block_a,found=found)
                    CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
                    size_p_block_a(1) = SIZE(p_block_a,1)
                    size_p_block_a(2) = SIZE(p_block_a,2)
@@ -207,10 +207,10 @@ CONTAINS
                    ! Handle more configurations
                    IF ( nspins == 2 ) THEN
                       CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
-                           row=irow,col=icol,BLOCK=ks_block_b,tr=tr,found=found)
+                           row=irow,col=icol,BLOCK=ks_block_b,found=found)
                       CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
                       CALL cp_dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
-                           row=irow,col=icol,BLOCK=p_block_b,tr=tr,found=found)
+                           row=irow,col=icol,BLOCK=p_block_b,found=found)
                       CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
                       check = (size_p_block_a(1)==SIZE(p_block_b,1)).AND.(size_p_block_a(2)==SIZE(p_block_b,2))
                       CPPostcondition(check,cp_failure_level,routineP,error,failure)

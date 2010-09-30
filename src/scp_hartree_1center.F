@@ -93,7 +93,7 @@ CONTAINS
                                                 lscp_min, npgf, npgf_scp, &
                                                 nsgf_scp_set, nsgf_set
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, first_sgf_scp
-    LOGICAL                                  :: found, my_debug, tr
+    LOGICAL                                  :: found, my_debug
     REAL(dp)                                 :: e_hartree_1c, fac, rpgfc, &
                                                 trace, zetc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
@@ -263,17 +263,17 @@ CONTAINS
           ! Retrieve KS and density matrix block for this atom
           NULLIFY ( p_block, p_block2, h_block, h_block2 )
           CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
-               row=iatom,col=iatom,BLOCK=h_block,tr=tr,found=found)
+               row=iatom,col=iatom,BLOCK=h_block,found=found)
 
           CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
-               row=iatom,col=iatom,BLOCK=p_block,tr=tr,found=found)
+               row=iatom,col=iatom,BLOCK=p_block,found=found)
 
           IF(nspins == 2) THEN
              CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
-                  row=iatom,col=iatom,BLOCK=h_block2,tr=tr,found=found)
+                  row=iatom,col=iatom,BLOCK=h_block2,found=found)
 
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
-                  row=iatom,col=iatom,BLOCK=p_block2,tr=tr,found=found)
+                  row=iatom,col=iatom,BLOCK=p_block2,found=found)
 
           END IF
           ! Initializing arrays for the calculation of the coefficient matrix CPC

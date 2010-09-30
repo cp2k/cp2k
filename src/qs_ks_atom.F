@@ -99,8 +99,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     LOGICAL                                  :: dista, distb, failure, found, &
-                                                my_tddft, paw_atom, tr, &
-                                                use_virial
+                                                my_tddft, paw_atom, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, p_matrix
     REAL(dp), DIMENSION(3)                   :: rac, rbc
     REAL(dp), DIMENSION(3, 3)                :: force_tmp
@@ -288,19 +287,19 @@ CONTAINS
               NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
               IF (iatom <= jatom) THEN
                 CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
-                     row=iatom,col=jatom,BLOCK=mat_h(ispin)%array,tr=tr,found=found)
+                     row=iatom,col=jatom,BLOCK=mat_h(ispin)%array,found=found)
               ELSE
                 CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
-                     row=jatom,col=iatom,BLOCK=mat_h(ispin)%array,tr=tr,found=found)
+                     row=jatom,col=iatom,BLOCK=mat_h(ispin)%array,found=found)
               END IF
 
               IF(forces) THEN
                 IF (iatom <= jatom) THEN
                   CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
-                       row=iatom,col=jatom,BLOCK=mat_p(ispin)%array,tr=tr,found=found)
+                       row=iatom,col=jatom,BLOCK=mat_p(ispin)%array,found=found)
                 ELSE
                   CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
-                       row=jatom,col=iatom,BLOCK=mat_p(ispin)%array,tr=tr,found=found)
+                       row=jatom,col=iatom,BLOCK=mat_p(ispin)%array,found=found)
                 END IF
               END IF
             END DO

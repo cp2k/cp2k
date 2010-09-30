@@ -269,7 +269,7 @@ CONTAINS
       icol_mol_p, irow, irow_mol_p, istat, jat, jatom, lfomo, ncol, ncol_max, &
       nrow, row_first, row_last
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
-    LOGICAL                                  :: failure, found, smear, tr
+    LOGICAL                                  :: failure, found, smear
     REAL(dp)                                 :: alpha, maxocc
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: fmo_coeff, mo_coeff, mol_p, &
@@ -345,7 +345,7 @@ CONTAINS
         NULLIFY(p_block)
         IF (iatom <= jatom) THEN
           CALL cp_dbcsr_get_block_p(matrix=p_ispin,&
-               row=iatom,col=jatom,BLOCK=p_block,tr=tr,found=found)
+               row=iatom,col=jatom,BLOCK=p_block,found=found)
           icol =  1
           DO icol_mol_p = col_first, col_last
             irow = 1
@@ -357,7 +357,7 @@ CONTAINS
           END DO   ! icol_mol_p
         ELSE
           CALL cp_dbcsr_get_block_p(matrix=p_ispin,&
-               row=jatom,col=iatom,BLOCK=p_block,tr=tr,found=found)
+               row=jatom,col=iatom,BLOCK=p_block,found=found)
           icol =  1
           DO icol_mol_p = col_first, col_last
           irow = 1
@@ -818,7 +818,7 @@ CONTAINS
     INTEGER :: col_first, col_last, iat, iatom, icol, icol_mol_s, irow, &
       irow_mol_s, jat, jatom, ldb, ldc, nrow, row_first, row_last
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: failure, found
     REAL(dp), DIMENSION(:, :), POINTER       :: mol_s, s_block
     TYPE(cp_dbcsr_type), POINTER             :: matrix
 
@@ -859,7 +859,7 @@ CONTAINS
         NULLIFY(s_block)
         IF (iatom <= jatom) THEN
           CALL cp_dbcsr_get_block_p(matrix=matrix,&
-               row=iatom,col=jatom,BLOCK=s_block,tr=tr,found=found)
+               row=iatom,col=jatom,BLOCK=s_block,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last
             irow = 1
@@ -871,7 +871,7 @@ CONTAINS
           END DO   ! icol_mol_s
         ELSE
           CALL cp_dbcsr_get_block_p(matrix=matrix,&
-               row=jatom,col=iatom,BLOCK=s_block,tr=tr,found=found)
+               row=jatom,col=iatom,BLOCK=s_block,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last
             irow = 1

@@ -226,7 +226,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL :: debug, dft_plus_u_atom, failure, fm_work1_local_alloc, &
-      fm_work2_local_alloc, found, just_energy, smear, tr
+      fm_work2_local_alloc, found, just_energy, smear
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_occ
     REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
                                                 trq2, u_minus_j
@@ -552,7 +552,6 @@ CONTAINS
                                  row=atom_a,&
                                  col=atom_a,&
                                  block=q_block,&
-                                 tr=tr,&
                                  found=found)
 
           IF (ASSOCIATED(q_block)) THEN
@@ -667,7 +666,6 @@ CONTAINS
                                      row=atom_a,&
                                      col=atom_a,&
                                      block=v_block,&
-                                     tr=tr,&
                                      found=found)
               CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
@@ -899,7 +897,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: debug, dft_plus_u_atom, &
                                                 failure, found, just_energy, &
-                                                smear, tr
+                                                smear
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
     REAL(KIND=dp)                            :: eps_scf, fspin, occ, trq, &
                                                 trq2, u_minus_j
@@ -1051,7 +1049,6 @@ CONTAINS
                                row=iatom,&
                                col=iatom,&
                                block=p_block,&
-                               tr=tr,&
                                found=found)
 
         IF (.NOT.ASSOCIATED(p_block)) CYCLE
@@ -1060,7 +1057,6 @@ CONTAINS
                                row=iatom,&
                                col=iatom,&
                                block=q_block,&
-                               tr=tr,&
                                found=found)
         CPPostcondition(ASSOCIATED(q_block),cp_failure_level,routineP,error,failure)
 
@@ -1074,7 +1070,6 @@ CONTAINS
                                  row=iatom,&
                                  col=iatom,&
                                  block=s_block,&
-                                 tr=tr,&
                                  found=found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
           ! Exploit that P and S are symmetric
@@ -1187,7 +1182,6 @@ CONTAINS
                                  row=atom_a,&
                                  col=atom_a,&
                                  block=q_block,&
-                                 tr=tr,&
                                  found=found)
 
           ! Calculate energy contribution to E(U)
@@ -1302,7 +1296,6 @@ CONTAINS
                                      row=atom_a,&
                                      col=atom_a,&
                                      block=v_block,&
-                                     tr=tr,&
                                      found=found)
               CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
@@ -1451,7 +1444,6 @@ CONTAINS
                                    row=atom_a,&
                                    col=atom_a,&
                                    block=h_block,&
-                                   tr=tr,&
                                    found=found)
 
             IF (.NOT.ASSOCIATED(h_block)) CYCLE
@@ -1460,7 +1452,6 @@ CONTAINS
                                    row=atom_a,&
                                    col=atom_a,&
                                    block=v_block,&
-                                   tr=tr,&
                                    found=found)
             CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,error,failure)
 
@@ -1473,7 +1464,6 @@ CONTAINS
                                       row=atom_a,&
                                       col=atom_a,&
                                       block=s_block,&
-                                      tr=tr,&
                                       found=found)
               CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
               DO jsgf=1,SIZE(h_block,2)
@@ -1567,7 +1557,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                found, just_energy, tr
+                                                found, just_energy
     REAL(KIND=dp)                            :: fspin, q, u_minus_j, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dEdq, trps
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1712,7 +1702,7 @@ CONTAINS
 
       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-        CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,p_block,tr,blk)
+        CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,p_block,blk)
 
         IF (orthonormal_basis) THEN
 
@@ -1732,7 +1722,6 @@ CONTAINS
                                  row=iatom,&
                                  col=jatom,&
                                  block=s_block,&
-                                 tr=tr,&
                                  found=found)
           CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
@@ -1853,7 +1842,6 @@ CONTAINS
                                  row=atom_a,&
                                  col=atom_a,&
                                  block=p_block,&
-                                 tr=tr,&
                                  found=found)
 
           ! Calculate E(U) and dE(U)/dq
@@ -1923,7 +1911,7 @@ CONTAINS
 
         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-          CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,h_block,tr,blk)
+          CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,h_block,blk)
 
           IF (orthonormal_basis) THEN
 
@@ -1945,7 +1933,6 @@ CONTAINS
                                    row=iatom,&
                                    col=jatom,&
                                    block=s_block,&
-                                   tr=tr,&
                                    found=found)
             CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
 
@@ -1993,7 +1980,7 @@ CONTAINS
 
         DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-          CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,p_block,tr,blk)
+          CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,p_block,blk)
 
           ! Skip the diagonal blocks of the W matrix
 
@@ -2005,7 +1992,6 @@ CONTAINS
                                  row=iatom,&
                                  col=jatom,&
                                  block=w_block,&
-                                 tr=tr,&
                                  found=found)
           CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
 

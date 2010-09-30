@@ -90,7 +90,7 @@ CONTAINS
       imolecule_kind, inao, istat, jao, jat_mol, jatom, jfs, jls, jnao, ldao, &
       ldmo, nao_mol, nat_mol, nmo_mol(2), nmol_local, nmolecule_kind
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: failure, found
     REAL(dp)                                 :: eigocc
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: mo, w_block, wmo, wmo_x_mot
@@ -173,7 +173,7 @@ CONTAINS
             IF(iatom <= jatom) THEN
 
               CALL cp_dbcsr_get_block_p(matrix=w_matrix,&
-                   row=iatom,col=jatom,block=w_block,tr=tr,found=found)
+                   row=iatom,col=jatom,block=w_block,found=found)
               CPPrecondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
               CPPrecondition(inao==SIZE(w_block,1),cp_failure_level,routineP,error,failure)
               CPPrecondition(jnao==SIZE(w_block,2),cp_failure_level,routineP,error,failure)
@@ -187,7 +187,7 @@ CONTAINS
             ELSE
 
                CALL cp_dbcsr_get_block_p(matrix=w_matrix,&
-                    row=jatom,col=iatom,block=w_block,tr=tr,found=found)
+                    row=jatom,col=iatom,block=w_block,found=found)
               CPPrecondition(ASSOCIATED(w_block),cp_failure_level,routineP,error,failure)
               CPPrecondition(jnao==SIZE(w_block,1),cp_failure_level,routineP,error,failure)
               CPPrecondition(inao==SIZE(w_block,2),cp_failure_level,routineP,error,failure)
@@ -559,7 +559,7 @@ CONTAINS
     INTEGER :: col_first, col_last, iat, iatom, icol, icol_mol_s, irow, &
       irow_mol_s, jat, jatom, row_first, row_last
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: failure, found
     REAL(dp), DIMENSION(:, :), POINTER       :: s_block
     TYPE(cp_dbcsr_type), POINTER             :: matrix
 
@@ -592,7 +592,7 @@ CONTAINS
         NULLIFY(s_block)
         IF (iatom <= jatom) THEN
            CALL cp_dbcsr_get_block_p(matrix=matrix,&
-                row=iatom,col=jatom,BLOCK=s_block,tr=tr,found=found)
+                row=iatom,col=jatom,BLOCK=s_block,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last
             irow = 1
@@ -604,7 +604,7 @@ CONTAINS
           END DO   ! icol_mol_s
         ELSE
           CALL cp_dbcsr_get_block_p(matrix=matrix,&
-               row=jatom,col=iatom,BLOCK=s_block,tr=tr,found=found)
+               row=jatom,col=iatom,BLOCK=s_block,found=found)
           icol =  1
           DO icol_mol_s = col_first, col_last
             irow = 1

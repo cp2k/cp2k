@@ -1021,7 +1021,7 @@ CONTAINS
           ENDIF
 
           CALL cp_dbcsr_get_block_p(matrix=deltap,&
-               row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
+               row=brow,col=bcol,BLOCK=p_block,found=found)
           IF (.NOT.ASSOCIATED(p_block)) &
                CALL stop_program(routineP,"p_block not associated in deltap")
 
@@ -1230,7 +1230,7 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, found, &
-      map_consistent, my_soft, tr, use_subpatch
+      map_consistent, my_soft, use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -1484,7 +1484,7 @@ CONTAINS
           ENDIF
 
           CALL cp_dbcsr_get_block_p(matrix=deltap,&
-               row=brow,col=bcol,BLOCK=p_block,tr=tr,found=found)
+               row=brow,col=bcol,BLOCK=p_block,found=found)
           IF (.NOT.ASSOCIATED(p_block)) &
                CALL stop_program(routineP,"p_block not associated in deltap")
 

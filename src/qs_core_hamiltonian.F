@@ -191,7 +191,7 @@ CONTAINS
     LOGICAL :: all_potential_present, build_kinetic_energy_matrix, do_ep, &
       epr_calculation, failure, found, gth_potential_present, harris_flag, &
       new_atom_b, oce_present, ofdft, ppl_present, return_s_derivatives, &
-      return_t_derivatives, tr, use_virial, xas_calculation
+      return_t_derivatives, use_virial, xas_calculation
     REAL(KIND=dp)                            :: dab, eps_fit, eps_ppnl, f, &
                                                 f0, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -693,10 +693,10 @@ CONTAINS
                    IF (calculate_forces) THEN
                       NULLIFY(p_block)
                       CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
-                           row=irow,col=icol,BLOCK=p_block,tr=tr,found=found)
+                           row=irow,col=icol,BLOCK=p_block,found=found)
                       NULLIFY(w_block)
                       CALL cp_dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
-                           row=irow,col=icol,BLOCK=w_block,tr=tr,found=found)
+                           row=irow,col=icol,BLOCK=w_block,found=found)
                    END IF
                 END IF
                 

@@ -79,7 +79,7 @@ CONTAINS
       inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, &
       natorb_b, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure, found, tr, &
+    LOGICAL                                  :: defined, failure, found, &
                                                 use_virial
     REAL(KIND=dp)                            :: delta, dr, econst, eheat, &
                                                 eisol, enuclear, kh, udd, &
@@ -258,11 +258,11 @@ CONTAINS
                      do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
                  NULLIFY(h_blocka)
                  CALL cp_dbcsr_get_block_p(diagmat_h,&
-                      iatom,iatom,h_blocka,tr,found)
+                      iatom,iatom,h_blocka,found)
                  CPPostcondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,error,failure)
                  IF(calculate_forces) THEN
                    CALL cp_dbcsr_get_block_p(diagmat_p,&
-                        iatom,iatom,pamat,tr,found)
+                        iatom,iatom,pamat,found)
                    CPPostcondition(ASSOCIATED(pamat),cp_failure_level,routineP,error,failure)
                  END IF
              END SELECT
@@ -293,12 +293,12 @@ CONTAINS
                  END IF
                  NULLIFY (h_block)
                  CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,&
-                      irow,icol,h_block,tr,found)
+                      irow,icol,h_block,found)
                  CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
                  ! two-centre one-electron term
                  NULLIFY(s_block)
                  CALL cp_dbcsr_get_block_p(matrix_s(1)%matrix,&
-                      irow,icol,s_block,tr,found)
+                      irow,icol,s_block,found)
                  CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
                  IF ( irow == iatom ) THEN
                    DO i=1,SIZE(h_block,1)
@@ -317,12 +317,12 @@ CONTAINS
                    atom_a = atom_of_kind(iatom)
                    atom_b = atom_of_kind(jatom)
                    CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,&
-                        irow,icol,pabmat,tr,found)
+                        irow,icol,pabmat,found)
                    CPPostcondition(ASSOCIATED(pabmat),cp_failure_level,routineP,error,failure)
                    DO icor=1,3
                      force_ab(icor) = 0._dp
                      CALL cp_dbcsr_get_block_p(matrix_s(icor+1)%matrix,&
-                          irow,icol,dsmat,tr,found)
+                          irow,icol,dsmat,found)
                      CPPostcondition(ASSOCIATED(dsmat),cp_failure_level,routineP,error,failure)
                      dsmat=2._dp*kh*dsmat*pabmat
                      IF ( irow == iatom ) THEN

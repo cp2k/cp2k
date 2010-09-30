@@ -86,7 +86,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: found, new_atom_b, tr
+    LOGICAL                                  :: found, new_atom_b
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -254,7 +254,7 @@ CONTAINS
                    DO i=1,6
                       NULLIFY(efgint(i)%block)
                       CALL cp_dbcsr_get_block_p(matrix=matrix_efg(i)%matrix,&
-                           row=irow,col=icol,BLOCK=efgint(i)%block,tr=tr,found=found)
+                           row=irow,col=icol,BLOCK=efgint(i)%block,found=found)
                    ENDDO
                 ENDIF
 

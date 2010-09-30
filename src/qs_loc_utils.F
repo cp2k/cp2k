@@ -904,10 +904,10 @@ CONTAINS
               DO i = 1,dim_op
                  NULLIFY(op_cos(i)%block)
                  CALL cp_dbcsr_get_block_p(matrix=op_sm_set(1,i)%matrix,&
-                      row=irow,col=icol,block=op_cos(i)%block,tr=tr,found=found)
+                      row=irow,col=icol,block=op_cos(i)%block,found=found)
                  NULLIFY(op_sin(i)%block)
                  CALL cp_dbcsr_get_block_p(matrix=op_sm_set(2,i)%matrix,&
-                      row=irow,col=icol,block=op_sin(i)%block,tr=tr,found=found)
+                      row=irow,col=icol,block=op_sin(i)%block,found=found)
               END DO
             END IF  ! new_atom_b
 

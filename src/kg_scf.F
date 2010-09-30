@@ -1112,7 +1112,7 @@ CONTAINS
       imol, imol_kind, info, irow, irow_ortho, jat, jatom, ld_ortho, ld_work, &
       natom, nc_ortho, nc_work, nmol, nmol_kind, row_first, row_last
     INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: failure, found
     REAL(dp), DIMENSION(:, :), POINTER       :: ortho, s_block, work
     TYPE(cp_dbcsr_type), POINTER             :: s
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
@@ -1165,7 +1165,7 @@ CONTAINS
              NULLIFY(s_block)
              IF (iatom <= jatom) THEN
                 CALL cp_dbcsr_get_block_p(matrix=s,&
-                     row=iatom,col=jatom,BLOCK=s_block,tr=tr,found=found)
+                     row=iatom,col=jatom,BLOCK=s_block,found=found)
                icol =  1
                DO icol_ortho = col_first, col_last
                   irow = 1
@@ -1177,7 +1177,7 @@ CONTAINS
                END DO   ! icol_ortho
              ELSE
                CALL cp_dbcsr_get_block_p(matrix=s,&
-                    row=jatom,col=iatom,BLOCK=s_block,tr=tr,found=found)
+                    row=jatom,col=iatom,BLOCK=s_block,found=found)
 
                icol =  1
                DO icol_ortho = col_first, col_last

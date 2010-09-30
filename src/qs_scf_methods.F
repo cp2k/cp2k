@@ -388,7 +388,7 @@ CONTAINS
 
     INTEGER                                  :: blk, handle, i, iblock_col, &
                                                 iblock_row, j
-    LOGICAL                                  :: failure, found, tr
+    LOGICAL                                  :: failure, found
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_delta_block, p_new_block, &
                                                 p_old_block
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -399,13 +399,13 @@ CONTAINS
 
     CALL cp_dbcsr_iterator_start(iter, m1)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, blk)
        CALL cp_dbcsr_get_block_p(matrix=m2,row=iblock_row,col=iblock_col,&
-            BLOCK=p_old_block,tr=tr,found=found)
+            BLOCK=p_old_block,found=found)
        CPPostcondition(ASSOCIATED(p_old_block),cp_failure_level,routineP,error,failure)
        IF(PRESENT(m3)) THEN
           CALL cp_dbcsr_get_block_p(matrix=m3,row=iblock_row,col=iblock_col,&
-               BLOCK=p_delta_block,tr=tr,found=found)
+               BLOCK=p_delta_block,found=found)
           CPPostcondition(ASSOCIATED(p_delta_block),cp_failure_level,routineP,error,failure)
 
           DO j=1,SIZE(p_new_block,2)

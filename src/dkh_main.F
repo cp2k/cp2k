@@ -141,7 +141,7 @@ CONTAINS
     LOGICAL :: all_potential_present, dkh_erfc, dkh_full, dkh_loc_atom, &
       failure, found, gth_potential_present, kinetic_m, new_atom_b, &
       oce_present, ppl_present, return_s_derivatives, return_t_derivatives, &
-      rho0_present, tr
+      rho0_present
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, rab2, &
                                                 rac2, rbc2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1115,33 +1115,33 @@ CONTAINS
                    NULLIFY(spgf_block)
                    CALL cp_dbcsr_get_block_p(matrix=matrix_spgf(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=spgf_block,&
-                        tr=tr,found=found)
+                        found=found)
 
                    NULLIFY(hpgf_block)
                    CALL cp_dbcsr_get_block_p(matrix=matrix_hpgf(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=hpgf_block,&
-                        tr=tr,found=found)
+                        found=found)
 
                    NULLIFY(tpgf_block)
                    CALL cp_dbcsr_get_block_p(matrix=matrix_tpgf(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=tpgf_block,&
-                        tr=tr,found=found)
+                        found=found)
 
                    NULLIFY(s_block)
                    CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=s_block,&
-                        tr=tr,found=found)
+                        found=found)
 
                    NULLIFY(hp_block)
                    CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
                         row=iblock_row,col=iblock_col,BLOCK=hp_block,&
-                        tr=tr,found=found)
+                        found=found)
 
                    IF(kinetic_m)THEN
                       NULLIFY(t_block)
                       CALL cp_dbcsr_get_block_p(matrix=matrix_t(1)%matrix,&
                            row=iblock_row,col=iblock_col,BLOCK=t_block,&
-                           tr=tr,found=found)
+                           found=found)
                    END IF
                 END IF
 

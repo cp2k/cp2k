@@ -470,7 +470,6 @@ CONTAINS
                                                 nblkrows_total, row, &
                                                 row_size, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size
-    LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:), POINTER          :: data_p
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -490,7 +489,7 @@ CONTAINS
 
     CALL cp_dbcsr_iterator_start(iter, matrix_a)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_p, tr, blk, &
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_p, blk, &
             row_size=row_size, col_size=col_size)
        IF(row.LT.a_row_beg.OR.row.GT.a_row_end) CYCLE
        IF(INT(pkd_b(col)).LE.0) CYCLE
@@ -540,7 +539,6 @@ CONTAINS
                                                 timing_handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: offset
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
-    LOGICAL                                  :: tr
     REAL(dp)                                 :: my_alpha, my_alpha2
     REAL(dp), DIMENSION(:, :), POINTER       :: data_d
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -570,7 +568,7 @@ CONTAINS
 
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
 
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, tr, blk)
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_d, blk)
 
        CALL dgemm('N','N',SIZE(data_d,1),my_ncol,SIZE(data_d,2),&
                   my_alpha,data_d(1,1),SIZE(data_d,1),&
@@ -891,7 +889,6 @@ CONTAINS
     INTEGER                                  :: col, col_size, &
                                                 nblkrows_total, nze, row, &
                                                 row_size, timing_handle
-    LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_p
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -910,7 +907,7 @@ CONTAINS
        pkd_vec(nblkrows_total+1) = REAL(nblkrows_total+2,dp)
        CALL cp_dbcsr_iterator_start(iter, matrix)
        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-          CALL cp_dbcsr_iterator_next_block (iter, row, col, data_p, tr, &
+          CALL cp_dbcsr_iterator_next_block (iter, row, col, data_p, &
                row_size=row_size, col_size=col_size)
           IF(col.ne.ivec) CYCLE
           nze = row_size*col_size
@@ -934,7 +931,7 @@ CONTAINS
        pkd_vec(nblkrows_total+1) = REAL(nblkrows_total+2,dp)
        CALL cp_dbcsr_iterator_start(iter, matrix)
        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-          CALL cp_dbcsr_iterator_next_block (iter, row, col, data_p, tr, &
+          CALL cp_dbcsr_iterator_next_block (iter, row, col, data_p, &
                row_size=row_size, col_size=col_size)
           IF(row.ne.ivec) CYCLE
           nze = row_size*col_size
@@ -1253,7 +1250,6 @@ CONTAINS
                                                 k_row_size, nblkrows_total, &
                                                 row, row_size, timing_handle
     INTEGER, DIMENSION(:), POINTER           :: row_blk_size
-    LOGICAL                                  :: tr
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_v
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -1277,7 +1273,7 @@ CONTAINS
 
     CALL cp_dbcsr_iterator_start(iter, mat_v)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block (iter, row, col, data_v, tr, &
+       CALL cp_dbcsr_iterator_next_block (iter, row, col, data_v, &
             row_size=row_size, col_size=col_size)
        IF(row.GE.k_row) EXIT !i = 1,ivec-1
        IF(INT(pkd_v_fac(row)).LE.0) CYCLE
@@ -1647,7 +1643,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: col, row, timing_handle
-    LOGICAL                                  :: copy_column, tr
+    LOGICAL                                  :: copy_column
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -1666,9 +1662,9 @@ CONTAINS
 
     CALL cp_dbcsr_iterator_start(iter, matrix_b)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block (iter, row, col, data_d, tr)
+       CALL cp_dbcsr_iterator_next_block (iter, row, col, data_d)
        IF( (copy_column.AND.col.EQ.ivec) .OR. (.NOT.copy_column.AND.row.EQ.ivec) ) &
-            CALL cp_dbcsr_put_block(matrix_a, row, col, data_d, tr, summation=.FALSE.)
+            CALL cp_dbcsr_put_block(matrix_a, row, col, data_d, summation=.FALSE.)
        !IF(.NOT.copy_column.AND.row.EQ.ivec) &
        !     CALL dbcsr_put_block(matrix_a, row, col, data_d, tr,&
        !     summation=.FALSE.)
@@ -2393,7 +2389,6 @@ END FUNCTION cp_dbcsr_get_id_nr
                                                 local_row_sizes
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, local_cols, &
                                                 local_rows, row_blk_sizes
-    LOGICAL                                  :: tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: blk_2d, fm_block
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: fm_block_sp
     TYPE(array_i1d_obj)                      :: cbs, rbs
@@ -2497,33 +2492,20 @@ END FUNCTION cp_dbcsr_get_id_nr
     !
     CALL cp_dbcsr_iterator_start(iter, bc_mat)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block (iter, row, col, blk_2d, tr)
+       CALL cp_dbcsr_iterator_next_block (iter, row, col, blk_2d)
        ! Convert absolute coordinates to FM-local coordinates
-       IF (.NOT. tr) THEN
-
-          IF(fm%use_sp) THEN
-             fm_block_sp(first_row(row):last_row(row),first_col(col):last_col(col))&
-                  = REAL(blk_2d(:,:),sp)
-          ELSE
-             IF (dbg) THEN
-                WRITE(*,*)routineN//" blk2d size",UBOUND(blk_2d)
-                WRITE(*,*)routineN//" want to set coor.",row,col
-                WRITE(*,*)routineN//" local extents",&
-                     first_row(row),last_row(row),first_col(col),last_col(col)
-             ENDIF
-             fm_block(first_row(row):last_row(row),first_col(col):last_col(col))&
-                  = blk_2d(:,:)
-          ENDIF
+       IF(fm%use_sp) THEN
+          fm_block_sp(first_row(row):last_row(row),first_col(col):last_col(col))&
+               = REAL(blk_2d(:,:),sp)
        ELSE
-          IF(fm%use_sp) THEN
-             fm_block_sp(first_col(col):last_col(col),first_row(row):last_row(row))&
-                  = TRANSPOSE(REAL(blk_2d(:,:),sp))
-          ELSE
-             WRITE(*,*)'transposing...'
-
-             fm_block(first_col(col):last_col(col),first_row(row):last_row(row))&
-                  = TRANSPOSE(blk_2d(:,:))
+          IF (dbg) THEN
+             WRITE(*,*)routineN//" blk2d size",UBOUND(blk_2d)
+             WRITE(*,*)routineN//" want to set coor.",row,col
+             WRITE(*,*)routineN//" local extents",&
+                  first_row(row),last_row(row),first_col(col),last_col(col)
           ENDIF
+          fm_block(first_row(row):last_row(row),first_col(col):last_col(col))&
+               = blk_2d(:,:)
        ENDIF
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
@@ -2558,7 +2540,6 @@ END FUNCTION cp_dbcsr_get_id_nr
                                                 local_row_sizes
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, local_cols, &
                                                 local_rows, row_blk_sizes
-    LOGICAL                                  :: tr
     TYPE(array_i1d_obj)                      :: cbs, rbs
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -2656,22 +2637,16 @@ END FUNCTION cp_dbcsr_get_id_nr
     !
     CALL cp_dbcsr_iterator_start(iter, bc_mat)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block (iter, row, col, blk_2d, tr)
+       CALL cp_dbcsr_iterator_next_block (iter, row, col, blk_2d)
        ! Convert absolute coordinates to FM-local coordinates
-       IF (.NOT. tr) THEN
-          IF (dbg) THEN
-             WRITE(*,*)routineN//" blk2d size",UBOUND(blk_2d)
-             WRITE(*,*)routineN//" want to set coor.",row,col
-             WRITE(*,*)routineN//" local extents",&
-                  first_row(row),last_row(row),first_col(col),last_col(col)
-          ENDIF
-          fm_block(first_row(row):last_row(row),first_col(col):last_col(col))&
-               = blk_2d(:,:)
-       ELSE
-          WRITE(*,*)'transposing...'
-          fm_block(first_col(col):last_col(col),first_row(row):last_row(row))&
-               = TRANSPOSE(CMPLX(blk_2d(:,:)))
+       IF (dbg) THEN
+          WRITE(*,*)routineN//" blk2d size",UBOUND(blk_2d)
+          WRITE(*,*)routineN//" want to set coor.",row,col
+          WRITE(*,*)routineN//" local extents",&
+               first_row(row),last_row(row),first_col(col),last_col(col)
        ENDIF
+       fm_block(first_row(row):last_row(row),first_col(col):last_col(col))&
+            = blk_2d(:,:)
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
 
@@ -2969,7 +2944,8 @@ END FUNCTION cp_dbcsr_get_id_nr
        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
           NULLIFY(blkdata_2d)
           CALL cp_dbcsr_iterator_next_block(iter, stored_row, stored_col,&
-               blkdata_2d, tr, blk)
+               blkdata_2d, blk)
+          tr = .FALSE.
           !
           IF(SIZE(blkdata_2d).EQ.0) CYCLE
           ! We need to get the upper triangular form for the
@@ -3052,7 +3028,7 @@ END FUNCTION cp_dbcsr_get_id_nr
           !     sm_row, sm_col, associated(blkdata_2d)
           IF (ASSOCIATED (blkdata_2d)) THEN
              CALL cp_dbcsr_get_block (matrix, sm_row, sm_col, blkdata_2d,&
-                  .FALSE., found)
+                  found)
              IF (.NOT. found) blkdata_2d(:,:) = 0.0_dp
           ELSEIF (found) THEN
              ! * data exists in DBCSR but not SM: add it

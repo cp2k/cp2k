@@ -146,7 +146,6 @@ CONTAINS
     INTEGER                                  :: blk, col, col_size, handle, &
                                                 i, k, n, output_unit, p, row, &
                                                 row_size
-    LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: expfactor, f2, norm_fro, &
                                                 norm_gct, tmp
@@ -173,7 +172,7 @@ CONTAINS
     CALL cp_dbcsr_copy(C,C_NEW,error=error)
     CALL cp_dbcsr_iterator_start(iter, C)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, tr, blk,&
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, blk,&
             row_size=row_size, col_size=col_size)
        DO p=1,col_size! p
        DO i=1,row_size! i
@@ -851,7 +850,7 @@ CONTAINS
       DIMENSION(:)                           :: evals_exp
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: data_z
     INTEGER                                  :: blk, col, handle, k, row
-    LOGICAL                                  :: found, tr_d, tr_z
+    LOGICAL                                  :: found
     REAL(KIND=dp), DIMENSION(:), POINTER     :: data_d
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: cmat_u, cmat_x
@@ -874,12 +873,8 @@ CONTAINS
        !vwlocal_data_c=CMPLX(0.0_dp,local_data_r,KIND=dp)
        CALL cp_dbcsr_iterator_start(iter, cmat_x)
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_z, tr_z, blk)
-          CALL cp_dbcsr_get_block_p(qs_ot_env%rot_mat_x, row, col, data_d, tr_d, found)
-          IF(tr_z.NEQV.tr_d) THEN
-             WRITE(*,*) routineN//' tr_z.NEQV.tr_d'
-             STOP
-          ENDIF
+          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_z, blk)
+          CALL cp_dbcsr_get_block_p(qs_ot_env%rot_mat_x, row, col, data_d, found)
           IF(.NOT.found) THEN
              WRITE(*,*) routineN//' .NOT.found'
              !stop
@@ -953,16 +948,8 @@ CONTAINS
 
        CALL cp_dbcsr_iterator_start(iter, cmat_buf1)
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_z, tr_z, blk)
-          CALL cp_dbcsr_get_block_p(qs_ot_env%matrix_buf1, row, col, data_d, tr_d, found)
-          IF(.NOT.found) THEN
-             WRITE(*,*) routineN//' we stop 1'
-             STOP
-          ENDIF
-          IF(tr_z.NEQV.tr_d) THEN
-             WRITE(*,*) routineN//' we stop 2'
-             STOP
-          ENDIF
+          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_z, blk)
+          CALL cp_dbcsr_get_block_p(qs_ot_env%matrix_buf1, row, col, data_d, found)
           data_z=data_d
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
@@ -974,7 +961,7 @@ CONTAINS
 
        CALL cp_dbcsr_iterator_start(iter, cmat_buf1)
        DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_z, tr_z, blk,&
+          CALL cp_dbcsr_iterator_next_block(iter, row, col, data_z,blk,&
                row_size=row_size, col_size=col_size, &
                row_offset=row_offset, col_offset=col_offset)
           DO j=1,col_size
@@ -1532,7 +1519,6 @@ CONTAINS
     INTEGER                                  :: blk, col, col_offset, &
                                                 col_size, handle, i, j, k, &
                                                 row, row_offset, row_size
-    LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: a, b
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -1579,7 +1565,7 @@ CONTAINS
     CALL cp_dbcsr_copy(qs_ot_env%matrix_cosp_b,qs_ot_env%matrix_cosp,error=error)
     CALL cp_dbcsr_iterator_start(iter, qs_ot_env%matrix_cosp_b)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, tr,&
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA,&
             block_number=blk, row_size=row_size, col_size=col_size, &
             row_offset=row_offset, col_offset=col_offset)
        DO j=1,col_size
@@ -1606,7 +1592,7 @@ CONTAINS
     CALL cp_dbcsr_copy(qs_ot_env%matrix_sinp_b,qs_ot_env%matrix_sinp,error=error)
     CALL cp_dbcsr_iterator_start(iter, qs_ot_env%matrix_sinp_b)
     DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA, tr,&
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, DATA,&
             block_number=blk, row_size=row_size, col_size=col_size, &
             row_offset=row_offset, col_offset=col_offset)
        DO j=1,col_size
