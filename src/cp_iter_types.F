@@ -27,9 +27,10 @@ MODULE cp_iter_types
   INTEGER, SAVE, PRIVATE               :: last_it_info_id=0
 
   ! When adding a new iteration level PLEASE update the following list with the proper name!
-  CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(15) :: each_possible_labels= (/&
+  CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(16) :: each_possible_labels= (/&
        "__ROOT__          ",&
        "JUST_ENERGY       ",&
+       "POWELL_OPT        ",&
        "QS_SCF            ",&
        "XAS_SCF           ",&
        "MD                ",&
@@ -44,9 +45,10 @@ MODULE cp_iter_types
        "BSSE              ",&
        "SHELL_OPT         "/)
 
-  CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(15) ::  each_desc_labels= (/&
+  CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(16) ::  each_desc_labels= (/&
        "Iteration level for __ROOT__ (fictitious iteration level)                      ",&
        "Iteration level for an ENERGY/ENERGY_FORCE calculation.                        ",&
+       "Iteration level for POWELL based optimization steps.                           ",&
        "Iteration level for the SCF Steps.                                             ",&
        "Iteration level for the X-Ray Absorption Spectroscopy (XAS) SCF Steps.         ",&
        "Iteration level for the MD steps.                                              ",&

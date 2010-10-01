@@ -7,8 +7,12 @@
 MODULE powell
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'powell'
 
   TYPE opt_state_type
     INTEGER            :: state
@@ -41,7 +45,12 @@ CONTAINS
     REAL(dp), DIMENSION(*)                   :: x
     TYPE(opt_state_type)                     :: optstate
 
-    INTEGER                                  :: npt
+    CHARACTER(len=*), PARAMETER :: routineN = 'powell_optimize', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, npt
+
+    CALL timeset(routineN,handle)
 
     SELECT CASE (optstate%state)
     CASE (0)
@@ -55,7 +64,7 @@ CONTAINS
     CASE (1,2)
        CALL newuoa (n, x, optstate)
     CASE (3)
-       WRITE(optstate%unit,*) "POWELL| Too many steps"
+       WRITE(optstate%unit,*) "POWELL| Exceeding maximum number of steps"
        optstate%state = -1
     CASE (4)
        WRITE(optstate%unit,*) "POWELL| Error in trust region"
@@ -73,6 +82,8 @@ CONTAINS
     CASE DEFAULT
        STOP
     END SELECT
+
+    CALL timestop(handle)
 
   END SUBROUTINE powell_optimize
 !******************************************************************************

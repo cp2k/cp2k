@@ -484,6 +484,12 @@ CONTAINS
                 CALL set_restart_info("CELL_OPT COUNTERS",restarted_infos,error)
              END IF
              !
+             IF (check_restart(input_file, restart_file, "OPTIMIZE_INPUT",error)) THEN
+                CALL section_vals_val_get(restart_file,"OPTIMIZE_INPUT%ITER_START_VAL",i_val=myi,error=error)
+                CALL section_vals_val_set(input_file,"OPTIMIZE_INPUT%ITER_START_VAL",i_val=myi,error=error)
+                CALL set_restart_info("OPTIMIZE_INPUT ITERATION NUMBER",restarted_infos,error)
+             END IF
+             !
              IF (check_restart(input_file, restart_file, "MOTION%PINT",error)) THEN
                 ! PINT
                 CALL section_vals_val_get(restart_file,"MOTION%PINT%ITERATION",i_val=myi,error=error)
@@ -529,6 +535,13 @@ CONTAINS
              rep_sections => section_vals_get_subs_vals(restart_file,"MOTION%BAND%REPLICA",error=error)
              CALL section_vals_set_subs_vals(input_file,"MOTION%BAND%REPLICA",rep_sections,error=error)
              CALL set_restart_info("BAND CALCULATION",restarted_infos,error)
+          END IF
+
+          CALL section_vals_val_get(r_section,"RESTART_OPTIMIZE_INPUT_VARIABLES",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "OPTIMIZE_INPUT%VARIABLE",error)) THEN
+             rep_sections => section_vals_get_subs_vals(restart_file,"OPTIMIZE_INPUT%VARIABLE",error=error)
+             CALL section_vals_set_subs_vals(input_file,"OPTIMIZE_INPUT%VARIABLE",rep_sections,error=error)
+             CALL set_restart_info("OPTIMIZE_INPUT: VARIABLES",restarted_infos,error)
           END IF
 
           CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,error=error)

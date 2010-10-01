@@ -300,6 +300,7 @@ OBJECTS_GENERIC =\
  input_cp2k_thermostats.o\
  input_cp2k_vib.o\
  input_cp2k_xc.o\
+ input_optimize_input.o\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\
@@ -402,6 +403,7 @@ OBJECTS_GENERIC =\
  neb_opt_utils.o\
  neb_types.o\
  neb_utils.o\
+ optimize_input.o\
  orbital_pointers.o\
  orbital_symbols.o\
  orbital_transformation_matrices.o\

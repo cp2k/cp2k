@@ -17,6 +17,8 @@
 ! *****************************************************************************
 MODULE f77_interface
   USE bibliography,                    ONLY: add_all_references
+  USE cell_types,                      ONLY: cell_type,&
+                                             init_cell
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -34,14 +36,10 @@ MODULE f77_interface
   USE force_env_methods,               ONLY: ep_create_force_env,&
                                              force_env_calc_energy_force,&
                                              force_env_shake
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_get_natom,&
-                                             force_env_pos_get,&
-                                             force_env_release,&
-                                             force_env_retain,&
-                                             force_env_set,&
-                                             force_env_type,&
-                                             multiple_fe_list
+  USE force_env_types,                 ONLY: &
+       force_env_get, force_env_get_natom, force_env_pos_get, &
+       force_env_release, force_env_retain, force_env_set, &
+       force_env_set_cell, force_env_type, multiple_fe_list
   USE fp_types,                        ONLY: fp_env_create,&
                                              fp_env_read,&
                                              fp_env_release,&
@@ -133,7 +131,7 @@ MODULE f77_interface
             get_force, calc_energy_force, get_energy, &
             calc_energy, calc_force, check_input, get_natom,&
             f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
-            set_vel, get_vel, do_shake
+            set_vel, get_vel, do_shake, set_cell, get_cell
 CONTAINS
 
 ! *****************************************************************************
@@ -984,6 +982,84 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE set_pos
+
+! *****************************************************************************
+!> \brief sets a new cell 
+!> \param new_cell the array with the cell matrix 
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE set_cell(env_id, new_cell, ierr)
+    INTEGER, INTENT(in)                      :: env_id
+    REAL(kind=dp), DIMENSION(3, 3)           :: new_cell
+    INTEGER, INTENT(out)                     :: ierr
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_cell', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure=.FALSE.
+
+    NULLIFY(f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.not.failure) THEN
+       NULLIFY(cell)
+       CALL force_env_get(f_env%force_env,cell=cell,error=error)
+       CALL cp_error_check(error,failure)
+       IF (.NOT.failure) THEN
+          CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          cell%hmat = new_cell
+          CALL init_cell(cell)
+          CALL force_env_set_cell(f_env%force_env, cell, error)
+       END IF
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+  END SUBROUTINE set_cell
+
+! *****************************************************************************
+!> \brief gets a cell 
+!> \param cell the array with the cell matrix 
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE get_cell(env_id, cell, ierr)
+    INTEGER, INTENT(in)                      :: env_id
+    REAL(kind=dp), DIMENSION(3, 3)           :: cell
+    INTEGER, INTENT(out)                     :: ierr
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_cell', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell_full
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+
+    failure=.FALSE.
+
+    NULLIFY(f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.not.failure) THEN
+       NULLIFY(cell_full)
+       CALL force_env_get(f_env%force_env,cell=cell_full,error=error)
+       CALL cp_error_check(error,failure)
+       IF (.NOT.failure) THEN
+          CPPrecondition(ASSOCIATED(cell_full),cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          cell = cell_full%hmat 
+       END IF
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+  END SUBROUTINE get_cell
 
 ! *****************************************************************************
 !> \brief gets the positions of the atoms

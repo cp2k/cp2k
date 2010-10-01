@@ -98,7 +98,7 @@ MODULE message_passing
   ! informational / generation of sub comms
   PUBLIC :: mp_environ, mp_comm_compare, mp_cart_coords, mp_rank_compare
   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
-  PUBLIC :: mp_comm_dup, mp_comm_split
+  PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
   PUBLIC :: cp2k_is_parallel
 
   ! message passing
@@ -1403,6 +1403,39 @@ CONTAINS
 #endif
   END SUBROUTINE mp_waitany
 
+! *****************************************************************************
+!> \brief the direct way to split a communicator each color is a sub_comm, 
+!>        the rank order is accoring to the order in the orig comm
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE mp_comm_split_direct(comm,sub_comm,color)
+    INTEGER, INTENT(in)                      :: comm
+    INTEGER, INTENT(OUT)                     :: sub_comm
+    INTEGER, INTENT(in)                      :: color
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split_direct', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+
+    ierr = 0
+#if defined(__mp_timeset__)
+    CALL timeset_mp(routineN,handle)
+#endif
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_comm_split(comm,color,0,sub_comm,ierr)
+    IF (ierr/=mpi_success) CALL mp_stop(ierr,routineN)
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=10,count=1,time=t_end-t_start)
+#else
+    CALL mp_comm_dup(comm,sub_comm) 
+#endif
+#if defined(__mp_timeset__)
+    CALL timestop_mp(handle)
+#endif
+
+  END SUBROUTINE mp_comm_split_direct
 ! *****************************************************************************
 !> \brief splits the given communicator in group in subgroups trying to organize
 !>      them in a way that the communication within each subgroup is

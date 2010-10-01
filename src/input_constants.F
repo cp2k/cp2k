@@ -27,7 +27,10 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: do_atom=1,&
                                               do_farming=2,&
                                               do_test=3,&
-                                              do_cp2k=4
+                                              do_cp2k=4,&
+                                              do_optimize_input=5
+
+  INTEGER, PARAMETER, PUBLIC               :: opt_force_matching=1
 
   INTEGER, PARAMETER, PUBLIC               :: do_full_density=0,&
                                               do_spin_density=1

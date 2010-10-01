@@ -30,6 +30,7 @@ MODULE input_cp2k
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
+  USE input_optimize_input,            ONLY: create_optimize_input_section
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_add_keyword, section_add_subsection, section_create, &
@@ -150,6 +151,10 @@ CONTAINS
        CALL section_release(section,error=error)
 
        CALL create_farming_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
+       CALL create_optimize_input_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
@@ -374,12 +379,13 @@ CONTAINS
          variants=(/"PROGRAM"/),&
          description="Which program should be run",&
          usage="PROGRAM_NAME <STRING>",&
-         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K"),&
+         enum_c_vals=s2a("ATOM","FARMING","TEST","CP2K","OPTIMIZE_INPUT"),&
          enum_desc=s2a("Runs single atom calculations",&
                        "Runs N independent jobs in a single run",&
                        "Do some benchmarking and testing",&
-                       "Runs one of the CP2K package"),&
-         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k/),&
+                       "Runs one of the CP2K package",&
+                       "A tool do optimize parameters in a CP2K input"),&
+         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input/),&
          default_i_val=do_cp2k, supported_feature=.TRUE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -1304,23 +1310,28 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_SHELL_POS",&
-            description="Takes the positions of the shells from the external file (only if shel-model)",&
+            description="Takes the positions of the shells from the external file (only if shell-model)",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CORE_POS",&
-            description="Takes the positions of the cores from the external file (only if shel-model)",&
+            description="Takes the positions of the cores from the external file (only if shell-model)",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_OPTIMIZE_INPUT_VARIABLES",&
+            description="Restart with the optimize input variables",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_SHELL_VELOCITY",&
-            description="Takes the velocities of the shells from the external file (only if shel-model)",&
+            description="Takes the velocities of the shells from the external file (only if shell-model)",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CORE_VELOCITY",&
-            description="Takes the velocities of the shells from the external file (only if shel-model)",&
+            description="Takes the velocities of the shells from the external file (only if shell-model)",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
