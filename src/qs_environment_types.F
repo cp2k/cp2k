@@ -307,6 +307,8 @@ MODULE qs_environment_types
     LOGICAL :: requires_mo_derivs
     LOGICAL :: use_harris
     LOGICAL :: run_rtp
+    INTEGER :: nelectron_total
+    INTEGER :: nelectron_spin(2)
     REAL(KIND=dp)                                         :: sim_time
     REAL(KIND=dp) :: start_time, target_time
     INTEGER                                               :: sim_step
@@ -316,7 +318,7 @@ MODULE qs_environment_types
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos, mos_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs_aux_fit
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_loc_history
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER         :: mo_derivs
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
     INTEGER                                               :: neighbor_list_id
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ae,&
                                                              sac_ppl,sap_ppnl,&
@@ -426,7 +428,7 @@ CONTAINS
        local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,&
+       mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nelectron_total,nelectron_spin,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
@@ -526,6 +528,8 @@ CONTAINS
                                                 mo_loc_history
     TYPE(tddfpt_control_type), OPTIONAL, &
       POINTER                                :: tddfpt_control
+    INTEGER, OPTIONAL                        :: nelectron_total
+    INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
@@ -579,6 +583,8 @@ CONTAINS
          molecule_kinds_new)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env%subsys),cp_failure_level,routineP,error,failure)
+    IF (PRESENT(nelectron_total)) nelectron_total=qs_env%nelectron_total
+    IF (PRESENT(nelectron_spin))  nelectron_spin=qs_env%nelectron_spin
     IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory=qs_env%outer_scf_ihistory
     IF (PRESENT(cell)) cell => qs_env%cell
@@ -821,6 +827,8 @@ CONTAINS
     qs_env%outer_scf_ihistory=0
     qs_env%broyden_adaptive_sigma=1.0_dp
     qs_env%neighbor_list_id=-1
+    qs_env%nelectron_total=-1
+    qs_env%nelectron_spin=-1
     
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
@@ -868,7 +876,7 @@ CONTAINS
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,&
-       mo_derivs_aux_fit, mo_loc_history, &
+       mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin,&
        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
@@ -946,6 +954,8 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs_aux_fit, &
                                                 mo_loc_history
+    INTEGER, OPTIONAL                        :: nelectron_total
+    INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     INTEGER, OPTIONAL                        :: neighbor_list_id
     TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
@@ -994,7 +1004,9 @@ CONTAINS
        CALL cell_retain(cell, error=error)
        CALL cell_release(qs_env%cell,error=error)
        qs_env%cell => cell
-    END IF
+    END IF 
+    IF (PRESENT(nelectron_total)) qs_env%nelectron_total=nelectron_total
+    IF (PRESENT(nelectron_spin))  qs_env%nelectron_spin=nelectron_spin
     IF (PRESENT(super_cell)) THEN
        CALL cell_retain(super_cell, error=error)
        CALL cell_release(qs_env%super_cell,error=error)
