@@ -25,8 +25,8 @@ MODULE qs_initial_guess
        cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set_diag, &
-       cp_dbcsr_trace, cp_dbcsr_verify_matrix
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_from_fm,&
@@ -94,7 +94,11 @@ MODULE qs_initial_guess
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_initial_guess'
 
-  PUBLIC ::  calculate_first_density_matrix
+  PUBLIC ::  calculate_first_density_matrix, calculate_atomic_block_dm
+
+  TYPE atom_matrix_type
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: mat
+  END TYPE atom_matrix_type
 
 CONTAINS
 
@@ -118,42 +122,45 @@ CONTAINS
       routineN = 'calculate_first_density_matrix', &
       routineP = moduleN//':'//routineN
 
-    TYPE atom_matrix_type
-      REAL(KIND=dp), DIMENSION(:,:), POINTER   :: mat
-    END TYPE atom_matrix_type
-
     CHARACTER(LEN=default_path_length)       :: file_name, filename
-    INTEGER :: atom_a, density_guess, group, handle, homo, i, iatom, id_nr, &
-      ikind, iset, isgf, isgfa, ishell, ispin, istat, j, la, last_read, maxl, &
-      maxll, nao, natom, natoms, ncount, nelectron, nmo, not_read, nset, nsgf, nspin, &
-      nvec, qs_env_id, z, irow, icol, size_atomic_kind_set, istart_col, istart_row, &
-      n_cols, n_rows, n, iseed(4), natoms_tmp, nmo_tmp, blk
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, kind_of
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell, &
-                                                sort_kind, nelec_kind
+    INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, &
+      icol, id_nr, ikind, irow, iseed(4), iset, isgf, isgfa, ishell, ispin, &
+      istart_col, istart_row, istat, j, la, last_read, maxl, maxll, n, &
+      n_cols, n_rows, nao, natom, natoms, natoms_tmp, ncount, nelectron, nmo, &
+      nmo_tmp, not_read, nset, nsgf, nspin, nvec, output_unit, qs_env_id, &
+      size_atomic_kind_set, z
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_of, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, &
+                                                nelec_kind, nshell, sort_kind
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
-    LOGICAL                                  :: exist, failure, id_equal, &
-                                                ortho_basis, scp, tr
-    LOGICAL                                  :: do_std_diag, ofgpw
-    INTEGER                                  :: output_unit
-    REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
-                                                my_sum, total_rho, trps1, trps2, &
-                                                yy, zeff, checksum, eps, occ
+    LOGICAL                                  :: do_std_diag, exist, failure, &
+                                                ofgpw, ortho_basis, scp
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
+    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
+    REAL(KIND=dp)                            :: checksum, eps, maxocc, &
+                                                my_sum, nelec, occ, paa, &
+                                                scale, total_rho, trps1, &
+                                                trps2, yy, zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:)    :: buff,buff2
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
-    REAL(dp), DIMENSION(:,:), POINTER        :: DATA
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(atom_matrix_type), DIMENSION(:), &
       POINTER                                :: pmat
-    TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: h_core_sparse, p_rmpv, &
+                                                s_sparse
+    TYPE(cp_dbcsr_type)                      :: mo_dbcsr, mo_tmp_dbcsr
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work1
     TYPE(cp_fm_type), POINTER                :: mo_coeff, moa, mob, ortho, &
                                                 sv, work2
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -163,12 +170,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: s_sparse, h_core_sparse, p_rmpv
-    TYPE(section_vals_type), POINTER         :: dft_section, input, subsys_section
-    TYPE(cp_dbcsr_type)                          :: mo_dbcsr, mo_tmp_dbcsr
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
-    TYPE(dbcsr_distribution_obj)             :: dist
-    TYPE(cp_dbcsr_iterator)                     :: iter
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                subsys_section
 
     logger => cp_error_get_logger(error)
     failure = .FALSE.
@@ -460,16 +463,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     ELSE IF (density_guess == atomic_guess) THEN
 
-       group = qs_env%para_env%group
-       natom = SIZE(particle_set)
-       ALLOCATE (kind_of(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
-       
-       ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
        subsys_section => section_vals_get_subs_vals(input,"SUBSYS",error=error)
        output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",extension=".Log",&
                                           error=error)
@@ -480,48 +473,12 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        END IF
 
        DO ispin=1,nspin
-          IF ((output_unit > 0).AND.(nspin > 1)) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T2,A,I0)") "Spin ", ispin
-          END IF
-          scale = 1.0_dp
-          IF (nspin == 2) scale=0.5_dp
-          DO ikind=1,SIZE(atomic_kind_set)
-            atomic_kind => atomic_kind_set(ikind)
-            NULLIFY(pmat(ikind)%mat)
-            IF (output_unit > 0) THEN
-              WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-                "Guess for atomic kind: "//TRIM(atomic_kind%name)
-            END IF
-            CALL calculate_atomic_orbitals(atomic_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
-                                           ispin=ispin,nspin=nspin,error=error)
-          END DO
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                          maxocc=maxocc,&
-                          nelectron=nelectron)
 
-          CALL cp_dbcsr_iterator_start(iter, p_rmpv(ispin)%matrix)
-          DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-             CALL cp_dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
-             ikind = kind_of(irow)
-             IF(icol.EQ.irow) DATA(:,:) =  pmat(ikind)%mat(:,:)*scale
-          ENDDO
-          CALL cp_dbcsr_iterator_stop(iter)
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
-          CALL cp_dbcsr_trace(p_rmpv(ispin)%matrix, s_sparse(1)%matrix, trps1, error=error)
-          scale=REAL(nelectron,dp)/trps1
-          CALL cp_dbcsr_scale(p_rmpv(ispin)%matrix, scale, error=error)
-
-          IF (output_unit > 0) THEN
-            IF (nspin > 1) THEN
-              WRITE (UNIT=output_unit,FMT="(T2,A,I1)")&
-                "Re-scaling the density matrix to get the right number of electrons for spin ",ispin
-            ELSE 
-              WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                "Re-scaling the density matrix to get the right number of electrons"
-            END IF
-            WRITE (output_unit,'(T19,A,T44,A,T67,A)') "# Electrons","Trace(P)","Scaling factor" 
-            WRITE (output_unit,'(T20,I10,T40,F12.3,T67,F14.3)') nelectron,trps1,scale
-          END IF
+          CALL calculate_atomic_block_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, &
+                                         particle_set, atomic_kind_set, &
+                                         ispin, nspin, nelectron, output_unit, error)
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -573,13 +530,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              END IF
           END IF
 
-          DO ikind=1,SIZE(atomic_kind_set)
-            IF(ASSOCIATED(pmat(ikind)%mat)) THEN
-              DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-            END IF
-          END DO
-
        END DO
 
        IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
@@ -600,11 +550,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
                                          "PRINT%KINDS",error=error)
 
-       DEALLOCATE (pmat,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
-       DEALLOCATE (kind_of,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ELSE IF (density_guess == sparse_guess) THEN
 
@@ -1194,5 +1139,109 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     CALL timestop(handle)
 
   END SUBROUTINE calculate_first_density_matrix
+
+! *****************************************************************************
+!> \brief returns a block diagonal density matrix. Blocks correspond to the atomic densities.
+! *****************************************************************************
+  SUBROUTINE calculate_atomic_block_dm(matrix_p,matrix_s, particle_set, atomic_kind_set, &
+                                       ispin, nspin, nelectron_spin, output_unit, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: ispin, nspin, nelectron_spin, &
+                                                output_unit
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_block_dm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, handle, icol, ikind, &
+                                                irow, istat, natom
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: DATA
+    REAL(KIND=dp)                            :: scale, trps1
+    TYPE(atom_matrix_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: pmat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_iterator)                  :: iter
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+    IF ((output_unit > 0).AND.(nspin > 1)) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,I0)") "Spin ", ispin
+    END IF
+
+    CALL cp_dbcsr_set(matrix_p,0.0_dp,error=error)
+
+    natom = SIZE(particle_set)
+
+    ALLOCATE (kind_of(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+
+    ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! precompute the atomic blocks corresponding to spherical atoms
+    DO ikind=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(ikind)
+      NULLIFY(pmat(ikind)%mat)
+      IF (output_unit > 0) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+          "Guess for atomic kind: "//TRIM(atomic_kind%name)
+      END IF
+      CALL calculate_atomic_orbitals(atomic_kind,iunit=output_unit,pmat=pmat(ikind)%mat,&
+                                     ispin=ispin,nspin=nspin,error=error)
+    END DO
+
+    scale = 1.0_dp
+    IF (nspin == 2) scale=0.5_dp
+
+    CALL cp_dbcsr_iterator_start(iter, matrix_p)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, irow, icol, DATA, blk)
+       ikind = kind_of(irow)
+       IF(icol.EQ.irow) DATA(:,:) =  pmat(ikind)%mat(:,:)*scale
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    CALL cp_dbcsr_trace(matrix_p, matrix_s, trps1, error=error)
+    scale=REAL(nelectron_spin,dp)/trps1
+    CALL cp_dbcsr_scale(matrix_p, scale, error=error)
+
+    IF (output_unit > 0) THEN
+      IF (nspin > 1) THEN
+        WRITE (UNIT=output_unit,FMT="(T2,A,I1)")&
+          "Re-scaling the density matrix to get the right number of electrons for spin ",ispin
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(T2,A)")&
+          "Re-scaling the density matrix to get the right number of electrons"
+      END IF
+      WRITE (output_unit,'(T19,A,T44,A,T67,A)') "# Electrons","Trace(P)","Scaling factor"
+      WRITE (output_unit,'(T20,I10,T40,F12.3,T67,F14.3)') nelectron_spin,trps1,scale
+    END IF
+
+    DO ikind=1,SIZE(atomic_kind_set)
+      IF(ASSOCIATED(pmat(ikind)%mat)) THEN
+        DEALLOCATE (pmat(ikind)%mat,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+    END DO
+
+    DEALLOCATE (pmat,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    
+    DEALLOCATE (kind_of,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_atomic_block_dm
 
 END MODULE qs_initial_guess
