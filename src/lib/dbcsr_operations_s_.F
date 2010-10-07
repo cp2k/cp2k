@@ -398,14 +398,14 @@
   END SUBROUTINE dbcsr_add_beta_s
 
   SUBROUTINE dbcsr_filter_s (matrix, eps, method, use_absolute, &
-       filter_diag, error)
+       filter_diag, quick, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(kind=real_4), INTENT(IN)                      :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
-    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag
+    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag, quick
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     CALL dbcsr_filter_anytype (matrix, dbcsr_scalar(eps), method, &
-         use_absolute, filter_diag, error)
+         use_absolute, filter_diag, quick, error)
   END SUBROUTINE dbcsr_filter_s
 
   SUBROUTINE dbcsr_set_diag_s(matrix, diag, error)

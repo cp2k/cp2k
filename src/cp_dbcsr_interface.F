@@ -2139,22 +2139,31 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_create_template
 
 
-  SUBROUTINE cp_dbcsr_filter(matrix, eps, method, use_absolute, filter_diag, error)
+  SUBROUTINE cp_dbcsr_filter(matrix, eps, method, use_absolute, filter_diag, &
+       thorough, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     REAL(dp), INTENT(IN)                     :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
-    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag
+    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag, &
+                                                thorough
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_filter', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: timing_handle
+    LOGICAL                                  :: quick
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN, timing_handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_filter(matrix%matrix, eps, method, use_absolute, filter_diag, dbcsr_error)
+    IF (PRESENT (thorough)) THEN
+       quick = .NOT. thorough
+    ELSE
+       quick = .TRUE.
+    ENDIF
+    CALL dbcsr_filter(matrix%matrix, eps, method, use_absolute, filter_diag,&
+         quick=quick, error=dbcsr_error)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_filter
 

@@ -46,6 +46,8 @@ MODULE dbcsr_index_operations
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
+  LOGICAL, PARAMETER                   :: careful_mod = .TRUE.
+
 
   ! Index transformations
   PUBLIC :: dbcsr_make_index_canonical, make_index_triangular,&
@@ -56,7 +58,8 @@ MODULE dbcsr_index_operations
   PUBLIC :: dbcsr_make_dbcsr_index, dbcsr_sort_indices,&
             dbcsr_sort_many_indices, merge_index_arrays,&
             dbcsr_expand_row_index,&
-            dbcsr_count_row_index, dbcsr_build_row_index
+            dbcsr_count_row_index, dbcsr_build_row_index,&
+            dbcsr_index_prune_deleted
   ! Index array manipulation
   PUBLIC :: dbcsr_addto_index_array, dbcsr_clearfrom_index_array,&
             dbcsr_repoint_index
@@ -721,6 +724,81 @@ CONTAINS
 !test!$OMP END PARALLEL
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE dbcsr_order_matrix_index
+
+
+! *****************************************************************************
+!> \brief Removes the deleted blocks from the index.
+!> \par Description
+!> \param[in,out] matrix      Prune the index of this matrix.
+!> \param[in,out] error       error
+! *****************************************************************************
+  SUBROUTINE dbcsr_index_prune_deleted(matrix, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_index_prune_deleted', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle, nblks_max, &
+                                                new_blk, nrows, old_blk, row, &
+                                                stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: new_blk_p, new_col_i, &
+                                                new_row_count
+    INTEGER, DIMENSION(:), POINTER           :: old_blk_p, old_col_i, &
+                                                old_row_p
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    !
+    old_row_p => matrix%m%row_p
+    old_col_i => matrix%m%col_i
+    old_blk_p => matrix%m%blk_p
+    !
+    nrows = matrix%m%nblkrows_total
+    nblks_max = old_row_p(nrows+1)
+    ALLOCATE (new_row_count(nrows), stat=stat)
+    CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
+         routineN, "Can not allocate memory.", __LINE__, error=error)
+    ALLOCATE (new_col_i(nblks_max), stat=stat)
+    CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
+         routineN, "Can not allocate memory.", __LINE__, error=error)
+    ALLOCATE (new_blk_p(nblks_max), stat=stat)
+    CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
+         routineN, "Can not allocate memory.", __LINE__, error=error)
+    !
+    ! Build up the new index from all non-deleted blocks in the
+    ! existing index.
+    new_blk = 0
+    DO row = 1, nrows
+       new_row_count(row) = 0
+       DO old_blk = old_row_p(row)+1, old_row_p(row+1)
+          IF (old_blk_p(old_blk) .GT. 0) THEN
+             new_blk = new_blk + 1
+             new_row_count(row) = new_row_count(row) + 1
+             new_col_i(new_blk) = old_col_i(old_blk)
+             new_blk_p(new_blk) = old_blk_p(old_blk)
+          ENDIF
+       ENDDO
+    ENDDO
+    !
+    CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_row_p)
+    CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_col_i)
+    CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_blk_p)
+    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p,&
+         reservation=nrows+1, extra=2*new_blk, error=error)
+    old_row_p => matrix%m%row_p
+    CALL dbcsr_build_row_index(counts=new_row_count, rows=old_row_p,&
+         nrows=nrows)
+    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, DATA=new_col_i,&
+         error=error)
+    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, DATA=new_blk_p,&
+         error=error)
+    !
+    DEALLOCATE (new_col_i, new_blk_p, new_row_count)
+    !
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_index_prune_deleted
 
 
 ! *****************************************************************************

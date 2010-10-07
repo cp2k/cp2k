@@ -409,19 +409,21 @@ CONTAINS
        ENDDO
        !$OMP DO
        DO i = 1, nblks
-          IF (.NOT. multidata) THEN
-             CALL dbcsr_data_set (dsts,&
-                  ABS(blk_p(i)), sizes(i),&
-                  src, source_lb=ABS(old_blk_p(i)))
-             !dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
-             !     src(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
-          ELSE
-             CALL dbcsr_data_set (dsts,&
-                  ABS(blk_p(i)), sizes(i),&
-                  srcs(old_blk_d(i)), source_lb=ABS(old_blk_p(i)))
-             !dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
-             !     srcs(old_blk_d(i))%d&
-             !     %r_dp(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
+          IF (old_blk_p(i) .NE. 0) THEN
+             IF (.NOT. multidata) THEN
+                CALL dbcsr_data_set (dsts,&
+                     ABS(blk_p(i)), sizes(i),&
+                     src, source_lb=ABS(old_blk_p(i)))
+                !dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
+                !     src(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
+             ELSE
+                CALL dbcsr_data_set (dsts,&
+                     ABS(blk_p(i)), sizes(i),&
+                     srcs(old_blk_d(i)), source_lb=ABS(old_blk_p(i)))
+                !dst(ABS(blk_p(i)):ABS(blk_p(i))+sizes(i)-1) =&
+                !     srcs(old_blk_d(i))%d&
+                !     %r_dp(ABS(old_blk_p(i)):ABS(old_blk_p(i))+sizes(i)-1)
+             ENDIF
           ENDIF
        ENDDO
        !$OMP END DO

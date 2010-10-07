@@ -41,6 +41,7 @@ MODULE dbcsr_work_operations
                                              dbcsr_build_row_index,&
                                              dbcsr_clearfrom_index_array,&
                                              dbcsr_count_row_index,&
+                                             dbcsr_index_prune_deleted,&
                                              dbcsr_make_dbcsr_index,&
                                              dbcsr_repoint_index,&
                                              dbcsr_sort_indices
@@ -593,7 +594,9 @@ CONTAINS
 !>
 !> Work matrices (array or tree-based) are merged into the base DBCSR matrix.
 !>
-!> If a matrix has a valid index, then nothing is done.
+!> If a matrix is marked as having a valid index, then nothing is done.
+!>
+!> Deleted blocks are pruned from the index.
 !> \param[in,out] matrix      final matrix
 !> \param[in] resort          whether the indices should be sorted, default
 !>                            is true
@@ -610,7 +613,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, nwms, &
+    INTEGER                                  :: error_handler, nblks, nwms, &
                                                 start_offset
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       SAVE, TARGET                           :: empty_row_p
@@ -702,7 +705,28 @@ CONTAINS
     IF (can_quickly_finalize (matrix) .AND. .NOT. sort_data) THEN
        !$OMP BARRIER
        CALL quick_finalize (matrix, error)
-    ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
+    ELSE
+       !
+       !$OMP MASTER
+       !
+       ! Create work matrices if not yet existing
+       IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
+          nwms = 1
+          !$ nwms = omp_get_num_threads()
+          CALL dbcsr_work_create (matrix, n=nwms, error=error)
+       ENDIF
+       !$OMP END MASTER
+       !
+       ! Check for deleted blocks
+       !$OMP MASTER
+       nblks = matrix%m%row_p(matrix%m%nblkrows_total+1)
+       IF (ANY(matrix%m%blk_p(1:nblks) .EQ. 0)) THEN
+          WRITE(*,*)routineN//" Pruning empty blocks."
+          CALL dbcsr_index_prune_deleted (matrix, error)
+       ENDIF
+       !$OMP END MASTER
+       !
+       !$OMP BARRIER
        ! Check to see if we will need to create a parallel environment
        ! (needed when there are multiple work matrices but we are not
        ! in an OpenMP parallel section.)
@@ -1646,7 +1670,9 @@ CONTAINS
     ENDIF
     nblks = wm%lastblk
     ! Sort
-    CALL dbcsr_sort_indices (nblks, wm%row_i, wm%col_i, wm%blk_p)
+    IF (nblks .GT. 0) THEN
+       CALL dbcsr_sort_indices (nblks, wm%row_i, wm%col_i, wm%blk_p)
+    ENDIF
     !
     additions_total(:) = 0
     DO blk = 1, wm%lastblk

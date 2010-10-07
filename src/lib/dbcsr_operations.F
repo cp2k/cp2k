@@ -3066,15 +3066,20 @@ CONTAINS
 !> \brief filter a dbcsr matrix
 !> \param[inout] matrix_a  the matrix
 !> \param[in] eps          the threshold
-!> \param[in] method       how the matrix is filtered 
-!> 
+!> \param[in] method       how the matrix is filtered
+!> \param[in] use_absolute ?
+!> \param[in] filter_diag  NYI
+!> \param[in] quick        (optional) filter just the index (no data copying)
+!> \param[error] error     error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_filter_anytype(matrix, eps, method, use_absolute, filter_diag, error)
+  SUBROUTINE dbcsr_filter_anytype(matrix, eps, method,&
+       use_absolute, filter_diag, quick, error)
 
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
-    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag
+    LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag, &
+                                                quick
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_filter_anytype', &
@@ -3160,8 +3165,11 @@ CONTAINS
           END SELECT
        ENDDO
        CALL dbcsr_iterator_stop(iter)
-       CALL dbcsr_finalize (matrix, error=error)
-
+       IF (PRESENT (quick)) THEN
+          CALL dbcsr_finalize (matrix, reshuffle=.NOT. quick, error=error)
+       ELSE
+          CALL dbcsr_finalize (matrix, reshuffle=.TRUE., error=error)
+       ENDIF
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_filter_anytype
