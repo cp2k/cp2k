@@ -1963,9 +1963,8 @@ CPSourceFileRef)
          gth_potential_present=gth_potential_present)
 
     ! updates the total number of electrons
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         nelectron=scf_env%nelectron)
-    scf_env%nelectron = scf_env%nelectron - dft_control%charge
+    CALL get_qs_env(qs_env,nelectron_total=scf_env%nelectron,error=error)
+
     ! print occupation numbers
     IF (output_unit > 0) THEN
        DO ispin=1,dft_control%nspins
