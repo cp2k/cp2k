@@ -201,8 +201,9 @@ CONTAINS
       right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
       right_send_v_col, right_send_v_row, right_src_icol, right_src_irow, &
       right_src_p, right_src_pcol
-    INTEGER :: right_src_prow, right_src_v_col, right_src_v_row, v_k, v_ki
-    INTEGER(KIND=int_8)                      :: flop_single, flop_total
+    INTEGER :: right_src_prow, right_src_v_col, right_src_v_row, size_guess, &
+      v_k, v_ki
+    INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
       left_index_rr, left_index_sr, right_data_rr, right_data_sr, &
       right_index_rr, right_index_sr
@@ -215,9 +216,10 @@ CONTAINS
                                                 right_index_rp, right_index_sp
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
                                                 right_pgrid
-    LOGICAL                                  :: my_use_plasma
+    LOGICAL                                  :: keep_sparsity, my_use_plasma
     REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
                                                 trun, trun_t, tstart, tstop
+    REAL(KIND=real_8)                        :: fill_guess
     TYPE(dbcsr_2d_array_type), POINTER       :: left_buffer_calc, &
                                                 left_buffer_comm, &
                                                 right_buffer_calc, &
@@ -249,6 +251,11 @@ CONTAINS
 
     my_use_plasma = .FALSE.
     IF(PRESENT(use_plasma)) my_use_plasma = use_plasma
+    IF (PRESENT (retain_sparsity)) THEN
+       keep_sparsity = retain_sparsity
+    ELSE
+       keep_sparsity = .FALSE.
+    ENDIF
 
 !$omp parallel if( .NOT. my_use_plasma ) &
 !$omp default (none) &
@@ -346,28 +353,6 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
          "Product/Right matrix process grid mismatch",__LINE__,error)
     !
-    ! Setup product work areas
-!$omp parallel do schedule (static, 1) default(none) &
-!$omp          private (i) &
-!$omp          shared (product_matrix) &
-!$omp          shared (error, nthreads)
-    DO i = 1, nthreads
-       CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
-            MAX(product_matrix%m%wms(i)%datasize,&
-            dbcsr_nfullrows_local (product_matrix)&
-            *dbcsr_nfullcols_local (product_matrix)),error=error)
-            !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%nfullcols_local))
-       CALL dbcsr_data_set_size_referenced (product_matrix%m%wms(i)%data_area,&
-            product_matrix%m%wms(i)%datasize)
-       CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%m%wms(i)%col_i,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-    ENDDO
-!$omp end parallel do
-    !
     ! Exchange size data
     ALLOCATE (my_sizes(4, MAX (left_row_nimages, right_row_nimages),&
          MAX (left_col_nimages, right_col_nimages)))
@@ -457,6 +442,57 @@ CONTAINS
     ! Setup the left buffer matrices
     max_nblks = MAXVAL (all_sizes (imeta, :, :, :))
     max_nze = MAXVAL (all_sizes(idata, :, :, :))
+    !
+    ! Setup product work areas
+!$omp parallel do schedule (static, 1) default(none) &
+!$omp          private (i, size_guess, size8, fill_guess) &
+!$omp          shared (product_matrix) &
+!$omp          shared (error, nthreads)
+    DO i = 1, nthreads
+       IF (keep_sparsity) THEN
+          size_guess = product_matrix%m%wms(i)%datasize ! Should be minimal
+       ELSE
+          size8 = INT(dbcsr_nfullrows_local (product_matrix), KIND=int_8)&
+               * INT(dbcsr_nfullcols_local (product_matrix), KIND=int_8)
+          fill_guess = REAL(max_nze*nsteps_k, KIND=real_8) &
+                     / REAL(size8, KIND=real_8)
+          IF (dbg .AND. mynode .EQ. 0) THEN
+             WRITE(*,*)routineN//" fill orig =", fill_guess
+          ENDIF
+          fill_guess = MIN(fill_guess, 1.0_real_8)
+          fill_guess = 1.0_real_8 - fill_guess
+          fill_guess = fill_guess**4.0_real_8
+          fill_guess = 1.0_real_8 - fill_guess
+          IF (dbg .AND. mynode .EQ. 0) THEN
+             WRITE(*,*)routineN//" fill guess=", fill_guess
+          ENDIF
+          IF (nthreads .GT. 1) THEN
+             fill_guess = fill_guess *3.0_real_8 / REAL(2*nthreads, KIND=real_8)
+          ENDIF
+          size_guess = MAX(product_matrix%m%wms(i)%datasize,&
+               INT(REAL(size8, KIND=real_8) * fill_guess, KIND=int_4))
+       ENDIF
+       IF (dbg) &
+            WRITE(*,'(1X,A,2(1X,F12.3)))')routineN//" Using size guess",&
+            LOG(REAL(size_guess))/LOG(10.0), LOG(REAL(size8))/LOG(10.0)
+       CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
+            size_guess,error=error)
+            !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%nfullcols_local))
+       CALL dbcsr_data_set_size_referenced (product_matrix%m%wms(i)%data_area,&
+            product_matrix%m%wms(i)%datasize)
+       CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%col_i,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
+            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+    ENDDO
+!$omp end parallel do
+    !
+    IF (dbg .AND. mynode .EQ. 0) THEN
+       WRITE(*,*)routineN//" All sizes"
+       WRITE(*,'(1X,F12.3)') LOG(REAL(all_sizes(idata, :,:,:)))/LOG(10.0)
+    ENDIF
     CALL setup_buffer_matrices (left_buffer_1, left_row_mult, left_col_nimages,&
          left_set%mats(1,1), index_size=max_nblks,&
          data_size=max_nze, error=error)
@@ -976,6 +1012,8 @@ CONTAINS
     CALL dbcsr_finalize(product_matrix, error=error)
     !
     IF (dbg) THEN
+       WRITE(*,*)routineN//" Actual final size",&
+            LOG(REAL(dbcsr_data_get_size(product_matrix%m%data_area)))/LOG(10.0)
        checksum = dbcsr_checksum (product_matrix, error=error)
        IF ((output_unit>0)) THEN
           WRITE(output_unit,'(1X,A,1X,F9.4)')"Product Checksum=",checksum
@@ -1748,6 +1786,8 @@ CONTAINS
        CALL dbcsr_data_set_size_referenced (product_data_area, maxs)
     ENDIF
     IF (do_resize) THEN
+       IF (dbg) &
+            WRITE(*,*)routineN//" Resizing to", LOG(REAL(maxs))/LOG(10.0)
        CALL dbcsr_data_ensure_size (product_data_area,&
             maxs, factor=resize_factor, error=error)
     ENDIF
