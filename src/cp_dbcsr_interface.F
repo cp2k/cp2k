@@ -349,11 +349,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_gershgorin_norm', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
+
+    CALL timeset(routineN,handle)
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     norm = dbcsr_gershgorin_norm(matrix%matrix)
+
+    CALL timestop(handle)
 
   END FUNCTION cp_dbcsr_gershgorin_norm
 
@@ -366,11 +371,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_frobenius_norm', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
+
+    CALL timeset(routineN,handle)
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     norm = dbcsr_frobenius_norm(matrix%matrix, local)
+
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_frobenius_norm
 
 
@@ -384,13 +394,18 @@ CONTAINS
       routineN = 'cp_dbcsr_complete_redistribute', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN,handle)
 
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
     CALL cluster_buffer_flush (redist%buffers, error=error)
     CALL dbcsr_complete_redistribute(matrix%matrix, redist%matrix, keep_sparsity, dbcsr_error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_complete_redistribute
 
@@ -406,12 +421,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_d', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
+
+    CALL timeset(routineN,handle)
+
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_d
 
@@ -427,12 +448,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_s', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
+
+    CALL timeset(routineN,handle)
+
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_s
 
@@ -448,12 +475,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_z', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
 
+    CALL timeset(routineN,handle)
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_z
 
@@ -469,12 +500,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_c', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
+
+    CALL timeset(routineN,handle)
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_c
 
@@ -497,7 +533,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     valid_index = dbcsr_valid_index(matrix%matrix)
-
+  
   END FUNCTION cp_dbcsr_valid_index
 
   SUBROUTINE cp_dbcsr_get_stored_coordinates(matrix, row, column, transpose, processor)
@@ -522,6 +558,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     num_blocks = dbcsr_get_num_blocks (matrix%matrix)
+
   END FUNCTION cp_dbcsr_get_num_blocks
   
   FUNCTION cp_dbcsr_get_data_size (matrix) RESULT (data_size)
@@ -531,7 +568,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_data_size', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     data_size = dbcsr_get_data_size(matrix%matrix)
+
+    CALL timestop(handle)
 
   END FUNCTION cp_dbcsr_get_data_size
 
@@ -553,7 +596,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_occupation', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     occupation = dbcsr_get_occupation (matrix%matrix)
+
+    CALL timestop(handle)
 
   END FUNCTION cp_dbcsr_get_occupation
 
@@ -565,7 +614,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nblkrows_total', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     nblkrows_total = dbcsr_nblkrows_total(matrix%matrix)
+
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_nblkrows_total
 
   FUNCTION cp_dbcsr_nblkcols_total(matrix) RESULT (nblkcols_total)
@@ -575,7 +630,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nblkcols_total', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     nblkcols_total = dbcsr_nblkcols_total(matrix%matrix)
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_nblkcols_total
 
   FUNCTION cp_dbcsr_nfullrows_total(matrix) RESULT (nfullrows_total)
@@ -585,7 +645,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nfullrows_total', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     nfullrows_total = dbcsr_nfullrows_total(matrix%matrix)
+
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_nfullrows_total
 
   FUNCTION cp_dbcsr_nfullcols_total(matrix) RESULT (nfullcols_total)
@@ -595,7 +661,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nfullcols_total', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     nfullcols_total = dbcsr_nfullcols_total(matrix%matrix)
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_nfullcols_total
 
   FUNCTION cp_dbcsr_nblkrows_local(matrix) RESULT (nblkrows_local)
@@ -605,7 +676,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nblkrows_local', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     nblkrows_local = dbcsr_nblkrows_local(matrix%matrix)
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_nblkrows_local
 
   FUNCTION cp_dbcsr_nblkcols_local(matrix) RESULT (nblkcols_local)
@@ -615,7 +690,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nblkcols_local', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     nblkcols_local = dbcsr_nblkcols_local(matrix%matrix)
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_nblkcols_local
 
   FUNCTION cp_dbcsr_nfullrows_local(matrix) RESULT (nfullrows_local)
@@ -625,7 +704,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nfullrows_local', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     nfullrows_local = dbcsr_nfullrows_local(matrix%matrix)
+
+    CALL timestop(handle)
+
   END FUNCTION cp_dbcsr_nfullrows_local
 
   FUNCTION cp_dbcsr_nfullcols_local(matrix) RESULT (nfullcols_local)
@@ -635,7 +720,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nfullcols_local', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     nfullcols_local = dbcsr_nfullcols_local(matrix%matrix)
+
+    CALL timestop(handle)
+
   END FUNCTION cp_dbcsr_nfullcols_local
 
   FUNCTION cp_dbcsr_max_row_size(matrix) RESULT (max_row_size)
@@ -645,7 +737,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_max_row_size', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     max_row_size = dbcsr_max_row_size(matrix%matrix)
+
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_max_row_size
 
   FUNCTION cp_dbcsr_max_col_size(matrix) RESULT (max_col_size)
@@ -655,7 +752,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_max_col_size', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     max_col_size = dbcsr_max_col_size(matrix%matrix)
+    CALL timestop(handle)
+
   END FUNCTION cp_dbcsr_max_col_size
 
   FUNCTION cp_dbcsr_distribution (matrix) RESULT (distribution)
@@ -665,7 +767,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_distribution', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     distribution = dbcsr_distribution (matrix%matrix)
+    CALL timestop(handle)
+
   END FUNCTION cp_dbcsr_distribution
 
   PURE FUNCTION cp_dbcsr_uses_special_memory (matrix) RESULT (uses_special)
@@ -673,6 +780,7 @@ CONTAINS
     LOGICAL                                  :: uses_special
 
     uses_special = dbcsr_uses_special_memory(matrix%matrix)
+
   END FUNCTION cp_dbcsr_uses_special_memory
 
   SUBROUTINE cp_create_bl_distribution (block_distribution,&
@@ -683,8 +791,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_create_bl_distribution', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     CALL create_bl_distribution (block_distribution,&
        block_size, nelements, nbins)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_create_bl_distribution
 
@@ -696,7 +809,11 @@ CONTAINS
       routineN = 'cp_dbcsr_distribution_release', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     CALL dbcsr_distribution_release(dist)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_distribution_release
 
@@ -718,7 +835,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_mp_release', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     CALL dbcsr_mp_release(mp_env)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_mp_release
 
@@ -732,8 +853,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_mp_new', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     CALL dbcsr_mp_new(mp_env, pgrid, mp_group, mynode, numnodes, myprow,&
        mypcol)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_mp_new
 
@@ -942,7 +1068,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_iterator_stop', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     CALL dbcsr_iterator_stop (iterator)
+    CALL timestop(handle)
     
   END SUBROUTINE cp_dbcsr_iterator_stop
 
@@ -957,14 +1087,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_iterator_start', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
     TYPE(dbcsr_block_buffer_obj)             :: buffers
 
+    CALL timeset(routineN,handle)
     CALL cp_error_init (error)
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_iterator_start (iterator, matrix%matrix, shared, dynamic,&
        dynamic_byrows, contiguous_pointers, read_only)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_iterator_start
 
@@ -1559,6 +1692,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_info', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     CALL dbcsr_get_info(matrix%matrix, nblkrows_total, nblkcols_total,&
          nfullrows_total, nfullcols_total,&
          nblkrows_local, nblkcols_local,&
@@ -1567,6 +1704,8 @@ CONTAINS
          local_rows, local_cols, proc_row_dist, proc_col_dist,&
          row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, distribution, name, data_area,&
          matrix_type, data_type)
+
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_get_info
 
@@ -1583,7 +1722,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_norm', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN,handle)
 
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     IF (PRESENT (norm_scalar)) THEN
@@ -1596,6 +1738,7 @@ CONTAINS
        CALL cp_assert (.FALSE., cp_wrong_args_error, cp_internal_error,&
             routineN, "Must pass either scalar or vector norm.", error=error)
     ENDIF
+    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_norm
 
@@ -1606,10 +1749,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_replicate_all', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL timeset(routineN,handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_replicate_all(matrix%matrix, dbcsr_error)
+    CALL timestop(handle)
   END SUBROUTINE cp_dbcsr_replicate_all
 
   SUBROUTINE cp_dbcsr_replicate(matrix, replicate_rows, replicate_columns,&
@@ -1623,11 +1769,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_replicate', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL timeset(routineN,handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_replicate(matrix%matrix, replicate_rows, replicate_columns,&
          restrict_source, dbcsr_error)
+    CALL timestop(handle)
   END SUBROUTINE cp_dbcsr_replicate
 
   SUBROUTINE cp_dbcsr_distribute(matrix, fast, error)
@@ -1638,10 +1787,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_distribute', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL timeset(routineN,handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_distribute(matrix%matrix, fast, dbcsr_error)
+    CALL timestop(handle)
+
   END SUBROUTINE cp_dbcsr_distribute
 
   SUBROUTINE cp_dbcsr_release_p (matrix, error)
@@ -1651,10 +1804,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_release_p', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
     IF(ASSOCIATED(matrix)) THEN
        CALL cp_dbcsr_release (matrix, error)
        DEALLOCATE(matrix)
     ENDIF
+    CALL timestop(handle)
+
 
   END SUBROUTINE cp_dbcsr_release_p
 
@@ -1664,6 +1822,10 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_release', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
 
     CALL cluster_buffer_release (matrix%buffers, error=error)
     CALL cp_dbcsr_mapping_release (matrix%row_mapping, error=error)
@@ -1678,6 +1840,8 @@ CONTAINS
     !
     CALL dbcsr_release (matrix%matrix)
 
+    CALL timestop(handle)
+
   END SUBROUTINE cp_dbcsr_release
 
   SUBROUTINE cp_dbcsr_init (matrix, error)
@@ -1686,6 +1850,10 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
 
     CALL dbcsr_init(matrix%matrix)
     CALL dbcsr_buffers_init (matrix%buffers)
@@ -1697,6 +1865,9 @@ CONTAINS
     CALL array_nullify (matrix%cp_row_offsets)
     CALL array_nullify (matrix%cp_col_offsets)
     matrix%ref_count = 0
+
+    CALL timestop(handle)
+
   END SUBROUTINE cp_dbcsr_init
 
   SUBROUTINE cp_dbcsr_init_p (matrix, error)
@@ -1706,6 +1877,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_p', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
     IF(ASSOCIATED(matrix)) THEN
        CALL cp_dbcsr_release(matrix, error)
        DEALLOCATE(matrix)
@@ -1713,6 +1888,9 @@ CONTAINS
 
     ALLOCATE(matrix)
     CALL cp_dbcsr_init (matrix, error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE cp_dbcsr_init_p
 
   SUBROUTINE cp_dbcsr_print(matrix, nodata, matlab_format, variable_name, error)
@@ -1724,12 +1902,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN,handle)
+
 
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
     CALL dbcsr_print(matrix%matrix, nodata, matlab_format, variable_name, dbcsr_error)
+    CALL timestop(handle)
+
   END SUBROUTINE cp_dbcsr_print
 
   SUBROUTINE cp_dbcsr_trace_a_d(matrix_a, trace, error)
@@ -1821,12 +2005,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_checksum', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_block_buffer_obj)             :: buffers
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL timeset(routineN,handle)
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
     checksum = dbcsr_checksum(matrix%matrix, local, error=dbcsr_error)
+    CALL timestop(handle)
   END FUNCTION cp_dbcsr_checksum
 
   SUBROUTINE cp_dbcsr_sum_replicated (matrix, error)
@@ -1836,10 +2023,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_sum_replicated', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL timeset(routineN,handle)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_sum_replicated (matrix%matrix, dbcsr_error)
+    CALL timestop(handle)
   END SUBROUTINE cp_dbcsr_sum_replicated
 
   SUBROUTINE cp_dbcsr_btriu(matrix_b, matrix_a, error)
@@ -1874,9 +2064,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_verify_matrix', &
       r = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
+    CALL timeset(routineN,handle)
     CALL dbcsr_verify_matrix(m%matrix, verbosity, local, dbcsr_error)
+
+    CALL timestop(handle)
+
   END SUBROUTINE cp_dbcsr_verify_matrix
 
   SUBROUTINE cp_dbcsr_finalize(matrix, resort, reshuffle, error)
@@ -1906,10 +2101,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_work_create', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN,handle)
 
     CALL dbcsr_work_create(matrix%matrix, nblks_guess, sizedata_guess, n,&
          work_mutable, dbcsr_error)
+    CALL timestop(handle)
   END SUBROUTINE cp_dbcsr_work_create
 
   SUBROUTINE cp_dbcsr_create_new(matrix, name, dist, matrix_type,&
