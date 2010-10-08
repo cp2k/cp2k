@@ -76,6 +76,8 @@ MODULE qs_neighbor_lists
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: locate,&
+                                             sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -145,6 +147,7 @@ CONTAINS
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, iw, jkind, &
       maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
       output_unit, stat, zat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: listindex, listsort
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
     LOGICAL :: all_pairs_list, all_potential_present, cls, epr, failure, &
@@ -454,6 +457,10 @@ CONTAINS
        END IF
 
        IF ( orb_present(ikind) ) THEN
+          ALLOCATE (listsort(natom_a),listindex(natom_a),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          listsort(1:natom_a) = atom(ikind)%list(1:natom_a)
+          CALL sort(listsort,natom_a,listindex)
           ! Block rows
           IF (natom_local_a > 0) THEN
              ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=stat)
@@ -465,12 +472,8 @@ CONTAINS
              ! Build index vector for mapping
              DO iatom_local=1,natom_local_a
                 atom_a = local_rows_array(iatom_local)
-                DO iatom=1,natom_a
-                   IF (atom_a == atom(ikind)%list(iatom)) THEN
-                      atom(ikind)%list_local_a_index(iatom_local) = iatom
-                      EXIT
-                   END IF
-                END DO
+                iatom = locate(listsort,atom_a)
+                atom(ikind)%list_local_a_index(iatom_local) = listindex(iatom)
                 IF ( molecule_only ) THEN
                    DO imol=1,SIZE(molecule_set)
                       IF ( atom_a >= molecule_set(imol)%first_atom .AND. &
@@ -496,12 +499,8 @@ CONTAINS
              ! Build index vector for mapping
              DO iatom_local=1,natom_local_b
                 atom_a = local_cols_array(iatom_local)
-                DO iatom=1,natom_a
-                   IF (atom_a == atom(ikind)%list(iatom)) THEN
-                      atom(ikind)%list_local_b_index(iatom_local) = iatom
-                      EXIT
-                   END IF
-                END DO
+                iatom = locate(listsort,atom_a)
+                atom(ikind)%list_local_b_index(iatom_local) = listindex(iatom)
                 IF (molecule_only) THEN
                    DO imol=1,SIZE(molecule_set)
                       IF ((atom_a >= molecule_set(imol)%first_atom).AND.&
@@ -527,6 +526,9 @@ CONTAINS
              atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
              CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
           END DO
+
+          DEALLOCATE (listsort,listindex,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ELSE
 
