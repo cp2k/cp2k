@@ -721,7 +721,6 @@ CONTAINS
        !$OMP MASTER
        nblks = matrix%m%row_p(matrix%m%nblkrows_total+1)
        IF (ANY(matrix%m%blk_p(1:nblks) .EQ. 0)) THEN
-          WRITE(*,*)routineN//" Pruning empty blocks."
           CALL dbcsr_index_prune_deleted (matrix, error)
        ENDIF
        !$OMP END MASTER
