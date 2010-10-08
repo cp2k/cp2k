@@ -51,6 +51,8 @@ MODULE qs_core_energies
                                              subcell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: locate,&
+                                             sort
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
@@ -162,6 +164,7 @@ CONTAINS
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
       kcell, maxatom_local, natom, natom_local_a, natom_local_b, nkind, &
       output_unit, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: listindex, listsort
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
@@ -286,20 +289,20 @@ CONTAINS
 
       IF (alpha(ikind) /= 0.0_dp) THEN
 
+        ALLOCATE (listsort(natom),listindex(natom),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        listsort(1:natom) = atom(ikind)%list(1:natom)
+        CALL sort(listsort,natom,listindex)
+
         IF (natom_local_a > 0) THEN
 
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-          ! Build index vector for mapping
           DO iatom_local=1,natom_local_a
             atom_a = local_rows_array(iatom_local)
-            DO iatom=1,natom
-              IF (atom_a == atom(ikind)%list(iatom)) THEN
-                atom(ikind)%list_local_a_index(iatom_local) = iatom
-                EXIT
-              END IF
-            END DO
+            iatom = locate(listsort,atom_a)
+            atom(ikind)%list_local_a_index(iatom_local) = listindex(iatom)
           END DO
 
         END IF
@@ -309,19 +312,16 @@ CONTAINS
           ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-          ! Build index vector for mapping
-
           DO iatom_local=1,natom_local_b
             atom_b = local_cols_array(iatom_local)
-            DO iatom=1,natom
-              IF (atom_b == atom(ikind)%list(iatom)) THEN
-                atom(ikind)%list_local_b_index(iatom_local) = iatom
-                EXIT
-              END IF
-            END DO
+            iatom = locate(listsort,atom_b)
+            atom(ikind)%list_local_b_index(iatom_local) = listindex(iatom)
           END DO
 
         END IF
+
+        DEALLOCATE(listsort,listindex,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
         ALLOCATE (atom(ikind)%r_pbc(3,natom),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
