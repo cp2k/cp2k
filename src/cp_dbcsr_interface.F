@@ -421,18 +421,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
-
-    CALL timeset(routineN,handle)
-
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
-
-    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_d
 
@@ -448,18 +442,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
-
-    CALL timeset(routineN,handle)
-
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
-
-    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_s
 
@@ -475,16 +463,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_z', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
 
-    CALL timeset(routineN,handle)
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
-
-    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_z
 
@@ -500,17 +484,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_c', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
     TYPE(cp_error_type)                      :: error
-
-    CALL timeset(routineN,handle)
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
-
-    CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_c
 
