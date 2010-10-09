@@ -612,9 +612,9 @@ CONTAINS
 
     IF (matrix_type == dbcsr_type_symmetric .OR.&
          matrix_type == dbcsr_type_antisymmetric) THEN
-      nblock_tot = natom*(natom + 1)/2
+      nblock_tot = natom*(natom + 1)/2 ! XXXXXX
     ELSE
-      nblock_tot = natom*natom
+      nblock_tot = natom*natom ! XXXXXXXX can overflow
     END IF
 
     occupation = -1.0_dp
