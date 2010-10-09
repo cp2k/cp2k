@@ -278,7 +278,7 @@ CONTAINS
 
   SUBROUTINE cp_dbcsr_alloc_block_from_nbl(matrix,sab_orb,error)
 
-    TYPE(cp_dbcsr_type), POINTER             :: matrix
+    TYPE(cp_dbcsr_type)                      :: matrix
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(cp_error_type), INTENT(inout)       :: error
