@@ -2387,13 +2387,13 @@ CONTAINS
     tot_rho_r = accurate_sum(rho%tot_rho_r)
     IF(output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
-           "Total electronic density (r-space): ",&
+           "Electronic density on regular grids: ",&
            tot_rho_r,&
            tot_rho_r + &
            REAL(n_electrons,dp),&
-           "Total core charge density (r-space):",&
+           "Core density on regular grids:",&
            qs_charges%total_rho_core_rspace,&
-           qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
+           qs_charges%total_rho_core_rspace - REAL(n_electrons+qs_env%dft_control%charge,dp)
     END IF
     IF(qs_env%dft_control%qs_control%gapw ) THEN
        tot1_h =  qs_charges%total_rho1_hard(1)
@@ -2403,10 +2403,10 @@ CONTAINS
           tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
        END DO
        IF(output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
+         WRITE (UNIT=output_unit,FMT="((T3,A,T41,2F20.10))")&
               "Hard and soft densities (Lebedev):",&
               tot1_h, tot1_s
-         WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
+         WRITE (UNIT=output_unit,FMT="(T3,A,T41,F20.10)")&
               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
               tot_rho_r+ tot1_h - tot1_s ,&
               "Total charge density (r-space):      ",&
@@ -2428,7 +2428,7 @@ CONTAINS
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
               "Hard and soft densities (Lebedev):",&
               tot1_h, tot1_s
-         WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
+         WRITE (UNIT=output_unit,FMT="(T3,A,T41,F20.10)")&
               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
               accurate_sum(rho_xc%tot_rho_r)+ tot1_h - tot1_s
        END IF
@@ -2436,16 +2436,17 @@ CONTAINS
                                     qs_charges%total_rho_core_rspace
     ELSE
        IF(output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
-              "Total charge density (r-space):     ",&
+         WRITE (UNIT=output_unit,FMT="(T3,A,T41,F20.10)")&
+              "Total charge density on r-space grids:     ",&
               tot_rho_r+&
               qs_charges%total_rho_core_rspace,&
-              "Total charge density (g-space):     ",&
+              "Total charge density g-space grids:     ",&
               qs_charges%total_rho_gspace
        END IF
        qs_charges%background=tot_rho_r+ &
                                     qs_charges%total_rho_core_rspace
     END IF
+    IF (output_unit>0) WRITE (UNIT=output_unit,FMT="()")
     qs_charges%background=qs_charges%background/cell%deth
 
   END SUBROUTINE print_densities

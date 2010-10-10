@@ -818,7 +818,7 @@ CONTAINS
              ! now, print out energies and charges corresponding to the obtained wfn
              ! (this actually is not 100% consistent at this point)!
              IF ( scp_dft ) CALL qs_scf_scp_print_summary ( output_unit, scp_env, qs_env%qmmm, error )
-             CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
+             CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env%nelectron, &
                   dft_control,qs_env%qmmm,gapw,gapw_xc)
 
              IF (harris_flag) THEN
@@ -1088,13 +1088,13 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
 SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
-                                scf_env,dft_control,qmmm,gapw,gapw_xc)
+                                nelectron_total,dft_control,qmmm,gapw,gapw_xc)
 
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    INTEGER, INTENT(IN)                      :: nelectron_total
     TYPE(dft_control_type), POINTER          :: dft_control
     LOGICAL, INTENT(IN)                      :: qmmm, gapw, gapw_xc
 
@@ -1109,12 +1109,12 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
     IF (output_unit>0) THEN
        IF(.NOT.(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb)) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
-            "Total electronic density (r-space): ",&
+           "Electronic density on regular grids: ",&
             accurate_sum(rho%tot_rho_r),&
-            accurate_sum(rho%tot_rho_r) + REAL(scf_env%nelectron,dp),&
-            "Total core charge density (r-space):",&
+            accurate_sum(rho%tot_rho_r) + nelectron_total ,&
+           "Core density on regular grids:",&
             qs_charges%total_rho_core_rspace,&
-            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
+            qs_charges%total_rho_core_rspace - REAL(nelectron_total+dft_control%charge,dp)
          IF (gapw) THEN
             tot1_h =  qs_charges%total_rho1_hard(1)
             tot1_s =  qs_charges%total_rho1_soft(1)
@@ -1122,10 +1122,10 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
               tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
               tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
             END DO
-            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T41,2F20.10))")&
+            WRITE (UNIT=output_unit,FMT="((T3,A,T41,2F20.10))")&
                   "Hard and soft densities (Lebedev):",&
                   tot1_h, tot1_s
-            WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
+            WRITE (UNIT=output_unit,FMT="(T3,A,T41,F20.10)")&
                  "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
                  accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s ,&
                  "Total charge density (r-space):      ",&
@@ -1134,11 +1134,12 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
                  "Total Rho_soft + Rho0_soft (g-space):",&
                  qs_charges%total_rho_gspace
          ELSE
-           WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
-              "Total charge density (r-space):     ",&
+           WRITE (UNIT=output_unit,FMT="(T3,A,T41,F20.10)")&
+              "Total charge density on r-space grids:     ",&
               accurate_sum(rho%tot_rho_r)+&
               qs_charges%total_rho_core_rspace,&
-              "Total charge density (g-space):     ",qs_charges%total_rho_gspace
+              "Total charge density g-space grids:     ",&
+              qs_charges%total_rho_gspace
          END IF
        END IF
        IF (dft_control%qs_control%semi_empirical) THEN
