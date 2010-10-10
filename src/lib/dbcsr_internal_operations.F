@@ -473,7 +473,7 @@ CONTAINS
                INT(REAL(size8, KIND=real_8) * fill_guess, KIND=int_4))
        ENDIF
        IF (dbg) &
-            WRITE(*,'(1X,A,2(1X,F12.3)))')routineN//" Using size guess",&
+            WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" Using size guess",&
             LOG(REAL(size_guess))/LOG(10.0), LOG(REAL(size8))/LOG(10.0)
        CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
             size_guess,error=error)
