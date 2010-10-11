@@ -184,25 +184,25 @@ CONTAINS
     INTEGER :: error_handler, grp, i, left_col_image, left_col_mult, &
       left_col_nimages, left_col_v_offset, left_dst_icol, left_dst_irow, &
       left_dst_p, left_dst_pcol, left_dst_prow, left_dst_v_col, &
-      left_dst_v_row, left_recv_icol, left_recv_irow, left_recv_p, &
-      left_recv_pcol, left_recv_prow, left_recv_v_col, left_recv_v_row, &
-      left_row_image, left_row_mult, left_row_nimages, left_send_icol, &
-      left_send_irow, left_send_p, left_send_pcol, left_send_prow, &
-      left_send_v_col, left_send_v_row, left_src_icol, left_src_irow, &
-      left_src_p, left_src_pcol, left_src_prow, left_src_v_col, &
-      left_src_v_row, max_nblks, max_nze, metronome
-    INTEGER :: min_nimages, mp_group, mynode, nsteps_k, nthreads, numnodes, &
-      nvirt_k, output_unit, right_col_image, right_col_mult, &
+      left_dst_v_row, left_max_nze, left_recv_icol, left_recv_irow, &
+      left_recv_p, left_recv_pcol, left_recv_prow, left_recv_v_col, &
+      left_recv_v_row, left_row_image, left_row_mult, left_row_nimages, &
+      left_send_icol, left_send_irow, left_send_p, left_send_pcol, &
+      left_send_prow, left_send_v_col, left_send_v_row, left_src_icol, &
+      left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
+      left_src_v_col, left_src_v_row, max_nblks, max_nze
+    INTEGER :: metronome, min_nimages, mp_group, mynode, nsteps_k, nthreads, &
+      numnodes, nvirt_k, output_unit, right_col_image, right_col_mult, &
       right_col_nimages, right_dst_icol, right_dst_irow, right_dst_p, &
       right_dst_pcol, right_dst_prow, right_dst_v_col, right_dst_v_row, &
-      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
-      right_recv_prow, right_recv_v_col, right_recv_v_row, right_row_image, &
-      right_row_mult, right_row_nimages, right_row_v_offset, right_send_icol, &
-      right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
-      right_send_v_col, right_send_v_row, right_src_icol, right_src_irow, &
-      right_src_p, right_src_pcol
-    INTEGER :: right_src_prow, right_src_v_col, right_src_v_row, size_guess, &
-      v_k, v_ki
+      right_max_nze, right_recv_icol, right_recv_irow, right_recv_p, &
+      right_recv_pcol, right_recv_prow, right_recv_v_col, right_recv_v_row, &
+      right_row_image, right_row_mult, right_row_nimages, right_row_v_offset, &
+      right_send_icol, right_send_irow, right_send_p, right_send_pcol, &
+      right_send_prow, right_send_v_col, right_send_v_row, right_src_icol, &
+      right_src_irow
+    INTEGER :: right_src_p, right_src_pcol, right_src_prow, right_src_v_col, &
+      right_src_v_row, size_guess, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
       left_index_rr, left_index_sr, right_data_rr, right_data_sr, &
@@ -219,7 +219,8 @@ CONTAINS
     LOGICAL                                  :: keep_sparsity, my_use_plasma
     REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
                                                 trun, trun_t, tstart, tstop
-    REAL(KIND=real_8)                        :: fill_guess
+    REAL(KIND=real_8)                        :: fill_guess, left_fill, &
+                                                right_fill
     TYPE(dbcsr_2d_array_type), POINTER       :: left_buffer_calc, &
                                                 left_buffer_comm, &
                                                 right_buffer_calc, &
@@ -439,35 +440,54 @@ CONTAINS
     !write(*,*)"right sizes"
     !write(*,'(2(1X,I7))')right_sizes
     !
-    ! Setup the left buffer matrices
-    max_nblks = MAXVAL (all_sizes (imeta, :, :, :))
-    max_nze = MAXVAL (all_sizes(idata, :, :, :))
-    !
     ! Setup product work areas
+    left_max_nze = MAXVAL (all_sizes(idata, :, :, :))
+    right_max_nze = MAXVAL (all_sizes(idata+2, :, :, :))
 !$omp parallel do schedule (static, 1) default(none) &
-!$omp          private (i, size_guess, size8, fill_guess) &
-!$omp          shared (product_matrix) &
-!$omp          shared (error, nthreads)
+!$omp          private (i, size_guess, size8, fill_guess, &
+!$omp                   left_fill, right_fill) &
+!$omp          shared (product_matrix, left_max_nze, right_max_nze) &
+!$omp          shared (left_set, right_set, &
+!$omp                 left_col_nimages, right_row_nimages) &
+!$omp          shared (error, nthreads, keep_sparsity, dbg, mynode)
     DO i = 1, nthreads
        IF (keep_sparsity) THEN
           size_guess = product_matrix%m%wms(i)%datasize ! Should be minimal
        ELSE
-          size8 = INT(dbcsr_nfullrows_local (product_matrix), KIND=int_8)&
-               * INT(dbcsr_nfullcols_local (product_matrix), KIND=int_8)
-          fill_guess = REAL(max_nze*nsteps_k, KIND=real_8) &
+          ! First we calculate the sparsities
+          size8 = INT(dbcsr_nfullrows_local (left_set%mats(1,1)), KIND=int_8)&
+                * INT(dbcsr_nfullcols_local (left_set%mats(1,1)), KIND=int_8)
+          left_fill = REAL(left_max_nze*left_col_nimages, KIND=real_8) &
                      / REAL(size8, KIND=real_8)
+          size8 = INT(dbcsr_nfullrows_local (right_set%mats(1,1)), KIND=int_8)&
+                * INT(dbcsr_nfullcols_local (right_set%mats(1,1)), KIND=int_8)
+          right_fill = REAL(right_max_nze*right_row_nimages, KIND=real_8) &
+                     / REAL(size8, KIND=real_8)
+          size8 = INT(dbcsr_nfullrows_local (product_matrix), KIND=int_8)&
+                * INT(dbcsr_nfullcols_local (product_matrix), KIND=int_8)
           IF (dbg .AND. mynode .EQ. 0) THEN
-             WRITE(*,*)routineN//" fill orig =", fill_guess
+             WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" fill orig =",&
+                  left_fill, right_fill
           ENDIF
-          fill_guess = MIN(fill_guess, 1.0_real_8)
-          fill_guess = 1.0_real_8 - fill_guess
-          fill_guess = fill_guess**4.0_real_8
-          fill_guess = 1.0_real_8 - fill_guess
+          left_fill = MIN(left_fill*2.0_real_8, 1.0_real_8)
+          right_fill = MIN(right_fill*2.0_real_8, 1.0_real_8)
+          ! Convert to sparsity
+          left_fill = 1.0_real_8 - left_fill
+          right_fill = 1.0_real_8 - right_fill
+          ! This should be statistically more sound.
+          fill_guess = 0.25_real_8 * left_fill * right_fill ! Sparsity
+          IF (dbg .AND. mynode .EQ. 0) THEN
+             WRITE(*,*)routineN//" sparsity guess=", fill_guess
+          ENDIF
+          fill_guess = MIN (1.0_real_8, fill_guess)
+          fill_guess = MAX (0.0_real_8, fill_guess)
+          ! Convert back to fill from sparsity
+          fill_guess = 1.0_real_8 - fill_guess  ! Real fill now
+          IF (nthreads .GT. 1) THEN
+             fill_guess = fill_guess * 3.0_real_8 / REAL(2*nthreads, KIND=real_8)
+          ENDIF
           IF (dbg .AND. mynode .EQ. 0) THEN
              WRITE(*,*)routineN//" fill guess=", fill_guess
-          ENDIF
-          IF (nthreads .GT. 1) THEN
-             fill_guess = fill_guess *3.0_real_8 / REAL(2*nthreads, KIND=real_8)
           ENDIF
           size_guess = MAX(product_matrix%m%wms(i)%datasize,&
                INT(REAL(size8, KIND=real_8) * fill_guess, KIND=int_4))
@@ -493,6 +513,10 @@ CONTAINS
        WRITE(*,*)routineN//" All sizes"
        WRITE(*,'(1X,F12.3)') LOG(REAL(all_sizes(idata, :,:,:)))/LOG(10.0)
     ENDIF
+    !
+    ! Setup the left buffer matrices
+    max_nblks = MAXVAL (all_sizes (imeta, :, :, :))
+    max_nze = MAXVAL (all_sizes(idata, :, :, :))
     CALL setup_buffer_matrices (left_buffer_1, left_row_mult, left_col_nimages,&
          left_set%mats(1,1), index_size=max_nblks,&
          data_size=max_nze, error=error)
@@ -1012,8 +1036,15 @@ CONTAINS
     CALL dbcsr_finalize(product_matrix, error=error)
     !
     IF (dbg) THEN
+       v_ki = 0
+       DO i = 1, product_matrix%m%nblks
+          v_ki = MAX(v_ki, ABS(product_matrix%m%blk_p(i)))
+       ENDDO
        WRITE(*,*)routineN//" Actual final size",&
-            LOG(REAL(dbcsr_data_get_size(product_matrix%m%data_area)))/LOG(10.0)
+            LOG(REAL(dbcsr_data_get_size(product_matrix%m%data_area)))/LOG(10.0),&
+            LOG(REAL(v_ki))/LOG(10.0)
+    ENDIF
+    IF (dbg) THEN
        checksum = dbcsr_checksum (product_matrix, error=error)
        IF ((output_unit>0)) THEN
           WRITE(output_unit,'(1X,A,1X,F9.4)')"Product Checksum=",checksum
