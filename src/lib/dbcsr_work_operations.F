@@ -478,6 +478,9 @@ CONTAINS
     ! Index
     IF(PRESENT(nblks_guess)) THEN
        nblks = nblks_guess
+       CALL dbcsr_assert (nblks_guess, "GE", 0, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN, &
+            "Can not have negative block count.", __LINE__, error=error)
        ALLOCATE(wm%row_i(nblks), stat=stat)
        CALL dbcsr_assert (stat == 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -498,6 +501,9 @@ CONTAINS
     ! Data
     CALL dbcsr_data_init (wm%data_area)
     IF(PRESENT(sizedata_guess)) THEN
+       CALL dbcsr_assert (sizedata_guess, "GE", 0, dbcsr_fatal_level,&
+            dbcsr_wrong_args_error, routineN,&
+            "Can not have negative data size.", __LINE__, error=error)
        CALL dbcsr_data_new (wm%data_area, data_type,&
             data_size=sizedata_guess)
     ELSE
@@ -544,7 +550,11 @@ CONTAINS
        nw = n
     ELSE
        nw = 1
-!$     nw = omp_get_max_threads()
+!$     IF (omp_in_parallel()) THEN
+!$        nw = omp_get_num_threads()
+!$     ELSE
+!$        nw = omp_get_max_threads()
+!$     ENDIF
     ENDIF
 !$  CALL dbcsr_modify_lock (matrix)
     wms_new = .NOT. ASSOCIATED (matrix%m%wms)
@@ -613,8 +623,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, nblks, nwms, &
-                                                start_offset
+    INTEGER                                  :: error_handler, i, nblks, &
+                                                nwms, start_offset
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       SAVE, TARGET                           :: empty_row_p
     INTEGER, DIMENSION(:), POINTER, SAVE     :: old_blk_p, old_col_i, &
@@ -716,6 +726,22 @@ CONTAINS
           CALL dbcsr_work_create (matrix, n=nwms, error=error)
        ENDIF
        !$OMP END MASTER
+       !$OMP BARRIER
+       !
+       ! Ensure index arrays at least exist.
+       !$OMP DO SCHEDULE (STATIC, 1)
+       DO i = 1, SIZE(matrix%m%wms)
+          IF (.NOT. ASSOCIATED (matrix%m%wms(i)%row_i)) THEN
+             CALL ensure_array_size(matrix%m%wms(i)%row_i, ub=0, error=error)
+          ENDIF
+          IF (.NOT. ASSOCIATED (matrix%m%wms(i)%col_i)) THEN
+             CALL ensure_array_size(matrix%m%wms(i)%col_i, ub=0, error=error)
+          ENDIF
+          IF (.NOT. ASSOCIATED (matrix%m%wms(i)%blk_p)) THEN
+             CALL ensure_array_size(matrix%m%wms(i)%blk_p, ub=0, error=error)
+          ENDIF
+       ENDDO
+       !$OMP ENDDO
        !
        ! Check for deleted blocks
        !$OMP MASTER

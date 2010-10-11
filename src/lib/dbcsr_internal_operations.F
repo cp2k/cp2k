@@ -517,6 +517,11 @@ CONTAINS
     ! Setup the left buffer matrices
     max_nblks = MAXVAL (all_sizes (imeta, :, :, :))
     max_nze = MAXVAL (all_sizes(idata, :, :, :))
+    !
+    IF (dbg .AND. mynode .EQ. 0) THEN
+       WRITE(*,*)routineN//" All sizes"
+       WRITE(*,'(1X,F12.3)') LOG(REAL(all_sizes(idata, :,:,:)))/LOG(10.0)
+    ENDIF
     CALL setup_buffer_matrices (left_buffer_1, left_row_mult, left_col_nimages,&
          left_set%mats(1,1), index_size=max_nblks,&
          data_size=max_nze, error=error)
@@ -1140,24 +1145,25 @@ CONTAINS
       blk_size, blk_start, c_blk_pt, c_col_logical, c_col_size_logical, &
       c_nze, c_row_logical, c_row_size_logical, clamp_k_len, datasize, &
       error_handler, first_k, first_mergeable, i, ithread, j, last_k, &
-      lastblk, new_blk, new_row_blks, nthreads, old_blk, old_row_begin_blk, &
-      old_size, row_begin_blk, size_c_blk_ps, stack_p, stack_p_a, stack_p_b, &
-      stack_p_c, stat, submat_f_col, submat_f_row, submat_l_col, &
-      submat_l_row, this_right_limit
+      lastblk, new_blk, new_index_size, new_row_blks, nthreads, old_blk, &
+      old_row_begin_blk, old_size, row_begin_blk, size_c_blk_ps, stack_p, &
+      stack_p_a, stack_p_b, stack_p_c, stat, submat_f_col, submat_f_row, &
+      submat_l_col, submat_l_row, this_right_limit
     INTEGER(KIND=int_4)                      :: offset
     INTEGER(KIND=int_8)                      :: lflop, one_flop
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_blk_ps, c_blk_ps_p
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: new_index
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: new_index, new_index_tmp
     INTEGER, DIMENSION(:), POINTER :: left_col_blk_offset, left_local_rows, &
       left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
       product_col_blk_offset, right_col_blk_offset
-
+    INTEGER :: old_index_size, blk_count
 !$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
     LOGICAL :: block_exists, flush_stack, keep_sparsity, &
       left_limit_rows, limit_k, negate_alpha, product_is_symmetric, &
       right_limit_cols, tr_p
     REAL(KIND=dp)                            :: epoch, mt_t_dgemm
-    REAL(KIND=real_8)                        :: one_time
+    REAL(KIND=real_8)                        :: one_time, left_fill, right_fill,&
+         product_fill
     TYPE(block_parameters), &
       DIMENSION(dgemm_stack_size)            :: parameters_a, parameters_b, &
                                                 parameters_c
@@ -1231,7 +1237,20 @@ CONTAINS
     one_time = 0.0_dp
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
        !
-    ALLOCATE (new_index (3, left%nblkrows_local*right%nblkcols_local))
+    left_fill = 2.0_real_8 * REAL(left%nblks,real_8) &
+         / (REAL(left%nblkrows_local,real_8)&
+            * REAL(left%nblkcols_local,real_8))
+    right_fill = 2.0_real_8 * REAL(right%nblks,real_8) &
+         / (REAL(right%nblkrows_local,real_8)&
+            * REAL(right%nblkcols_local,real_8))
+    CALL crop_0_1 (left_fill)
+    CALL crop_0_1 (right_fill)
+    product_fill = 1.0_real_8 - &
+         0.25_real_8 * (1.0_real_8 - left_fill) * (1.0_real_8 - right_fill)
+    CALL crop_0_1 (product_fill)
+    new_index_size = INT(product_fill * REAL(left%nblkrows_local, real_8) &
+                                      * REAL(right%nblkcols_local, real_8))
+    ALLOCATE (new_index (3, new_index_size))
     ! c_blk_ps contains the block pointers in the product's current row
     ALLOCATE (c_blk_ps(product%nblkcols_total), stat=stat)
     CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
@@ -1430,6 +1449,21 @@ CONTAINS
                    offset = -offset
                 ENDIF
                 new_blk = new_blk+1
+                ! Ugh, we have to reallocate
+                IF (new_blk .GT. new_index_size) THEN
+                   i = SIZE (new_index, 2) ! Remember old size
+                   new_index_size = MAX(new_blk, new_index_size * 2)
+                   ALLOCATE (new_index_tmp(3, i))
+                   new_index_tmp(:, 1:i) = &
+                        new_index(:, 1:i)
+                   DEALLOCATE (new_index)
+                   ! In newer Fortrans the allocation could simply be
+                   ! transferred:
+                   ! new_index = new_index_tmp
+                   ALLOCATE (new_index(3, new_index_size))
+                   new_index(:, 1:i) = new_index_tmp(:, 1:i)
+                   DEALLOCATE (new_index_tmp)
+                ENDIF
                 new_index(1, new_blk) = c_row_logical
                 new_index(2, new_blk) = c_col_logical
                 new_index(3, new_blk) = offset
@@ -1612,6 +1646,16 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_nn_mult_lin
 
+
+! *****************************************************************************
+!> \brief Ensures a real variable is in the range [0, 1].
+! *****************************************************************************
+  ELEMENTAL SUBROUTINE crop_0_1(v)
+    REAL(KIND=real_8), INTENT(INOUT)         :: v
+
+    v = MIN (v, 1.0_real_8)
+    v = MAX (v, 0.0_real_8)
+  END SUBROUTINE crop_0_1
 
 ! *****************************************************************************
 !> \brief Joins compatible DGEMM parameters into a single DGEMM parameter

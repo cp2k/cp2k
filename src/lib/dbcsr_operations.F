@@ -75,8 +75,9 @@ MODULE dbcsr_operations
        dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
        dbcsr_distribution_mp, dbcsr_distribution_new, &
        dbcsr_distribution_no_threads, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_get_data_size, dbcsr_get_data_type, &
-       dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
+       dbcsr_distribution_row_dist, dbcsr_get_data_size, &
+       dbcsr_get_data_size_referenced, dbcsr_get_data_type, dbcsr_get_info, &
+       dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
        dbcsr_get_replication_type, dbcsr_has_symmetry, dbcsr_init, &
        dbcsr_is_initialized, dbcsr_max_col_size, dbcsr_max_row_size, &
        dbcsr_may_be_dense, dbcsr_mp_grid_setup, dbcsr_mp_group, &
@@ -1437,6 +1438,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_assert (dbcsr_valid_index (matrix_a), dbcsr_fatal_level,&
+         dbcsr_caller_error, routineN, "Invalid matrix", __LINE__, error=error)
 
     data_type_a = dbcsr_get_data_type(matrix_a)
     data_type_b = dbcsr_get_data_type(matrix_b)
@@ -1456,19 +1459,31 @@ CONTAINS
     CALL dbcsr_scale(matrix_a, alpha_scalar=my_alpha_scalar, error=error)
 
     ! Pre-size work arrays of matrix_a to avoid continuous reallocation.
-    size_a = dbcsr_get_data_size (matrix_a)
-    size_b = dbcsr_get_data_size (matrix_b)
-    IF (size_b .GT. size_a) THEN
-       CALL dbcsr_work_create (matrix_a,&
-            nblks_guess=matrix_b%m%nblks-matrix_a%m%nblks,&
-            sizedata_guess=size_b-size_a,error=error)
-    ENDIF
-
+    size_a = dbcsr_get_data_size_referenced (matrix_a)
+    size_b = dbcsr_get_data_size_referenced (matrix_b)
     IF(.NOT.dbcsr_scalar_are_equal(my_beta_scalar,&
          dbcsr_scalar_zero(data_type_b))) THEN
+       !$OMP PARALLEL DEFAULT (none) &
+       !$OMP          PRIVATE (iter, data_block) &
+       !$OMP          PRIVATE (row, col, tr, blk) &
+       !$OMP          SHARED (matrix_a, matrix_b, data_type_b, size_b, size_a) &
+       !$OMP          SHARED (do_scale, my_beta_scalar) &
+       !$OMP          SHARED (error)
+       IF (size_b .GT. size_a) THEN
+          CALL dbcsr_work_create (matrix_a,&
+               nblks_guess = matrix_b%m%nblks - matrix_a%m%nblks,&
+               sizedata_guess = size_b - size_a,&
+               work_mutable = .FALSE., error=error)
+       ELSE
+          CALL dbcsr_work_create (matrix_a,&
+               work_mutable = .FALSE., error=error)
+       ENDIF
+       !$OMP BARRIER
        CALL dbcsr_data_init (data_block)
        CALL dbcsr_data_new (data_block, data_type_b)
-       CALL dbcsr_iterator_start(iter, matrix_b)
+       CALL dbcsr_iterator_start(iter, matrix_b,&
+            shared = .TRUE., read_only = .TRUE., contiguous_pointers=.FALSE.,&
+            dynamic = .TRUE., dynamic_byrows = .TRUE.)
 
        DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -1488,7 +1503,7 @@ CONTAINS
        CALL dbcsr_finalize (matrix_a, error=error)
        CALL dbcsr_data_clear_pointer (data_block)
        CALL dbcsr_data_release (data_block)
-
+       !$OMP END PARALLEL
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_add_anytype
