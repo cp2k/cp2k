@@ -457,11 +457,11 @@ CONTAINS
           ! First we calculate the sparsities
           size8 = INT(dbcsr_nfullrows_local (left_set%mats(1,1)), KIND=int_8)&
                 * INT(dbcsr_nfullcols_local (left_set%mats(1,1)), KIND=int_8)
-          left_fill = REAL(left_max_nze*left_col_nimages, KIND=real_8) &
+          left_fill = REAL(left_max_nze, KIND=real_8)*REAL(left_col_nimages, KIND=real_8) &
                      / REAL(size8, KIND=real_8)
           size8 = INT(dbcsr_nfullrows_local (right_set%mats(1,1)), KIND=int_8)&
                 * INT(dbcsr_nfullcols_local (right_set%mats(1,1)), KIND=int_8)
-          right_fill = REAL(right_max_nze*right_row_nimages, KIND=real_8) &
+          right_fill = REAL(right_max_nze,KIND=real_8)*REAL(right_row_nimages, KIND=real_8) &
                      / REAL(size8, KIND=real_8)
           size8 = INT(dbcsr_nfullrows_local (product_matrix), KIND=int_8)&
                 * INT(dbcsr_nfullcols_local (product_matrix), KIND=int_8)
@@ -469,20 +469,8 @@ CONTAINS
              WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" fill orig =",&
                   left_fill, right_fill
           ENDIF
-          left_fill = MIN(left_fill*2.0_real_8, 1.0_real_8)
-          right_fill = MIN(right_fill*2.0_real_8, 1.0_real_8)
-          ! Convert to sparsity
-          left_fill = 1.0_real_8 - left_fill
-          right_fill = 1.0_real_8 - right_fill
-          ! This should be statistically more sound.
-          fill_guess = 0.25_real_8 * left_fill * right_fill ! Sparsity
-          IF (dbg .AND. mynode .EQ. 0) THEN
-             WRITE(*,*)routineN//" sparsity guess=", fill_guess
-          ENDIF
-          fill_guess = MIN (1.0_real_8, fill_guess)
-          fill_guess = MAX (0.0_real_8, fill_guess)
-          ! Convert back to fill from sparsity
-          fill_guess = 1.0_real_8 - fill_guess  ! Real fill now
+          fill_guess = 7 * MAX(left_fill,right_fill)
+          fill_guess = MIN (1.0_real_8, MAX (0.0_real_8, fill_guess))
           IF (nthreads .GT. 1) THEN
              fill_guess = fill_guess * 3.0_real_8 / REAL(2*nthreads, KIND=real_8)
           ENDIF
@@ -497,15 +485,13 @@ CONTAINS
             LOG(REAL(size_guess))/LOG(10.0), LOG(REAL(size8))/LOG(10.0)
        CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
             size_guess,error=error)
-            !dbcsr_get_nfullrowsleft_set%m(1)%nfullrows_local*right_matrix%nfullcols_local))
        CALL dbcsr_data_set_size_referenced (product_matrix%m%wms(i)%data_area,&
             product_matrix%m%wms(i)%datasize)
-       CALL ensure_array_size(product_matrix%m%wms(i)%row_i,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%m%wms(i)%col_i,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
-       CALL ensure_array_size(product_matrix%m%wms(i)%blk_p,&
-            ub=product_matrix%m%nblkcols_total*product_matrix%m%nblkrows_total, error=error)
+       ! XXXXXXX a quick fix right now, allocation with size 1 might actually not be needed at all,
+       !         but something expects this to be associated
+       CALL ensure_array_size(product_matrix%m%wms(i)%row_i, ub=1, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%col_i, ub=1, error=error)
+       CALL ensure_array_size(product_matrix%m%wms(i)%blk_p, ub=1, error=error)
     ENDDO
 !$omp end parallel do
     !
@@ -1245,8 +1231,9 @@ CONTAINS
             * REAL(right%nblkcols_local,real_8))
     CALL crop_0_1 (left_fill)
     CALL crop_0_1 (right_fill)
-    product_fill = 1.0_real_8 - &
-         0.25_real_8 * (1.0_real_8 - left_fill) * (1.0_real_8 - right_fill)
+    ! a simple heuristic to estimate the size of the product matrix.
+    ! automatic resizes will happen as needed.
+    product_fill = 7*MAX(left_fill,right_fill)
     CALL crop_0_1 (product_fill)
     new_index_size = INT(product_fill * REAL(left%nblkrows_local, real_8) &
                                       * REAL(right%nblkcols_local, real_8))
