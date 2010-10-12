@@ -50,6 +50,7 @@ MODULE qs_neighbor_lists
                                              dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
+  USE memory_utilities,                ONLY: reallocate
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -1147,7 +1148,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-      kcell, natom_local_a, natom_local_b, nkind, stat
+      kcell, natom_local_a, natom_local_b, nkind, stat, nsub, maxat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: failure, include_ab, &
@@ -1353,7 +1354,10 @@ CONTAINS
         ELSE
 
           ! Case 2: A subcell grid is needed
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
+!deb          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
+          nsub = MAX(nsubcell(1)*nsubcell(2)*nsubcell(3),1)
+          maxat = MAX(maxatom_local/nsub,10)
+          CALL allocate_subcell(subcell,nsubcell,2*maxat,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -1366,6 +1370,10 @@ CONTAINS
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
+            maxat = SIZE(subcell(i,j,k)%atom_list)
+            IF(subcell(i,j,k)%natom > maxat) THEN
+               CALL reallocate(subcell(i,j,k)%atom_list,1,2*maxat)
+            END IF
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
                                    atom=atom_a,&
@@ -1515,7 +1523,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, ikind, j, jatom, jatom_local, jkind, k, mol_a, mol_b, &
-      natom_local_a, natom_local_b, nkind, stat
+      natom_local_a, natom_local_b, nkind, stat, nsub, maxat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: failure, include_ab
@@ -1661,7 +1669,10 @@ CONTAINS
 
           ! Case 2: A subcell grid is needed
 
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
+!deb          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
+          nsub = MAX(nsubcell(1)*nsubcell(2)*nsubcell(3),1)
+          maxat = MAX(maxatom_local/nsub,10)
+          CALL allocate_subcell(subcell,nsubcell,2*maxat,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -1674,6 +1685,10 @@ CONTAINS
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
+            maxat = SIZE(subcell(i,j,k)%atom_list)
+            IF(subcell(i,j,k)%natom > maxat) THEN
+               CALL reallocate(subcell(i,j,k)%atom_list,1,2*maxat)
+            END IF
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
                                    atom=atom_a,&
@@ -1792,7 +1807,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jcell, k, katom, kcell, kkind, natom_c, &
-      natom_local_a, nkind, stat
+      natom_local_a, nkind, stat, nsub, maxat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: cell000, exclude, failure
@@ -1986,7 +2001,10 @@ CONTAINS
 
           ! Case 2: A subcell grid is needed
 
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
+!deb          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
+          nsub = MAX(nsubcell(1)*nsubcell(2)*nsubcell(3),1)
+          maxat = MAX(maxatom_local/nsub,10)
+          CALL allocate_subcell(subcell,nsubcell,2*maxat,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -1999,6 +2017,10 @@ CONTAINS
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
+            maxat = SIZE(subcell(i,j,k)%atom_list)
+            IF(subcell(i,j,k)%natom > maxat) THEN
+               CALL reallocate(subcell(i,j,k)%atom_list,1,2*maxat)
+            END IF
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
                                    atom=atom_a,&
@@ -2156,7 +2178,7 @@ CONTAINS
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
       iatom_subcell, icell, icell_b, ikind, j, jcell, jcell_b, k, katom, &
       kcell, kcell_b, kkind, natom_c, natom_local_a, natom_local_b, nkind, &
-      stat
+      stat, nsub, maxat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: failure
@@ -2393,7 +2415,10 @@ CONTAINS
 
         ELSE
 
-          CALL allocate_subcell(subcell_a,nsubcell,maxatom_local,error=error)
+!deb          CALL allocate_subcell(subcell_a,nsubcell,maxatom_local,error=error)
+          nsub = MAX(nsubcell(1)*nsubcell(2)*nsubcell(3),1)
+          maxat = MAX(maxatom_local/nsub,10)
+          CALL allocate_subcell(subcell_a,nsubcell,2*maxat,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -2406,6 +2431,10 @@ CONTAINS
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
             subcell_a(i,j,k)%natom =  subcell_a(i,j,k)%natom + 1
+            maxat = SIZE(subcell_a(i,j,k)%atom_list)
+            IF(subcell_a(i,j,k)%natom > maxat) THEN
+               CALL reallocate(subcell_a(i,j,k)%atom_list,1,2*maxat)
+            END IF
             subcell_a(i,j,k)%atom_list(subcell_a(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=ac_neighbor_list_set,&
                                    atom=atom_a,&
@@ -2413,7 +2442,10 @@ CONTAINS
                                    neighbor_list=kind_a(iatom_local)%neighbor_list)
           END DO
 
-          CALL allocate_subcell(subcell_b,nsubcell,maxatom_local,error=error)
+!deb          CALL allocate_subcell(subcell_b,nsubcell,maxatom_local,error=error)
+          nsub = MAX(nsubcell(1)*nsubcell(2)*nsubcell(3),1)
+          maxat = MAX(maxatom_local/nsub,10)
+          CALL allocate_subcell(subcell_b,nsubcell,2*maxat,error=error)
 
           DO iatom_local=1,natom_local_b
             iatom = atom(ikind)%list_local_b_index(iatom_local)
@@ -2426,6 +2458,10 @@ CONTAINS
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
             subcell_b(i,j,k)%natom =  subcell_b(i,j,k)%natom + 1
+            maxat = SIZE(subcell_b(i,j,k)%atom_list)
+            IF(subcell_b(i,j,k)%natom > maxat) THEN
+               CALL reallocate(subcell_b(i,j,k)%atom_list,1,2*maxat)
+            END IF
             subcell_b(i,j,k)%atom_list(subcell_b(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=bc_neighbor_list_set,&
                                    atom=atom_a,&
@@ -2641,7 +2677,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jcell, k, katom, kcell, kkind, natom_c, &
-      nkind, nlist, stat
+      nkind, nlist, stat, nsub, maxat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: local_list
@@ -2807,7 +2843,10 @@ CONTAINS
 
         ELSE
 
-          CALL allocate_subcell(subcell_a,nsubcell,maxatom_local,error=error)
+!deb          CALL allocate_subcell(subcell_a,nsubcell,maxatom_local,error=error)
+          nsub = MAX(nsubcell(1)*nsubcell(2)*nsubcell(3),1)
+          maxat = MAX(maxatom_local/nsub,10)
+          CALL allocate_subcell(subcell_a,nsubcell,2*maxat,error=error)
 
           DO iatom_local=1,nlist
             iatom = local_list(iatom_local)
@@ -2820,6 +2859,10 @@ CONTAINS
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
             subcell_a(i,j,k)%natom =  subcell_a(i,j,k)%natom + 1
+            maxat = SIZE(subcell_a(i,j,k)%atom_list)
+            IF(subcell_a(i,j,k)%natom > maxat) THEN
+               CALL reallocate(subcell_a(i,j,k)%atom_list,1,2*maxat)
+            END IF
             subcell_a(i,j,k)%atom_list(subcell_a(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=ap_neighbor_list_set,&
                                    atom=atom_a,&

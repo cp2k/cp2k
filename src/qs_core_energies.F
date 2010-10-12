@@ -39,6 +39,7 @@ MODULE qs_core_energies
                                              dp
   USE mathconstants,                   ONLY: oorootpi,&
                                              twopi
+  USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -163,7 +164,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
       kcell, maxatom_local, natom, natom_local_a, natom_local_b, nkind, &
-      output_unit, stat
+      output_unit, stat, nsub, maxat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: listindex, listsort
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
@@ -505,7 +506,10 @@ CONTAINS
 
           ! Case 2: A subcell grid is needed
 
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
+!deb          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
+          nsub = MAX(nsubcell(1)*nsubcell(2)*nsubcell(3),1)
+          maxat = MAX(maxatom_local/nsub,10)
+          CALL allocate_subcell(subcell,nsubcell,2*maxat,error=error)
 
           DO iatom_local=1,natom_local_a
             iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -518,6 +522,10 @@ CONTAINS
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
             subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
+            maxat = SIZE(subcell(i,j,k)%atom_list)
+            IF(subcell(i,j,k)%natom > maxat) THEN
+               CALL reallocate(subcell(i,j,k)%atom_list,1,2*maxat)
+            END IF
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
           END DO
 
