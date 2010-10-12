@@ -60,13 +60,13 @@
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
        IF (spec) THEN
-          CALL dbcsr_assert (lb.EQ.1, dbcsr_warning_level, dbcsr_internal_error,&
+          CALL dbcsr_assert (lb.EQ.1, dbcsr_failure_level, dbcsr_internal_error,&
                routineN, "Special memory can only start at 1.",__LINE__,error)
           CALL mp_allocate(array, ub-lb_new+1, stat=stat)
        ELSE
           ALLOCATE(array(lb_new:ub), stat=stat)
        ENDIF
-       CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, dbcsr_internal_error,&
             routineN, "array",__LINE__,error)
        IF (pad) array(:) = 0.0_real_4
        CALL dbcsr_error_stop(error_handler, error)
@@ -115,13 +115,13 @@
        ENDIF
     ENDIF
     IF (spec) THEN
-       CALL dbcsr_assert (lb_new.EQ.1, dbcsr_warning_level, dbcsr_internal_error,&
+       CALL dbcsr_assert (lb_new.EQ.1, dbcsr_failure_level, dbcsr_internal_error,&
             routineN, "Special memory can only start at 1.",__LINE__,error)
        CALL mp_allocate(newarray, ub_new-lb_new+1, stat=stat)
     ELSE
        ALLOCATE(newarray(lb_new:ub_new), stat=stat)
     ENDIF
-    CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
+    CALL dbcsr_assert (stat == 0, dbcsr_failure_level, dbcsr_internal_error,&
          routineN, "newarray",__LINE__,error)
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&

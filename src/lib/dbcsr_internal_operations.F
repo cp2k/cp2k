@@ -1156,7 +1156,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: left_col_blk_offset, left_local_rows, &
       left_row_blk_offset, new_blk_p, new_col_i, new_row_i, &
       product_col_blk_offset, right_col_blk_offset
-    INTEGER :: old_index_size, blk_count
+
 !$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
     LOGICAL :: block_exists, flush_stack, keep_sparsity, &
       left_limit_rows, limit_k, negate_alpha, product_is_symmetric, &

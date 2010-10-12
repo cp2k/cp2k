@@ -312,13 +312,13 @@ CONTAINS
             special_memory=matrix%m%special_memory)
        IF (matrix%m%special_memory) THEN
           CALL mp_allocate(matrix%m%index, dbcsr_num_slots, stat=stat)
-          CALL dbcsr_assert (stat == 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+          CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
+               dbcsr_internal_error, routineN,&
                "matrix%m%index",__LINE__,error)
        ELSE
           ALLOCATE(matrix%m%index(dbcsr_num_slots), stat=stat)
-          CALL dbcsr_assert (stat == 0,&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+          CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
+               dbcsr_internal_error, routineN,&
                "matrix%m%index",__LINE__,error)
        ENDIF
     ENDIF
@@ -482,16 +482,16 @@ CONTAINS
             dbcsr_wrong_args_error, routineN, &
             "Can not have negative block count.", __LINE__, error=error)
        ALLOCATE(wm%row_i(nblks), stat=stat)
-       CALL dbcsr_assert (stat == 0,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN,&
             "wm%row_i",__LINE__,error)
        ALLOCATE(wm%col_i(nblks), stat=stat)
-       CALL dbcsr_assert (stat == 0,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN,&
             "wm%col_i",__LINE__,error)
        ALLOCATE(wm%blk_p(nblks), stat=stat)
-       CALL dbcsr_assert (stat == 0,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN,&
             "wm%blk_p",__LINE__,error)
     ELSE
        NULLIFY (wm%row_i, wm%col_i, wm%blk_p)

@@ -1165,12 +1165,12 @@ CONTAINS
 
        estimated_blocks = max_blocks_per_bin * nbins
        ALLOCATE (blk_dist (estimated_blocks), stat=stat)
-       CALL dbcsr_assert (stat == 0,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, & 
+            dbcsr_caller_error, routineN,&
             "blk_dist",__LINE__,error)
        ALLOCATE (blk_sizes (estimated_blocks), stat=stat)
-       CALL dbcsr_assert (stat == 0,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+       CALL dbcsr_assert (stat == 0,dbcsr_fatal_level, &
+            dbcsr_caller_error, routineN,&
             "blk_sizes",__LINE__,error)
        element_stack = 0
        nblks = 0
@@ -1200,12 +1200,12 @@ CONTAINS
        ENDIF
     ELSE
        ALLOCATE (blk_dist (0), stat=stat)
-       CALL dbcsr_assert (stat == 0,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN,&
             "blk_dist",__LINE__,error)
        ALLOCATE (blk_sizes (0), stat=stat)
-       CALL dbcsr_assert (stat == 0,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
+            dbcsr_caller_error, routineN,&
             "blk_sizes",__LINE__,error)
        CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
        CALL array_new (block_size, blk_sizes, gift=.TRUE.)
