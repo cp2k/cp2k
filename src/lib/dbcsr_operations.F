@@ -1469,7 +1469,7 @@ CONTAINS
        !$OMP          SHARED (matrix_a, matrix_b, data_type_b, size_b, size_a) &
        !$OMP          SHARED (do_scale, my_beta_scalar) &
        !$OMP          SHARED (error)
-       IF (size_b .GT. size_a) THEN
+       IF (size_b .GT. size_a .AND. matrix_b%m%nblks .GT. matrix_a%m%nblks) THEN
           CALL dbcsr_work_create (matrix_a,&
                nblks_guess = matrix_b%m%nblks - matrix_a%m%nblks,&
                sizedata_guess = size_b - size_a,&
