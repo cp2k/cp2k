@@ -82,6 +82,7 @@ MODULE cp_dbcsr_interface
        dbcsr_set_diag, dbcsr_sum_replicated, dbcsr_trace
   USE dbcsr_transformations,           ONLY: dbcsr_complete_redistribute,&
                                              dbcsr_distribute,&
+                                             dbcsr_make_untransposed_blocks,&
                                              dbcsr_new_transposed,&
                                              dbcsr_redistribute,&
                                              dbcsr_replicate,&
@@ -121,6 +122,7 @@ MODULE cp_dbcsr_interface
 
   !
   ! Interface to libdbcsr (contains cp2k timing and error)
+  PUBLIC :: cp_dbcsr_untranspose_blocks
   PUBLIC :: cp_dbcsr_set
   PUBLIC :: cp_dbcsr_add
   PUBLIC :: cp_dbcsr_scale
@@ -2647,6 +2649,7 @@ CONTAINS
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, left_set, right_set, dbcsr_error, flop)
+
     IF (prnt) THEN
        CALL cp_dbcsr_print (matrix_c, matlab_format=.TRUE.,&
             variable_name="mpo", error=error)
@@ -3215,6 +3218,22 @@ CONTAINS
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_add_c
 
+  ! ultimately this routine should not be needed
+  SUBROUTINE cp_dbcsr_untranspose_blocks(matrix, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_untranspose_blocks', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: timing_handle
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL timeset(routineN, timing_handle)
+    CALL dbcsr_make_untransposed_blocks(matrix%matrix,dbcsr_error)
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE cp_dbcsr_untranspose_blocks
 
   ! Buffer routines
 
