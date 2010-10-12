@@ -163,8 +163,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: unit_str
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-      kcell, maxatom_local, natom, natom_local_a, natom_local_b, nkind, &
-      output_unit, stat, nsub, maxat
+      kcell, maxat, maxatom_local, natom, natom_local_a, natom_local_b, &
+      nkind, nsub, output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: listindex, listsort
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic

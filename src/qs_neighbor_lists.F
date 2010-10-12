@@ -48,9 +48,9 @@ MODULE qs_neighbor_lists
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
-  USE memory_utilities,                ONLY: reallocate
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -1148,7 +1148,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-      kcell, natom_local_a, natom_local_b, nkind, stat, nsub, maxat
+      kcell, maxat, natom_local_a, natom_local_b, nkind, nsub, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: failure, include_ab, &
@@ -1522,8 +1522,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
-      iatom_subcell, ikind, j, jatom, jatom_local, jkind, k, mol_a, mol_b, &
-      natom_local_a, natom_local_b, nkind, stat, nsub, maxat
+      iatom_subcell, ikind, j, jatom, jatom_local, jkind, k, maxat, mol_a, &
+      mol_b, natom_local_a, natom_local_b, nkind, nsub, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: failure, include_ab
@@ -1806,8 +1806,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, j, jcell, k, katom, kcell, kkind, natom_c, &
-      natom_local_a, nkind, stat, nsub, maxat
+      iatom_subcell, icell, ikind, j, jcell, k, katom, kcell, kkind, maxat, &
+      natom_c, natom_local_a, nkind, nsub, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: cell000, exclude, failure
@@ -2177,8 +2177,8 @@ CONTAINS
 
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
       iatom_subcell, icell, icell_b, ikind, j, jcell, jcell_b, k, katom, &
-      kcell, kcell_b, kkind, natom_c, natom_local_a, natom_local_b, nkind, &
-      stat, nsub, maxat
+      kcell, kcell_b, kkind, maxat, natom_c, natom_local_a, natom_local_b, &
+      nkind, nsub, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: failure
@@ -2676,8 +2676,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, j, jcell, k, katom, kcell, kkind, natom_c, &
-      nkind, nlist, stat, nsub, maxat
+      iatom_subcell, icell, ikind, j, jcell, k, katom, kcell, kkind, maxat, &
+      natom_c, nkind, nlist, nsub, stat
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: local_list
