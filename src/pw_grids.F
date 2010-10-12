@@ -34,7 +34,8 @@
 MODULE pw_grids
   USE cell_types,                      ONLY: cell_type
   USE f77_blas
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: &
        MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
@@ -177,7 +178,7 @@ CONTAINS
     REAL(dp), INTENT(OUT), OPTIONAL          :: vol, dvol
     INTEGER, DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: npts
-    INTEGER, INTENT(OUT), OPTIONAL           :: ngpts, ngpts_cut
+    INTEGER(int_8), INTENT(OUT), OPTIONAL    :: ngpts, ngpts_cut
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: dr
     REAL(dp), INTENT(OUT), OPTIONAL          :: cutoff
@@ -703,7 +704,7 @@ CONTAINS
     lby = pw_grid % bounds ( 1, 2 )
     lbz = pw_grid % bounds ( 1, 3 )
 
-    pw_grid % ngpts = PRODUCT ( pw_grid % npts )
+    pw_grid % ngpts = PRODUCT ( INT(pw_grid % npts,KIND=int_8) )
     CPPrecondition(ALL(pw_grid%para%rs_dims==0),cp_failure_level,routineP,error,failure)
     IF (PRESENT(rs_dims)) THEN
        pw_grid%para%rs_dims=rs_dims

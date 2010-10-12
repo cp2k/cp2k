@@ -13,7 +13,8 @@ MODULE pw_grid_types
   USE input_constants,                 ONLY: do_pw_grid_blocked_false,&
                                              do_pw_grid_blocked_free,&
                                              do_pw_grid_blocked_true
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -59,8 +60,8 @@ MODULE pw_grid_types
   ! all you always wanted to know about grids, but were...
 ! *****************************************************************************
   TYPE pw_grid_type
-     INTEGER :: ngpts                             ! # grid points
-     INTEGER :: ngpts_cut                         ! # grid points within cutoff
+     INTEGER(int_8) :: ngpts                             ! # grid points
+     INTEGER(int_8) :: ngpts_cut                         ! # grid points within cutoff
      INTEGER, DIMENSION ( 2, 3 ) :: bounds        ! lower and upper bounds
      INTEGER, DIMENSION ( 3 ) :: npts             ! # point in all directions
      INTEGER :: ngpts_local                       ! # grid points

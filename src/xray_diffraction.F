@@ -23,7 +23,8 @@ MODULE xray_diffraction
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_gather,&
@@ -93,8 +94,9 @@ CONTAINS
 
     INTEGER                                  :: group, handle, i, ig, &
                                                 ig_shell, ipe, ishell, istat, &
-                                                jg, ng, ngpts, npe, nshell, &
+                                                jg, ng, npe, nshell, &
                                                 nshell_gather, source
+    INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, DIMENSION(3)                    :: npts
     INTEGER, DIMENSION(:), POINTER           :: aux_index, ng_shell, &
                                                 ng_shell_gather, nshell_pe, &

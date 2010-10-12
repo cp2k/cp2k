@@ -21,7 +21,7 @@ MODULE realspace_grid_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, int_8
   USE mathlib,                         ONLY: det_3x3
   USE message_passing,                 ONLY: &
        mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, mp_isend, &
@@ -94,7 +94,7 @@ MODULE realspace_grid_types
 
      INTEGER :: ref_count                                ! reference count
 
-     INTEGER :: ngpts                                    ! # grid points
+     INTEGER(int_8) :: ngpts                             ! # grid points
      INTEGER, DIMENSION (3) :: npts                      ! # grid points per dimension
      INTEGER, DIMENSION (3) :: lb                        ! lower bounds
      INTEGER, DIMENSION (3) :: ub                        ! upper bounds
@@ -300,7 +300,7 @@ CONTAINS
        ! The corresponding group has dimension 1
        ! All operations will be done localy
        desc % npts = pw_grid % npts
-       desc % ngpts = PRODUCT ( desc % npts )
+       desc % ngpts = PRODUCT ( INT(desc % npts,KIND=int_8) )
        desc % lb = pw_grid % bounds ( 1, : )
        desc % ub = pw_grid % bounds ( 2, : )
        desc % perd = 1
@@ -318,7 +318,7 @@ CONTAINS
        ! global grid dimensions are still the same
        desc % group_size = pw_grid % para % group_size
        desc % npts = pw_grid % npts
-       desc % ngpts = PRODUCT ( desc % npts )
+       desc % ngpts = PRODUCT ( INT(desc % npts, KIND=int_8) )
        desc % lb = pw_grid % bounds ( 1, : )
        desc % ub = pw_grid % bounds ( 2, : )
 

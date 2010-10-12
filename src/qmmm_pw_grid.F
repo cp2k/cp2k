@@ -13,7 +13,8 @@ MODULE qmmm_pw_grid
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE message_passing,                 ONLY: mp_cart_rank,&
                                              mp_comm_dup,&
                                              mp_environ
@@ -165,7 +166,7 @@ CONTAINS
           pw_grid_out%bounds_local = pw_grid_out%bounds
        END IF
        pw_grid_out%npts            =  pw_grid_in%npts  + 1
-       pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
+       pw_grid_out%ngpts           =  PRODUCT ( INT(pw_grid_out% npts, KIND=int_8) )
        pw_grid_out%ngpts_cut=0
        pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(1,:)+1
        pw_grid_out%ngpts_local=PRODUCT(pw_grid_out%npts_local)
