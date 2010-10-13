@@ -397,7 +397,7 @@ CONTAINS
       potential_file_name
     CHARACTER(len=default_string_length)     :: env_num, project_name
     INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
-      num_threads, output_unit, print_level
+      num_threads, output_unit, print_level, trace_max, unit_nr
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
       Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
       MemFree_max, MemFree_min, MemLikelyFree, MemLikelyFree_avr, &
@@ -406,8 +406,7 @@ CONTAINS
       SReclaimable, SReclaimable_avr, SReclaimable_max, SReclaimable_min
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, efl, explicit, failure, &
-                                                trace, trace_master, &
-                                                trace_sync
+                                                trace, trace_master
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum1, enum2
     TYPE(keyword_type), POINTER              :: keyword
@@ -437,15 +436,22 @@ CONTAINS
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
     CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
-    CALL section_vals_val_get(global_section,"TRACE_SYNC",l_val=trace_sync,error=error)
     CALL section_vals_val_get(global_section,"TRACE_MASTER",l_val=trace_MASTER,error=error)
+    CALL section_vals_val_get(global_section,"TRACE_MAX",i_val=trace_max,error=error)
     CALL section_vals_val_get(global_section,"FLUSH_SHOULD_FLUSH",l_val=flush_should_flush,error=error)
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
-    IF(trace) CALL trace_debug("start",trace_sync,trace_master,para_env)
+    IF(trace) THEN
+       IF (logger%para_env%mepos==logger%para_env%source .OR. .NOT. trace_master) THEN
+           unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+       ELSE  
+           unit_nr=-1
+       ENDIF
+       CALL trace_debug("start",trace_master,trace_max,unit_nr,para_env)
+    ENDIF
 
     SELECT CASE(i_fft)
     CASE(do_fft_sg)

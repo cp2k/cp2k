@@ -64,8 +64,9 @@ MODULE timings
      REAL (KIND=dp)                                  :: inclusive_wallclock_accu ( max_timer )
      INTEGER                                         :: num_timer 
      CHARACTER ( LEN = 15 )                          :: astring, bstring
-     LOGICAL                                         :: trace,trace_sync,trace_master
+     LOGICAL                                         :: trace,trace_master
      INTEGER                                         :: mepos,group,num_pe
+     INTEGER                                         :: trace_max, unit_nr
   END TYPE timer_env_type
 
 ! *****************************************************************************
@@ -129,11 +130,12 @@ CONTAINS
     timer_env%handle_stack=0
     timer_env%num_timer=0
     timer_env%trace=.FALSE. 
-    timer_env%trace_sync=.FALSE. 
     timer_env%trace_master=.FALSE. 
     timer_env%group=-1
     timer_env%mepos=-1
     timer_env%num_pe=-1
+    timer_env%trace_max=1000
+    timer_env%unit_nr=6
   END SUBROUTINE timer_env_create
 
 ! *****************************************************************************
@@ -209,7 +211,6 @@ CONTAINS
           timer_env%handle_stack=0
           timer_env%num_timer=0
           timer_env%trace=.FALSE.
-          timer_env%trace_sync=.FALSE.
           timer_env%trace_master=.FALSE.
           DEALLOCATE(timer_env,stat=stat)
           IF (stat/=0) THEN
@@ -315,28 +316,17 @@ CONTAINS
     ENDIF
 
     !..if debug mode echo the subroutine name
-    IF ( timer_env%trace ) THEN
+    IF ( timer_env%trace .AND. timer_env%routine_calls ( handle )<timer_env%trace_max ) THEN
        WRITE(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,I6,1X,A,A)"
        WRITE ( mystring, sformat) &
             timer_env%astring,stack_size, &
             timer_env%routine_calls ( handle ), &
             TRIM( timer_env%routine_stack ( stack_size )),"       start"
        mem=m_memory()
-       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(mem+1023)/1024,"Kb"
-       IF (timer_env%trace_sync) THEN
-          DO i=0,timer_env%num_pe-1
-             line2=line
-             CALL mp_bcast(line2,i,timer_env%group)
-             IF (timer_env%mepos==0) THEN
-                WRITE(6,*) TRIM(line2)
-                CALL m_flush(6)
-             ENDIF
-          ENDDO
-       ELSE
-          IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
-             WRITE(6,*) TRIM(line)
-             CALL m_flush(6)
-          ENDIF
+       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(mem+1024*1024-1)/(1024*1024),"Mb"
+       IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
+          WRITE(timer_env%unit_nr,*) TRIM(line)
+          CALL m_flush(timer_env%unit_nr)
        ENDIF
     ENDIF
 
@@ -413,7 +403,7 @@ CONTAINS
     ENDIF
 
     !..if debug mode echo the subroutine name
-    IF ( timer_env%trace ) THEN
+    IF ( timer_env%trace .AND. timer_env%routine_calls ( handle )<timer_env%trace_max ) THEN
        WRITE(sformat,*) "(A,",MAX(1,3*timer_env%stack_size-9),"X,I4,1X,I6,1X,A,F12.3)"
        WRITE ( mystring, sformat) &
             timer_env%bstring, & 
@@ -421,21 +411,10 @@ CONTAINS
             timer_env%routine_calls ( handle ), &
             TRIM(timer_env%routine_stack(timer_env%stack_size)),elapsed_wt
        mem=m_memory()
-       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(mem+1023)/1024,"Kb"
-       IF (timer_env%trace_sync) THEN
-          DO i=0,timer_env%num_pe-1
-             line2=line
-             CALL mp_bcast(line2,i,timer_env%group)
-             IF (timer_env%mepos==0) THEN
-                WRITE(6,*) TRIM(line2)
-                CALL m_flush(6)
-             ENDIF
-          ENDDO
-       ELSE
-          IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
-             WRITE(6,*) TRIM(line)
-             CALL m_flush(6)
-          ENDIF
+       WRITE(line,'(A,1X,I0,1X,A2)') TRIM(mystring),(mem+1024*1024-1)/(1024*1024),"Mb"
+       IF (.NOT.timer_env%trace_master .OR. timer_env%mepos==0) THEN
+          WRITE(timer_env%unit_nr,*) TRIM(line)
+          CALL m_flush(timer_env%unit_nr)
        ENDIF
     ENDIF
 
@@ -582,9 +561,10 @@ CONTAINS
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE trace_debug ( set, trace_sync, trace_master, para_env )
+  SUBROUTINE trace_debug ( set, trace_master, trace_max, unit_nr, para_env )
     CHARACTER(len=*)                         :: set
-    LOGICAL                                  :: trace_sync, trace_master
+    LOGICAL, INTENT(IN)                      :: trace_master
+    INTEGER, INTENT(IN)                      :: trace_max, unit_nr
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
 
     CHARACTER(len=5)                         :: set2
@@ -600,8 +580,9 @@ CONTAINS
     set2=TRIM(set)
     CALL uppercase(set2)
 
-    timer_env%trace_sync=trace_sync
     timer_env%trace_master=trace_master
+    timer_env%trace_max=trace_max
+    timer_env%unit_nr=unit_nr
     ! this is a hack, timer_env can not retain para_env in a clean way
     ! as such, there is little guarantee this communicator remains valid
     timer_env%group=para_env%group
