@@ -89,7 +89,6 @@ MODULE helium_io
     INTEGER                                  :: handle, itmp
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
