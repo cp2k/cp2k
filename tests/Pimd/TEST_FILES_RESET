@@ -43,3 +43,6 @@ h2o_pint_fist_r.inp
 # Numerical noise due to fixing of two single-precision constants 
 w512_pint_nose.inp
 w512_pint_gle.inp
+# 2010-10-12 'rotation state' of He particles restored after presampling now
+helium-only.inp
+water-in-helium.inp

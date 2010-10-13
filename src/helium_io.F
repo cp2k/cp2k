@@ -18,8 +18,7 @@ MODULE helium_io
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE helium_common,                   ONLY: helium_cycle_number,&
                                              helium_path_length,&
-                                             helium_pbc,&
-                                             helium_rotate
+                                             helium_pbc
   USE helium_types,                    ONLY: e_id_interact,&
                                              e_id_kinetic,&
                                              e_id_potential,&
@@ -71,12 +70,14 @@ MODULE helium_io
   CONTAINS
 
   ! ***************************************************************************
-  !> \brief  Update the helium state.
+  !> \brief  Update the helium variables in the input structure.
   !> \author Lukasz Walewski
   !> \date   2009-11-12
   !> \descr  Transfer the current helium state from the runtime environment
   !>         to the input structure, so that it can be used for I/O, etc.
   !> \note   This routine does message passing - use with care.
+  !> \note   This routine does not ask any print key wheather it 'should output'
+  !>         or not, just does the job.
   ! ***************************************************************************
   SUBROUTINE helium_update( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
@@ -97,20 +98,6 @@ MODULE helium_io
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-
-    ! choose the print key
-    NULLIFY(print_key)
-    IF ( helium%solute_present ) THEN
-      print_key => section_vals_get_subs_vals( helium%input, &
-                   "MOTION%PINT%PRINT%RESTART", error=error)
-    ELSE
-      print_key => section_vals_get_subs_vals( helium%input, &
-                   "MOTION%PINT%HELIUM%PRINT%RESTART", error=error)
-    END IF
-
-    ! decide whether to update or not
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-        basis_section=print_key,error=error),cp_p_file) ) THEN
 
       IF ( .NOT. helium%solute_present ) THEN
         ! update iteration number
@@ -136,8 +123,6 @@ MODULE helium_io
         ! save forces on the solute
         CALL helium_update_force( helium, error )
       END IF
-
-    END IF
 
     CALL timestop(handle)
     RETURN
@@ -165,8 +150,6 @@ MODULE helium_io
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-
-    CALL helium_rotate(helium,-helium%relrot, error)
 
     ! allocate the buffer to be passed and fill it with local coords at each proc
     NULLIFY(msg)
@@ -199,8 +182,6 @@ MODULE helium_io
     ! DEALLOCATE since this array is only used locally
     DEALLOCATE(msg,STAT=status)
     CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
-
-    CALL helium_rotate(helium, helium%relrot, error)
 
     RETURN
   END SUBROUTINE helium_update_coord
@@ -431,7 +412,7 @@ MODULE helium_io
 
     NULLIFY(print_key)
     print_key => section_vals_get_subs_vals( helium%input, &
-                 "MOTION%PINT%HELIUM%PRINT%RESTART", error=error)
+                 "MOTION%PRINT%RESTART", error=error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
       basis_section=print_key,error=error),cp_p_file) ) THEN
       unit_nr = cp_print_key_unit_nr(logger,print_key,&
@@ -643,7 +624,7 @@ MODULE helium_io
   END SUBROUTINE helium_write_line
 
   ! ***************************************************************************
-  !> \brief  Writes out helium energies according to HELIUM%PRINT%ENER_INFO
+  !> \brief  Writes out helium energies according to HELIUM%PRINT%ENERGY
   !> \author Lukasz Walewski
   !> \date   2009-06-08
   ! ***************************************************************************
@@ -672,7 +653,7 @@ MODULE helium_io
 
     NULLIFY(print_key,logger)
     print_key => section_vals_get_subs_vals(helium%input, &
-      "MOTION%PINT%HELIUM%PRINT%ENER_INFO", error=error)
+      "MOTION%PINT%HELIUM%PRINT%ENERGY", error=error)
     logger => cp_error_get_logger(error)
     iteration = logger%iter_info%iteration(2)
     IF ( BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&

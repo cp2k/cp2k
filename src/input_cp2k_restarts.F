@@ -577,7 +577,7 @@ CONTAINS
        ELSEIF (PRESENT(kg_env)) THEN
           para_env => kg_env%para_env
        ELSEIF (PRESENT(pint_env)) THEN
-          para_env => logger%para_env
+          para_env => pint_env%logger%para_env
        ELSE
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF

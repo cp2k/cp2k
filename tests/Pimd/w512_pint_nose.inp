@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               w512_nose
+  PROJECT_NAME               w512_pint_nose
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL

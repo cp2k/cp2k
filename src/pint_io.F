@@ -366,7 +366,7 @@ MODULE pint_io
   END SUBROUTINE pint_write_com
 
   ! ***************************************************************************
-  !> \brief  Writes out the energies according to PINT%PRINT%ENER_INFO
+  !> \brief  Writes out the energies according to PINT%PRINT%ENERGY
   !> \author fawzi
   !> \param  pint_env path integral environment
   !> \param  error variable to control error logging, stopping,...
@@ -395,7 +395,7 @@ MODULE pint_io
 
     NULLIFY(print_key,logger)
     print_key => section_vals_get_subs_vals(pint_env%input, &
-      "MOTION%PINT%PRINT%ENER_INFO", error=error)
+      "MOTION%PINT%PRINT%ENERGY", error=error)
     logger => cp_error_get_logger(error)
     IF ( BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&
       basis_section=print_key,error=error),cp_p_file) ) THEN
@@ -454,6 +454,9 @@ MODULE pint_io
   !>                 include empty &BEADS and &NOSE sections in the input file
   !>                 any longer, see changes in input_cp2k_motion:create_pint_
   !>                 section as well [lwalewski]
+  !>      2010-07-19 substantial modification by Marcella, use of the generic
+  !>                 write_restart routine, PINT restart broken [lwalewski]
+  !>      2010-10-07 bugfix: PINT restart works again [lwalewski]
   ! ***************************************************************************
   SUBROUTINE pint_write_restart(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -462,10 +465,8 @@ MODULE pint_io
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_restart', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ierr
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: new_error
-    TYPE(f_env_type), POINTER                :: f_env
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
@@ -473,16 +474,16 @@ MODULE pint_io
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(f_env)
-    CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-            f_env=f_env,new_error=new_error, failure=failure)
+    NULLIFY(pint_env%logger)
+    pint_env%logger => cp_error_get_logger(error)
 
-    CALL write_restart(force_env=f_env%force_env,&
-             root_section=f_env%force_env%root_section,&
-             pint_env=pint_env,error=new_error)
-
-    CALL f_env_rm_defaults(f_env,new_error,ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+    ! restart is written directly from pint_env, no replicas env is involved
+    ! otherwise each replica would write out its own restart file and they
+    ! would be almost identical (only current date, project name and output
+    ! file name would be different), moreover iteration levels go bananas
+    ! this way and new restart file would be created EACH step for each rep!
+    CALL write_restart(root_section=pint_env%input,&
+             pint_env=pint_env,error=error)
 
     CALL timestop(handle)
   END SUBROUTINE pint_write_restart

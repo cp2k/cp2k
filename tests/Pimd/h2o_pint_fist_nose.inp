@@ -1,7 +1,7 @@
 &GLOBAL
-  PROJECT_NAME               H2O_fist
+  PROJECT_NAME               h2o_pint_fist
   RUN_TYPE                   PINT
-  PRINT_LEVEL                MEDIUM
+  PRINT_LEVEL                LOW
 &END GLOBAL
 
 &MOTION
@@ -12,31 +12,11 @@
     DT                       0.5
     NRESPA                   2
     TEMP                    50.0
-    T_TOL                    0.0
     TRANSFORMATION           NORMAL
-    &NORMALMODE
-      MODEFACTOR             1.0
-      Q_BEAD                -1.0
-      Q_CENTROID            -1.0
-    &END NORMALMODE
     &NOSE
       NNOS                   3
     &END NOSE
-    &INIT
-      RANDOMIZE_POS          F
-      CENTROID_SPEED         F
-    &END INIT
   &END PINT
-  &PRINT
-    &RESTART
-      FILENAME ./H2O_fist
-      &EACH
-        REPLICA_EVAL 4
-      &END
-    &END
-    &RESTART_HISTORY OFF
-    &END
-  &END
 &END MOTION
 
 &FORCE_EVAL

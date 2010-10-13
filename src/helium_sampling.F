@@ -164,9 +164,14 @@ MODULE helium_sampling
     ! helium sampling (outer MC loop)
     DO irot = 1, helium%iter_rot
 
+      ! rotate helium beads in imaginary time at random, store current
+      ! 'rotation state' in helium%relrot wich is within (0, helium%beads-1)
+      ! (this is needed to sample different fragments of the permutation
+      ! paths in try_permutations)
       rnd = next_random_number(helium%rng_stream_uniform,error=error)
       nslices = rnd * helium%beads
       CALL helium_rotate(helium,nslices,error)
+
       CALL helium_try_permutations(helium,pint_env,error)
 
       ! calculate instantaneous forces on the solute and He properties
@@ -190,6 +195,11 @@ MODULE helium_sampling
       helium%rdf_avrg(:) = helium%rdf_avrg(:) + helium%rdf_inst(:)
 
     END DO
+
+    ! restore the original alignment of beads in imaginary time
+    ! (this is useful to make a single bead's position easy to follow
+    ! in the trajectory, otherwise it's index would change every step)
+    CALL helium_rotate(helium,-helium%relrot, error)
 
     ! actually average the forces and properties over the outer MC loop
     inv_iter_rot = 1.0_dp / REAL(helium%iter_rot,dp)

@@ -430,8 +430,14 @@ MODULE helium_common
   END SUBROUTINE helium_calc_plength
 
   ! ***************************************************************************
-  !> \brief  Rotate helium particles (coordinates of helium beads) by nslices.
+  !> \brief  Rotate helium particles in imaginary time by nslices
   !> \author hforbert
+  !> \descr  Positions of helium beads in helium%pos array are reorganized such
+  !>         that the indices are cyclically translated in a permutation-aware
+  !>         manner. helium%relrot is given a new value that represents the new
+  !>         'angle' of the beads. This is done modulo helium%beads, so relrot
+  !>         should be always within 0 (no rotation) and helium%beads-1 (almost
+  !>         full rotation). [lwalewski]
   ! ***************************************************************************
   SUBROUTINE helium_rotate(helium, nslices, error)
     TYPE(helium_solvent_type), POINTER       :: helium

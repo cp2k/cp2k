@@ -95,6 +95,7 @@ MODULE pint_types
      INTEGER :: pimd_thermostat
      REAL(kind=dp) :: t_tol, v_tol, kT, beta, dt, &
           e_gle, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
+     TYPE(cp_logger_type), POINTER :: logger
      TYPE(replica_env_type), POINTER :: replicas
      TYPE(section_vals_type), POINTER :: input
      TYPE(staging_env_type), POINTER :: staging_env

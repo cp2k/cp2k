@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               test1
+  PROJECT_NAME               helium-only
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -20,6 +20,13 @@
       CELL_SHAPE             OCTAHEDRON
     &END HELIUM
   &END PINT
+  &PRINT
+    &RESTART
+      &EACH
+        MD                   1
+      &END EACH
+    &END RESTART
+  &END PRINT
 &END MOTION
 
 &FORCE_EVAL

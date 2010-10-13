@@ -1,31 +1,21 @@
 &GLOBAL
-  PROJECT_NAME               H2O
+  PROJECT_NAME               h2o_pint_qs_nose-restart
   RUN_TYPE                   PINT
-  PRINT_LEVEL                MEDIUM
+  PRINT_LEVEL                LOW
 &END GLOBAL
 
 &MOTION
   &PINT
     P                        4
     PROC_PER_REPLICA         1
-    NUM_STEPS                10
+    NUM_STEPS               10
     TEMP                    50.0
-    T_TOL                    0.0
     DT                       0.5
     NRESPA                   2
     TRANSFORMATION           NORMAL
-    &NORMALMODE
-      MODEFACTOR             1.0
-      Q_BEAD                -1.0
-      Q_CENTROID            -1.0
-    &END NORMALMODE
     &NOSE
       NNOS                   3
     &END NOSE
-    &INIT
-      RANDOMIZE_POS          F
-      CENTROID_SPEED         F
-    &END INIT
   &END PINT
 &END MOTION
 
@@ -40,7 +30,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-4
-      SCF_GUESS ATOMIC
+      SCF_GUESS              RESTART
     &END SCF
     &XC
       &XC_FUNCTIONAL  Pade
@@ -66,3 +56,12 @@
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
+
+&EXT_RESTART
+  RESTART_FILE_NAME          h2o_pint_qs_nose-1.restart
+  RESTART_DEFAULT            F
+  RESTART_COUNTERS
+  RESTART_PINT_POS
+  RESTART_PINT_VEL
+  RESTART_PINT_NOSE
+&END EXT_RESTART

@@ -240,14 +240,14 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"RESTART",&
-            description="Controls the dumping of the restart file during runs."//&
-            "By default keeps a short history of three restarts.See also RESTART_HISTORY", &
+            description="Controls the dumping of the restart file during runs. "//&
+            "By default keeps a short history of three restarts. See also RESTART_HISTORY", &
             each_iter_names=s2a("MD"),each_iter_values=(/20/), &
             print_level=silent_print_level, common_iter_levels=1,  &
             add_last=add_last_numeric, filename="",error=error)
 
        CALL keyword_create(keyword, name="BACKUP_COPIES",&
-            description="Specifies the maximum index of backup copies.",&
+            description="Specifies the maximum number of backup copies.",&
             usage="BACKUP_COPIES {int}",&
             default_i_val=3, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
@@ -2641,14 +2641,14 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL section_create(subsection,name="PRINT",&
-            description="Controls the output from the path integral run",&
+            description="Controls the path integral-specific output",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(print_key)
 
-       CALL cp_print_key_section_create(print_key,"ENER_INFO",&
-            description="Controls how often energy info is written", &
+       CALL cp_print_key_section_create(print_key,"ENERGY",&
+            description="Controls the output of the path integral energies", &
             print_level=low_print_level,common_iter_levels=1,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -2668,19 +2668,6 @@ CONTAINS
             print_level=high_print_level,common_iter_levels=1,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"RESTART",&
-            description="Controls how often the restart file is written", &
-            print_level=low_print_level,add_last=add_last_numeric,&
-            common_iter_levels=1,error=error)
-       CALL keyword_create(keyword, name="BACKUP_COPIES",&
-            description="Specifies the maximum number of backup copies.",&
-            usage="BACKUP_COPIES {int}",&
-            default_i_val=3, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)        
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -2916,24 +2903,18 @@ CONTAINS
 
     ! Properties printed at SILENT print level
     !
-    CALL cp_print_key_section_create(print_key,"RESTART",&
-         description="Controls the output of helium restart data",&
-         print_level=silent_print_level,add_last=add_last_numeric,&
-         common_iter_levels=1,error=error)
-    CALL keyword_create(keyword, name="BACKUP_COPIES",&
-         description="Specifies the maximum number of backup copies",&
-         usage="BACKUP_COPIES {int}",&
-         default_i_val=3, error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)        
 
     ! Properties printed at LOW print level
     !
-    CALL cp_print_key_section_create(print_key,"ENER_INFO",&
+    CALL cp_print_key_section_create(print_key,"ENERGY",&
          description="Controls the output of the helium energies"//&
          " (averaged over MC step)", &
+         print_level=low_print_level,common_iter_levels=1,error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
+    CALL cp_print_key_section_create(print_key,"SDENSITY",&
+         description="Controls the output of the helium superfluid density",&
          print_level=low_print_level,common_iter_levels=1,error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
@@ -2954,12 +2935,6 @@ CONTAINS
             error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL section_add_subsection(subsection,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
-    CALL cp_print_key_section_create(print_key,"SDENSITY",&
-         description="Controls the output of the helium superfluid density",&
-         print_level=medium_print_level,common_iter_levels=1,error=error)
     CALL section_add_subsection(subsection,print_key,error=error)
     CALL section_release(print_key,error=error)
 
