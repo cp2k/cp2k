@@ -243,7 +243,7 @@ CONTAINS
     CALL dbcsr_repoint_index (transposed%m)
     IF (.NOT. shallow) THEN
        CALL dbcsr_data_ensure_size (transposed%m%data_area,&
-            dbcsr_get_data_size_used(normal, error=error),&
+            dbcsr_get_data_size_referenced(normal),&
             nocopy=.TRUE., error=error)
     ENDIF
     !
