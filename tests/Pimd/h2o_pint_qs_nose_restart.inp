@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               h2o_pint_qs_nose-restart
+  PROJECT_NAME               h2o_pint_qs_nose
   RUN_TYPE                   PINT
   PRINT_LEVEL                LOW
 &END GLOBAL

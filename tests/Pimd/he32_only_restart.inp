@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               helium-only
+  PROJECT_NAME               he32_only
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -20,13 +20,6 @@
       CELL_SHAPE             OCTAHEDRON
     &END HELIUM
   &END PINT
-  &PRINT
-    &RESTART
-      &EACH
-        MD                   1
-      &END EACH
-    &END RESTART
-  &END PRINT
 &END MOTION
 
 &FORCE_EVAL
@@ -61,3 +54,12 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
+
+&EXT_RESTART
+  RESTART_FILE_NAME         he32_only-1.restart
+  RESTART_DEFAULT           F
+  RESTART_COUNTERS
+  RESTART_HELIUM_POS
+  RESTART_HELIUM_PERMUTATION
+  RESTART_HELIUM_RNG
+&END EXT_RESTART

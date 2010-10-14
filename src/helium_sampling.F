@@ -22,13 +22,13 @@ MODULE helium_sampling
                                              helium_calc_energy,&
                                              helium_solute_e_f
   USE helium_io,                       ONLY: &
-       helium_update, helium_write_accepts, helium_write_coordinates, &
+       helium_write_accepts, helium_write_coordinates, &
        helium_write_energy, helium_write_force, helium_write_force_inst, &
        helium_write_line, helium_write_perm, helium_write_plength, &
-       helium_write_rdf, helium_write_restart, helium_write_sdensity, &
-       helium_write_wnumber
+       helium_write_rdf, helium_write_sdensity, helium_write_wnumber
   USE helium_types,                    ONLY: e_id_total,&
                                              helium_solvent_type
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
@@ -70,9 +70,8 @@ MODULE helium_sampling
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_do_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: step
+    INTEGER                                  :: step, tot_steps
     LOGICAL                                  :: failure, should_stop
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pint_env_type), POINTER             :: pint_env
 
     failure=.FALSE.
@@ -83,23 +82,26 @@ MODULE helium_sampling
 
     NULLIFY(pint_env)
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    NULLIFY(helium%logger)
+    helium%logger => cp_error_get_logger(error)
 
     ! create iteration level
     ! The iteration level 'MD' can be misleading since this is a pure MC
     ! simulation, however the helium code is meant to be run mainly from PINT.
     ! We keep it like that for compatibility with PINT+HELIUM simulations.
-    CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
-    CALL cp_iterate(logger%iter_info,iter_nr=helium%first_step,error=error)
-
+    CALL cp_add_iter_level(helium%logger%iter_info,"MD",error=error)
+    CALL cp_iterate(helium%logger%iter_info,iter_nr=helium%first_step,error=error)
+    tot_steps = helium%first_step
     DO step = 1, helium%num_steps
 
-      CALL cp_iterate(logger%iter_info,iter_nr_out=helium%current_step,error=error)
+      tot_steps = tot_steps + 1
+      CALL cp_iterate(helium%logger%iter_info,last=(step==helium%num_steps),iter_nr=tot_steps,error=error)
+      helium%current_step = tot_steps
 
       CALL helium_step(helium,pint_env,error)
-      CALL helium_update( helium, error )
-      CALL helium_write_restart(helium,error)
+
+      ! call write_restart here to avoid interference with PINT write_restart
+      CALL write_restart(root_section=helium%input,helium_env=helium,error=error)
 
       ! exit from the main loop if soft exit has been requested
       CALL external_control(should_stop,"MD",globenv=globenv,error=error)
@@ -108,7 +110,7 @@ MODULE helium_sampling
     END DO
 
     ! remove iteration level
-    CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
+    CALL cp_rm_iter_level(helium%logger%iter_info,"MD",error=error)
 
     RETURN
   END SUBROUTINE helium_do_run

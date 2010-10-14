@@ -46,3 +46,5 @@ w512_pint_gle.inp
 # 2010-10-12 'rotation state' of He particles restored after presampling now
 helium-only.inp
 water-in-helium.inp
+# 2010-10-14 wavefunction restart from *-RESTART.wfn files left by the previous run (should be overwritten)
+h2o_pint_qs_nose_restart.inp

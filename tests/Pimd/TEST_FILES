@@ -6,7 +6,8 @@ h2o_pint_fist_nose_restart.inp         9
 h2o_pint_qs_nve.inp                    9
 h2o_pint_qs_nose.inp                   9
 h2o_pint_qs_nose_restart.inp           9
-helium-only.inp     40
+he32_only.inp                         40
+he32_only_restart.inp                 40
 water-in-helium.inp  9
 water-in-helium-restart.inp            9
 w512_pint_nose.inp   9

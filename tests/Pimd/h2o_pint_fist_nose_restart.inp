@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT_NAME               h2o_pint_fist_restart
+  PROJECT_NAME               h2o_pint_fist
   RUN_TYPE                   PINT
   PRINT_LEVEL                LOW
 &END GLOBAL

@@ -45,6 +45,7 @@ MODULE input_cp2k_restarts
                                              multiple_fe_list,&
                                              use_qmmm
   USE gle_system_types,                ONLY: gle_type
+  USE helium_types,                    ONLY: helium_solvent_type
   USE input_constants,                 ONLY: &
        do_band_collective, do_thermo_csvr, do_thermo_gle, &
        do_thermo_no_communication, do_thermo_nose, ehrenfest, mol_dyn_run, &
@@ -69,6 +70,7 @@ MODULE input_cp2k_restarts
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
+                                             mp_gather,&
                                              mp_sum
   USE metadynamics_types,              ONLY: meta_env_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -78,6 +80,7 @@ MODULE input_cp2k_restarts
   USE multipole_types,                 ONLY: multipole_type
   USE neb_types,                       ONLY: neb_var_type
   USE parallel_rng_types,              ONLY: dump_rng_stream,&
+                                             get_rng_stream,&
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -119,7 +122,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! *****************************************************************************
   SUBROUTINE write_restart(md_env,force_env,kg_env,root_section,&
-       coords, vels, pint_env,  error)
+       coords, vels, pint_env, helium_env, error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -128,6 +131,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
+    TYPE(helium_solvent_type), OPTIONAL, &
+      POINTER                                :: helium_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
@@ -161,7 +166,7 @@ CONTAINS
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
        CALL update_input(md_env,force_env,kg_env,root_section,coords,vels,pint_env,&
-            save_mem=save_mem,error=error)
+            helium_env,save_mem=save_mem,error=error)
 
        DO ikey=1,SIZE(keys)
 
@@ -435,7 +440,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_input(md_env,force_env,kg_env,root_section,coords,vels,pint_env, &
-             save_mem,error)
+             helium_env,save_mem,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -444,6 +449,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
+    TYPE(helium_solvent_type), OPTIONAL, &
+      POINTER                                :: helium_env
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -467,7 +474,7 @@ CONTAINS
     !
     ! Can handle md_env or force_env
     !
-    lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(kg_env).OR.PRESENT(pint_env)
+    lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(kg_env).OR.PRESENT(pint_env).OR.PRESENT(helium_env)
     IF (lcond) THEN
        IF (PRESENT(md_env)) THEN
           CALL get_md_env ( md_env=md_env, force_env=my_force_env, error=error)
@@ -480,7 +487,7 @@ CONTAINS
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
        CALL update_motion(motion_section,md_env=md_env,force_env=my_force_env,&
             kg_env=kg_env,logger=logger,coords=coords,vels=vels,&
-            pint_env=pint_env,save_mem=my_save_mem,error=error)
+            pint_env=pint_env,helium_env=helium_env,save_mem=my_save_mem,error=error)
        !
        ! Update one force_env_section per time..
        !
@@ -502,7 +509,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,logger,&
-       coords,vels,pint_env,save_mem,error)
+       coords,vels,pint_env,helium_env,save_mem,error)
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -512,24 +519,26 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
+    TYPE(helium_solvent_type), OPTIONAL, &
+      POINTER                                :: helium_env
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, handle, handle2, i, iatom, ibead, icoef, idim, iel, &
-      ikind, inos, irep, isec, istat, j, n_el, natom, natom_tot, nfield, &
+    INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, &
+      ikind, irep, isec, j, n_el, natom, natom_tot, nfield, &
       nhc_len, nkind, nsgf, nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, DIMENSION(:), POINTER           :: lindex, walkers_status
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: explicit, failure, my_save_mem
+    LOGICAL                                  :: failure, my_save_mem
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuffer, pindex, vbuffer, &
                                                 vindex
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
-                                                r_vals, veta, wrk
+                                                veta, wrk
     REAL(KIND=dp), POINTER                   :: constant, t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -544,8 +553,7 @@ CONTAINS
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: pint_section, &
-                                                replica_section, tmpsec, &
+    TYPE(section_vals_type), POINTER         :: replica_section, &
                                                 work_section
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_coeff, &
@@ -578,6 +586,8 @@ CONTAINS
           para_env => kg_env%para_env
        ELSEIF (PRESENT(pint_env)) THEN
           para_env => pint_env%logger%para_env
+       ELSEIF (PRESENT(helium_env)) THEN
+          para_env => helium_env%logger%para_env
        ELSE
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
@@ -981,9 +991,42 @@ CONTAINS
     END IF
     CALL timestop(handle2)
 
-    CALL timeset(routineN//"_PINT",handle2)
     IF (PRESENT(pint_env)) THEN
        ! Update PINT section
+      CALL update_motion_pint(motion_section, pint_env, error)
+    END IF
+
+    IF (PRESENT(helium_env)) THEN
+      ! Update HELIUM section
+      CALL update_motion_helium(motion_section, helium_env, error)
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE update_motion
+
+
+  ! ***************************************************************************
+  ! \brief  Update PINT section in the input structure
+  ! \date   2010-10-13
+  ! \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
+  ! ***************************************************************************
+  SUBROUTINE update_motion_pint(motion_section, pint_env, error)
+
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_motion_pint', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: explicit, failure
+    INTEGER                                  :: i, iatom, ibead, inos, handle, istat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
+    TYPE(section_vals_type), POINTER         :: pint_section, tmpsec
+
+    CALL timeset(routineN,handle)
+
       pint_section => section_vals_get_subs_vals(motion_section,"PINT",error=error)
       CALL section_vals_val_set(pint_section,"ITERATION",i_val=pint_env%iter,error=error)
 
@@ -997,7 +1040,6 @@ CONTAINS
         CALL section_vals_add_values(tmpsec,error)
       END IF
 
-
       ! update bead coordinates in the global input structure
       NULLIFY(r_vals)
       ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
@@ -1005,9 +1047,9 @@ CONTAINS
 
       i=1
       CALL pint_u2x(pint_env,error=error)
-      DO idim=1, pint_env%ndim
+    DO iatom=1, pint_env%ndim
         DO ibead=1, pint_env%p
-          r_vals(i)=pint_env%x(ibead,idim)
+        r_vals(i)=pint_env%x(ibead,iatom)
           i = i+1
         END DO
       END DO
@@ -1020,13 +1062,13 @@ CONTAINS
       CPAssert(istat==0, cp_failure_level, routineP, error, failure)
       i=1
       CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
-      DO idim=1, pint_env%ndim
+    DO iatom=1, pint_env%ndim
         DO ibead=1, pint_env%p
-          r_vals(i)=pint_env%v(ibead,idim)
+        r_vals(i)=pint_env%v(ibead,iatom)
           i = i+1
         END DO
       END DO
-      CALL section_vals_val_set(pint_section,"BEADS%VELOCITY%_DEFAULT_KEYWORD_", &
+    CALL section_vals_val_set(pint_section,"BEADS%VELOCITY%_DEFAULT_KEYWORD_",&
            r_vals_ptr=r_vals,error=error)
 
       IF(pint_env%pimd_thermostat==thermostat_nose) THEN
@@ -1045,12 +1087,11 @@ CONTAINS
         NULLIFY(r_vals)
         ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
         CPAssert(istat==0, cp_failure_level, routineP, error, failure)
-
         i=1
-        DO idim=1, pint_env%ndim
+      DO iatom=1, pint_env%ndim
           DO ibead=1, pint_env%p
             DO inos=1, pint_env%nnos
-              r_vals(i)=pint_env%tx(inos,ibead,idim)
+            r_vals(i)=pint_env%tx(inos,ibead,iatom)
               i = i+1
             END DO
           END DO
@@ -1063,10 +1104,10 @@ CONTAINS
         ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
         CPAssert(istat==0, cp_failure_level, routineP, error, failure)
         i=1
-        DO idim=1, pint_env%ndim
+      DO iatom=1, pint_env%ndim
           DO ibead=1, pint_env%p
             DO inos=1, pint_env%nnos
-              r_vals(i)=pint_env%tv(inos,ibead,idim)
+            r_vals(i)=pint_env%tv(inos,ibead,iatom)
               i = i+1
             END DO
           END DO
@@ -1082,12 +1123,216 @@ CONTAINS
 
       END IF
 
+    CALL timestop(handle)
+
+  END SUBROUTINE update_motion_pint
+
+
+  ! ***************************************************************************
+  !> \brief  Update HELIUM section in the input structure.
+  !> \date   2009-11-12
+  !> \author Lukasz Walewski <Lukasz.Walewski@ruhr-uni-bochum.de>
+  !> \descr  Transfer the current helium state from the runtime environment
+  !>         to the input structure, so that it can be used for I/O, etc.
+  !> \note   Moved from the helium_io module directly, might be done better way
+  ! ***************************************************************************
+  SUBROUTINE update_motion_helium(motion_section, helium, error)
+
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(helium_solvent_type), POINTER       :: helium
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_motion_helium', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, itmp
+    LOGICAL                                  :: failure, lbf
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    INTEGER                                  :: msglen, reqlen, offset, status
+    INTEGER, DIMENSION(:), POINTER           :: int_msg, int_msg_gather
+    REAL(kind=dp), DIMENSION(:), POINTER     :: real_msg, real_msg_gather
+    REAL(kind=dp)                            :: bf, bu
+    REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, ig
+    CHARACTER(len=default_string_length)     :: err_str, stmp
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
+    IF ( .NOT. helium%solute_present ) THEN
+      ! update iteration number
+      itmp = logger%iter_info%iteration(2)
+      CALL section_vals_val_set( &
+        helium%input, &
+        "MOTION%PINT%ITERATION", &
+        i_val=itmp, &
+        error=error )
+      ! else - PINT will do that
     END IF
-    CALL timestop(handle2)
+
+    !
+    ! save coordinates
+    !
+    ! allocate the buffer to be passed and fill it with local coords at each proc
+    NULLIFY(real_msg)
+    msglen = SIZE(helium%pos)
+    ALLOCATE(real_msg(msglen),STAT=status)
+    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    real_msg(:) = PACK( helium%pos, .TRUE. )
+
+    ! allocate the buffer for message passing
+    NULLIFY(real_msg_gather)
+    msglen = SIZE(helium%pos) * logger%para_env%num_pe
+    ALLOCATE(real_msg_gather(msglen),STAT=status)
+    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+
+    ! pass the message from all processors to logger%para_env%source
+    real_msg_gather(:) = 0.0_dp
+    CALL mp_gather(real_msg,real_msg_gather,&
+         logger%para_env%source,logger%para_env%group)
+
+    ! update coordinates in the global input structure
+    CALL section_vals_val_set(helium%input, &
+         "MOTION%PINT%HELIUM%COORD%_DEFAULT_KEYWORD_", &
+         r_vals_ptr=real_msg_gather,error=error)
+
+    ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
+    ! assigned in section_vals_val_set - this memory will be used later on!
+    ! "The val becomes the owner of the array" - from section_vals_val_set docu
+    NULLIFY(real_msg_gather)
+
+    ! DEALLOCATE since this array is only used locally
+    DEALLOCATE(real_msg,STAT=status)
+    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+
+    !
+    ! save permutation state
+    !
+    ! allocate the buffer for message passing
+    NULLIFY(int_msg_gather)
+    msglen = SIZE(helium%permutation) * logger%para_env%num_pe
+    ALLOCATE(int_msg_gather(msglen),STAT=status)
+    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+
+    ! pass the message from all processors to logger%para_env%source
+    int_msg_gather(:) = 0
+    CALL mp_gather(helium%permutation,int_msg_gather,&
+         logger%para_env%source,logger%para_env%group)
+
+    ! update permutation state in the global input structure
+    CALL section_vals_val_set(helium%input, &
+         "MOTION%PINT%HELIUM%PERM%_DEFAULT_KEYWORD_", &
+         i_vals_ptr=int_msg_gather,error=error)
+
+    ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
+    ! assigned in section_vals_val_set - this memory will be used later on!
+    ! "The val becomes the owner of the array" - from section_vals_val_set docu
+    NULLIFY(int_msg_gather)
+
+    !
+    ! save RNG state
+    !
+    ! pack RNG state on each processor to the local array
+    NULLIFY(real_msg)
+    msglen = 40
+    ALLOCATE(real_msg(msglen),STAT=status)
+    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    CALL get_rng_stream(helium%rng_stream_uniform,bg=bg,cg=cg,ig=ig,&
+         buffer=bu,buffer_filled=lbf,error=error)
+    offset = 0
+    real_msg(offset+1:offset+6)   = PACK( bg, .TRUE. )
+    real_msg(offset+7:offset+12)  = PACK( cg, .TRUE. )
+    real_msg(offset+13:offset+18) = PACK( ig, .TRUE. )
+    IF ( lbf ) THEN
+      bf = 1.0_dp
+    ELSE
+      bf = -1.0_dp
+    END IF
+    real_msg(offset+19) = bf
+    real_msg(offset+20) = bu
+    CALL get_rng_stream(helium%rng_stream_gaussian,bg=bg,cg=cg,ig=ig,&
+         buffer=bu,buffer_filled=lbf,error=error)
+    offset = 20
+    real_msg(offset+1:offset+6)   = PACK( bg, .TRUE. )
+    real_msg(offset+7:offset+12)  = PACK( cg, .TRUE. )
+    real_msg(offset+13:offset+18) = PACK( ig, .TRUE. )
+    IF ( lbf ) THEN
+      bf = 1.0_dp
+    ELSE
+      bf = -1.0_dp
+    END IF
+    real_msg(offset+19) = bf
+    real_msg(offset+20) = bu
+
+    ! Gather RNG state (in real_msg_gather vector) from all processors at
+    ! logger%para_env%source
+    NULLIFY(real_msg_gather)
+    msglen = SIZE(real_msg)*logger%para_env%num_pe
+    ALLOCATE(real_msg_gather(msglen),STAT=status)
+    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+    real_msg_gather(:) = 0.0_dp
+    CALL mp_gather(real_msg,real_msg_gather,logger%para_env%source,logger%para_env%group)
+
+    ! update the RNG state in the global input structure
+    CALL section_vals_val_set(helium%input, &
+         "MOTION%PINT%HELIUM%RNG_STATE%_DEFAULT_KEYWORD_", &
+         r_vals_ptr=real_msg_gather,error=error)
+
+    ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
+    ! assigned in section_vals_val_set - this memeory will be used later on!
+    ! "The val becomes the owner of the array" - from section_vals_val_set docu
+    NULLIFY(real_msg_gather)
+
+    ! DEALLOCATE since this array is only used locally
+    DEALLOCATE(real_msg,STAT=status)
+    CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+
+    IF (helium%solute_present) THEN
+      !
+      ! save forces on the solute
+      !
+      ! check that the number of values match the current runtime
+      reqlen = helium%solute_atoms * helium%solute_beads * 3
+      msglen = SIZE(helium%force_avrg)
+      err_str = "Invalid size of HELIUM%FORCE: received '"
+      stmp = ""
+      WRITE(stmp,*) msglen
+      err_str = TRIM(ADJUSTL(err_str)) // &
+                TRIM(ADJUSTL(stmp)) // "' but expected '"
+      stmp = ""
+      WRITE(stmp,*) reqlen
+      err_str = TRIM(ADJUSTL(err_str)) // &
+                TRIM(ADJUSTL(stmp)) // "'."
+      CALL cp_assert(msglen==reqlen,cp_failure_level,&
+           cp_assertion_failed, routineP, err_str)
+
+      ! allocate the buffer to be saved and fill it with forces
+      ! forces should be the same on all processors, but we don't check that here
+      NULLIFY(real_msg_gather)
+      ALLOCATE(real_msg_gather(msglen),STAT=status)
+      CPPostcondition(status==0,cp_failure_level,routineP,error,failure)
+      real_msg_gather(:) = PACK( helium%force_avrg, .TRUE. )
+
+      ! update forces in the global input structure
+      CALL section_vals_val_set(helium%input, &
+           "MOTION%PINT%HELIUM%FORCE%_DEFAULT_KEYWORD_", &
+           r_vals_ptr=real_msg_gather,error=error)
+
+      ! NULLIFY, but do not DEALLOCATE! - a new pointer to this array is silently
+      ! assigned in section_vals_val_set - this memeory will be used later on!
+      ! "The val becomes the owner of the array" - from section_vals_val_set docu
+      NULLIFY(real_msg_gather)
+    END IF
 
     CALL timestop(handle)
 
-  END SUBROUTINE update_motion
+  END SUBROUTINE update_motion_helium
+
 
 ! *****************************************************************************
 !> \brief routine to dump thermostat CSVR energies 

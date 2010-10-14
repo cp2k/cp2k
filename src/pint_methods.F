@@ -31,7 +31,6 @@ MODULE pint_methods
                                              gle_init,&
                                              gle_thermo_create
   USE global_types,                    ONLY: global_environment_type
-  USE helium_io,                       ONLY: helium_update
   USE helium_methods,                  ONLY: helium_create,&
                                              helium_init,&
                                              helium_release
@@ -39,6 +38,7 @@ MODULE pint_methods
                                              helium_step
   USE helium_types,                    ONLY: helium_solvent_type
   USE input_constants,                 ONLY: transformation_stage
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
@@ -64,7 +64,6 @@ MODULE pint_methods
   USE pint_io,                         ONLY: pint_write_centroids,&
                                              pint_write_com,&
                                              pint_write_ener,&
-                                             pint_write_restart,&
                                              pint_write_step_info,&
                                              pint_write_trajectory
   USE pint_normalmode,                 ONLY: normalmode_calc_uf_h,&
@@ -922,28 +921,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_do_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: itimes, step
+    INTEGER                                  :: step, tot_steps
     LOGICAL                                  :: failure, should_stop
     REAL(kind=dp)                            :: scal
-    TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
+    NULLIFY(pint_env%logger)
+    pint_env%logger => cp_error_get_logger(error)
 
     ! create iteration level and initialize iteration info
-    CALL cp_add_iter_level(logger%iter_info,"MD",error=error)
-    CALL cp_iterate(logger%iter_info,iter_nr=pint_env%first_step,error=error)
-    itimes = pint_env%first_step
+    CALL cp_add_iter_level(pint_env%logger%iter_info,"MD",error=error)
+    CALL cp_iterate(pint_env%logger%iter_info,iter_nr=pint_env%first_step,error=error)
+    tot_steps = pint_env%first_step
     ! main PIMD loop
     DO step = 1, pint_env%num_steps
 
-      itimes = itimes + 1
-      CALL cp_iterate(logger%iter_info,last=(step==pint_env%num_steps),iter_nr=itimes,error=error)
+      tot_steps = tot_steps + 1
+      CALL cp_iterate(pint_env%logger%iter_info,last=(step==pint_env%num_steps),iter_nr=tot_steps,error=error)
       pint_env%t = pint_env%t + pint_env%dt
-      pint_env%iter = itimes
+      pint_env%iter = tot_steps
 
 
       IF (pint_env%t_tol > 0.0_dp) THEN
@@ -960,12 +958,9 @@ CONTAINS
       CALL pint_write_centroids(pint_env,error=error)
       CALL pint_write_trajectory(pint_env,error=error)
       CALL pint_write_com(pint_env,error=error)
-      IF (PRESENT(helium)) THEN
-        IF (ASSOCIATED(helium)) THEN
-          CALL helium_update(helium,error)
-        END IF
-      END IF
-      CALL pint_write_restart(pint_env,error=error)
+
+      CALL write_restart(root_section=pint_env%input,&
+           pint_env=pint_env, helium_env=helium, error=error)
 
       ! exit from the main loop if soft exit has been requested
       CALL external_control(should_stop,"MD",globenv=globenv,error=error)
@@ -974,7 +969,7 @@ CONTAINS
     END DO
 
     ! remove iteration level
-    CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
+    CALL cp_rm_iter_level(pint_env%logger%iter_info,"MD",error=error)
 
     RETURN
   END SUBROUTINE pint_do_run

@@ -22,6 +22,7 @@ MODULE pint_io
                                              f_env_rm_defaults,&
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
+  USE helium_types,                    ONLY: helium_solvent_type
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
                                              dump_xmol
@@ -56,7 +57,6 @@ MODULE pint_io
   PUBLIC :: pint_write_trajectory
   PUBLIC :: pint_write_com
   PUBLIC :: pint_write_ener
-  PUBLIC :: pint_write_restart
   PUBLIC :: pint_write_step_info
 
   CONTAINS
@@ -445,48 +445,6 @@ MODULE pint_io
     RETURN
   END SUBROUTINE pint_write_ener
 
-  ! ***************************************************************************
-  !> \brief Writes the restart file for PINT
-  !> \author Fawzi Mohamed
-  !> \par History
-  !>      11.2003 created [fawzi]
-  !>      2009-11-25 major cleanup, logic changed so that one doesn't need to
-  !>                 include empty &BEADS and &NOSE sections in the input file
-  !>                 any longer, see changes in input_cp2k_motion:create_pint_
-  !>                 section as well [lwalewski]
-  !>      2010-07-19 substantial modification by Marcella, use of the generic
-  !>                 write_restart routine, PINT restart broken [lwalewski]
-  !>      2010-10-07 bugfix: PINT restart works again [lwalewski]
-  ! ***************************************************************************
-  SUBROUTINE pint_write_restart(pint_env,error)
-    TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_restart', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
-    CALL timeset(routineN,handle)
-
-    NULLIFY(pint_env%logger)
-    pint_env%logger => cp_error_get_logger(error)
-
-    ! restart is written directly from pint_env, no replicas env is involved
-    ! otherwise each replica would write out its own restart file and they
-    ! would be almost identical (only current date, project name and output
-    ! file name would be different), moreover iteration levels go bananas
-    ! this way and new restart file would be created EACH step for each rep!
-    CALL write_restart(root_section=pint_env%input,&
-             pint_env=pint_env,error=error)
-
-    CALL timestop(handle)
-  END SUBROUTINE pint_write_restart
 
   ! ***************************************************************************
   !> \brief  Write step info to the output file.

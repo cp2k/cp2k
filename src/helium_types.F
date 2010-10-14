@@ -129,6 +129,7 @@ MODULE helium_types
   TYPE helium_solvent_type
      INTEGER :: id_nr,ref_count
      TYPE(section_vals_type), POINTER :: input
+     TYPE(cp_logger_type), POINTER :: logger
      LOGICAL :: periodic
      INTEGER :: cell_shape, num_env, num_env_restart, m_value
      REAL(kind=dp) :: cell_size, cell_size_inv, m_ratio
