@@ -39,7 +39,8 @@ MODULE cp_dbcsr_output
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_max,&
@@ -548,8 +549,8 @@ CONTAINS
     CHARACTER                                :: matrix_type
     CHARACTER(LEN=80)                        :: matrix_name
     INTEGER :: group, handle, ipe, mype, natom, nblock_max, nblock_sum, &
-      nblock_tot, nelement_max, nelement_sum, npe, nrow, output_unit, stat, &
-      tmp(2)
+      nelement_max, nelement_sum, npe, nrow, output_unit, stat, tmp(2)
+    INTEGER(KIND=int_8)                      :: nblock_tot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: occupation
@@ -612,9 +613,9 @@ CONTAINS
 
     IF (matrix_type == dbcsr_type_symmetric .OR.&
          matrix_type == dbcsr_type_antisymmetric) THEN
-      nblock_tot = natom*(natom + 1)/2 ! XXXXXX
+      nblock_tot = INT(natom,KIND=int_8)*INT(natom + 1,KIND=int_8)/2 
     ELSE
-      nblock_tot = natom*natom ! XXXXXXXX can overflow
+      nblock_tot = INT(natom,KIND=int_8)**2
     END IF
 
     occupation = -1.0_dp
