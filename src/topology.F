@@ -264,7 +264,8 @@ CONTAINS
       ALLOCATABLE, DIMENSION(:)              :: elements
     INTEGER                                  :: handle, handle2, i, id, itmp, &
                                                 iw, j, k, stat
-    LOGICAL                                  :: check, failure, my_qmmm
+    LOGICAL                                  :: check, failure, my_qmmm, &
+                                                use_mm_map_first
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -307,9 +308,18 @@ CONTAINS
     ! 3. Check for the element name.. 
     CALL timeset(routineN//"_check_element_name",handle2)
     ! Fix element name
+
+    ! we will only translate names if we actually have a connectivity file given
+    SELECT CASE(topology%conn_type)
+    CASE(do_conn_mol_set,do_conn_psf, do_conn_psf_u, do_conn_g96, do_conn_g87, do_conn_amb7)
+        use_mm_map_first=.TRUE.
+    CASE DEFAULT
+        use_mm_map_first=.FALSE.
+    END SELECT
     CALL create_ff_map("AMBER",error)
     CALL create_ff_map("CHARMM",error)
     CALL create_ff_map("GROMOS",error)
+
     ALLOCATE(elements(SIZE(topology%atom_info%element)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     elements = topology%atom_info%element
@@ -329,7 +339,7 @@ CONTAINS
        element0 = elements(i)(1:j)
        ! ALWAYS check for elements..
        CALL check_subsys_element(element0,topology%atom_info%label_atmname(i),my_element,&
-            subsys_section,error)
+            subsys_section,use_mm_map_first,error)
        ! Earn time fixing same element labels for same atoms
        element0 = elements(i)
        DO k = i, topology%natoms

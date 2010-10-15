@@ -1250,11 +1250,12 @@ CONTAINS
 !>      12.2005 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE check_subsys_element(element_in, atom_name_in, element_out, subsys_section, error)
+  SUBROUTINE check_subsys_element(element_in, atom_name_in, element_out, subsys_section, use_mm_map_first, error)
     CHARACTER(len=*), INTENT(IN)             :: element_in, atom_name_in
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: element_out
     TYPE(section_vals_type), POINTER         :: subsys_section
+    LOGICAL                                  :: use_mm_map_first
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_subsys_element', &
@@ -1264,7 +1265,7 @@ CONTAINS
                                                 keyword
     INTEGER                                  :: i, i_rep, n_rep
     LOGICAL                                  :: defined_kind_section, &
-                                                failure, found
+                                                failure, found, in_ptable
     TYPE(section_vals_type), POINTER         :: kind_section
 
     failure = .FALSE.
@@ -1291,13 +1292,26 @@ CONTAINS
                   keyword_name="ELEMENT",c_val=element_symbol,error=error)
              defined_kind_section = .TRUE.           
              EXIT
+          ELSE
+             element_symbol=element_in
+             defined_kind_section = .TRUE.
           END IF
        END IF
     END DO
 
     ! Let's check the validity of the element so far stored..
-    CALL get_ptable_info(element_symbol,found=found)
-    IF (found) element_out = TRIM(element_symbol)
+    ! if we are not having a connectivity file, we must first match against the ptable.
+    ! this helps to resolve Ca/CA (calcium and Calpha) or Cn/CN7 (Coppernicum (112) CN) conflicts 
+    ! so, in the presence of connectivity CA will be 'C', while in the absence of connectivity CA will be 'Ca'
+    IF (defined_kind_section .OR. .NOT. use_mm_map_first) THEN
+       ! lengths larger than 2 should not match, because 'trailing' characters are ignored.
+       in_ptable=.FALSE.
+       IF (LEN_TRIM(element_symbol)<=2) CALL get_ptable_info(element_symbol,found=in_ptable) 
+       IF (in_ptable) THEN
+          element_out = TRIM(element_symbol)
+          found=.TRUE.
+       ENDIF
+    ENDIF
 
     ! This is clearly a user error
     CALL cp_assert(found.OR.(.NOT.defined_kind_section),cp_fatal_level,cp_assertion_failed,routineP,&
@@ -1345,6 +1359,18 @@ CPSourceFileRef,&
           element_out = gromos_map%element(i)
        END IF
     END IF
+
+    ! final check. We has a connectivity, so we first tried to match against the ff_maps, but the element was not there.
+    ! Try again the periodic table.
+    IF(.NOT.found) THEN
+       in_ptable=.FALSE.
+       IF (LEN_TRIM(element_symbol)<=2) CALL get_ptable_info(element_symbol,found=in_ptable) 
+       IF (in_ptable) THEN
+          element_out = TRIM(element_symbol)
+          found=.TRUE.
+       ENDIF
+    ENDIF
+
     ! If no element is found the job stops here.
     IF (.NOT.found) THEN
        CALL stop_program ("check_subsys_element",&

@@ -195,7 +195,7 @@ CONTAINS
           IF ( id_ == -1 ) id_ = LEN_TRIM(topology%atom_info%label_atmname(iat))
           CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),&
                topology%atom_info%label_atmname(iat)(1:id_), my_element,&
-               subsys_section,error)
+               subsys_section,use_mm_map_first=.FALSE.,error=error)
           topology%atom_info%element(iat)=my_element
           topology%atom_info%atm_mass(iat)=0._dp
           topology%atom_info%atm_charge(iat)=0._dp
