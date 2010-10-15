@@ -30,11 +30,8 @@ MODULE helium_io
                                              fmt_id_xyz,&
                                              helium_cell_shape_cube,&
                                              helium_cell_shape_octahedron
-  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_set,&
-                                             section_vals_write
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8

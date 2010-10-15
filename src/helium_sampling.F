@@ -22,10 +22,10 @@ MODULE helium_sampling
                                              helium_calc_energy,&
                                              helium_solute_e_f
   USE helium_io,                       ONLY: &
-       helium_write_accepts, helium_write_coordinates, &
-       helium_write_energy, helium_write_force, helium_write_force_inst, &
-       helium_write_line, helium_write_perm, helium_write_plength, &
-       helium_write_rdf, helium_write_sdensity, helium_write_wnumber
+       helium_write_accepts, helium_write_coordinates, helium_write_energy, &
+       helium_write_force, helium_write_force_inst, helium_write_line, &
+       helium_write_perm, helium_write_plength, helium_write_rdf, &
+       helium_write_sdensity, helium_write_wnumber
   USE helium_types,                    ONLY: e_id_total,&
                                              helium_solvent_type
   USE input_cp2k_restarts,             ONLY: write_restart

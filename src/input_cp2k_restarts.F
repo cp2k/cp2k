@@ -527,9 +527,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, &
-      ikind, irep, isec, j, n_el, natom, natom_tot, nfield, &
-      nhc_len, nkind, nsgf, nsgf_max, stat, tot_nhcneed
+    INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, irep, &
+      isec, j, n_el, natom, natom_tot, nfield, nhc_len, nkind, nsgf, &
+      nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, DIMENSION(:), POINTER           :: lindex, walkers_status
     INTEGER, POINTER                         :: itimes
@@ -553,8 +553,7 @@ CONTAINS
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: replica_section, &
-                                                work_section
+    TYPE(section_vals_type), POINTER         :: replica_section, work_section
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_coeff, &
                                                 thermostat_part, &
@@ -1020,8 +1019,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_motion_pint', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, iatom, ibead, &
+                                                inos, istat
     LOGICAL                                  :: explicit, failure
-    INTEGER                                  :: i, iatom, ibead, inos, handle, istat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: pint_section, tmpsec
 
@@ -1145,16 +1145,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_motion_helium', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, itmp
+    CHARACTER(len=default_string_length)     :: err_str, stmp
+    INTEGER                                  :: handle, itmp, msglen, offset, &
+                                                reqlen, status
+    INTEGER, DIMENSION(:), POINTER           :: int_msg_gather
     LOGICAL                                  :: failure, lbf
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    INTEGER                                  :: msglen, reqlen, offset, status
-    INTEGER, DIMENSION(:), POINTER           :: int_msg, int_msg_gather
-    REAL(kind=dp), DIMENSION(:), POINTER     :: real_msg, real_msg_gather
     REAL(kind=dp)                            :: bf, bu
     REAL(kind=dp), DIMENSION(3, 2)           :: bg, cg, ig
-    CHARACTER(len=default_string_length)     :: err_str, stmp
+    REAL(kind=dp), DIMENSION(:), POINTER     :: real_msg, real_msg_gather
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 

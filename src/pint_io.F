@@ -22,11 +22,9 @@ MODULE pint_io
                                              f_env_rm_defaults,&
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
-  USE helium_types,                    ONLY: helium_solvent_type
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
                                              dump_xmol
-  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -42,8 +40,6 @@ MODULE pint_io
                                              e_kin_virial_id,&
                                              e_potential_id,&
                                              pint_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
