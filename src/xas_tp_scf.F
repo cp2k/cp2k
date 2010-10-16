@@ -224,12 +224,9 @@ CONTAINS
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,error=error,&
             calculate_forces=.FALSE.,just_energy=energy_only)
 
-       scf_env%iter_param = 0.0_dp
-       IF (scf_env%mixing_method==direct_mixing_nr) THEN
-            scf_env%p_mix_alpha = xas_env%mixing_store%alpha
-            scf_env%iter_param = scf_env%p_mix_alpha
-       END IF
-
+       scf_env%mixing_store%alpha =  xas_env%mixing_store%alpha
+       scf_env%mixing_store%iter_method = xas_env%mixing_store%iter_method
+       
        SELECT CASE (xas_control%scf_method)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -241,6 +238,7 @@ CONTAINS
           CALL do_general_diag(scf_env,mos,matrix_ks,&
                                matrix_s,scf_control,scf_section, &
                                diis_step,use_jacobi,xas_env,error)
+
        END SELECT
 
        SELECT CASE(xas_env%mixing_method)

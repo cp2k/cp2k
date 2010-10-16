@@ -418,6 +418,10 @@ CONTAINS
                         error,failure)
         END IF
     END IF
+!dbg
+!    write(*,*) xas_env%mixing_method, xas_env%mixing_store%alpha
+! STOP
+!dbg
 
     DO iat = 1,nexc_atoms
       iatom = xas_env%exc_atoms(iat)
@@ -429,7 +433,6 @@ CONTAINS
            occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
       IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
-!         CPPrecondition(.NOT.(nmo<(nelectron+1)),cp_failure_level,routineP,error,failure)
          CALL cp_assert(nmo>(nelectron+1),cp_failure_level,cp_assertion_failed,&
               routineP,"CLS: the required method needs added_mos to the ground state",error,failure)
 
