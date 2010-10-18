@@ -38,6 +38,8 @@ MODULE atom_energy
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE lapack
+  USE mathconstants,                   ONLY: dfac,&
+                                             pi
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
   USE timings,                         ONLY: timeset,&
@@ -349,7 +351,8 @@ CONTAINS
     INTEGER                                  :: i, ider, ierr, k, l, lhomo, &
                                                 lwork, m, n, nhomo, s1, s2
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: dene, emax, fhomo
+    REAL(KIND=dp)                            :: dene, emax, fhomo, expzet, &
+                                                prefac, zeta
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: amat
@@ -421,7 +424,7 @@ CONTAINS
       ! orthogonalization
       n = state%maxn_occ(l)+nder
       m = atom%basis%nbas(l)
-      lwork = n*n
+      lwork = n*n + 5*n
       ALLOCATE(amat(n,n),w(n),work(lwork),STAT=ierr)
       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
       amat(1:n,1:n) = MATMUL(TRANSPOSE(rbasis(1:m,1:n,l)),MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,1:n,l)))
@@ -431,13 +434,30 @@ CONTAINS
         amat(1:n,i)=amat(1:n,i)/SQRT(w(i))
       END DO
       rbasis(1:m,1:n,l) = MATMUL(rbasis(1:m,1:n,l),amat(1:n,1:n))
+      ! check
+      amat(1:n,1:n) = MATMUL(TRANSPOSE(rbasis(1:m,1:n,l)),MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,1:n,l)))
+      DO i=1,n
+        amat(i,i)=amat(i,i) - 1._dp
+      END DO
+      IF (MAXVAL(ABS(amat)) > 1.e-10) THEN
+         WRITE(iw,'(A,G20.10)') " Orthogonality error  ", MAXVAL(ABS(amat))
+      END IF
       DEALLOCATE(amat,w,work,STAT=ierr)
       CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 
+      ! Quickstep normalization
       WRITE(iw,'(/,A,T30,I3)') " Angular momentum :",l
-      WRITE(iw,'(A)') " Basis             Coefficients"
+!      WRITE(iw,'(A)') " Basis              Coefficients"
+!      DO i=1,m
+!        WRITE(iw,'(I6,4X,15ES20.6)') i,(rbasis(i,k,l),k=1,n) 
+!      END DO
+
+      WRITE(iw,'(/,A)') " Basis        Exponent         Coefficients (Quickstep Normalization)"
+      expzet = 0.25_dp*REAL(2*l + 3,dp)
+      prefac = SQRT( SQRT(pi)/2._dp**(l+2)*dfac(2*l+1) )
       DO i=1,m
-        WRITE(iw,'(I6,4X,15ES20.6)') i,(rbasis(i,k,l),k=1,n) 
+        zeta = (2._dp*atom%basis%am(i,l))**expzet
+        WRITE(iw,'(I6,4X,F20.10,4X,15ES20.6)') i,atom%basis%am(i,l),((prefac*rbasis(i,k,l)/zeta),k=1,n) 
       END DO
 
     END DO
