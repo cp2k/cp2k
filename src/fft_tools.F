@@ -16,15 +16,11 @@
 !>                         an initial copy. However, this assumes contiguous arrays
 !>      IAB (15-Oct-2008): Moved mp_cart_sub calls out of cube_tranpose_* and into
 !>                         fft_scratch type, reducing number of calls dramatically
-!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      IAB (05-Dec-2008): Moved all other non-essential MPI calls into scratch type
-!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      IAB (09-Jan-2009): Added fft_plan_type to store FFT data, including cached FFTW plans
-!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !>      IAB (13-Feb-2009): Extended plan caching to serial 3D FFT (fft3d_s)
-!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !>      IAB (09-Oct-2009): Added OpenMP directives to parallel 3D FFT
-!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2008-2009 on behalf of the HECToR project
 !> \author JGH
 ! *****************************************************************************
 MODULE fft_tools
@@ -105,13 +101,15 @@ MODULE fft_tools
      ! to be used in communication routines
      INTEGER, DIMENSION(:), POINTER       :: scount, rcount, sdispl, rdispl
      INTEGER, DIMENSION(:,:), POINTER     :: pgcube
-     INTEGER, DIMENSION(:), POINTER       :: strans, rtrans
-     INTEGER                              :: ins, inr, mip
+     INTEGER, DIMENSION(:), POINTER       :: xzcount, yzcount, xzdispl, yzdispl
+     INTEGER                              :: in, mip
      REAL(KIND=dp)                        :: rsratio
+     COMPLEX(KIND=lp), DIMENSION(:), POINTER &
+                                          :: xzbuf, yzbuf
+     COMPLEX(KIND=sp), DIMENSION(:), POINTER &
+                                          :: xzbuf_sgl, yzbuf_sgl
      COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
-                                          :: qq, rr
-     COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
-            :: rbuf1, rbuf2, rbuf3, rbuf4, rbuf5, rbuf6
+            :: rbuf1, rbuf2, rbuf3, rbuf4, rbuf5, rbuf6, rr
      COMPLEX(KIND=sp), DIMENSION(:, :), POINTER &
                                           :: ss, tt
      INTEGER, DIMENSION(:,:), POINTER     :: pgrid
@@ -1712,12 +1710,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'yz_to_xz', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
-      POINTER                                :: rq, rs
-    COMPLEX(KIND=sp), DIMENSION(:, :), &
-      POINTER                                :: tq, ts
-    INTEGER :: handle, icrs, ip, ipr, ir, ix, iz, jj, jx, jy, jz, lb, my_id, &
-      myx, myz, nmax, np, npx, npz, num_threads, nx, nz, rs_pos, ub
+    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: xzbuf, yzbuf
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: xzbuf_sgl, yzbuf_sgl
+    INTEGER                                  :: handle, icrs, ip, ipr, ir, &
+                                                ix, iz, jj, jx, jy, jz, &
+                                                my_id, myx, myz, np, npx, &
+                                                npz, num_threads, nx, nz, &
+                                                rs_pos
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1731,13 +1730,11 @@ CONTAINS
     rs_pos = p2p ( my_pos )
 
     IF ( alltoall_sgl ) THEN
-       ts => fft_scratch%ss
-       tq => fft_scratch%tt
-       nmax = SIZE(tq,1)
+       yzbuf_sgl => fft_scratch%yzbuf_sgl
+       xzbuf_sgl => fft_scratch%xzbuf_sgl
     ELSE
-       rs => fft_scratch%qq
-       rq => fft_scratch%rr
-       nmax = SIZE(rq,1)
+       yzbuf => fft_scratch%yzbuf
+       xzbuf => fft_scratch%xzbuf
     END IF
     npx = dims ( 1 )
     npz = dims ( 2 )
@@ -1749,26 +1746,74 @@ CONTAINS
     sdispl => fft_scratch%sdispl
     rdispl => fft_scratch%rdispl
 
-!$omp parallel default(none), &
-!$omp          private(ip), &
-!$omp          shared(npx,pgrid,xcor,bo,npz,zcor)
-!$omp do
     DO ix = 0, npx - 1
        ip = pgrid ( ix, 0 )
        xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
     END DO
-!$omp end do
-!$omp do
     DO iz = 0, npz - 1
        ip = pgrid ( 0, iz )
        zcor ( bo ( 1, 3, ip ) : bo ( 2, 3, ip ) ) = iz
     END DO
-!$omp end do
-!$omp end parallel
 
-    scount = 0
     nx = SIZE ( sb ,2 )
 
+! If the send and recv counts are not already cached, then
+! calculate and store them 
+    IF ( fft_scratch%in == 0 ) THEN
+
+      scount = 0
+
+      DO jx = 1, nx
+         IF ( alltoall_sgl ) THEN
+            DO ir = 1, nray ( my_pos )
+               jy = yzp ( 1, ir, my_pos )
+               jz = yzp ( 2, ir, my_pos )
+               ip = pgrid ( xcor ( jx ), zcor ( jz ) )
+               scount ( ip ) = scount ( ip ) + 1
+            END DO
+         ELSE
+            DO ir = 1, nray ( my_pos )
+               jy = yzp ( 1, ir, my_pos )
+               jz = yzp ( 2, ir, my_pos )
+               ip = pgrid ( xcor ( jx ), zcor ( jz ) )
+               scount ( ip ) = scount ( ip ) + 1
+            END DO
+         END IF
+      END DO
+
+      CALL mp_alltoall ( scount, rcount, 1, group )
+      fft_scratch%yzcount = scount
+      fft_scratch%xzcount = rcount
+
+      ! Work out the correct displacements in the buffers
+      sdispl(0) = 0
+      rdispl(0) = 0
+      DO ip = 1, np - 1
+         sdispl ( ip ) = sdispl (ip-1) + scount (ip-1)
+         rdispl ( ip ) = rdispl (ip-1) + rcount (ip-1)
+      END DO
+
+      fft_scratch%yzdispl = sdispl
+      fft_scratch%xzdispl = rdispl
+
+      icrs = 0
+      DO ip = 0, np - 1
+         IF ( scount(ip) /= 0 ) icrs = icrs +1
+         IF ( rcount(ip) /= 0 ) icrs = icrs +1
+      END DO
+      CALL mp_sum(icrs,group)
+      fft_scratch%rsratio = REAL(icrs)/REAL(2*np*np)
+
+      fft_scratch%in = 1
+    ELSE
+      scount = fft_scratch%yzcount
+      rcount = fft_scratch%xzcount
+      sdispl = fft_scratch%yzdispl
+      rdispl = fft_scratch%xzdispl
+    END IF
+
+! Do the actual packing
+    scount = 0
     DO jx = 1, nx
        IF ( alltoall_sgl ) THEN
           DO ir = 1, nray ( my_pos )
@@ -1776,7 +1821,7 @@ CONTAINS
              jz = yzp ( 2, ir, my_pos )
              ip = pgrid ( xcor ( jx ), zcor ( jz ) )
              scount ( ip ) = scount ( ip ) + 1
-             ts ( scount ( ip ), ip ) = sb ( ir, jx )
+             yzbuf_sgl ( scount ( ip ) + sdispl (ip)) = sb ( ir, jx )
           END DO
        ELSE
           DO ir = 1, nray ( my_pos )
@@ -1784,39 +1829,18 @@ CONTAINS
              jz = yzp ( 2, ir, my_pos )
              ip = pgrid ( xcor ( jx ), zcor ( jz ) )
              scount ( ip ) = scount ( ip ) + 1
-             rs ( scount ( ip ), ip ) = sb ( ir, jx )
+             yzbuf ( scount ( ip ) + sdispl(ip) ) = sb ( ir, jx )
           END DO
        END IF
     END DO
-!$omp parallel do default(none), &
-!$omp             shared(np, sdispl, rdispl,nmax)
-    DO ip = 0, np - 1
-       sdispl ( ip ) = nmax * ip
-       rdispl ( ip ) = nmax * ip
-    END DO
-!$omp end parallel do
-    IF ( fft_scratch%inr == 0 ) THEN
-       CALL mp_alltoall ( scount, rcount, 1, group )
-       fft_scratch%rtrans = rcount
-       fft_scratch%inr = 1
-       icrs = 0
-       DO ip = 0, np - 1
-          IF ( scount(ip) /= 0 ) icrs = icrs +1
-          IF ( rcount(ip) /= 0 ) icrs = icrs +1
-       END DO
-       CALL mp_sum(icrs,group)
-       fft_scratch%rsratio = REAL(icrs)/REAL(2*np*np)
-    ELSE
-       rcount = fft_scratch%rtrans
-    END IF
 
     IF ( alltoall_sgl ) THEN
-       CALL mp_alltoall ( ts, scount, sdispl, tq, rcount, rdispl, group )
+       CALL mp_alltoall ( yzbuf_sgl, scount, sdispl, xzbuf_sgl, rcount, rdispl, group )
     ELSE
        IF ( fft_scratch%rsratio < ratio_sparse_alltoall  ) THEN
-          CALL sparse_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
+          CALL sparse_alltoall ( yzbuf, scount, sdispl, xzbuf, rcount, rdispl, group )
        ELSE
-          CALL mp_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
+          CALL mp_alltoall ( yzbuf, scount, sdispl, xzbuf, rcount, rdispl, group )
        END IF
     END IF
 
@@ -1826,18 +1850,6 @@ CONTAINS
     num_threads = 1
     my_id = 0
 
-!$omp parallel default(none), &
-!$omp          private(my_id,num_threads,lb,ub,ipr,jj,ip,ir,jz,jy,jx), &
-!$omp          shared(tb,np,p2p,bo,rs_pos,nray,yzp,alltoall_sgl,zcor,myz,tq,rq,nz)
-!$  num_threads = MIN(omp_get_max_threads(), SIZE(tb,2))
-!$  my_id = omp_get_thread_num()
-    IF (my_id < num_threads) THEN
-      lb = (SIZE(tb,2)*my_id)/num_threads + 1
-      ub = (SIZE(tb,2)*(my_id+1))/num_threads
-      tb(:,lb:ub) = 0.0_lp
-    END IF
-!$omp barrier
-!$omp do
     DO ip = 0, np - 1
        ipr = p2p ( ip )
        jj = 0
@@ -1849,21 +1861,19 @@ CONTAINS
                    jj = jj + 1
                    jy = yzp ( 1, ir, ip )
                    jz = jz - bo ( 1, 3, rs_pos ) + 1
-                   tb ( jy, jz + jx * nz ) = tq ( jj, ipr )
+                   tb ( jy, jz + jx * nz ) = xzbuf_sgl ( jj + rdispl(ipr) )
                 END IF
              ELSE
                 IF ( zcor ( jz ) == myz ) THEN
                    jj = jj + 1
                    jy = yzp ( 1, ir, ip )
                    jz = jz - bo ( 1, 3, rs_pos ) + 1
-                   tb ( jy, jz + jx * nz ) = rq ( jj, ipr )
+                   tb ( jy, jz + jx * nz ) = xzbuf ( jj + rdispl(ipr) )
                 END IF
              END IF
           END DO
        END DO
     END DO
-!$omp end do
-!$omp end parallel
 
     CALL timestop(handle)
 
@@ -1893,14 +1903,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xz_to_yz', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
-      POINTER                                :: rq, rs
-    COMPLEX(KIND=sp), DIMENSION(:, :), &
-      POINTER                                :: tq, ts
+    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: xzbuf, yzbuf
+    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: xzbuf_sgl, yzbuf_sgl
     INTEGER                                  :: handle, icrs, ip, ipl, ir, &
                                                 ix, ixx, iz, jj, jx, jy, jz, &
-                                                mp, myx, myz, nmax, np, npx, &
-                                                npz, nx, nz
+                                                mp, myx, myz, np, npx, npz, &
+                                                nx, nz
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1910,13 +1918,11 @@ CONTAINS
     np = SIZE ( p2p )
 
     IF ( alltoall_sgl ) THEN
-       ts => fft_scratch%ss
-       tq => fft_scratch%tt
-       nmax = SIZE(tq,1)
+       yzbuf_sgl => fft_scratch%yzbuf_sgl
+       xzbuf_sgl => fft_scratch%xzbuf_sgl
     ELSE
-       rs => fft_scratch%qq
-       rq => fft_scratch%rr
-       nmax = SIZE(rq,1)
+       yzbuf => fft_scratch%yzbuf
+       xzbuf => fft_scratch%xzbuf
     END IF
     npx = dims ( 1 )
     npz = dims ( 2 )
@@ -1928,41 +1934,45 @@ CONTAINS
     sdispl => fft_scratch%sdispl
     rdispl => fft_scratch%rdispl
 
-    rcount = 0
-    nx = MAXVAL ( bo ( 2, 1, : ) )
+! If the send and recv counts are not already cached, then
+! calculate and store them
+    IF ( fft_scratch%in == 0 ) THEN
 
-!$omp parallel default(none), &
-!$omp          private(ip,ir,jy,jz), &
-!$omp          shared(npx,pgrid,xcor,bo,npz,nx,nray,yzp,zcor,rcount,my_pos) 
-!$omp do
-    DO ix = 0, npx - 1
-       ip = pgrid ( ix, 0 )
-       xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
-    END DO
-!$omp end do
-!$omp do
-    DO iz = 0, npz - 1
-       ip = pgrid ( 0, iz )
-       zcor ( bo ( 1, 3, ip ) : bo ( 2, 3, ip ) ) = iz
-    END DO
-!$omp end do
-!$omp do
-    DO jx = 1, nx
-       DO ir = 1, nray ( my_pos )
-          jy = yzp ( 1, ir, my_pos )
-          jz = yzp ( 2, ir, my_pos )
-          ip = pgrid ( xcor ( jx ), zcor ( jz ) )
-!$omp atomic
-          rcount ( ip ) = rcount ( ip ) + 1
-       END DO
-    END DO
-!$omp end do
-!$omp end parallel
+      rcount = 0
+      nx = MAXVAL ( bo ( 2, 1, : ) )
 
-    IF ( fft_scratch%ins == 0 ) THEN
+      DO ix = 0, npx - 1
+         ip = pgrid ( ix, 0 )
+         xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
+      END DO
+      DO iz = 0, npz - 1
+         ip = pgrid ( 0, iz )
+         zcor ( bo ( 1, 3, ip ) : bo ( 2, 3, ip ) ) = iz
+      END DO
+      DO jx = 1, nx
+         DO ir = 1, nray ( my_pos )
+            jy = yzp ( 1, ir, my_pos )
+            jz = yzp ( 2, ir, my_pos )
+            ip = pgrid ( xcor ( jx ), zcor ( jz ) )
+            rcount ( ip ) = rcount ( ip ) + 1
+         END DO
+      END DO
+
        CALL mp_alltoall ( rcount, scount, 1, group )
-       fft_scratch%strans = scount
-       fft_scratch%ins = 1
+       fft_scratch%xzcount = scount
+       fft_scratch%yzcount = rcount
+
+      ! Work out the correct displacements in the buffers
+      sdispl(0) = 0
+      rdispl(0) = 0
+      DO ip = 1, np - 1
+         sdispl ( ip ) = sdispl (ip-1) + scount (ip-1)
+         rdispl ( ip ) = rdispl (ip-1) + rcount (ip-1)
+      END DO
+
+      fft_scratch%xzdispl = sdispl
+      fft_scratch%yzdispl = rdispl
+
        icrs = 0
        DO ip = 0, np - 1
           IF ( scount(ip) /= 0 ) icrs = icrs +1
@@ -1970,22 +1980,23 @@ CONTAINS
        END DO
        CALL mp_sum(icrs,group)
        fft_scratch%rsratio = REAL(icrs)/REAL(2*np*np)
+
+       fft_scratch%in = 1
     ELSE
-       scount = fft_scratch%strans
+       scount = fft_scratch%xzcount
+       rcount = fft_scratch%yzcount
+       sdispl = fft_scratch%xzdispl
+       rdispl = fft_scratch%yzdispl
     END IF
 
+
+! Now do the actual packing
     myx = fft_scratch%sizes%r_pos ( 1 )
     myz = fft_scratch%sizes%r_pos ( 2 )
     mp = p2p ( my_pos )
     nz = bo ( 2, 3, mp ) - bo ( 1, 3, mp ) + 1
     nx = bo ( 2, 1, mp ) - bo ( 1, 1, mp ) + 1
 
-!$omp parallel default(none), &
-!$omp          private(jj,ipl,ir,jz,jy,jx,ixx), &
-!$omp          shared(np,p2p,nray,yzp,zcor,myz,bo,mp, &
-!$omp                 alltoall_sgl,nx,scount,tq,rq,sb, &
-!$omp                 nz,nmax,sdispl,rdispl)
-!$omp do
     DO ip = 0, np - 1
        jj = 0
        ipl = p2p ( ip )
@@ -1998,33 +2009,25 @@ CONTAINS
              IF ( alltoall_sgl ) THEN
                 DO jx = 0, nx - 1
                    ixx = jj + jx * scount ( ipl )/nx
-                   tq ( ixx, ipl ) = sb ( jy, jz + jx * nz ) 
+                   xzbuf_sgl ( ixx + sdispl(ipl) ) = sb ( jy, jz + jx * nz ) 
                 END DO
              ELSE
                 DO jx = 0, nx - 1
                    ixx = jj + jx * scount ( ipl )/nx
-                   rq ( ixx, ipl ) = sb ( jy, jz + jx * nz ) 
+                   xzbuf ( ixx + sdispl(ipl) ) = sb ( jy, jz + jx * nz ) 
                 END DO
              END IF
           END IF
        END DO
     END DO
-!$omp end do
-!$omp do
-    DO ip = 0, np - 1
-       sdispl ( ip ) = nmax * ip
-       rdispl ( ip ) = nmax * ip
-    END DO
-!$omp end do
-!$omp end parallel
 
     IF ( alltoall_sgl ) THEN
-       CALL mp_alltoall ( tq, scount, sdispl, ts, rcount, rdispl, group )
+       CALL mp_alltoall ( xzbuf_sgl, scount, sdispl, yzbuf_sgl, rcount, rdispl, group )
     ELSE
        IF ( fft_scratch%rsratio < ratio_sparse_alltoall  ) THEN
-          CALL sparse_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
+          CALL sparse_alltoall ( xzbuf, scount, sdispl, yzbuf, rcount, rdispl, group )
        ELSE
-          CALL mp_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
+          CALL mp_alltoall ( xzbuf, scount, sdispl, yzbuf, rcount, rdispl, group )
        END IF
     END IF
 
@@ -2037,7 +2040,7 @@ CONTAINS
              jz = yzp ( 2, ir, my_pos )
              ip = pgrid ( xcor ( jx ), zcor ( jz ) )
              rcount ( ip ) = rcount ( ip ) + 1
-             tb ( ir, jx ) = ts ( rcount ( ip ), ip )
+             tb ( ir, jx ) = yzbuf_sgl ( rcount ( ip ) + rdispl ( ip ) )
           END DO
        ELSE
           DO ir = 1, nray ( my_pos )
@@ -2045,7 +2048,7 @@ CONTAINS
              jz = yzp ( 2, ir, my_pos )
              ip = pgrid ( xcor ( jx ), zcor ( jz ) )
              rcount ( ip ) = rcount ( ip ) + 1
-             tb ( ir, jx ) = rs ( rcount ( ip ), ip )
+             tb ( ir, jx ) = yzbuf ( rcount ( ip ) + rdispl ( ip ) )
           END DO
        END IF
     END DO
@@ -2654,17 +2657,19 @@ CONTAINS
     NULLIFY(fft_scratch_first%fft_scratch%a6buf) 
     NULLIFY(fft_scratch_first%fft_scratch%scount,fft_scratch_first%fft_scratch%rcount,&
          fft_scratch_first%fft_scratch%sdispl,fft_scratch_first%fft_scratch%rdispl)
-    NULLIFY(fft_scratch_first%fft_scratch%qq, fft_scratch_first%fft_scratch%rr,&
+    NULLIFY(fft_scratch_first%fft_scratch%rr,&
          fft_scratch_first%fft_scratch%ss, fft_scratch_first%fft_scratch%tt)
+    NULLIFY(fft_scratch_first%fft_scratch%xzbuf,fft_scratch_first%fft_scratch%yzbuf,&
+         fft_scratch_first%fft_scratch%xzbuf_sgl,fft_scratch_first%fft_scratch%yzbuf_sgl)
     NULLIFY(fft_scratch_first%fft_scratch%pgrid) 
     NULLIFY(fft_scratch_first%fft_scratch%pgcube) 
     NULLIFY(fft_scratch_first%fft_scratch%xcor, fft_scratch_first%fft_scratch%zcor)
-    NULLIFY(fft_scratch_first%fft_scratch%strans, fft_scratch_first%fft_scratch%rtrans)
+    NULLIFY(fft_scratch_first%fft_scratch%xzcount, fft_scratch_first%fft_scratch%yzcount,&
+         fft_scratch_first%fft_scratch%xzdispl, fft_scratch_first%fft_scratch%yzdispl)
     NULLIFY(fft_scratch_first%fft_scratch%rbuf1,fft_scratch_first%fft_scratch%rbuf2,&
          fft_scratch_first%fft_scratch%rbuf3,fft_scratch_first%fft_scratch%rbuf4) 
     NULLIFY(fft_scratch_first%fft_scratch%rbuf5,fft_scratch_first%fft_scratch%rbuf6)
-    fft_scratch_first%fft_scratch%ins = 0
-    fft_scratch_first%fft_scratch%inr = 0
+    fft_scratch_first%fft_scratch%in = 0
     fft_scratch_first%fft_scratch%rsratio = 1._dp
     DO i=1,6
        fft_scratch_first%fft_scratch%fft_plan(i)%valid = .FALSE.
@@ -2766,12 +2771,24 @@ CONTAINS
             fft_scratch%sdispl,fft_scratch%rdispl,STAT=ierr)
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(fft_scratch%qq)) THEN
-       DEALLOCATE(fft_scratch%qq,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-    END IF
     IF(ASSOCIATED(fft_scratch%rr)) THEN
        DEALLOCATE(fft_scratch%rr,STAT=ierr)
+       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%xzbuf)) THEN
+       DEALLOCATE(fft_scratch%xzbuf,STAT=ierr)
+       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%yzbuf)) THEN
+       DEALLOCATE(fft_scratch%yzbuf,STAT=ierr)
+       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%xzbuf_sgl)) THEN
+       DEALLOCATE(fft_scratch%xzbuf_sgl,STAT=ierr)
+       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF(ASSOCIATED(fft_scratch%yzbuf_sgl)) THEN
+       DEALLOCATE(fft_scratch%yzbuf_sgl,STAT=ierr)
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(fft_scratch%ss)) THEN
@@ -2794,11 +2811,12 @@ CONTAINS
        DEALLOCATE(fft_scratch%xcor,fft_scratch%zcor,STAT=ierr)
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF(ASSOCIATED(fft_scratch%strans)) THEN
-       DEALLOCATE(fft_scratch%strans,fft_scratch%rtrans,STAT=ierr)
+    IF(ASSOCIATED(fft_scratch%xzcount)) THEN
+       DEALLOCATE(fft_scratch%xzcount,fft_scratch%yzcount,STAT=ierr)
        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-       fft_scratch%ins=0
-       fft_scratch%inr=0
+       DEALLOCATE(fft_scratch%xzdispl,fft_scratch%yzdispl,STAT=ierr)
+       CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+       fft_scratch%in=0
        fft_scratch%rsratio=1._dp
     END IF
     IF(ASSOCIATED(fft_scratch%rbuf1)) THEN
@@ -3046,17 +3064,19 @@ CONTAINS
           NULLIFY(fft_scratch_new%fft_scratch%a6buf) 
           NULLIFY(fft_scratch_new%fft_scratch%scount,fft_scratch_new%fft_scratch%rcount,&
                fft_scratch_new%fft_scratch%sdispl,fft_scratch_new%fft_scratch%rdispl)
-          NULLIFY(fft_scratch_new%fft_scratch%qq, fft_scratch_new%fft_scratch%rr,&
+          NULLIFY(fft_scratch_new%fft_scratch%rr,&
                fft_scratch_new%fft_scratch%ss, fft_scratch_new%fft_scratch%tt)
+          NULLIFY(fft_scratch_new%fft_scratch%xzbuf, fft_scratch_new%fft_scratch%yzbuf,&
+               fft_scratch_new%fft_scratch%xzbuf_sgl, fft_scratch_new%fft_scratch%yzbuf_sgl)
           NULLIFY(fft_scratch_new%fft_scratch%pgcube) 
           NULLIFY(fft_scratch_new%fft_scratch%pgrid) 
           NULLIFY(fft_scratch_new%fft_scratch%xcor, fft_scratch_new%fft_scratch%zcor)
-          NULLIFY(fft_scratch_new%fft_scratch%strans, fft_scratch_new%fft_scratch%rtrans)
+          NULLIFY(fft_scratch_new%fft_scratch%xzcount, fft_scratch_new%fft_scratch%yzcount)
+          NULLIFY(fft_scratch_new%fft_scratch%xzdispl, fft_scratch_new%fft_scratch%yzdispl)
           NULLIFY(fft_scratch_new%fft_scratch%rbuf1, fft_scratch_new%fft_scratch%rbuf2,&
                fft_scratch_new%fft_scratch%rbuf3, fft_scratch_new%fft_scratch%rbuf4)
           NULLIFY(fft_scratch_new%fft_scratch%rbuf5, fft_scratch_new%fft_scratch%rbuf6)
-          fft_scratch_new%fft_scratch%ins=0
-          fft_scratch_new%fft_scratch%inr=0
+          fft_scratch_new%fft_scratch%in=0
           fft_scratch_new%fft_scratch%rsratio=1._dp
           DO i=1,6
              fft_scratch_new%fft_scratch%fft_plan(i)%valid = .FALSE.
@@ -3263,16 +3283,15 @@ CONTAINS
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%p7buf(mg,lg),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-             nm = nmray*mcx2
              IF ( alltoall_sgl ) THEN
-                ALLOCATE ( fft_scratch_new%fft_scratch%ss(nm,0:np-1),STAT=ierr)
+                ALLOCATE ( fft_scratch_new%fft_scratch%yzbuf_sgl(mg*lg),STAT=ierr)
                 CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE ( fft_scratch_new%fft_scratch%tt(nm,0:np-1),STAT=ierr)
+                ALLOCATE ( fft_scratch_new%fft_scratch%xzbuf_sgl(mg*lg),STAT=ierr)
                 CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ELSE
-                ALLOCATE ( fft_scratch_new%fft_scratch%qq(nm,0:np-1),STAT=ierr)
+                ALLOCATE ( fft_scratch_new%fft_scratch%yzbuf(mg*lg),STAT=ierr)
                 CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE ( fft_scratch_new%fft_scratch%rr(nm,0:np-1),STAT=ierr)
+                ALLOCATE ( fft_scratch_new%fft_scratch%xzbuf(mg*lg),STAT=ierr)
                 CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              END IF
              ALLOCATE ( fft_scratch_new%fft_scratch%pgrid(0:m1-1,0:m2-1),STAT=ierr)
@@ -3281,11 +3300,13 @@ CONTAINS
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
              ALLOCATE ( fft_scratch_new%fft_scratch%zcor(nbz),STAT=ierr)
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE ( fft_scratch_new%fft_scratch%strans(0:np-1), &
-                  fft_scratch_new%fft_scratch%rtrans(0:np-1) )
+             ALLOCATE ( fft_scratch_new%fft_scratch%xzcount(0:np-1), &
+                  fft_scratch_new%fft_scratch%yzcount(0:np-1) )
              CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-             fft_scratch_new%fft_scratch%ins=0
-             fft_scratch_new%fft_scratch%inr=0
+             ALLOCATE ( fft_scratch_new%fft_scratch%xzdispl(0:np-1), &
+                  fft_scratch_new%fft_scratch%yzdispl(0:np-1) )
+             CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+             fft_scratch_new%fft_scratch%in=0
              fft_scratch_new%fft_scratch%rsratio=1._dp
              fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
@@ -3404,25 +3425,26 @@ CONTAINS
   END SUBROUTINE release_fft_scratch
 
 ! *****************************************************************************
-  SUBROUTINE sparse_alltoall ( rs, scount, sreq, rq, rcount, rreq, group )
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
-      POINTER                                :: rs
-    INTEGER, DIMENSION(:), POINTER           :: scount, sreq
-    COMPLEX(KIND=lp), DIMENSION(:, :), &
-      POINTER                                :: rq
-    INTEGER, DIMENSION(:), POINTER           :: rcount, rreq
+ SUBROUTINE sparse_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
+    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: rs
+    INTEGER, DIMENSION(:), POINTER           :: scount, sdispl
+    COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: rq
+    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
     COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: msgin, msgout
     INTEGER                                  :: ip, n, nr, ns, pos, rn, sn
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rreq, sreq
 
     CALL mp_sync ( group )
     CALL mp_environ ( n, pos, group )
+    ALLOCATE(sreq(0:n-1))
+    ALLOCATE(rreq(0:n-1))
     nr = 0
     DO ip = 0,n-1
        IF ( rcount(ip) == 0 ) CYCLE
        IF ( ip == pos ) CYCLE
-       msgout => rq(1:rcount(ip),ip)
+       msgout => rq(rdispl(ip)+1:rdispl(ip)+rcount(ip))
        CALL mp_irecv(msgout,ip,group,rn)
        nr = nr+1
        rreq(nr-1) = rn
@@ -3431,20 +3453,23 @@ CONTAINS
     DO ip = 0,n-1
        IF ( scount(ip) == 0 ) CYCLE
        IF ( ip == pos ) CYCLE
-       msgin => rs(1:scount(ip),ip)
+       msgin => rs(sdispl(ip)+1:sdispl(ip)+scount(ip))
        CALL mp_isend(msgin,ip,group,sn)
        ns = ns+1
        sreq(ns-1) = sn
     END DO
     IF ( rcount(pos) /= 0 ) THEN
        IF( rcount(pos) /= scount(pos) ) STOP
-       rq(1:rcount(pos),pos) = rs(1:rcount(pos),pos)
+       rq(rdispl(pos)+1:rdispl(pos)+rcount(pos)) = rs(sdispl(pos)+1:sdispl(pos)+scount(pos))
     END IF
     CALL mp_waitall(sreq(0:ns-1))
     CALL mp_waitall(rreq(0:nr-1))
+    DEALLOCATE(sreq)
+    DEALLOCATE(rreq)
     CALL mp_sync ( group )
 
   END SUBROUTINE sparse_alltoall
+
 
 ! *****************************************************************************
 !> \brief  test data structures for equality. It is assumed that if they are 
