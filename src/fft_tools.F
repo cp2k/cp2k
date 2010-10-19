@@ -1713,15 +1713,12 @@ CONTAINS
     COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: xzbuf, yzbuf
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: xzbuf_sgl, yzbuf_sgl
     INTEGER                                  :: handle, icrs, ip, ipr, ir, &
-                                                ix, iz, jj, jx, jy, jz, &
-                                                my_id, myx, myz, np, npx, &
-                                                npz, num_threads, nx, nz, &
+                                                ix, iz, jj, jx, jy, jz, myx, &
+                                                myz, np, npx, npz, nx, nz, &
                                                 rs_pos
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-
-!$ INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 
@@ -1746,15 +1743,6 @@ CONTAINS
     sdispl => fft_scratch%sdispl
     rdispl => fft_scratch%rdispl
 
-    DO ix = 0, npx - 1
-       ip = pgrid ( ix, 0 )
-       xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
-    END DO
-    DO iz = 0, npz - 1
-       ip = pgrid ( 0, iz )
-       zcor ( bo ( 1, 3, ip ) : bo ( 2, 3, ip ) ) = iz
-    END DO
-
     nx = SIZE ( sb ,2 )
 
 ! If the send and recv counts are not already cached, then
@@ -1763,6 +1751,14 @@ CONTAINS
 
       scount = 0
 
+      DO ix = 0, npx - 1
+         ip = pgrid ( ix, 0 )
+         xcor ( bo ( 1, 1, ip ) : bo ( 2, 1, ip ) ) = ix
+      END DO
+      DO iz = 0, npz - 1
+         ip = pgrid ( 0, iz )
+         zcor ( bo ( 1, 3, ip ) : bo ( 2, 3, ip ) ) = iz
+      END DO
       DO jx = 1, nx
          IF ( alltoall_sgl ) THEN
             DO ir = 1, nray ( my_pos )
@@ -1847,9 +1843,12 @@ CONTAINS
     myx = fft_scratch%sizes%r_pos ( 1 )
     myz = fft_scratch%sizes%r_pos ( 2 )
     nz = bo ( 2, 3, rs_pos ) - bo ( 1, 3, rs_pos ) + 1
-    num_threads = 1
-    my_id = 0
 
+!$omp parallel do default(none), &
+!$omp             private(ipr,jj,ir,jx,jy,jz),&
+!$omp             shared(tb,np,p2p,bo,rs_pos,nray),&
+!$omp             shared(yzp,alltoall_sgl,zcor,myz),&
+!$omp             shared(xzbuf,xzbuf_sgl,nz,rdispl)
     DO ip = 0, np - 1
        ipr = p2p ( ip )
        jj = 0
@@ -1874,6 +1873,7 @@ CONTAINS
           END DO
        END DO
     END DO
+!$omp end parallel do
 
     CALL timestop(handle)
 
@@ -1997,6 +1997,11 @@ CONTAINS
     nz = bo ( 2, 3, mp ) - bo ( 1, 3, mp ) + 1
     nx = bo ( 2, 1, mp ) - bo ( 1, 1, mp ) + 1
 
+!$omp parallel do default(none), &
+!$omp             private(jj,ipl,ir,jx,jy,jz,ixx),&
+!$omp             shared(np,p2p,nray,yzp,zcor,myz,bo,mp),&
+!$omp             shared(alltoall_sgl,nx,scount,sdispl),&
+!$omp             shared(xzbuf,xzbuf_sgl,sb,nz)
     DO ip = 0, np - 1
        jj = 0
        ipl = p2p ( ip )
@@ -2020,6 +2025,7 @@ CONTAINS
           END IF
        END DO
     END DO
+!$omp end parallel do
 
     IF ( alltoall_sgl ) THEN
        CALL mp_alltoall ( xzbuf_sgl, scount, sdispl, yzbuf_sgl, rcount, rdispl, group )
