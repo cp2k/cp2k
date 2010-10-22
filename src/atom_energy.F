@@ -351,7 +351,7 @@ CONTAINS
     INTEGER                                  :: i, ider, ierr, k, l, lhomo, &
                                                 lwork, m, n, nhomo, s1, s2
     LOGICAL                                  :: failure = .FALSE.
-    REAL(KIND=dp)                            :: dene, emax, fhomo, expzet, &
+    REAL(KIND=dp)                            :: dene, emax, expzet, fhomo, &
                                                 prefac, zeta
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
     REAL(KIND=dp), ALLOCATABLE, &
