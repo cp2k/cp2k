@@ -15,3 +15,8 @@ nacl_cg.inp                          11
 nacl_sc.inp                          11
 quartz_cg.inp                         2
 quartz_sc.inp                         2
+#BMHFTD and inducible dipole damping
+flibe.inp                             2
+fli_small1.inp                       11
+fli_small2.inp                       11
+fli_small3.inp                       11

@@ -1,0 +1,99 @@
+&GLOBAL
+  PREFERRED_FFT_LIBRARY  FFTW
+  PRINT_LEVEL LOW
+  PROGRAM_NAME CP2K
+  PROJECT_NAME fli_small3
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+ METHOD FIST
+ &MM
+   &FORCEFIELD
+     &SPLINE
+       R0_NB 0.1
+       EMAX_SPLINE 20.0
+     &END SPLINE
+     &NONBONDED
+        &BMHFTD
+          atoms F F
+          A 181.8373
+          B 4.2833
+          C 0.329381
+          D 0.922357
+          BD 3.59048
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          atoms Li F
+          A 20.4158478
+          B 3.87854
+          C 0.0
+          D 0.0
+          BD 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          atoms Li Li
+          A 195.910854
+          B 8.03542
+          C 0.0
+          D 0.0
+          BD 0.0
+          RCUT 9.36643
+        &END BMHFTD
+     &END NONBONDED
+     &CHARGE
+       atom F
+       CHARGE -1.0000
+     &END CHARGE
+     &CHARGE
+       atom Li
+       CHARGE 1.000
+     &END CHARGE
+     &DIPOLE
+       atom F
+       APOL 1.05043
+       &DAMPING
+          TYPE Tang-Toennies
+          ATOM Li
+          BIJ 3.412667396
+          ORDER 4
+          CIJ 1.397150266
+       &END DAMPING
+     &END DIPOLE
+   &END FORCEFIELD
+   &POISSON
+     &EWALD
+       GMAX 7
+       &MULTIPOLES T
+         MAX_MULTIPOLE_EXPANSION DIPOLE
+         POL_SCF CONJUGATE_GRADIENT
+         EPS_POL 1.0e-6
+         MAX_IPOL_ITER 100
+       &END MULTIPOLES
+     &END EWALD
+    &END POISSON
+    &PRINT
+      &ITER_INFO LOW
+      &END ITER_INFO
+    &END PRINT
+  &END MM
+   &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+     F     0.0 0.0 0.0
+     Li    0.0 0.0 4.0
+    &END COORD
+    &KIND F
+      ELEMENT F
+      MASS    18.99840
+    &END KIND
+    &KIND Li
+      ELEMENT Li
+      MASS    6.941
+    &END KIND
+   &END SUBSYS
+ &END FORCE_EVAL

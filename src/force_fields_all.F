@@ -17,6 +17,9 @@ MODULE force_fields_all
                                              set_atomic_kind
   USE atoms_input,                     ONLY: read_shell_coord_input
   USE cell_types,                      ONLY: cell_type
+  USE damping_dipole_types,            ONLY: damping_p_create,&
+                                             damping_p_type,&
+                                             tang_toennies
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_env_set,&
                                              ewald_environment_type
@@ -110,7 +113,8 @@ MODULE force_fields_all
             force_field_pack_sne,&
             force_field_pack_ppse,&
             force_field_pack_pp,&
-            force_field_pack_eicut
+            force_field_pack_eicut,&
+            force_field_pack_damp
 
 CONTAINS
 
@@ -2233,6 +2237,112 @@ CPSourceFileRef,&
     END DO
     CALL timestop(handle)
   END SUBROUTINE force_field_pack_pol
+
+! *****************************************************************************
+!> \brief Set up damping parameters
+! *****************************************************************************
+  SUBROUTINE force_field_pack_damp (atomic_kind_set,&
+                                    iw,inp_info,error)
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    INTEGER                                  :: iw
+    TYPE(input_info_type), POINTER           :: inp_info
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_damp', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: atm_name1, atm_name2, &
+                                                my_atm_name1, my_atm_name2
+    INTEGER                                  :: handle2, i, j, k, nkinds
+    LOGICAL                                  :: found
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind, atomic_kind2
+    TYPE(damping_p_type), POINTER            :: damping
+
+     CALL timeset(routineN,handle2)
+     NULLIFY(damping)
+     nkinds=SIZE(atomic_kind_set)
+
+#ifdef DEBUG_DAMPING
+     WRITE(*,*) "DAMPING COUCOU"
+!     CALL timestop(handle2)
+!     RETURN
+#endif
+     DO j=1,SIZE(atomic_kind_set)
+       atomic_kind=>atomic_kind_set(j)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            name=atm_name1)
+       CALL UPPERCASE(atm_name1)
+#ifdef DEBUG_DAMPING
+       WRITE(*,*) "DAMPING in",j,TRIM(atm_name1)
+#endif
+       IF (ASSOCIATED(inp_info%damping_list)) THEN
+         DO i=1,SIZE(inp_info%damping_list)
+           my_atm_name1=inp_info%damping_list(i)%atm_name1
+           my_atm_name2=inp_info%damping_list(i)%atm_name2
+
+           IF (iw>0) WRITE(iw,*) "Damping Checking ::",TRIM(my_atm_name1),&
+                                                       TRIM(atm_name1)
+#ifdef DEBUG_DAMPING
+           WRITE(*,*) "DAMPING DEBUG, checking ::",TRIM(my_atm_name1),&
+                                                   TRIM(atm_name1)
+#endif
+           IF (my_atm_name1==atm_name1) THEN
+              IF (.NOT.ASSOCIATED(damping)) THEN
+                 CALL damping_p_create(damping,nkinds,error)
+              END IF
+
+              found=.FALSE.
+              DO k=1,SIZE(atomic_kind_set)
+                 atomic_kind2=>atomic_kind_set(k)
+                 CALL get_atomic_kind(atomic_kind=atomic_kind2,&
+                                      name=atm_name2)
+                 CALL UPPERCASE(atm_name2)
+
+                 IF (my_atm_name2==atm_name2) THEN
+#ifdef DEBUG_DAMPING
+                   WRITE(*,*) "DAMPING FOUND",TRIM(my_atm_name1),&
+                                              TRIM(atm_name1),&
+                                              TRIM(my_atm_name2),&
+                                              TRIM(atm_name2)
+#endif
+                    IF(damping%damp(k)%bij/=HUGE(0.0_dp)) found=.TRUE.
+                    CALL issue_duplications(found,routineP, "Damping",&
+                       atm_name1,error=error)
+                    found=.TRUE.
+
+                    SELECT CASE(TRIM(inp_info%damping_list(i)%dtype))
+                    CASE('TANG-TOENNIES')
+                        damping%damp(k)%itype=tang_toennies
+                    CASE DEFAULT
+                        CALL stop_program (routineN,'unknown damping type')
+                    END SELECT
+                    damping%damp(k)%order=inp_info%damping_list(i)%order
+                    damping%damp(k)%bij=inp_info%damping_list(i)%bij
+                    damping%damp(k)%cij=inp_info%damping_list(i)%cij
+                 ENDIF
+
+              END DO
+              CALL cp_assert(found,cp_warning_level,cp_assertion_failed,&
+                    routineP,&
+                    "Atom "//TRIM(my_atm_name2)//&
+                    " in damping parameters for atom "//TRIM(my_atm_name1)//&
+                    " not found! "//&
+CPSourceFileRef,&
+                   only_ionode=.TRUE.)
+           ENDIF
+         END DO
+
+       ENDIF
+
+       CALL set_atomic_kind(atomic_kind=atomic_kind,damping=damping)
+       NULLIFY(damping)
+     END DO
+
+     CALL timestop(handle2)
+
+  END SUBROUTINE force_field_pack_damp
 
 ! *****************************************************************************
 !> \brief Set up shell potential parameters

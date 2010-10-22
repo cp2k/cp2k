@@ -221,6 +221,108 @@
                 ef2_j = 0.0_dp
                 ef2_i = 0.0_dp
 
+#ifdef DAMPING
+
+                ! Initialize the damping function.
+                IF (kind_a==ikind) THEN
+                   ! for atom i
+                   SELECT CASE (itype_ij)
+                   CASE (tang_toennies)
+                      dampsumfi = 1.0_dp
+                      xf = 1.0_dp
+                      factorial = 1.0_dp
+                      DO kk = 1, nkdamp_ij
+                         xf = xf*dampa_ij*r
+                         factorial = factorial * float(kk)
+                         dampsumfi = dampsumfi + (xf/factorial)
+                      END DO
+                      dampaexpi = dexp(-dampa_ij * r)
+                      dampfunci = dampsumfi * dampaexpi * dampfac_ij
+                      dampfuncdiffi = -dampa_ij * dampaexpi * &
+                                      dampfac_ij * (((dampa_ij * r) ** nkdamp_ij) / &
+                                      factorial)
+                   CASE DEFAULT
+                      dampfunci=0.0_dp
+                      dampfuncdiffi=0.0_dp
+                   END SELECT
+
+                   ! for atom j
+                   SELECT CASE (itype_ji)
+                   CASE (tang_toennies)
+                      dampsumfj = 1.0_dp
+                      xf = 1.0_dp
+                      factorial = 1.0_dp
+                      DO kk = 1, nkdamp_ji
+                         xf = xf*dampa_ji*r
+                         factorial = factorial * float(kk)
+                         dampsumfj = dampsumfj + (xf/factorial)
+                      END DO
+                      dampaexpj = dexp(-dampa_ji * r)
+                      dampfuncj = dampsumfj * dampaexpj * dampfac_ji
+                      dampfuncdiffj = -dampa_ji * dampaexpj * &
+                                      dampfac_ji * (((dampa_ji * r) ** nkdamp_ji) / &
+                                      factorial)
+                   CASE DEFAULT
+                      dampfuncj = 0.0_dp
+                      dampfuncdiffj = 0.0_dp
+                   END SELECT
+                ELSE
+                   SELECT CASE (itype_ij)
+                   CASE(tang_toennies)
+                      dampsumfj = 1.0_dp
+                      xf = 1.0_dp
+                      factorial = 1.0_dp
+                      DO kk = 1, nkdamp_ij
+                         xf = xf*dampa_ij*r
+                         factorial = factorial * float(kk)
+                         dampsumfj = dampsumfj + (xf/factorial)
+                      END DO
+                      dampaexpj = dexp(-dampa_ij * r)
+                      dampfuncj = dampsumfj * dampaexpj * dampfac_ij
+                      dampfuncdiffj = -dampa_ij * dampaexpj * &
+                                      dampfac_ij * (((dampa_ij * r) ** nkdamp_ij) / &
+                                      factorial)
+                   CASE DEFAULT
+                      dampfuncj=0.0_dp
+                      dampfuncdiffj=0.0_dp
+                   END SELECT
+
+                   !for j
+                   SELECT CASE (itype_ji)
+                   CASE (tang_toennies)
+                      dampsumfi = 1.0_dp
+                      xf = 1.0_dp
+                      factorial = 1.0_dp
+                      DO kk = 1, nkdamp_ji
+                         xf = xf*dampa_ji*r
+                         factorial = factorial * float(kk)
+                         dampsumfi = dampsumfi + (xf/factorial)
+                      END DO
+                      dampaexpi = dexp(-dampa_ji * r)
+                      dampfunci = dampsumfi * dampaexpi * dampfac_ji
+                      dampfuncdiffi = -dampa_ji * dampaexpi * &
+                                      dampfac_ji * (((dampa_ji * r) ** nkdamp_ji) / &
+                                      factorial)
+                   CASE DEFAULT
+                      dampfunci = 0.0_dp
+                      dampfuncdiffi = 0.0_dp
+                   END SELECT
+                END IF
+
+                damptij_a = -rab*dampfunci*fac_ij*irab2*ir
+                damptji_a = -rab*dampfuncj*fac_ij*irab2*ir
+                DO b = 1,3
+                   DO a = 1,3
+                      tmp = rab(a)*rab(b)*fac_ij
+                      damptij_ab(a,b) = tmp*(-dampfuncdiffi*irab2*irab2+3.0_dp*dampfunci*irab2*irab2*ir)
+                      damptji_ab(a,b) = tmp*(-dampfuncdiffj*irab2*irab2+3.0_dp*dampfuncj*irab2*irab2*ir)
+                      IF (a==b) damptij_ab(a,b) = damptij_ab(a,b) - dampfunci*fac_ij*irab2*ir
+                      IF (a==b) damptji_ab(a,b) = damptji_ab(a,b) - dampfuncj*fac_ij*irab2*ir
+                   END DO
+                END DO
+
+#endif
+
                 ! Initialize the charge, dipole and quadrupole for atom A and B
                 IF (debug_this_module) THEN
                    ch_j  = HUGE(0.0_dp)
@@ -268,6 +370,17 @@
                          ef1_j(1) = ef1_j(1) + tij_a(1) * ch_i
                          ef1_j(2) = ef1_j(2) + tij_a(2) * ch_i
                          ef1_j(3) = ef1_j(3) + tij_a(3) * ch_i
+
+#ifdef DAMPING
+                         ef1_i(1) = ef1_i(1) + damptij_a(1) * ch_j
+                         ef1_i(2) = ef1_i(2) + damptij_a(2) * ch_j
+                         ef1_i(3) = ef1_i(3) + damptij_a(3) * ch_j
+
+                         ef1_j(1) = ef1_j(1) - damptji_a(1) * ch_i
+                         ef1_j(2) = ef1_j(2) - damptji_a(2) * ch_i
+                         ef1_j(3) = ef1_j(3) - damptji_a(3) * ch_i
+#endif
+
                       END IF
                       ! Electric field gradient
                       IF (do_efield2) THEN
@@ -421,6 +534,14 @@
                         - ch_i*(tij_a(1)*dp_j(1)+&
                                 tij_a(2)*dp_j(2)+&
                                 tij_a(3)*dp_j(3))
+#ifdef DAMPING
+                   tmp=  tmp- ch_j*(damptij_a(1)*dp_i(1)+&
+                                damptij_a(2)*dp_i(2)+&
+                                damptij_a(3)*dp_i(3))&
+                        + ch_i*(damptji_a(1)*dp_j(1)+&
+                                damptji_a(2)*dp_j(2)+&
+                                damptji_a(3)*dp_j(3))
+#endif
                    eloc = eloc + tmp
                    ! Forces on particle i (locally b)
                    IF (do_forces.OR.do_stress) THEN
@@ -431,6 +552,14 @@
                                        +  ch_i *(tij_ab(1,k)*dp_j(1)+&
                                                  tij_ab(2,k)*dp_j(2)+&
                                                  tij_ab(3,k)*dp_j(3))
+#ifdef DAMPING
+                         fr(k) = fr(k) +  ch_j *(damptij_ab(1,k)*dp_i(1)+&
+                                                 damptij_ab(2,k)*dp_i(2)+&
+                                                 damptij_ab(3,k)*dp_i(3))&
+                                       -  ch_i *(damptji_ab(1,k)*dp_j(1)+&
+                                                 damptji_ab(2,k)*dp_j(2)+&
+                                                 damptji_ab(3,k)*dp_j(3))
+#endif
                       END DO                      
                    END IF
                 END IF

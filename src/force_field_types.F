@@ -12,6 +12,7 @@
 ! *****************************************************************************
 MODULE force_field_types
 
+  USE damping_dipole_types,            ONLY: damping_info_type
   USE f77_blas
   USE input_constants,                 ONLY: do_ff_undef
   USE kinds,                           ONLY: default_path_length,&
@@ -144,6 +145,7 @@ MODULE force_field_types
     TYPE (pair_potential_p_type), POINTER          :: nonbonded
     TYPE (pair_potential_p_type), POINTER          :: nonbonded14
     TYPE (shell_p_type), DIMENSION(:), POINTER     :: shell_list
+    TYPE (damping_info_type),DIMENSION(:), POINTER :: damping_list
   END TYPE input_info_type
 
 ! *****************************************************************************
@@ -717,6 +719,7 @@ CONTAINS
     NULLIFY(inp_info%nonbonded)
     NULLIFY(inp_info%nonbonded14)
     NULLIFY(inp_info%shell_list)
+    NULLIFY(inp_info%damping_list)
 
   END SUBROUTINE init_inp_info
 
@@ -1344,6 +1347,10 @@ CONTAINS
     END IF
     IF(ASSOCIATED(inp_info%shell_list)) THEN
        CALL shell_p_release(inp_info%shell_list,error=error)
+    END IF
+    IF(ASSOCIATED(inp_info%damping_list)) THEN
+       DEALLOCATE(inp_info%damping_list,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE deallocate_inp_info

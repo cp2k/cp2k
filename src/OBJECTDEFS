@@ -153,6 +153,7 @@ OBJECTS_GENERIC =\
  cuda_cublas.o\
  cuda_memory.o\
  d3_poly.o\
+ damping_dipole_types.o\
  dbcsr_tests.o\
  dft_plus_u.o\
  dg_rho0_types.o\

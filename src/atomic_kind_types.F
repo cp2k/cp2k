@@ -31,6 +31,8 @@ MODULE atomic_kind_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE damping_dipole_types,            ONLY: damping_p_release,&
+                                             damping_p_type
   USE external_potential_types,        ONLY: &
        all_potential_type, allocate_potential, deallocate_potential, &
        fist_potential_type, get_potential, gth_potential_type, &
@@ -150,6 +152,7 @@ MODULE atomic_kind_types
      LOGICAL                                :: no_optimize
      !
      TYPE(qs_atom_dispersion_type), POINTER :: dispersion
+     TYPE(damping_p_type), POINTER          :: damping
   END TYPE atomic_kind_type
 
 !> Provides a vector of pointers of type atomic_kind_type
@@ -230,6 +233,7 @@ CONTAINS
        NULLIFY (atomic_kind_set(ikind)%shell)
        NULLIFY (atomic_kind_set(ikind)%dft_plus_u)
        NULLIFY (atomic_kind_set(ikind)%dispersion)
+       NULLIFY (atomic_kind_set(ikind)%damping)
        atomic_kind_set(ikind)%name = ""
        atomic_kind_set(ikind)%element_symbol = ""
        atomic_kind_set(ikind)%mass = 0.0_dp
@@ -364,6 +368,8 @@ CONTAINS
              DEALLOCATE (atomic_kind_set(ikind)%laddel,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
+
+          CALL damping_p_release(atomic_kind_set(ikind)%damping,error)
        END DO
        DEALLOCATE (atomic_kind_set,STAT=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -388,7 +394,7 @@ CONTAINS
        soft_basis_set, elec_conf, hard_basis_set, paw_proj_set, softb, &
        paw_atom,qm_atom, hard_radius, hard0_radius, max_rad_local, &
        gpw_type_forced, harmonics, max_iso_not0, max_s_harm, grid_atom, &
-       ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active, &
+       ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active, damping, &
        dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, basis_set_id, &
        npgf, bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
        max_scf, eps_scf, smear)
@@ -447,7 +453,9 @@ CONTAINS
                                                 lmax_rho0
     LOGICAL, INTENT(OUT), OPTIONAL           :: ghost
     TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
-    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active, dft_plus_u_atom
+    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active
+    TYPE(damping_p_type), OPTIONAL, POINTER  :: damping
+    LOGICAL, INTENT(OUT), OPTIONAL           :: dft_plus_u_atom
     INTEGER, INTENT(OUT), OPTIONAL           :: l_of_dft_plus_u
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: u_minus_j
     TYPE(qs_atom_dispersion_type), &
@@ -714,6 +722,7 @@ CONTAINS
        IF (PRESENT(shell)) shell => atomic_kind%shell
        IF (PRESENT(shell_active)) shell_active = atomic_kind%shell_active
        IF (PRESENT(dft_plus_u_atom)) dft_plus_u_atom = ASSOCIATED(atomic_kind%dft_plus_u)
+       IF (PRESENT(damping)) damping => atomic_kind%damping
        IF (PRESENT(l_of_dft_plus_u)) THEN
           IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
              l_of_dft_plus_u = atomic_kind%dft_plus_u%l
@@ -788,6 +797,7 @@ CONTAINS
        gth_potential_present,kg_potential_present,paw_atom_present,&
        qm_atom_present,shell_present, shell_adiabatic,&
        shell_check_distance, dft_plus_u_atom_present,&
+       damping_present,&
        atom_of_kind,kind_of,natom_of_kind,maxder,&
        maxlgem,max_ngrid_rad,&
        max_sph_harm,maxg_iso_not0,lmax_rho0,&
@@ -802,7 +812,7 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
       fist_potential_present, gth_potential_present, kg_potential_present, &
       paw_atom_present, qm_atom_present, shell_present, shell_adiabatic, &
-      shell_check_distance, dft_plus_u_atom_present
+      shell_check_distance, dft_plus_u_atom_present, damping_present
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
@@ -825,6 +835,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(damping_p_type), POINTER            :: damping
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(geminal_basis_set_type), POINTER    :: geminal_basis_set
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -878,6 +889,7 @@ CONTAINS
        IF (PRESENT(shell_present)) shell_present = .FALSE.
        IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
        IF (PRESENT(shell_check_distance)) shell_check_distance = .FALSE.
+       IF (PRESENT(damping_present)) damping_present = .FALSE.
        IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
        IF (PRESENT(kind_of)) kind_of(:) = 0
        IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
@@ -909,7 +921,8 @@ CONTAINS
                qm_atom=qm_atom,&
                dft_plus_u_atom=dft_plus_u_atom,&
                lmax_rho0=lmax_rho0_kind,&
-               shell=shell)
+               shell=shell,&
+               damping=damping)
           IF (PRESENT(maxatom)) THEN
              maxatom = MAX(maxatom,atomic_kind%natom)
           END IF
@@ -1295,6 +1308,11 @@ CONTAINS
           END IF
           IF (PRESENT(shell_check_distance) .AND. ASSOCIATED(shell) )THEN
              IF(.NOT. shell_check_distance) shell_check_distance = (shell%max_dist > 0.0_dp)
+          END IF
+          IF (PRESENT(damping_present))THEN
+             IF (ASSOCIATED(damping)) THEN
+                damping_present=.TRUE.
+             END IF
           END IF
           IF (PRESENT(atom_of_kind)) THEN
              DO iatom=1,atomic_kind%natom
@@ -2255,7 +2273,7 @@ CONTAINS
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
        natom,atom_list,elec_conf,paw_atom,qm_atom,hard_radius,hard0_radius,&
        fist_potential,soft_basis_set,hard_basis_set,lmax_rho0,zeff,ghost,shell,&
-       shell_active,no_optimize,dispersion,error)
+       shell_active,no_optimize,dispersion,damping,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
@@ -2276,6 +2294,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: shell_active, no_optimize
     TYPE(qs_atom_dispersion_type), &
       OPTIONAL, POINTER                      :: dispersion
+    TYPE(damping_p_type), INTENT(IN), &
+      OPTIONAL, POINTER                      :: damping
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2341,6 +2361,8 @@ CONTAINS
        IF (PRESENT(no_optimize)) atomic_kind%no_optimize=no_optimize
 
        IF (PRESENT(dispersion)) atomic_kind%dispersion => dispersion
+
+       IF (PRESENT(damping)) atomic_kind%damping => damping
 
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&

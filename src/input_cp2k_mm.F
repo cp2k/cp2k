@@ -1006,6 +1006,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -1014,10 +1015,10 @@ CONTAINS
        CALL section_create(section,name="DIPOLE",&
             description="This section specifies that we will perform an SCF dipole calculation of the MM atoms. "//&
                         "Needs KEYWORD POL_SCF in POISSON secton",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(subsection,keyword)
 
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind of the scf dipole.",&
@@ -1032,8 +1033,79 @@ CONTAINS
             n_var=1, unit_str='angstrom^3', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL create_DAMPING_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_dipole_section
+
+! *****************************************************************************
+!> \brief This section specifies the idamping parameters for polarizable atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Rodolphe Vuilleumier
+! *****************************************************************************
+  SUBROUTINE create_damping_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_damping_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="DAMPING",&
+            description="This section specifies optional electric field damping for the polarizable atoms. ",&
+            n_keywords=4, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOM",&
+            description="Defines the atomic kind for this damping function.",&
+            usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL keyword_create(keyword, name="TYPE",&
+            description="Defines the damping type.",&
+            usage="TYPE {string}", required=.TRUE., type_of_var=char_t,&
+            n_var=1, default_c_val="TANG-TOENNIES", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORDER",&
+            description="Defines the order for this damping.",&
+            usage="ORDER {integer}", required=.TRUE., type_of_var=integer_t,&
+            n_var=1, default_i_val=3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BIJ",&
+            description="Defines the BIJ parameter for this damping.",&
+            usage="BIJ {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str='angstrom^-1', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CIJ",&
+            description="Defines the CIJ parameter for this damping.",&
+            usage="CIJ {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str='', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_damping_section
 
 ! *****************************************************************************
 !> \brief This section specifies the charge of the MM atoms

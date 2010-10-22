@@ -29,6 +29,7 @@ MODULE force_fields_input
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE damping_dipole_types,            ONLY: damping_info_type
   USE f77_blas
   USE force_field_types,               ONLY: force_field_type,&
                                              input_info_type
@@ -287,7 +288,8 @@ CPSourceFileRef,&
           ntot=0
           CALL reallocate(inp_info%apol_atm,1,nchg)
           CALL reallocate(inp_info%apol,1,nchg)
-          CALL read_apol_section(inp_info%apol_atm,inp_info%apol,tmp_section,ntot,error)
+          CALL read_apol_section(inp_info%apol_atm,inp_info%apol,inp_info%damping_list,&
+                                 tmp_section,ntot,error)
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"QUADRUPOLE",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
@@ -1155,10 +1157,13 @@ CPSourceFileRef,&
 !> \brief Reads the POLARIZABILITY section
 !> \author Marcel Baer
 ! *****************************************************************************
-  SUBROUTINE read_apol_section(apol_atm, apol, section, start, error)
+  SUBROUTINE read_apol_section(apol_atm, apol, damping_list, section,&
+                               start, error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: apol_atm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: apol
+    TYPE(damping_info_type), DIMENSION(:), &
+      POINTER                                :: damping_list
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1167,9 +1172,39 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atm_name
-    INTEGER                                  :: isec, n_items
+    INTEGER                                  :: isec, isec_damp, n_damp, &
+                                                n_items, start_damp, stat, &
+                                                tmp_damp
+    LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: tmp_section
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
+    NULLIFY(tmp_section)
+    n_damp=0
+! *** Counts number of DIPOLE%DAMPING sections ****
+    DO isec = 1, n_items
+      tmp_section => section_vals_get_subs_vals(section,"DAMPING",&
+                                     i_rep_section=isec,error=error)
+      CALL section_vals_get(tmp_section,n_repetition=tmp_damp,error=error)
+      n_damp=n_damp+tmp_damp
+
+#ifdef DEBUG_DAMPING
+      WRITE(*,*) 'DAMPING DEBUG',isec,tmp_damp
+#endif
+
+    END DO
+
+    IF (n_damp > 0) THEN
+      failure=.FALSE.
+      ALLOCATE (damping_list(1:n_damp),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+#ifdef DEBUG_DAMPING
+    WRITE(*,*) 'DAMPING DEBUG',n_damp
+#endif
+
+! *** Reads DIPOLE sections *****
+    start_damp=0
     DO isec = 1, n_items
        CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=atm_name,&
             error=error)
@@ -1177,7 +1212,46 @@ CPSourceFileRef,&
        CALL uppercase(apol_atm(start+isec))
        CALL section_vals_val_get(section,"APOL",i_rep_section=isec,r_val=apol(start+isec),&
             error=error)
+
+       tmp_section => section_vals_get_subs_vals(section,"DAMPING",&
+                                     i_rep_section=isec,error=error)
+       CALL section_vals_get(tmp_section,n_repetition=tmp_damp,error=error)
+       DO isec_damp=1,tmp_damp
+          damping_list(start_damp+isec_damp)%atm_name1=apol_atm(start+isec)
+          CALL section_vals_val_get(tmp_section,"ATOM",i_rep_section=isec_damp,&
+               c_val=atm_name,&
+               error=error)
+          damping_list(start_damp+isec_damp)%atm_name2=atm_name
+          CALL uppercase(damping_list(start_damp+isec_damp)%atm_name2)
+          CALL section_vals_val_get(tmp_section,"TYPE",i_rep_section=isec_damp,&
+               c_val=atm_name,ignore_required=.TRUE.,&
+               error=error)
+          damping_list(start_damp+isec_damp)%dtype=atm_name
+          CALL uppercase(damping_list(start_damp+isec_damp)%dtype)
+
+          CALL section_vals_val_get(tmp_section,"ORDER",i_rep_section=isec_damp,&
+               i_val=damping_list(start_damp+isec_damp)%order,&
+               ignore_required=.TRUE., error=error)
+          CALL section_vals_val_get(tmp_section,"BIJ",i_rep_section=isec_damp,&
+               r_val=damping_list(start_damp+isec_damp)%bij, error=error)
+          CALL section_vals_val_get(tmp_section,"CIJ",i_rep_section=isec_damp,&
+               r_val=damping_list(start_damp+isec_damp)%cij, error=error)
+       END DO
+       start_damp=start_damp+tmp_damp
+
     END DO
+
+#ifdef DEBUG_DAMPING
+    DO start_damp=1,n_damp
+     WRITE(*,*) 'DAMPING DEBUG', TRIM(damping_list(start_damp)%atm_name1),&
+                                 TRIM(damping_list(start_damp)%atm_name2),&
+                                 TRIM(damping_list(start_damp)%dtype),&
+                                 damping_list(start_damp)%order,&
+                                 damping_list(start_damp)%bij,&
+                                 damping_list(start_damp)%cij
+    END DO
+#endif
+
   END SUBROUTINE read_apol_section
 
 ! *****************************************************************************

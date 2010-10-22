@@ -38,14 +38,14 @@ MODULE force_fields_util
        torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
   USE force_fields_all,                ONLY: &
        force_field_pack_bend, force_field_pack_bond, force_field_pack_charge, &
-       force_field_pack_eicut, force_field_pack_impr, force_field_pack_onfo, &
-       force_field_pack_opbend, force_field_pack_pol, force_field_pack_pp, &
-       force_field_pack_ppse, force_field_pack_radius, force_field_pack_sbe, &
-       force_field_pack_shell, force_field_pack_sne, force_field_pack_tors, &
-       force_field_pack_ub, force_field_unique_bend, force_field_unique_bond, &
-       force_field_unique_impr, force_field_unique_onfo, &
-       force_field_unique_opbend, force_field_unique_tors, &
-       force_field_unique_ub
+       force_field_pack_damp, force_field_pack_eicut, force_field_pack_impr, &
+       force_field_pack_onfo, force_field_pack_opbend, force_field_pack_pol, &
+       force_field_pack_pp, force_field_pack_ppse, force_field_pack_radius, &
+       force_field_pack_sbe, force_field_pack_shell, force_field_pack_sne, &
+       force_field_pack_tors, force_field_pack_ub, force_field_unique_bend, &
+       force_field_unique_bond, force_field_unique_impr, &
+       force_field_unique_onfo, force_field_unique_opbend, &
+       force_field_unique_tors, force_field_unique_ub
   USE input_constants,                 ONLY: do_ff_undef
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -260,6 +260,7 @@ CONTAINS
     ! 16. Set up the polarizable FF parameters
     !-----------------------------------------------------------------------------
     CALL force_field_pack_pol(atomic_kind_set, iw, inp_info, error)
+    CALL force_field_pack_damp(atomic_kind_set, iw, inp_info, error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

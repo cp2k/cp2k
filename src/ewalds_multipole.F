@@ -6,6 +6,8 @@
 ! *****************************************************************************
 !> \brief Treats the electrostatic for multipoles (up to quadrupoles)
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
+!> inclusion of optional electric field damping for the polarizable atoms
+!> Rodolphe Vuilleumier and Mathieu Salanne - 12.2009
 ! *****************************************************************************
 MODULE ewalds_multipole
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -14,6 +16,9 @@ MODULE ewalds_multipole
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE damping_dipole_types,            ONLY: damping_type,&
+                                             no_damping,&
+                                             tang_toennies
   USE dg_rho0_types,                   ONLY: dg_rho0_type
   USE dg_types,                        ONLY: dg_get,&
                                              dg_type
@@ -229,7 +234,8 @@ CONTAINS
     e_bonded = 0.0_dp
     IF (.NOT.debug_g_space) THEN
        ! Compute the Real Space (Short-Range) part of the Ewald sum
-       CALL ewald_multipole_SR (nonbond_env, ewald_env, cell, e_rspace, my_task,&
+       CALL ewald_multipole_SR (nonbond_env, ewald_env, atomic_kind_set,&
+            particle_set, cell, e_rspace, my_task,&
             do_forces, do_efield, do_stress, radii, charges, dipoles, quadrupoles,&
             forces_glob, pv_glob, efield0_sr, efield1_sr, efield2_sr, error)
        energy_glob = energy_glob + e_rspace
@@ -307,11 +313,15 @@ CONTAINS
 !>      up to quadrupole - Short Range (Real Space) Term
 !> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE ewald_multipole_SR (nonbond_env, ewald_env, cell, energy, task,&
+  SUBROUTINE ewald_multipole_SR (nonbond_env, ewald_env, atomic_kind_set,&
+       particle_set, cell, energy, task,&
        do_forces, do_efield, do_stress, radii, charges, dipoles, quadrupoles,&
        forces, pv, efield0, efield1, efield2, error)
     TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(particle_type), POINTER             :: particle_set(:)
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: energy
     LOGICAL, DIMENSION(3, 3), INTENT(IN)     :: task
@@ -332,27 +342,31 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_multipole_SR', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: a, atom_a, atom_b, b, c, d, &
-                                                e, handle, i, iend, igrp, &
-                                                ikind, ilist, ipair, istart, &
-                                                jkind, k, nkinds, npairs
+    INTEGER :: a, atom_a, atom_b, b, c, d, e, handle, i, iend, igrp, ikind, &
+      ilist, ipair, istart, itype_ij, itype_ji, jkind, k, kind_a, kind_b, kk, &
+      nkdamp_ij, nkdamp_ji, nkinds, npairs
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: do_efield0, do_efield1, &
                                                 do_efield2, failure, &
                                                 force_eval
-    REAL(KIND=dp) :: alpha, beta, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, &
-      fac_ij, ir, irab2, ptens11, ptens12, ptens13, ptens21, ptens22, &
-      ptens23, ptens31, ptens32, ptens33, r, rab2, rab2_max, radius, rcut, &
-      tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, tmp31, &
-      tmp32, tmp33, tmp_ij, tmp_ji
+    REAL(KIND=dp) :: alpha, beta, ch_i, ch_j, dampa_ij, dampa_ji, dampaexpi, &
+      dampaexpj, dampfac_ij, dampfac_ji, dampfuncdiffi, dampfuncdiffj, &
+      dampfunci, dampfuncj, dampsumfi, dampsumfj, ef0_i, ef0_j, eloc, fac, &
+      fac_ij, factorial, ir, irab2, ptens11, ptens12, ptens13, ptens21, &
+      ptens22, ptens23, ptens31, ptens32, ptens33, r, rab2, rab2_max, radius, &
+      rcut, tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, tmp21, tmp22, tmp23, &
+      tmp31, tmp32, tmp33, tmp_ij, tmp_ji, xf
     REAL(KIND=dp), DIMENSION(0:5)            :: f
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, dp_i, dp_j, &
-                                                ef1_i, ef1_j, fr, rab, tij_a
-    REAL(KIND=dp), DIMENSION(3, 3)           :: ef2_i, ef2_j, qp_i, qp_j, &
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, damptij_a, &
+                                                damptji_a, dp_i, dp_j, ef1_i, &
+                                                ef1_j, fr, rab, tij_a
+    REAL(KIND=dp), DIMENSION(3, 3)           :: damptij_ab, damptji_ab, &
+                                                ef2_i, ef2_j, qp_i, qp_j, &
                                                 tij_ab
     REAL(KIND=dp), DIMENSION(3, 3, 3)        :: tij_abc
     REAL(KIND=dp), DIMENSION(3, 3, 3, 3)     :: tij_abcd
     REAL(KIND=dp), DIMENSION(3, 3, 3, 3, 3)  :: tij_abcde
+    TYPE(damping_type)                       :: damping_ij, damping_ji
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
@@ -390,6 +404,34 @@ CONTAINS
           iend    = neighbor_kind_pair%grp_kind_end(igrp)
           ikind   = neighbor_kind_pair%ij_kind(1,igrp)
           jkind   = neighbor_kind_pair%ij_kind(2,igrp)
+
+          itype_ij=no_damping
+          nkdamp_ij=1
+          dampa_ij=1.0_dp
+          dampfac_ij=0.0_dp
+
+          itype_ji=no_damping
+          nkdamp_ji=1
+          dampa_ji=1.0_dp
+          dampfac_ji=0.0_dp
+          IF (PRESENT(atomic_kind_set)) THEN
+             IF (ASSOCIATED(atomic_kind_set(jkind)%damping)) THEN
+                damping_ij=atomic_kind_set(jkind)%damping%damp(ikind)
+                itype_ij=damping_ij%itype
+                nkdamp_ij=damping_ij%order
+                dampa_ij=damping_ij%bij
+                dampfac_ij=damping_ij%cij
+             END IF
+
+             IF (ASSOCIATED(atomic_kind_set(ikind)%damping)) THEN
+                damping_ji=atomic_kind_set(ikind)%damping%damp(jkind)
+                itype_ji=damping_ji%itype
+                nkdamp_ji=damping_ji%order
+                dampa_ji=damping_ji%bij
+                dampfac_ji=damping_ji%cij
+             END IF
+          END IF
+
           Pairs: DO ipair = istart, iend
              ! skip pairs that are excluded for electrostatics
              IF (ipair <= neighbor_kind_pair%nexclude) THEN
@@ -400,6 +442,8 @@ CONTAINS
              fac_ij = 1.0_dp
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
+             kind_a=particle_set(atom_a)%atomic_kind%kind_number
+             kind_b=particle_set(atom_b)%atomic_kind%kind_number
              IF (atom_a==atom_b) fac_ij = 0.5_dp
              rab    = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
              rab    = rab + cell_v
@@ -423,7 +467,9 @@ CONTAINS
 #define SCREENED_COULOMB_ERFC
 #define STORE_ENERGY
 #define STORE_FORCES
+#define DAMPING
 #include "ewalds_multipole_sr.f90"
+#undef DAMPING
 #undef STORE_FORCES
 #undef STORE_ENERGY
 #undef SCREENED_COULOMB_ERFC
