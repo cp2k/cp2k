@@ -95,3 +95,5 @@ H2O_tddfpt-s-1.inp
 H2O_tddfpt-s-1.inp
 #
 H2O_tddfpt-s-1.inp
+# reset few regs w.r.t. several different compilers
+H2O_tddfpt-t-1.inp

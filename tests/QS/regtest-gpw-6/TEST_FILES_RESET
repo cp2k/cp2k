@@ -299,3 +299,5 @@ si8_lsd_broy_wc_list_rst.inp
 c8_broy_gapw_gop.inp
 #  
 c8_broy_gop.inp
+# reset few regs w.r.t. several different compilers
+si8_noort_broy_wc_jacobi_all.inp

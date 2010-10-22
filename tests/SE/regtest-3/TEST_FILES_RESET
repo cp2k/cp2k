@@ -276,3 +276,5 @@ Al2O3.inp
 N3_rp_md.inp
 #
 N3_rp_dp_md.inp
+# reset few regs w.r.t. several different compilers
+LiH.inp

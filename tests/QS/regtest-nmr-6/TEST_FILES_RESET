@@ -744,3 +744,5 @@ no-gapw-4.inp
 no-gapw-gpw-1.inp
 # Numerics differences due to different distribution 
 no-gapw-1-distributed.inp
+# reset few regs w.r.t. several different compilers
+no-gapw-2.inp

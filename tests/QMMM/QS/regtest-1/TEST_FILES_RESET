@@ -383,3 +383,5 @@ H2O-qmmm-none-1.inp
 H2O-qmmm-gauss-2.inp
 # Numerics differences due to different distribution 
 H2O-qmmm-gauss-5.inp
+# reset few regs w.r.t. several different compilers
+Ar-qmmm.inp

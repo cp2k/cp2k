@@ -126,3 +126,5 @@ CH_BeckeRoussel_R_1.0.inp
 CH_PBE_HOLE_T_C_LR_1.0.inp
 #
 CH_GV09_1.0.inp
+# reset few regs w.r.t. several different compilers
+CH_LDA_HOLE_T_C_LR_1.0.inp

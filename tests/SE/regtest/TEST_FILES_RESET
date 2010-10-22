@@ -602,3 +602,5 @@ ice-scp-ewald.inp
 ice-scp-ewald_gks.inp
 #
 h2o_gks_e.inp
+# reset few regs w.r.t. several different compilers
+ch2o_pm6.inp

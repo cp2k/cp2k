@@ -190,3 +190,5 @@ wfn_mix_1.inp
 wfn_mix_1.inp
 #
 wfn_mix_1.inp
+# reset few regs w.r.t. several different compilers
+wfn_mix_loc-1.inp

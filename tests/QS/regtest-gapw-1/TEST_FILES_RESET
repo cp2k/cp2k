@@ -73,3 +73,8 @@ c8_pmix_gapw_all_xashh.inp
 c8_broy_gapw_all_xashh.inp
 #  
 c8_broy_gapw_all_xashh.inp
+# reset few regs w.r.t. several different compilers
+c8_pmix_gapw_all.inp
+c8_pmix_gapw_all_xashh.inp
+CO_xastpfh.inp
+CO_xastphh_r.inp

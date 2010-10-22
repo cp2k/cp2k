@@ -287,3 +287,7 @@ si8_broy_wc.inp
 si8_broy_wc_crazy.inp
 #  
 si8_pulay_off.inp
+# reset few regs w.r.t. several different compilers
+si8_pulay.inp
+si8_pulay_reduce.inp
+si8_pulay_restore.inp
