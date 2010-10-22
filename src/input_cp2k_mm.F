@@ -1223,6 +1223,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_BMHFTD_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_Buck4r_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -1864,6 +1868,119 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_BMHFT_section
+
+! *****************************************************************************
+!> \brief This section specifies the input parameters for BMHFTD potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Mathieu Salanne 05.2010
+! *****************************************************************************
+  SUBROUTINE create_BMHFTD_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_BMHFTD_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="BMHFTD",&
+            description="This section specifies the input parameters for BMHFTD potential type."//&
+            "Functional form: V(r) = A*exp(-B*r) - f_6*(r)C/r^6 - f_8(r)*D/r^8."//&
+            "where f_order(r)=1-exp(-BD * r) * \sum_{k=0}^order (BD * r)^k / k! ."//&
+            "(Tang-Toennies damping function)"//&
+            "No values available inside cp2k.",&
+            citations=(/Tosi1964a,Tosi1964b/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Defines the atomic kind involved in the BMHFTD nonbond potential",&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAP_ATOMS",&
+            description="Defines the kinds for which internally is defined the BMHFTD nonbond potential"//&
+            " at the moment no species included.",&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RCUT",&
+            description="Defines the cutoff parameter of the BMHFTD potential",&
+            usage="RCUT {real}", default_r_val=7.8_dp,&
+            unit_str="angstrom",  error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="A",&
+            description="Defines the A parameter of the dispersion-damped Fumi-Tosi Potential",&
+            usage="A {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="hartree",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B",&
+            description="Defines the B parameter of the dispersion-damped Fumi-Tosi Potential",&
+            usage="B {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^-1",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="C",&
+            description="Defines the C parameter of the dispersion-damped Fumi-Tosi Potential",&
+            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^6",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="D",&
+            description="Defines the D parameter of the dispersion-damped Fumi-Tosi Potential",&
+            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^8",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BD",&
+            description="Defines the BD parameter of the dispersion-damped Fumi-Tosi Potential",&
+            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="angstrom^-1",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ORDER",&
+            description="Defines the order for this damping.",&
+            usage="ORDER {integer}", required=.TRUE., type_of_var=integer_t,&
+            n_var=1, default_i_val=3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMIN",&
+            description="Defines the lower bound of the potential. If not set the range is the"//&
+            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            type_of_var=real_t,  unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMAX",&
+            description="Defines the upper bound of the potential. If not set the range is the"//&
+            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            type_of_var=real_t,  unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_BMHFTD_section
 
 ! *****************************************************************************
 !> \brief This section specifies the input parameters for Buckingham 4 ranges potential type

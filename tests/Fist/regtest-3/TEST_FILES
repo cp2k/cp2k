@@ -30,3 +30,13 @@ ace_ala_nme-ambconn.inp   7
 ace_ala_nme-amber.inp     7
 #EAM alloys
 agpt.inp                  2
+#BMHFTD
+flibe_nopol.inp           2
+fli_nopol_small1.inp     11
+fli_nopol_small2.inp     11
+fli_nopol_small3.inp     11
+#BMHFTD
+flibe_nopol.inp           2
+fli_nopol_small1.inp     11
+fli_nopol_small2.inp     11
+fli_nopol_small3.inp     11

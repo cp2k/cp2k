@@ -16,9 +16,9 @@ MODULE pair_potential_util
                                              evalf
   USE kinds,                           ONLY: dp
   USE pair_potential_types,            ONLY: &
-       b4_type, bm_type, ea_type, ft_type, gp_type, gw_type, ip_type, &
-       lj_charmm_type, lj_type, not_initialized, pair_potential_single_type, &
-       wl_type
+       b4_type, bm_type, ea_type, ft_type, ftd_type, gp_type, gw_type, &
+       ip_type, lj_charmm_type, lj_type, not_initialized, &
+       pair_potential_single_type, wl_type
   USE physcon,                         ONLY: bohr,&
                                              evolt
   USE termination,                     ONLY: stop_program
@@ -45,7 +45,9 @@ CONTAINS
     REAL(KIND=dp)                            :: value
 
     INTEGER                                  :: i, index, j, n
-    REAL(KIND=dp)                            :: lvalue, pp, qq, scale
+    REAL(KIND=dp)                            :: damp, dampexp, dampsum, f6, &
+                                                f8, factorial, lvalue, pp, &
+                                                qq, scale, xf
 
     value = 0.0_dp
     DO j = 1, SIZE(pot%type)
@@ -80,6 +82,25 @@ CONTAINS
           lvalue = scale*pot%set(j)%goodwin%vr0*(pot%set(j)%goodwin%d/r)**pot%set(j)%goodwin%m
        ELSE IF (pot%type(j)==ft_type) THEN
           lvalue = pot%set(j)%ft%a*EXP(-pot%set(j)%ft%b*r) - pot%set(j)%ft%c/r**6 - pot%set(j)%ft%d/r**8
+       ELSE IF (pot%type(j)==ftd_type) THEN
+          dampsum = 1.0_dp
+          xf = 1.0_dp
+          factorial = 1.0_dp
+          damp = pot%set(j)%ftd%bd
+          dampexp = dexp(-damp*r)
+          DO i = 1, 6
+             xf = xf*damp*r
+             factorial = factorial * float(i)
+             dampsum = dampsum + xf/factorial
+          ENDDO
+          f6 = 1.0_dp-dampexp*dampsum
+          DO i = 7, 8
+             xf = xf*damp*r
+             factorial = factorial * float(i)
+             dampsum = dampsum + xf/factorial
+          ENDDO
+          f8 = 1.0_dp-dampexp*dampsum
+          lvalue = pot%set(j)%ftd%a*EXP(-pot%set(j)%ftd%b*r) - f6*pot%set(j)%ftd%c/r**6 - f8*pot%set(j)%ftd%d/r**8
        ELSE IF (pot%type(j)==ea_type) THEN
           index = INT ( r / pot%set(j)%eam%drar ) + 1
           IF ( index > pot%set(j)%eam%npoints ) THEN

@@ -22,9 +22,9 @@ MODULE pair_potential
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE pair_potential_types,            ONLY: &
-       b4_type, bm_type, compare_pot, ea_type, ft_type, gp_type, gw_type, &
-       ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, &
-       pair_potential_pp_type, pair_potential_single_type, &
+       b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gp_type, &
+       gw_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, &
+       nn_type, pair_potential_pp_type, pair_potential_single_type, &
        potential_single_allocation, tersoff_type, wl_type
   USE pair_potential_util,             ONLY: ener_pot,&
                                              ener_zbl,&
@@ -161,7 +161,7 @@ CONTAINS
           pot%only_pp = .TRUE.
           DO k = 1, SIZE(pot%type)
              SELECT CASE(pot%type(k))
-             CASE (lj_type,lj_charmm_type,wl_type,gw_type,ft_type,ip_type,&
+             CASE (lj_type,lj_charmm_type,wl_type,gw_type,ft_type, ftd_type, ip_type,&
                    b4_type,bm_type,gp_type,ea_type)
                 pot%only_mb = .FALSE.
              CASE (tersoff_type)
@@ -487,6 +487,8 @@ CPSourceFileRef,&
           nvar = 4 + nvar
        CASE (ft_type)
           nvar = 4 + nvar
+       CASE (ftd_type)
+          nvar = 5 + nvar
        CASE (ip_type)
           nvar = 3 + nvar
        CASE (b4_type)
@@ -557,6 +559,12 @@ CPSourceFileRef,&
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%ft%B
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%ft%C
                       pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%ft%D
+                   CASE (ftd_type)
+                      pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%ftd%A
+                      pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%ftd%B
+                      pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%ftd%C
+                      pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%ftd%D
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%ftd%BD
                    CASE (ip_type)
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%set(1)%ipbv%rcore
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%ipbv%m

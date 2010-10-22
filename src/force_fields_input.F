@@ -47,10 +47,11 @@ MODULE force_fields_input
   USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, do_potential_single_allocation, ea_type, &
-       eam_pot_type, ft_pot_type, ft_type, gp_type, gw_type, ip_type, &
-       ipbv_pot_type, lj_charmm_type, no_potential_single_allocation, &
-       pair_potential_p_type, pair_potential_reallocate, &
-       potential_single_allocation, tersoff_type, wl_type
+       eam_pot_type, ft_pot_type, ft_type, ftd_pot_type, ftd_type, gp_type, &
+       gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
+       no_potential_single_allocation, pair_potential_p_type, &
+       pair_potential_reallocate, potential_single_allocation, tersoff_type, &
+       wl_type
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
   USE string_utilities,                ONLY: uppercase
@@ -86,8 +87,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: nb4, nbends, nbm, nbmhft, nbonds, nchg, neam, ngd, ngp, nimpr, &
-      nipbv, nlj, nopbend, nshell, ntersoff, ntors, ntot, nubs, nwl
+    INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngd, &
+      ngp, nimpr, nipbv, nlj, nopbend, nshell, ntersoff, ntors, ntot, nubs, &
+      nwl
     LOGICAL                                  :: explicit, failure, &
                                                 unique_spline
     REAL(KIND=dp)                            :: min_eps_spline_allowed
@@ -197,9 +199,17 @@ CPSourceFileRef,&
              CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
 
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFTD",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhftd,error=error)
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhftd,bmhftd=.TRUE.,error=error)
+             CALL read_bmhftd_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
+
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCK4RANGES",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nb4,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nb4,buck4r=.TRUE.,error=error)
              CALL read_b4_section(inp_info%nonbonded,tmp_section2,ntot,error)
@@ -207,7 +217,7 @@ CPSourceFileRef,&
 
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCKMORSE",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbm,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbm,buckmo=.TRUE.,error=error)
              CALL read_bm_section(inp_info%nonbonded,tmp_section2,ntot,error)
@@ -215,14 +225,14 @@ CPSourceFileRef,&
 
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngp,gp=.TRUE.,error=error)
              CALL read_gp_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"TERSOFF",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ntersoff,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nb4+nbm+ngp
+          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ntersoff,tersoff=.TRUE.,error=error)
              CALL read_tersoff_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
@@ -500,6 +510,22 @@ CPSourceFileRef,&
   END SUBROUTINE set_BMHFT_ff
 
 ! *****************************************************************************
+!> \brief Set up of the BMHFTD force fields
+!> \author Mathieu Salanne 05.2010
+! *****************************************************************************
+  SUBROUTINE set_BMHFTD_ff(at1, at2, ftd, error)
+    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
+    TYPE(ftd_pot_type), POINTER              :: ftd
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFTD_ff', &
+      routineP = moduleN//':'//routineN
+
+    CALL stop_program ("input_nonbonded","No default parameters present for BMHFTD")
+
+  END SUBROUTINE set_BMHFTD_ff
+
+! *****************************************************************************
 !> \brief Reads the EAM section
 !> \author teo
 ! *****************************************************************************
@@ -772,6 +798,70 @@ CPSourceFileRef,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO
   END SUBROUTINE read_bmhft_section
+
+! *****************************************************************************
+!> \brief Reads the BMHFTD section
+!> \author Mathieu Salanne 05.2010
+! *****************************************************************************
+  SUBROUTINE read_bmhftd_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_bmhftd_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(2)                           :: map_atoms
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: i, isec, n_items, n_rep
+    REAL(KIND=dp)                            :: rcut
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL cite_reference(Tosi1964a)
+       CALL cite_reference(Tosi1964b)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       nonbonded%pot(start+isec)%pot %type = ftd_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+
+       CALL section_vals_val_get(section,"A",i_rep_section=isec,n_rep_val=i,error=error)
+       IF (i==1) THEN
+          CALL section_vals_val_get(section,"A",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ftd%a,error=error)
+          CALL section_vals_val_get(section,"B",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ftd%b,error=error)
+          CALL section_vals_val_get(section,"C",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ftd%c,error=error)
+          CALL section_vals_val_get(section,"D",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ftd%d,error=error)
+          CALL section_vals_val_get(section,"BD",i_rep_section=isec,&
+               r_val=nonbonded%pot(start+isec)%pot%set(1)%ftd%bd,error=error)
+
+       ELSE
+          CALL section_vals_val_get(section,"MAP_ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+          map_atoms = atm_names
+          CALL uppercase(map_atoms(1))
+          CALL uppercase(map_atoms(2))
+          CALL set_BMHFTD_ff(map_atoms(1), map_atoms(2), nonbonded%pot(start+isec)%pot%set(1)%ftd,&
+                            error=error)
+       END IF
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+       nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
+       !
+       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
+       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
+    END DO
+  END SUBROUTINE read_bmhftd_section
 
 ! *****************************************************************************
 !> \brief Reads the Buckingham 4 Ranges potential section

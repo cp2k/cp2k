@@ -1,0 +1,152 @@
+ &GLOBAL
+   BLACS_GRID  SQUARE
+   PREFERRED_FFT_LIBRARY  FFTW
+   PRINT_LEVEL  LOW
+   PROGRAM_NAME  CP2K
+   PROJECT_NAME flibe_nopol
+   RUN_TYPE  MD
+ &END GLOBAL
+ &MOTION
+   &MD
+     ENSEMBLE  NVE
+     STEPS        10
+     TIMESTEP     0.5
+     TEMPERATURE     1200.0
+     TEMP_TOL 100
+   &END MD
+   &PRINT
+      &TRAJECTORY LOW
+         &EACH
+           MD 1
+         &END EACH
+      &END TRAJECTORY
+      &VELOCITIES LOW
+        &EACH
+          MD 1
+        &END EACH
+      &END VELOCITIES
+      &FORCES
+        &EACH
+          MD   1
+        &END EACH
+      &END FORCES
+   &END PRINT
+ &END MOTION
+&FORCE_EVAL
+ METHOD FIST
+ &MM
+   &FORCEFIELD
+     &SPLINE
+       R0_NB 0.1
+       EMAX_SPLINE 20.0
+     &END SPLINE
+     &NONBONDED
+        &BMHFTD
+          atoms F F
+          A 181.8373
+          B 4.2833
+          C 0.329381
+          D 0.922357
+          BD 3.59048
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          atoms Be F
+          A 41.71686
+          B 4.25909
+          C 0.0
+          D 0.0
+          BD 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          atoms Li F
+          A 20.4158478
+          B 3.87854
+          C 0.0
+          D 0.0
+          BD 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          atoms Be Be
+          A 106.163668
+          B 7.452
+          C 0.0
+          D 0.0
+          BD 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          atoms Be Li
+          A 0.0
+          B 1.0
+          C 0.0
+          D 0.0
+          BD 0.0
+          RCUT 9.36643
+        &END BMHFTD
+        &BMHFTD
+          atoms Li Li
+          A 195.910854
+          B 8.03542
+          C 0.0
+          D 0.0
+          BD 0.0
+          RCUT 9.36643
+        &END BMHFTD
+     &END NONBONDED
+     &CHARGE
+       atom F
+       CHARGE 0.0
+     &END CHARGE
+     &CHARGE
+       atom Be
+       CHARGE 0.0
+     &END CHARGE
+     &CHARGE
+       atom Li
+       CHARGE 0.0
+     &END CHARGE
+   &END FORCEFIELD
+   &POISSON
+     PERIODIC NONE
+     POISSON_SOLVER ANALYTIC
+     &EWALD
+       EWALD_TYPE EWALD
+       ALPHA 0.316
+       GMAX 7
+       O_SPLINE 6
+     &END EWALD
+    &END POISSON
+  &END MM
+   &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+          F         0.1070207770        4.7805803378        4.2319187284
+          F        -0.4452193764        9.2664540536       -4.8366328290
+          F         7.3827842755       -0.7244458144        7.8413127339
+          F        -3.1470062918        0.6662785537       -0.8553166496
+          F         8.6031113587        2.2277338600        2.5593342094
+          F         5.8243778395       -4.2288145862       -2.1365686153
+         Be         4.2898323382       13.3460656398        6.7977248002
+         Be         4.4133437935       -0.3198192029       -3.3756731913
+         Li        10.2291563003        6.4894116478       13.1249780628
+         Li       -14.1619614361       -7.0206696349       13.2855175234
+    &END COORD
+    &KIND F
+      ELEMENT F
+      MASS    18.99840
+    &END KIND
+    &KIND Be
+      ELEMENT Be
+      MASS    9.01218
+    &END KIND
+    &KIND Li
+      ELEMENT Li
+      MASS    6.941
+    &END KIND
+   &END SUBSYS
+ &END FORCE_EVAL
