@@ -33,7 +33,6 @@ MODULE efield_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_lists,               ONLY: local_atoms_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -182,7 +181,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
-                                                natom, nkind, stat
+                                                natom, nkind
+    INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: failure, my_force
     REAL(KIND=dp)                            :: efield_ener, zeff
     REAL(KIND=dp), DIMENSION(3)              :: field, r
@@ -190,8 +190,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(local_atoms_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
@@ -216,23 +214,19 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
        CALL make_field(qs_env%dft_control,field,qs_env%sim_step,qs_env%sim_time,error) 
 
-
-       ALLOCATE (atom(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
        DO ikind=1,SIZE(atomic_kind_set)
           
           atomic_kind => atomic_kind_set(ikind)
           
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=atom(ikind)%list,&
+               atom_list=list,&
                natom=natom,&
                zeff=zeff)
           
-          natom = SIZE(atom(ikind)%list)
+          natom = SIZE(list)
           DO iatom=1,natom
 
-             atom_a = atom(ikind)%list(iatom)
+             atom_a = list(iatom)
              r(:) = pbc(particle_set(atom_a)%r(:),cell)
              efield_ener=efield_ener-zeff*DOT_PRODUCT(r,field)
               IF(my_force)THEN
@@ -242,8 +236,6 @@ CONTAINS
           END DO
           
        END DO
-       DEALLOCATE(atom,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        energy%efield_core=efield_ener
     END IF
     CALL timestop(handle)

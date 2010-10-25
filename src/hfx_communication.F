@@ -552,7 +552,7 @@ MODULE hfx_communication
        ENDIF
     ENDDO
 
-IF( ASSOCIATED(map_atoms_to_cpus) ) THEN
+    IF( ASSOCIATED(map_atoms_to_cpus) ) THEN
       DO icpu=1,para_env%num_pe
         DEALLOCATE(map_atoms_to_cpus(icpu)%iatom_list)
         DEALLOCATE(map_atoms_to_cpus(icpu)%jatom_list)

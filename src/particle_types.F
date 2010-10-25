@@ -18,7 +18,7 @@ MODULE particle_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
+                                             gto_basis_set_p_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
@@ -28,9 +28,7 @@ MODULE particle_types
   USE f77_blas
   USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
-                                             dump_xmol,&
-                                             use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+                                             dump_xmol
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -223,224 +221,61 @@ CONTAINS
 !> \date    14.01.2002
 !> \par History
 !>      - particle type cleaned (13.10.2003,MK)
+!>      - refactoring and add besis set option (17.08.2010,jhu)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,&
-                              first_sgf,last_cgf,last_nco,last_nso,&
-                              last_sgf,ncgf,ncotot,nsotot,nsgf,r,basis_set_id,first_pgf,last_pgf,npgf,error)    !JT
+  SUBROUTINE get_particle_set(particle_set,first_sgf,last_sgf,nsgf,&
+                              basis_set_id,basis,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      OPTIONAL                               :: first_cgf, first_nco, &
-                                                first_nso, first_sgf, &
-                                                last_cgf, last_nco, last_nso, &
-                                                last_sgf, ncgf
-    INTEGER, INTENT(OUT), OPTIONAL           :: ncotot, nsotot
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      OPTIONAL                               :: nsgf
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT), OPTIONAL                  :: r
+    INTEGER, DIMENSION(:), INTENT(INOUT), &
+      OPTIONAL                               :: first_sgf, last_sgf, nsgf
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      OPTIONAL                               :: first_pgf, last_pgf, npgf
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: basis
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_particle_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icgf, ico, iparticle, ipgf, &
-                                                isgf, iso, maxco, maxso, &
-                                                my_basis_set_id, nc, np, &
-                                                nparticle, ns, nset
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    INTEGER                                  :: ikind, iparticle, isgf, &
+                                                nparticle, ns
+    LOGICAL                                  :: failure = .FALSE.
 
-    IF( PRESENT(basis_set_id) ) THEN
-      my_basis_set_id = basis_set_id
-    ELSE
-      my_basis_set_id = use_orb_basis_set
+    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
+
+    nparticle = SIZE(particle_set)
+    IF (PRESENT(first_sgf)) THEN
+      CPPrecondition(SIZE(first_sgf) >= nparticle,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(last_sgf)) THEN
+      CPPrecondition(SIZE(last_sgf) >= nparticle,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(nsgf)) THEN
+      CPPrecondition(SIZE(nsgf) >= nparticle,cp_failure_level,routineP,error,failure)
     END IF
 
-    IF (ASSOCIATED(particle_set)) THEN
-
-      nparticle = SIZE(particle_set)
-
-      IF (PRESENT(first_cgf)) THEN
-        IF (SIZE(first_cgf) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <first_cgf>")
+    IF (PRESENT(first_sgf).OR.PRESENT(last_sgf).OR.PRESENT(nsgf)) THEN
+      isgf = 0
+      DO iparticle=1,nparticle
+        IF (PRESENT(basis)) THEN
+          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,kind_number=ikind)
+          CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set,nsgf=ns)
+        ELSEIF (PRESENT(basis_set_id)) THEN
+          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,nsgf=ns,&
+                             basis_set_id=basis_set_id)
+        ELSE
+          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,nsgf=ns)
         END IF
-      END IF
-
-      IF (PRESENT(first_nco)) THEN
-        IF (SIZE(first_nco) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <first_nco>")
-        END IF
-      END IF
-
-      IF (PRESENT(first_nso)) THEN
-        IF (SIZE(first_nso) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <first_nso>")
-        END IF
-      END IF
-
-      IF (PRESENT(first_sgf)) THEN
-        IF (SIZE(first_sgf) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <first_sgf>")
-        END IF
-      END IF
-
-      IF (PRESENT(last_cgf)) THEN
-        IF (SIZE(last_cgf) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <last_cgf>")
-        END IF
-      END IF
-
-      IF (PRESENT(last_nco)) THEN
-        IF (SIZE(last_nco) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <last_nco>")
-        END IF
-      END IF
-
-      IF (PRESENT(last_sgf)) THEN
-        IF (SIZE(last_sgf) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <last_sgf>")
-        END IF
-      END IF
-
-      IF (PRESENT(ncgf)) THEN
-        IF (SIZE(ncgf) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <ncgf>")
-        END IF
-      END IF
-
-      IF (PRESENT(nsgf)) THEN
-        IF (SIZE(nsgf) < nparticle) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An array of insufficient size was supplied "//&
-                            "for argument <nsgf>")
-        END IF
-      END IF
-
-      IF (PRESENT(first_cgf).OR.&
-          PRESENT(last_cgf).OR.&
-          PRESENT(first_sgf).OR.&
-          PRESENT(last_sgf).OR.&
-          PRESENT(first_pgf).OR.&  !JT
-          PRESENT(last_pgf).OR.&   !JT
-          PRESENT(ncgf).OR.&
-          PRESENT(nsgf).OR.&
-          PRESENT(npgf)) THEN          !JT
-        ipgf = 0                       !JT
-        icgf = 0
-        isgf = 0
-        DO iparticle=1,nparticle
-          CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
-                               ncgf=nc,&
-                               nsgf=ns,&
-                               npgf=np,&                      !JT
-                               basis_set_id=my_basis_set_id)
-          IF (PRESENT(ncgf)) ncgf(iparticle) = nc
-          IF (PRESENT(first_cgf)) first_cgf(iparticle) = icgf + 1
-          icgf = icgf + nc
-          IF (PRESENT(last_cgf)) last_cgf(iparticle) = icgf
-          IF (PRESENT(nsgf)) nsgf(iparticle) = ns
-          IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
-          isgf = isgf + ns
-          IF (PRESENT(last_sgf)) last_sgf(iparticle) = isgf
-!JTs
-          IF (PRESENT(npgf)) npgf(iparticle) = np
-          IF (PRESENT(first_pgf)) first_pgf(iparticle) = ipgf + 1
-          ipgf = ipgf + np
-          IF (PRESENT(last_pgf)) last_pgf(iparticle) = ipgf
-!JTe
-        END DO
-        IF (PRESENT(first_cgf)) THEN
-          IF (SIZE(first_cgf) > nparticle) first_cgf(nparticle+1) = icgf + 1
-        END IF
-        IF (PRESENT(first_sgf)) THEN
-          IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf + 1
-        END IF
-!JTs
-        IF (PRESENT(first_pgf)) THEN
-          IF (SIZE(first_pgf) > nparticle) first_pgf(nparticle+1) = ipgf + 1
-        END IF
-!JTe
-      END IF
-
-      IF (PRESENT(first_nco).OR.&
-          PRESENT(last_nco).OR.&
-          PRESENT(ncotot)) THEN
-        ico = 0
-        DO iparticle = 1,nparticle
-          SELECT CASE (my_basis_set_id)
-          CASE (use_orb_basis_set)
-            CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
-                                 orb_basis_set=orb_basis)
-            CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxco=maxco)
-          CASE (use_aux_fit_basis_set)
-            CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
-                                 aux_fit_basis_set=orb_basis)
-            CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxco=maxco)
-          END SELECT
-          nc = maxco*nset
-          IF(PRESENT(first_nco)) first_nco(iparticle) = ico + 1
-          IF(PRESENT(last_nco))  last_nco(iparticle)  = ico + nc
-          ico = ico + nc
-        ENDDO
-        IF(PRESENT(ncotot)) ncotot = ico
-
-      ENDIF
-
-      IF (PRESENT(first_nso).OR.&
-          PRESENT(last_nso).OR.&
-          PRESENT(nsotot)) THEN
-        iso = 0
-        DO iparticle = 1,nparticle
-          SELECT CASE (my_basis_set_id)
-          CASE (use_orb_basis_set)
-            CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
-                                 orb_basis_set=orb_basis)
-            CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxso=maxso)
-          CASE (use_aux_fit_basis_set)
-            CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind,&
-                                 aux_fit_basis_set=orb_basis)
-            CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nset,maxso=maxso)
-          END SELECT
-          ns = maxso*nset
-          IF(PRESENT(first_nso)) first_nso(iparticle) = iso + 1
-          IF(PRESENT(last_nso))  last_nso(iparticle)  = iso + ns
-          iso = iso + ns
-        ENDDO
-        IF(PRESENT(nsotot)) nsotot = iso
-      ENDIF
-
-      IF (PRESENT(r)) THEN
-        DO iparticle=1,nparticle
-          r(:,iparticle) = particle_set(iparticle)%r(:)
-        END DO
-      END IF
-
-    ELSE
-
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer particle_set is not associated")
-
+        IF (PRESENT(nsgf)) nsgf(iparticle) = ns
+        IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
+        isgf = isgf + ns
+        IF (PRESENT(last_sgf)) last_sgf(iparticle) = isgf
+      END DO
+    END IF
+    IF (PRESENT(first_sgf)) THEN
+      IF (SIZE(first_sgf) > nparticle) first_sgf(nparticle+1) = isgf + 1
     END IF
 
   END SUBROUTINE get_particle_set

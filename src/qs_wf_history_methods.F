@@ -948,6 +948,7 @@ END FUNCTION wfi_get_method_label
           END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+  
       CASE (wfi_aspc_nr)
         CALL cite_reference(Kolafa2004)
         ! figure out the actual number of vectors to use in the extrapolation:

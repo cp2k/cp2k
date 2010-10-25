@@ -174,7 +174,6 @@ END SUBROUTINE p_env_retain
              CALL local_rho_set_release(p_env%local_rho_set,error=error)
           END IF
           IF (ASSOCIATED(p_env%hartree_local)) THEN
-             NULLIFY(p_env%hartree_local%vtriple) ! we must not deallocate this
              CALL hartree_local_release(p_env%hartree_local,error=error)
           END IF
           IF(ASSOCIATED(p_env%PS_psi0)) THEN

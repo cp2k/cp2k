@@ -888,11 +888,11 @@ CONTAINS
 
       IF (output_unit>0) THEN
          WRITE (UNIT=output_unit,&
-              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
+              FMT="(/,T2,A,/,T15,A,/,(T16,I10,T41,I10,T71,I10))")&
               "DISTRIBUTION OF THE PARTICLES (ROWS)",&
-              "Process row   Number of particles      Number of matrix rows",&
+              "Process row      Number of particles         Number of matrix rows",&
               (iprow-1,work(iprow),-1,iprow=1,nprow)
-         WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
+         WRITE (UNIT=output_unit,FMT="(T23,A3,T41,I10,T71,I10)")&
               "Sum",SUM(work),-1
          CALL m_flush(output_unit)
       END IF
@@ -917,11 +917,11 @@ CONTAINS
 
       IF (output_unit>0) THEN
          WRITE (UNIT=output_unit,&
-              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
+              FMT="(/,T2,A,/,T15,A,/,(T16,I10,T41,I10,T71,I10))")&
               "DISTRIBUTION OF THE PARTICLES (COLUMNS)",&
-              "Process col   Number of particles   Number of matrix columns",&
+              "Process col      Number of particles      Number of matrix columns",&
               (ipcol-1,work(ipcol),-1,ipcol=1,npcol)
-         WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
+         WRITE (UNIT=output_unit,FMT="(T23,A3,T41,I10,T71,I10)")&
               "Sum",SUM(work),-1
          CALL m_flush(output_unit)
       END IF

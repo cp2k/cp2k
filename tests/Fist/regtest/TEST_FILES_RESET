@@ -587,3 +587,5 @@ deca_ala_avg2.inp
 deca_ala_noavg.inp
 # Numerics differences due to different distribution 
 multipole_dip_qu.dbg_st.inp
+# Numerics 
+multipole_dip_qu.dbg_f_real.inp

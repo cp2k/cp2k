@@ -633,14 +633,14 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T7,A3,T27,I10,A,F5.1,A,T55,I10,A,F5.1,A)")&
                " of",nblock_tot," (",occupation," % occupation)"
        ELSE
-          WRITE (UNIT=output_unit,FMT="(/,T3,A,T50,I13)") "Number  of non-zero blocks:",nblock_sum
-          WRITE (UNIT=output_unit,FMT="(T3,A,T57,F6.2)")"Percentage non-zero blocks:",occupation
-          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of blocks per CPU:",&
+          WRITE (UNIT=output_unit,FMT="(T15,A,T68,I13)") "Number  of non-zero blocks:",nblock_sum
+          WRITE (UNIT=output_unit,FMT="(T15,A,T75,F6.2)")"Percentage non-zero blocks:",occupation
+          WRITE (UNIT=output_unit,FMT="(T15,A,T68,I13)") "Average number of blocks per CPU:",&
                (nblock_sum+npe-1)/npe
-          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of blocks per CPU:",nblock_max
-          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Average number of matrix elements per CPU:",&
+          WRITE (UNIT=output_unit,FMT="(T15,A,T68,I13)") "Maximum number of blocks per CPU:",nblock_max
+          WRITE (UNIT=output_unit,FMT="(T15,A,T68,I13)") "Average number of matrix elements per CPU:",&
                (nelement_sum+npe-1)/npe
-          WRITE (UNIT=output_unit,FMT="(T3,A,T50,I13)") "Maximum number of matrix elements per CPU:",&
+          WRITE (UNIT=output_unit,FMT="(T15,A,T68,I13)") "Maximum number of matrix elements per CPU:",&
                nelement_max
        ENDIF
     END IF
