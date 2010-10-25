@@ -32,9 +32,9 @@ MODULE fft_tools
   USE kinds,                           ONLY: dp,&
                                              sp
   USE message_passing,                 ONLY: &
-       mp_alltoall, mp_cart_rank, mp_cart_sub, mp_comm_compare, mp_comm_free, &
-       mp_comm_null, mp_environ, mp_irecv, mp_isend, mp_rank_compare, mp_sum, &
-       mp_sync, mp_waitall
+       mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
+       mp_comm_compare, mp_comm_free, mp_comm_null, mp_environ, mp_irecv, &
+       mp_isend, mp_rank_compare, mp_sum, mp_sync, mp_waitall
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -1712,10 +1712,11 @@ CONTAINS
 
     COMPLEX(KIND=lp), DIMENSION(:), POINTER  :: xzbuf, yzbuf
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: xzbuf_sgl, yzbuf_sgl
-    INTEGER                                  :: handle, icrs, ip, ipr, ir, &
-                                                ix, iz, jj, jx, jy, jz, myx, &
-                                                myz, np, npx, npz, nx, nz, &
-                                                rs_pos
+    INTEGER                                  :: handle, icrs, ip, ipl, ipr, &
+                                                ir, ix, iz, jj, jx, jy, jz, &
+                                                myx, myz, np, npx, npz, nx, &
+                                                nz, rs_pos
+    INTEGER, DIMENSION(2)                    :: xzcoord
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1809,26 +1810,35 @@ CONTAINS
     END IF
 
 ! Do the actual packing
-    scount = 0
-    DO jx = 1, nx
-       IF ( alltoall_sgl ) THEN
-          DO ir = 1, nray ( my_pos )
-             jy = yzp ( 1, ir, my_pos )
-             jz = yzp ( 2, ir, my_pos )
-             ip = pgrid ( xcor ( jx ), zcor ( jz ) )
-             scount ( ip ) = scount ( ip ) + 1
-             yzbuf_sgl ( scount ( ip ) + sdispl (ip)) = sb ( ir, jx )
-          END DO
-       ELSE
-          DO ir = 1, nray ( my_pos )
-             jy = yzp ( 1, ir, my_pos )
-             jz = yzp ( 2, ir, my_pos )
-             ip = pgrid ( xcor ( jx ), zcor ( jz ) )
-             scount ( ip ) = scount ( ip ) + 1
-             yzbuf ( scount ( ip ) + sdispl(ip) ) = sb ( ir, jx )
-          END DO
-       END IF
+!$omp parallel do default(none), &
+!$omp             private(ipl,xzcoord,jj,nx,ir,jx,jy,jz),&
+!$omp             shared(np,p2p,group,bo,nray,yzp,zcor),&
+!$omp             shared(yzbuf,sb,scount,sdispl,my_pos),&
+!$omp             shared(yzbuf_sgl,alltoall_sgl)
+    DO ip = 0, np - 1
+       IF (scount(ip) == 0) CYCLE
+       ipl = p2p(ip)
+       CALL mp_cart_coords(group,ipl,xzcoord)
+       jj = 0
+       nx = bo (2, 1, ipl) - bo (1, 1, ipl) + 1
+       DO ir = 1, nray(my_pos)
+         jz = yzp( 2, ir, my_pos )
+         IF ( zcor ( jz ) == xzcoord(2) ) THEN
+           jj = jj + 1
+           jy = yzp (1, ir, my_pos )
+           IF( alltoall_sgl ) THEN
+             DO jx = 0, nx - 1
+              yzbuf_sgl ( sdispl (ip) + jj + jx * scount(ip) / nx ) = sb( ir, jx + bo (1, 1, ipl) )
+             END DO
+           ELSE
+             DO jx = 0, nx - 1
+              yzbuf ( sdispl (ip) + jj + jx * scount(ip) / nx ) = sb( ir, jx + bo (1, 1, ipl) )
+             END DO
+           END IF
+         END IF
+       END DO
     END DO
+!$omp end parallel do
 
     IF ( alltoall_sgl ) THEN
        CALL mp_alltoall ( yzbuf_sgl, scount, sdispl, xzbuf_sgl, rcount, rdispl, group )
@@ -1909,6 +1919,7 @@ CONTAINS
                                                 ix, ixx, iz, jj, jx, jy, jz, &
                                                 mp, myx, myz, np, npx, npz, &
                                                 nx, nz
+    INTEGER, DIMENSION(2)                    :: xzcoord
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1958,9 +1969,9 @@ CONTAINS
          END DO
       END DO
 
-       CALL mp_alltoall ( rcount, scount, 1, group )
-       fft_scratch%xzcount = scount
-       fft_scratch%yzcount = rcount
+      CALL mp_alltoall ( rcount, scount, 1, group )
+      fft_scratch%xzcount = scount
+      fft_scratch%yzcount = rcount
 
       ! Work out the correct displacements in the buffers
       sdispl(0) = 0
@@ -2037,27 +2048,35 @@ CONTAINS
        END IF
     END IF
 
-    rcount = 0
-    nx = MAXVAL ( bo ( 2, 1, : ) )
-    DO jx = 1, nx
-       IF ( alltoall_sgl ) THEN
-          DO ir = 1, nray ( my_pos )
-             jy = yzp ( 1, ir, my_pos )
-             jz = yzp ( 2, ir, my_pos )
-             ip = pgrid ( xcor ( jx ), zcor ( jz ) )
-             rcount ( ip ) = rcount ( ip ) + 1
-             tb ( ir, jx ) = yzbuf_sgl ( rcount ( ip ) + rdispl ( ip ) )
-          END DO
-       ELSE
-          DO ir = 1, nray ( my_pos )
-             jy = yzp ( 1, ir, my_pos )
-             jz = yzp ( 2, ir, my_pos )
-             ip = pgrid ( xcor ( jx ), zcor ( jz ) )
-             rcount ( ip ) = rcount ( ip ) + 1
-             tb ( ir, jx ) = yzbuf ( rcount ( ip ) + rdispl ( ip ) )
-          END DO
-       END IF
+!$omp parallel do default(none), &
+!$omp             private(ipl,xzcoord,jj,nx,ir,jx,jy,jz),&
+!$omp             shared(p2p,group,bo,nray,my_pos,yzp),&
+!$omp             shared(rcount,rdispl,tb,yzbuf,zcor),&
+!$omp             shared(yzbuf_sgl,alltoall_sgl)
+    DO ip = 0, np - 1
+       IF (rcount(ip) == 0) CYCLE
+       ipl = p2p(ip)
+       CALL mp_cart_coords(group,ipl,xzcoord)
+       jj = 0
+       nx = bo (2, 1, ipl) - bo (1, 1, ipl) + 1
+       DO ir = 1, nray(my_pos)
+         jz = yzp( 2, ir, my_pos )
+         IF ( zcor ( jz ) == xzcoord(2) ) THEN
+           jj = jj + 1
+           jy = yzp (1, ir, my_pos )
+           IF ( alltoall_sgl ) THEN
+             DO jx = 0, nx - 1
+               tb( ir, jx + bo (1, 1, ipl) ) = yzbuf_sgl ( rdispl (ip) + jj + jx * rcount(ip) / nx )
+             END DO
+           ELSE
+             DO jx = 0, nx - 1
+               tb( ir, jx + bo (1, 1, ipl) ) = yzbuf ( rdispl (ip) + jj + jx * rcount(ip) / nx )
+             END DO
+           END IF
+         END IF
+       END DO
     END DO
+!$omp end parallel do
 
     CALL timestop(handle)
 
