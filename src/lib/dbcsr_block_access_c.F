@@ -132,6 +132,7 @@
     INTEGER                                  :: error_handle
     TYPE(btree_2d_data_c)          :: data_block
     LOGICAL                                  :: stored_tr
+    COMPLEX(kind=real_4), DIMENSION(1,1), TARGET, SAVE    :: block0
 !   ---------------------------------------------------------------------------
     CALL dbcsr_error_set (routineN, error_handle, error=error)
     CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_complex_4,&
@@ -153,8 +154,8 @@
             CALL dbcsr_buffers_flush (matrix%m%buffers, error=error)
        nze = rsize*csize
        IF(nze.eq.0) THEN
-          found = .FALSE.
-          NULLIFY (block)
+          found = .TRUE.
+          block => block0(1:0, 1:0)
        ELSE
           block_1d => pointer_view (dbcsr_get_data_p (&
                matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1)
@@ -405,7 +406,6 @@
     ENDIF
     sym_tr = .FALSE.
     CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, sym_tr)
-    !@@@
     !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
     !     cp_caller_error, routineN, "Work matrices not prepared")
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
@@ -607,9 +607,6 @@
     CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, sym_tr)
     nze = row_size*col_size
     !
-    ! check for 0 block
-    IF(nze.LE.0) RETURN
-
     CALL dbcsr_assert (SIZE(block), "GE", nze, dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__,error)
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
@@ -631,23 +628,25 @@
        ENDIF
        block_1d => pointer_view (dbcsr_get_data_p (&
             matrix%m%data_area, CMPLX(0.0, 0.0, real_4)), offset, offset+nze-1)
-       IF (do_sum) THEN
-          IF(tr_diff) &
-               block_1d = RESHAPE(TRANSPOSE(RESHAPE(block_1d,(/col_size,row_size/))),(/nze/))
-          IF (PRESENT (scale)) THEN
-             CALL caxpy (nze, scale, block(1:nze), 1,&
-                  block_1d, 1)
+       IF (nze .GT. 0) THEN
+          IF (do_sum) THEN
+             IF(tr_diff) &
+                  block_1d = RESHAPE(TRANSPOSE(RESHAPE(block_1d,(/col_size,row_size/))),(/nze/))
+             IF (PRESENT (scale)) THEN
+                CALL caxpy (nze, scale, block(1:nze), 1,&
+                     block_1d, 1)
+             ELSE
+                CALL caxpy (nze, CMPLX(1.0, 0.0, real_4), block(1:nze), 1,&
+                     block_1d, 1)
+             ENDIF
           ELSE
-             CALL caxpy (nze, CMPLX(1.0, 0.0, real_4), block(1:nze), 1,&
-                  block_1d, 1)
-          ENDIF
-       ELSE
-          IF (PRESENT (scale)) THEN
-             CALL ccopy (nze, scale*block(1:nze), 1,&
-                  block_1d, 1)
-          ELSE
-             CALL ccopy (nze, block(1:nze), 1,&
-                  block_1d, 1)
+             IF (PRESENT (scale)) THEN
+                CALL ccopy (nze, scale*block(1:nze), 1,&
+                     block_1d, 1)
+             ELSE
+                CALL ccopy (nze, block(1:nze), 1,&
+                     block_1d, 1)
+             ENDIF
           ENDIF
        ENDIF
     ELSE
@@ -707,7 +706,7 @@
                   matrix%m%wms(iw)%mutable%m%btree_c,&
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.FALSE.)
-             IF (found) THEN
+             IF (found .AND. nze .GT. 0) THEN
                 CALL caxpy (nze, CMPLX(1.0, 0.0, real_4), block(1), 1,&
                      data_block2%p(1,1), 1)
                 CALL dbcsr_assert (ASSOCIATED (data_block%p), dbcsr_warning_level,&
