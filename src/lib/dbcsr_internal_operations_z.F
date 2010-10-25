@@ -37,6 +37,7 @@
                                                  poff
     INTEGER                                   :: sp_c, sp_a, sp_b
     LOGICAL                                   :: my_use_plasma
+    LOGICAL, PARAMETER                        :: dbgv = .FALSE.
 
 #ifdef __PLASMA
     INCLUDE 'plasmaf.h'
@@ -54,10 +55,7 @@
        sp_c = params(sp)%p_c
        sp_a = params(sp)%p_a
        sp_b = params(sp)%p_b
-       IF (params(sp)%last_k .EQ. 0) CYCLE
-       IF (params_c(sp_c)%nze .EQ. 0&
-            .or.params_a(sp_a)%nze .EQ. 0&
-            .or.params_b(sp_b)%nze .EQ. 0) THEN
+       IF (params_c(sp_c)%nze .EQ. 0) THEN
           CYCLE
        ENDIF
        !
@@ -91,6 +89,11 @@
              !END FORALL
           ENDIF
        ENDIF
+       IF (params_a(sp_a)%nze .EQ. 0&
+            .OR. params_b(sp_b)%nze .EQ. 0 &
+            .OR. params(sp)%last_k .EQ. 0) THEN
+          CYCLE
+       ENDIF
        ! Now prepare and issue the multiplies.
        lda = select_n_or_t (params_a(sp_a)%tr,&
             params_a(sp_a)%logical_rows, params_a(sp_a)%logical_cols)
@@ -99,6 +102,22 @@
        ldc = select_n_or_t (params_c(sp_c)%tr,&
             params_c(sp_c)%logical_rows, params_c(sp_c)%logical_cols)
        !write(*,*)"LDx", lda, ldb, ldc
+       IF (dbgv) THEN
+          WRITE(*,*)"Multiplying left data", sp, params_a(sp_a)%offset,&
+               params_a(sp_a)%nze
+          WRITE(*,'(10(1X,F9.3))')left_data_a(params_a(sp_a)%offset&
+               :params_a(sp_a)%offset+params_a(sp_a)%nze-1)
+          WRITE(*,*)"Multiplying right data", sp, &
+               params_b(sp_b)%offset, params_b(sp_b)%nze
+          WRITE(*,'(10(1X,F9.3))')right_data_a(params_b(sp_b)%offset&
+               :params_b(sp_b)%offset+params_b(sp_b)%nze-1)
+          WRITE(*,*)"Multiplying product data", sp, poff, params_c(sp_c)%nze,"/",&
+               SIZE(product_data_a), poff+params_c(sp_c)%nze-1
+          WRITE(*,'(10(1X,F9.3))')product_data_a(poff:&
+               :poff+params_c(sp_c)%nze-1)
+          WRITE(*,*)"again"
+          WRITE(*,'(10(1X,F9.3))')product_data_a
+       ENDIF
        IF (.NOT. params_c(sp_c)%tr) THEN
           IF (PRESENT (ltime)) ltime = ltime + m_walltime()
           IF(my_use_plasma) THEN
@@ -199,6 +218,14 @@
                INT(params(sp)%last_n, int_8) * &
                INT(params_c(sp_c)%logical_cols, int_8) * &
                INT(params(sp)%last_k, int_8)
+       ENDIF
+       IF (dbgv) THEN
+          WRITE(*,*)"Resulting product data", poff,":",poff+params_c(sp_c)%nze-1,&
+               SIZE(product_data_a)
+          WRITE(*,'(10(1X,F9.3))')product_data_a(poff:&
+               :poff+params_c(sp_c)%nze-1)
+          WRITE(*,*)"again"
+          WRITE(*,'(10(1X,F9.3))')product_data_a
        ENDIF
     ENDDO
   END SUBROUTINE process_dgemm_stack_z
