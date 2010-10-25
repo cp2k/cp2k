@@ -145,7 +145,7 @@ CONTAINS
 
     !   *** Set flag if this is a development version
     dev_flag = ""
-    IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
+    IF (id_cp2k_version==id_development_version) dev_flag=" (Release Version)"
 
     !   *** Init the default logger
     IF (para_env%source==para_env%mepos) THEN
@@ -841,7 +841,7 @@ CONTAINS
 
     ! Set flag if this is a development version
     dev_flag = ""
-    IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
+    IF (id_cp2k_version==id_development_version) dev_flag=" (Release Version)"
 
     ! Clean up
     NULLIFY(logger)

@@ -239,7 +239,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
         IF (print_version) THEN
            IF (default_para_env%source==default_para_env%mepos) THEN
               dev_flag = ""
-              IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
+              IF (id_cp2k_version==id_development_version) dev_flag=" (Release Version)"
               WRITE(output_unit,'(T2,A)') cp2k_version//TRIM(dev_flag)
            ENDIF
         ENDIF

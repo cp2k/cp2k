@@ -505,7 +505,7 @@ CONTAINS
     CALL m_getlog(user_name)
     CALL m_hostnm(host_name)
     dev_flag = ""
-    IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
+    IF (id_cp2k_version==id_development_version) dev_flag=" (Release Version)"
     WRITE (UNIT=unit,FMT="(A,A)")&
          " PROGRAM STARTED ON ",TRIM(host_name)
     WRITE (UNIT=unit,FMT="(A,A)")&
