@@ -4500,6 +4500,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SKIP_LOAD_BALANCE_DISTRIBUTED",&
+            description="Skip load balancing on distributed multigrids, which might be memory intensive.",&
+            usage="SKIP_LOAD_BALANCE_DISTRIBUTED", default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword,name="MULTIGRID_CUTOFF",&
             variants=(/"CUTOFF_LIST"/),&
             description="List of cutoff values to set up multigrids manually",&

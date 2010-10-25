@@ -240,7 +240,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_ppl, failure
+    LOGICAL                                  :: do_ppl, failure, &
+                                                skip_load_balance_distributed
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -316,7 +317,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
          CALL calculate_ppl_grid(qs_env%vppl,qs_env,error=error)
       END IF
     END IF
-
+     
+    skip_load_balance_distributed=dft_control%qs_control%skip_load_balance_distributed
     IF (.NOT. dft_control%qs_control%semi_empirical) THEN
        ! generate task lists (non-soft)
        IF (.NOT. dft_control%qs_control%gapw) THEN
@@ -326,7 +328,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
              CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
           ENDIF
           CALL generate_qs_task_list(qs_env, task_list, &
-                 reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., error=error)
+                 reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
+                 skip_load_balance_distributed=skip_load_balance_distributed, error=error)
        ENDIF
        ! generate the soft task list
        IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
@@ -336,7 +339,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
              CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
           ENDIF
           CALL generate_qs_task_list(qs_env, task_list, &
-                 reorder_rs_grid_ranks=.TRUE., soft_valid = .TRUE., error=error)
+                 reorder_rs_grid_ranks=.TRUE., soft_valid = .TRUE., &
+                 skip_load_balance_distributed=skip_load_balance_distributed, error=error)
        ENDIF
     ENDIF
 
@@ -348,7 +352,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
         CALL set_qs_env(qs_env=qs_env,task_list_aux_fit=task_list,error=error)
       ENDIF
       CALL generate_qs_task_list(qs_env, task_list,&
-           reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, error=error)
+           reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, &
+                 skip_load_balance_distributed=skip_load_balance_distributed, error=error)
     END IF
 
     ! *** environment for ddapc ***

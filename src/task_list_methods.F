@@ -97,12 +97,14 @@ CONTAINS
 !>        its current state.
 ! *****************************************************************************
   SUBROUTINE generate_qs_task_list(qs_env, task_list,&
-                                   reorder_rs_grid_ranks, soft_valid, basis_set_id, error)
+                                   reorder_rs_grid_ranks, skip_load_balance_distributed, &
+                                   soft_valid, basis_set_id, error)
                                    
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(task_list_type), POINTER            :: task_list
-    LOGICAL, INTENT(IN)                      :: reorder_rs_grid_ranks
+    LOGICAL, INTENT(IN)                      :: reorder_rs_grid_ranks, &
+                                                skip_load_balance_distributed
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -322,7 +324,8 @@ CONTAINS
     CALL distribute_tasks (rs_rho,task_list%ntasks, natoms,&
             maxset,maxpgf, task_list%tasks, rval=task_list%dist_ab, atom_pair_send=task_list%atom_pair_send,&
             atom_pair_recv=task_list%atom_pair_recv, symmetric=.TRUE., &
-            reorder_rs_grid_ranks=reorder_rs_grid_ranks, error=error)
+            reorder_rs_grid_ranks=reorder_rs_grid_ranks, skip_load_balance_distributed=skip_load_balance_distributed,&
+            error=error)
 
     ! Now we have the final list of tasks, setup the task_list with the
     ! data needed for the loops in integrate_v/calculate_rho
@@ -1734,7 +1737,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE distribute_tasks ( rs_rho, ntasks, natoms,&
        maxset,maxpgf,  tasks, rval, atom_pair_send, atom_pair_recv,&
-       symmetric, reorder_rs_grid_ranks, error)
+       symmetric, reorder_rs_grid_ranks, skip_load_balance_distributed, error)
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
@@ -1745,7 +1748,8 @@ CONTAINS
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_send, atom_pair_recv
     LOGICAL, INTENT(IN)                      :: symmetric, &
-                                                reorder_rs_grid_ranks
+                                                reorder_rs_grid_ranks, &
+                                                skip_load_balance_distributed
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'distribute_tasks', &
@@ -1795,7 +1799,8 @@ CONTAINS
        DO igrid_level=1,SIZE(rs_rho)
          IF ( rs_rho(igrid_level)%rs_grid%desc%distributed ) THEN
 
-           CALL load_balance_distributed(tasks, ntasks, rs_rho, igrid_level, natoms, maxset,maxpgf, error)
+           IF (.NOT.skip_load_balance_distributed) &
+               CALL load_balance_distributed(tasks, ntasks, rs_rho, igrid_level, natoms, maxset,maxpgf, error)
 
            CALL get_current_loads( loads(:,igrid_level), rs_rho, igrid_level, ntasks, natoms, maxset,maxpgf, &
                                    tasks, use_reordered_ranks=.FALSE. , error=error)

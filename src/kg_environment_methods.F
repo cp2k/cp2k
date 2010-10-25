@@ -196,7 +196,9 @@ CONTAINS
           CALL set_qs_env(qs_env=qs_env,task_list=task_list,error=error)
        ENDIF
        CALL generate_qs_task_list(qs_env, task_list, &
-              reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., error=error)
+              reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
+                 skip_load_balance_distributed=.FALSE., error=error)
+
     ENDIF
     ! generate the soft task list
     IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
@@ -206,7 +208,8 @@ CONTAINS
           CALL set_qs_env(qs_env=qs_env,task_list_soft=task_list,error=error)
        ENDIF
        CALL generate_qs_task_list(qs_env, task_list, &
-              reorder_rs_grid_ranks=.TRUE., soft_valid=.TRUE.,error=error)
+              reorder_rs_grid_ranks=.TRUE., soft_valid=.TRUE.,&
+                 skip_load_balance_distributed=.FALSE., error=error)
     ENDIF
 
 !dbg

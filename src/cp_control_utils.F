@@ -334,6 +334,8 @@ CPSourceFileRef,&
     CALL section_vals_val_get(mgrid_section,"COMMENSURATE",l_val=qs_control%commensurate_mgrids,error=error)
     CALL section_vals_val_get(mgrid_section,"REALSPACE",l_val=qs_control%realspace_mgrids,error=error)
     CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",r_val=qs_control%relative_cutoff,error=error)
+    CALL section_vals_val_get(mgrid_section,"SKIP_LOAD_BALANCE_DISTRIBUTED", &
+                                 l_val=qs_control%skip_load_balance_distributed,error=error)
 
     ! For SE and DFTB possibly override with new defaults 
     IF (qs_control%semi_empirical .OR. qs_control%dftb) THEN

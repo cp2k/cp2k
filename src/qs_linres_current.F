@@ -1025,7 +1025,8 @@ CONTAINS
     ! sorts / redistributes the task list
     CALL distribute_tasks ( rs_rho, ntasks, natom,&
             maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
-            symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., error=error)
+            symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
+            skip_load_balance_distributed=.FALSE., error=error)
     !-------------------------------------------------------------
     !
     ! we dont trust previous call anymore, bug introduiced the 2009-05-07 20:33 src/task_list_methods.F !
