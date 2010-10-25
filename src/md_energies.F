@@ -29,7 +29,6 @@ MODULE md_energies
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
@@ -193,24 +192,22 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natom
-    LOGICAL                                  :: shell_adiabatic, tcoeff, &
-                                                tkind, tshell
+    LOGICAL                                  :: shell_adiabatic, tkind, tshell
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell_ref
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simpar_type), POINTER               :: simpar
 
-    NULLIFY(atomic_kinds, atomic_kind_set, cell_ref, dyn_coeff_set, force_env,&
+    NULLIFY(atomic_kinds, atomic_kind_set, cell_ref, force_env,&
             particles, subsys, simpar)
     CALL get_md_env(md_env=md_env, force_env=force_env, &
          simpar=simpar, error=error)
 
-    CALL force_env_get(force_env, cell_ref=cell_ref, dyn_coeff_set=dyn_coeff_set, &
+    CALL force_env_get(force_env, cell_ref=cell_ref, &
          potential_energy=md_ener%epot, subsys=subsys,  error=error)
     
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
@@ -218,7 +215,6 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                shell_adiabatic=shell_adiabatic)
 
-    tcoeff = ASSOCIATED(dyn_coeff_set)
     tkind = simpar%temperature_per_kind
     tshell = shell_adiabatic
 
@@ -226,7 +222,7 @@ CONTAINS
     natom=particles%n_els
 
     CALL compute_conserved_quantity(md_env, md_ener, tkind=tkind,&
-         tcoeff=tcoeff, tshell=tshell, natom=natom, error=error)
+         tshell=tshell, natom=natom, error=error)
     
   END SUBROUTINE md_energy
 

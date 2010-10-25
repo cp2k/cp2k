@@ -22,7 +22,7 @@ MODULE header
   PRIVATE
   PUBLIC :: cp2k_header, cp2k_footer, vib_header
   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
-  PUBLIC :: kg_header, qmmm_header, atom_header, atom_footer, band_header
+  PUBLIC :: qmmm_header, atom_header, atom_footer, band_header
 
 CONTAINS
 
@@ -215,27 +215,6 @@ CONTAINS
          "**                                                                           **",&
          "*******************************************************************************"
   END SUBROUTINE qs_header
-
-! *****************************************************************************
-  SUBROUTINE kg_header(iw)
-    INTEGER, INTENT(IN)                      :: iw
-
-    IF (iw<0) RETURN
-    WRITE ( iw, '( / )' )
-    WRITE ( iw, '( 14(12x,a,/) )' ) &
-         '  ****  ****   *******                                 ', &
-         ' ****  ****   **********                               ', &
-         ' **** ****   *****                                     ', &
-         ' ********    ****  ****   ***   ***  ****   **** **    ', &
-         ' ********    ****  ***** ***** ** ** ** ** **    **    ', &
-         ' **** ****   ****   **** ** ** ** ** ** ** ***** **    ', &
-         ' ****  ****   *********  ** ** ** ** ** ** **    **    ', &
-         '  ****  ****   *******   ** **  ***  ****   **** ***** ', &
-         '                                                       ', &
-         '                     Version 0.01                      ', &
-         '                                                       '
-
-  END SUBROUTINE kg_header
 
 ! *****************************************************************************
   SUBROUTINE atom_header(iw)

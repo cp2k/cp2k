@@ -33,7 +33,6 @@ MODULE mc_misc
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_fist_force,&
-                                             use_kg_force,&
                                              use_qs_force
   USE global_types,                    ONLY: DEBUG,&
                                              HIGH,&
@@ -48,8 +47,6 @@ MODULE mc_misc
                                              section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kg_environment_types,            ONLY: get_kg_env,&
-                                             kg_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
@@ -514,7 +511,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -538,7 +534,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 ! nullify some stuff
       NULLIFY(qs_env,atomic_kind_set,atomic_kind,gth_potential,&
-         orb_basis_set,fist_potential,input,xc_fun,kg_env,&
+         orb_basis_set,fist_potential,input,xc_fun,&
          bond_list,bend_list,torsion_list,spline_section)
 
 ! grab some of the structures we're gonna need
@@ -557,13 +553,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
            input=input,atomic_kind_set=atomic_kind_set,error=error)
          CALL get_cell(cell_ref,abc=abc)
-
-      CASE ( use_kg_force )
-         CALL force_env_get(force_env,kg_env=kg_env,subsys=subsys,error=error)
-         CALL get_kg_env(kg_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
-           input=input,atomic_kind_set=atomic_kind_set,error=error)
-         CALL get_cell(cell_ref,abc=abc)
-
       CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
@@ -597,8 +586,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) ' METHOD      FIST'
       CASE ( use_qs_force )
          WRITE(unit,10000) ' METHOD      Quickstep'
-      CASE ( use_kg_force )
-         WRITE(unit,10000) ' METHOD      KG'
       CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
@@ -840,63 +827,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "      &END XC_GRID"
          WRITE(unit,10000) "    &END XC"
          WRITE(unit,10000) "  &END DFT"
-      CASE ( use_kg_force )
-         WRITE(unit,10000) "  &DFT"
-         WRITE(unit,10000) "    &MGRID"
-         CALL section_vals_val_get(input,"DFT%MGRID%CUTOFF",r_val=r_val,error=error)
-         WRITE(unit,20000) "      CUTOFF  ",2.0E0_dp*r_val
-         CALL section_vals_val_get(input,"DFT%MGRID%NGRIDS",i_val=i_val,error=error)
-         WRITE(unit,20003) "      NGRIDS  ",i_val
-         WRITE(unit,10000) "    &END MGRID"
-         WRITE(unit,10000) "    &QS"
-         CALL section_vals_val_get(input,"DFT%QS%EXTRAPOLATION",c_val=c_val,error=error)
-         WRITE(unit,20001) "      EXTRAPOLATION  ",TRIM(ADJUSTL(c_val))
-         CALL section_vals_val_get(input,"DFT%QS%EPS_CORE_CHARGE",r_val=r_val,error=error)
-         WRITE(unit,20004) "      EPS_CORE_CHARGE  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%EPS_PPL",r_val=r_val,error=error)
-         WRITE(unit,20004) "      EPS_PPL  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%EPS_PGF_ORB",r_val=r_val,error=error)
-         WRITE(unit,20004) "      EPS_PGF_ORB  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%EPS_GVG_RSPACE",r_val=r_val,error=error)
-         WRITE(unit,20004) "      EPS_GVG_RSPACE  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%EPS_RHO",r_val=r_val,error=error)
-         WRITE(unit,20004) "      EPS_RHO  ",r_val
-         CALL section_vals_val_get(input,"DFT%QS%METHOD",c_val=c_val,error=error)
-         WRITE(unit,20001) "      METHOD  ",TRIM(ADJUSTL(c_val))
-         WRITE(unit,10000) "    &END QS"
-         WRITE(unit,10000) "    &SCF"
-         CALL section_vals_val_get(input,"DFT%SCF%SCF_GUESS",c_val=c_val,error=error)
-         WRITE(unit,20001) "      SCF_GUESS  ",TRIM(ADJUSTL(c_val))
-         WRITE(unit,10000) "    &END SCF"
-         WRITE(unit,10000) "    &XC"
-         xc_fun_section => section_vals_get_subs_vals(input,&
-            "DFT%XC%XC_FUNCTIONAL",error=error)
-! take care of the functionals...I had to put the extra if statement in for the kinetic
-! energy functional, as that doesn't just use the section name
-         WRITE(unit,10000) "      &XC_FUNCTIONAL"
-         DO ifunct=1,4
-            xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct,error=error)
-            IF(ASSOCIATED(xc_fun)) THEN
-               WRITE(unit,20001) "        &",TRIM(xc_fun%section%name)
-               IF(TRIM(xc_fun%section%name) == "KE_GGA") THEN
-                  CALL section_vals_val_get(input,"DFT%XC%XC_FUNCTIONAL%KE_GGA%FUNCTIONAL",&
-                       c_val=c_val,error=error)
-                  WRITE(unit,20001) "          FUNCTIONAL ",TRIM(c_val)
-               ENDIF
-               WRITE(unit,20001) "        &END ",TRIM(xc_fun%section%name)
-            ENDIF
-         ENDDO
-         WRITE(unit,10000) "      &END XC_FUNCTIONAL"
-         WRITE(unit,10000) "      &XC_GRID"
-         CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_SMOOTH_RHO",&
-           c_val=c_val,error=error)
-         WRITE(unit,20001) "        XC_SMOOTH_RHO ",TRIM(ADJUSTL(c_val))
-         CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_DERIV",&
-           c_val=c_val,error=error)
-         WRITE(unit,20001) "        XC_DERIV ",TRIM(ADJUSTL(c_val))
-         WRITE(unit,10000) "      &END XC_GRID"
-         WRITE(unit,10000) "    &END XC"
-         WRITE(unit,10000) "  &END DFT"
       CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
@@ -906,8 +836,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) "    &CELL"
       WRITE(unit,40000) '      ABC  ',box_length(1:3)
       WRITE(unit,10000) '      UNIT ANGSTROM'
-      IF(force_env%in_use == use_qs_force .OR. &
-        force_env%in_use == use_kg_force) THEN
+      IF(force_env%in_use == use_qs_force) THEN
          IF(use_ref_cell) THEN
             WRITE(unit,10000) '       &CELL_REF'
             WRITE(unit,40000) '         ABC ',&
@@ -943,8 +872,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) '    &END COORD'
 
 ! now the kind types, for the basis sets and potentials
-      IF(force_env%in_use == use_qs_force .OR. &
-         force_env%in_use == use_kg_force)THEN
+      IF(force_env%in_use == use_qs_force) THEN
          DO itype=1,ntypes
             atomic_kind => atomic_kind_set(itype)
             CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -978,9 +906,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
         CASE ( use_qs_force )
            WRITE(unit,10000) '        CONN_FILE_NAME topology_atoms_' &
                 // TRIM(ADJUSTL(mol_name)) // '.psf'
-        CASE ( use_kg_force )
-           WRITE(unit,10000) '        CONN_FILE_NAME topology_atoms_' &
-                // TRIM(ADJUSTL(mol_name)) // '.psf'
         CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END SELECT
@@ -997,8 +922,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE'
       CASE (use_qs_force)
          WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE'
-      CASE (use_kg_force)
-         WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE' 
       END SELECT
 
       WRITE(unit,10000) ' PROJECT      H2O_MC'
@@ -1167,8 +1090,6 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
       CASE ( use_fist_force )
          WRITE(unit,'(A)') '  RUN_TYPE     ENERGY_FORCE'
       CASE (use_qs_force)
-         WRITE(unit,'(A)') '  RUN_TYPE     ENERGY_FORCE'
-      CASE (use_kg_force)
          WRITE(unit,'(A)') '  RUN_TYPE     ENERGY_FORCE'
       END SELECT
       DO iline=run_type_row+1,global_row_end

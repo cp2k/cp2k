@@ -428,7 +428,7 @@ CONTAINS
             print_level=medium_print_level, filename="__STD_OUT__",error=error)
        CALL keyword_create(keyword, name="potential",&
             description="If the printkey is activated controls the printing of the"//&
-            " fist_potential, kg_potential gth_potential or all electron"//&
+            " fist_potential, gth_potential or all electron"//&
             " potential information",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)

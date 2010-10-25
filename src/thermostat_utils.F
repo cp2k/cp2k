@@ -18,8 +18,6 @@ MODULE thermostat_utils
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
-                                             dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
@@ -28,8 +26,8 @@ MODULE thermostat_utils
        do_constr_atomic, do_constr_molec, do_region_defined, &
        do_region_global, do_region_massive, do_region_molecule, &
        do_thermo_communication, do_thermo_csvr, do_thermo_gle, &
-       do_thermo_no_communication, do_thermo_nose, dyn_coeff_mass_global, &
-       isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       do_thermo_no_communication, do_thermo_nose, isokin_ensemble, &
+       langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
        npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
@@ -65,11 +63,9 @@ MODULE thermostat_utils
   PRIVATE
   PUBLIC :: compute_degrees_of_freedom,&
             setup_thermostat_info,&
-            ke_region_coeffs,&
             ke_region_baro,&
             ke_region_particles,&
             ke_region_shells,&
-            vel_rescale_coeffs,&
             vel_rescale_baro,&
             vel_rescale_particles,&
             vel_rescale_shells,&
@@ -540,82 +536,6 @@ CONTAINS
     END IF
   END SUBROUTINE setup_thermostat_subsys
   
-! *****************************************************************************
-!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
-! *****************************************************************************
-  SUBROUTINE ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, error)
-    TYPE(map_info_type), POINTER             :: map_info
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
-    INTEGER, INTENT(IN)                      :: group
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ke_region_coeffs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, icoef, iel, ikind, nkind
-    LOGICAL                                  :: failure, gmass
-
-    failure = .FALSE.
-    gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
-    map_info%v_scale = 1.0_dp
-    map_info%s_kin   = 0.0_dp
-    i  = 0               
-    nkind = SIZE (dyn_coeff_set%coeffs_of_kind)
-    DO ikind=1,nkind
-       IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
-          coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-          DO iel = 1, coeffs%n_els
-             DO icoef = 1, coeffs%ncoef_atom
-                i = i + 1
-                IF(gmass) THEN
-                   map_info%p_kin(1,i)%point  = map_info%p_kin(1,i)%point + &
-                        dyn_coeff_set%global_mass*coeffs%vel(iel,icoef)**2
-                ELSE
-                   map_info%p_kin(1,i)%point  = map_info%p_kin(1,i)%point + &
-                        coeffs%masses(iel,icoef)*coeffs%vel(iel,icoef)**2
-                END IF
-             END DO
-          END DO
-       END IF
-    END DO
-    IF ( map_info%dis_type == do_thermo_communication )  CALL mp_sum (map_info%s_kin, group )
-
-  END SUBROUTINE ke_region_coeffs
-
-! *****************************************************************************
-!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
-! *****************************************************************************
-  SUBROUTINE vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, error)
-    TYPE(map_info_type), POINTER             :: map_info
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'vel_rescale_coeffs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, icoef, iel, ikind, nkind
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    i=0
-    nkind = SIZE (dyn_coeff_set%coeffs_of_kind)
-    ! Now scale the coefficients velocities
-    DO ikind=1,nkind
-       IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
-          coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-          DO iel = 1, coeffs%n_els
-             DO icoef = 1, coeffs%ncoef_atom
-                i = i + 1
-                coeffs%vel(iel,icoef)=coeffs%vel(iel,icoef)*map_info%p_scale(1,i)%point
-             END DO
-          END DO
-       END IF
-    END DO
-
-  END SUBROUTINE vel_rescale_coeffs
-
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************

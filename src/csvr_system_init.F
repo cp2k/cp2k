@@ -10,18 +10,15 @@ MODULE csvr_system_init
 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE csvr_system_mapping,             ONLY: csvr_to_barostat_mapping,&
-                                             csvr_to_coef_mapping,&
                                              csvr_to_particle_mapping,&
                                              csvr_to_shell_mapping
   USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
@@ -34,7 +31,7 @@ MODULE csvr_system_init
 
   PRIVATE
   PUBLIC :: initialize_csvr_part, initialize_csvr_baro,&
-            initialize_csvr_coef, initialize_csvr_shell
+            initialize_csvr_shell
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_init'
 
@@ -92,35 +89,6 @@ CONTAINS
     CALL restart_csvr( csvr, csvr_section, error)
 
   END SUBROUTINE initialize_csvr_part
-
-! *****************************************************************************
-!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
-! *****************************************************************************
-  SUBROUTINE initialize_csvr_coef ( dyn_coeff_set, para_env, csvr, &
-             coeff_section, dt, csvr_section, error )
-
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(csvr_system_type), POINTER          :: csvr
-    TYPE(section_vals_type), POINTER         :: coeff_section
-    REAL(KIND=dp), INTENT(IN)                :: dt
-    TYPE(section_vals_type), POINTER         :: csvr_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_csvr_coef', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: kg_coeff_target_temp, tau_csvr
-
-    failure = .FALSE.
-    CALL section_vals_val_get(csvr_section,"timecon",r_val=tau_csvr,error=error)
-    CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
-
-    CALL csvr_to_coef_mapping ( dyn_coeff_set, csvr, coeff_section, para_env ,error=error)
-    CALL restart_csvr( csvr, csvr_section, error)
-
-  END SUBROUTINE initialize_csvr_coef
 
 ! *****************************************************************************
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich

@@ -1581,10 +1581,6 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_coeff_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
        CALL create_respa_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -2342,113 +2338,6 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_msst_section
-
-! *****************************************************************************
-!> \param section will contain the coeff section 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> \author teo
-! *****************************************************************************
-  SUBROUTINE create_coeff_section(coeff_section, error)
-    TYPE(section_type), POINTER              :: coeff_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_coeff_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection, thermo_section
-
-    failure=.FALSE.
-  
-    CPPrecondition(.NOT.ASSOCIATED(coeff_section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
-       CALL section_create(coeff_section,name="kg_coeff",&
-            description="coefficent parameters needed to perform a kg-pol md run",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-       
-       NULLIFY(thermo_section, keyword, subsection)
-       CALL keyword_create(keyword, name="ensemble",&
-            description="md ensemble for KG-POL coefficients", usage="ENSEMBLE NVT", &
-            default_i_val=nvt_ensemble,&
-            enum_c_vals=s2a("nve","nvt"),&
-            enum_i_vals=(/nve_ensemble,nvt_ensemble/),&
-            error=error)
-       CALL section_add_keyword(coeff_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_create(subsection,name="storage",&
-            description="Specify information on the setup of the effective masses in KG-POL",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)       
-
-       CALL keyword_create(keyword, name="type",&
-            description="method to store the effective masses for"//&
-            "KG-POL coefficients", usage="storage global", &
-            default_i_val=dyn_coeff_mass_global,&
-            enum_c_vals=s2a("global","kind","atom","coeff"),&
-            enum_desc=s2a("just one mass for all the coefficents",&
-            "each atomic kind has its own effective mass",&
-            "coefficients of each atom have their own effective mass",&
-            "each coefficient has its own effective mass"),&
-            enum_i_vals=(/dyn_coeff_mass_global,dyn_coeff_mass_kind,&
-                          dyn_coeff_mass_atom,dyn_coeff_mass_coeff/),&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
-       CALL keyword_create(keyword, name="FILENAME",&
-            description="Specify the filename where the masses are stored",repeats=.FALSE.,&
-            usage="FILENAME <CHARACTER>", default_lc_val="CMASSES", &
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(coeff_section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL keyword_create(keyword=keyword,name="temperature",&
-             description="Target temperature for the KG-POL coeffs",&
-             default_r_val=cp_unit_to_cp2k(value=1.0_dp,unit_str="K",error=error),&
-             usage="temperature 1.0",unit_str="K",error=error)
-       CALL section_add_keyword(coeff_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="mass",&
-            description="mass of the KG-POL coeffs if storage is global",&
-            default_r_val=1.0_dp, usage="mass 1.0",unit_str='au_m',error=error)
-       CALL section_add_keyword(coeff_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_create(subsection,name="RESTART_INDEX",&
-            description="Specify information to restart parameters for KG_COEFF",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error) 
-
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify indexes used to restart calculation",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(coeff_section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_thermostat_section(thermo_section, error=error)
-       CALL section_add_subsection(coeff_section, thermo_section, error=error)
-       CALL section_release(thermo_section,error=error)
-       
-       CALL create_coord_section(subsection,"KG_COEFF",error=error)
-       CALL section_add_subsection(coeff_section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-       
-       CALL create_velocity_section(subsection,"KG_COEFF",error=error)
-       CALL section_add_subsection(coeff_section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-    END IF
-  END SUBROUTINE create_coeff_section
 
 ! *****************************************************************************
 !> \brief creates the section for a path integral run

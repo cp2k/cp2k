@@ -86,11 +86,6 @@ MODULE qs_ks_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kg_environment_types,            ONLY: get_kg_env,&
-                                             kg_environment_type
-  USE kg_gpw_correction,               ONLY: kg_gpw_ekin_mol
-  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_p_type
-  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -283,9 +278,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
                                           rho,energy,calculate_forces,&
-                                          just_energy,print_active,rho_xc,kg_gpw,&
-                                          kg_fm_set,kg_sub_pw_env,&
-                                          error)
+                                          just_energy,print_active,rho_xc,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -296,10 +289,6 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     LOGICAL, INTENT(IN), OPTIONAL            :: print_active
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_xc
-    LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
-    TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
-    TYPE(kg_sub_pw_env_type), OPTIONAL, &
-      POINTER                                :: kg_sub_pw_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
@@ -309,7 +298,7 @@ CONTAINS
       ispin, k, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ddapc, &
       do_ep, do_hfx, do_hfx_ri, do_ppl, explicit_potential, failure, gapw, &
-      gapw_xc, hfx_treat_lsd_in_core, ionode, my_kg_gpw, my_print, scp_dft, &
+      gapw_xc, hfx_treat_lsd_in_core, ionode, my_print, scp_dft, &
       uniform_occupation, use_virial
     REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
       scale_dEx1, scale_dEx2, total_energy_xc
@@ -372,9 +361,6 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    ! Check for a KG_GPW calculation: KE for total rho and for molecular rho
-    my_kg_gpw = .FALSE.
-    IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
     my_print = .TRUE.
     IF(PRESENT(print_active)) my_print = print_active
 
@@ -1173,22 +1159,6 @@ CONTAINS
             CALL pw_pool_give_back_pw(auxbas_pw_pool,v_efield_rspace%pw,&
                                         error=error)   
         
-       IF(my_kg_gpw) THEN
-         CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
-         CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
-       ! Calculate the KE for each molecule independently
-         energy%kg_gpw_ekin_mol = 0.0_dp
-         CALL kg_gpw_ekin_mol(qs_env,&
-                              kg_sub_pw_env%molbox_env_set,&
-                              kg_fm_set%kg_fm_mol_set,&
-                              ks_global_b=ks_matrix,&
-                              p_global_b=rho%rho_ao,ekin_mol=energy%kg_gpw_ekin_mol,&
-                              calculate_forces=calculate_forces,&
-                              just_energy=just_energy,error=error)
-       ! Change sign : it is the correction due to the double counting
-         energy%kg_gpw_ekin_mol = -energy%kg_gpw_ekin_mol
-       END IF
-
        IF(gapw) THEN
           ! Integrals of the Hartree potential with g0_soft
           CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
@@ -1359,7 +1329,7 @@ CONTAINS
             energy%hartree_1c + &
             energy%exc + energy%exc1 + energy%ex + energy%dispersion +&
             energy%qmmm_el + energy%mulliken + &
-            energy%kg_gpw_ekin_mol + SUM(energy%ddapc_restraint) + energy%s2_restraint +&
+            SUM(energy%ddapc_restraint) + energy%s2_restraint +&
             energy%becke + energy%dft_plus_u + energy%kTS + energy%efield +energy%efield_core+&
             energy%ee + energy%ee_core
 
@@ -1384,25 +1354,17 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="((T3,A,T60,F20.10))")&
                    "Wfn fit exchange-correlation energy:           ",energy%exc_aux_fit
           END IF
-          IF(my_kg_gpw) THEN
+          IF( dft_control%do_admm ) THEN
             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
-               "Core Hamiltonian energy of separated molecules:",energy%core,&
-               "Hartree energy of the total density:           ",energy%hartree,&
-               "XC and Kin. energy of the total density:       ",energy%exc,&
-               "Kin. energy of the molecular densities:        ",energy%kg_gpw_ekin_mol
+               "Core Hamiltonian energy:                       ",energy%core,&
+               "Hartree energy:                                ",energy%hartree,&
+               "Exchange-correlation energy:                   ",energy%exc + energy%exc_aux_fit
           ELSE
-            IF( dft_control%do_admm ) THEN
-              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
-                 "Core Hamiltonian energy:                       ",energy%core,&
-                 "Hartree energy:                                ",energy%hartree,&
-                 "Exchange-correlation energy:                   ",energy%exc + energy%exc_aux_fit
-            ELSE
-               WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
-                 "Core Hamiltonian energy:                       ",energy%core,&
-                 "Hartree energy:                                ",energy%hartree,&
-                 "Exchange-correlation energy:                   ",energy%exc
-            END IF 
-          END IF
+             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T61,F20.10))")&
+               "Core Hamiltonian energy:                       ",energy%core,&
+               "Hartree energy:                                ",energy%hartree,&
+               "Exchange-correlation energy:                   ",energy%exc
+          END IF 
           IF (energy%e_hartree /= 0.0_dp)&
                WRITE (UNIT=output_unit,FMT="(T3,A,T61,F20.10)")&
                "Coulomb (electron-electron) energy:            ",energy%e_hartree
@@ -2466,12 +2428,10 @@ CONTAINS
 !>      4.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
+  SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,calculate_forces,&
        just_energy,print_active,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(kg_environment_type), OPTIONAL, &
-      POINTER                                :: kg_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
                                                 just_energy, print_active
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2488,8 +2448,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(kg_fm_p_type), POINTER              :: kg_fm_set
-    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
 
@@ -2542,16 +2500,6 @@ CONTAINS
              CALL build_dftb_ks_matrix(ks_env,qs_env=qs_env,&
                   ks_matrix=matrix_ks,rho=rho,energy=energy,&
                   calculate_forces=c_forces,just_energy=energy_only,&
-                  error=error)
-          ELSEIF (PRESENT(kg_env)) THEN
-             CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-             CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set,error=error)
-             CPPostcondition(kg_fm_set%ref_count>=1,cp_failure_level,routineP,error,failure)
-             CPPostcondition(kg_sub_pw_env%ref_count>=1,cp_failure_level,routineP,error,failure)
-             CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-                  ks_matrix=matrix_ks, rho=rho, energy=energy,&
-                  calculate_forces=c_forces,just_energy=energy_only,print_active=print_active,&
-                  kg_gpw = .TRUE.,kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
                   error=error)
           ELSEIF (dft_control%qs_control%gapw_xc) THEN
              CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&

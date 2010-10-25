@@ -32,7 +32,6 @@ MODULE qs_interactions
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type,&
-                                             kg_potential_type,&
                                              set_potential
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
@@ -43,7 +42,6 @@ MODULE qs_interactions
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type,&
                                              set_paw_proj_set
-  USE qs_all_potential,                ONLY: radii_3c_orbxall
   USE qs_util,                         ONLY: exp_radius
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -87,21 +85,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, istat, &
-      l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_ppl, nkind, nset
-    INTEGER, DIMENSION(:), POINTER           :: ls, nexp_ppl_elp, npgf, nprj, &
-                                                nprj_ppnl, nshell
+    INTEGER :: iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, istat, l, &
+      lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_ppl, nkind, nset
+    INTEGER, DIMENSION(:), POINTER           :: ls, npgf, nprj, nprj_ppnl, &
+                                                nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
     LOGICAL                                  :: p_aux, p_ccr, p_gem, p_orb, &
                                                 p_paw, p_ppl, p_ppnl, p_soft, &
                                                 paw_atom
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
-      core_charge_radius, eps_reduce, gcca, kg_radius, kind_radius, &
-      ppl_radius, ppnl_radius, rcprj, short_radius, zab, zd, zeta
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppl_elp, alpha_ppnl, &
-                                                cexp_ppl, set_radius
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cexp_ppl_elp, cprj_ppnl, &
-                                                pgf_radius, rzetprj, zet
+      core_charge_radius, eps_reduce, gcca, kind_radius, ppl_radius, &
+      ppnl_radius, rcprj, short_radius, zab, zd, zeta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppnl, cexp_ppl, &
+                                                set_radius
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj_ppnl, pgf_radius, &
+                                                rzetprj, zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
@@ -113,14 +111,13 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, &
                                                 aux_fit_basis_set, &
                                                 orb_basis_set, soft_basis
-    TYPE(kg_potential_type), POINTER         :: kg_potential
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
-    NULLIFY ( atomic_kind, all_potential, gth_potential, kg_potential, &
+    NULLIFY ( atomic_kind, all_potential, gth_potential, &
               orb_basis_set, aux_basis_set, soft_basis, geminal_basis_set, paw_proj_set)
-    NULLIFY ( npgf, nprj_ppnl, nshell, nexp_ppl_elp, lshell, nprj )
-    NULLIFY ( alpha_ppnl, cexp_ppl, set_radius, alpha_ppl_elp, cprj_ppnl, &
-             pgf_radius, zet, cexp_ppl_elp, gcc)
+    NULLIFY (npgf, nprj_ppnl, nshell, lshell, nprj)
+    NULLIFY (alpha_ppnl, cexp_ppl, set_radius, cprj_ppnl, pgf_radius, zet, &
+         gcc)
 
     p_orb  = .FALSE.
     p_aux  = .FALSE.
@@ -145,7 +142,6 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
                            all_potential=all_potential,&
                            gth_potential=gth_potential,&
-                           kg_potential=kg_potential,&
                            aux_basis_set=aux_basis_set,&
                            aux_fit_basis_set=aux_fit_basis_set,&
                            orb_basis_set=orb_basis_set,&
@@ -173,7 +169,6 @@ CONTAINS
 
         kind_radius = 0.0_dp
         short_radius = 0.0_dp
-        kg_radius = 0.0_dp
 
         DO iset=1,nset
           set_radius(iset) = 0.0_dp
@@ -191,8 +186,6 @@ CONTAINS
                              exp_radius(l,zeta,&
                              qs_control%eps_pgf_orb*eps_reduce,&
                              gcca))
-              kg_radius = MAX(kg_radius,&
-                              exp_radius(l,zeta,qs_control%eps_kg_gpw,gcca))
             END DO
             set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
           END DO
@@ -203,8 +196,7 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius,&
                                kind_radius=kind_radius,&
-                               short_kind_radius=short_radius,&
-                               kg_gpw_kind_radius=kg_radius)
+                               short_kind_radius=short_radius)
 
       END IF
 
@@ -228,9 +220,6 @@ CONTAINS
         ALLOCATE(all_potential%set_radius_3c(maxnset,nkind),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius_3c,set_radius_3c")
-
-        CALL radii_3c_orbxall(atomic_kind_set,all_potential,&
-                              qs_control%eps_core_charge,error=error)
 
       ELSE IF (ASSOCIATED(gth_potential)) THEN
 
@@ -289,43 +278,6 @@ CONTAINS
                            ppl_radius=ppl_radius,&
                            ppnl_radius=ppnl_radius)
 
-      ELSE IF (ASSOCIATED(kg_potential)) THEN
-
-        p_ccr = .TRUE.
-        p_ppl = .TRUE.
-        CALL get_potential(potential=kg_potential,&
-                           alpha_core_charge=alpha_core_charge,&
-                           ccore_charge=ccore_charge,&
-                           alpha_ppl=alpha_ppl_elp,&
-                           cerf_ppl=cerf_ppl,&
-                           nexp_ppl=nexp_ppl_elp,&
-                           cexp_ppl=cexp_ppl_elp)
-
-!       *** Calculate the radius of the core charge distribution ***
-
-        core_charge_radius = exp_radius(0,alpha_core_charge,&
-                                        qs_control%eps_core_charge,&
-                                        ccore_charge)
-
-!       *** Calculate the radii of the  ***
-!       *** effective local pseudopotential (elp) ***
-
-        ppl_radius = exp_radius(0,alpha_ppl_elp(1),qs_control%eps_ppl,cerf_ppl)
-
-        DO i=1,SIZE(nexp_ppl_elp)
-          DO iexp_ppl=1,nexp_ppl_elp(i)
-            lppl = 2*(iexp_ppl - 1)
-            ppl_radius = MAX(ppl_radius,&
-                           exp_radius(lppl,alpha_ppl_elp(i),&
-                                      qs_control%eps_core_charge,&
-                                      cexp_ppl_elp(i,iexp_ppl)))
-          END DO
-        END DO
-
-        CALL set_potential(potential=kg_potential,&
-                           core_charge_radius=core_charge_radius,&
-                           ppl_radius=ppl_radius)
-
       END IF
 
 !     *** Calculate the aux fit orbital basis function radii ***
@@ -345,7 +297,6 @@ CONTAINS
 
         kind_radius = 0.0_dp
         short_radius = 0.0_dp
-        kg_radius = 0.0_dp
 
         DO iset=1,nset
           set_radius(iset) = 0.0_dp
@@ -363,8 +314,6 @@ CONTAINS
                              exp_radius(l,zeta,&
                              qs_control%eps_pgf_orb*eps_reduce,&
                              gcca))
-              kg_radius = MAX(kg_radius,&
-                              exp_radius(l,zeta,qs_control%eps_kg_gpw,gcca))
             END DO
             set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
           END DO
@@ -375,8 +324,7 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius,&
                                kind_radius=kind_radius,&
-                               short_kind_radius=short_radius,&
-                               kg_gpw_kind_radius=kg_radius)
+                               short_kind_radius=short_radius)
 
       END IF
 
@@ -670,7 +618,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(kg_potential_type), POINTER         :: kg_potential
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -688,15 +635,9 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name,&
                all_potential=all_potential,&
-               kg_potential=kg_potential,&
                gth_potential=gth_potential)
           IF (ASSOCIATED(all_potential)) THEN
              CALL get_potential(potential=all_potential,&
-                  core_charge_radius=core_charge_radius)
-             WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-                  ikind,name,core_charge_radius*conv
-          ELSE IF (ASSOCIATED(kg_potential)) THEN
-             CALL get_potential(potential=kg_potential,&
                   core_charge_radius=core_charge_radius)
              WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
                   ikind,name,core_charge_radius*conv
@@ -732,7 +673,7 @@ CONTAINS
     INTEGER                                  :: ikind, ipgf, iset, nkind, &
                                                 nset, output_unit
     INTEGER, DIMENSION(:), POINTER           :: npgf
-    REAL(KIND=dp)                            :: conv, kg_radius, kind_radius, &
+    REAL(KIND=dp)                            :: conv, kind_radius, &
                                                 short_kind_radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius
@@ -764,7 +705,7 @@ CONTAINS
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T46,A,T53,A,T63,A,T72,A)")&
         "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_str),&
-        "Kind","Label","Radius","OCE/KG Radius"
+        "Kind","Label","Radius","OCE Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         IF ( bas(1:3) == "ORB" ) THEN
@@ -774,8 +715,7 @@ CONTAINS
           IF(ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                    kind_radius=kind_radius,&
-                                   short_kind_radius=short_kind_radius,&
-                                   kg_gpw_kind_radius=kg_radius)
+                                   short_kind_radius=short_kind_radius)
           END IF
         ELSE IF ( bas(1:3) == "AUX" ) THEN
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -789,9 +729,8 @@ CONTAINS
           CALL stop_program("write_pgf_orb_radii","undefined basis type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
-          WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73,F12.6,/,T73,F12.6)")&
-            ikind,name,kind_radius*conv,short_kind_radius*conv,&
-            kg_radius*conv
+          WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73,F12.6)")&
+            ikind,name,kind_radius*conv,short_kind_radius*conv
         ELSE
            WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
               ikind,name,"no basis"
@@ -1030,7 +969,6 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(kg_potential_type), POINTER         :: kg_potential
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -1047,15 +985,9 @@ CONTAINS
         atomic_kind => atomic_kind_set(ikind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name,&
-                             kg_potential=kg_potential,&
                              gth_potential=gth_potential)
         IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
-                             ppl_radius=ppl_radius)
-          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,ppl_radius*conv
-        ELSE IF (ASSOCIATED(kg_potential)) THEN
-          CALL get_potential(potential=kg_potential,&
                              ppl_radius=ppl_radius)
           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,ppl_radius*conv

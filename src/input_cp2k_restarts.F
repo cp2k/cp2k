@@ -10,11 +10,8 @@
 ! *****************************************************************************
 MODULE input_cp2k_restarts
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE averages_types,                  ONLY: average_quantities_type
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
   USE cp2k_info,                       ONLY: compile_arch,&
@@ -34,8 +31,6 @@ MODULE input_cp2k_restarts
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
-                                             dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
@@ -59,8 +54,6 @@ MODULE input_cp2k_restarts
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
-  USE kg_environment_types,            ONLY: get_kg_env,&
-                                             kg_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_datum,&
@@ -83,7 +76,6 @@ MODULE input_cp2k_restarts
                                              get_rng_stream,&
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
   USE pint_transformations,            ONLY: pint_u2x
   USE pint_types,                      ONLY: pint_env_type,&
                                              thermostat_gle,&
@@ -121,13 +113,11 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE write_restart(md_env,force_env,kg_env,root_section,&
+  SUBROUTINE write_restart(md_env,force_env,root_section,&
        coords, vels, pint_env, helium_env, error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(kg_environment_type), OPTIONAL, &
-      POINTER                                :: kg_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
@@ -165,7 +155,7 @@ CONTAINS
        sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
-       CALL update_input(md_env,force_env,kg_env,root_section,coords,vels,pint_env,&
+       CALL update_input(md_env,force_env,root_section,coords,vels,pint_env,&
             helium_env,save_mem=save_mem,error=error)
 
        DO ikey=1,SIZE(keys)
@@ -410,15 +400,6 @@ CONTAINS
     work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
     CALL section_vals_remove_values(work_section, error)
     
-    work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
-    CALL section_vals_remove_values(work_section, error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
-    CALL section_vals_remove_values(work_section, error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
-    CALL section_vals_remove_values(work_section, error)
-    work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
-    CALL section_vals_remove_values(work_section, error)
-
     work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%COORD",error=error)
     CALL section_vals_remove_values(work_section, error)
     work_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
@@ -439,13 +420,11 @@ CONTAINS
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_input(md_env,force_env,kg_env,root_section,coords,vels,pint_env, &
+  SUBROUTINE update_input(md_env,force_env,root_section,coords,vels,pint_env, &
              helium_env,save_mem,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(kg_environment_type), OPTIONAL, &
-      POINTER                                :: kg_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
@@ -474,7 +453,7 @@ CONTAINS
     !
     ! Can handle md_env or force_env
     !
-    lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(kg_env).OR.PRESENT(pint_env).OR.PRESENT(helium_env)
+    lcond = PRESENT(md_env).OR.PRESENT(force_env).OR.PRESENT(pint_env).OR.PRESENT(helium_env)
     IF (lcond) THEN
        IF (PRESENT(md_env)) THEN
           CALL get_md_env ( md_env=md_env, force_env=my_force_env, error=error)
@@ -486,7 +465,7 @@ CONTAINS
        !
        motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
        CALL update_motion(motion_section,md_env=md_env,force_env=my_force_env,&
-            kg_env=kg_env,logger=logger,coords=coords,vels=vels,&
+            logger=logger,coords=coords,vels=vels,&
             pint_env=pint_env,helium_env=helium_env,save_mem=my_save_mem,error=error)
        !
        ! Update one force_env_section per time..
@@ -508,14 +487,12 @@ CONTAINS
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,logger,&
+  SUBROUTINE update_motion(motion_section,md_env,force_env,logger,&
        coords,vels,pint_env,helium_env,save_mem,error)
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(kg_environment_type), OPTIONAL, &
-      POINTER                                :: kg_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(neb_var_type), OPTIONAL, POINTER    :: coords, vels
     TYPE(pint_env_type), OPTIONAL, POINTER   :: pint_env
@@ -527,49 +504,34 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, irep, &
-      isec, j, n_el, natom, natom_tot, nfield, nhc_len, nkind, nsgf, &
-      nsgf_max, stat, tot_nhcneed
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
-    INTEGER, DIMENSION(:), POINTER           :: lindex, walkers_status
+    INTEGER                                  :: counter, handle, handle2, i, &
+                                                irep, isec, j, nfield, &
+                                                nhc_len, stat, tot_nhcneed
+    INTEGER, DIMENSION(:), POINTER           :: walkers_status
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, my_save_mem
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pbuffer, pindex, vbuffer, &
-                                                vindex
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
                                                 veta, wrk
     REAL(KIND=dp), POINTER                   :: constant, t
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(average_quantities_type), POINTER   :: averages
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: replica_section, work_section
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
-                                                thermostat_coeff, &
                                                 thermostat_part, &
                                                 thermostat_shell
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY (logger, thermostat_part, thermostat_baro, npt, para_env, nhc, &
-         atomic_kind_set, work_section, dyn_coeff_set, atomic_kind, coeffs, &
-         aux_basis_set, thermostat_coeff, thermostat_shell, t, averages, &
-         constant, walkers_status, itimes,meta_env)
+         work_section, thermostat_shell, t, averages, constant, &
+         walkers_status, itimes, meta_env)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
                          thermostat_part=thermostat_part,&
                          thermostat_baro=thermostat_baro,&
-                         thermostat_coeff=thermostat_coeff,&
                          thermostat_shell=thermostat_shell,&
                          npt=npt,&
                          t=t,&
@@ -581,8 +543,6 @@ CONTAINS
     ELSE
        IF (ASSOCIATED(force_env)) THEN
           para_env => force_env%para_env
-       ELSEIF (PRESENT(kg_env)) THEN
-          para_env => kg_env%para_env
        ELSEIF (PRESENT(pint_env)) THEN
           para_env => pint_env%logger%para_env
        ELSEIF (PRESENT(helium_env)) THEN
@@ -761,123 +721,6 @@ CONTAINS
        END DO
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
        CALL set_template_restart(work_section, veta=veta, mnhc=mnhc, error=error)
-    END IF
-    CALL timestop(handle2)
-    ! COEFFICIENTS 
-    CALL timeset(routineN//"_KG",handle2)
-    IF (PRESENT(kg_env)) THEN
-       CALL get_kg_env(kg_env=kg_env,&
-            atomic_kind_set=atomic_kind_set,&
-            particle_set=particle_set, &
-            dyn_coeff_set=dyn_coeff_set,&
-            error=error)
-       
-       IF (ASSOCIATED(dyn_coeff_set)) THEN          
-          natom_tot = SIZE ( particle_set )
-          nsgf_max=0
-          n_el=0
-          DO ikind=1,SIZE(atomic_kind_set)
-             atomic_kind=> atomic_kind_set(ikind)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  aux_basis_set=aux_basis_set,&
-                  natom=natom)
-             IF (.NOT.ASSOCIATED(aux_basis_set)) CYCLE
-             CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
-                  nsgf=nsgf)
-             nsgf_max=MAX(nsgf_max,nsgf)
-             n_el = n_el + natom
-          END DO
-          
-          ALLOCATE (pbuffer(n_el,nsgf_max),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          ALLOCATE (vbuffer(n_el,nsgf_max),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          ALLOCATE (lindex(n_el),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          ALLOCATE (cindex(natom_tot),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          ALLOCATE (pindex(natom_tot,nsgf_max),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          ALLOCATE (vindex(natom_tot,nsgf_max),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          
-          pindex(:,:)=0.0_dp
-          vindex(:,:)=0.0_dp
-          cindex(:)=0
-
-          nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
-          DO ikind=1, nkind
-             coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-             atomic_kind=> atomic_kind_set(ikind)
-             IF(.NOT.ASSOCIATED(coeffs)) CYCLE
-             DO iel= 1,coeffs%n_els
-                iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
-                cindex(iatom)=iatom
-                DO icoef=1,coeffs%ncoef_atom
-                   pindex(iatom,icoef)=coeffs%pos(iel,icoef)
-                   vindex(iatom,icoef)=coeffs%vel(iel,icoef)
-                END DO
-             END DO
-          END DO
-          CALL mp_sum(pindex,para_env%group)
-          CALL mp_sum(vindex,para_env%group)
-          CALL mp_sum(cindex, para_env%group)
-
-          iel = 0
-          DO iatom = 1, natom_tot
-            IF ( cindex ( iatom ) == 0 ) THEN
-              CYCLE 
-            ELSE
-              iel = iel + 1
-              lindex( iel ) = cindex ( iatom )
-              pbuffer ( iel, : ) = pindex ( iatom, : )
-              vbuffer ( iel, : ) = vindex ( iatom, : )
-            END IF
-          END DO
-          
-          work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%RESTART_INDEX",error=error)
-          CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",i_vals_ptr=lindex,error=error)
-          work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%COORD",error=error)
-          DO irep = 1, SIZE(lindex)
-             ALLOCATE(buffer(SIZE(pbuffer,2)),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             buffer = pbuffer(irep,:)
-             CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=buffer,&
-                  i_rep_val=irep,error=error)    
-          END DO
-          work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%VELOCITY",error=error)
-          DO irep = 1, SIZE(lindex)
-             ALLOCATE(buffer(SIZE(vbuffer,2)),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-             buffer = vbuffer(irep,:)       
-             CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=buffer,&
-                  i_rep_val=irep,error=error)    
-          END DO
-          DEALLOCATE (pbuffer,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          DEALLOCATE (vbuffer,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          DEALLOCATE (cindex,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE (pindex,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE (vindex,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       IF (ASSOCIATED(thermostat_coeff)) THEN
-          IF     (thermostat_coeff%type_of_thermostat==do_thermo_nose) THEN
-             ! Restart of Nose-Hoover Thermostat for KG coefficients
-             nhc         => thermostat_coeff%nhc
-             CALL collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
-
-             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%NOSE",error=error)
-             CALL set_template_restart(work_section, eta, veta, fnhc, mnhc, error)    
-          ELSE IF (thermostat_coeff%type_of_thermostat==do_thermo_csvr) THEN
-             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT%CSVR",error=error)
-             ! Restart of CSVR Thermostat for KG coefficients
-             CALL dump_csvr_restart_info(thermostat_coeff%csvr, para_env, work_section, error)
-          END IF
-       END IF
     END IF
     CALL timestop(handle2)
     ! SHELL THERMOSTAT

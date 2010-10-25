@@ -81,9 +81,6 @@ MODULE qs_environment_types
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
-  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_release,&
-                                             kg_sub_pw_env_retain,&
-                                             kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -245,9 +242,6 @@ MODULE qs_environment_types
 !>        by qs
 !> \param ewald_env information to perform ewald summation (used by DFTB)
 !> \param ewald_pw information on pw used to perform ewald summation (used by DFTB)
-!> \param kg_sub_pw_env it contains the set of pw_env for the different molecule kind
-!>        to be used in the KG_GPW method in order to construct the molecular desities
-!>        on different grids. The grids are built in the small box containing the single molecule.
 !> \param para_env parallel environement that should be  used to do the qs
 !>        related calculations
 !> \param blacs_env parallel environement needed by scalapack (full matrixes)
@@ -365,7 +359,6 @@ MODULE qs_environment_types
     TYPE(local_rho_type), POINTER                         :: local_rho_set
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
     TYPE(section_vals_type), POINTER                      :: input
-    TYPE(kg_sub_pw_env_type), POINTER                     :: kg_sub_pw_env
     TYPE(linres_control_type), POINTER                    :: linres_control
     TYPE(xas_environment_type), POINTER                   :: xas_env
     TYPE(cp_ddapc_type), POINTER                          :: cp_ddapc_env
@@ -429,7 +422,7 @@ CONTAINS
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nelectron_total,nelectron_spin,&
-       neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
+       neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env, admm_env, &
        hfx_ri_env,dispersion_env, vee, error)
@@ -531,8 +524,6 @@ CONTAINS
     INTEGER, OPTIONAL                        :: nelectron_total
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     INTEGER, OPTIONAL                        :: neighbor_list_id
-    TYPE(kg_sub_pw_env_type), OPTIONAL, &
-      POINTER                                :: kg_sub_pw_env
     TYPE(linres_control_type), OPTIONAL, &
       POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL, &
@@ -694,7 +685,6 @@ CONTAINS
        END IF
     END IF
 
-    IF(PRESENT(kg_sub_pw_env)) kg_sub_pw_env => qs_env%kg_sub_pw_env
     IF(PRESENT(xas_env)) xas_env => qs_env%xas_env
 
     CALL cp_subsys_get(qs_env%subsys,&
@@ -800,7 +790,6 @@ CONTAINS
     NULLIFY (qs_env%local_rho_set)
     NULLIFY (qs_env%hartree_local)
     NULLIFY (qs_env%input)
-    NULLIFY (qs_env%kg_sub_pw_env)
     NULLIFY (qs_env%linres_control)
     NULLIFY (qs_env%xas_env)
     NULLIFY (qs_env%virial)
@@ -877,7 +866,7 @@ CONTAINS
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin,&
-       neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
+       neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
        scp_env,se_taper,se_store_int_env,se_nddo_mpole,se_nonbond_env,admm_env,&
        hfx_ri_env,dispersion_env,error)
@@ -957,8 +946,6 @@ CONTAINS
     INTEGER, OPTIONAL                        :: nelectron_total
     INTEGER, DIMENSION(2), OPTIONAL          :: nelectron_spin
     INTEGER, OPTIONAL                        :: neighbor_list_id
-    TYPE(kg_sub_pw_env_type), OPTIONAL, &
-      POINTER                                :: kg_sub_pw_env
     TYPE(linres_control_type), OPTIONAL, &
       POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL, &
@@ -1092,11 +1079,6 @@ CONTAINS
       qs_env%rho_xc => rho_xc
     END IF
 
-    IF(PRESENT(kg_sub_pw_env)) THEN
-      CALL kg_sub_pw_env_retain(kg_sub_pw_env,error=error)
-      CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env, error=error)
-      qs_env%kg_sub_pw_env => kg_sub_pw_env
-    END IF
     IF (PRESENT(pw_env)) THEN ! accept also null pointers?
       CALL pw_env_retain(pw_env,error=error)
       CALL pw_env_release(qs_env%pw_env,error=error)
@@ -1567,10 +1549,6 @@ CONTAINS
 
           IF(ASSOCIATED(qs_env%linres_control)) THEN
              CALL linres_control_release(qs_env%linres_control, error=error)
-          END IF
-
-          IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
-             CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,error=error)
           END IF
 
           IF(ASSOCIATED(qs_env%task_list)) THEN

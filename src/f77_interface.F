@@ -52,7 +52,6 @@ MODULE f77_interface
   USE input_constants,                 ONLY: do_eip,&
                                              do_ep,&
                                              do_fist,&
-                                             do_kg,&
                                              do_mixed,&
                                              do_qmmm,&
                                              do_qs
@@ -69,7 +68,6 @@ MODULE f77_interface
        section_vals_duplicate, section_vals_get_subs_vals, &
        section_vals_release, section_vals_remove_values, section_vals_retain, &
        section_vals_type, section_vals_val_get, section_vals_write
-  USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE machine,                         ONLY: m_chdir,&
@@ -734,10 +732,6 @@ CPSourceFileRef,&
              CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
                   use_motion_section=use_motion_section, error=my_error )
-          CASE (do_kg)
-             CALL kg_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
-                  force_env_section=force_env_section, subsys_section=subsys_section,&
-                  use_motion_section=use_motion_section, error=my_error)
           CASE (do_qs)
              CALL quickstep_create_force_env( my_force_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&

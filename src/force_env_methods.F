@@ -50,7 +50,6 @@ MODULE force_env_methods
                                              cp_subsys_type
   USE cpot_types,                      ONLY: cpot_calc
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_retain,&
                                              eip_environment_type
@@ -70,8 +69,8 @@ MODULE force_env_methods
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_natom, force_env_p_type, &
        force_env_pos_get, force_env_set, force_env_set_cell, force_env_type, &
-       use_eip_force, use_ep_force, use_fist_force, use_kg_force, &
-       use_mixed_force, use_prog_name, use_qmmm, use_qs_force
+       use_eip_force, use_ep_force, use_fist_force, use_mixed_force, &
+       use_prog_name, use_qmmm, use_qs_force
   USE force_fields_util,               ONLY: get_generic_info
   USE fp_methods,                      ONLY: fp_eval
   USE fparser,                         ONLY: EvalErrType,&
@@ -92,11 +91,6 @@ MODULE force_env_methods
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kg_energy,                       ONLY: kg_energies
-  USE kg_environment_types,            ONLY: get_kg_env,&
-                                             kg_env_retain,&
-                                             kg_environment_type
-  USE kg_force,                        ONLY: kg_force_control
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -201,7 +195,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY (logger,results)
@@ -240,14 +233,7 @@ CONTAINS
              ELSE
                 CALL qs_forces(force_env%qs_env,force_env%globenv, error=error)
              END IF
-             CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)
-          CASE ( use_kg_force )
-             IF (.NOT.calculate_forces) THEN
-                root_section => force_env%root_section
-                CALL kg_energies ( force_env%kg_env,root_section, force_env%globenv, error=error )
-             ELSE
-                CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
-             END IF
+             CALL get_qs_env(qs_env=force_env%qs_env,results=results,error=error)         
           CASE (use_eip_force)
              IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
                 CALL eip_lenosky(force_env, error=error)
@@ -507,7 +493,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates and initializes a force environment
 !> \param force_env the force env to create
-!> \param fist_env , kg_env, qs_env: exactly one of these should be
+!> \param fist_env , qs_env: exactly one of these should be
 !>        associated, the one that is active
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -516,7 +502,7 @@ CONTAINS
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,&
-       qs_env,kg_env,meta_env,sub_force_env,qmmm_env,eip_env,ep_env,force_env_section,&
+       qs_env,meta_env,sub_force_env,qmmm_env,eip_env,ep_env,force_env_section,&
        mixed_env,error)
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -527,8 +513,6 @@ CONTAINS
       POINTER                                :: fist_env
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
-    TYPE(kg_environment_type), OPTIONAL, &
-      POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
@@ -556,9 +540,8 @@ CONTAINS
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
     IF (.NOT. failure) THEN
        NULLIFY ( force_env%subsys, force_env%fist_env, &
-            force_env%kg_env, force_env%qs_env,   &
+            force_env%qs_env,   &
             force_env%para_env, force_env%globenv, &
-            force_env%dyn_coeff_set,&
             force_env%meta_env, force_env%sub_force_env, &
             force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
             force_env%force_env_section, force_env%eip_env,force_env%mixed_env,&
@@ -618,18 +601,6 @@ CONTAINS
                              pv_availability=pv_availability,&
                              pv_numer=pv_numerical,&
                              pv_diagonal=pv_diagonal)
-          END IF
-       END IF
-       IF (PRESENT(kg_env)) THEN
-          IF (ASSOCIATED(kg_env)) THEN
-             CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
-             force_env%in_use=use_kg_force
-             force_env%kg_env => kg_env
-             CALL kg_env_retain(kg_env,error=error)
-             ! Virial not present for KG
-             CALL virial_create ( force_env%virial, error=error)
-             kg_env%virial => force_env%virial
-             CALL virial_retain(kg_env%virial,error=error)
           END IF
        END IF
        IF (PRESENT(eip_env)) THEN
@@ -712,14 +683,6 @@ CONTAINS
        CASE(use_fist_force)
           CALL get_fist_env (force_env%fist_env, subsys=force_env%subsys, error=error)
           CALL cp_subsys_retain (force_env%subsys, error=error)
-       CASE(use_kg_force)
-          CALL get_kg_env(force_env%kg_env, subsys=force_env%subsys,error=error)
-          CALL cp_subsys_retain(force_env%subsys,error=error)
-          IF(kg_env%dft_control%qs_control%polarization) THEN
-             CALL get_kg_env(force_env%kg_env, dyn_coeff_set=force_env%dyn_coeff_set,&
-                  error=error)
-             CALL dyn_coeff_set_retain(force_env%dyn_coeff_set,error=error)
-          END IF
        CASE(use_qs_force)
           CALL get_qs_env(force_env%qs_env, subsys=force_env%subsys,error=error)
           CALL cp_subsys_retain(force_env%subsys,error=error)

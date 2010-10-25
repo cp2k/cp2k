@@ -54,16 +54,6 @@ MODULE qs_wf_history_methods
        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
        wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
-  USE kg_gpw_fm_mol_types,             ONLY: duplicate_kg_fm_p_type,&
-                                             kg_fm_mol_set_create,&
-                                             kg_fm_mol_set_release,&
-                                             kg_fm_mol_set_type,&
-                                             kg_gpw_fm_mol_to_fm_mol
-  USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
-  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
-  USE kg_gpw_wf_history,               ONLY: kg_gpw_fm_mol_linear,&
-                                             kg_gpw_fm_mol_ps,&
-                                             kg_gpw_prev_wf
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: binomial
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -139,7 +129,7 @@ SUBROUTINE wfs_create(snapshot, error)
   IF (.NOT. failure) THEN
      last_wfs_id=last_wfs_id+1
      snapshot%id_nr=last_wfs_id
-     NULLIFY(snapshot%wf, snapshot%wf_mol, snapshot%rho_r, &
+     NULLIFY(snapshot%wf, snapshot%rho_r, &
              snapshot%rho_g, snapshot%rho_ao,&
              snapshot%overlap, snapshot%rho_frozen)
      snapshot%dt=1.0_dp
@@ -206,13 +196,6 @@ END SUBROUTINE wfs_create
                            destination=output_snapshot%wf(i)%matrix, &
                            error=error)
         END DO
-      END IF
-
-      ! wf_mol
-      IF (ASSOCIATED(input_snapshot%wf_mol)) THEN
-        CALL duplicate_kg_fm_p_type(input_kg_fm_p_type=input_snapshot%wf_mol, &
-                                    output_kg_fm_p_type=output_snapshot%wf_mol, &
-                                    error=error)
       END IF
 
       ! rho_r
@@ -290,21 +273,18 @@ END SUBROUTINE wfs_create
 !>      02.2005 added kg_fm_mol_set for KG_GPW [MI]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
+SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: dt
-    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_update', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, &
-                                                nmolecule_kind, nspins, stat
-    LOGICAL                                  :: failure, kg_gpw
+    INTEGER                                  :: handle, ispin, nspins, stat
+    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, s_array
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -344,36 +324,21 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
      nspins=dft_control%nspins
      snapshot%dt=1.0_dp
      IF (PRESENT(dt)) snapshot%dt=dt
-     kg_gpw = .FALSE.
-     IF(PRESENT(kg_fm_mol_set)) THEN
-       IF(ASSOCIATED(kg_fm_mol_set)) kg_gpw = .TRUE.
-     END IF
      IF (wf_history%store_wf) THEN
-        IF(kg_gpw) THEN
-          nmolecule_kind = SIZE(kg_fm_mol_set,1)
-          IF (.NOT.ASSOCIATED(snapshot%wf_mol)) THEN
-            CALL kg_fm_mol_set_create(snapshot%wf_mol,nmolecule_kind,error)
-          END IF
-
-          CALL kg_gpw_fm_mol_to_fm_mol(kg_fm_mol_set,snapshot%wf_mol%kg_fm_mol_set,error)
-        ELSE
-          CALL get_qs_env(qs_env,mos=mos,error=error)
-          IF (.NOT.ASSOCIATED(snapshot%wf)) THEN
-             CALL fm_pools_create_fm_vect(ao_mo_pools,snapshot%wf,&
-                  name="ws_snap"//TRIM(ADJUSTL(cp_to_string(snapshot%id_nr)))//&
-                  "ws",error=error)
-             CPPostcondition(nspins==SIZE(snapshot%wf),cp_failure_level,routineP,error,failure)
-          END IF
-          DO ispin=1,nspins
-             CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
-             CALL cp_fm_to_fm(mo_coeff,snapshot%wf(ispin)%matrix,error=error)
-          END DO
+        CALL get_qs_env(qs_env,mos=mos,error=error)
+        IF (.NOT.ASSOCIATED(snapshot%wf)) THEN
+           CALL fm_pools_create_fm_vect(ao_mo_pools,snapshot%wf,&
+                name="ws_snap"//TRIM(ADJUSTL(cp_to_string(snapshot%id_nr)))//&
+                "ws",error=error)
+           CPPostcondition(nspins==SIZE(snapshot%wf),cp_failure_level,routineP,error,failure)
         END IF
+        DO ispin=1,nspins
+           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+           CALL cp_fm_to_fm(mo_coeff,snapshot%wf(ispin)%matrix,error=error)
+        END DO
      ELSE IF (ASSOCIATED(snapshot%wf)) THEN
         CALL fm_pools_give_back_fm_vect(ao_mo_pools,snapshot%wf,&
              error=error)
-     ELSE IF (ASSOCIATED(snapshot%wf_mol)) THEN
-        CALL kg_fm_mol_set_release(snapshot%wf_mol,error)
      END IF
 
      IF (wf_history%store_rho_r) THEN
@@ -640,15 +605,12 @@ END FUNCTION wfi_get_method_label
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
-       orthogonal_wf, kg_gpw, kg_fm_mol_set, error)
+       orthogonal_wf, error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(IN)                :: dt
     INTEGER, INTENT(OUT), OPTIONAL           :: extrapolation_method_nr
     LOGICAL, INTENT(OUT), OPTIONAL           :: orthogonal_wf
-    LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
-    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
@@ -657,8 +619,8 @@ END FUNCTION wfi_get_method_label
     INTEGER                                  :: actual_extrapolation_method_nr&
                                                 , handle, i, ispin, k, n, &
                                                 nmo, nvec, output_unit
-    LOGICAL                                  :: failure, my_kg_gpw, &
-                                                my_orthogonal_wf, use_overlap
+    LOGICAL                                  :: failure, my_orthogonal_wf, &
+                                                use_overlap
     REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -669,7 +631,6 @@ END FUNCTION wfi_get_method_label
     TYPE(cp_fm_type), POINTER                :: csc, fm_tmp, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
@@ -678,8 +639,6 @@ END FUNCTION wfi_get_method_label
     NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho, &
          rho_xc, distribution_2d)
     failure=.FALSE.
-    my_kg_gpw = .FALSE.
-    IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
 
     use_overlap = wf_history%store_overlap
   
@@ -759,11 +718,6 @@ END FUNCTION wfi_get_method_label
                              error=error)
           END DO
           rho%rho_g_valid=.TRUE.
-          IF(my_kg_gpw) THEN
-             ! ** Updates the molecular rho for each molecule independently ***
-             CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-             CALL kg_rho_update_rho_mol(kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
-          END IF
   
           ! does nothing
        CASE(wfi_use_prev_wf_method_nr)
@@ -771,28 +725,17 @@ END FUNCTION wfi_get_method_label
           nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
           CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec, error=error)
   
-          IF(my_kg_gpw) THEN
-             CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
-             CALL kg_gpw_prev_wf(kg_fm_mol_set,rho%rho_ao,matrix_s,distribution_2d=distribution_2d,error=error)
-          ELSE
-            DO ispin=1,SIZE(mos)
-               CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-                    nmo=nmo)
-               CALL qs_env_reorthogonalize_vectors(qs_env,&
-                    v_matrix=mo_coeff,&
-                    n_col=nmo, error=error)
-               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
-            END DO
-          END IF
+          DO ispin=1,SIZE(mos)
+             CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
+                  nmo=nmo)
+             CALL qs_env_reorthogonalize_vectors(qs_env,&
+                  v_matrix=mo_coeff,&
+                  n_col=nmo, error=error)
+             CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+                  density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+          END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-  
-          IF(my_kg_gpw) THEN
-             ! ** Updates the molecular rho for each molecule independently ***
-             CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-             CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
-          END IF
   
        CASE(wfi_use_prev_p_method_nr)
           t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
@@ -811,11 +754,6 @@ END FUNCTION wfi_get_method_label
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
   
-          IF(my_kg_gpw) THEN
-             ! ** Updates the molecular rho for each molecule independently ***
-             CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-             CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
-          END IF
        CASE(wfi_use_guess_method_nr)
           !FM more clean to do it here, but it
           !FM might need to read a file (restart) and thus globenv
@@ -829,10 +767,7 @@ END FUNCTION wfi_get_method_label
           t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
           CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,error,failure)
           CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,error,failure)
-          IF(.NOT. failure .AND. my_kg_gpw) THEN
-             CPPrecondition(ASSOCIATED(t0_state%wf_mol),cp_warning_level,routineP,error,failure)
-             CPPrecondition(ASSOCIATED(t1_state%wf_mol),cp_warning_level,routineP,error,failure)
-          ELSE IF (.not.failure) THEN
+          IF (.not.failure) THEN
              CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,error,failure)
              CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)
           END IF
@@ -844,44 +779,28 @@ END FUNCTION wfi_get_method_label
              t0=0.0_dp
              t1=t1_state%dt
              t2=t1+dt
-             IF(my_kg_gpw) THEN
-               CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
-               CALL kg_gpw_fm_mol_linear(alpha=0.0_dp,set_a=kg_fm_mol_set,&
-                    beta=(t2-t0)/(t1-t0),set_b=t1_state%wf_mol%kg_fm_mol_set,&
-                    distribution_2d=distribution_2d,error=error)
-               CALL kg_gpw_fm_mol_linear(alpha=1.0_dp,set_a=kg_fm_mol_set,&
-                    beta=(t1-t2)/(t1-t0),set_b=t0_state%wf_mol%kg_fm_mol_set,&
-                    matrix_p_b=rho%rho_ao,matrix_s_b=matrix_s,&
-                    distribution_2d=distribution_2d,error=error)
-             ELSE
-               DO ispin=1,SIZE(mos)
-                  CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-                       nmo=nmo)
-                  CALL cp_fm_scale_and_add(alpha=0.0_dp,&
-                       matrix_a=mo_coeff,&
-                       matrix_b=t1_state%wf(ispin)%matrix,&
-                       beta=(t2-t0)/(t1-t0),&
-                       error=error) ! this copy should be unnecessary
-                  CALL cp_fm_scale_and_add(alpha=1.0_dp,&
-                       matrix_a=mo_coeff,&
-                       beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix,&
-                       error=error)
-                  CALL qs_env_reorthogonalize_vectors(qs_env,&
-                       v_matrix=mo_coeff,&
-                       n_col=nmo, error=error)
-                  CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                       density_matrix=rho%rho_ao(ispin)%matrix,error=error)
-               END DO
-             END IF
+             DO ispin=1,SIZE(mos)
+                CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
+                     nmo=nmo)
+                CALL cp_fm_scale_and_add(alpha=0.0_dp,&
+                     matrix_a=mo_coeff,&
+                     matrix_b=t1_state%wf(ispin)%matrix,&
+                     beta=(t2-t0)/(t1-t0),&
+                     error=error) ! this copy should be unnecessary
+                CALL cp_fm_scale_and_add(alpha=1.0_dp,&
+                     matrix_a=mo_coeff,&
+                     beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix,&
+                     error=error)
+                CALL qs_env_reorthogonalize_vectors(qs_env,&
+                     v_matrix=mo_coeff,&
+                     n_col=nmo, error=error)
+                CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+                     density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+             END DO
              CALL qs_rho_update_rho(rho, qs_env=qs_env,  error=error)
   
              CALL qs_ks_did_change(qs_env%ks_env,&
                   rho_changed=.TRUE., error=error)
-             IF(my_kg_gpw) THEN
-               ! ** Updates the molecular rho for each molecule independently ***
-               CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-               CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
-             END IF
           END IF
        CASE(wfi_linear_p_method_nr)
           t0_state => wfi_get_snapshot(wf_history, index=2, error=error)
@@ -908,11 +827,6 @@ END FUNCTION wfi_get_method_label
             CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
             CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
   
-            IF(my_kg_gpw) THEN
-               ! ** Updates the molecular rho for each molecule independently ***
-               CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-               CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
-            END IF
             ! wf not calculated, extract with PSC renormalized?
             ! use wf_linear?
           END IF
@@ -947,45 +861,35 @@ END FUNCTION wfi_get_method_label
              my_orthogonal_wf=.TRUE.
              ! use PS_2=2 PS_1-PS_0
              ! C_2 comes from using PS_2 as a projector acting on C_1
-             IF(my_kg_gpw) THEN
-               STOP 'kg_gpw wfi_linear_ps_method_nr and not implemented yet'
-               CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
-             ELSE
-               DO ispin=1,SIZE(mos)
-                  NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc)
-                  CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
-                  CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k, &
-                       matrix_struct=matrix_struct,error=error)
-                  CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
-                                           nrow_global=k,ncol_global=k,error=error)
-                  CALL cp_fm_create(csc,matrix_struct_new,error=error)
-                  CALL cp_fm_struct_release(matrix_struct_new,error=error)
-  
-                  IF ( use_overlap ) THEN
-                    CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
-                    CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
-                  ELSE
-                    CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
-                                    t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
-                  END IF
-                  CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff,error=error)
-                  CALL cp_fm_release(csc,error=error)
-                  CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix,error=error)
-                  CALL qs_env_reorthogonalize_vectors(qs_env,&
-                       v_matrix=mo_coeff,&
-                       n_col=k, error=error)
-                  CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                       density_matrix=rho%rho_ao(ispin)%matrix,error=error)
-               END DO
-             END IF
+             DO ispin=1,SIZE(mos)
+                NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc)
+                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+                CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k, &
+                     matrix_struct=matrix_struct,error=error)
+                CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
+                                         nrow_global=k,ncol_global=k,error=error)
+                CALL cp_fm_create(csc,matrix_struct_new,error=error)
+                CALL cp_fm_struct_release(matrix_struct_new,error=error)
+ 
+                IF ( use_overlap ) THEN
+                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, k,error=error)
+                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc,error=error)
+                ELSE
+                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
+                                  t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
+                END IF
+                CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff,error=error)
+                CALL cp_fm_release(csc,error=error)
+                CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix,error=error)
+                CALL qs_env_reorthogonalize_vectors(qs_env,&
+                     v_matrix=mo_coeff,&
+                     n_col=k, error=error)
+                CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+                     density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+             END DO
              CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
              CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
   
-             IF(my_kg_gpw) THEN
-               ! ** Updates the molecular rho for each molecule independently ***
-               CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-               CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
-             END IF
           END IF
       CASE(wfi_ps_method_nr)
           ! figure out the actual number of vectors to use in the extrapolation:
@@ -1005,85 +909,45 @@ END FUNCTION wfi_get_method_label
           END IF
   
           my_orthogonal_wf=.TRUE.
-          IF(my_kg_gpw) THEN
-             CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
-             CPPrecondition(use_overlap,cp_failure_level,routineP,error,failure)
+          DO ispin=1,SIZE(mos)
+             NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k, &
+                  matrix_struct=matrix_struct,error=error)
+             CALL cp_fm_create(fm_tmp,matrix_struct,error=error)
+             CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
+                                      nrow_global=k,ncol_global=k,error=error)
+             CALL cp_fm_create(csc,matrix_struct_new,error=error)
+             CALL cp_fm_struct_release(matrix_struct_new,error=error)
              ! first the most recent
              t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
-             beta = REAL(nvec,dp)
-             IF(nvec==1) THEN
-               CALL kg_gpw_fm_mol_linear(alpha=0.0_dp, set_a=kg_fm_mol_set,&
-                    beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set,&
-                    matrix_p_b=rho%rho_ao, matrix_s_b=matrix_s, &
-                    distribution_2d=distribution_2d,error=error)
-             ELSE
-               CALL kg_gpw_fm_mol_linear(alpha=0.0_dp, set_a=kg_fm_mol_set,&
-                    beta=beta, set_b=t1_state%wf_mol%kg_fm_mol_set,&
-                    distribution_2d=distribution_2d,error=error)
-  
-               DO i=2,nvec-1
-                 t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
-                 beta = -1.0_dp * beta * REAL(nvec - i + 1 , dp ) / REAL(i , dp )
-                 CALL kg_gpw_fm_mol_ps(set_a=kg_fm_mol_set,&
-                      beta=beta,set_b=t0_state%wf_mol%kg_fm_mol_set,ov_b_b=t0_state%overlap,&
-                      set_last=t1_state%wf_mol%kg_fm_mol_set,&
-                      distribution_2d=distribution_2d,error=error)
-               END DO
-               ! finally calculate the density
-               t0_state => wfi_get_snapshot(wf_history, index=nvec, error=error)
-               beta = -1.0_dp * beta  / REAL(nvec , dp )
-               CALL kg_gpw_fm_mol_ps(set_a=kg_fm_mol_set,&
-                    beta=beta,set_b=t0_state%wf_mol%kg_fm_mol_set,ov_b_b=t0_state%overlap,&
-                    set_last=t1_state%wf_mol%kg_fm_mol_set, matrix_p_b=rho%rho_ao,matrix_s_b=matrix_s,&
-                    distribution_2d=distribution_2d,error=error)
-             END IF
-          ELSE
-             DO ispin=1,SIZE(mos)
-                NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
-                CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
-                CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k, &
-                     matrix_struct=matrix_struct,error=error)
-                CALL cp_fm_create(fm_tmp,matrix_struct,error=error)
-                CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
-                                         nrow_global=k,ncol_global=k,error=error)
-                CALL cp_fm_create(csc,matrix_struct_new,error=error)
-                CALL cp_fm_struct_release(matrix_struct_new,error=error)
-                ! first the most recent
-                t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
-                CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff,error=error)
-                alpha = nvec
-                CALL cp_fm_scale(alpha,mo_coeff,error=error)
-                DO i=2,nvec
-                   t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
-                   IF ( use_overlap ) THEN
-                     CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k,error=error)
-                     CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
-                   ELSE
-                     CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
-                                     t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
-                   END IF
-                   CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
-                   alpha = -1.0_dp * alpha * REAL(nvec - i + 1 , dp ) / REAL(i , dp )
-                   CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp,error=error)
-                ENDDO
-  
-                CALL cp_fm_release(csc,error=error)
-                CALL cp_fm_release(fm_tmp,error=error)
-                CALL qs_env_reorthogonalize_vectors(qs_env,&
-                     v_matrix=mo_coeff,&
-                     n_col=k, error=error)
-                CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-                     density_matrix=rho%rho_ao(ispin)%matrix,error=error)
-             END DO
-          END IF
+             CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff,error=error)
+             alpha = nvec
+             CALL cp_fm_scale(alpha,mo_coeff,error=error)
+             DO i=2,nvec
+                t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
+                IF ( use_overlap ) THEN
+                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, k,error=error)
+                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc,error=error)
+                ELSE
+                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,&
+                                  t1_state%wf(ispin)%matrix,0.0_dp,csc,error=error)
+                END IF
+                CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp,error=error)
+                alpha = -1.0_dp * alpha * REAL(nvec - i + 1 , dp ) / REAL(i , dp )
+                CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp,error=error)
+             ENDDO
+
+             CALL cp_fm_release(csc,error=error)
+             CALL cp_fm_release(fm_tmp,error=error)
+             CALL qs_env_reorthogonalize_vectors(qs_env,&
+                  v_matrix=mo_coeff,&
+                  n_col=k, error=error)
+             CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+                  density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+          END DO
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
-  
-          IF(my_kg_gpw) THEN
-             ! ** Updates the molecular rho for each molecule independently ***
-             CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env,error=error)
-             CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
-          END IF
       CASE (wfi_aspc_nr)
         CALL cite_reference(Kolafa2004)
         ! figure out the actual number of vectors to use in the extrapolation:
@@ -1103,7 +967,6 @@ END FUNCTION wfi_get_method_label
         END IF
   
         my_orthogonal_wf = .TRUE.
-        CPPrecondition(.NOT.my_kg_gpw,cp_failure_level,routineP,error,failure)
         DO ispin=1,SIZE(mos)
           NULLIFY (mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
@@ -1235,12 +1098,10 @@ CPSourceFileRef,&
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE wfi_update(wf_history, qs_env, dt, kg_fm_mol_set, error)
+SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in)                :: dt
-    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_update', &
@@ -1262,7 +1123,7 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, kg_fm_mol_set, error)
              wf_history%memory_depth)+1
         CALL wfs_update(snapshot=wf_history%past_states &
              (wf_history%last_state_index)%snapshot,wf_history=wf_history,&
-             qs_env=qs_env,dt=dt,kg_fm_mol_set=kg_fm_mol_set,error=error)
+             qs_env=qs_env,dt=dt,error=error)
      END IF
   END IF
 END SUBROUTINE wfi_update

@@ -42,9 +42,6 @@ MODULE integrator
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_methods,         ONLY: dynamical_coeff_verlet1,&
-                                             dynamical_coeff_verlet2
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: shell_scale_comv
   USE extended_system_types,           ONLY: npt_info_type
@@ -335,7 +332,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -358,7 +354,7 @@ CONTAINS
 
     failure = .FALSE. 
 
-    NULLIFY (dyn_coeff_set, thermostat_coeff, tmp)
+    NULLIFY (thermostat_coeff, tmp)
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
     NULLIFY (atomic_kinds, local_particles, molecules, molecule_kind_set, molecule_set, particle_set)
     NULLIFY (shell_particles, shell_particle_set, core_particles, &
@@ -368,7 +364,7 @@ CONTAINS
          para_env=para_env, ehrenfest_md=ehrenfest_md, error=error)
     dt = simpar%dt
     CALL force_env_get(force_env=force_env, subsys=subsys,&
-         dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell, error=error)
+         virial=virial, cell=cell, error=error)
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls_reflective(force_env, error=error)
@@ -441,9 +437,6 @@ CONTAINS
              shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error) 
     END IF     
 
-    ! coefficients
-    CALL dynamical_coeff_verlet1(dyn_coeff_set, thermostat_coeff, para_env, dt, error)
-    
     ! Update forces
     ! In case of ehrenfest dynamics, velocities need to be iterated
     IF(ehrenfest_md)THEN
@@ -513,9 +506,6 @@ CONTAINS
        END IF
        
     END DO
-    
-    ! Coefficients
-    CALL dynamical_coeff_verlet2(dyn_coeff_set, thermostat_coeff, para_env, dt, error)
     
     ! Update virial
     IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
@@ -690,7 +680,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -715,7 +704,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(gci, force_env, dyn_coeff_set, thermostat_coeff, tmp, &
+    NULLIFY(gci, force_env, thermostat_coeff, tmp, &
          thermostat_part, thermostat_shell, cell, shell_particles, &
          shell_particle_set, core_particles, core_particle_set, rand)
     NULLIFY(para_env, subsys, local_molecules, local_particles, molecule_kinds,&
@@ -728,7 +717,7 @@ CONTAINS
          error=error)
     dt = simpar%dt
 
-    CALL force_env_get(force_env=force_env, subsys=subsys, dyn_coeff_set=dyn_coeff_set,&
+    CALL force_env_get(force_env=force_env, subsys=subsys, &
          virial=virial, cell=cell,error=error)
 
     ! Do some checks on coordinates and box
@@ -830,9 +819,6 @@ CONTAINS
              shell_particle_set, core_particle_set, globenv, tmp=tmp, check=.TRUE., error=error) 
     END IF     
 
-    ! coefficients
-    CALL dynamical_coeff_verlet1 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
-
     ! Update forces
     CALL force_env_calc_energy_force(force_env,error=error)
 
@@ -876,9 +862,6 @@ CONTAINS
     ! Update constraint virial
     IF ( simpar%constraint ) CALL pv_constraint ( gci, local_molecules, &
          molecule_set,molecule_kind_set,particle_set, virial,para_env%group )
-
-    ! coefficients
-    CALL dynamical_coeff_verlet2 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
 
     !     **  Evaluate Virial
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &

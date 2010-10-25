@@ -569,37 +569,6 @@ CONTAINS
              END IF
           END IF
 
-          ! KG 
-          CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_POS",l_val=flag,error=error)
-          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%MD%KG_COEFF",error)) THEN
-             section => section_vals_get_subs_vals(restart_file,&
-                  "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
-             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
-                  section,error=error)
-             section => section_vals_get_subs_vals(restart_file,&
-                  "MOTION%MD%KG_COEFF%COORD",error=error)
-             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%COORD",&
-                  section,error=error)
-             CALL set_restart_info("KG COEFFICIENT POSITION",restarted_infos,error)
-          END IF
-
-          CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_VEL",l_val=flag,error=error)
-          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%MD%KG_COEFF",error)) THEN
-             section => section_vals_get_subs_vals(restart_file,&
-                  "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
-             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
-                  section,error=error)
-             section => section_vals_get_subs_vals(restart_file,&
-                  "MOTION%MD%KG_COEFF%VELOCITY",error=error)
-             CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%VELOCITY",&
-                  section,error=error)
-             CALL set_restart_info("KG COEFFICIENT VELOCITY",restarted_infos,error)
-          END IF
-
-          CALL section_vals_val_get(r_section,"RESTART_KG_THERMOSTAT",l_val=flag,error=error)
-          CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%KG_COEFF%THERMOSTAT", error=error)
-          IF (flag) CALL set_restart_info("KG THERMOSTAT",restarted_infos,error)
-
           check = check_restart(input_file, restart_file, "MOTION%MD%SHELL", error)
           IF(check) THEN
              CALL section_vals_val_get(r_section,"RESTART_SHELL_THERMOSTAT",l_val=flag,error=error)
@@ -1055,22 +1024,6 @@ CPSourceFileRef,&
        section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%RESTART_INDEX",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%COORD",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%RESTART_INDEX",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%VELOCITY",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT%NOSE%COORD",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT%NOSE%VELOCITY",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT%NOSE%MASS",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT%NOSE%FORCE",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%COORD",error=error)
        CALL section_vals_remove_values(section_to_delete,error)

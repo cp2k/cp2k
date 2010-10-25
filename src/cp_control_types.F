@@ -234,7 +234,6 @@ MODULE cp_control_types
                                                      eps_rho_gspace,&
                                                      eps_rho_rspace,&
                                                      eps_filter_matrix,&
-                                                     eps_kg_gpw,&
                                                      eps_gvg_rspace,&
                                                      progression_factor,&
                                                      relative_cutoff
@@ -246,7 +245,6 @@ MODULE cp_control_types
     LOGICAL                                       :: dftb
     LOGICAL                                       :: scp
     LOGICAL                                       :: semi_empirical
-    LOGICAL                                       :: polarization
     LOGICAL                                       :: mulliken_restraint
     LOGICAL                                       :: ddapc_restraint
     LOGICAL                                       :: becke_restraint

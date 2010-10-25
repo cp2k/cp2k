@@ -1295,16 +1295,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RESTART_KG_COEFF_POS",&
-            description="Restarts the positions of coefficents of kg from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_KG_COEFF_VEL",&
-            description="Restarts the velocity of coefficents of kg from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_SHELL_POS",&
             description="Takes the positions of the shells from the external file (only if shell-model)",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
@@ -1328,12 +1318,6 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CORE_VELOCITY",&
             description="Takes the velocities of the shells from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_KG_THERMOSTAT",&
-            description="Restarts the nose thermostats of the kg coefficents "//&
-            "from the EXTERNAL file",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

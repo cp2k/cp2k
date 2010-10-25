@@ -40,7 +40,6 @@ MODULE qs_energy_types
                        hartree_1c,&
                        e_hartree,& ! contains the hartree energy of electrons only
                                    ! computed if requested
-                       kg_gpw_ekin_mol,&
                        qmmm_el,&
                        qmmm_nu,&
                        mulliken,&
@@ -156,7 +155,6 @@ CONTAINS
       qs_energy%e_hartree = 0.0_dp
       qs_energy%hartree = 0.0_dp
       qs_energy%hartree_1c = 0.0_dp
-      qs_energy%kg_gpw_ekin_mol = 0.0_dp
       qs_energy%mulliken = 0.0_dp
       qs_energy%becke = 0.0_dp
       qs_energy%efield = 0.0_dp
@@ -238,7 +236,6 @@ CONTAINS
       qs_energy_out%exc1            = qs_energy_in%exc1
       qs_energy_out%hartree         = qs_energy_in%hartree
       qs_energy_out%hartree_1c      = qs_energy_in%hartree_1c
-      qs_energy_out%kg_gpw_ekin_mol = qs_energy_in%kg_gpw_ekin_mol
       qs_energy_out%mulliken        = qs_energy_in%mulliken
       qs_energy_out%ddapc_restraint = qs_energy_in%ddapc_restraint
       qs_energy_out%becke           = qs_energy_in%becke

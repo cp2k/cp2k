@@ -18,17 +18,14 @@ MODULE md_conserved_quantities
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
-                                             dyn_coeff_type
   USE extended_system_types,           ONLY: npt_info_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE input_constants,                 ONLY: &
-       dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
-       npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, reftraj_ensemble
+       isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md_ener_types,                   ONLY: md_ener_type,&
@@ -69,17 +66,15 @@ CONTAINS
 !>     ekin : kinetic energy of particles
 !>     temp : temperature
 !>     temp_qm : temperature of the QM system in a QM/MM calculation
-!>     ekin_coefs : ke of the coefficients (KG code)
-!>     temp_coefs : temperature of the coefficients (KG code)
 !> \par History
 !>      none
 !> \author gloria
 ! *****************************************************************************
-  SUBROUTINE compute_conserved_quantity (md_env, md_ener, tkind, tcoeff, tshell,&
+  SUBROUTINE compute_conserved_quantity (md_env, md_ener, tkind, tshell,&
        natom, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
-    LOGICAL, INTENT(IN)                      :: tkind, tcoeff, tshell
+    LOGICAL, INTENT(IN)                      :: tkind, tshell
     INTEGER, INTENT(IN)                      :: natom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -143,10 +138,6 @@ CONTAINS
        END IF
     END IF
 
-    IF(tcoeff) THEN
-        md_ener%temp_coefs = md_ener%temp_coefs*kelvin
-    END IF
-
     SELECT CASE ( simpar%ensemble  )
     CASE DEFAULT
        CALL stop_program( RoutineN, 'Unknown Ensemble')
@@ -202,29 +193,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nve', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_shell
 
-    NULLIFY(dyn_coeff_set, force_env, thermostat_coeff,thermostat_shell)
+    NULLIFY(force_env, thermostat_coeff,thermostat_shell)
 
     CALL get_md_env (md_env, force_env=force_env, thermostat_coeff=thermostat_coeff,&
                      thermostat_shell=thermostat_shell, error=error)
     md_ener%constant = md_ener%ekin + md_ener%epot + md_ener%ekin_shell
-
-    ! Correct for KG coeff
-    CALL force_env_get (force_env = force_env, dyn_coeff_set=dyn_coeff_set,error=error)
-
-    IF (ASSOCIATED (dyn_coeff_set)) THEN
-       CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, &
-            para_env%group, error)
-       md_ener%constant = md_ener%constant + md_ener%ekin_coefs
-       CALL get_thermostat_energies ( thermostat_coeff, md_ener%thermostat_coef_pot, &
-            md_ener%thermostat_coef_kin, para_env, error=error )
-       md_ener%constant = md_ener%constant + md_ener%thermostat_coef_kin +&
-                          md_ener%thermostat_coef_pot
-    END IF
 
     CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot,&
          md_ener%thermostat_shell_kin, para_env, error=error )
@@ -247,27 +224,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_nvt', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
                                                 thermostat_part, &
                                                 thermostat_shell
 
-    NULLIFY(dyn_coeff_set, force_env, thermostat_part, thermostat_coeff, thermostat_shell)
+    NULLIFY(force_env, thermostat_part, thermostat_coeff, thermostat_shell)
     CALL get_md_env (md_env, force_env=force_env, thermostat_part=thermostat_part,&
          thermostat_coeff=thermostat_coeff, thermostat_shell=thermostat_shell, error=error )
     CALL get_thermostat_energies ( thermostat_part, md_ener%thermostat_part_pot, &
          md_ener%thermostat_part_kin, para_env, error=error )
     md_ener%constant = md_ener% ekin + md_ener%epot +  md_ener%ekin_shell +&
                        md_ener%thermostat_part_kin + md_ener%thermostat_part_pot
-    CALL force_env_get (force_env=force_env, dyn_coeff_set=dyn_coeff_set,error=error)
-    IF (ASSOCIATED (dyn_coeff_set)) THEN
-       CALL get_coef_ke (dyn_coeff_set, md_ener%ekin_coefs, md_ener%temp_coefs, para_env%group, error)
-       md_ener%constant = md_ener%constant + md_ener%ekin_coefs
-       CALL get_thermostat_energies ( thermostat_coeff, md_ener%thermostat_coef_pot,&
-            md_ener%thermostat_coef_kin, para_env, error=error )
-       md_ener%constant = md_ener%constant + md_ener%thermostat_coef_kin + md_ener%thermostat_coef_pot
-    END IF
 
     CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot,&
          md_ener%thermostat_shell_kin, para_env, error=error )
@@ -572,56 +540,5 @@ CONTAINS
   END SUBROUTINE get_part_ke
 
 ! *****************************************************************************
-!> \brief Calculates kinetic energy of coefs
-!> \par History
-!>      gt 06-02-04 adapted to new dynamical coeffs type
-!> \author CJM
-! *****************************************************************************
-  SUBROUTINE get_coef_ke ( dyn_coeff_set, ekinc, ctemp, group, error )
-
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    REAL(KIND=dp), INTENT(out)               :: ekinc, ctemp
-    INTEGER                                  :: group
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_coef_ke', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: icoef, iel, ikind, ncoefs
-    LOGICAL                                  :: gmass
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
-
-    NULLIFY(coeffs)
-    ekinc = zero
-    ncoefs = 0
-    gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
-
-    DO ikind=1,SIZE(dyn_coeff_set%coeffs_of_kind)
-       IF (ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
-          coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-          DO iel = 1, coeffs%n_els
-             DO icoef = 1, coeffs%ncoef_atom
-                ncoefs=ncoefs+1
-                IF(gmass) THEN
-                   ekinc = ekinc + 0.5_dp*dyn_coeff_set%global_mass* &
-                        coeffs%vel(iel,icoef)*coeffs%vel(iel,icoef)
-                ELSE
-                   ekinc = ekinc + 0.5_dp*coeffs%masses(iel,icoef)* &
-                        coeffs%vel(iel,icoef)*coeffs%vel(iel,icoef)
-                END IF
-             END DO
-          END DO
-       END IF
-    END DO
-
-    ! sum all contributions to energy over calculated parts on all processors
-    CALL mp_sum ( ekinc, group )
-    CALL mp_sum ( ncoefs, group )
-
-    ! get coefficient temperature
-
-    ctemp=2.0_dp*ekinc/REAL(ncoefs,dp)
-
-  END SUBROUTINE get_coef_ke
 
 END MODULE md_conserved_quantities

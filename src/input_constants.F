@@ -41,7 +41,6 @@ MODULE input_constants
   ! Method Names
   INTEGER, PARAMETER, PUBLIC               :: do_qs=1,&
                                               do_fist=2,&
-                                              do_kg=3,&
                                               do_qmmm=4,&
                                               do_eip=5,&
                                               do_ep=6,&
@@ -223,9 +222,6 @@ MODULE input_constants
                                               do_method_gapw=1,&
                                               do_method_gapw_xc=2,&
                                               do_method_gpw=3,&
-                                              do_method_kg_pol=4,&
-                                              do_method_kg_nopol=5,&
-                                              do_method_kg_gpw=6,&
                                               do_method_mndo=7,&
                                               do_method_am1=8,&
                                               do_method_pm3=9,&
@@ -429,11 +425,6 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC               :: diag_standard=1,&
                                               diag_ot=2, diag_block_krylov=3
-
-  INTEGER, PARAMETER,PUBLIC                :: dyn_coeff_mass_global=1,&
-                                              dyn_coeff_mass_kind=2,&
-                                              dyn_coeff_mass_atom=3,&
-                                              dyn_coeff_mass_coeff=4
 
   INTEGER, PUBLIC, PARAMETER               :: default_lbfgs_method_id=1,&
                                               default_bfgs_method_id=2,&

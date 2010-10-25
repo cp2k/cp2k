@@ -107,7 +107,6 @@ MODULE qs_core_hamiltonian
                                              dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE dkh_main,                        ONLY: dkh_mol_integrals
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
@@ -974,17 +973,7 @@ CONTAINS
                     oce=oce,error=error)
 
     IF(qs_env%rel_control%rel_method/=rel_none)THEN
-      CALL dkh_mol_integrals(qs_env,error)
-      CALL get_qs_env(qs_env=qs_env,&
-                      matrix_h=matrix_h,&
-                      error=error)
-
-      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
-
-      CALL set_qs_env(qs_env=qs_env,&
-                      matrix_h=matrix_h,&
-                      error=error)
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
     

@@ -36,7 +36,6 @@ MODULE qs_force_types
                                          rho_elec,&
                                          vhxc_atom,&
                                          g0s_Vh_elec,&
-                                         kg_gpw_ekin_mol,&
                                          repulsive,&
                                          dispersion,&
                                          other,&
@@ -133,10 +132,6 @@ CONTAINS
       ALLOCATE (qs_force(ikind)%g0s_Vh_elec(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineP,"qs_force(ikind)%g0s_Vh_elec",3*n*dp_size)
-      END IF
-      ALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol(3,n),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routineP,"qs_force(ikind)%kg_gpw_ekin_mol",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%repulsive(3,n),STAT=istat)
       IF (istat /= 0) THEN
@@ -286,13 +281,6 @@ CONTAINS
         END IF
       END IF
 
-      IF (ASSOCIATED(qs_force(ikind)%kg_gpw_ekin_mol)) THEN
-        DEALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routineP,"qs_force%kg_gpw_ekin_mol")
-        END IF
-      END IF
-
       IF (ASSOCIATED(qs_force(ikind)%repulsive)) THEN
         DEALLOCATE (qs_force(ikind)%repulsive,STAT=istat)
         IF (istat /= 0) THEN
@@ -402,7 +390,6 @@ CONTAINS
       qs_force(ikind)%rho_elec(:,:) = 0.0_dp
       qs_force(ikind)%vhxc_atom(:,:) = 0.0_dp
       qs_force(ikind)%g0s_Vh_elec(:,:) = 0.0_dp
-      qs_force(ikind)%kg_gpw_ekin_mol(:,:) = 0.0_dp
       qs_force(ikind)%repulsive(:,:) = 0.0_dp
       qs_force(ikind)%dispersion(:,:) = 0.0_dp
       qs_force(ikind)%other(:,:) = 0.0_dp
@@ -473,8 +460,6 @@ CONTAINS
         qs_force_output(ikind)%vhxc_atom(:,:) = qs_force_input(ikind)%vhxc_atom(:,:)
         qs_force_output(ikind)%g0s_Vh_elec(:,:) = &
            qs_force_input(ikind)%g0s_Vh_elec(:,:)
-        qs_force_output(ikind)%kg_gpw_ekin_mol(:,:) = &
-           qs_force_input(ikind)%kg_gpw_ekin_mol(:,:)
         qs_force_output(ikind)%repulsive(:,:) = &
            qs_force_input(ikind)%repulsive(:,:)
         qs_force_output(ikind)%dispersion(:,:) = &

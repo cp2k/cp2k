@@ -36,7 +36,7 @@ MODULE environment
   USE input_constants,                 ONLY: &
        debug_print_level, do_cp2k, do_eip, do_farming, do_fft_acml, &
        do_fft_cu, do_fft_essl, do_fft_fftw, do_fft_fftw2, do_fft_fftw3, &
-       do_fft_mkl, do_fft_sci, do_fft_sg, do_fist, do_kg, do_qs, do_test, &
+       do_fft_mkl, do_fft_sci, do_fft_sg, do_fist, do_qs, do_test, &
        energy_run, high_print_level, id_development_version, low_print_level, &
        medium_print_level, mol_dyn_run, none_run, silent_print_level
   USE input_cp2k,                      ONLY: create_global_section
@@ -490,8 +490,6 @@ CONTAINS
              CALL section_vals_val_get(force_env_sections,"METHOD",i_val=method_name_id,error=error)
              SELECT CASE (method_name_id)
              CASE (do_fist)
-                globenv%run_type_id = mol_dyn_run
-             CASE (do_kg)
                 globenv%run_type_id = mol_dyn_run
              CASE (do_eip)
                 globenv%run_type_id = mol_dyn_run

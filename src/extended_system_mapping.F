@@ -14,20 +14,16 @@ MODULE extended_system_mapping
 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
-                                             get_dyn_coeff
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
                                              lnhc_parameters_type,&
                                              map_info_type
   USE f77_blas
   USE input_constants,                 ONLY: &
-       do_region_global, do_region_massive, do_thermo_communication, &
-       do_thermo_no_communication, do_thermo_only_master, isokin_ensemble, &
-       langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+       do_thermo_communication, do_thermo_no_communication, &
+       do_thermo_only_master, isokin_ensemble, langevin_ensemble, &
+       npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_ensemble, reftraj_ensemble
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -36,7 +32,6 @@ MODULE extended_system_mapping
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
   USE thermostat_mapping,              ONLY: init_baro_map_info,&
-                                             init_coeff_map_info,&
                                              thermostat_mapping_region
   USE thermostat_types,                ONLY: thermostat_info_type
 #include "cp_common_uses.h"
@@ -50,7 +45,7 @@ MODULE extended_system_mapping
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_mapping'
 
   PUBLIC :: nhc_to_particle_mapping, nhc_to_barostat_mapping, &
-            nhc_to_coef_mapping, nhc_to_shell_mapping
+            nhc_to_shell_mapping
 
 CONTAINS
 
@@ -268,115 +263,6 @@ CONTAINS
     nhc%loc_num_nhc  = number
     nhc%glob_num_nhc = sum_of_thermostats
   END SUBROUTINE setup_nhc_thermostat
-
-! *****************************************************************************
-!> \brief Creates the thermostatting for the
-!>      polarization  coefficients'  degrees of freedom
-!> \par History
-!>      gt 04-02-04 adapted to new kind of coefficents
-!>      gt 11-02-05 adapted to new input
-!> \author CJM 10-Apr-01
-! *****************************************************************************
-  SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, kg_coeff_section, para_env, error)
-
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(section_vals_type), POINTER         :: kg_coeff_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nhc_to_coef_mapping', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, ikind, imap, j, &
-                                                kg_coeff_ens, ncoef_local, &
-                                                ncoef_of_kind, ncoef_tot, &
-                                                nkind, number, stat
-    LOGICAL                                  :: failure, nointer
-    REAL(KIND=dp)                            :: kg_coeff_temp
-    TYPE(map_info_type), POINTER             :: map_info
-
-    failure = .FALSE.
-    CALL section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens,error=error)
-    CALL section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp,error=error)
-
-    SELECT CASE ( kg_coeff_ens )
-    CASE  DEFAULT
-       CALL stop_program(routineN, 'Never reach this point!' )
-    CASE ( nvt_ensemble )
-       number      = 0
-       ncoef_local = 0
-       nointer     = .TRUE.
-       nkind       = SIZE ( dyn_coeff_set%coeffs_of_kind)
-       map_info    => nhc%map_info
-       ncoef_tot   = dyn_coeff_set%ncoef_tot
-       DO ikind=1,nkind
-          IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN
-             CALL get_dyn_coeff(coeffs=dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
-                  ncoef_of_kind=ncoef_of_kind,error=error)
-             ncoef_local= ncoef_local + ncoef_of_kind
-          ENDIF
-       END DO
-       
-       ! Counting the global number of thermostats
-       IF ( nhc%region == do_region_global )  THEN
-          nointer=.FALSE.
-          number=1
-          nhc%glob_num_nhc=1
-       ELSEIF ( nhc%region == do_region_massive )  THEN
-          number=ncoef_local
-          nhc%glob_num_nhc=ncoef_tot
-       ELSE
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Thermostat for KG coeffs implemented only for Global or Massive region! ",&
-               error=error, error_level=cp_failure_level)
-       ENDIF
-       nhc%loc_num_nhc = number
-
-       ! Coefficients are local. communications needed only with GLOBAL
-       IF ( nointer ) THEN
-          map_info%dis_type = do_thermo_no_communication
-       ELSE
-          map_info%dis_type = do_thermo_communication
-       END IF
-
-       CALL init_coeff_map_info(map_info, number, nhc%region, ncoef_local, error)
-       ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc%loc_num_nhc ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       ! Find the number of degrees of freedom on each thermostat
-       map_info%s_kin = 0.0_dp
-       DO i = 1, ncoef_local
-          DO j = 1, SIZE ( map_info%p_kin, 1 )
-             map_info%p_kin ( j, i ) % point  = map_info%p_kin ( j, i ) % point  + 1.0_dp
-          END DO
-       ENDDO
-
-       ! if thermostats are replicated but molecules distributed, we have to
-       ! sum s_kin over all processors
-       IF ( map_info%dis_type == do_thermo_communication ) CALL mp_sum (map_info%s_kin, para_env%group )
-
-       !
-       ! Now that we know how many there are stick this into nhc % nkt
-       ! (number of degrees of freedom times k_B T )
-       DO i = 1, nhc%loc_num_nhc
-          imap = map_info%map_index(i)
-          nhc % nvt ( 1, i ) % nkt = kg_coeff_temp * map_info%s_kin (imap)
-          nhc % nvt ( 1, i ) % degrees_of_freedom = map_info%s_kin (imap)
-       END DO
-
-       ! getting the number of degrees of freedom times k_B T for the rest of the chain
-       DO i = 2, nhc % nhc_len
-          nhc % nvt ( i, : ) % nkt = kg_coeff_temp
-          nhc % nvt ( i, : ) % degrees_of_freedom = 1
-       END DO
-
-       ! Let's clean the arrays
-       map_info%s_kin   = 0.0_dp 
-       map_info%v_scale = 0.0_dp 
-    END SELECT
-
-  END SUBROUTINE nhc_to_coef_mapping
 
 ! *****************************************************************************
   SUBROUTINE nhc_to_shell_mapping( thermostat_info, simpar, local_molecules,&

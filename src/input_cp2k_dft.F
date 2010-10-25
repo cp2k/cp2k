@@ -13,12 +13,11 @@ MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
        Avezac2005, Blochl1995, Dewar1977, Dewar1985, Dudarev1997, &
        Dudarev1998, Elstner1998, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
-       Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
-       Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
-       Repasky2002, Rocha2006, Schenter2008, Seifert1996, Stewart1982, &
-       Stewart1989, Stewart2007, Thiel1992, VandeVondele2003, &
-       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-       Zhechkov2005
+       Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, Kunert2003, &
+       Lippert1997, Lippert1999, Perdew1981, Porezag1995, Repasky2002, &
+       Rocha2006, Schenter2008, Seifert1996, Stewart1982, Stewart1989, &
+       Stewart2007, Thiel1992, VandeVondele2003, VandeVondele2005a, &
+       VandeVondele2005b, VandeVondele2006, Weber2008, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -431,10 +430,6 @@ CONTAINS
     CALL section_release(subsection,error=error)
 
     CALL create_xas_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_kg_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
@@ -2065,13 +2060,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="EPS_KG_GPW",&
-            description="Sets precision of KG_GPW single molecule density integration."//&
-            " Overrides SQRT(EPS_DEFAULT)*1000.0 value",&
-            usage="EPS_KG_GPW real", type_of_var=real_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="EPSFIT",&
             variants=(/"EPS_FIT"/),&
             description="GAPW : precision to give the extention of a hard gaussian ",&
@@ -2280,13 +2268,11 @@ CONTAINS
        CALL keyword_create(keyword, name="METHOD",&
             description="Specifies the electronic structure method that should be employed",&
             usage="METHOD GAPW",&
-            enum_c_vals=s2a("GAPW","GAPW_XC","GPW","KG_POL","KG_NOPOL","KG_GPW",&
+            enum_c_vals=s2a("GAPW","GAPW_XC","GPW",&
             "MNDO","MNDOD","AM1","PM3","PM6","PDG","RM1","PNNL","DFTB","OFGPW"),&
             enum_desc=s2a("Gaussian and augmented plane waves method",&
                           "Gaussian and augmented plane waves method only for XC",&
                           "Gaussian and plane waves method",&
-                          "Polarisable Kim-Gordon method",&
-                          "Non-polarisable Kim-Gordon method", " DFT Embedding method ",&
                           "MNDO semiempirical","MNDO-d semiempirical","AM1 semiempirical",&
                           "PM3 semiempirical","PM6 semiempirical","PDG semiempirical",&
                           "RM1 semiempirical",&
@@ -2294,11 +2280,10 @@ CONTAINS
                           "DFTB Density Functional based Tight-Binding",&
                           "OFGPW Orbital-free GPW method"),&
             enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-            do_method_kg_pol, do_method_kg_nopol, do_method_kg_gpw, &
             do_method_mndo, do_method_mndod, do_method_am1, do_method_pm3, &
-            do_method_pm6, do_method_pdg, do_method_rm1,do_method_pnnl,do_method_dftb,do_method_ofgpw/),&
+            do_method_pm6, do_method_pdg, do_method_rm1, do_method_pnnl, do_method_dftb, do_method_ofgpw/),&
             citations=(/Lippert1997,Lippert1999,Krack2000,VandeVondele2005a,&
-            Iannuzzi2006,VandeVondele2006,Dewar1977,Dewar1985,Rocha2006,Stewart1989,Thiel1992,&
+            VandeVondele2006,Dewar1977,Dewar1985,Rocha2006,Stewart1989,Thiel1992,&
             Repasky2002,Stewart2007,Schenter2008/),&
             default_i_val=do_method_gpw, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -6523,91 +6508,6 @@ CONTAINS
      END IF
 
   END SUBROUTINE create_epr_section
-
-! *****************************************************************************
-!> \brief creates a section with the parameters specific to the kg method
-!> \param section the section to create
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE create_kg_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_kg_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="KG",&
-            description="Parameters specific to KG methods",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       NULLIFY ( keyword, subsection, print_key )
-
-       CALL section_create(subsection,name="MOL_CHARGE",&
-            description="This section is used to set a fixed charge for a molecule kind.",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-       ! Integer
-       CALL keyword_create(keyword, name="MOLECULE",&
-            variants=(/"MOL"/),&
-            description="Specifies the number of the molecule kind on which the charge is applied."//&
-            " MOLECULE and MOLNAME keyword exclude themself mutually.",&
-            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="MOLNAME",&
-            variants=(/"SEGNAME"/),&
-            description="Specifies the name of the molecule kind on which the charge is applied.",&
-            usage="MOLNAME {character}", required=.TRUE.,&
-            n_var=1, type_of_var=char_t, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="CHARGE",&
-            description="Value of the charge for this molecule kind",&
-            usage="CHARGE {integer}",default_i_val=0,&
-            required=.TRUE.,n_var=1,type_of_var=integer_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL section_create(subsection,name="PRINT",&
-            description="Controls the printing of kg_gpw calculation's results",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
-
-       CALL cp_print_key_section_create(print_key,"MOMENTS",&
-            description="Calculates molecular moments through a direct evaluation"//&
-            " of the integrals <a|r^m|b>",print_level=high_print_level, &
-            filename="",error=error)
-
-       CALL keyword_create(keyword, name="NMOMENTS",&
-              description="Moment order",&
-              usage="NMOMENTS {integer}",default_i_val=2,&
-              required=.FALSE.,n_var=1,type_of_var=integer_t,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-    END IF
-
-  END SUBROUTINE create_kg_section
 
 ! *****************************************************************************
 !> \brief creates the section for electron transfer coupling

@@ -453,8 +453,6 @@ CPSourceFileRef,&
     qs_control%eps_rho_rspace  = value
     ! error in the gradient, can be the sqrt of the error in the energy, ignored if map_consistent
     qs_control%eps_gvg_rspace  = tmpsqrt
-    ! ???
-    qs_control%eps_kg_gpw      = tmpsqrt*1000._dp
     !
     CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
@@ -492,10 +490,6 @@ CPSourceFileRef,&
     CALL section_vals_val_get(qs_section,"EPS_FILTER_MATRIX",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_FILTER_MATRIX",r_val=qs_control%eps_filter_matrix,error=error)
-    END IF
-    CALL section_vals_val_get(qs_section,"EPS_KG_GPW",n_rep_val=n_rep,error=error)
-    IF (n_rep /=0) THEN
-       CALL section_vals_val_get(qs_section,"EPS_KG_GPW",r_val=qs_control%eps_kg_gpw,error=error)
     END IF
     CALL section_vals_val_get(qs_section,"EPS_CPC",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
@@ -563,7 +557,6 @@ CPSourceFileRef,&
     qs_control%gapw_xc        = .FALSE.
     qs_control%gpw            = .FALSE.
     qs_control%pao            = .FALSE.
-    qs_control%polarization   = .FALSE.
     qs_control%dftb           = .FALSE.
     qs_control%semi_empirical = .FALSE.
     qs_control%ofgpw          = .FALSE.
@@ -611,8 +604,6 @@ CPSourceFileRef,&
        qs_control%semi_empirical = .TRUE.
     END SELECT
     
-    IF(qs_control%method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
-
     CALL section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
 
     IF (qs_control%mulliken_restraint) THEN

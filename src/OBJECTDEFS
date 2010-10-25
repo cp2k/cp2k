@@ -136,7 +136,6 @@ OBJECTS_GENERIC =\
  cp_result_methods.o\
  cp_result_types.o\
  cp_sm_fm_interactions.o\
- cp_sm_pool_types.o\
  cp_sm_struct.o\
  cp_subsys_methods.o\
  cp_subsys_types.o\
@@ -167,8 +166,6 @@ OBJECTS_GENERIC =\
  distribution_methods.o\
  distribution_optimize.o\
  dkh_main.o\
- dynamical_coeff_types.o\
- dynamical_coeff_methods.o\
  efield_utils.o\
  eigenvalueproblems.o\
  environment.o\
@@ -311,38 +308,6 @@ OBJECTS_GENERIC =\
  integrator_utils.o\
  k290.o\
  kahan_sum.o\
- kg_core.o\
- kg_density.o\
- kg_diis_methods.o\
- kg_diis_types.o\
- kg_energy.o\
- kg_energy_types.o\
- kg_energy_utils.o\
- kg_environment.o\
- kg_environment_methods.o\
- kg_environment_types.o\
- kg_force.o\
- kg_force_types.o\
- kg_gpw_collocate_den.o\
- kg_gpw_correction.o\
- kg_gpw_fm_mol_methods.o\
- kg_gpw_fm_mol_types.o\
- kg_gpw_fm_mol_utils.o\
- kg_gpw_pw_env_methods.o \
- kg_gpw_pw_env_types.o \
- kg_gpw_wf_history.o\
- kg_intra.o\
- kg_kxc.o\
- kg_main.o\
- kg_neighbor_lists.o\
- kg_ppl.o\
- kg_rho_methods.o\
- kg_rho_types.o\
- kg_rspw_methods.o\
- kg_rspw_types.o\
- kg_scf.o\
- kg_scf_post.o\
- kg_scf_types.o\
  kinds.o\
  lapack.o\
  lazy.o\
@@ -468,7 +433,6 @@ OBJECTS_GENERIC =\
  qmmm_topology_util.o\
  qmmm_types.o\
  qmmm_util.o\
- qs_all_potential.o\
  qs_charges_types.o\
  qs_collocate_density.o\
  qs_conductivity.o\

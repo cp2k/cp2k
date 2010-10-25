@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE force_env_types
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_types,                 ONLY: cp_result_release,&
@@ -24,8 +23,6 @@ MODULE force_env_types
                                              cp_subsys_type
   USE cpot_types,                      ONLY: cpot_release,&
                                              cpot_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_release,&
-                                             dyn_coeff_set_type
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_release,&
                                              eip_environment_type
@@ -50,15 +47,6 @@ MODULE force_env_types
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kg_energy_types,                 ONLY: kg_energy_type
-  USE kg_environment_types,            ONLY: get_kg_env,&
-                                             kg_env_release,&
-                                             kg_environment_type,&
-                                             set_kg_env
-  USE kg_rho_methods,                  ONLY: kg_rho_create
-  USE kg_rho_types,                    ONLY: kg_rho_type
-  USE kg_rspw_methods,                 ONLY: kg_rspw_rebuild
-  USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_retain,&
@@ -99,17 +87,15 @@ MODULE force_env_types
 
   INTEGER, PARAMETER, PUBLIC :: use_fist_force = 501, &
                                 use_qs_force   = 502, &
-                                use_kg_force   = 503, &
-                                use_qmmm       = 504, &
-                                use_eip_force  = 505, &
-                                use_ep_force   = 506, &
-                                use_mixed_force= 507
+                                use_qmmm       = 503, &
+                                use_eip_force  = 504, &
+                                use_ep_force   = 505, &
+                                use_mixed_force= 506
 
-  CHARACTER(LEN=10), DIMENSION(501:507), PARAMETER, PUBLIC :: &
+  CHARACTER(LEN=10), DIMENSION(501:506), PARAMETER, PUBLIC :: &
        use_prog_name = (/&
        "FIST  ", &
        "QS    ", &
-       "KG    ", &
        "QMMM  ", &
        "EIP   ", &
        "EP    ", &
@@ -132,7 +118,6 @@ MODULE force_env_types
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
 !> \param in_use which method is in use
 !> \param fist_env the fist environment (allocated only if fist is in use)
-!> \param kg_env the kg environment (allocated only if kg is in use)
 !> \param qs_env qs_env (activated only if quickstep is in use)
 !> \param globenv the globenv to have the input that generated this force_env
 !> \param para_env the parallel environment that contains all the parallel
@@ -157,13 +142,11 @@ MODULE force_env_types
      INTEGER :: id_nr,ref_count,in_use,method_name_id
      REAL ( KIND=dp )                                    :: additional_potential
      TYPE ( fist_environment_type ), POINTER             :: fist_env
-     TYPE ( kg_environment_type ), POINTER               :: kg_env
      TYPE ( meta_env_type ), POINTER                     :: meta_env
      TYPE ( fp_type ), POINTER                           :: fp_env
      TYPE ( qs_environment_type ), POINTER               :: qs_env
      TYPE ( eip_environment_type ), POINTER              :: eip_env
      TYPE ( cp_subsys_type ), POINTER                    :: subsys
-     TYPE ( dyn_coeff_set_type ), POINTER                :: dyn_coeff_set
      TYPE ( global_environment_type ), POINTER           :: globenv
      TYPE ( cp_para_env_type ), POINTER                  :: para_env
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER    :: sub_force_env
@@ -251,10 +234,6 @@ CONTAINS
           IF (ASSOCIATED(force_env%subsys)) THEN
              CALL cp_subsys_release(force_env%subsys, error=error)
           END IF
-          ! Deallocate KG structures
-          IF (ASSOCIATED(force_env%dyn_coeff_set)) THEN
-             CALL dyn_coeff_set_release(force_env%dyn_coeff_set,error=error)
-          END IF
           ! Deallocate SUB_FORCE_ENV
           IF (ASSOCIATED(force_env%sub_force_env)) THEN
              DO i=1,SIZE(force_env%sub_force_env)
@@ -278,8 +257,6 @@ CONTAINS
              CALL fist_env_release(force_env%fist_env,error=error)
           CASE ( use_qs_force )
              CALL qs_env_release(force_env%qs_env,error=error)
-          CASE ( use_kg_force )
-             CALL kg_env_release(force_env%kg_env,error=error)
           CASE ( use_eip_force )
              CALL eip_env_release(force_env%eip_env, error=error)
           CASE ( use_ep_force )
@@ -292,7 +269,6 @@ CONTAINS
           CALL globenv_release(force_env%globenv,error=error)
           CALL cp_para_env_release(force_env%para_env,error=error)
           ! Not deallocated
-          CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%qs_env),cp_warning_level,routineP,error,failure)
           CPAssert(.NOT.ASSOCIATED(force_env%eip_env),cp_warning_level,routineP,error,failure)
@@ -322,8 +298,8 @@ CONTAINS
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env,&
-       meta_env, fp_env, dyn_coeff_set, subsys, para_env, potential_energy, additional_potential, &
+  RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, &
+       meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
        kinetic_energy, harmonic_shell, kinetic_shell, cell, cell_ref, sub_force_env,&
        qmmm_env, eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
        method_name_id, root_section, mixed_env, results, error)
@@ -333,12 +309,8 @@ CONTAINS
       POINTER                                :: fist_env
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
-    TYPE(kg_environment_type), OPTIONAL, &
-      POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(fp_type), OPTIONAL, POINTER         :: fp_env
-    TYPE(dyn_coeff_set_type), OPTIONAL, &
-      POINTER                                :: dyn_coeff_set
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
@@ -375,12 +347,9 @@ CONTAINS
     REAL(KIND=dp)                            :: eip_kinetic_energy, &
                                                 eip_potential_energy, &
                                                 penergy_mm, penergy_qm
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fist_energy_type), POINTER          :: thermo
-    TYPE(kg_energy_type), POINTER            :: kg_energy
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
-    TYPE(qs_environment_type), POINTER       :: my_qs_env
 
     failure=.FALSE.
    
@@ -402,7 +371,6 @@ CONTAINS
        CASE (use_qs_force)
           CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
           CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
-          CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
           CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
           CALL get_qs_env(force_env%qs_env,&
                           energy=qs_energy,&
@@ -416,7 +384,6 @@ CONTAINS
        CASE (use_fist_force)
           CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
           CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
-          CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
           CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
           CALL get_fist_env(force_env%fist_env,&
@@ -432,7 +399,6 @@ CONTAINS
        CASE (use_eip_force)
           CPPrecondition(ASSOCIATED(force_env%eip_env), cp_failure_level, routineP, error, failure)
           CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
-          CPPreconditionNoFail(.NOT. PRESENT(kg_env), cp_warning_level, routineP, error)
           CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
           CALL eip_env_get(force_env%eip_env,&
                            cell=cell,&
@@ -446,32 +412,6 @@ CONTAINS
           END IF
           IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
           CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
-       CASE (use_kg_force)
-          CPPrecondition(ASSOCIATED(force_env%kg_env),cp_failure_level,routineP,error,failure)
-          ! do not check ?
-          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
-          CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
-          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
-          NULLIFY(dft_control)
-          CALL get_kg_env(force_env%kg_env,&
-                          energy=kg_energy,&
-                          cell=cell,&
-                          cell_ref=cell_ref,&
-                          use_ref_cell=use_ref_cell,&
-                          dft_control=dft_control,&
-                          error=error)
-          IF(dft_control % qs_control % method == "KG_GPW") THEN
-             NULLIFY(my_qs_env,qs_energy)
-             CALL get_kg_env(force_env%kg_env,&
-                            sub_qs_env=my_qs_env,error=error)
-             CALL get_qs_env(qs_env=my_qs_env,&
-                            energy=qs_energy,error=error)
-             IF (PRESENT(potential_energy)) potential_energy=qs_energy%total
-             NULLIFY(my_qs_env,qs_energy)
-          ELSE
-            IF (PRESENT(potential_energy)) potential_energy=kg_energy%total
-            IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin
-          END IF
        CASE (use_qmmm)
             IF (PRESENT(cell)) THEN
                  CALL force_env_get(force_env%sub_force_env(1)%force_env,&
@@ -501,7 +441,6 @@ CONTAINS
        CASE (use_mixed_force)
           CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
           CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
-          CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
           CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
           CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
           CALL get_mixed_env(force_env%mixed_env,&
@@ -528,14 +467,10 @@ CONTAINS
        IF (PRESENT(qs_env)) THEN
           qs_env => force_env%qs_env
        END IF
-       IF (PRESENT(kg_env)) THEN
-          kg_env => force_env%kg_env
-       END IF
        IF (PRESENT(eip_env)) THEN
           eip_env => force_env%eip_env
        END IF
        IF (PRESENT(results)) results => force_env%results     
-       IF (PRESENT(dyn_coeff_set)) dyn_coeff_set => force_env%dyn_coeff_set
        IF (PRESENT(subsys)) subsys => force_env%subsys
        IF (PRESENT(para_env)) para_env => force_env%para_env
        ! adjust the total energy for the metadynamics
@@ -821,8 +756,6 @@ SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nfor
     LOGICAL                                  :: failure
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(kg_rho_type), POINTER               :: kg_rho
-    TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(qs_ks_env_type), POINTER            :: new_ks_env
     TYPE(qs_ks_scp_env_type), POINTER        :: new_ks_scp_env
 
@@ -867,14 +800,6 @@ SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nfor
                               ewald_env = ewald_env ,error=error)
           CALL set_fist_env(force_env%fist_env, cell=cell, error=error)
           CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
-       CASE (use_kg_force)
-          CPPrecondition(ASSOCIATED(force_env%kg_env),cp_failure_level,routineP,error,failure)
-          CALL set_kg_env(force_env%kg_env,cell=cell, error=error)
-          CALL get_kg_env ( force_env%kg_env, rspw = kg_rspw, rho=kg_rho ,error=error)
-          CALL kg_rspw_rebuild( kg_rspw, force_env % kg_env, error=error)
-          ! allocate rho structures
-          CALL kg_rho_create(kg_rho=kg_rho,kg_env=force_env % kg_env,error=error)
-          CALL set_kg_env(force_env % kg_env,rho=kg_rho,error=error)
        CASE (use_eip_force)
           CPAssert(.FALSE., cp_failure_level, routineP, error, failure)
        CASE (use_mixed_force)

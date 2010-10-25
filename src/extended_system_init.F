@@ -15,9 +15,7 @@ MODULE extended_system_init
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE extended_system_mapping,         ONLY: nhc_to_barostat_mapping,&
-                                             nhc_to_coef_mapping,&
                                              nhc_to_particle_mapping,&
                                              nhc_to_shell_mapping
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
@@ -51,7 +49,7 @@ MODULE extended_system_init
 
   PRIVATE
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt, &
-            initialize_nhc_coef, initialize_nhc_shell
+            initialize_nhc_shell
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_init'
 
@@ -249,59 +247,6 @@ CONTAINS
     ENDIF
     CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE initialize_nhc_part
-
-! *****************************************************************************
-!> \par History
-!>    04-02-04 gt: rewritten using new dynamical_coef_type
-!> \author CJM
-! *****************************************************************************
-  SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, para_env, globenv, nhc, &
-             coeff_section, simpar, save_mem, nose_section, error )
-
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(section_vals_type), POINTER         :: coeff_section
-    TYPE(simpar_type), POINTER               :: simpar
-    LOGICAL, INTENT(IN)                      :: save_mem
-    TYPE(section_vals_type), POINTER         :: nose_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure, restart
-    REAL(KIND=dp)                            :: kg_coeff_target_temp
-
-    failure = .FALSE.
-    restart = .FALSE.
-    CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp,error=error)
-
-    ! fire up the thermostats
-    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, coeff_section, para_env ,error=error)
-
-    IF ( nhc % nhc_len /= 0 ) THEN
-       CALL restart_nose(nhc, nose_section, save_mem, restart, error)
-       
-       IF(.NOT. restart) THEN
-          ! Initializing thermostat forces and velocities for the Nose-Hoover
-          ! Chain variables
-          CALL init_nhc_variables (nhc, kg_coeff_target_temp, para_env, globenv,error=error)
-          ! Set up the Yoshida weights
-          IF ( nhc % nyosh > 0 ) THEN
-             ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-             CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-             CALL set_yoshida_coef ( nhc, simpar%dt )
-          ENDIF
-       END IF
-    ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "nve for coefs implemented but not tested")
-    END IF
-    CALL init_nhc_forces ( nhc, error=error)
-  END SUBROUTINE initialize_nhc_coef
 
 ! *****************************************************************************
 !> \author MI

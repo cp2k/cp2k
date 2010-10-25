@@ -19,8 +19,6 @@ MODULE qs_wf_history_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE f77_blas
-  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
-                                             kg_fm_p_type
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
@@ -43,7 +41,6 @@ MODULE qs_wf_history_types
 !>      some elements might not be associated (to spare memory)
 !>      depending on how the snapshot was taken
 !> \param wf the wavefunctions
-!> \param wf_mol the wavefunctions in a block diagonal form
 !> \param rho_r the density in r space
 !> \param rho_g the density in g space
 !> \param rho_ao the density in ao space
@@ -61,7 +58,6 @@ MODULE qs_wf_history_types
 ! *****************************************************************************
   TYPE qs_wf_snapshot_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf
-     TYPE(kg_fm_p_type),  POINTER              :: wf_mol
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
@@ -178,9 +174,6 @@ SUBROUTINE wfs_release(snapshot,error)
            END DO
            DEALLOCATE(snapshot%wf,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(snapshot%wf_mol)) THEN
-           CALL kg_fm_mol_set_release(snapshot%wf_mol,error)
         END IF
         ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
         ! of qs_wf_history_methods, in case you wonder about it.

@@ -21,7 +21,7 @@ GEMC_NVT_box1.inp 6
 # instead of volume moves
 GEMC_swap_box1.inp 6
 # KG MC testing AVBMC NpT with KG 
-MC_KG.inp 6
+#MC_KG.inp 6
 # a simple canonical (constant NVT) simulation on the binary water/argon
 # system...uses translations, rotations, and bond length/angle changes, 
 # but the last one only for water...uses FIST

@@ -19,21 +19,16 @@ MODULE thermostat_methods
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE csvr_system_dynamics,            ONLY: csvr_barostat,&
-                                             csvr_coeffs,&
                                              csvr_particles,&
                                              csvr_shells
   USE csvr_system_init,                ONLY: initialize_csvr_baro,&
-                                             initialize_csvr_coef,&
                                              initialize_csvr_part,&
                                              initialize_csvr_shell
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE extended_system_dynamics,        ONLY: lnhc_barostat,&
-                                             lnhc_coeffs,&
                                              lnhc_particles,&
                                              lnhc_shells
   USE extended_system_init,            ONLY: initialize_nhc_baro,&
-                                             initialize_nhc_coef,&
                                              initialize_nhc_part,&
                                              initialize_nhc_shell
   USE extended_system_types,           ONLY: npt_info_type
@@ -79,7 +74,6 @@ MODULE thermostat_methods
 
   PRIVATE
   PUBLIC :: create_thermostats,&
-            apply_thermostat_coeff,&
             apply_thermostat_baro,&
             apply_thermostat_particles,&
             apply_thermostat_shells
@@ -110,30 +104,26 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_rep, region, thermostat_type
-    LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_coeff, &
-      apply_thermo_shell, explicit_baro, explicit_barostat_section, &
-      explicit_coef, explicit_part, explicit_shell, failure, save_mem, &
-      shell_adiabatic, shell_present
+    LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_shell, &
+      explicit_baro, explicit_barostat_section, explicit_part, &
+      explicit_shell, failure, save_mem, shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(section_vals_type), POINTER :: barostat_section, kg_coeff_section, &
-      print_section, region_sections, thermo_baro_section, &
-      thermo_coef_section, thermo_part_section, thermo_shell_section, &
-      work_section
+    TYPE(section_vals_type), POINTER :: barostat_section, print_section, &
+      region_sections, thermo_baro_section, thermo_part_section, &
+      thermo_shell_section, work_section
 
     NULLIFY(qmmm_env)
     failure =.FALSE.
     CALL allocate_thermostats(thermostats, error)
     thermo_part_section  => section_vals_get_subs_vals(md_section,"THERMOSTAT",error=error)
-    thermo_coef_section  => section_vals_get_subs_vals(md_section,"KG_COEFF%THERMOSTAT",error=error)
     thermo_shell_section => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT",error=error)
     thermo_baro_section  => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT",error=error)
     barostat_section     => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
@@ -143,15 +133,11 @@ CONTAINS
     CALL section_vals_get(barostat_section,  explicit=explicit_barostat_section,  error=error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,  error=error)
     CALL section_vals_get(thermo_part_section,  explicit=explicit_part,  error=error)
-    CALL section_vals_get(thermo_coef_section,  explicit=explicit_coef,    error=error)
     CALL section_vals_get(thermo_shell_section, explicit=explicit_shell, error=error)
     CALL section_vals_get(thermo_baro_section,  explicit=explicit_baro,  error=error)
 
     apply_thermo_baro = (simpar%ensemble == npt_f_ensemble).OR.&
                         (simpar%ensemble == npt_i_ensemble)
-
-    apply_thermo_coeff= (simpar%ensemble == nve_ensemble).OR.&
-                        (simpar%ensemble == nvt_ensemble)
 
     apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
 
@@ -281,43 +267,6 @@ CPSourceFileRef,&
             only_ionode=.TRUE.) 
     END IF 
 
-    ! Coefficients
-    IF (explicit_coef) THEN
-       IF (apply_thermo_coeff) THEN
-          CALL create_thermostat_type(thermostats%thermostat_coef, simpar, thermo_coef_section,&
-               label="COEF", error=error)
-          CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
-          IF (ASSOCIATED(dyn_coeff_set)) THEN
-             kg_coeff_section  => section_vals_get_subs_vals(md_section,"KG_COEFF",error=error)
-             ! Initialize thermostat
-             IF      (thermostats%thermostat_coef%type_of_thermostat==do_thermo_nose) THEN
-                ! Initialize or possibly restart Nose on Coeffs
-                work_section      => section_vals_get_subs_vals(kg_coeff_section,"THERMOSTAT%NOSE",error=error)
-                CALL initialize_nhc_coef(dyn_coeff_set, para_env, globenv,&
-                     thermostats%thermostat_coef%nhc, coeff_section=kg_coeff_section,&
-                     nose_section=work_section, simpar=simpar, save_mem=save_mem,&
-                     error=error)
-             ELSE IF (thermostats%thermostat_coef%type_of_thermostat==do_thermo_csvr) THEN
-                ! Initialize or possibly restart CSVR thermostat on Coeffs
-                work_section      => section_vals_get_subs_vals(kg_coeff_section,"THERMOSTAT%CSVR",error=error)
-                CALL initialize_csvr_coef(dyn_coeff_set, para_env, &
-                     thermostats%thermostat_coef%csvr, coeff_section=kg_coeff_section,&
-                     csvr_section=work_section, dt=simpar%dt, error=error)                
-             END IF
-             CALL thermostat_info(thermostats%thermostat_coef, "KG COEFFICIENTS", thermo_coef_section, &
-                                  simpar, para_env, error)
-          ELSE
-             CALL release_thermostat_type(thermostats%thermostat_coef, error)
-          END IF
-       ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Thermostat for KG Coefficients has been defined but the ensemble provided "//&
-               "does not support thermostat for KG coefficients! Ignoring thermostat input."//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)          
-       END IF
-    END IF
-
     ! Barostat Temperature (not necessarily to be controlled by a thermostat)
     IF (explicit_barostat_section) THEN
        simpar%temp_baro_ext = simpar%temp_ext 
@@ -376,7 +325,6 @@ CPSourceFileRef,&
     ! If no thermostats have been allocated deallocate the full structure
     IF(  (.NOT.ASSOCIATED(thermostats%thermostat_part)).AND.&
          (.NOT.ASSOCIATED(thermostats%thermostat_shell)).AND.&
-         (.NOT.ASSOCIATED(thermostats%thermostat_coef)).AND.&
          (.NOT.ASSOCIATED(thermostats%thermostat_baro)) ) THEN
        CALL release_thermostats(thermostats, error)
     END IF
@@ -474,38 +422,6 @@ CPSourceFileRef,&
     CALL cp_print_key_finished_output(iw,logger,section,"PRINT%THERMOSTAT_INFO",error=error)
 
   END SUBROUTINE thermostat_info
-
-! *****************************************************************************
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      10.2007 created [tlaino]
-!> \author Teodoro Laino
-! *****************************************************************************
-  SUBROUTINE apply_thermostat_coeff(thermostat, dyn_coeff_set, group, error)
-    TYPE(thermostat_type), POINTER           :: thermostat
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    INTEGER, INTENT(IN)                      :: group
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_coeff', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    IF (ASSOCIATED(thermostat)) THEN
-       IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
-          ! Apply Nose-Hoover Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
-          CALL lnhc_coeffs(thermostat%nhc, dyn_coeff_set, group, error)
-       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN  
-          ! Apply CSVR Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
-          CALL csvr_coeffs(thermostat%csvr, dyn_coeff_set, group, error)
-       END IF
-    END IF
-  END SUBROUTINE apply_thermostat_coeff
 
 ! *****************************************************************************
 !> \param error variable to control error logging, stopping,...

@@ -15,8 +15,6 @@ MODULE extended_system_dynamics
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
-                                             dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              map_info_type,&
                                              npt_info_type
@@ -27,11 +25,9 @@ MODULE extended_system_dynamics
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE thermostat_utils,                ONLY: ke_region_baro,&
-                                             ke_region_coeffs,&
                                              ke_region_particles,&
                                              ke_region_shells,&
                                              vel_rescale_baro,&
-                                             vel_rescale_coeffs,&
                                              vel_rescale_particles,&
                                              vel_rescale_shells
   USE timings,                         ONLY: timeset,&
@@ -45,47 +41,11 @@ MODULE extended_system_dynamics
   PUBLIC :: shell_scale_comv,&
             lnhc_particles,&
             lnhc_barostat,&
-            lnhc_coeffs,&
             lnhc_shells
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_dynamics'
 
 CONTAINS
-
-! *****************************************************************************
-!> \par History
-!>      05-02-04 adapted to new coeffs type
-!> \author CJM
-!> \date 11-Apr-2001
-! *****************************************************************************
-  SUBROUTINE lnhc_coeffs ( nhc, dyn_coeff_set, group, error )
-    TYPE(lnhc_parameters_type), POINTER      :: nhc
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    INTEGER, INTENT(IN)                      :: group
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'lnhc_coeffs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(map_info_type), POINTER             :: map_info
-
-    CALL timeset(routineN,handle)
-    map_info => nhc%map_info
-
-    ! Evaluate the kinetic energy of the region to thermostat
-    CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, error)
-
-    ! Calculate forces on the Nose-Hoover Thermostat and apply chains
-    CALL do_nhc(nhc, map_info, error)
-
-    ! Rescale coeffs velocities
-    CALL vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE lnhc_coeffs
 
 ! *****************************************************************************
 !> \par History

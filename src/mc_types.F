@@ -30,11 +30,9 @@ MODULE mc_types
                                              force_env_p_type,&
                                              force_env_type,&
                                              use_fist_force,&
-                                             use_kg_force,&
                                              use_qs_force
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_fist,&
-                                             do_kg,&
                                              do_qs
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -983,7 +981,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     ENDIF
 
 ! now let's find the type of force_env...right now, I'm only concerned with
-! KG,QS, and Fist, though it should be trivial to add others
+! QS, and Fist, though it should be trivial to add others
     CALL mc_parse_text(mc_input_file%text,1,nlines-1,&
          "METHOD",.FALSE.,line_number, idum)
     READ(mc_input_file%text(line_number),*) cdum,method_name
@@ -993,8 +991,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
        mc_input_file%in_use=use_fist_force
     CASE("QS","QUICKSTEP")
        mc_input_file%in_use=use_qs_force
-    CASE("KG")
-       mc_input_file%in_use=use_kg_force
     CASE default
        CALL stop_program('mc_types.F/mc_input_file_create',&
          'Cannot determine the type of force_env we are using (check METHOD)')
@@ -1160,8 +1156,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       SELECT CASE (method_name_id)
       CASE (do_fist)
          mc_par % iprint = 100
-      CASE (do_kg)
-         mc_par % iprint = 10
       CASE (do_qs)
          mc_par % iprint = 1
       END SELECT

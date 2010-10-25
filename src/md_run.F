@@ -27,8 +27,6 @@ MODULE md_run
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
-                                             dyn_coeff_set_type
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -182,14 +180,13 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(reftraj_type), POINTER              :: reftraj
     TYPE(section_vals_type), POINTER :: constraint_section, &
       force_env_section, free_energy_section, global_section, &
-      kg_coeff_section, reftraj_section, subsys_section, work_section
+      reftraj_section, subsys_section, work_section
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermal_regions_type), POINTER      :: thermal_regions
     TYPE(thermostats_type), POINTER          :: thermostats
@@ -201,8 +198,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY (particles, cell, cell_ref, simpar, itimes, used_time, subsys, &
          md_ener, thermostats, barostat, reftraj, force_env_section, &
-         kg_coeff_section, reftraj_section, work_section, atomic_kinds, &
-         local_particles, time, fe_env, dyn_coeff_set, free_energy_section, &
+         reftraj_section, work_section, atomic_kinds, &
+         local_particles, time, fe_env, free_energy_section, &
          constraint_section, thermal_regions)
     logger   => cp_error_get_logger(error)
     para_env => force_env%para_env
@@ -247,14 +244,6 @@ CONTAINS
     CALL create_thermal_regions(thermal_regions,  md_section, simpar, force_env, error )
 
     CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, thermal_regions=thermal_regions,error=error)
-
-    ! Initialize or possibly restart KG coefficients (after thermostats)
-    CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
-    IF (ASSOCIATED(dyn_coeff_set)) THEN
-       kg_coeff_section  => section_vals_get_subs_vals(md_section,"KG_COEFF",error=error)
-       CALL dyn_coeff_set_initialize(dyn_coeff_set, md_section, para_env, globenv,&
-            coeff_section=kg_coeff_section, error=error)
-    END IF
 
     CALL get_md_env(md_env, ehrenfest_md=ehrenfest_md, error=error)
 

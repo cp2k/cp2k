@@ -12,8 +12,6 @@ MODULE csvr_system_dynamics
   USE csvr_system_types,               ONLY: csvr_system_type
   USE csvr_system_utils,               ONLY: rescaling_factor
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
-                                             dyn_coeff_type
   USE extended_system_types,           ONLY: map_info_type,&
                                              npt_info_type
   USE f77_blas
@@ -23,11 +21,9 @@ MODULE csvr_system_dynamics
   USE parallel_rng_types,              ONLY: rng_stream_type
   USE particle_types,                  ONLY: particle_type
   USE thermostat_utils,                ONLY: ke_region_baro,&
-                                             ke_region_coeffs,&
                                              ke_region_particles,&
                                              ke_region_shells,&
                                              vel_rescale_baro,&
-                                             vel_rescale_coeffs,&
                                              vel_rescale_particles,&
                                              vel_rescale_shells
   USE timings,                         ONLY: timeset,&
@@ -40,50 +36,11 @@ MODULE csvr_system_dynamics
   LOGICAL, PARAMETER :: debug_this_module=.FALSE.
   PUBLIC :: csvr_particles,&
             csvr_barostat,&
-            csvr_coeffs,&
             csvr_shells
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_dynamics'
 
 CONTAINS
-
-! *****************************************************************************
-!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
-! *****************************************************************************
-  SUBROUTINE csvr_coeffs ( csvr, dyn_coeff_set, group, error )
-    TYPE(csvr_system_type), POINTER          :: csvr
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    INTEGER, INTENT(IN)                      :: group
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'csvr_coeffs', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(map_info_type), POINTER             :: map_info
-
-    CALL timeset(routineN,handle)
-    map_info => csvr%map_info
-
-    ! Evaluate the kinetic energy of the region to thermostat
-    CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, error)
-
-    ! Apply the Canonical Sampling through Velocity Rescaling
-    CALL do_csvr(csvr, map_info, error)
-
-    ! Rescale coeffs velocities
-    CALL vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, error)
-
-    ! Evaluate the kinetic energy of the region to thermostat
-    CALL ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, error)
-
-    ! Compute thermostat energy
-    CALL do_csvr_eval_energy(csvr, map_info, error)
-    
-    CALL timestop(handle)
-
-  END SUBROUTINE csvr_coeffs
 
 ! *****************************************************************************
 !> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich

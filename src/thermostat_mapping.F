@@ -38,8 +38,7 @@ MODULE thermostat_mapping
   IMPLICIT NONE
 
   PUBLIC :: thermostat_mapping_region,&
-            init_baro_map_info,&
-            init_coeff_map_info
+            init_baro_map_info
 
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_mapping'
@@ -735,56 +734,6 @@ CONTAINS
   END SUBROUTINE init_baro_map_info
 
 ! *****************************************************************************
-!> \brief Initialize the map_info for coefficients thermostat
-!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
-! *****************************************************************************
-  SUBROUTINE  init_coeff_map_info(map_info, number, region, ncoef_local, error)
-    TYPE(map_info_type), POINTER             :: map_info
-    INTEGER, INTENT(IN)                      :: number, region, ncoef_local
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_coeff_map_info', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, j, loc_number, stat
-    LOGICAL                                  :: failure
-
-    ALLOCATE(map_info%index(number),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(map_info%map_index(number),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(map_info%s_kin (number),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(map_info%v_scale(number),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(map_info%p_kin(1,ncoef_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(map_info%p_scale(1,ncoef_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ! Begin the mapping loop
-    i=0
-    loc_number = 0
-    IF ( region == do_region_global )  THEN
-       DO i= 1, ncoef_local
-          DO j = 1, SIZE(map_info%p_kin, 1)
-             map_info%p_kin(j,i)%point   => map_info%s_kin(1)
-             map_info%p_scale(j,i)%point => map_info%v_scale(1)
-          END DO
-       END DO
-       map_info%index(1)     = 1
-       map_info%map_index(1) = 1
-    ELSEIF ( region == do_region_massive )  THEN
-       DO i = 1, ncoef_local
-          DO j = 1, SIZE(map_info%p_kin, 1)
-             loc_number = loc_number + 1
-             map_info%p_kin(j,i)%point   => map_info%s_kin(loc_number)
-             map_info%p_scale(j,i)%point => map_info%v_scale(loc_number)
-             map_info%index(loc_number)     = loc_number
-             map_info%map_index(loc_number) = loc_number
-          END DO
-       END DO
-    ENDIF
-  END SUBROUTINE init_coeff_map_info
 
 END MODULE thermostat_mapping
 

@@ -27,7 +27,6 @@ MODULE mc_control
                                              globenv_create,&
                                              globenv_release
   USE input_constants,                 ONLY: do_fist,&
-                                             do_kg,&
                                              do_qs
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              empty_initial_variables
@@ -36,7 +35,6 @@ MODULE mc_control
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
@@ -362,7 +360,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates a force environment for any of the different kinds of
-!>      MC simulations we can do (FIST, QS, KG)
+!>      MC simulations we can do (FIST, QS)
 !> \param force_env the force environment to create
 !> \param globenv the global environment parameters
 !> \param error the CP error structure
@@ -415,10 +413,6 @@ CONTAINS
             use_motion_section=.TRUE., error=error)
     CASE ( do_qs )
        CALL quickstep_create_force_env(force_env, root_section,  para_env,globenv, &
-            force_env_section=force_env_section, subsys_section=subsys_section,&
-            use_motion_section=.TRUE., error=error)
-    CASE ( do_kg )
-       CALL kg_create_force_env ( force_env, root_section, para_env, globenv, &
             force_env_section=force_env_section, subsys_section=subsys_section,&
             use_motion_section=.TRUE., error=error)
     CASE default
