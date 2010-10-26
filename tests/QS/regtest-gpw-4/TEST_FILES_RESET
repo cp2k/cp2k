@@ -857,3 +857,5 @@ He3_multi_ddapc.inp
 h2o-otdiag-lsd.inp
 # Numerics introduced by major QS refactoring 
 2H2O_meta_welltemp.inp
+# more numerics
+basis_none_2.inp

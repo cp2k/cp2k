@@ -666,3 +666,5 @@ H2O-OT-ASPC-6.inp
 H2O-bs_input.inp
 vib-mixed.inp
 vib-int-mixed.inp
+# more numerics
+H2O-OT-1.inp

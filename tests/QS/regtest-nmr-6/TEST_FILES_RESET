@@ -746,3 +746,5 @@ no-gapw-gpw-1.inp
 no-gapw-1-distributed.inp
 # reset few regs w.r.t. several different compilers
 no-gapw-2.inp
+# more numerics
+no-gapw-gpw-1.inp

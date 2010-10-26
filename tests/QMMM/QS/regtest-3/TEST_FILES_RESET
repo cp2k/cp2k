@@ -486,3 +486,5 @@ sio2-qmmm-gauss-1.inp
 sio2-qmmm-gauss-2.inp
 # Numerics differences due to different distribution 
 C4H10-qmmm-gauss-12.inp
+# more numerics
+C4H10-qmmm-gauss-5.inp
