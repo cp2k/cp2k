@@ -48,7 +48,6 @@ Fist/regtest-pol
 QS/regtest-stress
 DFTB/regtest-scc
 QMMM/QS/regtest-gapw
-QS/regtest-dkh
 QS/regtest-all-electron
 QS/regtest-gapw-2
 SE/regtest
