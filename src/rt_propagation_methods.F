@@ -609,8 +609,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control,error=error)
 
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
-         calculate_forces=.FALSE.,error=error)
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
     CALL qs_env_update_s_mstruct(qs_env,error=error)    
     
     CALL calculate_ecore_self(qs_env,error=error)

@@ -94,6 +94,10 @@ MODULE semi_empirical_types
          POINTER, DIMENSION(:)             :: expns3_int
   END TYPE semi_empirical_type
 
+  TYPE semi_empirical_p_type
+     TYPE(semi_empirical_type), POINTER    :: se_param
+  END TYPE semi_empirical_p_type
+
 ! *****************************************************************************
 !> \brief  Rotation Matrix Type
 !> \author 05.2008 Teodoro Laino [tlaino] - University of Zurich
@@ -154,6 +158,7 @@ MODULE semi_empirical_types
   END TYPE se_taper_type
 
   PUBLIC :: semi_empirical_type,&
+            semi_empirical_p_type,&
             semi_empirical_create,&
             semi_empirical_release,&
             rotmat_type,&

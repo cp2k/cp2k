@@ -13,12 +13,6 @@ MODULE admm_methods
   USE admm_types,                      ONLY: admm_create_block_list,&
                                              admm_env_create,&
                                              admm_type
-  USE ai_overlap_new,                  ONLY: overlap
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE cp_control_types,                ONLY: admm_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
@@ -80,24 +74,16 @@ MODULE admm_methods
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
   USE mathconstants
-  USE orbital_pointers,                ONLY: init_orbital_pointers,&
-                                             ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_force_types,                  ONLY: qs_force_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_overlap,                      ONLY: build_overlap_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_methods,                  ONLY: virial_pair_force
-  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1200,13 +1186,15 @@ MODULE admm_methods
 
 
     ! *** This can be done in one call w_total = w_alpha + w_beta
-    CALL calc_overlap_force_general(qs_env,para_env,matrix_w_s,&
-                                   use_aux_fit_basis_set, use_aux_fit_basis_set, qs_env%sab_aux_fit_asymm, &
-                                   do_symmetric=.FALSE., use_virial=use_virial, error=error)
+    CALL build_overlap_matrix(qs_env, nderivative=-1, &
+         basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
+         sab_nl=qs_env%sab_aux_fit_asymm, calculate_forces=.TRUE., admm=.TRUE., &
+         matrix_p=matrix_w_s, error=error)
+    CALL build_overlap_matrix(qs_env, nderivative=-1, &
+         basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
+         sab_nl=qs_env%sab_aux_fit_vs_orb, calculate_forces=.TRUE., admm=.TRUE., &
+         matrix_p=matrix_w_q, error=error)
 
-    CALL calc_overlap_force_general(qs_env,para_env,matrix_w_q,&
-                                    use_aux_fit_basis_set, use_orb_basis_set, qs_env%sab_aux_fit_vs_orb, &
-                                    do_symmetric=.FALSE., use_virial=use_virial, error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX_AUX_FIT",error=error),cp_p_file)) THEN
@@ -1232,344 +1220,6 @@ MODULE admm_methods
     CALL timestop(handle)
 
   END SUBROUTINE calc_mixed_overlap_force
-
-! *****************************************************************************
-!> \brief Calculates dExc/dR from contribution of ADMM and adds the
-!>        forces to force(:)%overlap_admm(:,:). The routines basically
-!>        calculates dE/dR= trace(W^(T)*d(S)/dR) using a decontraction of
-!>        W and S in order to assign the corresponding contributions to the
-!>        correct kinds
-!>      
-!> \param qs_env the qs environment 
-!> \param para_env the parallel environment
-!> \param matrix_w the energy weighted density matrix
-!> \param basis_set_id_a basis set for bra decontraction
-!> \param basis_set_id_b basis set for ket decontraction
-!> \param sab_orb the corresponding neighbor list
-!> \param do_symmetric flag to indicate if the involved matrices are symmetric
-!>        or not. We only have symmetry if basis_set_id_a == basis_set_id_b AND
-!>        W=W^(T). Furthermore, the neighbor list symmetry must be consistent
-!>        with this flag!
-!> \param error 
-!>
-!> \par History
-!>      05.2008 created [Manuel Guidon]
-!> \author Manuel Guidon
-! *****************************************************************************
-  SUBROUTINE calc_overlap_force_general(qs_env,para_env,matrix_w,&
-                                        basis_set_id_a, basis_set_id_b, sab_orb, &
-                                        do_symmetric, use_virial, error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_w
-    INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
-    LOGICAL, INTENT(IN)                      :: do_symmetric, use_virial
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_overlap_force_general', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
-      irow, iset, jatom, jkind, jset, last_jatom, ldai, ldsab, maxblock, &
-      maxco, maxcoa, maxcob, maxdco, maxdcoa, maxdcob, maxder, maxl, maxlgto, &
-      maxlgtoa, maxlgtob, maxlppl, maxlppla, maxlpplb, maxsgf, maxsgfa, &
-      maxsgfb, natom, ncoa, ncob, nder, neighbor_list_id, nkind, nlist, &
-      nnode, nrow, nseta, nsetb, sgfa, sgfb, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b, &
-                                                return_s_derivatives
-    REAL(KIND=dp)                            :: dab, rab2
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: ai_work
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, rab
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, rpgfa, rpgfb, sab, &
-                                                sphi_a, sphi_b, w_block, &
-                                                work, zeta, zetb
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: sdab
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set_a, &
-                                                orb_basis_set_b
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(virial_type), POINTER               :: virial
-
-    failure = .FALSE.
-    CALL timeset(routineN,handle)
-
-
-    NULLIFY (atomic_kind_set)
-    NULLIFY (force)
-    NULLIFY (pab)
-    NULLIFY (particle_set)
-    NULLIFY (sab)
-    NULLIFY (sdab)
-    NULLIFY (work)
-
-    return_s_derivatives = .TRUE.
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set,&
-                    neighbor_list_id=neighbor_list_id,&
-                    force=force,&
-                    distribution_2d=distribution_2d,&
-                    virial=virial,&
-                    error=error)
-
-    nkind = SIZE(atomic_kind_set)
-    natom = SIZE(particle_set)
-
-
-    ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
-
-    nder = 1
-    maxder = ncoset(nder)
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-    
-    ! *** Allocate work storage ***
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxcoa,&
-                             maxlgto=maxlgtoa,&
-                             maxlppl=maxlppla,&
-                             maxsgf=maxsgfa,&
-                             basis_set_id=basis_set_id_a)
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxcob,&
-                             maxlgto=maxlgtob,&
-                             maxlppl=maxlpplb,&
-                             maxsgf=maxsgfb,&
-                             basis_set_id=basis_set_id_b)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxdcoa,&
-                             maxder=MAX(1,nder),&
-                             basis_set_id=basis_set_id_a)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxdcob,&
-                             maxder=MAX(1,nder),&
-                             basis_set_id=basis_set_id_b)
-
-
-    maxdco = MAX(maxdcoa,maxdcob)
-    maxco = MAX(maxcoa,maxcob)
-    maxlgto = MAX(maxlgtoa,maxlgtob)
-    maxlppl = MAX(maxlppla,maxlpplb)
-    maxsgf = MAX(maxsgfa,maxsgfb)
-    maxl = maxlgto
-    maxder = nder
-    CALL init_orbital_pointers(maxl+nder+1)
-
-    ldsab = MAX(maxco,maxsgf)
-    maxblock = MAX(4,maxder) ! 4=size(matrix_s_aux_fit)
-    ldai = ncoset(maxl+nder+1)
-
-    ALLOCATE(sab(ldsab,ldsab*maxblock))
-    ALLOCATE(sdab(maxdco,maxco,4))
-    ALLOCATE(work(ldsab,ldsab*maxder))
-    ALLOCATE(pab(maxco,maxco))
-
-
-    DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      SELECT CASE (basis_set_id_a)
-      CASE (use_orb_basis_set)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set_a)
-      CASE (use_aux_fit_basis_set)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,aux_fit_basis_set=orb_basis_set_a)
-      END SELECT
-
-      IF (.NOT.ASSOCIATED(orb_basis_set_a)) CYCLE
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set_a,&
-                             first_sgf=first_sgfa,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             nsgf_set=nsgfa,&
-                             pgf_radius=rpgfa,&
-                             set_radius=set_radius_a,&
-                             sphi=sphi_a,&
-                             zet=zeta)
-      DO jkind=1,nkind
-        atomic_kind => atomic_kind_set(jkind)
-        SELECT CASE (basis_set_id_b)
-        CASE (use_orb_basis_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set_b)
-        CASE (use_aux_fit_basis_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,aux_fit_basis_set=orb_basis_set_b)
-        END SELECT
-
-
-        IF (.NOT.ASSOCIATED(orb_basis_set_b)) CYCLE
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set_b,&
-                               first_sgf=first_sgfb,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               nsgf_set=nsgfb,&
-                               pgf_radius=rpgfb,&
-                               set_radius=set_radius_b,&
-                               sphi=sphi_b,&
-                               zet=zetb)
-
-        iab = ikind + nkind*(jkind - 1)
-
-        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-        CALL get_neighbor_list_set(neighbor_list_set=sab_orb(iab)%neighbor_list_set,nlist=nlist)
-
-        NULLIFY ( sab_orb_neighbor_list )
-        ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DO ilist=1,nlist
-          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-             sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-          ELSE
-             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-          END IF
-          sab_orb_neighbor_list_local => sab_orb_neighbor_list
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,atom=iatom,nnode=nnode)
-
-          atom_a = atom_of_kind(iatom)
-
-          last_jatom = 0
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-
-          DO inode=1,nnode
-            CALL get_neighbor_node(sab_orb_neighbor_node,neighbor=jatom,r=rab)
-
-            IF (jatom /= last_jatom) THEN
-              new_atom_b = .TRUE.
-              last_jatom = jatom
-            ELSE
-              new_atom_b = .FALSE.
-            END IF
-
-            atom_b = atom_of_kind(jatom)
-
-            IF (new_atom_b) THEN
-              IF ( do_symmetric ) THEN
-                IF (iatom <= jatom) THEN
-                   irow = iatom
-                   icol = jatom
-                ELSE
-                   irow = jatom
-                   icol = iatom
-                END IF
-              ELSE
-                irow = iatom
-                icol = jatom
-              END IF
-              CALL cp_dbcsr_get_block_p(matrix=matrix_w,row=irow,col=icol,&
-                   block=w_block,found=found)
-
-              IF (.NOT.ASSOCIATED(w_block)) CYCLE
-            END IF
-
-            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-            dab = SQRT(rab2)
-            nrow = 1
-            DO iset=1,nseta
-              ncoa = npgfa(iset)*ncoset(la_max(iset))
-              sgfa = first_sgfa(1,iset)
-              DO jset=1,nsetb
-                ncob = npgfb(jset)*ncoset(lb_max(jset))
-                sgfb = first_sgfb(1,jset)
-                IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
-
-!                  IF ( iatom /= jatom ) THEN
-                    ! *** Decontract W matrix block ***
-                    IF( do_symmetric ) THEN
-                      IF (iatom <= jatom) THEN
-                        CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    w_block(sgfa,sgfb),SIZE(w_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                      ELSE
-                        CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                   1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                   w_block(sgfb,sgfa),SIZE(w_block,1),&
-                                   0.0_dp,work(1,1),SIZE(work,1))
-                      END IF
-                    ELSE
-                      CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                 1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                 w_block(sgfa,sgfb),SIZE(w_block,1),&
-                                 0.0_dp,work(1,1),SIZE(work,1))
-                    END IF  
-                    CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                               1.0_dp,work(1,1),SIZE(work,1),&
-                               sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                               0.0_dp,pab(1,1),SIZE(pab,1))
-
-                    ! *** Calculate the primitive overlap integrals ***
-                    ! *** and the corresponding force contribution  ***
-                    CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
-                                 rpgfa(:,iset),zeta(:,iset),&
-                                 lb_max(jset),lb_min(jset),npgfb(jset),&
-                                 rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,sab,nder,return_s_derivatives,&
-                                 ai_work,ldai,sdab,pab,force_a)
-                    IF( do_symmetric ) THEN
-                      force(ikind)%overlap_admm(:,atom_a)=force(ikind)%overlap_admm(:,atom_a) - 2.0_dp*force_a(:)
-                      force(jkind)%overlap_admm(:,atom_b)=force(jkind)%overlap_admm(:,atom_b) + 2.0_dp*force_a(:)
-                      IF( use_virial ) THEN
-                         CALL virial_pair_force ( virial%pv_virial, 1.0_dp, force_a, rab, error)
-                      END IF
-                    ELSE
-                      force(ikind)%overlap_admm(:,atom_a)=force(ikind)%overlap_admm(:,atom_a) - force_a(:)
-                      force(jkind)%overlap_admm(:,atom_b)=force(jkind)%overlap_admm(:,atom_b) + force_a(:)
-                      IF( use_virial ) THEN
-                         CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_a, rab, error)
-                      END IF
-                    END IF
-!                  END IF
-                END IF
-              END DO
-              nrow = nrow + ncoa
-            END DO
-            sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-          END DO
-        END DO
-        DEALLOCATE (ai_work,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END DO
-    END DO
-
-    DEALLOCATE (sab,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (sdab,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (atom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (pab,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE calc_overlap_force_general
 
 ! *****************************************************************************
 !> \brief This routine modifies the xc section depending on the potential type

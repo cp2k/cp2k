@@ -234,3 +234,9 @@ CO_xastpxhh_loclist.inp
 CO_xastpxhh.inp
 # Numerics differences due to different distribution 
 CO_xastpxhh_loclist.inp
+# Numerics introduced by major QS refactoring 
+CO_xastpxhh.inp
+# Numerics introduced by major QS refactoring 
+CO_xastpval.inp
+# Numerics introduced by major QS refactoring 
+CO_xastpxhh_loclist.inp

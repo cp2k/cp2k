@@ -91,3 +91,13 @@ CH4-BP-NONE.inp
 CH4-BP-CAUCHY_SUBSPACE.inp
 # Numerics differences due to different distribution 
 CH4-BP-CAUCHY.inp
+# Numerics introduced by major QS refactoring 
+CH4-BP-MO_DIAG.inp
+# Numerics introduced by major QS refactoring 
+CH4-BP-MO_NO_DIAG.inp
+# Numerics introduced by major QS refactoring 
+CH4-BP-NONE.inp
+# Numerics introduced by major QS refactoring 
+CH4-BP-CAUCHY_SUBSPACE.inp
+# Numerics introduced by major QS refactoring 
+CH4-BP-CAUCHY.inp

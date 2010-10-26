@@ -23,7 +23,6 @@ MODULE fist_neighbor_lists
                                              get_cell,&
                                              pbc,&
                                              plane_distance,&
-                                             real_to_scaled,&
                                              scaled_to_real
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -46,11 +45,12 @@ MODULE fist_neighbor_lists
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE qs_neighbor_lists,               ONLY: allocate_subcell,&
-                                             deallocate_subcell,&
-                                             local_atoms_type,&
-                                             subcell_type
   USE string_utilities,                ONLY: compress
+  USE subcell_types,                   ONLY: allocate_subcell,&
+                                             deallocate_subcell,&
+                                             give_ijk_subcell,&
+                                             reorder_atoms_subcell,&
+                                             subcell_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -64,9 +64,13 @@ MODULE fist_neighbor_lists
   ! Global parameters (in this module)
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_lists'
 
+  TYPE local_atoms_type
+    INTEGER, DIMENSION(:), POINTER                   :: list,&
+                                                        list_local_a_index
+  END TYPE local_atoms_type
+
   ! Public subroutines
-  PUBLIC :: build_fist_neighbor_lists,&
-            build_neighbor_lists
+  PUBLIC :: build_fist_neighbor_lists
 
 CONTAINS
 
@@ -148,8 +152,6 @@ CONTAINS
        atomic_kind => atomic_kind_set(ikind)
        NULLIFY (atom(ikind)%list)
        NULLIFY (atom(ikind)%list_local_a_index)
-       NULLIFY (atom(ikind)%r_pbc)
-       NULLIFY (atom(ikind)%s_pbc)
 
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
             atom_list=atom(ikind)%list,name=kind_name)
@@ -279,7 +281,7 @@ CONTAINS
       imax_cell, invcellmap, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, &
       kcell, kx, natom_local_a, ncellmax, nkind, nkind00, stat, tmpdim, xdim, &
       ydim, zdim
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, work
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
                                                 periodic
@@ -461,15 +463,20 @@ CONTAINS
     tmpdim = MAX(tmpdim,MAXVAL(subcell_b(:,:,:)%natom))
     ALLOCATE(work(3*tmpdim),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(kind_of(SIZE(particle_set)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, SIZE(particle_set)
+       kind_of(i) = particle_set(i)%atomic_kind%kind_number
+    END DO
     DO k = 1,nsubcell(3)
        DO j = 1,nsubcell(2)
           DO i = 1,nsubcell(1)
-             CALL reorder_atoms_subcell(subcell_a(i,j,k)%atom_list,particle_set,work)
-             CALL reorder_atoms_subcell(subcell_b(i,j,k)%atom_list,particle_set,work)
+             CALL reorder_atoms_subcell(subcell_a(i,j,k)%atom_list,kind_of,work)
+             CALL reorder_atoms_subcell(subcell_b(i,j,k)%atom_list,kind_of,work)
           END DO
        END DO
     END DO
-    DEALLOCATE(work,stat=stat)
+    DEALLOCATE(work,kind_of,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     zdim  = nsubcell(3)
     ydim  = nsubcell(2)
@@ -616,66 +623,6 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE build_neighbor_lists
-
-! *****************************************************************************
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      08.2006 created [tlaino]
-!> \author Teodoro Laino
-! *****************************************************************************
-  SUBROUTINE give_ijk_subcell(r,i,j,k,cell,nsubcell)
-    REAL(KIND=dp)                            :: r(3)
-    INTEGER, INTENT(OUT)                     :: i, j, k
-    TYPE(cell_type), POINTER                 :: cell
-    INTEGER, DIMENSION(3), INTENT(IN)        :: nsubcell
-
-    REAL(KIND=dp)                            :: r_pbc(3), s(3), s_pbc(3)
-
-    r_pbc = r
-    CALL real_to_scaled(s_pbc, r_pbc, cell)
-    s(:) = s_pbc + 0.5_dp
-    i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
-    j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
-    k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
-    i = MIN(MAX(i,1),nsubcell(1))
-    j = MIN(MAX(j,1),nsubcell(2))
-    k = MIN(MAX(k,1),nsubcell(3))
-    
-  END SUBROUTINE give_ijk_subcell
-
-! *****************************************************************************
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      08.2006 created [tlaino]
-!> \author Teodoro Laino
-! *****************************************************************************
-  SUBROUTINE reorder_atoms_subcell(atom_list,particle_set,work)
-    ! work needs to be dimensioned 3xSIZE(atom_list)
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    INTEGER, DIMENSION(:)                    :: work
-
-    INTEGER                                  :: i, i0, i1, i2, j0, j1, j2
-
-    i0 = 1
-    j0 = SIZE(atom_list)
-    i1 = j0+1
-    j1 = 2*j0
-    i2 = j1+1
-    j2 = 3*j0
-    ! Sort kind
-    DO i = 1, SIZE(atom_list)
-       work(i0+i-1) = particle_set(atom_list(i))%atomic_kind%kind_number
-    END DO
-    CALL sort(work(i0:j0),SIZE(atom_list),work(i1:j1))
-    work(i2:j2) = atom_list
-    DO i = 1, SIZE(atom_list)
-       atom_list(i) = work(i2+work(i1+i-1)-1)
-    END DO
-  END SUBROUTINE reorder_atoms_subcell
 
 ! *****************************************************************************
 !> \brief Write a set of neighbor lists to the output unit.

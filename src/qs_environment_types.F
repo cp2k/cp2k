@@ -131,8 +131,7 @@ MODULE qs_environment_types
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE qs_oce_types,                    ONLY: deallocate_oce_set,&
-                                             oce_matrix_type,&
-                                             vtriple_type
+                                             oce_matrix_type
   USE qs_rho0_types,                   ONLY: rho0_atom_type,&
                                              rho0_mpole_type
   USE qs_rho_atom_types,               ONLY: rho_atom_type
@@ -212,11 +211,11 @@ MODULE qs_environment_types
 !>        neighbor lists for the calculation of the core Hamiltonian matrix
 !> \param sap_oce: neighbor lists for the calculation of the expansion
 !>        coefficients of the local atomic densities rho1_hard and rho1_soft
-!> \param sab_2c: neighbor lists for the calculation of the 2 centers
-!>        hartree term Vh(rho0_hard)rho0_hard-Vh(rho0_soft)*rho0_soft
-!>        Also used for Hartree terms in semi-empirical methods
-!> \param sac_ 3c, sbc_3c: neighbor lists for the calculation of the 3 centers
-!>        hartree term Vh(rho0_hard-rho0_soft)*rho_soft
+!> \param sab_se: neighbor lists for the calculation of the 2 centers
+!>        hartree term in semi-empirical methods
+!> \param sac_tbe: neighbor lists for the calculation of the tight binding
+!>        Ewald terms (DFTB)
+!> \param sab_core neighbor lists for the calculation of the core interactions 
 !> \param sab_all neighbor lists for the calculation of the  matrix element of
 !>        non-symmetric operators
 !> \param sab_vdw: neighbor lists for the calculation of dispersion interactions
@@ -316,8 +315,8 @@ MODULE qs_environment_types
     INTEGER                                               :: neighbor_list_id
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ae,&
                                                              sac_ppl,sap_ppnl,&
-                                                             sap_oce,sab_2c,sab_vdw,sab_cn,&
-                                                             sac_3c,sbc_3c,sab_all,sab_scp,&
+                                                             sap_oce,sab_se,sab_vdw,sab_cn,&
+                                                             sab_tbe,sab_core,sab_all,sab_scp,&
                                                              sab_aux_fit, sab_aux_fit_vs_orb,&
                                                              sab_aux_fit_asymm, sab_lrc
     TYPE(qs_energy_type), POINTER                         :: energy
@@ -413,14 +412,14 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_cn,sab_scp,sap_oce,sab_lrc,&
-       sab_2c,sac_3c,sbc_3c,particle_set,energy,force,harris_env,matrix_h,matrix_ks,run_rtp,rtp,& 
+       sab_se,sab_tbe,sab_core,particle_set,energy,force,harris_env,matrix_h,matrix_ks,run_rtp,rtp,& 
        matrix_ks_aux_fit,matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,matrix_dv,& 
        gamma_matrix, rho, rho_aux_fit,rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, &
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
        vppl, rho_core, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
        local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
-       VH_3c_list,rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,&
+       rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nelectron_total,nelectron_spin,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
@@ -440,11 +439,9 @@ CONTAINS
                                                 sab_aux_fit_asymm, &
                                                 sab_aux_fit_vs_orb, sab_all
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sac_ae, sac_ppl, sap_ppnl, &
-                                                sab_vdw, sab_cn, sab_scp, &
-                                                sap_oce, sab_lrc, sab_2c, &
-                                                sac_3c, sbc_3c
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
+      sac_ae, sac_ppl, sap_ppnl, sab_vdw, sab_cn, sab_scp, sap_oce, sab_lrc, &
+      sab_se, sab_tbe, sab_core
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
@@ -510,8 +507,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: rhoz_set
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
-    TYPE(vtriple_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: VH_3c_list
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rho0_s_rs, rho0_s_gs
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -600,10 +595,10 @@ CONTAINS
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sap_ppnl)) sap_ppnl => qs_env%sap_ppnl
     IF (PRESENT(sap_oce)) sap_oce =>  qs_env%sap_oce
-    IF (PRESENT(sab_2c)) sab_2c =>  qs_env%sab_2c
+    IF (PRESENT(sab_se)) sab_se =>  qs_env%sab_se
     IF (PRESENT(sab_lrc)) sab_lrc =>  qs_env%sab_lrc
-    IF (PRESENT(sac_3c)) sac_3c =>  qs_env%sac_3c
-    IF (PRESENT(sbc_3c)) sbc_3c =>  qs_env%sbc_3c
+    IF (PRESENT(sab_tbe)) sab_tbe =>  qs_env%sab_tbe
+    IF (PRESENT(sab_core)) sab_core =>  qs_env%sab_core
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
     IF (PRESENT(use_harris)) use_harris = qs_env%use_harris
@@ -670,8 +665,6 @@ CONTAINS
          CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
     IF (PRESENT(ecoul_1c)) &
          CALL get_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
-    IF (PRESENT(VH_3c_list)) &
-         CALL get_hartree_local(qs_env%hartree_local,vtriple=VH_3c_list)
     IF (PRESENT(rho0_s_rs)) THEN
        CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_m)
        IF(ASSOCIATED(rho0_m)) THEN
@@ -747,10 +740,10 @@ CONTAINS
     NULLIFY (qs_env%sac_ppl)
     NULLIFY (qs_env%sap_ppnl)
     NULLIFY (qs_env%sap_oce)
-    NULLIFY (qs_env%sab_2c)
+    NULLIFY (qs_env%sab_se)
     NULLIFY (qs_env%sab_lrc)
-    NULLIFY (qs_env%sac_3c)
-    NULLIFY (qs_env%sbc_3c)
+    NULLIFY (qs_env%sab_tbe)
+    NULLIFY (qs_env%sab_core)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
     NULLIFY (qs_env%harris_env)
@@ -858,13 +851,13 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell,dft_control,&
        mos,mos_aux_fit,qmmm,qmmm_periodic,sab_orb,sab_aux_fit,sab_aux_fit_asymm, &
        sab_aux_fit_vs_orb,sab_all,sac_ae,sac_ppl,sap_ppnl,sap_oce,sab_lrc,&
-       sab_2c,sac_3c,sbc_3c,sab_scp,sab_vdw,sab_cn,energy,force,harris_env,matrix_h,matrix_ks,&
+       sab_se,sab_tbe,sab_core,sab_scp,sab_vdw,sab_cn,energy,force,harris_env,matrix_h,matrix_ks,&
        matrix_ks_aux_fit, matrix_s,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_w,&
        matrix_dv,gamma_matrix,pw_env,ewald_env,ewald_pw,mpools,mpools_aux_fit,rho,vee,& 
        rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,ks_env,& 
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
-       rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,requires_mo_derivs,mo_derivs,&
+       rhoz_set,rhoz_tot,ecoul_1c,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
@@ -881,7 +874,7 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sab_orb, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, &
-      sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_2c, sac_3c, sbc_3c, &
+      sac_ae, sac_ppl, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, &
       sab_scp, sab_vdw, sab_cn
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
@@ -935,8 +928,6 @@ CONTAINS
     REAL(dp), OPTIONAL                       :: rhoz_tot
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
-    TYPE(vtriple_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: VH_3c_list
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
@@ -1027,10 +1018,10 @@ CONTAINS
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
     IF (PRESENT(sap_ppnl)) qs_env%sap_ppnl => sap_ppnl
     IF (PRESENT(sap_oce)) qs_env%sap_oce => sap_oce
-    IF (PRESENT(sab_2c)) qs_env%sab_2c => sab_2c
+    IF (PRESENT(sab_se)) qs_env%sab_se => sab_se
     IF (PRESENT(sab_lrc)) qs_env%sab_lrc => sab_lrc
-    IF (PRESENT(sac_3c)) qs_env%sac_3c => sac_3c
-    IF (PRESENT(sbc_3c)) qs_env%sbc_3c => sbc_3c
+    IF (PRESENT(sab_tbe)) qs_env%sab_tbe => sab_tbe
+    IF (PRESENT(sab_core)) qs_env%sab_core => sab_core
     IF (PRESENT(energy)) qs_env%energy => energy
     ! if intels checking (-C) complains here, you have rediscovered a bug in the intel
     ! compiler (present in at least 10.0.025). A testcase has been submitted to intel.
@@ -1175,9 +1166,6 @@ CONTAINS
     IF (PRESENT(rhoz_tot)) qs_env%local_rho_set%rhoz_tot = rhoz_tot
     IF (PRESENT(ecoul_1c)) THEN
         CALL set_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
-    END IF
-    IF (PRESENT(VH_3c_list)) THEN
-        CALL set_hartree_local(qs_env%hartree_local,vtriple=VH_3c_list)
     END IF
 
     IF (PRESENT(subsys)) THEN
@@ -1463,12 +1451,12 @@ CONTAINS
              DEALLOCATE(qs_env%sap_oce,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          IF (ASSOCIATED(qs_env%sab_2c)) THEN
-             DO i=1,SIZE(qs_env%sab_2c)
+          IF (ASSOCIATED(qs_env%sab_se)) THEN
+             DO i=1,SIZE(qs_env%sab_se)
                 CALL deallocate_neighbor_list_set(&
-                     qs_env%sab_2c(i)%neighbor_list_set)
+                     qs_env%sab_se(i)%neighbor_list_set)
              END DO
-             DEALLOCATE(qs_env%sab_2c,stat=stat)
+             DEALLOCATE(qs_env%sab_se,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(qs_env%sab_lrc)) THEN
@@ -1479,20 +1467,20 @@ CONTAINS
              DEALLOCATE(qs_env%sab_lrc,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          IF (ASSOCIATED(qs_env%sac_3c)) THEN
-             DO i=1,SIZE(qs_env%sac_3c)
+          IF (ASSOCIATED(qs_env%sab_tbe)) THEN
+             DO i=1,SIZE(qs_env%sab_tbe)
                 CALL deallocate_neighbor_list_set(&
-                     qs_env%sac_3c(i)%neighbor_list_set)
+                     qs_env%sab_tbe(i)%neighbor_list_set)
              END DO
-             DEALLOCATE(qs_env%sac_3c,stat=stat)
+             DEALLOCATE(qs_env%sab_tbe,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          IF (ASSOCIATED(qs_env%sbc_3c)) THEN
-             DO i=1,SIZE(qs_env%sbc_3c)
+          IF (ASSOCIATED(qs_env%sab_core)) THEN
+             DO i=1,SIZE(qs_env%sab_core)
                 CALL deallocate_neighbor_list_set(&
-                     qs_env%sbc_3c(i)%neighbor_list_set)
+                     qs_env%sab_core(i)%neighbor_list_set)
              END DO
-             DEALLOCATE(qs_env%sbc_3c,stat=stat)
+             DEALLOCATE(qs_env%sab_core,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
           IF (ASSOCIATED(qs_env%rtp))THEN

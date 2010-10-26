@@ -68,10 +68,12 @@ MODULE qs_dftb_coulomb
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: &
        pw2rs, realspace_grid_desc_type, realspace_grid_p_type, &
@@ -210,7 +212,7 @@ CONTAINS
                       error=error)
       CALL get_cell(cell=cell,periodic=periodic,deth=deth)
       CALL ewald_env_get(ewald_env,alpha=alpha,ewald_type=ewald_type,error=error)
-      CALL get_qs_env(qs_env=qs_env,sac_3c=n_list,error=error)
+      CALL get_qs_env(qs_env=qs_env,sab_tbe=n_list,error=error)
       CALL dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
                               virial,use_virial,error=error)
       SELECT CASE(ewald_type)
@@ -569,8 +571,7 @@ CONTAINS
   END SUBROUTINE dftb_spme_evaluate
 
 ! *****************************************************************************
-  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
-                                virial,use_virial,error)
+  SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,virial,use_virial,error)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(inout)                          :: gmcharge
@@ -585,66 +586,40 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dftb_ewald_overlap', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iab, iatom, ilist, &
-                                                inode, jatom, nlist, nmat, &
-                                                nnode
+    INTEGER                                  :: handle, i, iatom, jatom, nmat
     REAL(KIND=dp)                            :: dfr, dr, fr, pfr, rij(3)
-    TYPE(neighbor_list_type), POINTER        :: n_list_ab, n_list_local
-    TYPE(neighbor_node_type), POINTER        :: n_list_node
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
 
     CALL timeset(routineN,handle)
 
     nmat = SIZE(gmcharge,2)
 
-    DO iab = 1, SIZE(n_list)
-      IF (.NOT.ASSOCIATED(n_list(iab)%neighbor_list_set)) CYCLE
-      CALL get_neighbor_list_set(neighbor_list_set=&
-                                 n_list(iab)%neighbor_list_set,&
-                                 nlist=nlist)
-      NULLIFY(n_list_ab)
+    CALL neighbor_list_iterator_create(nl_iterator,n_list)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,iatom=iatom,jatom=jatom,r=rij)
 
-      DO ilist=1,nlist
-        IF ( .NOT. ASSOCIATED(n_list_ab) ) THEN
-          n_list_ab => first_list(n_list(iab)%neighbor_list_set)
-        ELSE
-          n_list_ab => next(n_list_ab)
-        END IF
-        n_list_local => n_list_ab
-        CALL get_neighbor_list(neighbor_list=n_list_local,&
-                               atom=iatom,nnode=nnode)
-
-        n_list_node => first_node(n_list_local)
-
-        DO inode=1,nnode
-          CALL get_neighbor_node(neighbor_node=n_list_node,&
-                                 neighbor=jatom,r=rij)
-
-          dr = SQRT(SUM(rij(:)**2))
-          IF (dr > 1.e-10) THEN
-            fr = erfc(alpha*dr)/dr
-            gmcharge(iatom,1)=gmcharge(iatom,1)+mcharge(jatom)*fr
-            gmcharge(jatom,1)=gmcharge(jatom,1)+mcharge(iatom)*fr
-            IF ( nmat > 1 ) THEN
-              dfr = -2._dp*alpha*EXP(-alpha*alpha*dr*dr)*oorootpi/dr-fr/dr
-              dfr = -dfr/dr
-              DO i=2,nmat
-                gmcharge(iatom,i)=gmcharge(iatom,i)-rij(i-1)*mcharge(jatom)*dfr
-                gmcharge(jatom,i)=gmcharge(jatom,i)+rij(i-1)*mcharge(iatom)*dfr
-              END DO
-            END IF
-            IF ( use_virial ) THEN
-              pfr = -dfr*mcharge(iatom)*mcharge(jatom)
-              CALL virial_pair_force ( virial%pv_virial, -pfr, rij, rij, error)
-            END IF
-          END IF
-
-          n_list_node => next(n_list_node)
-
-        END DO ! inode => jatom(atom B)
-
-      END DO ! ilist => iatom(atom A)
+       dr = SQRT(SUM(rij(:)**2))
+       IF (dr > 1.e-10) THEN
+         fr = erfc(alpha*dr)/dr
+         gmcharge(iatom,1)=gmcharge(iatom,1)+mcharge(jatom)*fr
+         gmcharge(jatom,1)=gmcharge(jatom,1)+mcharge(iatom)*fr
+         IF ( nmat > 1 ) THEN
+           dfr = -2._dp*alpha*EXP(-alpha*alpha*dr*dr)*oorootpi/dr-fr/dr
+           dfr = -dfr/dr
+           DO i=2,nmat
+             gmcharge(iatom,i)=gmcharge(iatom,i)-rij(i-1)*mcharge(jatom)*dfr
+             gmcharge(jatom,i)=gmcharge(jatom,i)+rij(i-1)*mcharge(iatom)*dfr
+           END DO
+         END IF
+         IF ( use_virial ) THEN
+           pfr = -dfr*mcharge(iatom)*mcharge(jatom)
+           CALL virial_pair_force ( virial%pv_virial, -pfr, rij, rij, error)
+         END IF
+       END IF
 
     END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
 
     CALL timestop(handle)
 

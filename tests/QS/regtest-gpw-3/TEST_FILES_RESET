@@ -856,3 +856,9 @@ H2O-solv.inp
 dynamics.inp
 #  
 H2O-bloechl-Spl.inp
+# Numerics introduced by major QS refactoring 
+H2O-bloechl.inp
+# Numerics introduced by major QS refactoring 
+H2O-bloechl-Spl.inp
+# Numerics introduced by major QS refactoring 
+dynamics.inp

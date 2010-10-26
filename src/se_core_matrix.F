@@ -39,17 +39,18 @@ MODULE se_core_matrix
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE semi_empirical_int_arrays,       ONLY: rij_threshold
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
-  USE termination,                     ONLY: stop_program
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
@@ -75,18 +76,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_se_core_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, i, iab, iatom, icol, icor, ikind, ilist, &
-      inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, &
-      natorb_b, nkind, nlist, nnode
+    INTEGER :: atom_a, atom_b, i, iatom, icol, icor, ikind, inode, irow, &
+      istat, itype, iw, j, jatom, jkind, natom, natorb_a, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure, found, &
                                                 use_virial
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr, econst, eheat, &
-                                                eisol, enuclear, kh, udd, &
-                                                uff, upp, uss
+                                                eisol, kh, udd, uff, upp, uss
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: hmt, umt
     REAL(KIND=dp), DIMENSION(16)             :: ha, hb, ua
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: beta_a, beta_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: beta_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsmat, h_block, h_blocka, &
                                                 pabmat, pamat, s_block
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -97,17 +99,16 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: diagmat_h, diagmat_p
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(logger)
@@ -119,22 +120,22 @@ CONTAINS
      ! calculate overlap matrix
      IF(calculate_forces) THEN
         CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-        CALL build_overlap_matrix(qs_env,para_env,nderivative=1, matrix_s=matrix_s,&
+        CALL build_overlap_matrix(qs_env,nderivative=1, matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
-                              neighbor_list_sab=qs_env%sab_orb,&
+                              sab_nl=qs_env%sab_orb,&
                               error=error)
         CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
         CALL get_qs_env(qs_env=qs_env, virial=virial, error=error)
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      ELSE
         CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, error=error)
-        CALL build_overlap_matrix(qs_env,para_env,matrix_s=matrix_s,&
+        CALL build_overlap_matrix(qs_env,matrix_s=matrix_s,&
                               matrix_name="OVERLAP",&
                               basis_set_id_a=use_orb_basis_set,&
                               basis_set_id_b=use_orb_basis_set, &
-                              neighbor_list_sab=qs_env%sab_orb,&
+                              sab_nl=qs_env%sab_orb,&
                               error=error)
         CALL set_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
         use_virial = .FALSE.
@@ -190,186 +191,141 @@ CONTAINS
 
      nkind = SIZE(atomic_kind_set)
 
-     enuclear = 0.0_dp
+     ALLOCATE (se_defined(nkind),hmt(16,nkind),umt(16,nkind),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      econst   = 0.0_dp
      DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             natom=natom,&
-                             se_parameter=se_kind_a)
-        CALL get_se_param(se_kind_a,&
-                          defined=defined,&
-                          natorb=natorb_a,&
-                          beta=beta_a,&
-                          uss=uss,upp=upp,udd=udd,uff=uff,&
-                          eisol=eisol,eheat=eheat)
-
-        IF (.NOT.defined .OR. natorb_a < 1) CYCLE
-
+        CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom,se_parameter=se_kind_a)
+        CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a,&
+             beta=beta_a,uss=uss,upp=upp,udd=udd,uff=uff,eisol=eisol,eheat=eheat)
         econst=econst-(eisol-eheat)*REAL(natom,dp)
+        se_defined(ikind) = (defined .AND. natorb_a >= 1)
+        hmt( 1   ,ikind) = beta_a(0)
+        hmt( 2: 4,ikind) = beta_a(1)
+        hmt( 5: 9,ikind) = beta_a(2)
+        hmt(10:16,ikind) = beta_a(3)
+        umt( 1   ,ikind) = uss
+        umt( 2: 4,ikind) = upp
+        umt( 5: 9,ikind) = udd
+        umt(10:16,ikind) = uff
+     END DO
+     qs_env%energy%core_self    = econst
 
-        ha( 1   ) = beta_a(0)
-        ha( 2: 4) = beta_a(1)
-        ha( 5: 9) = beta_a(2)
-        ha(10:16) = beta_a(3)
+     CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,inode=inode,r=rij)
+        IF (.NOT.se_defined(ikind)) CYCLE
+        IF (.NOT.se_defined(jkind)) CYCLE
+        ha(1:16) = hmt(1:16,ikind)
+        ua(1:16) = umt(1:16,ikind)
+        hb(1:16) = hmt(1:16,jkind)
 
-        ua( 1   ) = uss
-        ua( 2: 4) = upp
-        ua( 5: 9) = udd
-        ua(10:16) = uff
+        IF(inode==1) THEN
+          SELECT CASE (dft_control%qs_control%method_id)
+            CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
+                  do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
+              NULLIFY(h_blocka)
+              CALL cp_dbcsr_get_block_p(diagmat_h,iatom,iatom,h_blocka,found)
+              CPPostcondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,error,failure)
+              IF(calculate_forces) THEN
+                CALL cp_dbcsr_get_block_p(diagmat_p,iatom,iatom,pamat,found)
+                CPPostcondition(ASSOCIATED(pamat),cp_failure_level,routineP,error,failure)
+              END IF
+          END SELECT
+        END IF
+        dr = SUM(rij(:)**2)
+        IF (iatom == jatom .AND. dr < rij_threshold) THEN
 
-        DO jkind=1,nkind
-           atomic_kind => atomic_kind_set(jkind)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                se_parameter=se_kind_b)
-           CALL get_se_param(se_kind_b,&
-                             defined=defined,&
-                             natorb=natorb_b,&
-                             beta=beta_b)
-           IF (.NOT.defined .OR. natorb_b < 1) CYCLE
+          SELECT CASE (dft_control%qs_control%method_id)
+             CASE DEFAULT
+               CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
+                   do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
+               DO i=1,SIZE(h_blocka,1)
+                 h_blocka(i,i)=h_blocka(i,i)+ua(i)
+               END DO
+          END SELECT
 
-           hb( 1   ) = beta_b(0)
-           hb( 2: 4) = beta_b(1)
-           hb( 5: 9) = beta_b(2)
-           hb(10:16) = beta_b(3)
-
-           iab = ikind + nkind*(jkind - 1)
-           IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-           CALL get_neighbor_list_set(neighbor_list_set=&
-                                      sab_orb(iab)%neighbor_list_set,&
-                                      nlist=nlist)
-           NULLIFY(sab_orb_neighbor_list)
-           DO ilist=1,nlist
-             IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-               sab_orb_neighbor_list => &
-                          first_list(sab_orb(iab)%neighbor_list_set)
-             ELSE
-               sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-             END IF
-             sab_orb_neighbor_list_local => sab_orb_neighbor_list
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                                    atom=iatom,&
-                                    nnode=nnode)
-
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-
-             SELECT CASE (dft_control%qs_control%method_id)
-               CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
-                     do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
-                 NULLIFY(h_blocka)
-                 CALL cp_dbcsr_get_block_p(diagmat_h,&
-                      iatom,iatom,h_blocka,found)
-                 CPPostcondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,error,failure)
-                 IF(calculate_forces) THEN
-                   CALL cp_dbcsr_get_block_p(diagmat_p,&
-                        iatom,iatom,pamat,found)
-                   CPPostcondition(ASSOCIATED(pamat),cp_failure_level,routineP,error,failure)
-                 END IF
-             END SELECT
-             DO inode=1,nnode
-               CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                      neighbor=jatom,r=rij)
-               dr = SUM(rij(:)**2)
-               IF (iatom == jatom .AND. dr < rij_threshold) THEN
-
-                 SELECT CASE (dft_control%qs_control%method_id)
-                    CASE DEFAULT
-                      CALL stop_program(routineN,moduleN,__LINE__,&
-                                      "Method not available",para_env)
-                    CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
-                          do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
-                      DO i=1,SIZE(h_blocka,1)
-                        h_blocka(i,i)=h_blocka(i,i)+ua(i)
-                      END DO
-                 END SELECT
-
+        ELSE
+          IF (iatom <= jatom) THEN
+            irow = iatom
+            icol = jatom
+          ELSE
+            irow = jatom
+            icol = iatom
+          END IF
+          NULLIFY (h_block)
+          CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,&
+               irow,icol,h_block,found)
+          CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
+          ! two-centre one-electron term
+          NULLIFY(s_block)
+          CALL cp_dbcsr_get_block_p(matrix_s(1)%matrix,&
+               irow,icol,s_block,found)
+          CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
+          IF ( irow == iatom ) THEN
+            DO i=1,SIZE(h_block,1)
+              DO j=1,SIZE(h_block,2)
+                h_block(i,j)=h_block(i,j)+kh*(ha(i)+hb(j))*s_block(i,j)
+              END DO
+            END DO
+          ELSE
+            DO i=1,SIZE(h_block,1)
+              DO j=1,SIZE(h_block,2)
+                h_block(i,j)=h_block(i,j)+kh*(ha(j)+hb(i))*s_block(i,j)
+              END DO
+            END DO
+          END IF
+          IF(calculate_forces) THEN
+            atom_a = atom_of_kind(iatom)
+            atom_b = atom_of_kind(jatom)
+            CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,pabmat,found)
+            CPPostcondition(ASSOCIATED(pabmat),cp_failure_level,routineP,error,failure)
+            DO icor=1,3
+              force_ab(icor) = 0._dp
+              CALL cp_dbcsr_get_block_p(matrix_s(icor+1)%matrix,irow,icol,dsmat,found)
+              CPPostcondition(ASSOCIATED(dsmat),cp_failure_level,routineP,error,failure)
+              dsmat=2._dp*kh*dsmat*pabmat
+              IF ( irow == iatom ) THEN
+                 DO i=1,SIZE(h_block,1)
+                   DO j=1,SIZE(h_block,2)
+                     force_ab(icor)=force_ab(icor)+(ha(i)+hb(j))*dsmat(i,j)
+                   END DO
+                 END DO
                ELSE
-                 IF (iatom <= jatom) THEN
-                   irow = iatom
-                   icol = jatom
-                 ELSE
-                   irow = jatom
-                   icol = iatom
-                 END IF
-                 NULLIFY (h_block)
-                 CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,&
-                      irow,icol,h_block,found)
-                 CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
-                 ! two-centre one-electron term
-                 NULLIFY(s_block)
-                 CALL cp_dbcsr_get_block_p(matrix_s(1)%matrix,&
-                      irow,icol,s_block,found)
-                 CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
-                 IF ( irow == iatom ) THEN
-                   DO i=1,SIZE(h_block,1)
-                     DO j=1,SIZE(h_block,2)
-                       h_block(i,j)=h_block(i,j)+kh*(ha(i)+hb(j))*s_block(i,j)
-                     END DO
+                 DO i=1,SIZE(h_block,1)
+                   DO j=1,SIZE(h_block,2)
+                     force_ab(icor)=force_ab(icor)+(ha(j)+hb(i))*dsmat(i,j)
                    END DO
-                 ELSE
-                   DO i=1,SIZE(h_block,1)
-                     DO j=1,SIZE(h_block,2)
-                       h_block(i,j)=h_block(i,j)+kh*(ha(j)+hb(i))*s_block(i,j)
-                     END DO
-                   END DO
-                 END IF
-                 IF(calculate_forces) THEN
-                   atom_a = atom_of_kind(iatom)
-                   atom_b = atom_of_kind(jatom)
-                   CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,&
-                        irow,icol,pabmat,found)
-                   CPPostcondition(ASSOCIATED(pabmat),cp_failure_level,routineP,error,failure)
-                   DO icor=1,3
-                     force_ab(icor) = 0._dp
-                     CALL cp_dbcsr_get_block_p(matrix_s(icor+1)%matrix,&
-                          irow,icol,dsmat,found)
-                     CPPostcondition(ASSOCIATED(dsmat),cp_failure_level,routineP,error,failure)
-                     dsmat=2._dp*kh*dsmat*pabmat
-                     IF ( irow == iatom ) THEN
-                        DO i=1,SIZE(h_block,1)
-                          DO j=1,SIZE(h_block,2)
-                            force_ab(icor)=force_ab(icor)+(ha(i)+hb(j))*dsmat(i,j)
-                          END DO
-                        END DO
-                      ELSE
-                        DO i=1,SIZE(h_block,1)
-                          DO j=1,SIZE(h_block,2)
-                            force_ab(icor)=force_ab(icor)+(ha(j)+hb(i))*dsmat(i,j)
-                          END DO
-                        END DO
-                      END IF
-                   END DO
-                 END IF
-
+                 END DO
                END IF
+            END DO
+          END IF
 
-               IF(calculate_forces .AND. (iatom/=jatom .OR. dr > rij_threshold)) THEN
-                 IF ( irow == iatom ) force_ab = -force_ab
-                 force(ikind)%all_potential(:,atom_a) =&
-                     force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                 force(jkind)%all_potential(:,atom_b) =&
-                     force(jkind)%all_potential(:,atom_b) + force_ab(:)
-                 IF (use_virial) THEN
-                   CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
-                 END IF
-               END IF
+        END IF
 
-               sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+        IF(calculate_forces .AND. (iatom/=jatom .OR. dr > rij_threshold)) THEN
+          IF ( irow == iatom ) force_ab = -force_ab
+          force(ikind)%all_potential(:,atom_a) =&
+              force(ikind)%all_potential(:,atom_a) - force_ab(:)
+          force(jkind)%all_potential(:,atom_b) =&
+              force(jkind)%all_potential(:,atom_b) + force_ab(:)
+          IF (use_virial) THEN
+            CALL virial_pair_force ( virial%pv_virial, -1.0_dp, force_ab, rij, error)
+          END IF
+        END IF
 
-             END DO ! inode => jatom(atom B)
+     END DO
+     CALL neighbor_list_iterator_release(nl_iterator)
 
-           END DO ! ilist => iatom(atom A)
-
-        END DO ! jkind
-
-     END DO ! ikind
+     DEALLOCATE (se_defined,hmt,umt,STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
      CALL cp_dbcsr_sum_replicated(diagmat_h, error=error)
      CALL cp_dbcsr_distribute(diagmat_h,error=error)
      CALL cp_dbcsr_add(matrix_h(1)%matrix, diagmat_h,1.0_dp,1.0_dp,error=error)
      CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h,error=error)
-
-     qs_env%energy%core_self    = econst
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN

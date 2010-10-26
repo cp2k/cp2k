@@ -56,3 +56,5 @@ ch4-gapw-issc-2.inp
 no-gapw-issc-1.inp
 # atomic code: unrestricted calculations 
 no-gapw-issc-1.inp
+# Numerics introduced by major QS refactoring 
+no-gapw-issc-1.inp

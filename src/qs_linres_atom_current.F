@@ -18,6 +18,7 @@ MODULE qs_linres_atom_current
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
@@ -49,10 +50,12 @@ MODULE qs_linres_atom_current
                                              get_current_env,&
                                              jrho_atom_type,&
                                              set2zero_jrho_atom_rad
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_oce_methods,                  ONLY: proj_blk
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
@@ -99,18 +102,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, iab, iac, iat, iatom, ibc, idir2, ii, iii, &
-      ikind, ilist, inode, ispin, istat, jatom, jkind, kac, katom, kbc, &
-      kkind, max_gau, max_nsgf, mepos, n_cont_a, n_cont_b, nat, natom, nkind, &
-      nlist, nnode, nsatbas, nsgfa, nsgfb, nso, nsoctot, nspins, num_pe, &
-      output_unit
+    INTEGER :: bo(2), handle, iac, iat, iatom, ibc, idir2, ii, iii, ikind, &
+      ispin, istat, jatom, jkind, kac, katom, kbc, kkind, max_gau, max_nsgf, &
+      mepos, n_cont_a, n_cont_b, nat, natom, nkind, nsatbas, nsgfa, nsgfb, &
+      nso, nsoctot, nspins, num_pe, output_unit
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     LOGICAL :: den_found, dista, distab, distb, failure, is_not_associated, &
       paw_atom, sgf_soft_only_a, sgf_soft_only_b
-    REAL(dp)                                 :: eps_cpc, hard_radius_a, &
-                                                hard_radius_b, hard_radius_c, &
-                                                jmax, nbr_dbl, rab(3), rbc(3)
+    REAL(dp)                                 :: eps_cpc, hard_radius_c, jmax, &
+                                                nbr_dbl, rab(3), rbc(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, b_matrix, c_matrix, &
                                                 d_matrix
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
@@ -125,14 +126,16 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
+                                                orb_basis_set
     TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(rho_atom_coeff), DIMENSION(:), &
@@ -145,8 +148,7 @@ CONTAINS
     NULLIFY(atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_orb,&
          &  jrho1_atom_set,oce,a_block,b_block,c_block,&
          &  d_block,jp_RARnu,jp2_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
-         &  C_coeff_ss_b,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
-         &  sab_orb_neighbor_node,para_env,zero_coeff,tmp_coeff)
+         &  C_coeff_ss_b,para_env,zero_coeff,tmp_coeff)
     !
     CALL get_qs_env(qs_env=qs_env,&
          &          atomic_kind_set=atomic_kind_set,&
@@ -228,241 +230,213 @@ CONTAINS
     ENDDO ! ikind
     !
     ! Three centers
-    DO ikind = 1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            &               hard_radius=hard_radius_a,&
-            &               orb_basis_set=orb_basis_set)
-       IF(.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-       
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            &                 nsgf=nsgfa)
+    ALLOCATE (basis_set_list(nkind),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      IF (ASSOCIATED(basis_set_a)) THEN
+        basis_set_list(ikind)%gto_basis_set => basis_set_a
+      ELSE
+        NULLIFY(basis_set_list(ikind)%gto_basis_set)
+      END IF
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
+                              iatom=iatom,jatom=jatom,cell=cell_b,r=rab)
+       basis_set_a => basis_set_list(ikind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+       basis_set_b => basis_set_list(jkind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+       nsgfa        =  basis_set_a%nsgf
+       nsgfb        =  basis_set_b%nsgf
+       DO ispin = 1,nspins
+          NULLIFY(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef)
+          ALLOCATE(jp_RARnu(ispin)%r_coef(nsgfa,nsgfb),&
+               &   jp2_RARnu(ispin)%r_coef(nsgfa,nsgfb),STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
 
-       DO jkind = 1,nkind
-          atomic_kind => atomic_kind_set(jkind)
+       ! Take the block \mu\nu of jpab, jpab_ii and jpab_iii
+       jmax = 0._dp
+       DO ispin = 1,nspins
+          NULLIFY(a_block(ispin)%r_coef)
+          NULLIFY(b_block(ispin)%r_coef)
+          NULLIFY(c_block(ispin)%r_coef)
+          NULLIFY(d_block(ispin)%r_coef)
+          CALL cp_dbcsr_get_block_p(matrix=mat_a(ispin)%matrix,&
+               row=iatom,col=jatom,block=a_block(ispin)%r_coef,&
+               found=den_found)
+          jmax = jmax + MAXVAL(ABS(a_block(ispin)%r_coef))
+          CALL cp_dbcsr_get_block_p(matrix=mat_b(ispin)%matrix,&
+               row=iatom,col=jatom,block=b_block(ispin)%r_coef,&
+               found=den_found)
+          jmax = jmax + MAXVAL(ABS(b_block(ispin)%r_coef))
+          CALL cp_dbcsr_get_block_p(matrix=mat_c(ispin)%matrix,&
+               row=iatom,col=jatom,block=c_block(ispin)%r_coef,&
+               found=den_found)
+          jmax = jmax + MAXVAL(ABS(c_block(ispin)%r_coef))
+          CALL cp_dbcsr_get_block_p(matrix=mat_d(ispin)%matrix,&
+               row=iatom,col=jatom,block=d_block(ispin)%r_coef,&
+               found=den_found)
+          jmax = jmax + MAXVAL(ABS(d_block(ispin)%r_coef))
+       ENDDO
+       !
+       ! Loop over atoms
+       DO kkind = 1,nkind
+
+          atomic_kind => atomic_kind_set(kkind)
+
+          NULLIFY(paw_proj)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               &               hard_radius=hard_radius_b,&
-               &               orb_basis_set=orb_basis_set)
-
-          IF(.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-               &                 nsgf=nsgfb)
-
-          iab = ikind + nkind*(jkind - 1)
-
-          IF(.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-
-          CALL get_neighbor_list_set(neighbor_list_set=&
-               &                    sab_orb(iab)%neighbor_list_set,&
-               &                    nlist=nlist)
-
-          NULLIFY(sab_orb_neighbor_list)
+               &               orb_basis_set=orb_basis_set,&
+               &               hard_radius=hard_radius_c,&
+               &               paw_proj_set=paw_proj,&
+               &               paw_atom=paw_atom)
           !
-          ! Allocate temporary block to store the sum of the 3 blocks before contraction
-          DO ispin = 1,nspins
-             NULLIFY(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef)
-             ALLOCATE(jp_RARnu(ispin)%r_coef(nsgfa,nsgfb),&
-                  &   jp2_RARnu(ispin)%r_coef(nsgfa,nsgfb),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ENDDO
+          ! Quick cycle if needed.
+          IF(.NOT.paw_atom) CYCLE
 
-          DO ilist = 1,nlist
-             IF(.NOT.ASSOCIATED(sab_orb_neighbor_list)) THEN
-                sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-             ELSE
-                sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-             ENDIF
-             sab_orb_neighbor_list_local => sab_orb_neighbor_list
+          CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas)
+          nsoctot = nsatbas
 
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                  &                 atom=iatom,nnode=nnode)
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+          iac = ikind + nkind*(kkind - 1)
+          ibc = jkind + nkind*(kkind - 1)
 
-             DO inode = 1,nnode
-                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                     &                 neighbor=jatom,r=rab,cell=cell_b)
-
-                ! Take the block \mu\nu of jpab, jpab_ii and jpab_iii
-                jmax = 0._dp
-                DO ispin = 1,nspins
-                   NULLIFY(a_block(ispin)%r_coef)
-                   NULLIFY(b_block(ispin)%r_coef)
-                   NULLIFY(c_block(ispin)%r_coef)
-                   NULLIFY(d_block(ispin)%r_coef)
-                   CALL cp_dbcsr_get_block_p(matrix=mat_a(ispin)%matrix,&
-                        row=iatom,col=jatom,block=a_block(ispin)%r_coef,&
-                        found=den_found)
-                   jmax = jmax + MAXVAL(ABS(a_block(ispin)%r_coef))
-                   CALL cp_dbcsr_get_block_p(matrix=mat_b(ispin)%matrix,&
-                        row=iatom,col=jatom,block=b_block(ispin)%r_coef,&
-                        found=den_found)
-                   jmax = jmax + MAXVAL(ABS(b_block(ispin)%r_coef))
-                   CALL cp_dbcsr_get_block_p(matrix=mat_c(ispin)%matrix,&
-                        row=iatom,col=jatom,block=c_block(ispin)%r_coef,&
-                        found=den_found)
-                   jmax = jmax + MAXVAL(ABS(c_block(ispin)%r_coef))
-                   CALL cp_dbcsr_get_block_p(matrix=mat_d(ispin)%matrix,&
-                        row=iatom,col=jatom,block=d_block(ispin)%r_coef,&
-                        found=den_found)
-                   jmax = jmax + MAXVAL(ABS(d_block(ispin)%r_coef))
-                ENDDO
-                !
-                ! Loop over atoms
-                DO kkind = 1,nkind
-
-                   atomic_kind => atomic_kind_set(kkind)
-
-                   NULLIFY(paw_proj)
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                        &               orb_basis_set=orb_basis_set,&
-                        &               hard_radius=hard_radius_c,&
-                        &               paw_proj_set=paw_proj,&
-                        &               paw_atom=paw_atom)
+          IF (.NOT.ASSOCIATED(oce%intac(iac)%alist)) CYCLE
+          IF (.NOT.ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
+          CALL get_alist(oce%intac(iac), alist_ac, iatom, error)
+          CALL get_alist(oce%intac(ibc), alist_bc, jatom, error)
+          DO kac=1,alist_ac%nclist
+             DO kbc=1,alist_bc%nclist
+                IF(alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
+                IF(ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
+                   IF(jmax*alist_bc%clist(kbc)%maxac*alist_ac%clist(kac)%maxac < eps_cpc) CYCLE
                    !
-                   ! Quick cycle if needed.
-                   IF(.NOT.paw_atom) CYCLE
+                   n_cont_a = alist_ac%clist(kac)%nsgf_cnt
+                   n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
+                   sgf_soft_only_a = alist_ac%clist(kac)%sgf_soft_only
+                   sgf_soft_only_b = alist_bc%clist(kbc)%sgf_soft_only
+                   IF(n_cont_a.EQ.0.OR.n_cont_b.EQ.0) CYCLE
+                   !
+                   ! thanks to the linearity of the response, we
+                   ! can avoid computing soft-soft interations.
+                   ! those terms are already included in the 
+                   ! regular grid.
+                   IF(sgf_soft_only_a.AND.sgf_soft_only_b) CYCLE
+                   !
+                   list_a => alist_ac%clist(kac)%sgf_list
+                   list_b => alist_bc%clist(kbc)%sgf_list
+                   !
+                   katom = alist_ac%clist(kac)%catom
 
-                   CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas)
-                   nsoctot = nsatbas
+                   IF(.NOT.ASSOCIATED(jrho1_atom_set(katom)%cjc0_h(1)%r_coef)) THEN
+                      CALL allocate_jrho_coeff(jrho1_atom_set,katom,nsoctot,error)
+                   ENDIF
+                   !
+                   ! Compute the modified Qai matrix as
+                   ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii
+                   !             + Qci_\mu\nu * (R_A-R_\nu)_iii
+                   rbc = alist_bc%clist(kbc)%rac
+                   DO ispin = 1,nspins
+                      CALL DCOPY(nsgfa*nsgfb,b_block(ispin)%r_coef(1,1),1,&
+                           &     jp_RARnu(ispin)%r_coef(1,1),1)
+                      CALL DAXPY(nsgfa*nsgfb,-rbc(ii),d_block(ispin)%r_coef(1,1),1,&
+                           &     jp_RARnu(ispin)%r_coef(1,1),1)
+                      CALL DAXPY(nsgfa*nsgfb,rbc(iii),c_block(ispin)%r_coef(1,1),1,&
+                           &     jp_RARnu(ispin)%r_coef(1,1),1)
+                   ENDDO
+                   !
+                   ! Get the d_A's for the hard and soft densities.
+                   IF(iatom==katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
+                      C_coeff_hh_a => alist_ac%clist(kac)%achint(:,:,1)
+                      C_coeff_ss_a => alist_ac%clist(kac)%acint(:,:,1)
+                      dista=.FALSE.
+                   ELSE
+                      C_coeff_hh_a => alist_ac%clist(kac)%acint(:,:,1)
+                      C_coeff_ss_a => alist_ac%clist(kac)%acint(:,:,1)
+                      dista=.TRUE.
+                   END IF
+                   ! Get the d_B's for the hard and soft densities.
+                   IF(jatom==katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
+                      C_coeff_hh_b => alist_bc%clist(kbc)%achint(:,:,1)
+                      C_coeff_ss_b => alist_bc%clist(kbc)%acint(:,:,1)
+                      distb=.FALSE.
+                   ELSE
+                      C_coeff_hh_b => alist_bc%clist(kbc)%acint(:,:,1)
+                      C_coeff_ss_b => alist_bc%clist(kbc)%acint(:,:,1)
+                      distb=.TRUE.
+                   END IF
 
-                   iac = ikind + nkind*(kkind - 1)
-                   ibc = jkind + nkind*(kkind - 1)
-     
-                   IF (.NOT.ASSOCIATED(oce%intac(iac)%alist)) CYCLE
-                   IF (.NOT.ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
-                   CALL get_alist(oce%intac(iac)%alist, alist_ac, iatom, error)
-                   CALL get_alist(oce%intac(ibc)%alist, alist_bc, jatom, error)
-                   DO kac=1,alist_ac%nclist
-                      DO kbc=1,alist_bc%nclist
-                         IF(alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
-                         IF(ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0)) THEN
-                            IF(jmax*alist_bc%clist(kbc)%maxac*alist_ac%clist(kac)%maxac < eps_cpc) CYCLE
-                            !
-                            n_cont_a = alist_ac%clist(kac)%nsgf_cnt
-                            n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
-                            sgf_soft_only_a = alist_ac%clist(kac)%sgf_soft_only
-                            sgf_soft_only_b = alist_bc%clist(kbc)%sgf_soft_only
-                            IF(n_cont_a.EQ.0.OR.n_cont_b.EQ.0) CYCLE
-                            !
-                            ! thanks to the linearity of the response, we
-                            ! can avoid computing soft-soft interations.
-                            ! those terms are already included in the 
-                            ! regular grid.
-                            IF(sgf_soft_only_a.AND.sgf_soft_only_b) CYCLE
-                            !
-                            list_a => alist_ac%clist(kac)%sgf_list
-                            list_b => alist_bc%clist(kbc)%sgf_list
-                            !
-                            katom = alist_ac%clist(kac)%catom
+                   distab = dista.AND.distb
 
-                            IF(.NOT.ASSOCIATED(jrho1_atom_set(katom)%cjc0_h(1)%r_coef)) THEN
-                               CALL allocate_jrho_coeff(jrho1_atom_set,katom,nsoctot,error)
-                            ENDIF
-                            !
-                            ! Compute the modified Qai matrix as
-                            ! mQai_\mu\nu = Qai_\mu\nu - Qbi_\mu\nu * (R_A-R_\nu)_ii
-                            !             + Qci_\mu\nu * (R_A-R_\nu)_iii
-                            rbc = alist_bc%clist(kbc)%rac
-                            DO ispin = 1,nspins
-                               CALL DCOPY(nsgfa*nsgfb,b_block(ispin)%r_coef(1,1),1,&
-                                    &     jp_RARnu(ispin)%r_coef(1,1),1)
-                               CALL DAXPY(nsgfa*nsgfb,-rbc(ii),d_block(ispin)%r_coef(1,1),1,&
-                                    &     jp_RARnu(ispin)%r_coef(1,1),1)
-                               CALL DAXPY(nsgfa*nsgfb,rbc(iii),c_block(ispin)%r_coef(1,1),1,&
-                                    &     jp_RARnu(ispin)%r_coef(1,1),1)
-                            ENDDO
-                            !
-                            ! Get the d_A's for the hard and soft densities.
-                            IF(iatom==katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
-                               C_coeff_hh_a => alist_ac%clist(kac)%achint(:,:,1)
-                               C_coeff_ss_a => alist_ac%clist(kac)%acint(:,:,1)
-                               dista=.FALSE.
-                            ELSE
-                               C_coeff_hh_a => alist_ac%clist(kac)%acint(:,:,1)
-                               C_coeff_ss_a => alist_ac%clist(kac)%acint(:,:,1)
-                               dista=.TRUE.
-                            END IF
-                            ! Get the d_B's for the hard and soft densities.
-                            IF(jatom==katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
-                               C_coeff_hh_b => alist_bc%clist(kbc)%achint(:,:,1)
-                               C_coeff_ss_b => alist_bc%clist(kbc)%acint(:,:,1)
-                               distb=.FALSE.
-                            ELSE
-                               C_coeff_hh_b => alist_bc%clist(kbc)%acint(:,:,1)
-                               C_coeff_ss_b => alist_bc%clist(kbc)%acint(:,:,1)
-                               distb=.TRUE.
-                            END IF
+                   nso = nsoctot
+                   !
+                   DO ispin = 1,nspins
+                      !
+                      ! align the blocks
+                      CALL alist_pre_align_blk(a_block(ispin)%r_coef,SIZE(a_block(ispin)%r_coef,1),&
+                           a_matrix,SIZE(a_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
 
-                            distab = dista.AND.distb
+                      CALL alist_pre_align_blk(jp_RARnu(ispin)%r_coef,SIZE(jp_RARnu(ispin)%r_coef,1),&
+                           b_matrix,SIZE(b_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
 
-                            nso = nsoctot
-                            !
-                            DO ispin = 1,nspins
-                               !
-                               ! align the blocks
-                               CALL alist_pre_align_blk(a_block(ispin)%r_coef,SIZE(a_block(ispin)%r_coef,1),&
-                                    a_matrix,SIZE(a_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+                      CALL alist_pre_align_blk(c_block(ispin)%r_coef,SIZE(c_block(ispin)%r_coef,1),&
+                           c_matrix,SIZE(c_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
 
-                               CALL alist_pre_align_blk(jp_RARnu(ispin)%r_coef,SIZE(jp_RARnu(ispin)%r_coef,1),&
-                                    b_matrix,SIZE(b_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+                      CALL alist_pre_align_blk(d_block(ispin)%r_coef,SIZE(d_block(ispin)%r_coef,1),&
+                           d_matrix,SIZE(d_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+                      !------------------------------------------------------------------
+                      ! P_\alpha\alpha'
+                      r_coef_h => jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef
+                      r_coef_s => jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef
+                      CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                           &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                           &        a_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
+                           &        PC1,CPC,1.0_dp,distab)
+                      !------------------------------------------------------------------
+                      ! mQai_\alpha\alpha'
+                      r_coef_h => jrho1_atom_set(katom)%cjc_h(ispin)%r_coef
+                      r_coef_s => jrho1_atom_set(katom)%cjc_s(ispin)%r_coef
+                      CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                           &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                           &        b_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
+                           &        PC1,CPC,1.0_dp,distab)
+                      !------------------------------------------------------------------
+                      ! Qci_\alpha\alpha'
+                      r_coef_h => jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef
+                      r_coef_s => jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef
+                      CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                           &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                           &        c_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
+                           &        PC1,CPC,1.0_dp,distab)
+                      !------------------------------------------------------------------
+                      ! Qbi_\alpha\alpha'
+                      r_coef_h => jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef
+                      r_coef_s => jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef
+                      CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
+                           &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
+                           &        d_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
+                           &        PC1,CPC,1.0_dp,distab)
+                      !------------------------------------------------------------------
+                   ENDDO ! ispin
+                   !
+                   EXIT !search loop over jatom-katom list
+                END IF
+             END DO
+          END DO
 
-                               CALL alist_pre_align_blk(c_block(ispin)%r_coef,SIZE(c_block(ispin)%r_coef,1),&
-                                    c_matrix,SIZE(c_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
+       ENDDO ! kkind
+       DO ispin = 1,nspins
+          DEALLOCATE(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef,STAT=istat)
+          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDDO
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
 
-                               CALL alist_pre_align_blk(d_block(ispin)%r_coef,SIZE(d_block(ispin)%r_coef,1),&
-                                    d_matrix,SIZE(d_matrix,1),list_a,n_cont_a,list_b,n_cont_b)
-                               !------------------------------------------------------------------
-                               ! P_\alpha\alpha'
-                               r_coef_h => jrho1_atom_set(katom)%cjc0_h(ispin)%r_coef
-                               r_coef_s => jrho1_atom_set(katom)%cjc0_s(ispin)%r_coef
-                               CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
-                                    &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
-                                    &        a_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
-                                    &        PC1,CPC,1.0_dp,distab)
-                               !------------------------------------------------------------------
-                               ! mQai_\alpha\alpha'
-                               r_coef_h => jrho1_atom_set(katom)%cjc_h(ispin)%r_coef
-                               r_coef_s => jrho1_atom_set(katom)%cjc_s(ispin)%r_coef
-                               CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
-                                    &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
-                                    &        b_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
-                                    &        PC1,CPC,1.0_dp,distab)
-                               !------------------------------------------------------------------
-                               ! Qci_\alpha\alpha'
-                               r_coef_h => jrho1_atom_set(katom)%cjc_ii_h(ispin)%r_coef
-                               r_coef_s => jrho1_atom_set(katom)%cjc_ii_s(ispin)%r_coef
-                               CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
-                                    &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
-                                    &        c_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
-                                    &        PC1,CPC,1.0_dp,distab)
-                               !------------------------------------------------------------------
-                               ! Qbi_\alpha\alpha'
-                               r_coef_h => jrho1_atom_set(katom)%cjc_iii_h(ispin)%r_coef
-                               r_coef_s => jrho1_atom_set(katom)%cjc_iii_s(ispin)%r_coef
-                               CALL proj_blk(C_coeff_hh_a,C_coeff_ss_a,n_cont_a,&
-                                    &        C_coeff_hh_b,C_coeff_ss_b,n_cont_b,&
-                                    &        d_matrix,max_nsgf,r_coef_h,r_coef_s,nso,&
-                                    &        PC1,CPC,1.0_dp,distab)
-                               !------------------------------------------------------------------
-                            ENDDO ! ispin
-                            !
-                            EXIT !search loop over jatom-katom list
-                         END IF
-                      END DO
-                   END DO
-
-                ENDDO ! kkind
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-             ENDDO ! inode
-             !
-          ENDDO ! ilist
-          DO ispin = 1,nspins
-             DEALLOCATE(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef,STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          ENDDO
-       ENDDO ! jkind
-    ENDDO ! ikind
+    DEALLOCATE(basis_set_list,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     !
     ! parallel sum up 
     nbr_dbl = 0.0_dp

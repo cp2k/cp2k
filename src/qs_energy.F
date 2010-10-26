@@ -23,9 +23,7 @@ MODULE qs_energy
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_diag,&
-                                             ehrenfest,&
-                                             use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+                                             ehrenfest
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -40,14 +38,12 @@ MODULE qs_energy
   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
-  USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
   USE rt_propagation_methods,          ONLY: propagation_step,&
                                              put_data_to_history,&
@@ -132,11 +128,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nder
+    INTEGER                                  :: handle
     LOGICAL                                  :: do_et, my_calc_forces
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux_fit, &
-                                                matrix_s_aux_fit_vs_orb
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -171,33 +164,7 @@ CONTAINS
                               calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
     ELSE
-       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
-                                          calculate_forces=.FALSE.,error=error)
-       ! *** In case of denisty_fitting, calculate the corresponding overlap_matrices
-       IF( dft_control%do_admm) THEN
-         NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
-         IF( my_calc_forces ) THEN
-           nder = 1
-         ELSE
-           nder = 0
-         END IF
-         CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, error=error)
-         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit,&
-                                   matrix_name="AUX_FIT_OVERLAP",&
-                                   basis_set_id_a=use_aux_fit_basis_set,&
-                                   basis_set_id_b=use_aux_fit_basis_set, &
-                                   neighbor_list_sab=qs_env%sab_aux_fit,&
-                                   error=error)
-         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
-         CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, error=error)
-         CALL build_overlap_matrix(qs_env,para_env,nderivative=nder,matrix_s=matrix_s_aux_fit_vs_orb,&
-                                   matrix_name="MIXED_OVERLAP",&
-                                   basis_set_id_a=use_aux_fit_basis_set,&
-                                   basis_set_id_b=use_orb_basis_set, &
-                                   neighbor_list_sab=qs_env%sab_aux_fit_vs_orb,&
-                                   error=error)
-         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
-       END IF
+       CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
 
        CALL qs_env_update_s_mstruct(qs_env,error=error)
        CALL calculate_ecore_self(qs_env,error=error)

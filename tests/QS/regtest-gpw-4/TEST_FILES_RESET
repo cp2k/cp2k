@@ -843,3 +843,17 @@ He3_multi_ddapc.inp
 h2o-otdiag.inp
 #
 h2o-otdiag-lsd.inp
+# Numerics introduced by major QS refactoring 
+H2-geo-4.inp
+# Numerics introduced by major QS refactoring 
+spin_restraint.inp
+# Numerics introduced by major QS refactoring 
+NO2-EFG-1.inp
+# Numerics introduced by major QS refactoring 
+basis_none_1.inp
+# Numerics introduced by major QS refactoring 
+He3_multi_ddapc.inp
+# Numerics introduced by major QS refactoring 
+h2o-otdiag-lsd.inp
+# Numerics introduced by major QS refactoring 
+2H2O_meta_welltemp.inp

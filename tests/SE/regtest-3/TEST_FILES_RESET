@@ -280,3 +280,29 @@ N3_rp_dp_md.inp
 LiH.inp
 # Numerics 
 SiO2_lr_quad.inp
+# Numerics introduced by major QS refactoring 
+Periclase.inp
+# Numerics introduced by major QS refactoring 
+LM-KSDO-D.inp
+# Numerics introduced by major QS refactoring 
+SiO2.inp
+# Numerics introduced by major QS refactoring 
+wfn_ex2.inp
+# Numerics introduced by major QS refactoring 
+wfn_ex3.inp
+# Numerics introduced by major QS refactoring 
+wfn_ex4.inp
+# Numerics introduced by major QS refactoring 
+H2O-4.inp
+# Numerics introduced by major QS refactoring 
+LiH.inp
+# Numerics introduced by major QS refactoring 
+Al2O3.inp
+# Numerics introduced by major QS refactoring 
+Co_complex.inp
+# Numerics introduced by major QS refactoring 
+N3_rp_md.inp
+# Numerics introduced by major QS refactoring 
+N3_dp_md.inp
+# Numerics introduced by major QS refactoring 
+N3_rp_dp_md.inp

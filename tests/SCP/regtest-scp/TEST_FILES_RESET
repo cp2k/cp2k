@@ -243,3 +243,11 @@ w2.inp
 w2-r1.inp
 #
 w2-r2.inp
+# Numerics introduced by major QS refactoring 
+monomer.inp
+# Numerics introduced by major QS refactoring 
+w2.inp
+# Numerics introduced by major QS refactoring 
+w2-r1.inp
+# Numerics introduced by major QS refactoring 
+w2-r2.inp

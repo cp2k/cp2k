@@ -13,7 +13,7 @@ MODULE qs_spin_orbit
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+  USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE block_p_types,                   ONLY: block_p_type
   USE cell_types,                      ONLY: cell_type,&
@@ -35,10 +35,12 @@ MODULE qs_spin_orbit
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
-       neighbor_list_type, neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -77,10 +79,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_pso_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
-      istat, iw, jatom, jkind, jset, last_jatom, ldai, maxco, maxlgto, &
-      maxsgf, natom, ncoa, ncob, neighbor_list_id, nkind, nlist, nnode, &
-      nseta, nsetb, sgfa, sgfb
+    INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, istat, iw, &
+      jatom, jkind, jset, last_jatom, ldai, maxco, maxlgto, maxsgf, natom, &
+      ncoa, ncob, neighbor_list_id, nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -104,12 +105,13 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
@@ -164,164 +166,141 @@ CONTAINS
     soab(:,:,:) = 0.0_dp
     work(:,:) = 0.0_dp
 
+    ALLOCATE (basis_set_list(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "basis_set_list",nkind)
     DO ikind=1,nkind
-
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
-
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      IF (ASSOCIATED(basis_set_a)) THEN
+        basis_set_list(ikind)%gto_basis_set => basis_set_a
+      ELSE
+        NULLIFY(basis_set_list(ikind)%gto_basis_set)
+      END IF
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
+                              iatom=iatom,jatom=jatom,r=rab)
+       basis_set_a => basis_set_list(ikind)%gto_basis_set
        IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+       basis_set_b => basis_set_list(jkind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+       ra = pbc(particle_set(iatom)%r,cell)
+       ! basis ikind
+       first_sgfa   =>  basis_set_a%first_sgf
+       la_max       =>  basis_set_a%lmax
+       la_min       =>  basis_set_a%lmin
+       npgfa        =>  basis_set_a%npgf
+       nseta        =   basis_set_a%nset
+       nsgfa        =>  basis_set_a%nsgf_set
+       rpgfa        =>  basis_set_a%pgf_radius
+       set_radius_a =>  basis_set_a%set_radius
+       sphi_a       =>  basis_set_a%sphi
+       zeta         =>  basis_set_a%zet
+       ! basis jkind
+       first_sgfb   =>  basis_set_b%first_sgf
+       lb_max       =>  basis_set_b%lmax
+       lb_min       =>  basis_set_b%lmin
+       npgfb        =>  basis_set_b%npgf
+       nsetb        =   basis_set_b%nset
+       nsgfb        =>  basis_set_b%nsgf_set
+       rpgfb        =>  basis_set_b%pgf_radius
+       set_radius_b =>  basis_set_b%set_radius
+       sphi_b       =>  basis_set_b%sphi
+       zetb         =>  basis_set_b%zet
 
-       CALL get_gto_basis_set(gto_basis_set=basis_set_a,&
-                              first_sgf=first_sgfa,&
-                              lmax=la_max,&
-                              lmin=la_min,&
-                              npgf=npgfa,&
-                              nset=nseta,&
-                              nsgf_set=nsgfa,&
-                              pgf_radius=rpgfa,&
-                              set_radius=set_radius_a,&
-                              sphi=sphi_a,&
-                              zet=zeta)
+       IF(inode==1) last_jatom = 0
 
-       DO jkind=1,nkind
+       rb = rab + ra
+       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+       dab = SQRT(rab2)
+       rac = pbc(ra,rc,cell)
+       rbc = rac - rab
 
-          atomic_kind => atomic_kind_set(jkind)
+       IF (jatom /= last_jatom) THEN
+          new_atom_b = .TRUE.
+          last_jatom = jatom
+       ELSE
+          new_atom_b = .FALSE.
+       END IF
 
-          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_b)
+       IF (new_atom_b) THEN
+          IF (iatom <= jatom) THEN
+             irow = iatom
+             icol = jatom
+          ELSE
+             irow = jatom
+             icol = iatom
+          END IF
 
-          IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+          DO i=1,3
+             NULLIFY(soint(i)%block)
+             CALL cp_dbcsr_get_block_p(matrix=matrix_so(i)%matrix,&
+                  row=irow,col=icol,BLOCK=soint(i)%block,found=found)
+          ENDDO
+       END IF
 
-          CALL get_gto_basis_set(gto_basis_set=basis_set_b,&
-                                 first_sgf=first_sgfb,&
-                                 lmax=lb_max,&
-                                 lmin=lb_min,&
-                                 npgf=npgfb,&
-                                 nset=nsetb,&
-                                 nsgf_set=nsgfb,&
-                                 pgf_radius=rpgfb,&
-                                 set_radius=set_radius_b,&
-                                 sphi=sphi_b,&
-                                 zet=zetb)
+       DO iset=1,nseta
 
-          iab = ikind + nkind*(jkind - 1)
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+          sgfa = first_sgfa(1,iset)
 
-          IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+          DO jset=1,nsetb
 
-          neighbor_list_set => sab_orb(iab)%neighbor_list_set
+             IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
 
-          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,nlist=nlist)
+             ncob = npgfb(jset)*ncoset(lb_max(jset))
+             sgfb = first_sgfb(1,jset)
 
-          neighbor_list => first_list(neighbor_list_set)
+             ! *** Calculate the primitive fermi contact integrals ***
 
-          DO ilist=1,nlist
+             CALL pso(la_max(iset),la_min(iset),npgfa(iset),&
+                      rpgfa(:,iset),zeta(:,iset),&
+                      lb_max(jset),lb_min(jset),npgfb(jset),&
+                      rpgfb(:,jset),zetb(:,jset),&
+                      rac,rbc,rab,soab,SIZE(rr_work,1),SIZE(rr_work,2),rr_work,error)
 
-             CALL get_neighbor_list(neighbor_list=neighbor_list,atom=iatom,nnode=nnode)
+             ! *** Contraction step ***
 
-             ra = pbc(particle_set(iatom)%r,cell)
+             DO i=1,3
 
-             last_jatom = 0
+                CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                           1.0_dp,soab(1,1,i),SIZE(soab,1),&
+                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           0.0_dp,work(1,1),SIZE(work,1))
 
-             neighbor_node => first_node(neighbor_list)
+                IF (iatom <= jatom) THEN
 
-             DO inode=1,nnode
+                   CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                              1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                              work(1,1),SIZE(work,1),&
+                              1.0_dp,soint(i)%block(sgfa,sgfb),&
+                              SIZE(soint(i)%block,1))
 
-                CALL get_neighbor_node(neighbor_node=neighbor_node,neighbor=jatom,r=rab(:))
-
-                rb = rab + ra
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                dab = SQRT(rab2)
-                rac = pbc(ra,rc,cell)
-                rbc = rac - rab
-
-                IF (jatom /= last_jatom) THEN
-                   new_atom_b = .TRUE.
-                   last_jatom = jatom
                 ELSE
-                   new_atom_b = .FALSE.
-                END IF
 
-                IF (new_atom_b) THEN
-                   IF (iatom <= jatom) THEN
-                      irow = iatom
-                      icol = jatom
-                   ELSE
-                      irow = jatom
-                      icol = iatom
-                   END IF
-
-                   DO i=1,3
-                      NULLIFY(soint(i)%block)
-                      CALL cp_dbcsr_get_block_p(matrix=matrix_so(i)%matrix,&
-                           row=irow,col=icol,BLOCK=soint(i)%block,found=found)
-                   ENDDO
-                END IF
-
-                DO iset=1,nseta
-
-                   ncoa = npgfa(iset)*ncoset(la_max(iset))
-                   sgfa = first_sgfa(1,iset)
-
-                   DO jset=1,nsetb
-
-                      IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-                      ncob = npgfb(jset)*ncoset(lb_max(jset))
-                      sgfb = first_sgfb(1,jset)
-
-                      ! *** Calculate the primitive fermi contact integrals ***
-
-                      CALL pso(la_max(iset),la_min(iset),npgfa(iset),&
-                               rpgfa(:,iset),zeta(:,iset),&
-                               lb_max(jset),lb_min(jset),npgfb(jset),&
-                               rpgfb(:,jset),zetb(:,jset),&
-                               rac,rbc,rab,soab,SIZE(rr_work,1),SIZE(rr_work,2),rr_work,error)
-
-                      ! *** Contraction step ***
-
-                      DO i=1,3
-
-                         CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                    1.0_dp,soab(1,1,i),SIZE(soab,1),&
-                                    sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-
-                         IF (iatom <= jatom) THEN
-
-                            CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       work(1,1),SIZE(work,1),&
-                                       1.0_dp,soint(i)%block(sgfa,sgfb),&
-                                       SIZE(soint(i)%block,1))
-
-                         ELSE
-
-                            CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                      -1.0_dp,work(1,1),SIZE(work,1),&
-                                       sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       1.0_dp,soint(i)%block(sgfb,sgfa),&
-                                       SIZE(soint(i)%block,1))
-                         ENDIF
-
-                      ENDDO
-
-                   ENDDO
-
-                ENDDO
-
-                neighbor_node => next(neighbor_node)
+                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                             -1.0_dp,work(1,1),SIZE(work,1),&
+                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                              1.0_dp,soint(i)%block(sgfb,sgfa),&
+                              SIZE(soint(i)%block,1))
+                ENDIF
 
              ENDDO
-
-             neighbor_list => next(neighbor_list)
 
           ENDDO
 
        ENDDO
 
-    ENDDO
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
 
     ! *** Release work storage ***
+
+    DEALLOCATE (basis_set_list,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "basis_set_list")
 
     DEALLOCATE (soab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

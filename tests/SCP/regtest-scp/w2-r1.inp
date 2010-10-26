@@ -22,7 +22,8 @@
       EPS_SCF 1.000E-3
       &OT T
         SCP_DFT T
-        MINIMIZER DIIS
+        MINIMIZER CG
+        LINESEARCH 3PNT
       &END OT
     &END SCF
     &XC

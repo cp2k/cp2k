@@ -311,3 +311,5 @@ He2-all-md.inp
 h2o_dist.inp
 # Numerics differences due to different distribution 
 H2S-gapw-gop.inp
+# Numerics introduced by major QS refactoring 
+H2S-gapw-gop.inp

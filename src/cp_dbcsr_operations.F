@@ -87,10 +87,12 @@ MODULE cp_dbcsr_operations
                                              dp,&
                                              sp
   USE message_passing,                 ONLY: mp_bcast
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              first_block_node,&
@@ -128,7 +130,6 @@ MODULE cp_dbcsr_operations
             cp_dbcsr_sm_fm_multiply, cp_dbcsr_plus_fm_fm_t,&
             cp_dbcsr_get_id_nr,&
             cp_dbcsr_alloc_block_from_nbl
-
 
   ! distribution_2d_type compatibility
   PUBLIC :: cp_dbcsr_dist2d_to_dist
@@ -288,14 +289,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=1)                         :: symmetry
-    INTEGER                                  :: iab, iatom, icol, ilist, &
-                                                inode, irow, jatom, &
-                                                last_jatom, nlist, nnode
+    INTEGER                                  :: iatom, icol, inode, irow, &
+                                                jatom, last_jatom
     LOGICAL                                  :: failure, new_atom_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
 
     failure = .FALSE.
 
@@ -303,81 +302,41 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
 
-    !nkind = SIZE(atomic_kind_set,1)
-    !DO ikind=1,nkind
-    !DO jkind=1,nkind
-    DO iab = 1, SIZE(sab_orb)
-       !iab = ikind + nkind*(jkind - 1)
-
-       IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-
-       CALL get_neighbor_list_set(neighbor_list_set=&
-            sab_orb(iab)%neighbor_list_set,&
-            nlist=nlist)
-
-       NULLIFY ( sab_orb_neighbor_list )
-
-       DO ilist=1,nlist
-
-          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-             sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,iatom=iatom,jatom=jatom,inode=inode)
+       IF(inode==1) last_jatom = 0
+       IF (jatom /= last_jatom) THEN
+          new_atom_b = .TRUE.
+          last_jatom = jatom
+       ELSE
+          new_atom_b = .FALSE.
+          CYCLE
+       END IF
+       NULLIFY(block)
+       IF(symmetry==dbcsr_type_no_symmetry) THEN
+          CALL cp_dbcsr_add_block_node(matrix=matrix,&
+               block_row=iatom,&
+               block_col=jatom,&
+               block=block,error=error)
+       ELSE
+          IF(iatom<=jatom) THEN
+             irow = iatom
+             icol = jatom
           ELSE
-             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+             irow = jatom
+             icol = iatom
           END IF
-          sab_orb_neighbor_list_local => sab_orb_neighbor_list
+          CALL cp_dbcsr_add_block_node(matrix=matrix,&
+               block_row=irow,&
+               block_col=icol,&
+               block=block,error=error)
+       END IF
 
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-               atom=iatom,&
-               nnode=nnode)
+       block(:,:) = 0.0_dp
 
-          last_jatom = 0
-
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-
-          DO inode=1,nnode
-
-             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                  neighbor=jatom)
-
-             IF (jatom /= last_jatom) THEN
-                new_atom_b = .TRUE.
-                last_jatom = jatom
-             ELSE
-                new_atom_b = .FALSE.
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                CYCLE
-             END IF
-             NULLIFY(block)
-             IF(symmetry==dbcsr_type_no_symmetry) THEN
-                CALL cp_dbcsr_add_block_node(matrix=matrix,&
-                     block_row=iatom,&
-                     block_col=jatom,&
-                     block=block,error=error)
-             ELSE
-                IF(iatom<=jatom) THEN
-                   irow = iatom
-                   icol = jatom
-                ELSE
-                   irow = jatom
-                   icol = iatom
-                END IF
-                CALL cp_dbcsr_add_block_node(matrix=matrix,&
-                     block_row=irow,&
-                     block_col=icol,&
-                     block=block,error=error)
-             END IF
-
-             block(:,:) = 0.0_dp
-
-             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
-          END DO  ! inode
-
-       END DO  ! ilist
-
-       !END DO  ! jkind
-
-    END DO  ! ikind
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
 
     CALL cp_dbcsr_finalize( matrix, error=error )
 

@@ -6,54 +6,37 @@
 ! *****************************************************************************
 !> \brief Calculation of the energies concerning the core charge distribution
 !> \par History
-!>      none
+!>      - Full refactoring of calculate_ecore and calculate_ecore_overlap (jhu)
 !> \author Matthias Krack (27.04.2001)
 ! *****************************************************************************
 MODULE qs_core_energies
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
-                                             get_cell,&
-                                             pbc,&
-                                             plane_distance,&
-                                             real_to_scaled,&
-                                             scaled_to_real
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_iterator_blocks_left,&
-                                             cp_dbcsr_iterator_next_block,&
-                                             cp_dbcsr_iterator_start,&
-                                             cp_dbcsr_iterator_stop
-  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
-                                             cp_dbcsr_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
+                                             get_cell
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_trace
+  USE cp_dbcsr_types,                  ONLY: cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
-  USE f77_blas
-  USE input_section_types,             ONLY: section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: oorootpi,&
                                              twopi
-  USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_lists,               ONLY: allocate_subcell,&
-                                             deallocate_subcell,&
-                                             local_atoms_type,&
-                                             subcell_type
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: locate,&
-                                             sort
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
@@ -83,6 +66,7 @@ CONTAINS
 !> \par History
 !>         - simplified taking advantage of new non-redundant matrix
 !>           structure (27.06.2003,MK)
+!>         - simplified using DBCSR trace function (21.07.2010, jhu)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_ecore(h,p,ecore,para_env,error)
@@ -95,44 +79,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, handle, i, iblock_col, &
-                                                iblock_row, j
-    LOGICAL                                  :: found
-    REAL(KIND=dp)                            :: ecore_block
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
-    TYPE(cp_dbcsr_iterator)                  :: iter
+    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
+
     ecore = 0.0_dp
-
-    CALL cp_dbcsr_iterator_start(iter, h)
-    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, h_block,  blk)
-
-       CALL cp_dbcsr_get_block_p(matrix=p,&
-            row=iblock_row,col=iblock_col,BLOCK=p_block,found=found)
-
-       ! if no block we can cycle
-       IF ( .NOT. ASSOCIATED ( p_block ) ) CYCLE
-
-       ecore_block = 0.0_dp
-
-       DO j=1,SIZE(h_block,2)
-          DO i=1,SIZE(h_block,1)
-             ecore_block = ecore_block + p_block(i,j)*h_block(i,j)
-          END DO
-       END DO
-       
-       IF (iblock_row == iblock_col) THEN
-          ecore = ecore + ecore_block
-       ELSE
-          ecore = ecore + 2.0_dp*ecore_block
-       END IF
-       
-    ENDDO
-    CALL cp_dbcsr_iterator_stop(iter)
-
-    CALL mp_sum(ecore,para_env%group)
+    CALL cp_dbcsr_trace(h,p,ecore,error=error)
 
     CALL timestop(handle)
 
@@ -146,6 +98,7 @@ CONTAINS
 !>       - Force calculation added (03.06.2002,MK)
 !>       - Parallelized using a list of local atoms for rows and
 !>         columns (19.07.2003,MK)
+!>       - Use precomputed neighborlists (sab_core) and nl iterator (28.07.2010,jhu)
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_ecore_overlap(qs_env,para_env,calculate_forces,molecular, &
@@ -160,43 +113,31 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: unit_str
-    INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
-      kcell, maxat, maxatom_local, natom, natom_local_a, natom_local_b, &
-      nkind, nsub, output_unit, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: listindex, listsort
-    INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
-                                                periodic
-    INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
-                                                local_rows_array
-    LOGICAL                                  :: cell000, failure, include_ab, &
-                                                only_molecule, use_virial
-    REAL(KIND=dp)                            :: aab, conv, dab, eab, &
-                                                ecore_overlap, f, fab, &
-                                                r_skin, rab2, rab2_max, &
-                                                rab_max, rootaab, subcells, &
-                                                zab
+    INTEGER                                  :: atom_a, atom_b, group, &
+                                                handle, iatom, ikind, jatom, &
+                                                jkind, natom, nkind, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(3)                    :: periodic
+    LOGICAL                                  :: failure, only_molecule, &
+                                                use_virial
+    REAL(KIND=dp)                            :: aab, dab, eab, ecore_overlap, &
+                                                f, fab, rab2, rootaab, zab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
-    REAL(KIND=dp), DIMENSION(3)              :: deab, r, r_pbc, rab, rb, s, &
-                                                sab_max, sb, sb_max, sb_min, &
-                                                sb_pbc
+    REAL(KIND=dp), DIMENSION(3)              :: deab, r, rab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(local_atoms_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: atom
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_core
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(subcell_type), DIMENSION(:, :, :), &
-      POINTER                                :: subcell
     TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
@@ -208,491 +149,91 @@ CONTAINS
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
     NULLIFY (cell)
-    NULLIFY (distribution_2d,distribution_1d)
     NULLIFY (energy)
     NULLIFY (force)
     NULLIFY (particle_set)
-    NULLIFY (subcell)
 
     group = para_env%group
 
     only_molecule = .FALSE.
     IF (PRESENT(molecular)) only_molecule = molecular
 
-    ! Set Verlet skin
-    r_skin = 0.0_dp
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    local_particles=distribution_1d,&
-                    distribution_2d=distribution_2d,&
                     particle_set=particle_set,&
                     energy=energy,&
                     force=force,&
+                    sab_core=sab_core,&
                     virial = virial,error=error)
 
     CALL get_cell(cell=cell,periodic=periodic)
 
     ! Allocate work storage
     nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
-    ALLOCATE (atom(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE (alpha(nkind),STAT=stat)
+    ALLOCATE (alpha(nkind),radius(nkind),zeff(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     alpha(:) = 0.0_dp
-
-    ALLOCATE (radius(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     radius(:) = 0.0_dp
-
-    ALLOCATE (zeff(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     zeff(:) = 0.0_dp
 
-    ! Initialize the local data structures
-
-    maxatom_local = 0
+    IF (calculate_forces) THEN
+       ALLOCATE (atom_of_kind(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+    END IF
 
     DO ikind=1,nkind
-
       atomic_kind => atomic_kind_set(ikind)
-
-      NULLIFY (atom(ikind)%list)
-      NULLIFY (atom(ikind)%list_local_a_index)
-      NULLIFY (atom(ikind)%list_local_b_index)
-      NULLIFY (atom(ikind)%r_pbc)
-      NULLIFY (atom(ikind)%s_pbc)
-
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=atom(ikind)%list,&
                            alpha_core_charge=alpha(ikind),&
                            core_charge_radius=radius(ikind),&
                            zeff=zeff(ikind))
-
-      natom = SIZE(atom(ikind)%list)
-      IF(only_molecule) THEN
-        natom_local_a = distribution_1d%n_el(ikind)
-        natom_local_b = distribution_1d%n_el(ikind)
-        local_rows_array => distribution_1d%list(ikind)%array
-        local_cols_array => distribution_1d%list(ikind)%array
-      ELSE
-        natom_local_a = distribution_2d%n_local_rows(ikind)
-        natom_local_b = distribution_2d%n_local_cols(ikind)
-        local_rows_array => distribution_2d%local_rows(ikind)%array
-        local_cols_array => distribution_2d%local_cols(ikind)%array
-      END IF
-
-      maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
-
-      IF (alpha(ikind) /= 0.0_dp) THEN
-
-        ALLOCATE (listsort(natom),listindex(natom),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        listsort(1:natom) = atom(ikind)%list(1:natom)
-        CALL sort(listsort,natom,listindex)
-
-        IF (natom_local_a > 0) THEN
-
-          ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-          DO iatom_local=1,natom_local_a
-            atom_a = local_rows_array(iatom_local)
-            iatom = locate(listsort,atom_a)
-            atom(ikind)%list_local_a_index(iatom_local) = listindex(iatom)
-          END DO
-
-        END IF
-
-        IF (natom_local_b > 0) THEN
-
-          ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-          DO iatom_local=1,natom_local_b
-            atom_b = local_cols_array(iatom_local)
-            iatom = locate(listsort,atom_b)
-            atom(ikind)%list_local_b_index(iatom_local) = listindex(iatom)
-          END DO
-
-        END IF
-
-        DEALLOCATE(listsort,listindex,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-        ALLOCATE (atom(ikind)%r_pbc(3,natom),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-        ALLOCATE (atom(ikind)%s_pbc(3,natom),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-        ! Calculate PBC coordinates
-
-        DO iatom=1,natom
-          atom_a = atom(ikind)%list(iatom)
-          r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
-          atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-          CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
-        END DO
-
-      END IF
-
     END DO
 
-    output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%SUBCELL",&
-                                       extension=".Log",error=error)
-    CALL section_vals_val_get(qs_env%input,"DFT%PRINT%SUBCELL%UNIT",c_val=unit_str,error=error)
-    conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-    IF (output_unit > 0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
-        "SUBCELL GRID FOR THE CALCULATION OF THE CORE CHARGE OVERLAP",&
-        "Atomic kind pair","Grid size",&
-        "Subcell size in "//unit_str
-    END IF
-
-    CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells,error=error)
     ecore_overlap = 0.0_dp
-    DO ikind=1,nkind
 
-      IF (alpha(ikind) == 0.0_dp) CYCLE
-      IF (zeff(ikind) == 0.0_dp) CYCLE
-
-      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
-
-      natom_local_a = SIZE(atom(ikind)%list_local_a_index)
-
-      DO jkind=1,nkind
-
-        IF (alpha(jkind) == 0.0_dp) CYCLE
-        IF (zeff(jkind) == 0.0_dp) CYCLE
-
-        IF (.NOT.ASSOCIATED(atom(jkind)%list_local_b_index)) CYCLE
-
-        natom_local_b = SIZE(atom(jkind)%list_local_b_index)
-
-        zab = zeff(ikind)*zeff(jkind)
-        aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
-        rootaab = SQRT(aab)
-        fab = 2.0_dp*oorootpi*zab*rootaab
-
-        ! Calculate the square of the maximum interaction distance ***
-
-        rab_max = radius(ikind) + radius(jkind) + r_skin
-        rab2_max = rab_max*rab_max
-
-        sab_max(1) = rab_max/plane_distance(1,0,0,cell)
-        sab_max(2) = rab_max/plane_distance(0,1,0,cell)
-        sab_max(3) = rab_max/plane_distance(0,0,1,cell)
-
-        ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
-
-        ! Print subcell information for the current atomic kind pair
-
-        IF (output_unit > 0) THEN
-          s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
-          CALL scaled_to_real(r,s,cell)
-          WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
-            ikind,jkind,nsubcell(1:3),r(1:3)*conv
-        END IF
-
-        ! Check, if we have to consider a subcell grid
-
-        IF (SUM(nsubcell) == 3) THEN
-
-          ! Case 1: No subcell grid is needed
-
-          DO jatom_local=1,natom_local_b
-
-            jatom = atom(jkind)%list_local_b_index(jatom_local)
-            atom_b = atom(jkind)%list(jatom)
-            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
-
-            loop1_kcell: DO kcell=-ncell(3),ncell(3)
-
-              sb(3) = sb_pbc(3) + REAL(kcell,dp)
-              sb_min(3) = sb(3) - sab_max(3)
-              sb_max(3) = sb(3) + sab_max(3)
-              IF (periodic(3) /= 0) THEN
-                IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
-                IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
-              END IF
-              cell_b(3) = kcell
-
-              loop1_jcell: DO jcell=-ncell(2),ncell(2)
-
-                sb(2) = sb_pbc(2) + REAL(jcell,dp)
-                sb_min(2) = sb(2) - sab_max(2)
-                sb_max(2) = sb(2) + sab_max(2)
-                IF (periodic(2) /= 0) THEN
-                  IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
-                  IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
-                END IF
-                cell_b(2) = jcell
-
-                loop1_icell: DO icell=-ncell(1),ncell(1)
-
-                  sb(1) = sb_pbc(1) + REAL(icell,dp)
-                  sb_min(1) = sb(1) - sab_max(1)
-                  sb_max(1) = sb(1) + sab_max(1)
-                  IF (periodic(1) /= 0) THEN
-                    IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
-                    IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
-                  END IF
-                  cell_b(1) = icell
-
-                  CALL scaled_to_real(rb,sb,cell)
-
-                  cell000 = ((icell == 0).AND.&
-                             (jcell == 0).AND.&
-                             (kcell == 0))
-
-                  DO iatom_local=1,natom_local_a
-                    iatom = atom(ikind)%list_local_a_index(iatom_local)
-                    atom_a = atom(ikind)%list(iatom)
-                    IF (cell000) THEN
-                      IF (atom_a > atom_b) THEN
-                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                        f = 1.0_dp
-                      ELSE
-                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                        f = 1.0_dp
-                      END IF
-                    ELSE
-                      IF (atom_a == atom_b) THEN
-                        include_ab = .TRUE.
-                        f = 0.5_dp
-                      ELSE IF (atom_a > atom_b) THEN
-                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                        f = 1.0_dp
-                      ELSE
-                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                        f = 1.0_dp
-                      END IF
-                    END IF
-                    IF (include_ab) THEN
-                      rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
-                      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                      IF (rab2 < rab2_max) THEN
-                        dab = SQRT(rab2)
-                        eab = zab*erfc(rootaab*dab)/dab
-                        ecore_overlap = ecore_overlap + f*eab
-                        IF (calculate_forces) THEN
-                          deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
-                          force(ikind)%core_overlap(:,iatom) =&
-                            force(ikind)%core_overlap(:,iatom) + deab(:)
-                          force(jkind)%core_overlap(:,jatom) =&
-                            force(jkind)%core_overlap(:,jatom) - deab(:)
-                          IF (use_virial) THEN
-                            CALL virial_pair_force ( virial%pv_virial, 1._dp, &
-                                                     deab, rab, error)
-                          END IF
-                        END IF
-                      END IF
-                    END IF
-                  END DO
-
-                END DO loop1_icell
-              END DO loop1_jcell
-            END DO loop1_kcell
-
-          END DO
-
-        ELSE
-
-          ! Case 2: A subcell grid is needed
-
-!deb          CALL allocate_subcell(subcell,nsubcell,maxatom_local,error=error)
-          nsub = MAX(nsubcell(1)*nsubcell(2)*nsubcell(3),1)
-          maxat = MAX(maxatom_local/nsub,10)
-          CALL allocate_subcell(subcell,nsubcell,2*maxat,error=error)
-
-          DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_a_index(iatom_local)
-            atom_a = atom(ikind)%list(iatom)
-            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = INT(s(1)*REAL(nsubcell(1),dp)) + 1
-            j = INT(s(2)*REAL(nsubcell(2),dp)) + 1
-            k = INT(s(3)*REAL(nsubcell(3),dp)) + 1
-            i = MIN(MAX(i,1),nsubcell(1))
-            j = MIN(MAX(j,1),nsubcell(2))
-            k = MIN(MAX(k,1),nsubcell(3))
-            subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
-            maxat = SIZE(subcell(i,j,k)%atom_list)
-            IF(subcell(i,j,k)%natom > maxat) THEN
-               CALL reallocate(subcell(i,j,k)%atom_list,1,2*maxat)
-            END IF
-            subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
-          END DO
-
-          DO jatom_local=1,natom_local_b
-
-            jatom = atom(jkind)%list_local_b_index(jatom_local)
-            atom_b = atom(jkind)%list(jatom)
-            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom)
-
-            loop2_kcell: DO kcell=-ncell(3),ncell(3)
-
-              sb(3) = sb_pbc(3) + REAL(kcell,dp)
-              sb_min(3) = sb(3) - sab_max(3)
-              sb_max(3) = sb(3) + sab_max(3)
-              IF (periodic(3) /= 0) THEN
-                IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
-                IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
-              END IF
-              cell_b(3) = kcell
-
-              loop2_jcell: DO jcell=-ncell(2),ncell(2)
-
-                sb(2) = sb_pbc(2) + REAL(jcell,dp)
-                sb_min(2) = sb(2) - sab_max(2)
-                sb_max(2) = sb(2) + sab_max(2)
-                IF (periodic(2) /= 0) THEN
-                  IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
-                  IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
-                END IF
-                cell_b(2) = jcell
-
-                loop2_icell: DO icell=-ncell(1),ncell(1)
-
-                  sb(1) = sb_pbc(1) + REAL(icell,dp)
-                  sb_min(1) = sb(1) - sab_max(1)
-                  sb_max(1) = sb(1) + sab_max(1)
-                  IF (periodic(1) /= 0) THEN
-                    IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
-                    IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
-                  END IF
-                  cell_b(1) = icell
-
-                  cell000 = ((icell == 0).AND.&
-                             (jcell == 0).AND.&
-                             (kcell == 0))
-
-                  CALL scaled_to_real(rb,sb,cell)
-
-                  loop_k: DO k=1,nsubcell(3)
-                    loop_j: DO j=1,nsubcell(2)
-                      loop_i: DO i=1,nsubcell(1)
-
-                        IF (periodic(3) /= 0) THEN
-                          IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
-                          IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
-                        END IF
-
-                        IF (periodic(2) /= 0) THEN
-                          IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
-                          IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
-                        END IF
-
-                        IF (periodic(1) /= 0) THEN
-                          IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
-                          IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
-                        END IF
-
-                        IF (subcell(i,j,k)%natom == 0) CYCLE
-
-                        DO iatom_subcell=1,subcell(i,j,k)%natom
-                          iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
-                          iatom = atom(ikind)%list_local_a_index(iatom_local)
-                          atom_a = atom(ikind)%list(iatom)
-                          IF (cell000) THEN
-                            IF (atom_a > atom_b) THEN
-                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                              f = 1.0_dp
-                            ELSE
-                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                              f = 1.0_dp
-                            END IF
-                          ELSE
-                            IF (atom_a == atom_b) THEN
-                              include_ab = .TRUE.
-                              f = 0.5_dp
-                            ELSE IF (atom_a > atom_b) THEN
-                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                              f = 1.0_dp
-                            ELSE
-                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                              f = 1.0_dp
-                            END IF
-                          END IF
-
-                          IF (include_ab) THEN
-                            rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
-                            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-
-                            IF (rab2 < rab2_max) THEN
-                              dab = SQRT(rab2)
-                              eab = zab*erfc(rootaab*dab)/dab
-                              ecore_overlap = ecore_overlap + f*eab
-                              IF (calculate_forces) THEN
-                                deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
-                                force(ikind)%core_overlap(:,iatom) =&
-                                  force(ikind)%core_overlap(:,iatom) + deab(:)
-                                force(jkind)%core_overlap(:,jatom) =&
-                                  force(jkind)%core_overlap(:,jatom) - deab(:)
-                                IF (use_virial) THEN
-                                  CALL virial_pair_force ( virial%pv_virial, 1._dp, &
-                                                           deab, rab, error)
-                                END IF
-                              END IF
-                            END IF
-                          END IF
-                        END DO
-
-                      END DO loop_i
-                    END DO loop_j
-                  END DO loop_k
-
-                END DO loop2_icell
-              END DO loop2_jcell
-            END DO loop2_kcell
-
-          END DO
-
-          CALL deallocate_subcell(subcell,error=error)
-
-        END IF
-
-      END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_core)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rab)
+       zab = zeff(ikind)*zeff(jkind)
+       aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
+       rootaab = SQRT(aab)
+       fab = 2.0_dp*oorootpi*zab*rootaab
+       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+       IF (rab2 > 1.e-8_dp) THEN
+          IF (ikind==jkind .AND. iatom==jatom) THEN
+            f=0.5_dp
+          ELSE
+            f=1.0_dp
+          END IF
+          dab = SQRT(rab2)
+          eab = zab*erfc(rootaab*dab)/dab
+          ecore_overlap = ecore_overlap + f*eab
+          IF (calculate_forces) THEN
+             deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
+             atom_a = atom_of_kind(iatom)
+             atom_b = atom_of_kind(jatom)
+             force(ikind)%core_overlap(:,atom_a) = force(ikind)%core_overlap(:,atom_a) + deab(:)
+             force(jkind)%core_overlap(:,atom_b) = force(jkind)%core_overlap(:,atom_b) - deab(:)
+             IF (use_virial) THEN
+                CALL virial_pair_force ( virial%pv_virial, 1._dp, deab, rab, error)
+             END IF
+          END IF
+       END IF
     END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
 
-    ! Release work storage
-
-    DO ikind=1,nkind
-      NULLIFY (atom(ikind)%list)
-      IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
-        DEALLOCATE (atom(ikind)%list_local_a_index,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
-        DEALLOCATE (atom(ikind)%list_local_b_index,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
-        DEALLOCATE (atom(ikind)%r_pbc,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF
-      IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
-        DEALLOCATE (atom(ikind)%s_pbc,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END IF
-    END DO
-
-    DEALLOCATE (atom,STAT=stat)
+    DEALLOCATE (alpha,radius,zeff,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DEALLOCATE (alpha,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DEALLOCATE (radius,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DEALLOCATE (zeff,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (calculate_forces) THEN
+       DEALLOCATE (atom_of_kind,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     CALL mp_sum(ecore_overlap,group)
 
@@ -701,9 +242,6 @@ CONTAINS
     IF (PRESENT(E_overlap_core)) THEN
       E_overlap_core = energy%core_overlap
     END IF
-
-    CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
-                                      "DFT%PRINT%SUBCELL",error=error)
 
     CALL timestop(handle)
 
@@ -736,22 +274,16 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    energy=energy,error=error)
+                    atomic_kind_set=atomic_kind_set,energy=energy,error=error)
 
     ecore_self = 0.0_dp
 
     DO ikind=1,SIZE(atomic_kind_set)
-
       atomic_kind => atomic_kind_set(ikind)
-
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom,&
-                           zeff=zeff,&
+                           natom=natom, zeff=zeff,&
                            alpha_core_charge=alpha_core_charge)
-
       ecore_self = ecore_self - REAL(natom,dp)*zeff**2*SQRT(alpha_core_charge)
-
     END DO
 
     energy%core_self = ecore_self/SQRT(twopi)

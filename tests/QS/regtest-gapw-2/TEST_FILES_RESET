@@ -93,3 +93,7 @@ C-levelshift.inp
 C-levelshift.inp
 # numerics
 C-levelshift.inp
+# Numerics introduced by major QS refactoring 
+H2-pbe-restart-run.inp
+# Numerics introduced by major QS refactoring 
+H2-pbe-restart-rerun.inp

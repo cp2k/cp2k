@@ -339,9 +339,7 @@ CONTAINS
           CALL calculate_dftb_dispersion(qs_env=qs_env,para_env=para_env,&
                calculate_forces=.TRUE.,error=error)
        ELSE
-          CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-               globenv=globenv,&
-               calculate_forces=.TRUE.,error=error)
+          CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
           CALL calculate_ecore_self(qs_env,error=error)
           CALL calculate_ecore_overlap(qs_env, para_env, &
                calculate_forces=.TRUE.,&

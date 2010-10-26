@@ -10,6 +10,8 @@
 MODULE sap_kind_types
 
   USE kinds,                           ONLY: dp
+  USE util,                            ONLY: locate,&
+                                             sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -39,11 +41,12 @@ MODULE sap_kind_types
       INTEGER                                    :: a_kind, p_kind
       INTEGER                                    :: nalist
       TYPE(alist_type), DIMENSION(:), POINTER    :: alist
+      INTEGER, DIMENSION(:), POINTER             :: asort, aindex
   END TYPE sap_int_type
 
   PUBLIC :: sap_int_type, clist_type, alist_type,&
             release_sap_int, get_alist, alist_pre_align_blk,&
-            alist_post_align_blk
+            alist_post_align_blk, sap_sort
 
 CONTAINS
 
@@ -90,6 +93,14 @@ CONTAINS
         DEALLOCATE (sap_int(i)%alist,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
+      IF ( ASSOCIATED(sap_int(i)%asort) ) THEN
+        DEALLOCATE (sap_int(i)%asort,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      IF ( ASSOCIATED(sap_int(i)%aindex) ) THEN
+        DEALLOCATE (sap_int(i)%aindex,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
     END DO
 
     DEALLOCATE (sap_int,STAT=stat)
@@ -97,9 +108,9 @@ CONTAINS
 
   END SUBROUTINE release_sap_int
 
-  SUBROUTINE get_alist(valist, alist, atom, error)
+  SUBROUTINE get_alist(sap_int, alist, atom, error)
 
-    TYPE(alist_type), DIMENSION(:), POINTER  :: valist
+    TYPE(sap_int_type)                       :: sap_int
     TYPE(alist_type), POINTER                :: alist
     INTEGER, INTENT(IN)                      :: atom
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -110,20 +121,18 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(valist),cp_failure_level,routineP,error,failure)
-
     NULLIFY(alist)
-    DO i=1,SIZE(valist)
-       IF(valist(i)%aatom==atom) THEN
-         alist => valist(i)
-         EXIT
-       END IF
-    END DO
-
-    CPPostcondition(ASSOCIATED(alist),cp_failure_level,routineP,error,failure)
+    i = locate(sap_int%asort,atom)
+    IF (i > 0 .AND. i <= SIZE(sap_int%alist)) THEN
+      i = sap_int%aindex(i)
+      alist => sap_int%alist(i)
+    ELSE IF (i==0) THEN
+      NULLIFY(alist)
+    ELSE
+      CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
 
   END SUBROUTINE get_alist
-
 
   SUBROUTINE alist_pre_align_blk(blk_in,ldin,blk_out,ldout,ilist,in,jlist,jn)
     INTEGER                                  :: ldin
@@ -186,6 +195,30 @@ CONTAINS
        ENDDO
     ENDDO
   END SUBROUTINE alist_post_align_blk
+
+  SUBROUTINE sap_sort(sap_int,error)
+    TYPE(sap_int_type), DIMENSION(:), &
+      POINTER                                :: sap_int
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sap_sort', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iac, na, stat
+    LOGICAL                                  :: failure = .FALSE.
+
+! *** Set up a sorting index
+
+    DO iac=1,SIZE(sap_int)
+       IF (.NOT.ASSOCIATED(sap_int(iac)%alist)) CYCLE
+       na = SIZE(sap_int(iac)%alist)
+       ALLOCATE(sap_int(iac)%asort(na),sap_int(iac)%aindex(na),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       sap_int(iac)%asort(1:na)=sap_int(iac)%alist(1:na)%aatom
+       CALL sort(sap_int(iac)%asort,na,sap_int(iac)%aindex)
+    END DO
+
+  END SUBROUTINE sap_sort
 
 !==========================================================================================================
   

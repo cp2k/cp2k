@@ -22,6 +22,7 @@ MODULE qs_linres_current
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
@@ -118,10 +119,12 @@ MODULE qs_linres_current
   USE qs_modify_pab_block,             ONLY: FUNC_AB,&
                                              FUNC_ADBmDAB,&
                                              FUNC_ARDBmDARB
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
                                              rRc_xyz_der_ao
   USE realspace_grid_cube,             ONLY: pw_to_cube
@@ -629,12 +632,11 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, handle, i, iatom, iatom_old, &
-      idir2, igrid_level, iiB, iiiB, ikind, ikind_old, ilist, inode, ipgf, &
-      iset, iset_old, istat, itask, ithread, jatom, jatom_old, jkind, &
-      jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
-      maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, &
-      nseta, nsetb, ntasks, nthread, sgfa, sgfb
+    INTEGER :: bcol, brow, curr_tasks, handle, i, iatom, iatom_old, idir2, &
+      igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, istat, &
+      itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
+      jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natom, &
+      nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, sgfa, sgfb
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -672,12 +674,15 @@ CONTAINS
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
+                                                orb_basis_set
     TYPE(lgrid_type)                         :: lgrid
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -691,12 +696,11 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, rs_rho, &
-         sab_orb_neighbor_list, sab_orb_neighbor_node, atomic_kind_set, &
-         sab_orb, particle_set, rs_current, pw_env, rs_descs, para_env, &
-         dist_ab, set_radius_a, set_radius_b, la_max, la_min, lb_max, &
-         lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, sphi_a, sphi_b, &
-         zeta, zetb, first_sgfa, first_sgfb, dist_ab, tasks, workt, mat_a, &
-         mat_b, mat_c, mat_d, rs_gauge)
+         atomic_kind_set, sab_orb, particle_set, rs_current, pw_env, &
+         rs_descs, para_env, dist_ab, set_radius_a, set_radius_b, la_max, &
+         la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, &
+         sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, dist_ab, &
+         tasks, workt, mat_a, mat_b, mat_c, mat_d, rs_gauge)
     NULLIFY(deltajp_a,deltajp_b,deltajp_c,deltajp_d)
     NULLIFY(jp_block_a,jp_block_b,jp_block_c,jp_block_d)
     NULLIFY(jpblock_a,jpblock_b,jpblock_c,jpblock_d)
@@ -876,144 +880,104 @@ CONTAINS
        IF(do_igaim) deltajp_d => mat_d !mat_d0
     ENDIF
 
-    loop_ikind: DO ikind=1,nkind
+    ALLOCATE (basis_set_list(nkind),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      IF (ASSOCIATED(basis_set_a)) THEN
+        basis_set_list(ikind)%gto_basis_set => basis_set_a
+      ELSE
+        NULLIFY(basis_set_list(ikind)%gto_basis_set)
+      END IF
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rab)
+       basis_set_a => basis_set_list(ikind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+       basis_set_b => basis_set_list(jkind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+       ra(:) = pbc(particle_set(iatom)%r,cell)
+       ! basis ikind
+       first_sgfa   =>  basis_set_a%first_sgf
+       la_max       =>  basis_set_a%lmax
+       la_min       =>  basis_set_a%lmin
+       npgfa        =>  basis_set_a%npgf
+       nseta        =   basis_set_a%nset
+       nsgfa        =>  basis_set_a%nsgf_set
+       rpgfa        =>  basis_set_a%pgf_radius
+       set_radius_a =>  basis_set_a%set_radius
+       kind_radius_a=   basis_set_a%kind_radius
+       sphi_a       =>  basis_set_a%sphi
+       zeta         =>  basis_set_a%zet
+       ! basis jkind
+       first_sgfb   =>  basis_set_b%first_sgf
+       lb_max       =>  basis_set_b%lmax
+       lb_min       =>  basis_set_b%lmin
+       npgfb        =>  basis_set_b%npgf
+       nsetb        =   basis_set_b%nset
+       nsgfb        =>  basis_set_b%nsgf_set
+       rpgfb        =>  basis_set_b%pgf_radius
+       set_radius_b =>  basis_set_b%set_radius
+       kind_radius_b=   basis_set_b%kind_radius
+       sphi_b       =>  basis_set_b%sphi
+       zetb         =>  basis_set_b%zet
 
-       atomic_kind => atomic_kind_set(ikind)
-
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            softb = my_soft, &
-            orb_basis_set=orb_basis_set)
-
-       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            first_sgf=first_sgfa,&
-            kind_radius=kind_radius_a,&
-            lmax=la_max,&
-            lmin=la_min,&
-            npgf=npgfa,&
-            nset=nseta,&
-            nsgf_set=nsgfa,&
-            pgf_radius=rpgfa,&
-            set_radius=set_radius_a,&
-            sphi=sphi_a,&
-            zet=zeta)
-
-       loop_jkind: DO jkind=1,nkind
-
-          atomic_kind => atomic_kind_set(jkind)
-
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               softb = my_soft, &
-               orb_basis_set=orb_basis_set)
-
-          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-               first_sgf=first_sgfb,&
-               kind_radius=kind_radius_b,&
-               lmax=lb_max,&
-               lmin=lb_min,&
-               npgf=npgfb,&
-               nset=nsetb,&
-               nsgf_set=nsgfb,&
-               pgf_radius=rpgfb,&
-               set_radius=set_radius_b,&
-               sphi=sphi_b,&
-               zet=zetb)
-
-          ab = ikind + nkind*(jkind - 1)
-
-          IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN
-
-             CALL get_neighbor_list_set(neighbor_list_set=&
-                  sab_orb(ab)%neighbor_list_set,&
-                  nlist=nlist)
-             sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
-          ELSE
-             nlist=0
+       IF(my_minimum_image) THEN
+          IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
+             CYCLE
           END IF
+       END IF
 
-          loop_ilist:DO ilist = 1, nlist
+       brow = iatom
+       bcol = jatom
 
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
-                  atom=iatom,nnode=nnode)
+       CALL cp_dbcsr_get_block_p(matrix=mat_a,row=brow,col=bcol,&
+            block=jp_block_a,found=den_found_a)
+       CALL cp_dbcsr_get_block_p(matrix=mat_b,row=brow,col=bcol,&
+            block=jp_block_b,found=den_found)
+       CALL cp_dbcsr_get_block_p(matrix=mat_c,row=brow,col=bcol,&
+            block=jp_block_c,found=den_found)
+       IF(do_igaim) CALL cp_dbcsr_get_block_p(matrix=mat_d,row=brow,col=bcol,&
+            block=jp_block_d,found=den_found)
 
-             ra(:) = pbc(particle_set(iatom)%r,cell)
+       IF (.NOT.ASSOCIATED(jp_block_a)) CYCLE
 
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
+       IF (distributed_rs_grids) THEN
+          NULLIFY (jpblock_a,jpblock_b,jpblock_c,jpblock_d)
+          CALL cp_dbcsr_add_block_node ( deltajp_a, brow, bcol, jpblock_a ,error=error)
+          jpblock_a = jp_block_a
+          CALL cp_dbcsr_add_block_node ( deltajp_b, brow, bcol, jpblock_b ,error=error)
+          jpblock_b = jp_block_b
+          CALL cp_dbcsr_add_block_node ( deltajp_c, brow, bcol, jpblock_c ,error=error)
+          jpblock_c = jp_block_c
+          IF(do_igaim) CALL cp_dbcsr_add_block_node ( deltajp_d, brow, bcol, jpblock_d ,error=error)
+          IF(do_igaim) jpblock_d = jp_block_d
+       ELSE
+          jpblock_a => jp_block_a
+          jpblock_b => jp_block_b
+          jpblock_c => jp_block_c
+          IF(do_igaim) jpblock_d => jp_block_d
+       ENDIF
 
-             loop_inode: DO inode = 1, nnode
+       IF (.NOT. map_consistent) THEN
+          IF ( ALL ( 100.0_dp*ABS(jpblock_a) < eps_rho_rspace ) .AND. & 
+               ALL ( 100.0_dp*ABS(jpblock_b) < eps_rho_rspace ) .AND. & 
+               ALL ( 100.0_dp*ABS(jpblock_c) < eps_rho_rspace ) ) THEN 
+             CYCLE
+          END IF
+       END IF
 
-                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                     neighbor=jatom,&
-                     r=rab(:))
+       CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_rho,dft_control,cube_info,gridlevel_info,cell,&
+                                 iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
+                                 la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,error)
 
-                IF(my_minimum_image) THEN
-                   IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
-                      sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                      CYCLE
-                   END IF
-                END IF
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
 
-                brow = iatom
-                bcol = jatom
-
-                CALL cp_dbcsr_get_block_p(matrix=mat_a,row=brow,col=bcol,&
-                     block=jp_block_a,found=den_found_a)
-                CALL cp_dbcsr_get_block_p(matrix=mat_b,row=brow,col=bcol,&
-                     block=jp_block_b,found=den_found)
-                CALL cp_dbcsr_get_block_p(matrix=mat_c,row=brow,col=bcol,&
-                     block=jp_block_c,found=den_found)
-                IF(do_igaim) CALL cp_dbcsr_get_block_p(matrix=mat_d,row=brow,col=bcol,&
-                     block=jp_block_d,found=den_found)
-
-                IF (.NOT.ASSOCIATED(jp_block_a)) THEN
-                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                   CYCLE
-                END IF
-
-                IF (distributed_rs_grids) THEN
-                   NULLIFY (jpblock_a,jpblock_b,jpblock_c,jpblock_d)
-                   CALL cp_dbcsr_add_block_node ( deltajp_a, brow, bcol, jpblock_a ,error=error)
-                   jpblock_a = jp_block_a
-                   CALL cp_dbcsr_add_block_node ( deltajp_b, brow, bcol, jpblock_b ,error=error)
-                   jpblock_b = jp_block_b
-                   CALL cp_dbcsr_add_block_node ( deltajp_c, brow, bcol, jpblock_c ,error=error)
-                   jpblock_c = jp_block_c
-                   IF(do_igaim) CALL cp_dbcsr_add_block_node ( deltajp_d, brow, bcol, jpblock_d ,error=error)
-                   IF(do_igaim) jpblock_d = jp_block_d
-                ELSE
-                   jpblock_a => jp_block_a
-                   jpblock_b => jp_block_b
-                   jpblock_c => jp_block_c
-                   IF(do_igaim) jpblock_d => jp_block_d
-                ENDIF
-
-                IF (.NOT. map_consistent) THEN
-                   IF ( ALL ( 100.0_dp*ABS(jpblock_a) < eps_rho_rspace ) .AND. & 
-                        ALL ( 100.0_dp*ABS(jpblock_b) < eps_rho_rspace ) .AND. & 
-                        ALL ( 100.0_dp*ABS(jpblock_c) < eps_rho_rspace ) ) THEN 
-                      sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                      CYCLE
-                   END IF
-                END IF
-
-                CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_rho,dft_control,cube_info,gridlevel_info,cell,&
-                                  iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,error)
-
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
-             END DO loop_inode
-
-             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-
-          END DO loop_ilist
-
-       END DO loop_jkind
-
-    END DO loop_ikind
+    DEALLOCATE (basis_set_list,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF (distributed_rs_grids) THEN
        CALL cp_dbcsr_finalize(deltajp_a, error=error)

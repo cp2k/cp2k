@@ -604,3 +604,21 @@ ice-scp-ewald_gks.inp
 h2o_gks_e.inp
 # reset few regs w.r.t. several different compilers
 ch2o_pm6.inp
+# Numerics introduced by major QS refactoring 
+st.inp
+# Numerics introduced by major QS refactoring 
+h2op_2.inp
+# Numerics introduced by major QS refactoring 
+h2po4.inp
+# Numerics introduced by major QS refactoring 
+geom.inp
+# Numerics introduced by major QS refactoring 
+b2h6_pm6.inp
+# Numerics introduced by major QS refactoring 
+ch2o_pm6.inp
+# Numerics introduced by major QS refactoring 
+dimer3.inp
+# Numerics introduced by major QS refactoring 
+dimer4.inp
+# Numerics introduced by major QS refactoring 
+h2o_gks_e.inp

@@ -390,3 +390,7 @@ zn_1w_debug.inp
 ZrF2-PM6.inp
 #
 zn_1w_debug.inp
+# Numerics introduced by major QS refactoring 
+ZrF2-PM6.inp
+# Numerics introduced by major QS refactoring 
+H2O-32.inp

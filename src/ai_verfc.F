@@ -65,7 +65,7 @@
 !>                                   coset ( ... -1 ...) = 1  , should be zero, lmi = 1.0 for li >=1 and lmi = 0.0 for li = 0
 !>                                  guarantees this as a prefactor
 !>      -  f{a,b}{x,y,z},ft{a,b},z : f(t)li: prefactors as a result of derivations of l with respect to i 
-!>      -  pVpout                  : pVp matrix elements, allocated in qs_all_potential.F 
+!>      -  pVpout                  : pVp matrix elements
 !>      -  pVp                     : local pVp matrix elements
 !>      -  lamin,lbmin             : minimal angular quantum number used in pVp matrices
 !>      _  vnucp                   : potential of the nuclei 

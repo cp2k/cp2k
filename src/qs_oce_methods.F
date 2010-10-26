@@ -32,13 +32,16 @@ MODULE qs_oce_methods
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_util,                         ONLY: exp_radius
   USE sap_kind_types,                  ONLY: clist_type,&
-                                             sap_int_type
+                                             sap_int_type,&
+                                             sap_sort
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -387,8 +390,8 @@ CONTAINS
       POINTER                                :: oceh, oces
     TYPE(clist_type), POINTER                :: clist
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_paw, orb_basis_set
-    TYPE(neighbor_list_type), POINTER        :: sap_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sap_oce_neighbor_node
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_b
 
     failure = .FALSE.
@@ -428,12 +431,19 @@ CONTAINS
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
       DO i=1,nkind*nkind
-        NULLIFY(intac(i)%alist)
+        NULLIFY(intac(i)%alist,intac(i)%asort,intac(i)%aindex)
         intac(i)%nalist=0
       END DO
 
       !calculate the overlap integrals <a|p>
-      DO ikind=1,nkind
+      CALL neighbor_list_iterator_create(nl_iterator,sap_oce)
+      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+         CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=atom_a,jatom=atom_b,&
+              nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,cell=cell_b,r=rab)
+
+         iac = ikind + nkind*(jkind - 1)
+         dab = SQRT(SUM(rab*rab))
+
          atomic_kind => atomic_kind_set(ikind)
          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
 
@@ -453,143 +463,134 @@ CONTAINS
                                 sphi=sphi_a,&
                                 zet=zeta)
 
-         DO jkind=1,nkind
-           atomic_kind => atomic_kind_set(jkind)
+         atomic_kind => atomic_kind_set(jkind)
 
-           iac = ikind + nkind*(jkind - 1)
-           IF (.NOT.ASSOCIATED(sap_oce(iac)%neighbor_list_set)) CYCLE
+         NULLIFY(paw_proj_b)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
+         IF (.NOT.paw_atom_b) CYCLE
 
-           NULLIFY(paw_proj_b)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
-           IF (.NOT.paw_atom_b) CYCLE
+         CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_paw)
+         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_paw,maxso=maxsob,nset=nsetb)
 
-           CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_paw)
-           IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-           CALL get_gto_basis_set(gto_basis_set=orb_basis_paw,maxso=maxsob,nset=nsetb)
+         CALL get_paw_proj_set(paw_proj_set=paw_proj_b,&
+                               maxl=mlprj,&
+                               nprj=nprjla,&
+                               nsatbas=nsatbas,&
+                               rcprj=rcprj, &
+                               first_prj=fp_car,&
+                               first_prjs=fp_sph,&
+                               rzetprj=rzetprj,&
+                               zetprj=zetb)
 
-           CALL get_paw_proj_set(paw_proj_set=paw_proj_b,&
-                                 maxl=mlprj,&
-                                 nprj=nprjla,&
-                                 nsatbas=nsatbas,&
-                                 rcprj=rcprj, &
-                                 first_prj=fp_car,&
-                                 first_prjs=fp_sph,&
-                                 rzetprj=rzetprj,&
-                                 zetprj=zetb)
+         nsobtot = nsatbas
 
-           nsobtot = nsatbas
+         IF(.NOT.ASSOCIATED(intac(iac)%alist)) THEN
+            intac(iac)%a_kind = ikind
+            intac(iac)%p_kind = jkind
+            intac(iac)%nalist = nlist
+            ALLOCATE(intac(iac)%alist(nlist),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            DO i=1,nlist
+               NULLIFY(intac(iac)%alist(i)%clist)
+               intac(iac)%alist(i)%aatom  = 0
+               intac(iac)%alist(i)%nclist = 0
+            END DO
+         END IF
+         IF(.NOT.ASSOCIATED(intac(iac)%alist(ilist)%clist)) THEN
+            intac(iac)%alist(ilist)%aatom  = atom_a
+            intac(iac)%alist(ilist)%nclist = nneighbor 
+            ALLOCATE(intac(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         END IF
 
-           CALL get_neighbor_list_set(neighbor_list_set=sap_oce(iac)%neighbor_list_set,nlist=nlist)
-           NULLIFY(sap_oce_neighbor_list)
-           intac(iac)%a_kind = ikind
-           intac(iac)%p_kind = jkind
-           intac(iac)%nalist = nlist
-           ALLOCATE(intac(iac)%alist(nlist),STAT=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         clist => intac(iac)%alist(ilist)%clist(jneighbor)
+         clist%catom = atom_b
+         clist%cell  = cell_b
+         clist%rac   = rab
+         clist%nsgf_cnt = 0
+         clist%maxac    = 0.0_dp
+         clist%maxach   = 0.0_dp
+         NULLIFY(clist%acint,clist%achint,clist%sgf_list)
 
-           DO ilist = 1, nlist
-              IF ( .NOT. ASSOCIATED(sap_oce_neighbor_list) ) THEN
-                sap_oce_neighbor_list => first_list(sap_oce(iac)%neighbor_list_set)
-              ELSE
-                sap_oce_neighbor_list => next(sap_oce_neighbor_list)
-              END IF
-              CALL get_neighbor_list(neighbor_list=sap_oce_neighbor_list,atom=atom_a,nnode=nneighbor)
-              intac(iac)%alist(ilist)%aatom  = atom_a
-              intac(iac)%alist(ilist)%nclist = nneighbor 
-              ALLOCATE(intac(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
+         ALLOCATE(sgf_list(nsgfa),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+         at_a => atomic_kind_set(jkind)
+         at_b => atomic_kind_set(ikind)
+
+         local = (atom_a == atom_b .AND. ALL(cell_b == 0))
+
+         IF( local ) THEN
+            DO i=1,maxder
+               ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa),STAT=stat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               oceh(i)%block=0._dp
+               oces(i)%block=0._dp
+            END DO
+            CALL build_oce_block_local(oceh,oces,at_a,sgf_list,nsgf_cnt,error)
+            clist%nsgf_cnt = nsgf_cnt
+            clist%sgf_soft_only = .FALSE.
+            IF(nsgf_cnt > 0) THEN
+               ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               clist%acint(:,:,:)=0._dp
+               clist%sgf_list(:)=HUGE(0)
+               CPPostcondition(nsgf_cnt == nsgfa,cp_failure_level,routineP,error,failure)
+               ! *** Special case: A=B
+               ALLOCATE(clist%achint(nsgfa,nsobtot,maxder),STAT=stat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               clist%achint=0._dp
+               clist%acint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oces(1)%block(1:nsobtot,1:nsgfa))
+               clist%achint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oceh(1)%block(1:nsobtot,1:nsgfa))
+               clist%maxac=MAXVAL(ABS(clist%acint(:,:,1)))
+               clist%maxach=0._dp
+               clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
+            ENDIF
+            DO i=1,maxder
+              DEALLOCATE(oceh(i)%block,oces(i)%block,STAT=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            END DO
+         ELSE
+            DO i=1,maxder
+               ALLOCATE(oces(i)%block(nsobtot,nsgfa),STAT=stat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               oces(i)%block=0._dp
+            END DO
+            CALL build_oce_block(oces,at_a,at_b,rab,nder,sgf_list,nsgf_cnt,sgf_soft_only,eps_fit,error)
+            clist%nsgf_cnt = nsgf_cnt
+            clist%sgf_soft_only = sgf_soft_only
+            IF(nsgf_cnt > 0) THEN
+               ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
+               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               clist%acint(:,:,:)=0._dp
+               clist%sgf_list(:)=HUGE(0)
+               DO i=1,maxder
+                  clist%acint(1:nsgf_cnt,1:nsobtot,i) = TRANSPOSE(oces(i)%block(1:nsobtot,1:nsgf_cnt))
+               END DO
+               clist%maxac=MAXVAL(ABS(clist%acint(:,:,1)))
+               clist%maxach=0._dp
+               clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
+            ENDIF
+            DO i=1,maxder
+              DEALLOCATE(oces(i)%block,STAT=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+            END DO
+         END IF
 
-              sap_oce_neighbor_node => first_node(sap_oce_neighbor_list)
-              DO jneighbor=1,nneighbor
-                 CALL get_neighbor_node(neighbor_node=sap_oce_neighbor_node,neighbor=atom_b,r=rab,cell=cell_b)
-                 dab = SQRT(SUM(rab*rab))
-                 clist => intac(iac)%alist(ilist)%clist(jneighbor)
-                 clist%catom = atom_b
-                 clist%cell  = cell_b
-                 clist%rac   = rab
-                 clist%nsgf_cnt = 0
-                 clist%maxac    = 0.0_dp
-                 clist%maxach   = 0.0_dp
-                 NULLIFY(clist%acint,clist%achint,clist%sgf_list)
+         DEALLOCATE(sgf_list,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                 ALLOCATE(sgf_list(nsgfa),STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-                 at_a => atomic_kind_set(jkind)
-                 at_b => atomic_kind_set(ikind)
-
-                 local = (atom_a == atom_b .AND. ALL(cell_b == 0))
-
-                 IF( local ) THEN
-                    DO i=1,maxder
-                       ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa),STAT=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                       oceh(i)%block=0._dp
-                       oces(i)%block=0._dp
-                    END DO
-                    CALL build_oce_block_local(oceh,oces,at_a,sgf_list,nsgf_cnt,error)
-                    clist%nsgf_cnt = nsgf_cnt
-                    clist%sgf_soft_only = .FALSE.
-                    IF(nsgf_cnt > 0) THEN
-                       ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                       clist%acint(:,:,:)=0._dp
-                       clist%sgf_list(:)=HUGE(0)
-                       CPPostcondition(nsgf_cnt == nsgfa,cp_failure_level,routineP,error,failure)
-                       ! *** Special case: A=B
-                       ALLOCATE(clist%achint(nsgfa,nsobtot,maxder),STAT=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                       clist%achint=0._dp
-                       clist%acint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oces(1)%block(1:nsobtot,1:nsgfa))
-                       clist%achint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oceh(1)%block(1:nsobtot,1:nsgfa))
-                       clist%maxac=MAXVAL(ABS(clist%acint(:,:,1)))
-                       clist%maxach=0._dp
-                       clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
-                    ENDIF
-                    DO i=1,maxder
-                      DEALLOCATE(oceh(i)%block,oces(i)%block,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                    END DO
-                 ELSE
-                    DO i=1,maxder
-                       ALLOCATE(oces(i)%block(nsobtot,nsgfa),STAT=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                       oces(i)%block=0._dp
-                    END DO
-                    CALL build_oce_block(oces,at_a,at_b,rab,nder,sgf_list,nsgf_cnt,sgf_soft_only,eps_fit,error)
-                    clist%nsgf_cnt = nsgf_cnt
-                    clist%sgf_soft_only = sgf_soft_only
-                    IF(nsgf_cnt > 0) THEN
-                       ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
-                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                       clist%acint(:,:,:)=0._dp
-                       clist%sgf_list(:)=HUGE(0)
-                       DO i=1,maxder
-                          clist%acint(1:nsgf_cnt,1:nsobtot,i) = TRANSPOSE(oces(i)%block(1:nsobtot,1:nsgf_cnt))
-                       END DO
-                       clist%maxac=MAXVAL(ABS(clist%acint(:,:,1)))
-                       clist%maxach=0._dp
-                       clist%sgf_list(1:nsgf_cnt) = sgf_list(1:nsgf_cnt)
-                    ENDIF
-                    DO i=1,maxder
-                      DEALLOCATE(oces(i)%block,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                    END DO
-                 END IF
-
-                 sap_oce_neighbor_node => next(sap_oce_neighbor_node)
-
-                 DEALLOCATE(sgf_list,STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-              END DO
-           END DO
-        END DO
      END DO
+     CALL neighbor_list_iterator_release(nl_iterator)
 
      DEALLOCATE(sab,work,ai_work,STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DEALLOCATE(oceh,oces,STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+     ! set up sort index
+     CALL sap_sort(intac,error)
 
    END IF 
 

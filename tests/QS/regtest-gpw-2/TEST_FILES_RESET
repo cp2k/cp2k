@@ -712,3 +712,15 @@ hcn_ts_r.inp
 Au13ico_mtd.inp
 #
 Au12_rmsd_mtd.inp
+# Numerics introduced by major QS refactoring 
+hcn_ts.inp
+# Numerics introduced by major QS refactoring 
+hcn_ts_r.inp
+# Numerics introduced by major QS refactoring 
+hcn_meta_chaincoord.inp
+# Numerics introduced by major QS refactoring 
+hcn_meta_chaincoord_kind.inp
+# Numerics introduced by major QS refactoring 
+Au13ico_mtd.inp
+# Numerics introduced by major QS refactoring 
+Au12_rmsd_mtd.inp

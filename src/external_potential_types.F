@@ -107,7 +107,7 @@ MODULE external_potential_types
 
 ! *****************************************************************************
   TYPE gth_potential_type
-     PRIVATE
+     !PRIVATE
      CHARACTER(LEN=default_string_length)       :: name
      CHARACTER(LEN=default_string_length),&
           DIMENSION(4)                          :: description
@@ -146,6 +146,16 @@ MODULE external_potential_types
 
   END TYPE gth_potential_type
 
+  TYPE all_potential_p_type
+     TYPE(all_potential_type), POINTER          :: all_potential
+  END TYPE all_potential_p_type
+
+  TYPE gth_potential_p_type
+     TYPE(gth_potential_type), POINTER          :: gth_potential
+  END TYPE gth_potential_p_type
+
+! *****************************************************************************
+
   ! Public subroutines
   PUBLIC :: allocate_potential,&
             deallocate_potential,&
@@ -161,6 +171,8 @@ MODULE external_potential_types
   PUBLIC :: all_potential_type,&
             fist_potential_type,&
             gth_potential_type
+  PUBLIC :: all_potential_p_type,&
+            gth_potential_p_type
 
   INTERFACE allocate_potential
      MODULE PROCEDURE allocate_all_potential,&
@@ -1839,5 +1851,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_gth_potential
+
+! *****************************************************************************
 
 END MODULE external_potential_types

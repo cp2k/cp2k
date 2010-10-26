@@ -196,8 +196,7 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
-      CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
-                                         calculate_forces=.TRUE.,error=error)
+      CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
       CALL calculate_ecore_self(qs_env,error=error)
       CALL calculate_ecore_overlap(qs_env, para_env, &
                                            calculate_forces=.TRUE.,&
@@ -578,8 +577,7 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
-      CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
-                                         calculate_forces=.TRUE.,error=error)
+      CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%kinetic, para_env%group)

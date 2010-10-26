@@ -616,8 +616,7 @@ CONTAINS
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-         globenv=globenv, calculate_forces=.FALSE.,error=error)
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
     CALL qs_env_update_s_mstruct(qs_env, error=error)
 
     !  *** init the ks_env
@@ -1605,8 +1604,7 @@ CONTAINS
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
-         calculate_forces=.FALSE.,error=error)
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.FALSE.,error=error)
     CALL qs_env_update_s_mstruct(qs_env,error=error)
     CALL qs_check_i_alloc(qs_env,error=error)
     CALL calculate_ecore_self(qs_env,error=error)
@@ -1934,9 +1932,7 @@ CONTAINS
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",message=routineP//&
          " compute forces in main_qs_env",error=error)
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-         globenv=globenv,&
-         calculate_forces=.TRUE.,error=error)
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,calculate_forces=.TRUE.,error=error)
     CALL calculate_ecore_self(qs_env,error=error)
     CALL calculate_ecore_overlap(qs_env, para_env, &
          calculate_forces=.TRUE.,&

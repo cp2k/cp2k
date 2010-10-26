@@ -78,3 +78,9 @@ c8_pmix_gapw_all.inp
 c8_pmix_gapw_all_xashh.inp
 CO_xastpfh.inp
 CO_xastphh_r.inp
+# Numerics introduced by major QS refactoring 
+c8_pmix_gapw_all.inp
+# Numerics introduced by major QS refactoring 
+c8_pmix_gapw_all_xashh.inp
+# Numerics introduced by major QS refactoring 
+c8_broy_gapw_all_xashh.inp

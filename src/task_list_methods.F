@@ -14,6 +14,7 @@ MODULE task_list_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
@@ -49,10 +50,12 @@ MODULE task_list_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
@@ -115,10 +118,10 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, curr_tasks, handle, i, iatom, iatom_old, igrid_level, &
-      igrid_level_old, ikind, ilist, inode, ipair, ipgf, iset, jatom, &
-      jatom_old, jkind, jpgf, jset, maxpgf, maxset, my_basis_set_id, natoms, &
-      nkind, nlist, nnode, nseta, nsetb, stat
+    INTEGER :: curr_tasks, handle, i, iatom, iatom_old, igrid_level, &
+      igrid_level_old, ikind, inode, ipair, ipgf, iset, jatom, jatom_old, &
+      jkind, jpgf, jset, maxpgf, maxset, my_basis_set_id, natoms, nkind, &
+      nseta, nsetb, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     LOGICAL                                  :: failure, my_soft
@@ -134,11 +137,14 @@ CONTAINS
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
+                                                orb_basis_set
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -230,95 +236,59 @@ CONTAINS
     task_list%ntasks = 0
     curr_tasks = SIZE(task_list%tasks,2)
 
-    loop_ikind: DO ikind=1,nkind
+    ALLOCATE (basis_set_list(nkind))
+    DO ikind=1,nkind
+      atomic_kind => atomic_kind_set(ikind)
+      SELECT CASE (my_basis_set_id)
+      CASE (use_orb_basis_set)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      CASE (use_aux_fit_basis_set)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,softb=my_soft,&
+             aux_fit_basis_set=basis_set_a,basis_set_id=my_basis_set_id)
+      END SELECT
+      IF (ASSOCIATED(basis_set_a)) THEN
+        basis_set_list(ikind)%gto_basis_set => basis_set_a
+      ELSE
+        NULLIFY(basis_set_list(ikind)%gto_basis_set)
+      END IF
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
+                              iatom=iatom,jatom=jatom,r=rab)
+       basis_set_a => basis_set_list(ikind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+       basis_set_b => basis_set_list(jkind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+       ra(:) = pbc(particle_set(iatom)%r,cell)
+       ! basis ikind
+       la_max       =>  basis_set_a%lmax
+       la_min       =>  basis_set_a%lmin
+       npgfa        =>  basis_set_a%npgf
+       nseta        =   basis_set_a%nset
+       rpgfa        =>  basis_set_a%pgf_radius
+       set_radius_a =>  basis_set_a%set_radius
+       kind_radius_a=   basis_set_a%kind_radius
+       zeta         =>  basis_set_a%zet
+       ! basis jkind
+       lb_max       =>  basis_set_b%lmax
+       lb_min       =>  basis_set_b%lmin
+       npgfb        =>  basis_set_b%npgf
+       nsetb        =   basis_set_b%nset
+       rpgfb        =>  basis_set_b%pgf_radius
+       set_radius_b =>  basis_set_b%set_radius
+       kind_radius_b=   basis_set_b%kind_radius
+       zetb         =>  basis_set_b%zet
 
-       atomic_kind => atomic_kind_set(ikind)
-       SELECT CASE (my_basis_set_id)
-       CASE (use_orb_basis_set)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-              softb = my_soft, orb_basis_set=orb_basis_set)
-       CASE (use_aux_fit_basis_set)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-              softb = my_soft, aux_fit_basis_set=orb_basis_set,&
-              basis_set_id=my_basis_set_id)
-       END SELECT
+       CALL task_list_inner_loop(task_list%tasks, task_list%dist_ab, task_list%ntasks, curr_tasks, &
+                rs_rho,dft_control,cube_info,gridlevel_info,cell,&
+                iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
+                la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
 
-       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
 
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            kind_radius=kind_radius_a,&
-            npgf=npgfa,&
-            nset=nseta,&
-            lmax=la_max,&
-            lmin=la_min,&
-            pgf_radius=rpgfa,&
-            set_radius=set_radius_a,&
-            zet=zeta)
-
-       loop_jkind: DO jkind=1,nkind
-
-          atomic_kind => atomic_kind_set(jkind)
-          SELECT CASE (my_basis_set_id)
-          CASE (use_orb_basis_set)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                 softb = my_soft, orb_basis_set=orb_basis_set)
-          CASE (use_aux_fit_basis_set)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                 softb = my_soft, aux_fit_basis_set=orb_basis_set,&
-                 basis_set_id=my_basis_set_id)
-          END SELECT
-
-          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-               kind_radius=kind_radius_b,&
-               npgf=npgfb,&
-               nset=nsetb,&
-               lmax=lb_max,&
-               lmin=lb_min,&
-               pgf_radius=rpgfb,&
-               set_radius=set_radius_b,&
-               zet=zetb)
-          ab = ikind + nkind*(jkind - 1)
-
-          IF (ASSOCIATED(sab_orb(ab)%neighbor_list_set)) THEN
-             CALL get_neighbor_list_set(neighbor_list_set=&
-                  sab_orb(ab)%neighbor_list_set, nlist=nlist)
-             sab_orb_neighbor_list => first_list(sab_orb(ab)%neighbor_list_set)
-          ELSE
-             nlist=0
-          END IF
-
-          loop_ilist: DO ilist = 1, nlist
-
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
-                  atom=iatom,nnode=nnode)
-
-             ra(:) = pbc(particle_set(iatom)%r,cell)
-
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
-
-             loop_inode: DO inode = 1, nnode
-
-                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                     neighbor=jatom, r=rab(:))
-
-                CALL task_list_inner_loop(task_list%tasks, task_list%dist_ab, task_list%ntasks, curr_tasks, &
-                                  rs_rho,dft_control,cube_info,gridlevel_info,cell,&
-                                  iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
-
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
-             END DO loop_inode
-
-             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-
-          END DO loop_ilist
-
-       END DO loop_jkind
-
-    END DO loop_ikind
+    DEALLOCATE (basis_set_list)
 
     ! redistribute the task list so that all tasks map on the local rs grids
     CALL distribute_tasks (rs_rho,task_list%ntasks, natoms,&

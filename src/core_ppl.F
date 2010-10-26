@@ -15,7 +15,7 @@ MODULE core_ppl
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+  USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
                                              cp_dbcsr_get_block_p
@@ -27,10 +27,14 @@ MODULE core_ppl
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_list_types,          ONLY: &
-       find_neighbor_list, first_list, first_node, get_neighbor_list, &
-       get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
-       neighbor_list_type, neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type,&
+                                             nl_set_sub_iterator,&
+                                             nl_sub_iterate
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
@@ -71,11 +75,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppl', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, atom_c, handle, iab, iac, iatom, icol, ikind, &
-      ilist, inode, irow, iset, jatom, jkind, jset, katom, kkind, kneighbor, &
-      last_jatom, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, &
-      maxnset, maxsgf, natom, ncoa, ncob, nkind, nlist, nneighbor, nnode, &
-      nseta, nsetb, sgfa, sgfb, stat
+    INTEGER :: atom_a, atom_b, atom_c, handle, iatom, icol, ikind, inode, &
+      irow, iset, jatom, jkind, jset, katom, kkind, last_jatom, ldai, ldsab, &
+      maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, natom, ncoa, &
+      ncob, nkind, nseta, nsetb, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -97,11 +100,12 @@ CONTAINS
                                                 zetb
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sac_ppl_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node, &
-                                                sac_ppl_neighbor_node
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
+                                                orb_basis_set
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: ap_iterator, nl_iterator
 
     failure = .FALSE.
     IF (calculate_forces) THEN
@@ -145,244 +149,228 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
+    ! iterator for basis/potential list
+    CALL neighbor_list_iterator_create(ap_iterator,sac_ppl,search=.TRUE.)
+
+    ALLOCATE (basis_set_list(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
-       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                              first_sgf=first_sgfa,&
-                              lmax=la_max,&
-                              lmin=la_min,&
-                              npgf=npgfa,&
-                              nset=nseta,&
-                              nsgf_set=nsgfa,&
-                              pgf_radius=rpgfa,&
-                              set_radius=set_radius_a,&
-                              sphi=sphi_a,&
-                              zet=zeta)
+      atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      IF (ASSOCIATED(basis_set_a)) THEN
+        basis_set_list(ikind)%gto_basis_set => basis_set_a
+      ELSE
+        NULLIFY(basis_set_list(ikind)%gto_basis_set)
+      END IF
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
+                              iatom=iatom,jatom=jatom,r=rab)
+       basis_set_a => basis_set_list(ikind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+       basis_set_b => basis_set_list(jkind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+       atom_a = atom_of_kind(iatom)
+       atom_b = atom_of_kind(jatom)
+       ! basis ikind
+       first_sgfa   =>  basis_set_a%first_sgf
+       la_max       =>  basis_set_a%lmax
+       la_min       =>  basis_set_a%lmin
+       npgfa        =>  basis_set_a%npgf
+       nseta        =   basis_set_a%nset
+       nsgfa        =>  basis_set_a%nsgf_set
+       rpgfa        =>  basis_set_a%pgf_radius
+       set_radius_a =>  basis_set_a%set_radius
+       sphi_a       =>  basis_set_a%sphi
+       zeta         =>  basis_set_a%zet
+       ! basis jkind
+       first_sgfb   =>  basis_set_b%first_sgf
+       lb_max       =>  basis_set_b%lmax
+       lb_min       =>  basis_set_b%lmin
+       npgfb        =>  basis_set_b%npgf
+       nsetb        =   basis_set_b%nset
+       nsgfb        =>  basis_set_b%nsgf_set
+       rpgfb        =>  basis_set_b%pgf_radius
+       set_radius_b =>  basis_set_b%set_radius
+       sphi_b       =>  basis_set_b%sphi
+       zetb         =>  basis_set_b%zet
 
-       DO jkind=1,nkind
-          atomic_kind => atomic_kind_set(jkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
-          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 first_sgf=first_sgfb,&
-                                 lmax=lb_max,&
-                                 lmin=lb_min,&
-                                 npgf=npgfb,&
-                                 nset=nsetb,&
-                                 nsgf_set=nsgfb,&
-                                 pgf_radius=rpgfb,&
-                                 set_radius=set_radius_b,&
-                                 sphi=sphi_b,&
-                                 zet=zetb)
+       IF(inode==1) last_jatom = 0
 
-          iab = ikind + nkind*(jkind - 1)
-          IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-          CALL get_neighbor_list_set(neighbor_list_set=sab_orb(iab)%neighbor_list_set,nlist=nlist)
+       dab = SQRT(SUM(rab*rab))
 
-          NULLIFY ( sab_orb_neighbor_list )
-          DO ilist=1,nlist
-             IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-                sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-             ELSE
-                sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-             END IF
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,atom=iatom,nnode=nnode)
-             atom_a = atom_of_kind(iatom)
+       IF (jatom /= last_jatom) THEN
+          new_atom_b = .TRUE.
+          last_jatom = jatom
+       ELSE
+          new_atom_b = .FALSE.
+       END IF
 
-             last_jatom = 0
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
+       ! *** Use the symmetry of the first derivatives ***
+       IF (iatom == jatom) THEN
+          f0 = 1.0_dp
+       ELSE
+          f0 = 2.0_dp
+       END IF
 
-             DO inode=1,nnode
-                CALL get_neighbor_node(sab_orb_neighbor_node,neighbor=jatom,r=rab)
-                dab = SQRT(SUM(rab*rab))
-                atom_b = atom_of_kind(jatom)
-
-                IF (jatom /= last_jatom) THEN
-                   new_atom_b = .TRUE.
-                   last_jatom = jatom
-                ELSE
-                   new_atom_b = .FALSE.
-                END IF
-
-                ! *** Use the symmetry of the first derivatives ***
-                IF (iatom == jatom) THEN
-                   f0 = 1.0_dp
-                ELSE
-                   f0 = 2.0_dp
-                END IF
-
-                ! *** Create matrix blocks for a new matrix block column ***
-                IF (new_atom_b) THEN
-                   IF (iatom <= jatom) THEN
-                      irow = iatom
-                      icol = jatom
-                   ELSE
-                      irow = jatom
-                      icol = iatom
-                   END IF
-                   NULLIFY(h_block)
-                   CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,found)
-                   !CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
-                   IF(ASSOCIATED(h_block)) THEN
-                   IF (calculate_forces) THEN
-                      NULLIFY(p_block)
-                      CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,found)
-                      IF(ASSOCIATED(p_block)) THEN
-                         DO iset=1,nseta
-                            ncoa = npgfa(iset)*ncoset(la_max(iset))
-                            sgfa = first_sgfa(1,iset)
-                            DO jset=1,nsetb
-                               ncob = npgfb(jset)*ncoset(lb_max(jset))
-                               sgfb = first_sgfb(1,jset)
-                               ! *** Decontract density matrix block ***
-                               IF (iatom <= jatom) THEN
-                                  CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       p_block(sgfa,sgfb),SIZE(p_block,1),&
-                                       0.0_dp,work(1,1),SIZE(work,1))
-                               ELSE
-                                  CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       p_block(sgfb,sgfa),SIZE(p_block,1),&
-                                       0.0_dp,work(1,1),SIZE(work,1))
-                               END IF
-                               CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                                    1.0_dp,work(1,1),SIZE(work,1),&
-                                    sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                    0.0_dp,pab(1,1,iset,jset),SIZE(pab,1))
-                            END DO
-                         END DO
-                      ENDIF
-                   END IF
-                   END IF
-                END IF
-
-                hab = 0._dp
-
-                ! loop over all kinds for pseudopotential  atoms
-                DO kkind=1,nkind
-                   atomic_kind => atomic_kind_set(kkind)
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,gth_potential=gth_potential)
-                   IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
-                   CALL get_potential(potential=gth_potential,&
-                                      alpha_ppl=alpha_ppl,cexp_ppl=cexp_ppl,ppl_radius=ppl_radius)
-
-                   iac= ikind + nkind*(kkind - 1)
-                   IF (.NOT.ASSOCIATED(sac_ppl(iac)%neighbor_list_set)) CYCLE
-                   sac_ppl_neighbor_list => find_neighbor_list(sac_ppl(iac)%neighbor_list_set,atom=iatom)
-
-                   CALL get_neighbor_list(neighbor_list=sac_ppl_neighbor_list,nnode=nneighbor)
-
-                   sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
-
-                   DO kneighbor=1,nneighbor
-                      CALL get_neighbor_node(neighbor_node=sac_ppl_neighbor_node,neighbor=katom,r=rac)
-
-                      dac = SQRT(SUM(rac*rac))
-                      rbc(:) = rac(:) - rab(:)
-                      dbc = SQRT(SUM(rbc*rbc))
-                      IF ( (MAXVAL(set_radius_a(:)) + ppl_radius < dac)  .OR. &
-                           (MAXVAL(set_radius_b(:)) + ppl_radius < dbc) ) THEN
-                        sac_ppl_neighbor_node => next(sac_ppl_neighbor_node)
-                        CYCLE
-                      END IF
-
-                      DO iset=1,nseta
-                         IF (set_radius_a(iset) + ppl_radius < dac) CYCLE
-                         ncoa = npgfa(iset)*ncoset(la_max(iset))
-                         sgfa = first_sgfa(1,iset)
-                         DO jset=1,nsetb
-                            IF (set_radius_b(jset) + ppl_radius < dbc) CYCLE
-                            ncob = npgfb(jset)*ncoset(lb_max(jset))
-                            sgfb = first_sgfb(1,jset)
-                            IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-                            ! *** Calculate the GTH pseudo potential forces ***
-                            IF (calculate_forces) THEN
-
-                               CALL overlap_ppl(&
-                                       la_max(iset),la_min(iset),npgfa(iset),&
-                                       rpgfa(:,iset),zeta(:,iset),&
-                                       lb_max(jset),lb_min(jset),npgfb(jset),&
-                                       rpgfb(:,jset),zetb(:,jset),&
-                                       cexp_ppl,alpha_ppl,ppl_radius,&
-                                       rab,dab,rac,dac,rbc,dbc,&
-                                       hab(:,:,iset,jset),nder,nder,.FALSE.,ai_work,&
-                                       pab(:,:,iset,jset),force_a,force_b)
-
-                               ! *** The derivatives w.r.t. atomic center c are    ***
-                               ! *** calculated using the translational invariance ***
-                               ! *** of the first derivatives                      ***
-                               atom_c = atom_of_kind(katom)
-                               force(ikind)%gth_ppl(1,atom_a) =force(ikind)%gth_ppl(1,atom_a) + f0*force_a(1)
-                               force(ikind)%gth_ppl(2,atom_a) =force(ikind)%gth_ppl(2,atom_a) + f0*force_a(2)
-                               force(ikind)%gth_ppl(3,atom_a) =force(ikind)%gth_ppl(3,atom_a) + f0*force_a(3)
-                               force(kkind)%gth_ppl(1,atom_c) =force(kkind)%gth_ppl(1,atom_c) - f0*force_a(1)
-                               force(kkind)%gth_ppl(2,atom_c) =force(kkind)%gth_ppl(2,atom_c) - f0*force_a(2)
-                               force(kkind)%gth_ppl(3,atom_c) =force(kkind)%gth_ppl(3,atom_c) - f0*force_a(3)
-
-                               force(jkind)%gth_ppl(1,atom_b) =force(jkind)%gth_ppl(1,atom_b) + f0*force_b(1)
-                               force(jkind)%gth_ppl(2,atom_b) =force(jkind)%gth_ppl(2,atom_b) + f0*force_b(2)
-                               force(jkind)%gth_ppl(3,atom_b) =force(jkind)%gth_ppl(3,atom_b) + f0*force_b(3)
-                               force(kkind)%gth_ppl(1,atom_c) =force(kkind)%gth_ppl(1,atom_c) - f0*force_b(1)
-                               force(kkind)%gth_ppl(2,atom_c) =force(kkind)%gth_ppl(2,atom_c) - f0*force_b(2)
-                               force(kkind)%gth_ppl(3,atom_c) =force(kkind)%gth_ppl(3,atom_c) - f0*force_b(3)
-
-                               IF (use_virial) THEN
-                                  CALL virial_pair_force ( virial%pv_virial, f0, force_a, rac, error)
-                                  CALL virial_pair_force ( virial%pv_virial, f0, force_b, rbc, error)
-                               END IF
-                            ELSE
-                               CALL overlap_ppl(&
-                                    la_max(iset),la_min(iset),npgfa(iset),&
-                                    rpgfa(:,iset),zeta(:,iset),&
-                                    lb_max(jset),lb_min(jset),npgfb(jset),&
-                                    rpgfb(:,jset),zetb(:,jset),&
-                                    cexp_ppl,alpha_ppl,ppl_radius,&
-                                    rab,dab,rac,dac,rbc,dbc,&
-                                    hab(:,:,iset,jset),0,0,.FALSE.,ai_work)
-                            END IF
-                         END DO
-                      END DO
-                      sac_ppl_neighbor_node => next(sac_ppl_neighbor_node)
-                   END DO
-                END DO
-
-                ! *** Contract PPL integrals
+       ! *** Create matrix blocks for a new matrix block column ***
+       IF (new_atom_b) THEN
+          IF (iatom <= jatom) THEN
+             irow = iatom
+             icol = jatom
+          ELSE
+             irow = jatom
+             icol = iatom
+          END IF
+          NULLIFY(h_block)
+          CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,found)
+          !CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
+          IF(ASSOCIATED(h_block)) THEN
+          IF (calculate_forces) THEN
+             NULLIFY(p_block)
+             CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,found)
+             IF(ASSOCIATED(p_block)) THEN
                 DO iset=1,nseta
                    ncoa = npgfa(iset)*ncoset(la_max(iset))
                    sgfa = first_sgfa(1,iset)
                    DO jset=1,nsetb
                       ncob = npgfb(jset)*ncoset(lb_max(jset))
                       sgfb = first_sgfb(1,jset)
-                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                           1.0_dp,hab(1,1,iset,jset),SIZE(hab,1),&
-                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                           0.0_dp,work(1,1),SIZE(work,1))
+                      ! *** Decontract density matrix block ***
                       IF (iatom <= jatom) THEN
-                         CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                         CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
                               1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                              work(1,1),SIZE(work,1),&
-                              1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
+                              p_block(sgfa,sgfb),SIZE(p_block,1),&
+                              0.0_dp,work(1,1),SIZE(work,1))
                       ELSE
-                         CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                              1.0_dp,work(1,1),SIZE(work,1),&
-                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                              1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
+                         CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
+                              1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                              p_block(sgfb,sgfa),SIZE(p_block,1),&
+                              0.0_dp,work(1,1),SIZE(work,1))
                       END IF
+                      CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                           1.0_dp,work(1,1),SIZE(work,1),&
+                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           0.0_dp,pab(1,1,iset,jset),SIZE(pab,1))
                    END DO
                 END DO
+             ENDIF
+          END IF
+          END IF
+       END IF
 
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+       hab = 0._dp
 
+       ! loop over all kinds for pseudopotential  atoms
+       DO kkind=1,nkind
+          atomic_kind => atomic_kind_set(kkind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,gth_potential=gth_potential)
+          IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
+          CALL get_potential(potential=gth_potential,&
+                             alpha_ppl=alpha_ppl,cexp_ppl=cexp_ppl,ppl_radius=ppl_radius)
+          CALL nl_set_sub_iterator(ap_iterator,ikind,kkind,iatom)
+          DO WHILE (nl_sub_iterate(ap_iterator)==0)
+             CALL get_iterator_info(ap_iterator,jatom=katom,r=rac)
+
+             dac = SQRT(SUM(rac*rac))
+             rbc(:) = rac(:) - rab(:)
+             dbc = SQRT(SUM(rbc*rbc))
+             IF ( (MAXVAL(set_radius_a(:)) + ppl_radius < dac)  .OR. &
+                  (MAXVAL(set_radius_b(:)) + ppl_radius < dbc) ) THEN
+               CYCLE
+             END IF
+
+             DO iset=1,nseta
+                IF (set_radius_a(iset) + ppl_radius < dac) CYCLE
+                ncoa = npgfa(iset)*ncoset(la_max(iset))
+                sgfa = first_sgfa(1,iset)
+                DO jset=1,nsetb
+                   IF (set_radius_b(jset) + ppl_radius < dbc) CYCLE
+                   ncob = npgfb(jset)*ncoset(lb_max(jset))
+                   sgfb = first_sgfb(1,jset)
+                   IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+                   ! *** Calculate the GTH pseudo potential forces ***
+                   IF (calculate_forces) THEN
+
+                      CALL overlap_ppl(&
+                              la_max(iset),la_min(iset),npgfa(iset),&
+                              rpgfa(:,iset),zeta(:,iset),&
+                              lb_max(jset),lb_min(jset),npgfb(jset),&
+                              rpgfb(:,jset),zetb(:,jset),&
+                              cexp_ppl,alpha_ppl,ppl_radius,&
+                              rab,dab,rac,dac,rbc,dbc,&
+                              hab(:,:,iset,jset),nder,nder,.FALSE.,ai_work,&
+                              pab(:,:,iset,jset),force_a,force_b)
+
+                      ! *** The derivatives w.r.t. atomic center c are    ***
+                      ! *** calculated using the translational invariance ***
+                      ! *** of the first derivatives                      ***
+                      atom_c = atom_of_kind(katom)
+                      force(ikind)%gth_ppl(1,atom_a) =force(ikind)%gth_ppl(1,atom_a) + f0*force_a(1)
+                      force(ikind)%gth_ppl(2,atom_a) =force(ikind)%gth_ppl(2,atom_a) + f0*force_a(2)
+                      force(ikind)%gth_ppl(3,atom_a) =force(ikind)%gth_ppl(3,atom_a) + f0*force_a(3)
+                      force(kkind)%gth_ppl(1,atom_c) =force(kkind)%gth_ppl(1,atom_c) - f0*force_a(1)
+                      force(kkind)%gth_ppl(2,atom_c) =force(kkind)%gth_ppl(2,atom_c) - f0*force_a(2)
+                      force(kkind)%gth_ppl(3,atom_c) =force(kkind)%gth_ppl(3,atom_c) - f0*force_a(3)
+
+                      force(jkind)%gth_ppl(1,atom_b) =force(jkind)%gth_ppl(1,atom_b) + f0*force_b(1)
+                      force(jkind)%gth_ppl(2,atom_b) =force(jkind)%gth_ppl(2,atom_b) + f0*force_b(2)
+                      force(jkind)%gth_ppl(3,atom_b) =force(jkind)%gth_ppl(3,atom_b) + f0*force_b(3)
+                      force(kkind)%gth_ppl(1,atom_c) =force(kkind)%gth_ppl(1,atom_c) - f0*force_b(1)
+                      force(kkind)%gth_ppl(2,atom_c) =force(kkind)%gth_ppl(2,atom_c) - f0*force_b(2)
+                      force(kkind)%gth_ppl(3,atom_c) =force(kkind)%gth_ppl(3,atom_c) - f0*force_b(3)
+
+                      IF (use_virial) THEN
+                         CALL virial_pair_force ( virial%pv_virial, f0, force_a, rac, error)
+                         CALL virial_pair_force ( virial%pv_virial, f0, force_b, rbc, error)
+                      END IF
+                   ELSE
+                      CALL overlap_ppl(&
+                           la_max(iset),la_min(iset),npgfa(iset),&
+                           rpgfa(:,iset),zeta(:,iset),&
+                           lb_max(jset),lb_min(jset),npgfb(jset),&
+                           rpgfb(:,jset),zetb(:,jset),&
+                           cexp_ppl,alpha_ppl,ppl_radius,&
+                           rab,dab,rac,dac,rbc,dbc,&
+                           hab(:,:,iset,jset),0,0,.FALSE.,ai_work)
+                   END IF
+                END DO
              END DO
-
           END DO
        END DO
-    END DO
 
-    DEALLOCATE (atom_of_kind,STAT=stat)
+       ! *** Contract PPL integrals
+       DO iset=1,nseta
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+          sgfa = first_sgfa(1,iset)
+          DO jset=1,nsetb
+             ncob = npgfb(jset)*ncoset(lb_max(jset))
+             sgfb = first_sgfb(1,jset)
+             CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                  1.0_dp,hab(1,1,iset,jset),SIZE(hab,1),&
+                  sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                  0.0_dp,work(1,1),SIZE(work,1))
+             IF (iatom <= jatom) THEN
+                CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                     1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                     work(1,1),SIZE(work,1),&
+                     1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
+             ELSE
+                CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                     1.0_dp,work(1,1),SIZE(work,1),&
+                     sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                     1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
+             END IF
+          END DO
+       END DO
+
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
+
+    CALL neighbor_list_iterator_release(ap_iterator)
+
+    DEALLOCATE (atom_of_kind,basis_set_list,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(hab,work,ai_work,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

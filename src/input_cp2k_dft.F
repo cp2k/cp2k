@@ -1005,9 +1005,8 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword,&
             name="sab_scp",&
-            description="Activates the printing of the scp "//&
-            "neighbor lists, "//&
-            "i.e. the dispersion neighbor lists",&
+            description="Activates the printing of the vdW SCP "//&
+            "neighbor lists ",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)
@@ -1017,7 +1016,7 @@ CONTAINS
        CALL keyword_create(keyword=keyword,&
             name="sab_vdw",&
             description="Activates the printing of the vdW "//&
-            "neighbor lists, "//&
+            "neighbor lists (from DFT, DFTB, SE), "//&
             "i.e. the dispersion neighbor lists",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
@@ -1027,8 +1026,8 @@ CONTAINS
 
        CALL keyword_create(keyword=keyword,&
             name="sab_cn",&
-            description="Activates the printing of the vdW "//&
-            "neighbor lists used for coordination numbers",&
+            description="Activates the printing of the "//&
+            "neighbor lists used for coordination numbers in vdW DFT-D3",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)
@@ -1078,10 +1077,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
-            name="sab_2c",&
+            name="sab_se",&
             description="Activates the printing of the two-center "//&
-            "orbital V(Hartree_local) neighbor lists "//&
-            "(only GAPW)",&
+            "neighbor lists for Coulomb type interactions in NDDO ",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)
@@ -1097,10 +1095,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
-            name="sac_3c",&
-            description="Activates the printing of the three-center "//&
-            "orbital(a) V(Hartree_local) neighbor lists "//&
-            "(only GAPW)",&
+            name="sab_tbe",&
+            description="Activates the printing of the DFTB Ewald "//&
+            "neighbor lists ",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)
@@ -1108,10 +1105,9 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
-            name="sbc_3c",&
-            description="Activates the printing of the three-center "//&
-            "orbital(b) V(Hartree_local) neighbor lists "//&
-            "(only GAPW)",&
+            name="sab_core",&
+            description="Activates the printing of core interaction "//&
+            "neighbor lists ",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)

@@ -268,8 +268,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-!    TYPE(real_matrix_p_type), OPTIONAL,POINTER,DIMENSION(:):: H_t_history
-
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(rtp),cp_failure_level,routineP,error,failure)

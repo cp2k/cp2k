@@ -61,10 +61,12 @@ MODULE qs_dftb_matrices
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -109,10 +111,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, iab, iatom, icol, ikind, ilist, &
-      inode, irow, istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, &
-      lmaxi, lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
-      neighbor_list_id, ngrd, ngrdcut, nkind, nlist, nmat, nnode, nrow, spdim
+    INTEGER :: atom_a, atom_b, handle, i, iatom, icol, ikind, inode, irow, &
+      istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, lmaxi, lmaxj, &
+      m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, neighbor_list_id, &
+      ngrd, ngrdcut, nkind, nmat, nrow, spdim
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem, &
                                                 rbs
     LOGICAL                                  :: defined, failure, found, &
@@ -143,11 +145,10 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_kind_a, dftb_kind_b
@@ -290,7 +291,11 @@ CONTAINS
 
     nkind = SIZE(atomic_kind_set)
 
-    DO ikind=1,nkind
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
+            iatom=iatom,jatom=jatom,inode=inode,r=rij)
+
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
                             natom=natom,&
@@ -301,292 +306,260 @@ CONTAINS
 
        IF (.NOT.defined .OR. natorb_a < 1) CYCLE
 
-       DO jkind=1,nkind
-           atomic_kind => atomic_kind_set(jkind)
-           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                dftb_parameter=dftb_kind_b)
-           CALL get_dftb_atom_param(dftb_kind_b,&
-                  defined=defined,lmax=lmaxj,eta=eta_b,natorb=natorb_b)
+       atomic_kind => atomic_kind_set(jkind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            dftb_parameter=dftb_kind_b)
+       CALL get_dftb_atom_param(dftb_kind_b,&
+              defined=defined,lmax=lmaxj,eta=eta_b,natorb=natorb_b)
 
-           IF (.NOT.defined .OR. natorb_b < 1) CYCLE
+       IF (.NOT.defined .OR. natorb_b < 1) CYCLE
 
-           ! retrieve information on F and S matrix
-           dftb_param_ij => dftb_potential(ikind,jkind)
-           dftb_param_ji => dftb_potential(jkind,ikind)
-           ! assume table size and type is symmetric
-           ngrd = dftb_param_ij%ngrd
-           ngrdcut = dftb_param_ij%ngrdcut
-           dgrd = dftb_param_ij%dgrd
-           ddr = dgrd*0.1_dp
-           CPPrecondition(dftb_param_ij%llm==dftb_param_ji%llm,cp_failure_level,routineP,error,failure)
-           llm = dftb_param_ij%llm
-           fmatij => dftb_param_ij%fmat
-           smatij => dftb_param_ij%smat
-           fmatji => dftb_param_ji%fmat
-           smatji => dftb_param_ji%smat
-           ! repulsive pair potential
-           n_urpoly = dftb_param_ij%n_urpoly
-           urep_cut = dftb_param_ij%urep_cut
-           urep = dftb_param_ij%urep
-           spxr => dftb_param_ij%spxr
-           scoeff => dftb_param_ij%scoeff
-           spdim = dftb_param_ij%spdim
-           s_cut = dftb_param_ij%s_cut
-           srep = dftb_param_ij%srep
-           surr = dftb_param_ij%surr
+       ! retrieve information on F and S matrix
+       dftb_param_ij => dftb_potential(ikind,jkind)
+       dftb_param_ji => dftb_potential(jkind,ikind)
+       ! assume table size and type is symmetric
+       ngrd = dftb_param_ij%ngrd
+       ngrdcut = dftb_param_ij%ngrdcut
+       dgrd = dftb_param_ij%dgrd
+       ddr = dgrd*0.1_dp
+       CPPrecondition(dftb_param_ij%llm==dftb_param_ji%llm,cp_failure_level,routineP,error,failure)
+       llm = dftb_param_ij%llm
+       fmatij => dftb_param_ij%fmat
+       smatij => dftb_param_ij%smat
+       fmatji => dftb_param_ji%fmat
+       smatji => dftb_param_ji%smat
+       ! repulsive pair potential
+       n_urpoly = dftb_param_ij%n_urpoly
+       urep_cut = dftb_param_ij%urep_cut
+       urep = dftb_param_ij%urep
+       spxr => dftb_param_ij%spxr
+       scoeff => dftb_param_ij%scoeff
+       spdim = dftb_param_ij%spdim
+       s_cut = dftb_param_ij%s_cut
+       srep = dftb_param_ij%srep
+       surr = dftb_param_ij%surr
 
-           iab = ikind + nkind*(jkind - 1)
-           IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-           CALL get_neighbor_list_set(neighbor_list_set=&
-                                      sab_orb(iab)%neighbor_list_set,&
-                                      nlist=nlist)
-           NULLIFY(sab_orb_neighbor_list)
+       IF (inode==1) last_jatom=0
 
-           DO ilist=1,nlist
-             IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-               sab_orb_neighbor_list => &
-                          first_list(sab_orb(iab)%neighbor_list_set)
-             ELSE
-               sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+       dr = SQRT(SUM(rij(:)**2))
+       IF (NINT(dr/dgrd) <= ngrdcut) THEN
+
+         IF (jatom /= last_jatom) THEN
+           new_atom_b = .TRUE.
+           last_jatom = jatom
+         ELSE
+           new_atom_b = .FALSE.
+         END IF
+         IF (new_atom_b) THEN
+           icol = MAX(iatom,jatom)
+           irow = MIN(iatom,jatom)
+           NULLIFY (sblock)
+           CALL cp_dbcsr_add_block_node(matrix=matrix_s(1)%matrix,&
+                            block_row=irow,&
+                            block_col=icol,&
+                            BLOCK=sblock,error=error)
+           NULLIFY (fblock)
+           CALL cp_dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
+                            block_row=irow,&
+                            block_col=icol,&
+                            BLOCK=fblock,error=error)
+           IF ( dftb_control%self_consistent ) THEN
+             NULLIFY (gblock)
+             CALL cp_dbcsr_add_block_node(matrix=gamma_matrix(1)%matrix,&
+                            block_row=irow,&
+                            block_col=icol,&
+                            BLOCK=gblock,error=error)
+           END IF
+           IF (calculate_forces) THEN
+             NULLIFY (pblock)
+             CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+                  row=irow,col=icol,block=pblock,found=found)
+             CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,error,failure)
+             NULLIFY (wblock)
+             CALL cp_dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
+                  row=irow,col=icol,block=wblock,found=found)
+             CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
+             IF ( dftb_control%self_consistent ) THEN
+               DO i=2,4
+                  NULLIFY(dsblocks(i)%block)
+                  CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
+                             block_row=irow,&
+                             block_col=icol,&
+                             BLOCK=dsblocks(i)%block,error=error)
+                 NULLIFY (dgblocks(i)%block)
+                 CALL cp_dbcsr_add_block_node(matrix=gamma_matrix(i)%matrix,&
+                            block_row=irow,&
+                            block_col=icol,&
+                            BLOCK=dgblocks(i)%block,error=error)
+               END DO
              END IF
-             sab_orb_neighbor_list_local => sab_orb_neighbor_list
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                                    atom=iatom,&
-                                    nnode=nnode)
-             last_jatom = 0
+           END IF
+         END IF
 
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-
-             DO inode=1,nnode
-               CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                      neighbor=jatom,r=rij)
-
+         IF (iatom == jatom .AND. dr < 0.001_dp) THEN
+           ! diagonal block
+           DO i=1,natorb_a
+             sblock(i,i) = sblock(i,i) + 1._dp
+             fblock(i,i) = fblock(i,i) + skself(orbptr(i))
+           END DO
+         ELSE
+           ! off-diagonal block
+           IF ( irow == iatom ) THEN
+             CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+             CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+             CALL turnsk(sblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+             CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+             CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+             CALL turnsk(fblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+           ELSE
+             CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+             CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+             CALL turnsk(sblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
+             CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+             CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+             CALL turnsk(fblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
+           END IF
+           IF(calculate_forces) THEN
+             force_ab = 0._dp
+             force_w  = 0._dp
+             n1 = SIZE(fblock,1)
+             n2 = SIZE(fblock,2)
+             ALLOCATE (dfblock(n1,n2),dsblock(n1,n2),STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             DO i=1,3
+               rij(i) = rij(i) + ddr
                dr = SQRT(SUM(rij(:)**2))
-               IF (NINT(dr/dgrd) <= ngrdcut) THEN
-
-                 IF (jatom /= last_jatom) THEN
-                   new_atom_b = .TRUE.
-                   last_jatom = jatom
-                 ELSE
-                   new_atom_b = .FALSE.
-                 END IF
-                 IF (new_atom_b) THEN
-                   icol = MAX(iatom,jatom)
-                   irow = MIN(iatom,jatom)
-                   NULLIFY (sblock)
-                   CALL cp_dbcsr_add_block_node(matrix=matrix_s(1)%matrix,&
-                                    block_row=irow,&
-                                    block_col=icol,&
-                                    BLOCK=sblock,error=error)
-                   NULLIFY (fblock)
-                   CALL cp_dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
-                                    block_row=irow,&
-                                    block_col=icol,&
-                                    BLOCK=fblock,error=error)
-                   IF ( dftb_control%self_consistent ) THEN
-                     NULLIFY (gblock)
-                     CALL cp_dbcsr_add_block_node(matrix=gamma_matrix(1)%matrix,&
-                                    block_row=irow,&
-                                    block_col=icol,&
-                                    BLOCK=gblock,error=error)
-                   END IF
-                   IF (calculate_forces) THEN
-                     NULLIFY (pblock)
-                     CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
-                          row=irow,col=icol,block=pblock,found=found)
-                     CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,error,failure)
-                     NULLIFY (wblock)
-                     CALL cp_dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
-                          row=irow,col=icol,block=wblock,found=found)
-                     CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
-                     IF ( dftb_control%self_consistent ) THEN
-                       DO i=2,4
-                          NULLIFY(dsblocks(i)%block)
-                          CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     BLOCK=dsblocks(i)%block,error=error)
-                         NULLIFY (dgblocks(i)%block)
-                         CALL cp_dbcsr_add_block_node(matrix=gamma_matrix(i)%matrix,&
-                                    block_row=irow,&
-                                    block_col=icol,&
-                                    BLOCK=dgblocks(i)%block,error=error)
-                       END DO
-                     END IF
-                   END IF
-                 END IF
-
-                 IF (iatom == jatom .AND. dr < 0.001_dp) THEN
-                   ! diagonal block
-                   DO i=1,natorb_a
-                     sblock(i,i) = sblock(i,i) + 1._dp
-                     fblock(i,i) = fblock(i,i) + skself(orbptr(i))
-                   END DO
-                 ELSE
-                   ! off-diagonal block
-                   IF ( irow == iatom ) THEN
-                     CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL turnsk(sblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
-                     CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL turnsk(fblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
-                   ELSE
-                     CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL turnsk(sblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
-                     CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                     CALL turnsk(fblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
-                   END IF
-                   IF(calculate_forces) THEN
-                     force_ab = 0._dp
-                     force_w  = 0._dp
-                     n1 = SIZE(fblock,1)
-                     n2 = SIZE(fblock,2)
-                     ALLOCATE (dfblock(n1,n2),dsblock(n1,n2),STAT=istat)
-                     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                     DO i=1,3
-                       rij(i) = rij(i) + ddr
-                       dr = SQRT(SUM(rij(:)**2))
-                       dfblock=0._dp
-                       dsblock=0._dp
-                       IF ( irow == iatom ) THEN
-                         CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dsblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
-                         CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dfblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
-                       ELSE
-                         CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dsblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
-                         CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dfblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
-                       END IF
-                       rij(i) = rij(i) - 2._dp*ddr
-                       dr = SQRT(SUM(rij(:)**2))
-                       dsblock = -dsblock
-                       dfblock = -dfblock
-                       IF ( irow == iatom ) THEN
-                         CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dsblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
-                         CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dfblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
-                       ELSE
-                         CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dsblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
-                         CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
-                         CALL turnsk(dfblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
-                       END IF
-                       rij(i) = rij(i) + ddr
-                       dr = SQRT(SUM(rij(:)**2))
-                       dfblock = -dfblock/ddr
-                       dsblock = -dsblock/ddr
-                       IF ( irow == iatom ) THEN
-                         foab = -SUM(dfblock*pblock)
-                         fow = SUM(dsblock*wblock)
-                         dsblock = -dsblock
-                       ELSE
-                         foab = SUM(dfblock*pblock)
-                         fow = -SUM(dsblock*wblock)
-                       END IF
-                       force_ab(i) = force_ab(i) + foab
-                       force_w(i) = force_w(i) + fow
-                       IF ( dftb_control%self_consistent ) THEN
-                          CPPrecondition(ASSOCIATED(dsblocks(i+1)%block),cp_failure_level,routineP,error,failure)
-                          dsblocks(i+1)%block = dsblocks(i+1)%block + dsblock
-                       END IF
-                     ENDDO
-                     IF ( use_virial ) THEN
-                       IF ( irow == iatom ) THEN
-                         f0 = -1._dp
-                       ELSE
-                         f0 = 1._dp
-                       END IF
-                       CALL virial_pair_force ( virial%pv_virial, -f0, force_ab, rij, error)
-                       CALL virial_pair_force ( virial%pv_virial, -f0, force_w, rij, error)
-                     END IF
-                     DEALLOCATE (dfblock,dsblock,STAT=istat)
-                     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                 END IF
-
-                 IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
-                    atom_a = atom_of_kind(iatom)
-                    atom_b = atom_of_kind(jatom)
-                    IF ( irow == iatom ) force_ab = -force_ab
-                    IF ( irow == iatom ) force_w = -force_w
-                    force(ikind)%all_potential(:,atom_a) =&
-                         force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                    force(jkind)%all_potential(:,atom_b) =&
-                         force(jkind)%all_potential(:,atom_b) + force_ab(:)
-                    force(ikind)%overlap(:,atom_a) =&
-                         force(ikind)%overlap(:,atom_a) - force_w(:)
-                    force(jkind)%overlap(:,atom_b) =&
-                         force(jkind)%overlap(:,atom_b) + force_w(:)
-                 END IF
-
-                 ! gamma matrix
-                 IF ( dftb_control%self_consistent ) THEN
-                    hb_sr_damp = dftb_control%hb_sr_damp
-                    IF (hb_sr_damp) THEN
-                       ! short range correction enabled only when iatom XOR jatom are hydrogens
-                       hb_sr_damp = is_hydrogen(particle_set(iatom)%atomic_kind).NEQV.&
-                                    is_hydrogen(particle_set(jatom)%atomic_kind)
-                    END IF
-                    ga = eta_a(0)
-                    gb = eta_b(0)
-                    gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb,hb_sr_damp)
-                    IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
-                       drp = dr + ddr
-                       drm = dr - ddr
-                       dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_sr_damp)-gamma_rab_sr(drm,ga,gb,hb_sr_damp))/ddr
-                       DO i=1,3
-                          CPPrecondition(ASSOCIATED(dgblocks(i+1)%block),cp_failure_level,routineP,error,failure)
-                          IF ( irow == iatom ) THEN
-                             dgblocks(i+1)%block(1,1)= dgblocks(i+1)%block(1,1) + dgam*rij(i)/dr
-                          ELSE
-                             dgblocks(i+1)%block(1,1)= dgblocks(i+1)%block(1,1) - dgam*rij(i)/dr
-                          END IF
-                       END DO
-                    END IF
-                 END IF
-
+               dfblock=0._dp
+               dsblock=0._dp
+               IF ( irow == iatom ) THEN
+                 CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL turnsk(dsblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                 CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL turnsk(dfblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+               ELSE
+                 CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL turnsk(dsblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
+                 CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL turnsk(dfblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
                END IF
+               rij(i) = rij(i) - 2._dp*ddr
+               dr = SQRT(SUM(rij(:)**2))
+               dsblock = -dsblock
+               dfblock = -dfblock
+               IF ( irow == iatom ) THEN
+                 CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL turnsk(dsblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+                 CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL turnsk(dfblock,skabij,skabji,rij,dr,lmaxi,lmaxj)
+               ELSE
+                 CALL getskz(smatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL getskz(smatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL turnsk(dsblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
+                 CALL getskz(fmatij,skabij,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL getskz(fmatji,skabji,dr,ngrd,ngrdcut,dgrd,llm)
+                 CALL turnsk(dfblock,skabij,skabji,-rij,dr,lmaxj,lmaxi)
+               END IF
+               rij(i) = rij(i) + ddr
+               dr = SQRT(SUM(rij(:)**2))
+               dfblock = -dfblock/ddr
+               dsblock = -dsblock/ddr
+               IF ( irow == iatom ) THEN
+                 foab = -SUM(dfblock*pblock)
+                 fow = SUM(dsblock*wblock)
+                 dsblock = -dsblock
+               ELSE
+                 foab = SUM(dfblock*pblock)
+                 fow = -SUM(dsblock*wblock)
+               END IF
+               force_ab(i) = force_ab(i) + foab
+               force_w(i) = force_w(i) + fow
+               IF ( dftb_control%self_consistent ) THEN
+                  CPPrecondition(ASSOCIATED(dsblocks(i+1)%block),cp_failure_level,routineP,error,failure)
+                  dsblocks(i+1)%block = dsblocks(i+1)%block + dsblock
+               END IF
+             ENDDO
+             IF ( use_virial ) THEN
+               IF ( irow == iatom ) THEN
+                 f0 = -1._dp
+               ELSE
+                 f0 = 1._dp
+               END IF
+               CALL virial_pair_force ( virial%pv_virial, -f0, force_ab, rij, error)
+               CALL virial_pair_force ( virial%pv_virial, -f0, force_w, rij, error)
+             END IF
+             DEALLOCATE (dfblock,dsblock,STAT=istat)
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           END IF
+         END IF
 
-               ! repulsive potential
-               IF ((dr <= urep_cut .OR. spdim > 0) .AND. dr > 0.001_dp) THEN
-                  CALL urep_egr(rij,dr,erep,force_rr,&
-                      n_urpoly,urep,spdim,s_cut,srep,spxr,scoeff,surr,calculate_forces)
-                  IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
-                    atom_a = atom_of_kind(iatom)
-                    atom_b = atom_of_kind(jatom)
-                    force(ikind)%repulsive(:,atom_a) =&
-                        force(ikind)%repulsive(:,atom_a) - force_rr(:)
-                    force(jkind)%repulsive(:,atom_b) =&
-                        force(jkind)%repulsive(:,atom_b) + force_rr(:)
-                    IF ( use_virial ) THEN
-                      CALL virial_pair_force ( virial%pv_virial, -1._dp, force_rr, rij, error)
-                     END IF
+         IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
+            atom_a = atom_of_kind(iatom)
+            atom_b = atom_of_kind(jatom)
+            IF ( irow == iatom ) force_ab = -force_ab
+            IF ( irow == iatom ) force_w = -force_w
+            force(ikind)%all_potential(:,atom_a) =&
+                 force(ikind)%all_potential(:,atom_a) - force_ab(:)
+            force(jkind)%all_potential(:,atom_b) =&
+                 force(jkind)%all_potential(:,atom_b) + force_ab(:)
+            force(ikind)%overlap(:,atom_a) =&
+                 force(ikind)%overlap(:,atom_a) - force_w(:)
+            force(jkind)%overlap(:,atom_b) =&
+                 force(jkind)%overlap(:,atom_b) + force_w(:)
+         END IF
+
+         ! gamma matrix
+         IF ( dftb_control%self_consistent ) THEN
+            hb_sr_damp = dftb_control%hb_sr_damp
+            IF (hb_sr_damp) THEN
+               ! short range correction enabled only when iatom XOR jatom are hydrogens
+               hb_sr_damp = is_hydrogen(particle_set(iatom)%atomic_kind).NEQV.&
+                            is_hydrogen(particle_set(jatom)%atomic_kind)
+            END IF
+            ga = eta_a(0)
+            gb = eta_b(0)
+            gblock(1,1)= gblock(1,1) + gamma_rab_sr(dr,ga,gb,hb_sr_damp)
+            IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
+               drp = dr + ddr
+               drm = dr - ddr
+               dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_sr_damp)-gamma_rab_sr(drm,ga,gb,hb_sr_damp))/ddr
+               DO i=1,3
+                  CPPrecondition(ASSOCIATED(dgblocks(i+1)%block),cp_failure_level,routineP,error,failure)
+                  IF ( irow == iatom ) THEN
+                     dgblocks(i+1)%block(1,1)= dgblocks(i+1)%block(1,1) + dgam*rij(i)/dr
+                  ELSE
+                     dgblocks(i+1)%block(1,1)= dgblocks(i+1)%block(1,1) - dgam*rij(i)/dr
                   END IF
-               END IF
+               END DO
+            END IF
+         END IF
 
-               sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+       END IF
 
-             END DO ! inode => jatom(atom B)
+       ! repulsive potential
+       IF ((dr <= urep_cut .OR. spdim > 0) .AND. dr > 0.001_dp) THEN
+          CALL urep_egr(rij,dr,erep,force_rr,&
+              n_urpoly,urep,spdim,s_cut,srep,spxr,scoeff,surr,calculate_forces)
+          IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
+            atom_a = atom_of_kind(iatom)
+            atom_b = atom_of_kind(jatom)
+            force(ikind)%repulsive(:,atom_a) =&
+                force(ikind)%repulsive(:,atom_a) - force_rr(:)
+            force(jkind)%repulsive(:,atom_b) =&
+                force(jkind)%repulsive(:,atom_b) + force_rr(:)
+            IF ( use_virial ) THEN
+              CALL virial_pair_force ( virial%pv_virial, -1._dp, force_rr, rij, error)
+             END IF
+          END IF
+       END IF
 
-           END DO ! ilist => iatom(atom A)
-
-        END DO ! jkind
-
-     END DO ! ikind
+     END DO
+     CALL neighbor_list_iterator_release(nl_iterator)
 
      IF ( dftb_control%self_consistent ) THEN
         DO i=1,SIZE(gamma_matrix)

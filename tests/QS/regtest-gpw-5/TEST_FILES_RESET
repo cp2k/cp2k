@@ -291,3 +291,17 @@ si8_pulay_off.inp
 si8_pulay.inp
 si8_pulay_reduce.inp
 si8_pulay_restore.inp
+# Numerics introduced by major QS refactoring 
+si8_pulay_inverse.inp
+# Numerics introduced by major QS refactoring 
+si8_pulay_off.inp
+# Numerics introduced by major QS refactoring 
+si8_broy_kry.inp
+# Numerics introduced by major QS refactoring 
+si8_broy_kry_r.inp
+# Numerics introduced by major QS refactoring 
+si8_broy_wc.inp
+# Numerics introduced by major QS refactoring 
+si8_broy_wc_crazy.inp
+# Numerics introduced by major QS refactoring 
+si8_broy_wc_crazy_ene.inp

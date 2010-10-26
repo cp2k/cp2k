@@ -12,27 +12,11 @@ MODULE  rt_propagation_utils
 
 
   
-  USE ai_overlap_new,                  ONLY: overlap
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
-  USE block_p_types,                   ONLY: block_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
-                                             cp_dbcsr_distribution_release,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_init
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_dist2d_to_dist
+                                             cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -49,21 +33,15 @@ MODULE  rt_propagation_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_antisymmetric,&
-                                             dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE input_constants,                 ONLY: use_restart_wfn,&
+  USE input_constants,                 ONLY: use_orb_basis_set,&
+                                             use_restart_wfn,&
                                              use_rt_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants
-  USE orbital_pointers,                ONLY: indco,&
-                                             init_orbital_pointers,&
-                                             ncoset
-  USE orbital_symbols,                 ONLY: cgf_symbol
+  USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -75,15 +53,11 @@ MODULE  rt_propagation_utils
                                              mo_set_type,&
                                              read_mo_set,&
                                              read_rt_mos_from_restart
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_overlap,                      ONLY: build_overlap_matrix
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE scp_environment_types,           ONLY: scp_environment_type
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -123,53 +97,28 @@ MODULE  rt_propagation_utils
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_S_derivs', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
-    INTEGER :: atom_a, atom_b, first_col, handle, i, iab, iatom, icol, &
-      icol_atom, icol_global, icol_local, ikind, ilist, inode, irow, &
-      irow_atom, irow_global, irow_local, iset, j, jatom, jkind, jset, &
-      last_jatom, ldai, ldsab, m, maxblock, maxco, maxcoa, maxdco, maxdcoa, &
-      maxder, maxl, maxlgto, maxlgtoa, maxlppl, maxlppla, maxsgf, maxsgfa, n, &
-      natom, ncoa, ncob, ncol_local, nder, neighbor_list_id, nkind, nlist, &
-      nnode, nrow, nrow_local, nseta, nsetb, nsgf, nthread, sgfa, sgfb, stat
+    INTEGER :: handle, iatom, icol_atom, icol_global, icol_local, irow_atom, &
+      irow_global, irow_local, j, m, maxder, n, natom, ncol_local, nder, &
+      neighbor_list_id, nkind, nrow_local, nsgf, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf, &
                                                 last_sgf
     INTEGER, DIMENSION(6, 2)                 :: c_map_mat
-    INTEGER, DIMENSION(:), POINTER :: col_atom_index, col_indices, la_max, &
-      la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, rbs, &
-      row_atom_index, row_indices
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, new_atom_b, &
-                                                return_s_derivatives
-    REAL(KIND=dp)                            :: dab, f, rab2, scale
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: ai_work
-    REAL(KIND=dp), DIMENSION(3)              :: rab
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data, rpgfa, rpgfb, &
-                                                sab, sphi_a, sphi_b, work, &
-                                                zeta, zetb
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
+    INTEGER, DIMENSION(:), POINTER           :: col_atom_index, col_indices, &
+                                                row_atom_index, row_indices
+    LOGICAL                                  :: failure, return_s_derivatives
+    REAL(KIND=dp)                            :: scale
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: sint
-    TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: sintt
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: s_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: C_mat
     TYPE(cp_fm_type), POINTER                :: B_mat, tmp_mat, tmp_mat2
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -184,9 +133,7 @@ MODULE  rt_propagation_utils
     NULLIFY (atomic_kind_set)
     NULLIFY (force)
     NULLIFY (particle_set)
-    NULLIFY (sab)
     NULLIFY(rtp)
-    NULLIFY (work)
     NULLIFY(distribution_2d)
     NULLIFY(s_derivs)
 
@@ -222,259 +169,11 @@ MODULE  rt_propagation_utils
     CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
          error=error)
 
-    ! prepare for allocation
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
-    ALLOCATE (rbs(natom), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-
-    CALL cp_dbcsr_allocate_matrix_set(s_derivs,maxder-1,error=error)
-
-    DO m=1,3
-       cgfsym = cgf_symbol(1,indco(1:3,m+1))
-       name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE OVERLAP MATRIX "//&
-            "W.R.T. THE NUCLEAR COORDINATES"
-       CALL compress(name)
-       CALL uppercase(name)
-       ALLOCATE(s_derivs(m)%matrix)
-       CALL cp_dbcsr_init(s_derivs(m)%matrix,error=error)
-       CALL cp_dbcsr_create(matrix=s_derivs(m)%matrix, &
-            name=TRIM(name), &
-            dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
-            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-            nblks=0, nze=0, mutable_work=.TRUE., &
-            error=error)
-    ENDDO
-
-    DO m=4,maxder-1
-       cgfsym = cgf_symbol(1,indco(1:3,m+1))
-       name = TRIM(cgfsym(4:))//" SECOND DERIVATIVE OF THE OVERLAP MATRIX "//&
-            "W.R.T. THE NUCLEAR COORDINATES"
-       CALL compress(name)
-       CALL uppercase(name)
-       ALLOCATE(s_derivs(m)%matrix)
-       CALL cp_dbcsr_init(s_derivs(m)%matrix,error=error)
-       CALL cp_dbcsr_create(matrix=s_derivs(m)%matrix, &
-            name=TRIM(name), &
-            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
-            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-            nblks=0, nze=0, mutable_work=.TRUE., &
-            error=error)
-    ENDDO
-
-    CALL cp_dbcsr_distribution_release (dbcsr_dist)
-    CALL array_release (row_blk_sizes)
-
-    ! *** Allocate work storage ***
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxcoa,&
-                             maxlgto=maxlgtoa,&
-                             maxlppl=maxlppla,&
-                             maxsgf=maxsgfa)
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxdcoa,&
-                             maxder=MAX(1,nder))
-
-    nder=2
-    maxdco = maxdcoa
-    maxco = maxcoa
-    maxlgto = maxlgtoa
-    maxlppl = maxlppla
-    maxsgf = maxsgfa
-    maxl = maxlgto
-    maxder =  ncoset(nder)
-    nthread = 1
-
-    CALL init_orbital_pointers(maxl+nder+1)
-
-
-    ALLOCATE (sintt(SIZE(s_derivs),0:nthread-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO m=1,SIZE(sintt,1)
-       DO j=0,nthread-1
-          NULLIFY (sintt(m,j)%block)
-       END DO
-    END DO
-
-
-
-
-    ldsab = MAX(maxco,maxsgf)
-    maxblock = MAX(4,maxder) 
-    ldai = ncoset(maxl+nder+1)
-
-    ALLOCATE(sab(ldsab,ldsab*maxblock))
-    ALLOCATE(work(ldsab,ldsab*maxder))
-
-
-    DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
-
-      IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                             first_sgf=first_sgfa,&
-                             lmax=la_max,&
-                             lmin=la_min,&
-                             npgf=npgfa,&
-                             nset=nseta,&
-                             nsgf_set=nsgfa,&
-                             pgf_radius=rpgfa,&
-                             set_radius=set_radius_a,&
-                             sphi=sphi_a,&
-                             zet=zeta)
-      DO jkind=1,nkind
-        atomic_kind => atomic_kind_set(jkind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
-
-        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               first_sgf=first_sgfb,&
-                               lmax=lb_max,&
-                               lmin=lb_min,&
-                               npgf=npgfb,&
-                               nset=nsetb,&
-                               nsgf_set=nsgfb,&
-                               pgf_radius=rpgfb,&
-                               set_radius=set_radius_b,&
-                               sphi=sphi_b,&
-                               zet=zetb)
-
-        iab = ikind + nkind*(jkind - 1)
-
-        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-        CALL get_neighbor_list_set(neighbor_list_set=sab_orb(iab)%neighbor_list_set,nlist=nlist)
-
-        sint => sintt(:,0)
-
-        NULLIFY ( sab_orb_neighbor_list )
-        ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        DO ilist=1,nlist
-          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-             sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-          ELSE
-             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-          END IF
-          sab_orb_neighbor_list_local => sab_orb_neighbor_list
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,atom=iatom,nnode=nnode)
-
-          atom_a = atom_of_kind(iatom)
-
-          last_jatom = 0
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-
-          DO inode=1,nnode
-            CALL get_neighbor_node(sab_orb_neighbor_node,neighbor=jatom,r=rab)
-
-            IF (jatom /= last_jatom) THEN
-              new_atom_b = .TRUE.
-              last_jatom = jatom
-            ELSE
-              new_atom_b = .FALSE.
-            END IF
-
-
-
-            atom_b = atom_of_kind(jatom)
-
-            IF (new_atom_b) THEN
-               IF (iatom <= jatom) THEN
-                  irow = iatom
-                  icol = jatom
-               ELSE
-                  irow = jatom
-                  icol = iatom
-               END IF
-              DO m=1,SIZE(s_derivs)
-                 NULLIFY (sint(m)%block)
-                 CALL cp_dbcsr_add_block_node(matrix=s_derivs(m)%matrix,&
-                      block_row=irow,&
-                      block_col=icol,&
-                      BLOCK=sint(m)%block,error=error)
-              END DO
-            END IF
-
-            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-            dab = SQRT(rab2)
-            nrow = 1
-            DO iset=1,nseta
-              ncoa = npgfa(iset)*ncoset(la_max(iset))
-              sgfa = first_sgfa(1,iset)
-              DO jset=1,nsetb
-                ncob = npgfb(jset)*ncoset(lb_max(jset))
-                sgfb = first_sgfb(1,jset)
-                IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
-!                  IF ( iatom /= jatom ) THEN
-
-                    ! *** Calculate the primitive overlap integrals ***
-                    ! *** and the corresponding force contribution  ***
-                    CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
-                                 rpgfa(:,iset),zeta(:,iset),&
-                                 lb_max(jset),lb_min(jset),npgfb(jset),&
-                                 rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,sab,nder,return_s_derivatives,&
-                                 ai_work,ldai)         
-
-                    ! *** Contraction step (overlap matrix and its derivatives) ***
-                         DO m=1,SIZE(s_derivs)
-                            IF ((m > 1).AND.(.NOT.return_s_derivatives)) CYCLE
-                            first_col = (m)*SIZE(sab,1) + 1
-                            CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                 1.0_dp,sab(1,first_col),SIZE(sab,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_dp,work(1,1),SIZE(work,1))
-                            IF (iatom <= jatom) THEN
-                               CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    work(1,1),SIZE(work,1),&
-                                    1.0_dp,sint(m)%block(sgfa,sgfb),&
-                                    SIZE(sint(m)%block,1))
-                            ELSE
-                               IF (m < 4) THEN
-                                  f = -1.0_dp
-                               ELSE
-                                  f = 1.0_dp
-                               END IF
-                               CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                    f,work(1,1),SIZE(work,1),&
-                                    sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    1.0_dp,sint(m)%block(sgfb,sgfa),&
-                                    SIZE(sint(m)%block,1))
-                            END IF
-                         END DO
-!                      END IF
-                END IF
-              END DO
-              nrow = nrow + ncoa
-            END DO
-            sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-          END DO
-        END DO
-        DEALLOCATE (ai_work,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      END DO
-   END DO
-
-    DO i = 1,SIZE(s_derivs)
-       CALL cp_dbcsr_finalize(s_derivs(i)%matrix,error=error)
-    ENDDO
- 
-    DEALLOCATE (sab,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (sintt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (atom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    ! calculate the overlap derivative matrices
+    CALL build_overlap_matrix(qs_env,nderivative=nder,matrix_s=s_derivs,&
+         basis_set_id_a=use_orb_basis_set,basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
 
     ! here we have the S derivativs needed, lets calculate the B and C matrix
-
     CALL cp_fm_create(tmp_mat,&
                  matrix_struct=rtp%exp_H_new(1)%matrix%matrix_struct,&
                  name="TMP",&
@@ -513,7 +212,7 @@ MODULE  rt_propagation_utils
 
     DO m=1,3
 
-       CALL copy_dbcsr_to_fm(s_derivs(m)%matrix,tmp_mat2,error=error)
+       CALL copy_dbcsr_to_fm(s_derivs(m+1)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
        DO icol_local=1,ncol_local
           DO irow_local=1,nrow_local
@@ -552,7 +251,7 @@ MODULE  rt_propagation_utils
     END DO
     
     DO m=1,6
-       CALL copy_dbcsr_to_fm(s_derivs(m+3)%matrix,tmp_mat2,error=error)
+       CALL copy_dbcsr_to_fm(s_derivs(m+4)%matrix,tmp_mat2,error=error)
        CALL cp_fm_upper_to_full(tmp_mat2,tmp_mat,error)
        DO j=1,2
           IF(c_map_mat(m,j)==0)CYCLE

@@ -12,6 +12,7 @@ MODULE qs_ks_atom
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p
@@ -25,10 +26,12 @@ MODULE qs_ks_atom
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_oce_methods,                  ONLY: prj_gather
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
@@ -90,11 +93,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_ks_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, ia_kind, iab, iac, iat, iatom, ibc, ikind, &
-      ilist, inode, ip, ispin, istat, ja_kind, jatom, jkind, ka_kind, kac, &
-      katom, kbc, kkind, lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, &
-      mepos, n_cont_a, n_cont_b, nat, natom, nkind, nlist, nnode, nsetc, &
-      nsgfa, nsgfb, nsoctot, nspins, num_pe
+    INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, ip, &
+      ispin, istat, ja_kind, jatom, jkind, ka_kind, kac, katom, kbc, kkind, &
+      lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, &
+      n_cont_b, nat, natom, nkind, nsetc, nsgfa, nsgfb, nsoctot, nspins, &
+      num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
@@ -120,12 +123,14 @@ CONTAINS
       POINTER                                :: mat_h, mat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
+                                                orb_basis, orb_basis_set
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -236,199 +241,172 @@ CONTAINS
        END IF
     END DO
 
+    ALLOCATE (basis_set_list(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
+           "basis_set_list",nkind)
     DO ikind=1,nkind
-
       atomic_kind => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=basis_set_a)
+      IF (ASSOCIATED(basis_set_a)) THEN
+        basis_set_list(ikind)%gto_basis_set => basis_set_a
+      ELSE
+        NULLIFY(basis_set_list(ikind)%gto_basis_set)
+      END IF
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,cell=cell_b)
+       basis_set_a => basis_set_list(ikind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+       basis_set_b => basis_set_list(jkind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+       nsgfa = basis_set_a%nsgf
+       nsgfb = basis_set_b%nsgf
 
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           orb_basis_set=orb_basis,&
-                           paw_atom=paw_atom)
-      CALL  get_gto_basis_set(gto_basis_set=orb_basis,&
-                                nsgf=nsgfa)
+       DO ispin = 1,nspins
+         NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
+         IF (iatom <= jatom) THEN
+           CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
+                row=iatom,col=jatom,BLOCK=mat_h(ispin)%array,found=found)
+         ELSE
+           CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
+                row=jatom,col=iatom,BLOCK=mat_h(ispin)%array,found=found)
+         END IF
 
-      DO jkind=1,nkind
+         IF(forces) THEN
+           IF (iatom <= jatom) THEN
+             CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
+                  row=iatom,col=jatom,BLOCK=mat_p(ispin)%array,found=found)
+           ELSE
+             CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
+                  row=jatom,col=iatom,BLOCK=mat_p(ispin)%array,found=found)
+           END IF
+         END IF
+       END DO
 
-        atomic_kind => atomic_kind_set(jkind)
+       DO kkind=1,nkind
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                             orb_basis_set=orb_basis)
-        CALL  get_gto_basis_set(gto_basis_set=orb_basis,&
-                                nsgf=nsgfb)
+         atomic_kind => atomic_kind_set(kkind)
 
-        iab = ikind + nkind*(jkind - 1)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                              orb_basis_set=orb_basis,&
+                              paw_atom=paw_atom)
 
-        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+         IF(.NOT. paw_atom)  CYCLE
 
-        CALL get_neighbor_list_set(neighbor_list_set=&
-                                   sab_orb(iab)%neighbor_list_set,&
-                                   nlist=nlist)
+         CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nsetc,maxso=maxsoc)
 
-        NULLIFY ( sab_orb_neighbor_list )
+         iac = ikind + nkind*(kkind - 1)
+         ibc = jkind + nkind*(kkind - 1)
 
-        DO ilist=1,nlist
+         IF (.NOT.ASSOCIATED(oce%intac(iac)%alist)) CYCLE
+         IF (.NOT.ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
+         CALL get_alist(oce%intac(iac), alist_ac, iatom, error)
+         CALL get_alist(oce%intac(ibc), alist_bc, jatom, error)
+         DO kac=1,alist_ac%nclist
+           DO kbc=1,alist_bc%nclist
+             IF ( alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom ) CYCLE
+             IF ( ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0) ) THEN
 
-          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-            sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-          ELSE
-            sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-          END IF
-          sab_orb_neighbor_list_local => sab_orb_neighbor_list
+               n_cont_a = alist_ac%clist(kac)%nsgf_cnt
+               n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
+               IF(n_cont_a.EQ.0.OR.n_cont_b.EQ.0) CYCLE
+               list_a => alist_ac%clist(kac)%sgf_list
+               list_b => alist_bc%clist(kbc)%sgf_list
 
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                                 atom=iatom,&
-                                 nnode=nnode)
+               katom = alist_ac%clist(kac)%catom
+               IF(iatom==katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
+                 C_coeff_hh_a => alist_ac%clist(kac)%achint
+                 C_coeff_ss_a => alist_ac%clist(kac)%acint
+                 dista = .FALSE.
+               ELSE
+                 C_coeff_hh_a => alist_ac%clist(kac)%acint
+                 C_coeff_ss_a => alist_ac%clist(kac)%acint
+                 dista = .TRUE.
+               END IF
+               IF(jatom==katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
+                 C_coeff_hh_b => alist_bc%clist(kbc)%achint
+                 C_coeff_ss_b => alist_bc%clist(kbc)%acint
+                 distb = .FALSE.
+               ELSE
+                 C_coeff_hh_b => alist_bc%clist(kbc)%acint
+                 C_coeff_ss_b => alist_bc%clist(kbc)%acint
+                 distb = .TRUE.
+               END IF
 
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+               rho_at => rho_atom(katom)
 
-          DO inode=1,nnode
-            CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,neighbor=jatom,cell=cell_b)
+               nsoctot = SIZE(C_coeff_ss_a,2)
 
-            DO ispin = 1,nspins
-              NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
-              IF (iatom <= jatom) THEN
-                CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
-                     row=iatom,col=jatom,BLOCK=mat_h(ispin)%array,found=found)
-              ELSE
-                CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
-                     row=jatom,col=iatom,BLOCK=mat_h(ispin)%array,found=found)
-              END IF
+               CALL add_vhxca_to_ks(mat_h,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
+                    rho_at,nspins,iatom,jatom,nsoctot,factor,&
+                    list_a,n_cont_a,list_b,n_cont_b,C_int_h,C_int_s,a_matrix,dista,distb,coc,error)
 
-              IF(forces) THEN
-                IF (iatom <= jatom) THEN
-                  CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
-                       row=iatom,col=jatom,BLOCK=mat_p(ispin)%array,found=found)
-                ELSE
-                  CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
-                       row=jatom,col=iatom,BLOCK=mat_p(ispin)%array,found=found)
-                END IF
-              END IF
-            END DO
-
-            DO kkind=1,nkind
-
-              atomic_kind => atomic_kind_set(kkind)
-
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   orb_basis_set=orb_basis,&
-                                   paw_atom=paw_atom)
-
-              IF(.NOT. paw_atom)  CYCLE
-
-              CALL  get_gto_basis_set(gto_basis_set=orb_basis,nset=nsetc,maxso=maxsoc)
-
-              iac = ikind + nkind*(kkind - 1)
-              ibc = jkind + nkind*(kkind - 1)
-
-              IF (.NOT.ASSOCIATED(oce%intac(iac)%alist)) CYCLE
-              IF (.NOT.ASSOCIATED(oce%intac(ibc)%alist)) CYCLE
-              CALL get_alist(oce%intac(iac)%alist, alist_ac, iatom, error)
-              CALL get_alist(oce%intac(ibc)%alist, alist_bc, jatom, error)
-              DO kac=1,alist_ac%nclist
-                DO kbc=1,alist_bc%nclist
-                  IF ( alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom ) CYCLE
-                  IF ( ALL(cell_b+alist_bc%clist(kbc)%cell-alist_ac%clist(kac)%cell == 0) ) THEN
-
-                    n_cont_a = alist_ac%clist(kac)%nsgf_cnt
-                    n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
-                    IF(n_cont_a.EQ.0.OR.n_cont_b.EQ.0) CYCLE
-                    list_a => alist_ac%clist(kac)%sgf_list
-                    list_b => alist_bc%clist(kbc)%sgf_list
-
-                    katom = alist_ac%clist(kac)%catom
-                    IF(iatom==katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
-                      C_coeff_hh_a => alist_ac%clist(kac)%achint
-                      C_coeff_ss_a => alist_ac%clist(kac)%acint
-                      dista = .FALSE.
-                    ELSE
-                      C_coeff_hh_a => alist_ac%clist(kac)%acint
-                      C_coeff_ss_a => alist_ac%clist(kac)%acint
-                      dista = .TRUE.
+               IF(forces)THEN
+                 ia_kind = atom_of_kind(iatom)
+                 ja_kind = atom_of_kind(jatom)
+                 ka_kind = atom_of_kind(katom)
+                 rho_at => rho_atom(katom)
+                 force_tmp(1:3,1:3) = 0.0_dp
+                 IF(iatom <= jatom) THEN
+                    CALL add_vhxca_forces(mat_p,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
+                         rho_at,force_tmp,nspins,iatom,jatom,nsoctot,&
+                         list_a,n_cont_a,list_b,n_cont_b,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
+                         dista,distb,coc,error)
+                   
+                    force(kkind)%vhxc_atom(1:3,ka_kind) = &
+                                      force(kkind)%vhxc_atom(1:3,ka_kind) + &
+                                      force_tmp(1:3,3)
+                    force(ikind)%vhxc_atom(1:3,ia_kind) = &
+                                      force(ikind)%vhxc_atom(1:3,ia_kind) + &
+                                      force_tmp(1:3,1)
+                    force(jkind)%vhxc_atom(1:3,ja_kind) = &
+                                      force(jkind)%vhxc_atom(1:3,ja_kind) + &
+                                      force_tmp(1:3,2)
+                    IF (use_virial) THEN
+                       rac = alist_ac%clist(kac)%rac
+                       rbc = alist_bc%clist(kbc)%rac
+                       CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,1),rac,error)
+                       CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,2),rbc,error)
                     END IF
-                    IF(jatom==katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
-                      C_coeff_hh_b => alist_bc%clist(kbc)%achint
-                      C_coeff_ss_b => alist_bc%clist(kbc)%acint
-                      distb = .FALSE.
-                    ELSE
-                      C_coeff_hh_b => alist_bc%clist(kbc)%acint
-                      C_coeff_ss_b => alist_bc%clist(kbc)%acint
-                      distb = .TRUE.
+                 ELSE
+                    CALL add_vhxca_forces(mat_p,C_coeff_hh_b,C_coeff_hh_a,C_coeff_ss_b,C_coeff_ss_a,&
+                         rho_at,force_tmp,nspins,jatom,iatom,nsoctot,&
+                         list_b,n_cont_b,list_a,n_cont_a,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
+                         distb,dista,coc,error)
+
+                    force(kkind)%vhxc_atom(1:3,ka_kind) = &
+                                      force(kkind)%vhxc_atom(1:3,ka_kind) + &
+                                      force_tmp(1:3,3)
+                    force(ikind)%vhxc_atom(1:3,ia_kind) = &
+                                      force(ikind)%vhxc_atom(1:3,ia_kind) + &
+                                      force_tmp(1:3,2)
+                    force(jkind)%vhxc_atom(1:3,ja_kind) = &
+                                      force(jkind)%vhxc_atom(1:3,ja_kind) + &
+                                      force_tmp(1:3,1)
+                    IF (use_virial) THEN
+                       rac = alist_ac%clist(kac)%rac
+                       rbc = alist_bc%clist(kbc)%rac
+                       CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,2),rac,error)
+                       CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,1),rbc,error)
                     END IF
+                 END IF
+               END IF
+               EXIT ! search loop over jatom-katom list
+             END IF
+           END DO
+         END DO
 
-                    rho_at => rho_atom(katom)
-
-                    nsoctot = SIZE(C_coeff_ss_a,2)
-
-                    CALL add_vhxca_to_ks(mat_h,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
-                         rho_at,nspins,iatom,jatom,nsoctot,factor,&
-                         list_a,n_cont_a,list_b,n_cont_b,C_int_h,C_int_s,a_matrix,dista,distb,coc,error)
-
-                    IF(forces)THEN
-                      ia_kind = atom_of_kind(iatom)
-                      ja_kind = atom_of_kind(jatom)
-                      ka_kind = atom_of_kind(katom)
-                      rho_at => rho_atom(katom)
-                      force_tmp(1:3,1:3) = 0.0_dp
-                      IF(iatom <= jatom) THEN
-                         CALL add_vhxca_forces(mat_p,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,C_coeff_ss_b,&
-                              rho_at,force_tmp,nspins,iatom,jatom,nsoctot,&
-                              list_a,n_cont_a,list_b,n_cont_b,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
-                              dista,distb,coc,error)
-                        
-                         force(kkind)%vhxc_atom(1:3,ka_kind) = &
-                                           force(kkind)%vhxc_atom(1:3,ka_kind) + &
-                                           force_tmp(1:3,3)
-                         force(ikind)%vhxc_atom(1:3,ia_kind) = &
-                                           force(ikind)%vhxc_atom(1:3,ia_kind) + &
-                                           force_tmp(1:3,1)
-                         force(jkind)%vhxc_atom(1:3,ja_kind) = &
-                                           force(jkind)%vhxc_atom(1:3,ja_kind) + &
-                                           force_tmp(1:3,2)
-                         IF (use_virial) THEN
-                            rac = alist_ac%clist(kac)%rac
-                            rbc = alist_bc%clist(kbc)%rac
-                            CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,1),rac,error)
-                            CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,2),rbc,error)
-                         END IF
-                      ELSE
-                         CALL add_vhxca_forces(mat_p,C_coeff_hh_b,C_coeff_hh_a,C_coeff_ss_b,C_coeff_ss_a,&
-                              rho_at,force_tmp,nspins,jatom,iatom,nsoctot,&
-                              list_b,n_cont_b,list_a,n_cont_a,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC,p_matrix,&
-                              distb,dista,coc,error)
-
-                         force(kkind)%vhxc_atom(1:3,ka_kind) = &
-                                           force(kkind)%vhxc_atom(1:3,ka_kind) + &
-                                           force_tmp(1:3,3)
-                         force(ikind)%vhxc_atom(1:3,ia_kind) = &
-                                           force(ikind)%vhxc_atom(1:3,ia_kind) + &
-                                           force_tmp(1:3,2)
-                         force(jkind)%vhxc_atom(1:3,ja_kind) = &
-                                           force(jkind)%vhxc_atom(1:3,ja_kind) + &
-                                           force_tmp(1:3,1)
-                         IF (use_virial) THEN
-                            rac = alist_ac%clist(kac)%rac
-                            rbc = alist_bc%clist(kbc)%rac
-                            CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,2),rac,error)
-                            CALL virial_pair_force(virial%pv_virial,1._dp,force_tmp(1:3,1),rbc,error)
-                         END IF
-                      END IF
-                    END IF
-                    EXIT ! search loop over jatom-katom list
-                  END IF
-                END DO
-              END DO
-
-            ENDDO    ! kkind
-
-            sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-          ENDDO    ! inode
-        ENDDO    ! ilist
-      ENDDO    ! jkind
-    ENDDO    ! ikind
+       ENDDO    ! kkind
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
 
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
 
+    DEALLOCATE(basis_set_list,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(mat_h,mat_p,C_int_h,C_int_s,a_matrix,p_matrix,coc,STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 

@@ -178,3 +178,5 @@ graphite.inp
 graphite2.inp
 # Numerics differences due to different distribution 
 graphite3.inp
+# Numerics introduced by major QS refactoring 
+graphite2.inp

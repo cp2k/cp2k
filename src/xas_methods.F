@@ -435,7 +435,6 @@ CONTAINS
         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
          CALL cp_assert(nmo>(nelectron+1),cp_failure_level,cp_assertion_failed,&
               routineP,"CLS: the required method needs added_mos to the ground state",error,failure)
-
       END IF
       occupation_numbers(1:homo)  = 1.0_dp
       ! If the restart file for this atom exists, the mos and the

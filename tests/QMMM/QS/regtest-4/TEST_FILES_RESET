@@ -225,3 +225,7 @@ crys_per_qmmm_spln.inp
 acn-conn-1.inp
 # Numerics differences due to different distribution 
 acn-conn-1.inp
+# Numerics introduced by major QS refactoring 
+acn-qmmm-re.inp
+# Numerics introduced by major QS refactoring 
+acn-conn-1.inp

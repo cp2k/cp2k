@@ -108,8 +108,6 @@ CONTAINS
        CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c,error=error)
     ELSE
        p_env%hartree_local%ecoul_1c => ecoul_1c
-       ! take the 3c list from the ground state calculation
-       p_env%hartree_local%vtriple => qs_env%hartree_local%vtriple
     END IF
 
     CALL timestop(handle)

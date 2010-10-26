@@ -14,7 +14,7 @@
       EPS_SCF 1.0E-6
       &OT
         PRECONDITIONER NONE
-        MINIMIZER DIIS
+        MINIMIZER CG
       &END
       &OUTER_SCF
         MAX_SCF 5

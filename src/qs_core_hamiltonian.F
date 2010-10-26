@@ -67,33 +67,23 @@
 !>      - OpenMP version (07.12.2003,JGH)
 !>      - Binary search loop for VPPNL operators (09.01.2004,JGH,MK)
 !>      - Refactoring of pseudopotential and nuclear attraction integrals (25.02.2009,JGH)
+!>      - General refactoring (01.10.2010,JGH)
 !> \author Matthias Krack (14.09.2000,21.03.02)
 ! *****************************************************************************
 MODULE qs_core_hamiltonian
 
   USE ai_kinetic,                      ONLY: kinetic
   USE ai_overlap_new,                  ONLY: overlap
-  USE array_types,                     ONLY: array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
-  USE block_p_types,                   ONLY: block_p_type
   USE core_ae,                         ONLY: build_core_ae
   USE core_ppl,                        ONLY: build_core_ppl
   USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_finalize, &
-       cp_dbcsr_get_block_p, cp_dbcsr_get_occupation, cp_dbcsr_init
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_allocate_matrix_set,&
-                                             cp_dbcsr_deallocate_matrix_set,&
-                                             cp_dbcsr_dist2d_to_dist
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_init
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_deallocate_matrix_set
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_dist,&
                                              cp_dbcsr_write_sparse_matrix
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
@@ -102,47 +92,30 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
-                                             dbcsr_type_antisymmetric,&
-                                             dbcsr_type_symmetric
-  USE dbcsr_util,                      ONLY: convert_offsets_to_sizes
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE ep_qs_types,                     ONLY: ep_qs_type
-  USE global_types,                    ONLY: global_environment_type
-  USE harris_env_types,                ONLY: harris_env_type
-  USE input_constants,                 ONLY: diag_ot,&
-                                             do_ppl_analytic,&
-                                             linear_response_run,&
-                                             rel_none
-  USE input_section_types,             ONLY: section_vals_val_get
+  USE input_constants,                 ONLY: do_ppl_analytic,&
+                                             rel_none,&
+                                             use_aux_fit_basis_set,&
+                                             use_orb_basis_set
   USE kinds,                           ONLY: dp
-  USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: indco,&
-                                             init_orbital_pointers,&
-                                             ncoset
-  USE orbital_symbols,                 ONLY: cgf_symbol
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE orbital_pointers,                ONLY: ncoset
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_kinetic,                      ONLY: build_kinetic_matrix
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_oce_methods,                  ONLY: build_oce_matrices
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              create_oce_set,&
                                              oce_matrix_type
+  USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -162,73 +135,37 @@ CONTAINS
 !>      Non-redundant calculation of the non-local part of the GTH PP (22.05.2003,MK)
 !>      New parallelization scheme (27.06.2003,MK) 
 ! *****************************************************************************
-  SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces,harris,error)
+  SUBROUTINE build_core_hamiltonian_matrix(qs_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    LOGICAL, INTENT(IN), OPTIONAL            :: harris
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'build_core_hamiltonian_matrix', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
-    INTEGER :: atom_a, atom_b, first_col, handle, i, iab, iatom, ico, icol, &
-      ikind, ilist, inode, irow, iset, ithread, j, jatom, jco, jkind, jset, &
-      last_jatom, ldai, ldsab, maxblock, maxco, maxdco, maxder, maxl, &
-      maxlgto, maxlppl, maxsgf, natom, ncoa, ncob, nder, neighbor_list_id, &
-      nkind, nlist, nnode, nrow, nseta, nsetb, nsgf, nthread, sgfa, sgfb, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, first_sgf, &
-                                                last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb, rbs
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: all_potential_present, build_kinetic_energy_matrix, do_ep, &
-      epr_calculation, failure, found, gth_potential_present, harris_flag, &
-      new_atom_b, oce_present, ofdft, ppl_present, return_s_derivatives, &
-      return_t_derivatives, use_virial, xas_calculation
-    REAL(KIND=dp)                            :: dab, eps_fit, eps_ppnl, f, &
-                                                f0, rab2
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: ai_work
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, rab
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, hab, p_block, pab, &
-                                                rpgfa, rpgfb, sab, sphi_a, &
-                                                sphi_b, w_block, work, zeta, &
-                                                zetb
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: habt, pabt, sabt, sdab, workt
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: sdabt
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
+    INTEGER                                  :: handle, maxder, natom, nder, &
+                                                nders, neighbor_list_id, &
+                                                nkind, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    LOGICAL :: all_potential_present, do_ep, failure, gth_potential_present, &
+      ofdft, ppl_present, use_virial
+    REAL(KIND=dp)                            :: eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: sint, tint
-    TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: sintt, tintt
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s, &
-                                                matrix_t, matrix_w
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, matrix_p, &
+      matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_t, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb, sac_ae, sac_ppl, &
-                                                sap_oce, sap_ppnl
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+      DIMENSION(:), POINTER                  :: sab_aux_fit, &
+                                                sab_aux_fit_vs_orb, sab_orb, &
+                                                sac_ae, sac_ppl, sap_oce, &
+                                                sap_ppnl
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -254,33 +191,20 @@ CONTAINS
     NULLIFY (matrix_h)
     NULLIFY (matrix_s)
     NULLIFY (matrix_t)
-    NULLIFY (habt)
     NULLIFY (oce)
-    NULLIFY (pabt)
     NULLIFY (particle_set)
     NULLIFY (rho)
     NULLIFY (sab_orb)
-    NULLIFY (sabt)
     NULLIFY (sac_ae)
     NULLIFY (sac_ppl)
     NULLIFY (sap_ppnl)
     NULLIFY (sap_oce)
+    NULLIFY (sab_aux_fit)
+    NULLIFY (sab_aux_fit_vs_orb)
     NULLIFY (scf_control)
-    NULLIFY (sdabt)
     NULLIFY (matrix_w)
     NULLIFY (matrix_p)
-    NULLIFY (workt)
-    NULLIFY (harris_env)
     NULLIFY (para_env)
-
-    ! Default
-    oce_present = .FALSE.
-
-    IF (PRESENT(harris)) THEN
-      harris_flag = harris
-    ELSE
-      harris_flag = .FALSE.
-    END IF
 
     ! is this a orbital-free method calculation
     ofdft = qs_env%dft_control%qs_control%ofgpw
@@ -289,14 +213,16 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     matrix_h=matrix_h,&
                     kinetic=matrix_t,&
+                    matrix_s=matrix_s,&
                     oce=oce, &
                     particle_set=particle_set,&
-                    matrix_s=matrix_s,&
                     sab_orb=sab_orb,&
                     sac_ae=sac_ae,&
                     sac_ppl=sac_ppl,&
                     sap_ppnl=sap_ppnl,&
                     sap_oce=sap_oce,&
+                    sab_aux_fit=sab_aux_fit,&
+                    sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,&
                     neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d,&
@@ -308,6 +234,7 @@ CONTAINS
     
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     
+    nders = 0
     IF (calculate_forces) THEN
        nder = 1
        
@@ -319,13 +246,9 @@ CONTAINS
 
        do_ep=ASSOCIATED(ep_qs_env)
        IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
-       IF (harris_flag) THEN
-          CALL get_qs_env(qs_env=qs_env, harris_env=harris_env,error=error)
-          matrix_p => harris_env%rho%rho_ao
-       ELSE
-          CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
-          matrix_p => rho%rho_ao
-       END IF
+
+       CALL get_qs_env(qs_env=qs_env, rho=rho,error=error)
+       matrix_p => rho%rho_ao
 
        IF (do_ep) THEN
           IF (ASSOCIATED(ep_qs_env%dH_coeffs)) THEN
@@ -350,8 +273,6 @@ CONTAINS
                          alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
           CALL cp_dbcsr_add(matrix_w(1)%matrix, matrix_w(2)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
-          CALL cp_dbcsr_add(matrix_w(2)%matrix, matrix_w(1)%matrix, &
-                         alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     ELSE
        IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
@@ -370,561 +291,95 @@ CONTAINS
          "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)).OR.&
          BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
          "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
-       return_s_derivatives = .TRUE.
-    ELSE
-       return_s_derivatives = .FALSE.
+       nders = 1
     END IF
     
     maxder = ncoset(nder)
-
-    CALL cp_dbcsr_allocate_matrix_set( matrix_s, maxder, error )
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
-    
-    ALLOCATE (first_sgf(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (last_sgf(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf,&
-         error=error)
 
     ! assert here that the S-matrix is of the type distribution_2d if this one is non-null
     ! we assert that the sparsity of s is determined by the neighbor list that is used to build it
     ! is that right ? i.e. this implies that even if forces are computed the sparsity of s remains the same.
     ! this seems necessary anyway.
 
-    ! prepare for allocation
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d, dbcsr_dist, error)
-    ALLOCATE (rbs(natom), STAT=stat)
+    IF (calculate_forces) THEN
+       ! S matrix
+       CALL build_overlap_matrix(qs_env,nderivative=nders,matrix_s=matrix_s,&
+                                 matrix_name="OVERLAP MATRIX",&
+                                 basis_set_id_a=use_orb_basis_set,&
+                                 basis_set_id_b=use_orb_basis_set, &
+                                 sab_nl=sab_orb,calculate_forces=.TRUE.,&
+                                 matrix_p=matrix_w(1)%matrix,&
+                                 error=error)
+       ! T matrix
+       IF (.NOT.ofdft) &
+          CALL build_kinetic_matrix(qs_env,nderivative=nders,matrix_t=matrix_t,&
+                                 matrix_name="KINETIC ENERGY MATRIX",&
+                                 basis_set_id=use_orb_basis_set,&
+                                 sab_nl=sab_orb,calculate_forces=.TRUE.,&
+                                 matrix_p=matrix_p(1)%matrix,&
+                                 error=error)
+    ELSE
+       ! S matrix
+       CALL build_overlap_matrix(qs_env,nderivative=nders,matrix_s=matrix_s,&
+                                 matrix_name="OVERLAP MATRIX",&
+                                 basis_set_id_a=use_orb_basis_set,&
+                                 basis_set_id_b=use_orb_basis_set, &
+                                 sab_nl=sab_orb,&
+                                 error=error)
+       ! T matrix
+       IF (.NOT.ofdft) &
+          CALL build_kinetic_matrix(qs_env,nderivative=nders,matrix_t=matrix_t,&
+                                 matrix_name="KINETIC ENERGY MATRIX",&
+                                 basis_set_id=use_orb_basis_set,&
+                                 sab_nl=sab_orb,&
+                                 error=error)
+       IF( qs_env%dft_control%do_admm) THEN
+         NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb)
+         CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, error=error)
+         CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit,&
+                                   matrix_name="AUX_FIT_OVERLAP",&
+                                   basis_set_id_a=use_aux_fit_basis_set,&
+                                   basis_set_id_b=use_aux_fit_basis_set, &
+                                   sab_nl=sab_aux_fit,&
+                                   error=error)
+         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit=matrix_s_aux_fit,error=error)
+         CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, error=error)
+         CALL build_overlap_matrix(qs_env,matrix_s=matrix_s_aux_fit_vs_orb,&
+                                   matrix_name="MIXED_OVERLAP",&
+                                   basis_set_id_a=use_aux_fit_basis_set,&
+                                   basis_set_id_b=use_orb_basis_set, &
+                                   sab_nl=sab_aux_fit_vs_orb,&
+                                   error=error)
+         CALL set_qs_env(qs_env=qs_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,error=error)
+       END IF
+    END IF
+
+    ! initialize H matrix
+    CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error)
+    ALLOCATE(matrix_h(1)%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL cp_dbcsr_init(matrix_h(1)%matrix, error=error)
+    IF (.NOT.ofdft) THEN
+       CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_t(1)%matrix,&
+           name="CORE HAMILTONIAN MATRIX",error=error)
+    END IF
 
-    ALLOCATE(matrix_s(1)%matrix)
-    CALL cp_dbcsr_init(matrix_s(1)%matrix,error=error)
-    CALL cp_dbcsr_create(matrix=matrix_s(1)%matrix, &
-         name="OVERLAP MATRIX", &
-         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
-         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
-         error=error)
-    CALL cp_dbcsr_finalize(matrix_s(1)%matrix,error=error)
-
-!   *** Allocate the matrix of coefficients for one center expansions
+    !   *** Allocate the matrix of coefficients for one center expansions
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
        CALL create_oce_set(oce,error=error)
        CALL allocate_oce_set(oce,natom,nkind,maxder,error=error)
        ! force analytic ppl calcuation for GAPW methods
        qs_env%dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ENDIF
-    
-    DEALLOCATE (first_sgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (last_sgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    DO i=2,maxder
-       cgfsym = cgf_symbol(1,indco(1:3,i))
-       name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE OVERLAP MATRIX "//&
-            "W.R.T. THE NUCLEAR COORDINATES"
-      CALL compress(name)
-      CALL uppercase(name)
-      ALLOCATE(matrix_s(i)%matrix)
-      CALL cp_dbcsr_init(matrix_s(i)%matrix,error=error)
-      CALL cp_dbcsr_create(matrix=matrix_s(i)%matrix, &
-           name=TRIM(name), &
-           dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
-           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-           nblks=0, nze=0, mutable_work=.TRUE., &
-           error=error)
-      CALL cp_dbcsr_finalize(matrix_s(i)%matrix,error=error)
-   END DO
-   
-   !   *** Allocate the kinetic energy integral ***
-   !   *** matrix (only needed for printing or  ***
-   !   *** the OT preconditioner)               ***
-   
    ! The transition potential method may need the kinetic matrix
-   xas_calculation = qs_env%dft_control%do_xas_calculation
-   
-   ! The g tensor needs the kinetic matrix 
-   CALL section_vals_val_get(qs_env%input,& 
-        "PROPERTIES%LINRES%EPR%_SECTION_PARAMETERS_",l_val=epr_calculation,error=error)
-
-   build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
-        cp_print_key_should_output(logger%iter_info,&
-        qs_env%input,"DFT%PRINT%KINETIC_ENERGY",error=error)/=0.OR.&
-        cp_print_key_should_output(logger%iter_info,&
-        qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error)/=0.OR.&
-        cp_print_key_should_output(logger%iter_info,&
-        qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error)/=0.OR.&
-        (scf_control%use_diag .AND. scf_control%diagonalization%method == diag_ot ) .OR.&
-        globenv%run_type_id==linear_response_run .OR. xas_calculation .OR. epr_calculation)
-   ! Assume false by default
-   return_t_derivatives = .FALSE.
-
-   IF (build_kinetic_energy_matrix) THEN
-      IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
-           "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
-         CALL cp_dbcsr_allocate_matrix_set ( matrix_t, maxder, error )
-         return_t_derivatives = .TRUE.
-      ELSE
-         CALL cp_dbcsr_allocate_matrix_set ( matrix_t, 1, error )
-         return_t_derivatives = .FALSE.
-      END IF
-
-      ALLOCATE(matrix_t(1)%matrix)
-      CALL cp_dbcsr_init(matrix_t(1)%matrix,error=error)
-      CALL cp_dbcsr_create(matrix=matrix_t(1)%matrix, &
-           name="KINETIC ENERGY MATRIX", &
-           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
-           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-           nblks=0, nze=0, mutable_work=.TRUE., &
-           error=error)
-      CALL cp_dbcsr_finalize(matrix_t(1)%matrix,error=error)
-
-
-      DO i=2,SIZE(matrix_t)
-         cgfsym = cgf_symbol(1,indco(1:3,i))
-         name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE KINETIC ENERGY MATRIX "//&
-              "W.R.T. THE NUCLEAR COORDINATES"
-         CALL compress(name)
-         CALL uppercase(name)
-         ALLOCATE(matrix_t(i)%matrix)
-         CALL cp_dbcsr_init(matrix_t(i)%matrix,error=error)
-         CALL cp_dbcsr_create(matrix=matrix_t(i)%matrix, &
-              name=TRIM(name), &
-              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
-              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-              nblks=0, nze=0, mutable_work=.TRUE., &
-              error=error)
-         CALL cp_dbcsr_finalize(matrix_t(i)%matrix,error=error)
-      END DO
-   END IF
-
-   ! *** Allocate the core Hamiltonian matrix ***
-   CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error)
-
-   ALLOCATE(matrix_h(1)%matrix)
-   CALL cp_dbcsr_init(matrix_h(1)%matrix,error=error)
-   CALL cp_dbcsr_create(matrix=matrix_h(1)%matrix, &
-        name="CORE HAMILTONIAN MATRIX", &
-        dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
-        row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-        nblks=0, nze=0, mutable_work=.TRUE., &
-        error=error)
-   CALL cp_dbcsr_finalize(matrix_h(1)%matrix,error=error)
-
-   ! *** Allocate work storage ***
    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             gth_potential_present=gth_potential_present,&
-                            all_potential_present=all_potential_present, &
-                            maxco=maxco,&
-                            maxlgto=maxlgto,&
-                            maxlppl=maxlppl,&
-                            maxsgf=maxsgf)
-
-    maxl = MAX(maxlgto,maxlppl)
-    CALL init_orbital_pointers(maxl+nder+1)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             maxco=maxdco,&
-                             maxder=MAX(1,nder))
-
-    ldsab = MAX(maxco,maxsgf)
-    maxblock = MAX(SIZE(matrix_s),maxder)
-    nthread = 1
-    ldai = ncoset(maxl+nder+1)
-    
-    CALL reallocate(habt,1,ldsab,1,ldsab*maxder,0,nthread-1)
-    CALL reallocate(sabt,1,ldsab,1,ldsab*maxblock,0,nthread-1)
-    CALL reallocate(sdabt,1,maxdco,1,maxco,1,4,0,nthread-1)
-    CALL reallocate(workt,1,ldsab,1,ldsab*maxder,0,nthread-1)
-    IF (calculate_forces) THEN
-       CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
-    END IF
-    
-    ALLOCATE (sintt(SIZE(matrix_s),0:nthread-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DO i=1,SIZE(sintt,1)
-       DO j=0,nthread-1
-          NULLIFY (sintt(i,j)%block)
-       END DO
-    END DO
-    
-    IF (build_kinetic_energy_matrix) THEN
-       ALLOCATE (tintt(SIZE(matrix_t),0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i=1,SIZE(tintt,1)
-          DO j=0,nthread-1
-             NULLIFY (tintt(i,j)%block)
-          END DO
-       END DO
-    END IF
-
-    ! ***  Initialize blocks for the one center expansion ***
-    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
-       oce_present = ASSOCIATED(sap_oce)
-    ENDIF
-    
+                            all_potential_present=all_potential_present)
+   
     ppl_present = ASSOCIATED(sac_ppl)
 
-    DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
-       
-       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                              first_sgf=first_sgfa,&
-                              lmax=la_max,&
-                              lmin=la_min,&
-                              npgf=npgfa,&
-                              nset=nseta,&
-                              nsgf_set=nsgfa,&
-                              pgf_radius=rpgfa,&
-                              set_radius=set_radius_a,&
-                              sphi=sphi_a,&
-                              zet=zeta)
-       
-       DO jkind=1,nkind
-          atomic_kind => atomic_kind_set(jkind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set)
-          
-          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 first_sgf=first_sgfb,&
-                                 lmax=lb_max,&
-                                 lmin=lb_min,&
-                                 npgf=npgfb,&
-                                 nset=nsetb,&
-                                 nsgf_set=nsgfb,&
-                                 pgf_radius=rpgfb,&
-                                 set_radius=set_radius_b,&
-                                 sphi=sphi_b,&
-                                 zet=zetb)
-          
-          iab = ikind + nkind*(jkind - 1)
-          
-          IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
-          CALL get_neighbor_list_set(neighbor_list_set=sab_orb(iab)%neighbor_list_set,nlist=nlist)
-          
-          NULLIFY ( sab_orb_neighbor_list )
-          ithread = 0
-          hab => habt(:,:,ithread)
-          sab => sabt(:,:,ithread)
-          sdab => sdabt(:,:,:,ithread)
-          work => workt(:,:,ithread)
-          IF (calculate_forces) pab => pabt(:,:,ithread)
-          sint => sintt(:,ithread)
-          IF (build_kinetic_energy_matrix) THEN
-             tint => tintt(:,ithread)
-          END IF
-          ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO ilist=1,nlist
-             IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-                sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-             ELSE
-                sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-             END IF
-             sab_orb_neighbor_list_local => sab_orb_neighbor_list
-             CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,atom=iatom,nnode=nnode)
-
-             IF (calculate_forces) atom_a = atom_of_kind(iatom)
-
-             last_jatom = 0
-             sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-             
-             DO inode=1,nnode
-                CALL get_neighbor_node(sab_orb_neighbor_node,neighbor=jatom,r=rab)
-                
-                IF (jatom /= last_jatom) THEN
-                   new_atom_b = .TRUE.
-                   last_jatom = jatom
-                ELSE
-                   new_atom_b = .FALSE.
-                END IF
-                
-                IF (calculate_forces) atom_b = atom_of_kind(jatom)
-                
-                ! *** Use the symmetry of the first derivatives ***
-                IF (iatom == jatom) THEN
-                   f0 = 1.0_dp
-                ELSE
-                   f0 = 2.0_dp
-                END IF
-                
-                ! *** Create matrix blocks for a new matrix block column ***
-                IF (new_atom_b) THEN
-                   IF (iatom <= jatom) THEN
-                      irow = iatom
-                      icol = jatom
-                   ELSE
-                      irow = jatom
-                      icol = iatom
-                   END IF
-
-                   DO i=1,SIZE(matrix_s)
-                      NULLIFY (sint(i)%block)
-                      CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
-                                                block_row=irow,&
-                                                block_col=icol,&
-                                                BLOCK=sint(i)%block,error=error)
-                   END DO
-                   IF (build_kinetic_energy_matrix) THEN
-                      DO i=1,SIZE(matrix_t)
-                         NULLIFY (tint(i)%block)
-                         CALL cp_dbcsr_add_block_node(matrix=matrix_t(i)%matrix,&
-                                             block_row=irow,&
-                                             block_col=icol,&
-                                             BLOCK=tint(i)%block,error=error)
-                      END DO
-                   END IF
-                   NULLIFY (h_block)
-
-                   CALL cp_dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=h_block,error=error)
-
-                   IF (calculate_forces) THEN
-                      NULLIFY(p_block)
-                      CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
-                           row=irow,col=icol,BLOCK=p_block,found=found)
-                      NULLIFY(w_block)
-                      CALL cp_dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
-                           row=irow,col=icol,BLOCK=w_block,found=found)
-                   END IF
-                END IF
-                
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                dab = SQRT(rab2)
-                nrow = 1
-                DO iset=1,nseta
-                   ncoa = npgfa(iset)*ncoset(la_max(iset))
-                   sgfa = first_sgfa(1,iset)
-                   DO jset=1,nsetb
-                      ncob = npgfb(jset)*ncoset(lb_max(jset))
-                      sgfb = first_sgfb(1,jset)
-                      IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
-                         IF (calculate_forces.AND.((iatom /= jatom).OR.use_virial)) THEN
-                            IF (.NOT.ASSOCIATED(w_block)) THEN
-                               CALL stop_program(routineN,moduleN,__LINE__,&
-                                    "A weighted density matrix block is missing",para_env)
-                            ENDIF
-                            ! *** Decontract W matrix block ***
-                            IF (iatom <= jatom) THEN
-                               CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    w_block(sgfa,sgfb),SIZE(w_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                            ELSE
-                               CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    w_block(sgfb,sgfa),SIZE(w_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                            END IF
-                            CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                                 1.0_dp,work(1,1),SIZE(work,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_dp,pab(1,1),SIZE(pab,1))
-                            
-                            ! *** Calculate the primitive overlap integrals ***
-                            ! *** and the corresponding force contribution  ***
-                            CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
-                                 rpgfa(:,iset),zeta(:,iset),&
-                                 lb_max(jset),lb_min(jset),npgfb(jset),&
-                                 rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,sab,nder,return_s_derivatives,&
-                                 ai_work,ldai,sdab,pab,force_a)
-                            force(ikind)%overlap(:,atom_a)=force(ikind)%overlap(:,atom_a) - 2.0_dp*force_a(:)
-                            force(jkind)%overlap(:,atom_b)=force(jkind)%overlap(:,atom_b) + 2.0_dp*force_a(:)
-                            IF (use_virial) THEN
-                               CALL virial_pair_force ( virial%pv_virial, -f0, force_a, rab, error)
-                            END IF
-                         ELSE
-                            ! *** Calculate the primitive overlap integrals ***
-                            CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
-                                 rpgfa(:,iset),zeta(:,iset),&
-                                 lb_max(jset),lb_min(jset),npgfb(jset),&
-                                 rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,sab,nder,return_s_derivatives,&
-                                 ai_work,ldai,sdab)
-                         END IF
-                         ! *** Contraction step (overlap matrix and its derivatives) ***
-                         DO i=1,SIZE(matrix_s)
-                            IF ((i > 1).AND.(.NOT.return_s_derivatives)) CYCLE
-                            first_col = (i - 1)*SIZE(sab,1) + 1
-                            CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                 1.0_dp,sab(1,first_col),SIZE(sab,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_dp,work(1,1),SIZE(work,1))
-                            IF (iatom <= jatom) THEN
-                               CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    work(1,1),SIZE(work,1),&
-                                    1.0_dp,sint(i)%block(sgfa,sgfb),&
-                                    SIZE(sint(i)%block,1))
-                            ELSE
-                               IF (i > 1) THEN
-                                  f = -1.0_dp
-                               ELSE
-                                  f = 1.0_dp
-                               END IF
-                               CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                    f,work(1,1),SIZE(work,1),&
-                                    sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    1.0_dp,sint(i)%block(sgfb,sgfa),&
-                                    SIZE(sint(i)%block,1))
-                            END IF
-                         END DO
-                         ! *** Decontract density matrix block ***
-                         IF (calculate_forces) THEN
-                            IF (.NOT.ASSOCIATED(p_block)) THEN
-                               CALL stop_program(routineN,moduleN,__LINE__,&
-                                    "A density matrix block is missing",para_env)
-                            ENDIF
-                            IF (iatom <= jatom) THEN
-                               CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    p_block(sgfa,sgfb),SIZE(p_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                            ELSE
-                               CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                                    1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                    p_block(sgfb,sgfa),SIZE(p_block,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                            END IF
-                            CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                                 1.0_dp,work(1,1),SIZE(work,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_dp,pab(1,1),SIZE(pab,1))
-                         END IF
-                         
-                         IF (calculate_forces.AND.((iatom /= jatom).OR.use_virial)) THEN
-                            ! *** Calculate the primitive kinetic energy integrals ***
-                            ! *** and the corresponding force contribution         ***
-                            CALL kinetic(la_max(iset),la_min(iset),npgfa(iset),&
-                                 rpgfa(:,iset),zeta(:,iset),&
-                                 lb_max(jset),lb_min(jset),npgfb(jset),&
-                                 rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,sdab,hab,nder,return_t_derivatives,&
-                                 ai_work,ldai,pab,force_a)
-                            IF(.NOT.ofdft) THEN
-                              force(ikind)%kinetic(:,atom_a) =force(ikind)%kinetic(:,atom_a) + 2.0_dp*force_a(:)
-                              force(jkind)%kinetic(:,atom_b) =force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
-                              IF (use_virial) THEN
-                                 CALL virial_pair_force ( virial%pv_virial, f0, force_a, rab, error)
-                              END IF
-                            END IF
-                         ELSE
-                            ! *** Calculate the primitive kinetic energy integrals ***
-                            CALL kinetic(la_max(iset),la_min(iset),npgfa(iset),&
-                                 rpgfa(:,iset),zeta(:,iset),&
-                                 lb_max(jset),lb_min(jset),npgfb(jset),&
-                                 rpgfb(:,jset),zetb(:,jset),&
-                                 rab,dab,sdab,hab,nder,return_t_derivatives,&
-                                 ai_work,ldai)
-                         END IF
-                         
-                         ! *** Contraction step (kinetic energy integral ***
-                         ! *** matrix and its derivatives)               ***
-                         IF (build_kinetic_energy_matrix) THEN
-                            DO i=1,SIZE(matrix_t)
-                               IF ((i > 1).AND.(.NOT.return_t_derivatives)) CYCLE
-                               first_col = (i - 1)*SIZE(hab,1) + 1
-                               CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                                    1.0_dp,hab(1,first_col),SIZE(hab,1),&
-                                    sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                    0.0_dp,work(1,1),SIZE(work,1))
-                               IF (iatom <= jatom) THEN
-                                  CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       work(1,1),SIZE(work,1),&
-                                       1.0_dp,tint(i)%block(sgfa,sgfb),&
-                                       SIZE(tint(i)%block,1))
-                               ELSE
-                                  IF (i > 1) THEN
-                                     f = -1.0_dp
-                                  ELSE
-                                     f = 1.0_dp
-                                  END IF
-                                  CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                                       f,work(1,1),SIZE(work,1),&
-                                       sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                       1.0_dp,tint(i)%block(sgfb,sgfa),&
-                                       SIZE(tint(i)%block,1))
-                               END IF
-                            END DO
-                         END IF
-                         IF (ofdft) THEN
-                            DO jco=1,ncob
-                               DO ico=1,ncoa
-                                  hab(ico,jco) = 0.0_dp
-                               END DO
-                            END DO
-                         END IF
-                      ELSE
-                         DO jco=1,ncob
-                            DO ico=1,ncoa
-                               hab(ico,jco) = 0.0_dp
-                            END DO
-                         END DO
-                      END IF
-
-                      ! *** Contraction step (core Hamiltonian matrix) ***
-                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                           1.0_dp,hab(1,1),SIZE(hab,1),&
-                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                           0.0_dp,work(1,1),SIZE(work,1))
-                      IF (iatom <= jatom) THEN
-                         CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                              1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                              work(1,1),SIZE(work,1),&
-                              1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
-                      ELSE
-                         CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                              1.0_dp,work(1,1),SIZE(work,1),&
-                              sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                              1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
-                      END IF
-                   END DO
-                   nrow = nrow + ncoa
-                END DO
-                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-             END DO
-          END DO
-          
-          IF (ALLOCATED(ai_work)) THEN
-             DEALLOCATE (ai_work,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-       END DO
-    END DO
-
-    DO i = 1,SIZE(matrix_s)
-       CALL cp_dbcsr_finalize(matrix_s(i)%matrix, error=error)
-       IF(.FALSE.)WRITE(*,*) 'before',cp_dbcsr_get_occupation(matrix_s(i)%matrix)
-       CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
-            qs_env%dft_control%qs_control%eps_filter_matrix, error=error)
-       IF(.FALSE.)WRITE(*,*) 'after',cp_dbcsr_get_occupation(matrix_s(i)%matrix)
-    ENDDO
-
-    IF (build_kinetic_energy_matrix) THEN
-       DO i = 1,SIZE(matrix_t)
-          CALL cp_dbcsr_finalize(matrix_t(i)%matrix, error=error)
-       ENDDO
-    ENDIF
-
-    CALL cp_dbcsr_finalize(matrix_h(1)%matrix, error=error)
-
     IF (calculate_forces) THEN
-       DEALLOCATE (atom_of_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (pabt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! *** If LSD, then recover alpha density and beta density     ***
        ! *** from the total density (1) and the spin density (2)     ***
        ! *** The W matrix is neglected, since it will be destroyed   ***
@@ -936,7 +391,6 @@ CONTAINS
                          alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
        END IF
     END IF
-
 
     ! *** compute the ppl contribution to the core hamiltonian ***
     IF (ppl_present) THEN
@@ -960,12 +414,13 @@ CONTAINS
                     atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
     END IF
 
-    IF ( oce_present ) THEN
-      CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,sap_oce,eps_fit,error)
+    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
+      IF (ASSOCIATED(sap_oce)) &
+         CALL build_oce_matrices(oce%intac,calculate_forces,nder,atomic_kind_set,particle_set,&
+              sap_oce,eps_fit,error)
     END IF
 
     ! *** Put the core Hamiltonian matrix in the QS environment ***
-
     CALL set_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s,&
                     kinetic=matrix_t,&
@@ -973,37 +428,18 @@ CONTAINS
                     oce=oce,error=error)
 
     IF(qs_env%rel_control%rel_method/=rel_none)THEN
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END IF
-
-    
-    ! *** Release work storage ***
-    DEALLOCATE (habt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (sabt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (sdabt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (workt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE (sintt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
-    IF (build_kinetic_energy_matrix) THEN
-       DEALLOCATE (tintt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="DKH currently not implemented", &
+               error=error, error_level=cp_failure_level)
     END IF
     
-    CALL cp_dbcsr_distribution_release (dbcsr_dist)
-    CALL array_release (row_blk_sizes)
-
     ! Print matrices if requested
     CALL dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, &
          oce, qs_env, calculate_forces, para_env, error)
     CALL timestop(handle)
     
   END SUBROUTINE build_core_hamiltonian_matrix
-  
+
 ! *****************************************************************************
 !> \brief Possibly prints matrices after the construction of the Core 
 !>     Hamiltonian Matrix

@@ -39,12 +39,14 @@
       &END
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
-      MAX_SCF 100
-      &DIAGONALIZATION T
-          ALGORITHM STANDARD
-      &END DIAGONALIZATION
-      SCF_GUESS ATOMIC
+      SCF_GUESS MOPAC
+      MAX_SCF 500
+      EPS_SCF 1.0E-5
+      &OT
+        PRECONDITIONER NONE
+        MINIMIZER CG
+        LINESEARCH 3PNT
+      &END
     &END SCF
     &POISSON
       &EWALD
