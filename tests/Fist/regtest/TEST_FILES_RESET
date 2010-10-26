@@ -589,3 +589,5 @@ deca_ala_noavg.inp
 multipole_dip_qu.dbg_st.inp
 # Numerics 
 multipole_dip_qu.dbg_f_real.inp
+#reintroducing a cancelled regtest
+water_3.inp
