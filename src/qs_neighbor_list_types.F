@@ -33,9 +33,9 @@ MODULE qs_neighbor_list_types
   TYPE neighbor_node_type
     PRIVATE
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
-    INTEGER                           :: neighbor
     REAL(dp), DIMENSION(3)            :: r,s
     INTEGER, DIMENSION(3)             :: cell
+    INTEGER                           :: neighbor
   END TYPE neighbor_node_type
 
 ! *****************************************************************************
