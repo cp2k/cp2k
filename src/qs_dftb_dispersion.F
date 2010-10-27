@@ -187,7 +187,7 @@ CONTAINS
        CALL neighbor_list_iterator_release(nl_iterator)
 
        IF(calculate_forces) THEN
-          ALLOCATE (atom_of_kind(natom),STAT=istat)
+          DEALLOCATE (atom_of_kind,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
 
