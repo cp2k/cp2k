@@ -788,7 +788,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, j, jatom, jatom_local, jcell, jkind, k, &
       kcell, maxat, mol_a, mol_b, nkind, otype, stat, nsub
-    INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
+    INTEGER, DIMENSION(3)                    :: cell_b, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: index_list
     LOGICAL                                  :: failure, include_ab, my_mic, &
@@ -959,14 +959,11 @@ CONTAINS
              r_max=rab_max,symmetric=my_symmetric,mic=my_mic,molecular=my_molecular)
         neighbor_list_set => ab_list(iab)%neighbor_list_set
 
-        cell_a = (/0,0,0/)
-
         DO iatom_local=1,nlista(ikind)
           iatom = lista(ikind)%list(iatom_local)
           atom_a = atom(ikind)%list(iatom)
           CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
                                  atom=atom_a,&
-                                 cell=cell_a,&
                                  neighbor_list=kind_a(iatom_local)%neighbor_list)
         END DO
 

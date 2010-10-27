@@ -45,7 +45,6 @@ MODULE qs_neighbor_list_types
     TYPE(neighbor_node_type), POINTER :: first_neighbor_node,&
                                          last_neighbor_node
     INTEGER                           :: atom,nnode
-    INTEGER, DIMENSION(3)             :: cell
   END TYPE neighbor_list_type
 
 ! *****************************************************************************
@@ -523,11 +522,10 @@ CONTAINS
 !> \date    13.09.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE add_neighbor_list(neighbor_list_set,atom,cell,neighbor_list)
+  SUBROUTINE add_neighbor_list(neighbor_list_set,atom,neighbor_list)
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     INTEGER, INTENT(IN)                      :: atom
-    INTEGER, DIMENSION(3), INTENT(IN)        :: cell
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_neighbor_list', &
@@ -592,7 +590,6 @@ CONTAINS
       NULLIFY (new_neighbor_list%last_neighbor_node)
       new_neighbor_list%atom = atom
       new_neighbor_list%nnode = 0
-      new_neighbor_list%cell(:) = cell(:)
 
 !     *** Update the pointer to the last neighbor ***
 !     *** list of the neighbor list set           ***
@@ -871,13 +868,10 @@ CONTAINS
 !> \date    13.09.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_neighbor_list(neighbor_list,atom,cell,nnode)
+  SUBROUTINE get_neighbor_list(neighbor_list,atom,nnode)
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    INTEGER, INTENT(OUT), OPTIONAL           :: atom
-    INTEGER, DIMENSION(3), INTENT(OUT), &
-      OPTIONAL                               :: cell
-    INTEGER, INTENT(OUT), OPTIONAL           :: nnode
+    INTEGER, INTENT(OUT), OPTIONAL           :: atom, nnode
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list', &
       routineP = moduleN//':'//routineN
@@ -886,7 +880,6 @@ CONTAINS
 
       IF (PRESENT(atom)) atom = neighbor_list%atom
       IF (PRESENT(nnode)) nnode = neighbor_list%nnode
-      IF (PRESENT(cell)) cell(:) = neighbor_list%cell(:)
 
     ELSE
 
