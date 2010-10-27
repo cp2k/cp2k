@@ -1633,7 +1633,7 @@ CONTAINS
        IF (merge_this) THEN
           !IF (dbg) WRITE(*,*)routineN//" Merging into:"
           params(sp-1)%last_n = params(sp-1)%last_n + params(sp)%last_n
-          params(sp)%last_k = 0
+          params(sp)%last_k = -7
           params_b(sp_b-1)%logical_cols =&
                params_b(sp_b-1)%logical_cols + params_b(sp_b)%logical_cols
           params_b(sp_b-1)%nze = params_b(sp_b-1)%nze + params_b(sp_b)%nze

@@ -55,7 +55,7 @@
        sp_c = params(sp)%p_c
        sp_a = params(sp)%p_a
        sp_b = params(sp)%p_b
-       IF (params_c(sp_c)%nze .EQ. 0) THEN
+       IF (params_c(sp_c)%nze .EQ. 0 .OR. params(sp)%last_k .LT. 0) THEN
           CYCLE
        ENDIF
        !
