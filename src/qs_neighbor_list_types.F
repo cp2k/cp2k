@@ -33,7 +33,7 @@ MODULE qs_neighbor_list_types
   TYPE neighbor_node_type
     PRIVATE
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
-    REAL(dp), DIMENSION(3)            :: r,s
+    REAL(dp), DIMENSION(3)            :: r
     INTEGER, DIMENSION(3)             :: cell
     INTEGER                           :: neighbor
   END TYPE neighbor_node_type
@@ -476,13 +476,13 @@ CONTAINS
   END FUNCTION nl_sub_iterate
 
   SUBROUTINE get_iterator_info(iterator_set,mepos,&
-    ikind,jkind,nkind,ilist,nlist,inode,nnode,iatom,jatom,r,s,cell)
+    ikind,jkind,nkind,ilist,nlist,inode,nnode,iatom,jatom,r,cell)
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: iterator_set
     INTEGER, OPTIONAL                        :: mepos, ikind, jkind, nkind, &
                                                 ilist, nlist, inode, nnode, &
                                                 iatom, jatom
-    REAL(dp), DIMENSION(3), OPTIONAL         :: r, s
+    REAL(dp), DIMENSION(3), OPTIONAL         :: r
     INTEGER, DIMENSION(3), OPTIONAL          :: cell
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_iterator_info', &
@@ -510,9 +510,6 @@ CONTAINS
     IF(PRESENT(jatom)) jatom=iterator%jatom
     IF(PRESENT(r)) THEN
       CALL get_neighbor_node(neighbor_node=iterator%neighbor_node,r=r)
-    END IF
-    IF(PRESENT(s)) THEN
-      CALL get_neighbor_node(neighbor_node=iterator%neighbor_node,s=s)
     END IF
     IF(PRESENT(cell)) THEN
       CALL get_neighbor_node(neighbor_node=iterator%neighbor_node,cell=cell)
@@ -625,14 +622,12 @@ CONTAINS
 !> \date    23.06.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,s,exclusion_list,nkind)
+  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,exclusion_list,nkind)
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, INTENT(IN)                      :: neighbor
     INTEGER, DIMENSION(3), INTENT(IN)        :: cell
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
-    REAL(dp), DIMENSION(3), INTENT(IN), &
-      OPTIONAL                               :: s
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: exclusion_list
     INTEGER, INTENT(IN), OPTIONAL            :: nkind
 
@@ -709,7 +704,6 @@ CONTAINS
       new_neighbor_node%neighbor = neighbor
       new_neighbor_node%cell(:) = cell(:)
       new_neighbor_node%r(:) = r(:)
-      IF (PRESENT(s)) new_neighbor_node%s(:) = s(:)
 
 !     *** Update the pointer to the last neighbor node of the neighbor list ***
 
@@ -942,14 +936,14 @@ CONTAINS
 !> \date    23.06.2000
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r,s)
+  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r)
 
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     INTEGER, INTENT(OUT), OPTIONAL           :: neighbor
     INTEGER, DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: cell
     REAL(dp), DIMENSION(3), INTENT(OUT), &
-      OPTIONAL                               :: r, s
+      OPTIONAL                               :: r
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_node', &
       routineP = moduleN//':'//routineN
@@ -958,7 +952,6 @@ CONTAINS
 
       IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
       IF (PRESENT(r)) r(:) = neighbor_node%r(:)
-      IF (PRESENT(s)) s(:) = neighbor_node%s(:)
       IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
 
     ELSE
