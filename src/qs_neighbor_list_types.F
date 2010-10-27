@@ -107,15 +107,13 @@ MODULE qs_neighbor_list_types
   PUBLIC :: neighbor_list_p_type,&
             neighbor_list_set_type,&
             neighbor_list_set_p_type,&
-            neighbor_list_type,&
-            neighbor_node_type
+            neighbor_list_type
 
 ! *** Public subroutines ***
 
   PUBLIC :: add_neighbor_list,&
             add_neighbor_node,&
             allocate_neighbor_list_set,&
-            deallocate_neighbor_list,&
             deallocate_neighbor_list_set,&
             get_neighbor_list_set
 
