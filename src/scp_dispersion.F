@@ -228,6 +228,9 @@ CONTAINS
 
     DEALLOCATE(atom_of_kind,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (se_defined,se_kind_list,se_de,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL finalize_se_taper(se_taper,error=error)
     CALL timestop(handle)
 

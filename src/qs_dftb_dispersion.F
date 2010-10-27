@@ -186,6 +186,11 @@ CONTAINS
        END DO
        CALL neighbor_list_iterator_release(nl_iterator)
 
+       IF(calculate_forces) THEN
+          ALLOCATE (atom_of_kind(natom),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       END IF
+
        ! set dispersion energy
        CALL mp_sum(evdw,para_env%group)
        energy%dispersion = evdw
