@@ -1439,23 +1439,26 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
     INTEGER                                  :: diis_bound, diis_m, i, ispin, &
                                                 itmp, j, k, n, nspin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: circ_index
-    LOGICAL                                  :: do_ener, do_ks, do_scp_dft, &
-                                                do_scp_nddo, forget_history
-    REAL(KIND=dp)                            :: beta, gamma, sigma, &
-                                                sigma_dec, sigma_inc, &
-                                                sigma_min, tmp, tmp2
+    LOGICAL                                  :: adaptive_sigma, do_ener, &
+                                                do_ks, do_scp_dft, &
+                                                do_scp_nddo, enable_flip, &
+                                                forget_history
+    REAL(KIND=dp)                            :: beta, eta, gamma, omega, &
+                                                sigma, sigma_dec, sigma_min, &
+                                                tmp, tmp2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f, x
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: G, S
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-! control adaptive behaviour
-
-    sigma_inc = 1.1_dp
-    sigma_dec = 0.7_dp
-    sigma_min = 0.05_dp
-    forget_history = .FALSE.
+    eta = qs_ot_env ( 1 ) % settings % broyden_eta
+    omega = qs_ot_env ( 1 ) % settings % broyden_omega
+    sigma_dec = qs_ot_env ( 1 ) % settings % broyden_sigma_decrease
+    sigma_min = qs_ot_env ( 1 ) % settings % broyden_sigma_min
+    forget_history = qs_ot_env ( 1 ) % settings % broyden_forget_history
+    adaptive_sigma = qs_ot_env ( 1 ) % settings % broyden_adaptive_sigma
+    enable_flip = qs_ot_env ( 1 ) % settings % broyden_enable_flip
 
     do_ks = qs_ot_env ( 1 ) % settings % ks
     do_scp_dft = qs_ot_env ( 1 ) % settings % scp_dft
@@ -1464,7 +1467,15 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
 
     beta=qs_ot_env ( 1 ) % settings % broyden_beta
     gamma=qs_ot_env ( 1 ) % settings % broyden_gamma
-    sigma=qs_ot_env ( 1 ) % broyden_adaptive_sigma
+    IF (adaptive_sigma) THEN
+        IF (qs_ot_env ( 1 ) % broyden_adaptive_sigma .LT. 0.0_dp) THEN
+            sigma=qs_ot_env ( 1 ) % settings % broyden_sigma
+        ELSE
+            sigma=qs_ot_env ( 1 ) % broyden_adaptive_sigma
+        ENDIF
+    ELSE
+        sigma=qs_ot_env ( 1 ) % settings % broyden_sigma
+    ENDIF
 
     ! simplify our life....
     IF (do_ener .OR. do_scp_nddo .OR. do_scp_dft .OR. .NOT. do_ks .OR. &
@@ -1668,9 +1679,11 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
             f(diis_bound+i-1) = -1.0
             tmp = 1.0_dp
             ! We want a pos def Hessian
-            IF(qs_ot_env(1)%c_broy(i-1) .GT. 0) THEN
-                !qs_ot_env(1)%OT_METHOD_FULL="OT FLIP"
-                tmp = -1.0_dp
+            IF (enable_flip) THEN
+                IF(qs_ot_env(1)%c_broy(i-1) .GT. 0) THEN
+                    !qs_ot_env(1)%OT_METHOD_FULL="OT FLIP"
+                    tmp = -1.0_dp
+                ENDIF
             ENDIF
 
             ! get dx-Gdf
@@ -1702,9 +1715,12 @@ SUBROUTINE ot_broyden_step(qs_ot_env,error)
             ENDDO
         ENDDO
 
-        tmp = new_sigma(G, S, diis_bound)
-        tmp = tmp * qs_ot_env ( 1 ) % settings % broyden_sigma
-        sigma = MIN(sigma_inc * sigma, tmp) 
+        IF (adaptive_sigma) THEN
+            tmp = new_sigma(G, S, diis_bound)
+            !tmp = tmp * qs_ot_env ( 1 ) % settings % broyden_sigma
+            tmp = tmp * eta
+            sigma = MIN(omega * sigma, tmp) 
+        ENDIF
 
         ! compute the inner product of direction of the step and gradient
         tmp = 0.0_dp
@@ -1767,7 +1783,18 @@ FUNCTION new_sigma(G, S, n) RESULT(sigma)
     ALLOCATE(eigv(n))
     CALL diamat_all(H(1:n,1:n), eigv, error=error)
 
-    sigma = SUM(ABS(eigv**2))/SUM(ABS(eigv))
+    SELECT CASE(1)
+    CASE(1)
+      ! This estimator seems to work well. No theory.
+      sigma = SUM(ABS(eigv**2))/SUM(ABS(eigv))
+    CASE(2)
+      ! Estimator based on Frobenius norm minimizer
+      sigma = SUM(ABS(eigv))/MAX(1, SIZE(eigv))
+    CASE(3)
+      ! Estimator based on induced 2-norm
+      sigma = (MAXVAL(ABS(eigv)) + MINVAL(ABS(eigv)))*0.5_dp
+    END SELECT
+
     DEALLOCATE(H, eigv)
 END FUNCTION new_sigma
 

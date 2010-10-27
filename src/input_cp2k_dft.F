@@ -5067,9 +5067,58 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BROYDEN_SIGMA",&
-            description="Dampening parameter.",&
-            usage="BROYDEN_SIGMA 0.7",&
+            description="Curvature of energy functional.",&
+            usage="BROYDEN_SIGMA 0.25",&
+            default_r_val=0.25_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_ETA",&
+            description="Dampening of estimated energy curvature.",&
+            usage="BROYDEN_ETA 0.7",&
             default_r_val=0.7_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_OMEGA",&
+            description="Growth limit of curvature.",&
+            usage="BROYDEN_OMEGA 1.1",&
+            default_r_val=1.1_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_SIGMA_DECREASE",&
+            description="Reduction of curvature on bad approximation.",&
+            usage="BROYDEN_SIGMA_DECREASE 0.7",&
+            default_r_val=0.7_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_SIGMA_MIN",&
+            description="Minimum adaptive curvature.",&
+            usage="BROYDEN_SIGMA_MIN 0.05",&
+            default_r_val=0.05_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_FORGET_HISTORY",&
+            description="Forget history on bad approximation", &
+            usage="BROYDEN_FORGET_HISTORY OFF", default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_ADAPTIVE_SIGMA",&
+            description="Enable adaptive curvature estimation", &
+            usage="BROYDEN_ADAPTIVE_SIGMA ON", default_l_val=.TRUE., &
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BROYDEN_ENABLE_FLIP",&
+            description="Ensure positive definite update", &
+            usage="BROYDEN_ENABLE_FLIP ON", default_l_val=.TRUE., &
+            lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

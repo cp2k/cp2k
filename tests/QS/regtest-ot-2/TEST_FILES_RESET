@@ -931,3 +931,5 @@ N3-9.inp
 N3-10.inp
 # Numerics introduced by major QS refactoring 
 H2O.inp
+# new param
+H2O-broy.inp

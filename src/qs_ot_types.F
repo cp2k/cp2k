@@ -110,6 +110,10 @@ MODULE qs_ot_types
      LOGICAL           :: occupation_preconditioner, add_nondiag_energy
      REAL(KIND = dp)   :: nondiag_energy_strength
      REAL(KIND = dp)   :: broyden_beta, broyden_gamma, broyden_sigma
+     REAL(KIND = dp)   :: broyden_eta, broyden_omega, broyden_sigma_decrease
+     REAL(KIND = dp)   :: broyden_sigma_min
+     LOGICAL           :: broyden_forget_history, broyden_adaptive_sigma
+     LOGICAL           :: broyden_enable_flip
   END TYPE qs_ot_settings_type
 
 ! *****************************************************************************
@@ -1181,6 +1185,13 @@ CONTAINS
        CALL section_vals_val_get(ot_section,"BROYDEN_BETA", r_val=settings%broyden_beta,error=error)
        CALL section_vals_val_get(ot_section,"BROYDEN_GAMMA",r_val=settings%broyden_gamma,error=error)
        CALL section_vals_val_get(ot_section,"BROYDEN_SIGMA",r_val=settings%broyden_sigma,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_ETA", r_val=settings%broyden_eta,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_OMEGA", r_val=settings%broyden_omega,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_SIGMA_DECREASE", r_val=settings%broyden_sigma_decrease,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_SIGMA_MIN", r_val=settings%broyden_sigma_min,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_FORGET_HISTORY", l_val=settings%broyden_forget_history,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_ADAPTIVE_SIGMA", l_val=settings%broyden_adaptive_sigma,error=error)
+       CALL section_vals_val_get(ot_section,"BROYDEN_ENABLE_FLIP", l_val=settings%broyden_enable_flip,error=error)
        settings%ot_method="BROY"
     CASE DEFAULT
        CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")

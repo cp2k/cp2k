@@ -807,7 +807,7 @@ CONTAINS
     NULLIFY (qs_env%dispersion_env)
     NULLIFY (qs_env%rtp)
     qs_env%outer_scf_ihistory=0
-    qs_env%broyden_adaptive_sigma=1.0_dp
+    qs_env%broyden_adaptive_sigma=-1.0_dp
     qs_env%neighbor_list_id=-1
     qs_env%nelectron_total=-1
     qs_env%nelectron_spin=-1
