@@ -1080,8 +1080,8 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T9,A,L1)")&
              "The name was automatically generated: ",&
              molecule_kind%molname_generated
-          WRITE (UNIT=output_unit,FMT="(T9,A,I6,/,T9,A,(T30,10I5))")&
-            "Number of molecules:",nmolecule,"Molecule list:",&
+          WRITE (UNIT=output_unit,FMT="(T9,A,I6,/,T9,A,(T30,5I10))")&
+            "Number of molecules: ",nmolecule,"Molecule list:",&
             (molecule_kind%molecule_list(imolecule),imolecule=1,nmolecule)
           IF ( molecule_kind%nbond > 0 ) &
             WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
