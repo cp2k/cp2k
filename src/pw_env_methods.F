@@ -145,32 +145,22 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
     INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
-      ibasis_set_type, igrid_level, igrid_zet0_s, ikind, iounit, ipgf, iset, &
-      ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, ncommensurate, &
-      ngrid_level, nkind, nseta, nsetb, stat, xc_deriv_method_id, &
-      xc_smooth_method_id
+      igrid_level, iounit, ncommensurate, ngrid_level, stat, &
+      xc_deriv_method_id, xc_smooth_method_id
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
-    INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
-    INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL :: efg_present, failure, linres_present, odd, should_output, &
       smooth_required, spherical, uf_grid, use_ref_cell
-    REAL(KIND=dp)                            :: alpha, core_charge, cutilev, &
-                                                max_rpgf0_s, maxradius, &
-                                                rel_cutoff, zet0, zetp
+    REAL(KIND=dp)                            :: cutilev, max_rpgf0_s, &
+                                                rel_cutoff, zet0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell, cell_ref, my_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
-                                                orb_basis_set, &
-                                                orb_basis_set_main
     TYPE(pw_grid_type), POINTER              :: mt_super_ref_grid, &
                                                 old_pw_grid, pw_grid, &
                                                 super_ref_grid, &
@@ -183,7 +173,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER :: efg_section, input, linres_section, &
       poisson_section, print_section, rs_grid_section, xc_section
 
@@ -228,7 +217,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
                          zet0_h=zet0,max_rpgf0_s=max_rpgf0_s)
-     ELSE
      END IF
 
      IF (ASSOCIATED(pw_env%cube_info)) THEN
@@ -478,142 +466,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 !    set up distributed rs grids
 !
 !
+
      ALLOCATE(radius(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-     ! Find the grid level suitable for rho0_soft
-     IF(qs_env%dft_control%qs_control%gapw) THEN
-        igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0)
-        rho0_mpole%igrid_zet0_s = igrid_zet0_s
-     END IF
-
-     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,error=error)
-     nkind=SIZE(atomic_kind_set)
-
-     ! try to predict the maximum radius of the gaussians to be mapped on the grid
-     ! up to now, it is not yet very good
-     maxradius=0.0_dp
-     DO igrid_level=1,ngrid_level
-
-        maxradius=0.0_dp
-
-        ! Take into account the radius of the soft compensation charge rho0_soft1
-        IF(qs_env%dft_control%qs_control%gapw) THEN
-           IF(igrid_zet0_s == igrid_level ) maxradius=MAX(maxradius,max_rpgf0_s)
-        END IF
-      
-        ! ibasis set type loops over the needed kinds of basis sets. Right now this is
-        ! the orb_basis_set and the aux_fit_basis_set.
-        ! Seemingly others (e.g. gapw soft basis set) are not needed?
-        DO ibasis_set_type=1,2
-        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-
-          IF (qs_env%dft_control%qs_control%dftb) CYCLE
-
-           ! this is to be sure that the core charge is mapped ok
-           ! right now, the core is mapped on the auxiliary basis,
-           ! this should, at a give point be changed
-           ! so that also for the core a multigrid is used
-           CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               alpha_core_charge=alpha,ccore_charge=core_charge)
-
-           IF (alpha > 0.0_dp .AND. core_charge.NE.0.0_dp) THEN
-             maxradius=MAX(maxradius,exp_radius( 0, alpha, &
-                           dft_control%qs_control%eps_rho_rspace, core_charge))
-             ! forces
-             maxradius=MAX(maxradius,exp_radius( 1, alpha, &
-                           dft_control%qs_control%eps_rho_rspace, core_charge))
-           ENDIF
-
-           !
-           ! now for the basis sets
-           ! 
-           CALL get_atomic_kind(atomic_kind=atomic_kind, orb_basis_set=orb_basis_set_main, &
-                                aux_fit_basis_set=aux_fit_basis_set)
-           SELECT CASE(ibasis_set_type)
-           CASE(1)
-              orb_basis_set=>orb_basis_set_main
-           CASE(2)
-              orb_basis_set=>aux_fit_basis_set
-           END SELECT
-           IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-
-           CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                  npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
-
-           DO jkind=1,nkind
-              atomic_kind => atomic_kind_set(jkind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set_main, &
-                                   aux_fit_basis_set=aux_fit_basis_set)
-              SELECT CASE(ibasis_set_type)
-              CASE(1)
-                 orb_basis_set=>orb_basis_set_main
-              CASE(2)
-                 orb_basis_set=>aux_fit_basis_set
-              END SELECT
-              IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-              CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
-                                     npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
-              DO iset=1,nseta
-              DO ipgf=1,npgfa(iset)
-              DO ishell=1,nshella(iset)
-                 ! for calculate wavefunction
-                 zetp = zeta(ipgf,iset)
-                 la = lshella(ishell,iset)
-
-                 lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
-
-                 IF (lgrid_level .EQ. igrid_level) THEN
-                    maxradius=MAX(maxradius,exp_radius( la, zetp, &
-                                  dft_control%qs_control%eps_rho_rspace, 1.0_dp))
-                 ENDIF
-                 DO jset=1,nsetb
-                 DO jpgf=1,npgfb(jset)
-                 DO jshell=1,nshellb(jset)
-                    zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-                    lb = lshellb(jshell,jset)+la
-                    lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
-                    IF (lgrid_level .EQ. igrid_level) THEN
-                       ! density (scale is at most 2)
-                       maxradius=MAX(maxradius,exp_radius( lb, zetp, &
-                                     dft_control%qs_control%eps_rho_rspace, 2.0_dp))
-
-                       ! should do tau (if tau will be used)
-
-                       ! potential
-                       maxradius=MAX(maxradius,exp_radius( lb, zetp, &
-                                     dft_control%qs_control%eps_gvg_rspace, 2.0_dp))
-                       ! forces
-                       maxradius=MAX(maxradius,exp_radius( lb+1, zetp, &
-                                     dft_control%qs_control%eps_gvg_rspace, 2.0_dp))
-
-                       ! should do stresses (if stresses will be used)
-                    ENDIF
-                 ENDDO
-                 ENDDO
-                 ENDDO
-              ENDDO
-              ENDDO
-              ENDDO
-           ENDDO ! jkind
-        ENDDO ! ikind
-        ENDDO ! ibasis_set_type
-
-        ! this is a bit of hack, but takes into account numerics and rounding
-        maxradius = maxradius * safety_factor
-        radius(igrid_level)=maxradius
-     END DO
-! ***SCP
-! Compare the maxradius with that of the AUX_BASIS used with SCP
-          IF ( qs_env % dft_control % scp ) THEN
-             CALL get_qs_env ( qs_env=qs_env, scp_env=scp_env, error = error )
-             CALL maxradius_scp_init ( scp_env, atomic_kind_set,  &
-                                      pw_env%gridlevel_info, radius, &
-                                      dft_control%qs_control%eps_gvg_rspace, & 
-                                      dft_control%qs_control%eps_rho_rspace, error ) 
-          END IF
-! ***SCP
+     CALL compute_max_radius(radius, pw_env, qs_env, error)
 
 !
 !
@@ -679,6 +536,197 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   CALL timestop(handle)
 
 END SUBROUTINE pw_env_rebuild
+
+! *****************************************************************************
+!> \brief computes the maximum radius
+!> \par History
+!>      10.2010 refactored [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
+SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: radius
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
+
+    INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, &
+      ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, &
+      ngrid_level, nkind, nseta, nsetb
+    INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
+    INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, core_charge, &
+                                                max_rpgf0_s, maxradius, zet0, &
+                                                zetp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: aux_fit_basis_set, &
+                                                orb_basis_set, &
+                                                orb_basis_set_main
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(scp_environment_type), POINTER      :: scp_env
+
+! a very small safety factor might be needed for roundoff issues
+! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
+! te latter can happen due to the lower precision in the computation of the radius in collocate
+! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    NULLIFY(dft_control, atomic_kind_set, rho0_mpole)
+
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+                    dft_control=dft_control, error=error)
+
+    IF(dft_control%qs_control%gapw) THEN
+       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole,error=error)
+       CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
+       CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=zet0,max_rpgf0_s=max_rpgf0_s)
+    END IF
+
+    ngrid_level=SIZE(radius)
+    nkind=SIZE(atomic_kind_set)
+
+    ! Find the grid level suitable for rho0_soft
+    IF(dft_control%qs_control%gapw) THEN
+       igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0)
+       rho0_mpole%igrid_zet0_s = igrid_zet0_s
+    END IF
+
+    ! try to predict the maximum radius of the gaussians to be mapped on the grid
+    ! up to now, it is not yet very good
+    maxradius=0.0_dp
+    DO igrid_level=1,ngrid_level
+
+       maxradius=0.0_dp
+
+       ! Take into account the radius of the soft compensation charge rho0_soft1
+       IF(dft_control%qs_control%gapw) THEN
+          IF(igrid_zet0_s == igrid_level ) maxradius=MAX(maxradius,max_rpgf0_s)
+       END IF
+     
+       ! ibasis set type loops over the needed kinds of basis sets. Right now this is
+       ! the orb_basis_set and the aux_fit_basis_set.
+       ! Seemingly others (e.g. gapw soft basis set) are not needed?
+       DO ibasis_set_type=1,2
+          DO ikind=1,nkind
+            atomic_kind => atomic_kind_set(ikind)
+
+            IF (dft_control%qs_control%dftb) CYCLE
+
+             ! this is to be sure that the core charge is mapped ok
+             ! right now, the core is mapped on the auxiliary basis,
+             ! this should, at a give point be changed
+             ! so that also for the core a multigrid is used
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                 alpha_core_charge=alpha,ccore_charge=core_charge)
+
+             IF (alpha > 0.0_dp .AND. core_charge.NE.0.0_dp) THEN
+               maxradius=MAX(maxradius,exp_radius( 0, alpha, &
+                             dft_control%qs_control%eps_rho_rspace, core_charge))
+               ! forces
+               maxradius=MAX(maxradius,exp_radius( 1, alpha, &
+                             dft_control%qs_control%eps_rho_rspace, core_charge))
+             ENDIF
+
+             !
+             ! now for the basis sets
+             ! 
+             CALL get_atomic_kind(atomic_kind=atomic_kind, orb_basis_set=orb_basis_set_main, &
+                                  aux_fit_basis_set=aux_fit_basis_set)
+             SELECT CASE(ibasis_set_type)
+             CASE(1)
+                orb_basis_set=>orb_basis_set_main
+             CASE(2)
+                orb_basis_set=>aux_fit_basis_set
+             END SELECT
+             IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                    npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
+
+             DO jkind=1,nkind
+                atomic_kind => atomic_kind_set(jkind)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis_set_main, &
+                                     aux_fit_basis_set=aux_fit_basis_set)
+                SELECT CASE(ibasis_set_type)
+                CASE(1)
+                   orb_basis_set=>orb_basis_set_main
+                CASE(2)
+                   orb_basis_set=>aux_fit_basis_set
+                END SELECT
+                IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                       npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
+                DO iset=1,nseta
+                DO ipgf=1,npgfa(iset)
+                DO ishell=1,nshella(iset)
+                   ! for calculate wavefunction
+                   zetp = zeta(ipgf,iset)
+                   la = lshella(ishell,iset)
+
+                   lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
+
+                   IF (lgrid_level .EQ. igrid_level) THEN
+                      maxradius=MAX(maxradius,exp_radius( la, zetp, &
+                                    dft_control%qs_control%eps_rho_rspace, 1.0_dp))
+                   ENDIF
+                   DO jset=1,nsetb
+                   DO jpgf=1,npgfb(jset)
+                   DO jshell=1,nshellb(jset)
+                      zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+                      lb = lshellb(jshell,jset)+la
+                      lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
+                      IF (lgrid_level .EQ. igrid_level) THEN
+                         ! density (scale is at most 2)
+                         maxradius=MAX(maxradius,exp_radius( lb, zetp, &
+                                       dft_control%qs_control%eps_rho_rspace, 2.0_dp))
+
+                         ! should do tau (if tau will be used)
+
+                         ! potential
+                         maxradius=MAX(maxradius,exp_radius( lb, zetp, &
+                                       dft_control%qs_control%eps_gvg_rspace, 2.0_dp))
+                         ! forces
+                         maxradius=MAX(maxradius,exp_radius( lb+1, zetp, &
+                                       dft_control%qs_control%eps_gvg_rspace, 2.0_dp))
+
+                         ! should do stresses (if stresses will be used)
+                      ENDIF
+                   ENDDO
+                   ENDDO
+                   ENDDO
+                ENDDO
+                ENDDO
+                ENDDO
+             ENDDO ! jkind
+          ENDDO ! ikind
+       ENDDO ! ibasis_set_type
+
+       ! this is a bit of hack, but takes into account numerics and rounding
+       maxradius = maxradius * safety_factor
+       radius(igrid_level)=maxradius
+    END DO
+
+    ! Compare the maxradius with that of the AUX_BASIS used with SCP
+    IF ( dft_control % scp ) THEN
+       CALL get_qs_env ( qs_env=qs_env, scp_env=scp_env, error = error )
+       CALL maxradius_scp_init ( scp_env, atomic_kind_set,  &
+                                pw_env%gridlevel_info, radius, &
+                                dft_control%qs_control%eps_gvg_rspace, & 
+                                dft_control%qs_control%eps_rho_rspace, error ) 
+    END IF
+
+  CALL timestop(handle)
+
+END SUBROUTINE compute_max_radius
 
 ! *****************************************************************************
 !> \brief Initialize the super-reference grid for Tuckerman or xc
