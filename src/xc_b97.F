@@ -103,7 +103,7 @@ CONTAINS
        IF (sx==1._dp .AND.sc==1._dp) THEN
           IF ( PRESENT ( reference ) ) THEN
              reference = "B97-D, Grimme xc functional,"//&
-                  " J Comput Chem 27: 1787–1799 (2006)"//&
+                  " J Comput Chem 27: 1787-1799 (2006)"//&
                   ", needs C6 dispersion "//pol
           END IF
           IF ( PRESENT ( shortform ) ) THEN
@@ -111,13 +111,13 @@ CONTAINS
           END IF
        ELSE
           IF ( PRESENT ( reference ) ) THEN
-             WRITE (reference,"(a,a,'sx=',f5.3,'sc=',f5.3,a)")&
+             WRITE (reference,"(a,a,3x,' sx=',f6.3,' sc=',f6.3,1x,a)")&
                   "B97-D, Grimme xc functional,",&
-                  " J Comput Chem 27: 1787–1799 (2006) ",&
+                  " J Comput Chem 27: 1787-1799 (2006) ",&
                   sx,sc,pol
           END IF
           IF ( PRESENT ( shortform ) ) THEN
-             WRITE (shortform,"(a,a,'sx=',f5.3,'sc=',f5.3,'(LDA)')")&
+             WRITE (shortform,"(a,a,3x,' sx=',f6.3,' sc=',f6.3,' (LDA)')")&
                   "B97-D, Grimme xc functional ",pol,sx,sc
           END IF
        END IF
