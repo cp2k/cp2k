@@ -34,8 +34,6 @@ MODULE ep_types
                                              qs_p_projection_p_type
   USE replica_types,                   ONLY: rep_env_release,&
                                              replica_env_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -51,8 +49,8 @@ MODULE ep_types
   PUBLIC :: ep_env_type, ep_env_p_type, ep_energy_type, ep_force_type
   PUBLIC :: ep_env_retain, ep_env_release, ep_env_get
   PUBLIC :: ep_envs_get_ep_env, ep_env_create, ep_env_calc_e_f
-  PUBLIC :: ep_energy_zero, ep_dealloc_local_sm, ep_force_create,&
-       ep_force_retain, ep_force_release, ep_force_zero
+  PUBLIC :: ep_energy_zero, ep_force_create, ep_force_retain, &
+            ep_force_release, ep_force_zero
 
 ! *****************************************************************************
 !> \brief stores various energies calculated during an ep calculation
@@ -548,39 +546,6 @@ CONTAINS
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE ep_env_calc_e_f
-
-! *****************************************************************************
-!> \brief deallocates a local spare matrix
-!> \param local_sm the matrix to deallocate
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE ep_dealloc_local_sm(local_sm,error)
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: local_sm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ep_dealloc_local_sm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, ispin, stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(local_sm),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO i=1,SIZE(local_sm,2)
-          DO ispin=1,SIZE(local_sm,1)
-             IF (ASSOCIATED(local_sm(ispin,i)%matrix)) THEN
-                CALL deallocate_matrix(local_sm(ispin,i)%matrix,error=error)
-             END IF
-          END DO
-       END DO
-       DEALLOCATE(local_sm,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-  END SUBROUTINE ep_dealloc_local_sm
 
 ! *****************************************************************************
 !> \brief creates an ep_force_type

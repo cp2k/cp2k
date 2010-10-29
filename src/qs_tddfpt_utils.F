@@ -64,11 +64,9 @@ MODULE qs_tddfpt_utils
             tddfpt_init, &
             tddfpt_env_init, &
             co_initial_guess, &
-            calc_norm, &
             find_contributions,&
             normalize, &
-            reorthogonalize, &
-            dot_prod
+            reorthogonalize
 
 CONTAINS
 
@@ -418,21 +416,6 @@ CONTAINS
   ! tmp_vec may be changed                !
   !---------------------------------------!
 ! *****************************************************************************
-  SUBROUTINE calc_norm(norm, X, metric, tmp_vec,error)
-
-    REAL(KIND=dp), INTENT(OUT)               :: norm
-    TYPE(cp_fm_p_type), DIMENSION(:)         :: x
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: metric
-    TYPE(cp_fm_p_type), DIMENSION(:)         :: tmp_vec
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CALL dot_prod(norm, X, X, metric, tmp_vec,error=error)
-    norm = SQRT(norm)
-
-  END SUBROUTINE calc_norm
-
-! *****************************************************************************
   SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X
@@ -475,33 +458,5 @@ CONTAINS
   END SUBROUTINE reorthogonalize
 
 ! *****************************************************************************
-  SUBROUTINE dot_prod(res, X, Y, metric, tmp_vec, error)
-
-    REAL(KIND=dp), INTENT(OUT)               :: res
-    TYPE(cp_fm_p_type), DIMENSION(:)         :: X, Y
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: metric
-    TYPE(cp_fm_p_type), DIMENSION(:)         :: tmp_vec
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dot_prod', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: n_spins, spin
-    REAL(KIND=dp)                            :: tmp
-
-    n_spins = SIZE(X)
-    res = 0.0_dp
-    DO spin=1, n_spins
-       tmp = 0.0_dp
-       CALL cp_sm_fm_multiply(metric(spin)%matrix, Y(spin)%matrix, &
-                              tmp_vec(spin)%matrix, &
-                              Y(spin)%matrix%matrix_struct%ncol_global, &
-                              1.0_dp, 0.0_dp,error=error)
-       CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp,error=error)
-       res = res + tmp
-    END DO
-
-  END SUBROUTINE dot_prod
 
 END MODULE qs_tddfpt_utils
