@@ -942,10 +942,14 @@ CONTAINS
         ELSE
           rabm = rab_max
         END IF
-        rab2_max = rab_max*rab_max
-        sab_max(1) = rab_max/plane_distance(1,0,0,cell)
-        sab_max(2) = rab_max/plane_distance(0,1,0,cell)
-        sab_max(3) = rab_max/plane_distance(0,0,1,cell)
+!       rab2_max = rab_max*rab_max
+!       sab_max(1) = rab_max/plane_distance(1,0,0,cell)
+!       sab_max(2) = rab_max/plane_distance(0,1,0,cell)
+!       sab_max(3) = rab_max/plane_distance(0,0,1,cell)
+        rab2_max = rabm*rabm
+        sab_max(1) = rabm/plane_distance(1,0,0,cell)
+        sab_max(2) = rabm/plane_distance(0,1,0,cell)
+        sab_max(3) = rabm/plane_distance(0,0,1,cell)
 
         IF ( my_mic ) THEN
           ncell(:) = 0
@@ -956,7 +960,8 @@ CONTAINS
         nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
 
         CALL allocate_neighbor_list_set(neighbor_list_set=ab_list(iab)%neighbor_list_set,&
-             r_max=rab_max,symmetric=my_symmetric,mic=my_mic,molecular=my_molecular)
+!            r_max=rab_max,symmetric=my_symmetric,mic=my_mic,molecular=my_molecular)
+             r_max=rabm,symmetric=my_symmetric,mic=my_mic,molecular=my_molecular)
         neighbor_list_set => ab_list(iab)%neighbor_list_set
 
         DO iatom_local=1,nlista(ikind)
