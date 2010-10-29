@@ -26,7 +26,6 @@ MODULE qs_tddfpt_utils
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: qs_environment_type
@@ -38,7 +37,6 @@ MODULE qs_tddfpt_utils
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
                                              tddfpt_env_deallocate,&
                                              tddfpt_env_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop

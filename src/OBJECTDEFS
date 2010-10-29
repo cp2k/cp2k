@@ -121,7 +121,6 @@ OBJECTS_GENERIC =\
  cp_linked_list_val.o\
  cp_linked_list_xc_deriv.o\
  cp_log_handling.o\
- cp_matrix_utils.o\
  cp_output_handling.o\
  cp_para_env.o\
  cp_para_types.o\
@@ -135,8 +134,6 @@ OBJECTS_GENERIC =\
  cp_parser_methods.o\
  cp_result_methods.o\
  cp_result_types.o\
- cp_sm_fm_interactions.o\
- cp_sm_struct.o\
  cp_subsys_methods.o\
  cp_subsys_types.o\
  cp_symmetry.o\
@@ -614,8 +611,6 @@ OBJECTS_GENERIC =\
  simpar_types.o\
  simpar_methods.o\
  soft_basis_set.o\
- sparse_matrix_output.o\
- sparse_matrix_types.o\
  spherical_harmonics.o\
  splines_methods.o\
  splines_types.o\
