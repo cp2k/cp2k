@@ -641,11 +641,11 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_sm_fm_multiply
 
   SUBROUTINE match_col_sizes (sizes1, sizes2, full_num)
-  INTEGER, DIMENSION(:), INTENT(INOUT)     :: sizes1
-  INTEGER, DIMENSION(:), INTENT(IN)        :: sizes2
-  INTEGER, INTENT(IN)                      :: full_num
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: sizes1
+    INTEGER, DIMENSION(:), INTENT(IN)        :: sizes2
+    INTEGER, INTENT(IN)                      :: full_num
 
-  INTEGER                                  :: left, n1, n2, p, rm, used
+    INTEGER                                  :: left, n1, n2, p, rm, used
 
     n1 = SIZE(sizes1)
     n2 = SIZE(sizes2)

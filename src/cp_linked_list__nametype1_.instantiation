@@ -135,30 +135,6 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type""",
 }
 ,
 {
- 'nametype1':'sm', 
- 'type1':'type(real_matrix_type),pointer', 
- 'type1in':'type(real_matrix_type), pointer',
- 'type1out':'type(real_matrix_type), pointer',
- 'USE':
-"""USE kinds, only: dp
-USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
-     cp_sm_get_id_nr""",
- 'defines':
-"""! less not much meningful...
-#define CP_SLL_SM_LESS_Q(el1,el2,error) ( cp_sm_get_id_nr(el1,error) < cp_sm_get_id_nr(el2,error) )
-#define CP_SLL_SM_EQUAL_Q(el1,el2,error) ( cp_sm_get_id_nr(el1,error) == cp_sm_get_id_nr(el2,error) )
-""",
- '=':'=>',
- 'type1arrayEl':'type(real_matrix_p_type)',
- 'array=':'=>',
- 'arrayEl':'%matrix',
- 'lessQ':'CP_SLL_SM_LESS_Q',
- 'equalQ':'CP_SLL_SM_EQUAL_Q',
- 'write_el':'',
- 'private_routines':''
-}
-,
-{
  'nametype1':'rs', 
  'type1':'type(realspace_grid_type),pointer', 
  'type1in':'type(realspace_grid_type), pointer',

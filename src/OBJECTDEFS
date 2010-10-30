@@ -117,7 +117,6 @@ OBJECTS_GENERIC =\
  cp_linked_list_pw.o\
  cp_linked_list_real.o\
  cp_linked_list_rs.o\
- cp_linked_list_sm.o\
  cp_linked_list_val.o\
  cp_linked_list_xc_deriv.o\
  cp_log_handling.o\
