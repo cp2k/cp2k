@@ -140,7 +140,6 @@ CONTAINS
       c_radius, calpha, core_radius, oce_radius, orb_radius, ppl_radius, &
       ppnl_radius, zeff
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
-    REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
