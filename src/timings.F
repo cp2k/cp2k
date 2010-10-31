@@ -273,7 +273,7 @@ CONTAINS
     ENDIF
 
     ! enforce space free timer names, to make the output of trace/timings of a fixed number fields
-    IF (INDEX(' ',name(1:LEN_TRIM(name))).NE.0) THEN
+    IF (INDEX(name(1:LEN_TRIM(name)),' ').NE.0) THEN
        PRINT *,"timer name contains spaces",name
        STOP 1
     ENDIF
