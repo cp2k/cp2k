@@ -272,6 +272,12 @@ CONTAINS
        STOP 1
     ENDIF
 
+    ! enforce space free timer names, to make the output of trace/timings of a fixed number fields
+    IF (INDEX(' ',name(1:LEN_TRIM(name))).NE.0) THEN
+       PRINT *,"timer name contains spaces",name
+       STOP 1
+    ENDIF
+
     DO i=timer_env%num_timer,handle+1,-1
        timer_env%sort_index(i+1)=timer_env%sort_index(i)
     END DO
@@ -526,7 +532,7 @@ CONTAINS
          IF (max_iwalltime(i) >= 100000)  decimals = 1
          IF (max_iwalltime(i) >= 1000000) decimals = 0
          WRITE (UNIT=fmt,FMT="(A,I0,A)")&
-           "(T2,A,T34,I6,1X,F4.1,4(1X,F8.",decimals,"))"
+           "(T2,A31,I7,1X,F4.1,4(1X,F8.",decimals,"))"
        END IF
 
        DO i=num_timer,1,-1
@@ -540,7 +546,7 @@ CONTAINS
                   REAL(MAX(1,timer_env%routine_calls(j)),KIND=dp)
 
              WRITE (UNIT=iw,FMT=fmt) &
-                          TRIM(timer_env%clock_name(j)),&
+                          ADJUSTL(timer_env%clock_name(j)(1:31)),&
                           timer_env%routine_calls(j),&
                           ASD,&
                           sum_ewalltime(j)/para_env%num_pe,&
@@ -600,12 +606,10 @@ CONTAINS
        STOP 1
     END SELECT
 
-    timer_env%astring = " >>>>>>>>>>>>> "
-    timer_env%bstring = " <<<<<<<<<<<<< "
-    WRITE (timer_env%astring(1:9),"(I4,A,I4)") timer_env%mepos,":",&
-         timer_env%num_pe
-    WRITE (timer_env%bstring(1:9),"(I4,A,I4)") timer_env%mepos,":",&
-         timer_env%num_pe
+    WRITE (timer_env%astring,"(I6.6,A1,I6.6,A2)") timer_env%mepos,":",&
+         timer_env%num_pe,">>"
+    WRITE (timer_env%bstring,"(I6.6,A1,I6.6,A2)") timer_env%mepos,":",&
+         timer_env%num_pe,"<<"
 
   END SUBROUTINE trace_debug
 

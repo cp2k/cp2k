@@ -2457,7 +2457,7 @@ CONTAINS
     IF (PRESENT(calculate_forces)) c_forces=calculate_forces
 
     IF (c_forces) THEN
-       CALL timeset(routineN//' (forces)',handle)
+       CALL timeset(routineN//'_forces',handle)
     ELSE
        CALL timeset(routineN,handle)
     ENDIF

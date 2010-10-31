@@ -620,7 +620,7 @@ CONTAINS
        IF(ncol.NE.k_out.OR.my_beta.NE.0.0_dp) &
             CALL copy_fm_to_dbcsr(fm_out, out, error=error)
 
-       CALL timeset(routineN//' (core)', timing_handle_mult)
+       CALL timeset(routineN//'_core', timing_handle_mult)
        CALL cp_dbcsr_multiply("N", "N", my_alpha, matrix, in,&
             my_beta, out, last_column=ncol, error=error)
        CALL timestop(timing_handle_mult)

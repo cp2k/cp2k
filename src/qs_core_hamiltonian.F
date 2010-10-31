@@ -177,7 +177,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (calculate_forces) THEN
-      CALL timeset(routineN//" (forces)",handle)
+      CALL timeset(routineN//"_forces",handle)
     ELSE
       CALL timeset(routineN,handle)
     ENDIF
