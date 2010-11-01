@@ -234,7 +234,13 @@ END SUBROUTINE m_chdir
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
+    ! this is needed to load a statically linked binary on some architectures.
+#if defined(__HAS_NO_GETLOG)
+    user="root ;-)"
+#else
     CALL getlog(user)
+#endif
+
 END SUBROUTINE m_getlog
 
 ! *****************************************************************************
