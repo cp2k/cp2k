@@ -391,6 +391,7 @@ CONTAINS
     s2=MAXVAL(state%maxn_occ)+nder
     ALLOCATE(rbasis(s1,s2,0:3),STAT=ierr)
     CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+    rbasis = 0._dp
 
     DO ider=-nder,nder
       dene = REAL(ider,KIND=dp)*delta
@@ -403,12 +404,12 @@ CONTAINS
 
     DO l=0,state%maxl_occ
       ! occupied states
-      DO i=1,state%maxn_occ(l)
+      DO i=1,MAX(state%maxn_occ(l),1)
         rbasis(:,i,l) = wfn(:,i,l,0)
       END DO
       ! differentiation
       DO ider=1,nder
-        i=state%maxn_occ(l)
+        i=MAX(state%maxn_occ(l),1)
         SELECT CASE (ider)
           CASE (1)
             rbasis(:,i+1,l) = 0.5_dp*(wfn(:,i,l,1) - wfn(:,i,l,-1))/delta
@@ -447,10 +448,6 @@ CONTAINS
 
       ! Quickstep normalization
       WRITE(iw,'(/,A,T30,I3)') " Angular momentum :",l
-!      WRITE(iw,'(A)') " Basis              Coefficients"
-!      DO i=1,m
-!        WRITE(iw,'(I6,4X,15ES20.6)') i,(rbasis(i,k,l),k=1,n) 
-!      END DO
 
       WRITE(iw,'(/,A)') " Basis        Exponent         Coefficients (Quickstep Normalization)"
       expzet = 0.25_dp*REAL(2*l + 3,dp)
