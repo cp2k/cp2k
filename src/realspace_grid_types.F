@@ -2187,6 +2187,11 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
           IF ( rs_desc % parallel ) THEN
              ! release the group communicator
              CALL mp_comm_free ( rs_desc % group )
+
+             DEALLOCATE ( rs_desc % virtual2real, STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE ( rs_desc % real2virtual, STAT=stat )
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
 
           IF (rs_desc % distributed) THEN
@@ -2204,11 +2209,6 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DEALLOCATE ( rs_desc % z2coord , STAT=stat )
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE ( rs_desc % virtual2real, STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE ( rs_desc % real2virtual, STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
           ENDIF
 
           DEALLOCATE(rs_desc, stat=stat)
