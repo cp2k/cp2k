@@ -313,3 +313,5 @@ h2o_dist.inp
 H2S-gapw-gop.inp
 # Numerics introduced by major QS refactoring 
 H2S-gapw-gop.inp
+# reset after merge of qs refactoring branch merge 
+Na_atom.inp

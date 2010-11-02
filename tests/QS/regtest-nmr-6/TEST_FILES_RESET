@@ -748,3 +748,11 @@ no-gapw-1-distributed.inp
 no-gapw-2.inp
 # more numerics
 no-gapw-gpw-1.inp
+# reset after merge of qs refactoring branch merge 
+no-gapw-1.inp
+# reset after merge of qs refactoring branch merge 
+no-gapw-3.inp
+# reset after merge of qs refactoring branch merge 
+no-gapw-4.inp
+# reset after merge of qs refactoring branch merge 
+no-gapw-1-replicated.inp

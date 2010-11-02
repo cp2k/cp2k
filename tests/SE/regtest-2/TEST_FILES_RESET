@@ -401,3 +401,5 @@ Pt-cis-2xpet3Cl2.inp
 Pt-cis-2xpet3Cl2-si-noc.inp
 scan_zn_1w_cp2k.inp
 st.inp
+# reset after merge of qs refactoring branch merge 
+Pt-cis-2xpet3Cl2-si.inp

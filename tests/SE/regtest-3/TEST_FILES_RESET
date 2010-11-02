@@ -306,3 +306,7 @@ N3_rp_md.inp
 N3_dp_md.inp
 # Numerics introduced by major QS refactoring 
 N3_rp_dp_md.inp
+# reset after merge of qs refactoring branch merge 
+N3-rp_colvar.inp
+# reset after merge of qs refactoring branch merge 
+SiO2_lr_quad.inp

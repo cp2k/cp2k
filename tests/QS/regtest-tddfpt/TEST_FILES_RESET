@@ -99,3 +99,5 @@ H2O_tddfpt-s-1.inp
 H2O_tddfpt-t-1.inp
 # more numerics
 NO_tddfpt-t-1.inp
+# reset after merge of qs refactoring branch merge 
+NO_tddfpt-t-3.inp

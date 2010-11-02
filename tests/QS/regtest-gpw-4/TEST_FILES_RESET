@@ -859,3 +859,7 @@ h2o-otdiag-lsd.inp
 2H2O_meta_welltemp.inp
 # more numerics
 basis_none_2.inp
+# reset after merge of qs refactoring branch merge 
+H2O-meta_hydro.inp
+# reset after merge of qs refactoring branch merge 
+h2o-otdiag.inp

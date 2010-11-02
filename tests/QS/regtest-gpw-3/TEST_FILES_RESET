@@ -862,3 +862,7 @@ H2O-bloechl.inp
 H2O-bloechl-Spl.inp
 # Numerics introduced by major QS refactoring 
 dynamics.inp
+# reset after merge of qs refactoring branch merge 
+H2O-bloechl-restraint.inp
+# reset after merge of qs refactoring branch merge 
+H2O-ata.inp

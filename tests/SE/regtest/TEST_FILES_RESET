@@ -622,3 +622,11 @@ dimer3.inp
 dimer4.inp
 # Numerics introduced by major QS refactoring 
 h2o_gks_e.inp
+# reset after merge of qs refactoring branch merge 
+dimer.inp
+# reset after merge of qs refactoring branch merge 
+dimer2.inp
+# reset after merge of qs refactoring branch merge 
+h2o_gks_p.inp
+# reset after merge of qs refactoring branch merge 
+ice-scp-ewald.inp

@@ -32,3 +32,5 @@ extrap-10-far.inp
 extrap-7.inp
 # Numerics differences due to different distribution 
 extrap-4-far.inp
+# reset after merge of qs refactoring branch merge 
+extrap-4-far.inp
