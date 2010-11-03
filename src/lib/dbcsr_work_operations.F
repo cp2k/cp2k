@@ -33,7 +33,8 @@ MODULE dbcsr_work_operations
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
-       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_set_size_referenced
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data
   USE dbcsr_error_handling
@@ -58,13 +59,14 @@ MODULE dbcsr_work_operations
        dbcsr_col_block_sizes, dbcsr_destroy_array, dbcsr_destroy_image_dist, &
        dbcsr_distribution, dbcsr_distribution_has_threads, &
        dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
-       dbcsr_distribution_release, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_get_replication_type, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_modify_lock, dbcsr_modify_unlock, &
-       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
-       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_name, &
-       dbcsr_row_block_sizes, dbcsr_switch_data_area, dbcsr_use_mutable, &
-       dbcsr_uses_special_memory, dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_distribution_release, dbcsr_get_data_size_used, &
+       dbcsr_get_data_type, dbcsr_get_matrix_type, &
+       dbcsr_get_replication_type, dbcsr_init, dbcsr_is_initialized, &
+       dbcsr_modify_lock, dbcsr_modify_unlock, dbcsr_mutable_destroy, &
+       dbcsr_mutable_init, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
+       dbcsr_mutable_release, dbcsr_name, dbcsr_row_block_sizes, &
+       dbcsr_switch_data_area, dbcsr_use_mutable, dbcsr_uses_special_memory, &
+       dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
@@ -689,6 +691,13 @@ CONTAINS
     ! area. Alternatively, set to the start if the matrix is declared
     ! to have no data. (This value is ignored if reshuffle is true
     ! because the main data area is always new.)
+    IF (sort_data .AND. matrix%m%nze .GT. 0) THEN
+       CALL dbcsr_add_wm_from_matrix (matrix, error=error)
+       matrix%m%nze = 0
+       !$OMP MASTER
+       fake_row_p  = .TRUE.
+       !$OMP END MASTER
+    ENDIF
     start_offset = dbcsr_data_get_size_referenced (matrix%m%data_area)+1
     IF (matrix%m%nze .EQ. 0) start_offset=1
     !$OMP MASTER
@@ -904,7 +913,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler, ithread, &
-                                                nthreads, nwms, old_nwms
+                                                nthreads, nwms, old_nwms, &
+                                                size_used
     LOGICAL                                  :: preexists
 
     DEBUG_HEADER
@@ -935,7 +945,8 @@ CONTAINS
     CALL dbcsr_work_create (matrix, matrix%m%nblks, matrix%m%nze, n=nwms,&
          work_mutable=.FALSE., error=error)
     !$OMP BARRIER
-    CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix%m,&
+    size_used = dbcsr_get_data_size_used (matrix, error)
+    CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix, size_used,&
          limits=limits, error=error)
     !$OMP BARRIER
     CALL dbcsr_error_stop(error_handler, error)
@@ -953,10 +964,11 @@ CONTAINS
 !> The limits is a 4-tuple
 !> (lower_row, higher_row, lower_column, higher_column).
 ! *****************************************************************************
-  SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix, limits, error)
+  SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix, size_used, limits, error)
     TYPE(dbcsr_work_type), DIMENSION(:), &
       INTENT(INOUT)                          :: wm
-    TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(IN)                      :: size_used
     INTEGER, DIMENSION(4), INTENT(IN), &
       OPTIONAL                               :: limits
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -966,25 +978,25 @@ CONTAINS
 
     INTEGER :: blk, blk_p, col, error_handler, ithread, nthreads, nwms, nze, &
       row, wblk_p, which_wm, wm_first, wm_last
-    LOGICAL                                  :: limit, mt, tr
+    LOGICAL                                  :: careful, limit, mt, tr
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_obj)                          :: m
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
     CALL dbcsr_error_set(routineN, error_handler, error)
-    nwms = SIZE (matrix%wms)
-    m%m = matrix
+    nwms = SIZE (matrix%m%wms)
     mt = .FALSE.
     !$ IF (nwms .GT. 1) mt = omp_get_num_threads() .GT. 1
     ithread = 0 ; nthreads = 1
     !$ ithread = omp_get_thread_num ()
     !$ nthreads = omp_get_num_threads()
     limit = PRESENT (limits)
+    careful = size_used + size_used/8 &
+         .LT. dbcsr_data_get_size_referenced (matrix%m%data_area)
     CALL dbcsr_data_init (data_block)
-    CALL dbcsr_data_new (data_block, dbcsr_data_get_type (matrix%data_area))
+    CALL dbcsr_data_new (data_block, dbcsr_data_get_type (matrix%m%data_area))
     IF (mt) THEN
        wm_first = ithread+1
        wm_last = ithread+1
@@ -1000,32 +1012,36 @@ CONTAINS
             error=error)
        IF (dbcsr_wm_use_mutable (wm(which_wm))) THEN
           IF (.NOT. dbcsr_mutable_instantiated (wm(which_wm)%mutable)) THEN
-             CALL dbcsr_mutable_new (wm(which_wm)%mutable, matrix%data_type)
+             CALL dbcsr_mutable_new (wm(which_wm)%mutable, matrix%m%data_type)
           ENDIF
        ELSE
           ! We don't know how much data we'll get so we have to be generous.
-          !$OMP CRITICAL
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-               dbcsr_data_get_size (matrix%data_area), error=error)
-          !$OMP END CRITICAL
+               size_used/nwms, error=error)
+          CALL dbcsr_data_set_size_referenced (wm(which_wm)%data_area, 0)
        ENDIF
     ENDDO
     ! Now copy the data
-    CALL dbcsr_iterator_start (iter, m, shared=mt)
+    CALL dbcsr_iterator_start (iter, matrix, shared=mt,&
+         contiguous_pointers=.FALSE., read_only=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
        CALL dbcsr_iterator_next_block (iter, row, col, data_block,&
             transposed=tr, block_number=blk)
        IF (limit) THEN
           IF (.NOT. within_limits (row, col, limits)) CYCLE
        ENDIF
-       blk_p = matrix%blk_p(blk)
+       blk_p = matrix%m%blk_p(blk)
        which_wm = ithread+1
        wblk_p = SIGN (wm(which_wm)%datasize+1, blk_p)
        nze = dbcsr_data_get_size (data_block)
-       IF (mt .OR. limit) THEN
+       IF (mt .OR. limit .OR. careful) THEN
           ! The data gets copied block by block so the block pointers
           ! are ordered accordingly.
           CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
+          CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
+               ABS(wblk_p)+nze-1, error=error)
+          CALL dbcsr_data_set_size_referenced (wm(which_wm)%data_area,&
+               ABS(wblk_p) + nze - 1)
           CALL dbcsr_data_set (wm(which_wm)%data_area,&
                lb=ABS(wblk_p),&
                data_size=nze,&
@@ -1041,11 +1057,11 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (data_block)
     CALL dbcsr_data_release (data_block)
     ! Copy all blocks at once
-    IF (.NOT. mt .AND. .NOT. limit) THEN
+    IF (.NOT. mt .AND. .NOT. limit .AND. .NOT. careful) THEN
        DO which_wm = 1, nwms
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-               dbcsr_data_get_size_referenced (matrix%data_area), error=error)
-          CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%data_area,&
+               dbcsr_data_get_size_referenced (matrix%m%data_area), error=error)
+          CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%m%data_area,&
                error=error)
           wm(which_wm)%datasize = dbcsr_data_get_size_referenced (wm(which_wm)%data_area)
        ENDDO

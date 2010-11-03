@@ -55,10 +55,10 @@ MODULE dbcsr_block_access
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_blk_column_size, dbcsr_blk_row_size, dbcsr_get_data_size_used, &
-       dbcsr_get_data_type, dbcsr_get_num_blocks, dbcsr_mutable_instantiated, &
-       dbcsr_mutable_new, dbcsr_nblkrows_total, dbcsr_use_mutable, &
-       dbcsr_wm_use_mutable
+       dbcsr_blk_column_size, dbcsr_blk_row_size, &
+       dbcsr_get_data_size_referenced, dbcsr_get_data_type, &
+       dbcsr_get_num_blocks, dbcsr_mutable_instantiated, dbcsr_mutable_new, &
+       dbcsr_nblkrows_total, dbcsr_use_mutable, dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: pointer_c_rank_remap2,&
                                              pointer_d_rank_remap2,&
                                              pointer_s_rank_remap2,&
@@ -580,7 +580,7 @@ CONTAINS
        data_size_old = 0
     ELSE
        ! Get current data size
-       data_size_old = dbcsr_get_data_size_used (matrix, error=error)
+       data_size_old = dbcsr_get_data_size_referenced (matrix)
     ENDIF
     nblks_added = SIZE(rows)
     nblks_old = dbcsr_get_num_blocks (matrix)

@@ -1832,7 +1832,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Count actual data storage used for matrix
+!> \brief Count actual data storage used for matrix data.
 !> \param[in] matrix          Count data of this matrix
 !> \param[in,out] error       Error
 !> \result data_size          Data size used by matrix
@@ -1860,21 +1860,12 @@ CONTAINS
        DO blk = matrix%m%row_p(row)+1, matrix%m%row_p(row+1)
           col = matrix%m%col_i(blk)
           blk_p = ABS (matrix%m%blk_p(blk))
-          nze = row_blk_sizes(row) * col_blk_sizes(col)
-          data_size = MAX (data_size, blk_p + nze-1)
+          IF (matrix%m%blk_p(blk) .NE. 0) THEN
+             nze = row_blk_sizes(row) * col_blk_sizes(col)
+             data_size = data_size + nze
+          ENDIF
        ENDDO
     ENDDO
-    !call dbcsr_iterator_start (iter, matrix)
-    !data_size = 0
-    !do while (dbcsr_iterator_blocks_left (iter))
-    !   call dbcsr_iterator_next_block (iter, row, col, blk, &
-    !        blk_p=blk_p, row_size=row_size, col_size=col_size)
-    !   data_size = MAX (data_size, blk_p + row_size*col_size-1)
-    !enddo
-    !call dbcsr_iterator_stop (iter)
-    CALL dbcsr_assert (data_size, "EQ", dbcsr_get_data_size_referenced(matrix),&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Inconsistent declared data size.", __LINE__, error=error)
     CALL dbcsr_error_stop (error_handle, error)
   END FUNCTION dbcsr_get_data_size_used
 

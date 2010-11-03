@@ -2340,7 +2340,7 @@ CONTAINS
     IF (PRESENT (thorough)) THEN
        quick = .NOT. thorough
     ELSE
-       quick = .TRUE.
+       quick = .FALSE.
     ENDIF
     CALL dbcsr_filter(matrix%matrix, eps, method, use_absolute, filter_diag,&
          quick=quick, error=dbcsr_error)
