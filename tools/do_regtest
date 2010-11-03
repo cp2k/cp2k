@@ -182,6 +182,8 @@ fi
 cp2k_prefix=${cp2k_prefix:-"${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"}
 cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
 
+# allow the config file to set the maximum allowed time. Useful for valgrinded runs
+job_max_time=${job_max_time:-"300"}
 
 ###################################################################################
 #
@@ -518,7 +520,7 @@ do
      test_types=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
-     ( ulimit -t 300 -v 2000000 ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
+     ( ulimit -t ${job_max_time} -v 2000000 ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
      # *** cp2k failed obviously
      if (( $? )); then
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
