@@ -151,7 +151,7 @@ CONTAINS
                                       first_row,last_row,first_col,last_col,scale,&
                                        output_unit,error)
 
-    TYPE(cp_dbcsr_type), POINTER             :: sparse_matrix
+    TYPE(cp_dbcsr_type)                      :: sparse_matrix
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -245,7 +245,7 @@ CONTAINS
 
   SUBROUTINE copy_repl_dbcsr_to_repl_fm(sparse_matrix,fm,error)
 
-    TYPE(cp_dbcsr_type), POINTER             :: sparse_matrix
+    TYPE(cp_dbcsr_type)                      :: sparse_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
