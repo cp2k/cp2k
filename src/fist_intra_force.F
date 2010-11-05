@@ -206,6 +206,10 @@ CONTAINS
              shell_particle_set ( index_b )% f(2) = shell_particle_set ( index_b ) % f(2)  +rij(2) * fscalar
              shell_particle_set ( index_b )% f(3) = shell_particle_set ( index_b ) % f(3)  +rij(3) * fscalar
 
+             ! computing the pressure tensor
+             k1 =  - rij * fscalar
+             IF (use_virial) CALL get_pv_bond  ( k1, rij, pv_bond )
+
           END DO SHELL
 
           UREY_BRADLEY: DO ibend = 1, nub

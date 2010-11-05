@@ -316,3 +316,18 @@ UO2-4x4x4-shell-forces.inp
 UO2-4x4x4-core-forces.inp
 #  
 UO2-4x4x4-shell-forces.inp
+# Bug fix for the stress tensor of the core-shell model in fist_intra_force.F 
+uo2_shell_npti_b.inp
+uo2_shell_npti.inp
+uo2_shell_npt300.inp
+uo2_shell_npt_msd.inp
+uo2_shell_npe_1.inp
+uo2_shell_npe_2.inp
+uo2_shell_npe_2res.inp
+uo2_shell_npe_3.inp
+uo2_shell_npe_4.inp
+uo2_shell_npe_5.inp
+uo2_shell_npe_6.inp
+uo2_shell_npt_vdt.inp
+uo2_shell_npt_vdt_2.inp
+uo2_shell_npt_dsc.inp
