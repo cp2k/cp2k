@@ -301,18 +301,18 @@ CONTAINS
                          energy = potential_coulomb(rab2, fscalar, &
                                   qeff_a*qcore_b, ewald_type, alpha, &
                                   mm_radius_a, &
-                                  ei_interaction_cutoffs(2, kind_a, kind_b))
+                                  ei_interaction_cutoffs(2, ikind, jkind))
                       ELSE IF (shell_b == 0) THEN
                          ! atom b is a plain ion and can have mm_radius_b > 0
                          energy = potential_coulomb(rab2, fscalar, &
                                   qcore_a*qeff_b, ewald_type, alpha, &
                                   mm_radius_b, &
-                                  ei_interaction_cutoffs(2, kind_b, kind_a))
+                                  ei_interaction_cutoffs(2, jkind, ikind))
                       ELSE
                          ! core-core interaction is always pure point charge
                          energy = potential_coulomb(rab2, fscalar, &
                                   qcore_a*qcore_b, ewald_type, alpha, 0.0_dp, &
-                                  ei_interaction_cutoffs(1, kind_a, kind_b))
+                                  ei_interaction_cutoffs(1, ikind, jkind))
                       END IF
                       pot_nonbond = pot_nonbond + energy*fac
                       fscalar = fscalar*fac
@@ -369,7 +369,7 @@ CONTAINS
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
                                   qshell_a*qshell_b, ewald_type, alpha, mm_radius, &
-                                  ei_interaction_cutoffs(3, kind_a, kind_b))
+                                  ei_interaction_cutoffs(3, ikind, jkind))
                          pot_nonbond = pot_nonbond + energy*fac
                       END IF
                       fscalar = fscalar * fac
@@ -402,7 +402,7 @@ CONTAINS
                          ! swap kind_a and kind_b to get the right cutoff
                          energy = potential_coulomb(rab2, fscalar, &
                                   qcore_a*qshell_b, ewald_type, alpha, mm_radius_b, &
-                                  ei_interaction_cutoffs(2, kind_b, kind_a))
+                                  ei_interaction_cutoffs(2, jkind, ikind))
                          pot_nonbond = pot_nonbond + energy*fac
                          fscalar = fscalar * fac
                          fr(1) = fscalar*rab(1)
@@ -432,7 +432,7 @@ CONTAINS
                          fscalar = 0.0_dp
                          energy = potential_coulomb(rab2, fscalar, &
                                   qshell_a*qcore_b, ewald_type, alpha, mm_radius_a, &
-                                  ei_interaction_cutoffs(2, kind_a, kind_b))
+                                  ei_interaction_cutoffs(2, ikind, jkind))
                          pot_nonbond = pot_nonbond + energy*fac
                          fscalar = fscalar * fac
                          fr(1) = fscalar*rab(1)
@@ -470,7 +470,7 @@ CONTAINS
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
                                   qeff_a*qshell_b, ewald_type, alpha, mm_radius, &
-                                  ei_interaction_cutoffs(3, kind_a, kind_b))
+                                  ei_interaction_cutoffs(3, ikind, jkind))
                          pot_nonbond = pot_nonbond + energy*fac
                       END IF
                       fscalar = fscalar * fac
@@ -508,7 +508,7 @@ CONTAINS
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
                                   qshell_a*qeff_b, ewald_type, alpha, mm_radius, &
-                                  ei_interaction_cutoffs(3, kind_a, kind_b))
+                                  ei_interaction_cutoffs(3, ikind, jkind))
                          pot_nonbond = pot_nonbond + energy*fac
                       END IF
                       fscalar = fscalar * fac
@@ -561,7 +561,7 @@ CONTAINS
                       ! note that potential_coulomb increments fscalar
                       energy = potential_coulomb(rab2, fscalar, qeff_a*qeff_b, &
                                ewald_type, alpha, mm_radius, &
-                               ei_interaction_cutoffs(3, kind_a, kind_b))
+                               ei_interaction_cutoffs(3, ikind, jkind))
                       pot_nonbond = pot_nonbond + energy*fac
                    END IF
                    fscalar = fscalar*fac
@@ -590,6 +590,7 @@ CONTAINS
           END DO Pairs
        END DO Kind_Group_Loop
     END DO Lists
+
     IF (use_virial) THEN
        pv_nonbond(1,1) = pv_nonbond(1,1) + ptens11
        pv_nonbond(1,2) = pv_nonbond(1,2) + ptens12
@@ -601,7 +602,9 @@ CONTAINS
        pv_nonbond(3,2) = pv_nonbond(3,2) + ptens32
        pv_nonbond(3,3) = pv_nonbond(3,3) + ptens33
     END IF
-    CALL timestop ( handle )
+
+    CALL timestop(handle)
+
   END SUBROUTINE force_nonbond
 
 ! *****************************************************************************
@@ -841,59 +844,60 @@ CONTAINS
 
     REAL(KIND=dp)                            :: arg, dij, e_arg_arg, efac, &
                                                 errf, ffac, fscalar, idij, &
-                                                rijsq, tc, tc2
-    REAL(KIND=dp), DIMENSION(3)              :: fij_com, rij
+                                                rijsq, tc, tc2, tc4
+    REAL(KIND=dp), DIMENSION(3)              :: fr, rij
 
     rij = r1 - r2
-    rij = pbc(rij, cell)
+    rij = pbc(rij,cell)
     rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
     dij = SQRT(rijsq)
     ! Two possible limiting cases according the value of dij
-    arg = alpha * dij
+    arg = alpha*dij
     ! and this is a magic number.. it is related to the order expansion
     ! and to the value of the polynomial coefficients
-    IF(arg > 0.355_dp) THEN
-       idij = 1.0_dp / dij
-       e_arg_arg = EXP ( -arg ** 2 )
-       tc = 1.0_dp / ( 1.0_dp + pc * arg )
-       ! defining errf=1-erfc
-       errf = 1.0_dp &
-            - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
+    IF (arg > 0.355_dp) THEN
+       idij = 1.0_dp/dij
+       e_arg_arg = EXP(-arg*arg)
+       tc = 1.0_dp/(1.0_dp + pc*arg)
+       ! defining errf = 1 - erfc
+       errf = 1.0_dp - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1)*tc*e_arg_arg
        efac = idij*errf
-       ffac = idij**2 * (idij*errf - const*e_arg_arg)
+       ffac = idij**2*(efac - const*e_arg_arg)
     ELSE
        tc  = arg*arg
        tc2 = tc*tc
-       efac = 1.0_dp - tc/3.0_dp + tc2/10.0_dp - tc*tc2/42.0_dp + tc2*tc2/216.0_dp
-       efac = efac * const
-       ffac = - 2.0_dp/3.0_dp + 2.0_dp/5.0_dp*tc - 1.0_dp/7.0_dp*tc2 + 1.0_dp/27.0_dp*tc2*tc
-       ffac = const*alpha**2*ffac
-    ENDIF
+       tc4 = tc2*tc2
+       efac = const*(1.0_dp - tc/3.0_dp + tc2/10.0_dp - tc*tc2/42.0_dp + tc4/216.0_dp -&
+              tc*tc4/1320.0_dp + tc2*tc4/9360.0_dp)
+       ffac = const*alpha**2*(2.0_dp/3.0_dp - 2.0_dp*tc/5.0_dp + tc2/7.0_dp - tc*tc2/27.0_dp +&
+              tc4/132.0_dp - tc*tc4/780.0_dp)
+    END IF
+
     ! getting the potential
     v_bonded_corr = v_bonded_corr - q1*q2*efac
-    
+
     ! subtracting the force from the total force
-    fscalar = q1 * q2 * ffac
+    fscalar = q1*q2*ffac
+    fr(:) = fscalar*rij(:)
+
+    core_particle_set(i)%f(1) = core_particle_set(i)%f(1) - fr(1)
+    core_particle_set(i)%f(2) = core_particle_set(i)%f(2) - fr(2)
+    core_particle_set(i)%f(3) = core_particle_set(i)%f(3) - fr(3)
     
-    core_particle_set(i)%f(1)=core_particle_set(i)%f(1)-fscalar*rij(1)
-    core_particle_set(i)%f(2)=core_particle_set(i)%f(2)-fscalar*rij(2)
-    core_particle_set(i)%f(3)=core_particle_set(i)%f(3)-fscalar*rij(3)
+    shell_particle_set(i)%f(1) = shell_particle_set(i)%f(1) + fr(1)
+    shell_particle_set(i)%f(2) = shell_particle_set(i)%f(2) + fr(2)
+    shell_particle_set(i)%f(3) = shell_particle_set(i)%f(3) + fr(3)
     
-    shell_particle_set(i)%f(1)=shell_particle_set(i)%f(1)+fscalar*rij(1)
-    shell_particle_set(i)%f(2)=shell_particle_set(i)%f(2)+fscalar*rij(2)
-    shell_particle_set(i)%f(3)=shell_particle_set(i)%f(3)+fscalar*rij(3)
-    
-    IF((shell_adiabatic).AND.use_virial) THEN
-       fij_com = fscalar*rij
-       pv_bc(1,1) = pv_bc(1,1) - fij_com(1) * rij(1)
-       pv_bc(1,2) = pv_bc(1,2) - fij_com(1) * rij(2)
-       pv_bc(1,3) = pv_bc(1,3) - fij_com(1) * rij(3)
-       pv_bc(2,1) = pv_bc(2,1) - fij_com(2) * rij(1)
-       pv_bc(2,2) = pv_bc(2,2) - fij_com(2) * rij(2)
-       pv_bc(2,3) = pv_bc(2,3) - fij_com(2) * rij(3)
-       pv_bc(3,1) = pv_bc(3,1) - fij_com(3) * rij(1)
-       pv_bc(3,2) = pv_bc(3,2) - fij_com(3) * rij(2)
-       pv_bc(3,3) = pv_bc(3,3) - fij_com(3) * rij(3)
+    IF ((shell_adiabatic).AND.use_virial) THEN
+       pv_bc(1,1) = pv_bc(1,1) - fr(1)*rij(1)
+       pv_bc(1,2) = pv_bc(1,2) - fr(1)*rij(2)
+       pv_bc(1,3) = pv_bc(1,3) - fr(1)*rij(3)
+       pv_bc(2,1) = pv_bc(2,1) - fr(2)*rij(1)
+       pv_bc(2,2) = pv_bc(2,2) - fr(2)*rij(2)
+       pv_bc(2,3) = pv_bc(2,3) - fr(2)*rij(3)
+       pv_bc(3,1) = pv_bc(3,1) - fr(3)*rij(1)
+       pv_bc(3,2) = pv_bc(3,2) - fr(3)*rij(2)
+       pv_bc(3,3) = pv_bc(3,3) - fr(3)*rij(3)
     END IF
 
   END SUBROUTINE bonded_correct_gaussian_low_sh
