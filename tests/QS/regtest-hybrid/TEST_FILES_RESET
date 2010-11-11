@@ -436,3 +436,7 @@ CH4-PBE0_TC_LRC.inp
 CH4-PBE0_TC.inp
 # reset after merge of qs refactoring branch merge 
 CH4-PBE0_TC_LRC.inp
+#  
+CH4-PBE0_TC.inp
+#  
+CH4-PBE0_TC_LRC.inp

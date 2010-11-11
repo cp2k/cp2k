@@ -101,3 +101,23 @@ CH4-BP-NONE.inp
 CH4-BP-CAUCHY_SUBSPACE.inp
 # Numerics introduced by major QS refactoring 
 CH4-BP-CAUCHY.inp
+#  
+CH3-BP-MO_DIAG.inp
+#  
+CH3-BP-MO_NO_DIAG.inp
+#  
+CH3-BP-NONE.inp
+#  
+CH3-BP-CAUCHY_SUBSPACE.inp
+#  
+CH3-BP-CAUCHY.inp
+#  
+CH4-BP-MO_DIAG.inp
+#  
+CH4-BP-MO_NO_DIAG.inp
+#  
+CH4-BP-NONE.inp
+#  
+CH4-BP-CAUCHY_SUBSPACE.inp
+#  
+CH4-BP-CAUCHY.inp

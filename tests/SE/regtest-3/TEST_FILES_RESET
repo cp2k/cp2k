@@ -310,3 +310,9 @@ N3_rp_dp_md.inp
 N3-rp_colvar.inp
 # reset after merge of qs refactoring branch merge 
 SiO2_lr_quad.inp
+#  
+LM-KSDO-D.inp
+#  
+Co_complex.inp
+#  
+N3_rp_md.inp

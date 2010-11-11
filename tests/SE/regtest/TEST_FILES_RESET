@@ -630,3 +630,9 @@ dimer2.inp
 h2o_gks_p.inp
 # reset after merge of qs refactoring branch merge 
 ice-scp-ewald.inp
+#  
+st.inp
+#  
+h2op_2.inp
+#  
+h2po4.inp

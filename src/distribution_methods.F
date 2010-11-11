@@ -1180,7 +1180,7 @@ CONTAINS
        row_distribution (cluster) = prow + 1
        col_distribution (cluster) = pcol + 1
        !
-       cluster_price = cluster_prices(cluster)
+       cluster_price = cluster_prices(cluster_index)
        bin_price = bin_price + cluster_price
        CALL heap_reset_first (bin_heap, bin_price, heap_error)
        CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&

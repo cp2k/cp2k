@@ -863,3 +863,9 @@ basis_none_2.inp
 H2O-meta_hydro.inp
 # reset after merge of qs refactoring branch merge 
 h2o-otdiag.inp
+#  
+basis_none_1.inp
+#  
+h2o-otdiag.inp
+#  
+h2o-otdiag-lsd.inp
