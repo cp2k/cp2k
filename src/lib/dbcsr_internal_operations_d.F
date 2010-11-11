@@ -113,7 +113,7 @@
                :params_b(sp_b)%offset+params_b(sp_b)%nze-1)
           WRITE(*,*)"Multiplying product data", sp, poff, params_c(sp_c)%nze,"/",&
                SIZE(product_data_a), poff+params_c(sp_c)%nze-1
-          WRITE(*,'(10(1X,F9.3))')product_data_a(poff:&
+          WRITE(*,'(10(1X,F9.3))')product_data_a(poff&
                :poff+params_c(sp_c)%nze-1)
           WRITE(*,*)"again"
           WRITE(*,'(10(1X,F9.3))')product_data_a
@@ -222,7 +222,7 @@
        IF (dbgv) THEN
           WRITE(*,*)"Resulting product data", poff,":",poff+params_c(sp_c)%nze-1,&
                SIZE(product_data_a)
-          WRITE(*,'(10(1X,F9.3))')product_data_a(poff:&
+          WRITE(*,'(10(1X,F9.3))')product_data_a(poff&
                :poff+params_c(sp_c)%nze-1)
           WRITE(*,*)"again"
           WRITE(*,'(10(1X,F9.3))')product_data_a
