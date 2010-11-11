@@ -1,8 +1,8 @@
 CC       = bgxlc_r
 CPP      = cpp -traditional -E
 #CPP      = /opt/ibmcmp/xlf/bg/11.1/exe/cpp -traditional -E 
-FC       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf90_r  -qsuffix=f=f90 
-LD       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf90_r
+FC       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf95_r -qstacktemp=1 -qsuffix=f=f90 
+LD       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf95_r -qstacktemp=1
 AR       = ar -r
 DFLAGS   = -D__AIX -D__ESSL -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK -I/bgpusers/bek/LIB/fftw-3.1.2/include
 CPPFLAGS = -C $(DFLAGS) -P
