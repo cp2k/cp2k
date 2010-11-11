@@ -457,7 +457,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iw
+    INTEGER                                  :: handle, i, iw, output_unit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_v
     TYPE(cp_logger_type), POINTER            :: logger
@@ -470,7 +470,14 @@ CONTAINS
     ! *** Print the distribution of the overlap matrix blocks ***
     ! *** this duplicates causes duplicate printing at the force calc ***
     IF (.NOT. calculate_forces) THEN
-       CALL cp_dbcsr_write_matrix_dist(matrix_s(1)%matrix,qs_env%input,para_env,error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
+           output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%DISTRIBUTION",&
+                                              extension=".distribution",error=error)
+           CALL cp_dbcsr_write_matrix_dist(matrix_s(1)%matrix,output_unit,para_env,error)
+           CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,"PRINT%DISTRIBUTION",&
+                error=error)
+       ENDIF
     ENDIF
 
     ! *** Print the overlap integral matrix, if requested ***

@@ -30,15 +30,10 @@ MODULE cp_dbcsr_output
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_types,                     ONLY: dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry,&
                                              dbcsr_type_symmetric
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush
@@ -536,9 +531,9 @@ CONTAINS
 !> \par History
 !>      Creation (25.06.2003,MK)
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_write_matrix_dist(matrix,force_env_section,para_env,error)
+  SUBROUTINE cp_dbcsr_write_matrix_dist(matrix,output_unit,para_env,error)
     TYPE(cp_dbcsr_type), POINTER             :: matrix
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -549,7 +544,7 @@ CONTAINS
     CHARACTER                                :: matrix_type
     CHARACTER(LEN=80)                        :: matrix_name
     INTEGER :: group, handle, ipe, mype, natom, nblock_max, nblock_sum, &
-      nelement_max, nelement_sum, npe, nrow, output_unit, stat, tmp(2)
+      nelement_max, nelement_sum, npe, nrow, stat, tmp(2)
     INTEGER(KIND=int_8)                      :: nblock_tot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: failure, ionode
@@ -560,18 +555,12 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    ! *** Quick return, if no printing is requested ***
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) RETURN
-
     CALL timeset(routineN,handle)
 
     group = para_env%group
     ionode = para_env%ionode
     mype = para_env%mepos + 1
     npe = para_env%num_pe
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
-                        extension=".distribution",error=error)
 
     ! *** Allocate work storage ***
     ALLOCATE (nblock(npe),STAT=stat)
@@ -644,9 +633,6 @@ CONTAINS
                nelement_max
        ENDIF
     END IF
-
-    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,"PRINT%DISTRIBUTION",&
-         error=error)
 
     ! *** Release work storage ***
     DEALLOCATE (nblock,STAT=stat)
