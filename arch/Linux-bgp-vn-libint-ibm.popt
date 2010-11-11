@@ -11,7 +11,7 @@ FCFLAGS  = -O2 -qarch=450d  -qtune=450  -I/bgpusers/bek/LIB/fftw-3.1.2/include -
 #-qalias=noaryovrlp 
 LDFLAGS  = $(FCFLAGS) -O2  -qarch=450d -qtune=450  -qnosave  --allow-multiple-definition -qextname=wrapper_build_deriv1_eri:wrapper_build_eri:wrapper_free_libderiv:wrapper_free_libint:wrapper_init_deriv:wrapper_init_lib
 LIBS     = -L/bgpusers/bek/LIB  -L/bgpusers/bek/LIB/fftw-3.1.2/lib  \
-	   -lmass -llapack  -lscalapack -lblacsF77init -lblacs -lesslbg -lfftw3  \
+	   -lmass -lscalapack -lblacsF77init -lblacs -llapack -lesslbg -lfftw3  \
 	   /sp/fd/teo/cp2k/tools/hfx_tools/libint_tools/libint_cpp_wrapper.o\
 	   /sp/fd/teo/LIBINT/lib/libderiv.a \
 	   /sp/fd/teo/LIBINT/lib/libint.a \
