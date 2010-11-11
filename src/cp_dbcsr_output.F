@@ -532,7 +532,7 @@ CONTAINS
 !>      Creation (25.06.2003,MK)
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_write_matrix_dist(matrix,output_unit,para_env,error)
-    TYPE(cp_dbcsr_type), POINTER             :: matrix
+    TYPE(cp_dbcsr_type)                      :: matrix
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
