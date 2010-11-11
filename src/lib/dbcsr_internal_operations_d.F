@@ -114,7 +114,7 @@
           WRITE(*,*)"Multiplying product data", sp, poff, params_c(sp_c)%nze,"/",&
                SIZE(product_data_a), poff+params_c(sp_c)%nze-1
           WRITE(*,'(10(1X,F9.3))')product_data_a(poff:&
-               :poff+params_c(sp_c)%nze-1)
+               poff+params_c(sp_c)%nze-1)
           WRITE(*,*)"again"
           WRITE(*,'(10(1X,F9.3))')product_data_a
        ENDIF
@@ -223,7 +223,7 @@
           WRITE(*,*)"Resulting product data", poff,":",poff+params_c(sp_c)%nze-1,&
                SIZE(product_data_a)
           WRITE(*,'(10(1X,F9.3))')product_data_a(poff:&
-               :poff+params_c(sp_c)%nze-1)
+               poff+params_c(sp_c)%nze-1)
           WRITE(*,*)"again"
           WRITE(*,'(10(1X,F9.3))')product_data_a
        ENDIF
