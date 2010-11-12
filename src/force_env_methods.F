@@ -188,6 +188,7 @@ CONTAINS
                                                 energy_consistency, eval_ef, &
                                                 failure, my_skip
     REAL(kind=dp)                            :: e_pot
+    REAL(kind=dp), DIMENSION(3)              :: grand_total_force, total_force
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -313,16 +314,19 @@ CONTAINS
           ! Variable precision output of the forces
           CALL section_vals_val_get(force_env%force_env_section,"PRINT%FORCES%NDIGITS",&
                                     i_val=ndigits,error=error)
-          CALL write_forces(particles,print_forces,"ATOMIC",ndigits,error)
+          CALL write_forces(particles,print_forces,"ATOMIC",ndigits,total_force,error=error)
+          grand_total_force(:) = total_force(:)
           IF (ASSOCIATED(core_particles)) THEN
-             CALL write_forces(core_particles,print_forces,"CORE",ndigits,error)
+             CALL write_forces(core_particles,print_forces,"CORE",ndigits,total_force,error=error)
+             grand_total_force(:) = grand_total_force(:) + total_force(:)
           END IF
           IF (ASSOCIATED(shell_particles)) THEN
-             CALL write_forces(shell_particles,print_forces,"SHELL",ndigits,error)
+             CALL write_forces(shell_particles,print_forces,"SHELL",ndigits,total_force,&
+                               grand_total_force,error=error)
           END IF
        END IF
        CALL cp_print_key_finished_output(print_forces,logger,force_env%force_env_section,"PRINT%FORCES",&
-            error=error)
+                                         error=error)
 
        ! Store results
        IF(ASSOCIATED(results))THEN
@@ -1873,12 +1877,16 @@ CONTAINS
 !>
 !> \author MK (06.09.2010)
 ! *****************************************************************************
-  SUBROUTINE write_forces(particles,output_unit,label,ndigits,error)
+  SUBROUTINE write_forces(particles,output_unit,label,ndigits,total_force,&
+                          grand_total_force,error)
 
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: label
     INTEGER, INTENT(IN)                      :: ndigits
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: total_force
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(INOUT), OPTIONAL                :: grand_total_force
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_forces', &
@@ -1887,9 +1895,8 @@ CONTAINS
     CHARACTER(LEN=23)                        :: fmtstr3
     CHARACTER(LEN=36)                        :: fmtstr2
     CHARACTER(LEN=46)                        :: fmtstr1
-    INTEGER                                  :: ikind, iparticle, n
+    INTEGER                                  :: i, ikind, iparticle, n
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(3)              :: total_force
 
     failure = .FALSE.
 
@@ -1909,13 +1916,25 @@ CONTAINS
       total_force(1:3) = 0.0_dp
       DO iparticle=1,particles%n_els
         ikind = particles%els(iparticle)%atomic_kind%kind_number
+        IF (particles%els(iparticle)%atom_index /= 0) THEN
+          i = particles%els(iparticle)%atom_index
+        ELSE
+          i = iparticle
+        END IF
         WRITE (UNIT=output_unit,FMT=fmtstr2)&
-          iparticle,ikind,particles%els(iparticle)%atomic_kind%element_symbol,&
+          i,ikind,particles%els(iparticle)%atomic_kind%element_symbol,&
           particles%els(iparticle)%f(1:3)
         total_force(1:3) = total_force(1:3) + particles%els(iparticle)%f(1:3)
       END DO
       WRITE (UNIT=output_unit,FMT=fmtstr3)&
         "SUM OF "//label//" FORCES",total_force(1:3),SQRT(SUM(total_force(:)**2))
+    END IF
+
+    IF (PRESENT(grand_total_force)) THEN
+      grand_total_force(1:3) = grand_total_force(1:3) + total_force(1:3)
+      WRITE (UNIT=output_unit,FMT="(A)") ""
+      WRITE (UNIT=output_unit,FMT=fmtstr3)&
+        "GRAND TOTAL FORCE",grand_total_force(1:3),SQRT(SUM(grand_total_force(:)**2))
     END IF
 
   END SUBROUTINE write_forces
