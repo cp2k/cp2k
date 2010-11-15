@@ -45,6 +45,7 @@ MODULE force_fields_input
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mathlib,                         ONLY: invert_matrix
   USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, do_potential_single_allocation, ea_type, &
@@ -867,13 +868,16 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Reads the Buckingham 4 Ranges potential section
-!> \author MI
+!> \par History
+!>      MK (11.11.2010): Automatic fit of the (default) polynomial coefficients
+!> \author MI,MK
 ! *****************************************************************************
-  SUBROUTINE read_b4_section(nonbonded, section, start, error)
+  SUBROUTINE read_b4_section(nonbonded,section,start,error)
+
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_b4_section', &
       routineP = moduleN//':'//routineN
@@ -882,81 +886,183 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: i, ir, isec, istat, n_items, &
                                                 n_rep, np1, np2
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, b, c, r1, r2, r3, rcut
+    LOGICAL                                  :: explicit_poly1, &
+                                                explicit_poly2, failure
+    REAL(KIND=dp)                            :: a, b, c, eval_error, r1, r2, &
+                                                r3, rcut
+    REAL(KIND=dp), DIMENSION(10)             :: v, x
+    REAL(KIND=dp), DIMENSION(10, 10)         :: p, p_inv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: coeff1, coeff2, list
 
     failure = .FALSE.
-    NULLIFY(coeff1,coeff2)
-    CALL section_vals_get(section,n_repetition=n_items,error=error)
-    DO isec = 1, n_items
-       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
-       CALL section_vals_val_get(section,"B",i_rep_section=isec,r_val=b,error=error)
-       CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
-       CALL section_vals_val_get(section,"R1",i_rep_section=isec,r_val=r1,error=error)
-       CALL section_vals_val_get(section,"R2",i_rep_section=isec,r_val=r2,error=error)
-       CALL section_vals_val_get(section,"R3",i_rep_section=isec,r_val=r3,error=error)
-       CALL section_vals_val_get(section,"POLY1",n_rep_val=n_rep,error=error)
-       np1 = 0
-       DO ir = 1,n_rep
-         NULLIFY(list)
-         CALL section_vals_val_get(section,"POLY1",i_rep_val=ir,r_vals=list,error=error)
-         IF(ASSOCIATED(list)) THEN
-           CALL reallocate(coeff1,0,np1+SIZE(list)-1)
-           DO i = 1, SIZE(list)
-             coeff1(i+np1-1) = list(i)
-           END DO  ! i
-           np1 = np1 + SIZE(list)
-         END IF
-       END DO  ! ir
-       CALL section_vals_val_get(section,"POLY2",n_rep_val=n_rep,error=error)
-       np2 = 0
-       DO ir = 1,n_rep
-         NULLIFY(list)
-         CALL section_vals_val_get(section,"POLY2",i_rep_val=ir,r_vals=list,error=error)
-         IF(ASSOCIATED(list)) THEN
-           CALL reallocate(coeff2,0,np2+SIZE(list)-1)
-           DO i = 1, SIZE(list)
-             coeff2(i+np2-1) = list(i)
-           END DO  ! i
-           np2 = np2 + SIZE(list)
-         END IF
-       END DO  ! ir
-       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
-       nonbonded%pot(start+isec)%pot %type = b4_type
-       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%a = a
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%b = b
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%c = c
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%r1 = r1
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%r2 = r2
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%r3 = r3
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%npoly1 = np1-1
-       IF( np1-1 > 10) THEN
-         CALL stop_program ("input_nonbonded","BUCK4r: too high polynomial order (>0)")
-       END IF
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%poly1(0:np1-1) = coeff1(0:np1-1)
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%npoly2 = np2-1
-       IF( np2-1 > 10) THEN
-         CALL stop_program ("input_nonbonded","BUCK4r: too high polynomial order (>0)")
-       END IF
-       nonbonded%pot(start+isec)%pot %set(1)%buck4r%poly2(0:np2-1) = coeff2(0:np2-1)
-       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
-       DEALLOCATE(coeff1,coeff2,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       !
-       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
-       IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
-            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
-       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
-       IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
-            r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
+    NULLIFY (coeff1)
+    NULLIFY (coeff2)
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+
+    DO isec=1,n_items
+      CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+      CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
+      CALL section_vals_val_get(section,"B",i_rep_section=isec,r_val=b,error=error)
+      CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
+      CALL section_vals_val_get(section,"R1",i_rep_section=isec,r_val=r1,error=error)
+      CALL section_vals_val_get(section,"R2",i_rep_section=isec,r_val=r2,error=error)
+      CALL section_vals_val_get(section,"R3",i_rep_section=isec,r_val=r3,error=error)
+      CALL section_vals_val_get(section,"POLY1",explicit=explicit_poly1,n_rep_val=n_rep,error=error)
+      ! Check if polynomial coefficients were specified for range 2 and 3 explicitly
+      IF (explicit_poly1) THEN
+        np1 = 0
+        DO ir=1,n_rep
+          NULLIFY (list)
+          CALL section_vals_val_get(section,"POLY1",i_rep_val=ir,r_vals=list,error=error)
+          IF (ASSOCIATED(list)) THEN
+            CALL reallocate(coeff1,0,np1+SIZE(list)-1)
+            DO i=1,SIZE(list)
+              coeff1(i+np1-1) = list(i)
+            END DO
+            np1 = np1 + SIZE(list)
+          END IF
+        END DO
+      END IF
+      CALL section_vals_val_get(section,"POLY2",explicit=explicit_poly2,n_rep_val=n_rep,error=error)
+      IF (explicit_poly2) THEN
+        np2 = 0
+        DO ir=1,n_rep
+          NULLIFY (list)
+          CALL section_vals_val_get(section,"POLY2",i_rep_val=ir,r_vals=list,error=error)
+          IF (ASSOCIATED(list)) THEN
+            CALL reallocate(coeff2,0,np2+SIZE(list)-1)
+            DO i=1,SIZE(list)
+              coeff2(i+np2-1) = list(i)
+            END DO
+            np2 = np2 + SIZE(list)
+          END IF
+        END DO
+      END IF
+      ! Default is a 5th/3rd-order polynomial fit
+      IF ((.NOT.explicit_poly1).OR.(.NOT.explicit_poly2)) THEN
+        ! Build matrix p and vector v to calculate the polynomial coefficients
+        ! in the vector x from p*x = v
+        p(:,:) = 0.0_dp
+        ! Row 1: Match the 5th-order polynomial and the potential at r1
+        p(1,1) = 1.0_dp
+        DO i=2,6
+          p(1,i) = p(1,i-1)*r1
+        END DO
+        ! Row 2: Match the first derivatives of the 5th-order polynomial and the potential at r1
+        DO i=2,6
+          p(2,i) = REAL(i-1,KIND=dp)*p(1,i-1)
+        END DO
+        ! Row 3: Match the second derivatives of the 5th-order polynomial and the potential at r1
+        DO i=3,6
+          p(3,i) = REAL(i-1,KIND=dp)*p(2,i-1)
+        END DO
+        ! Row 4: Match the 5th-order and the 3rd-order polynomials at r2
+        p(4,1) = 1.0_dp
+        DO i=2,6
+          p(4,i) = p(4,i-1)*r2
+        END DO
+        p(4,7) = -1.0_dp
+        DO i=8,10
+          p(4,i) = p(4,i-1)*r2
+        END DO
+        ! Row 5: Match the first derivatives of the 5th-order and the 3rd-order polynomials at r2
+        DO i=2,6
+          p(5,i) = REAL(i-1,KIND=dp)*p(4,i-1)
+        END DO
+        DO i=8,10
+          p(5,i) = REAL(i-7,KIND=dp)*p(4,i-1)
+        END DO
+        ! Row 6: Match the second derivatives of the 5th-order and the 3rd-order polynomials at r2
+        DO i=3,6
+          p(6,i) = REAL(i-1,KIND=dp)*p(5,i-1)
+        END DO
+        DO i=9,10
+          p(6,i) = REAL(i-7,KIND=dp)*p(5,i-1)
+        END DO
+        ! Row 7: Minimum at r2, ie. the first derivative of the 3rd-order polynomial has to be zero at r2
+        DO i=8,10
+          p(7,i) = -p(5,i)
+        END DO
+        ! Row 8: Match the 3rd-order polynomial and the potential at r3
+        p(8,7) = 1.0_dp
+        DO i=8,10
+          p(8,i) = p(8,i-1)*r3
+        END DO
+        ! Row 9: Match the first derivatives of the 3rd-order polynomial and the potential at r3
+        DO i=8,10
+          p(9,i) = REAL(i-7,KIND=dp)*p(8,i-1)
+        END DO
+        ! Row 10: Match the second derivatives of the 3rd-order polynomial and the potential at r3
+        DO i=9,10
+          p(10,i) = REAL(i-7,KIND=dp)*p(9,i-1)
+        END DO
+        ! Build the vector v
+        v(1)   = a*EXP(-b*r1)
+        v(2)   = -b*v(1)
+        v(3)   = -b*v(2)
+        v(4:7) = 0.0_dp
+        v(8)   = -c/p(8,10)**2 ! = -c/r3**6
+        v(9)   = -6.0_dp*v(8)/r3
+        v(10)  = -7.0_dp*v(9)/r3
+        ! Calculate p_inv the inverse of the matrix p
+        p_inv(:,:) = 0.0_dp
+        CALL invert_matrix(p,p_inv,eval_error,error=error)
+        CALL cp_assert((eval_error < 1.0E-8_dp),cp_warning_level,cp_assertion_failed,routineP,&
+                       "The polynomial fit for the BUCK4RANGES potential is only accurate to "//&
+                       TRIM(cp_to_string(eval_error)),only_ionode=.TRUE.)
+        ! Get the 6 coefficients of the 5th-order polynomial -> x(1:6)
+        ! and the 4 coefficients of the 3rd-order polynomial -> x(7:10)
+        x(:) = MATMUL(p_inv(:,:),v(:))
+      END IF
+
+      CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+      nonbonded%pot(start+isec)%pot%type = b4_type
+      nonbonded%pot(start+isec)%pot%at1  = atm_names(1)
+      nonbonded%pot(start+isec)%pot%at2  = atm_names(2)
+      CALL uppercase(nonbonded%pot(start+isec)%pot%at1)
+      CALL uppercase(nonbonded%pot(start+isec)%pot%at2)
+      nonbonded%pot(start+isec)%pot%set(1)%buck4r%a = a
+      nonbonded%pot(start+isec)%pot%set(1)%buck4r%b = b
+      nonbonded%pot(start+isec)%pot%set(1)%buck4r%c = c
+      nonbonded%pot(start+isec)%pot%set(1)%buck4r%r1 = r1
+      nonbonded%pot(start+isec)%pot%set(1)%buck4r%r2 = r2
+      nonbonded%pot(start+isec)%pot%set(1)%buck4r%r3 = r3
+      IF ((.NOT.explicit_poly1).OR.(.NOT.explicit_poly2)) THEN
+        nonbonded%pot(start+isec)%pot%set(1)%buck4r%npoly1 = 5
+        nonbonded%pot(start+isec)%pot%set(1)%buck4r%poly1(0:5) = x(1:6)
+        nonbonded%pot(start+isec)%pot%set(1)%buck4r%npoly2 = 3
+        nonbonded%pot(start+isec)%pot%set(1)%buck4r%poly2(0:3) = x(7:10)
+      ELSE
+        nonbonded%pot(start+isec)%pot%set(1)%buck4r%npoly1 = np1-1
+        CPPostcondition((np1 - 1 <= 10),cp_failure_level,routineP,error,failure)
+        nonbonded%pot(start+isec)%pot%set(1)%buck4r%poly1(0:np1-1) = coeff1(0:np1-1)
+        nonbonded%pot(start+isec)%pot%set(1)%buck4r%npoly2 = np2-1
+        CPPostcondition((np2 - 1 <= 10),cp_failure_level,routineP,error,failure)
+        nonbonded%pot(start+isec)%pot%set(1)%buck4r%poly2(0:np2-1) = coeff2(0:np2-1)
+      END IF
+      nonbonded%pot(start+isec)%pot%rcutsq = rcut*rcut
+
+      IF (ASSOCIATED(coeff1)) THEN
+        DEALLOCATE (coeff1,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      IF (ASSOCIATED(coeff2)) THEN
+        DEALLOCATE (coeff2,STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,n_rep_val=n_rep,error=error)
+      IF (n_rep == 1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
+                                                r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,&
+                                                error=error)
+      CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,n_rep_val=n_rep,error=error)
+      IF (n_rep == 1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
+                                                r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,&
+                                                error=error)
     END DO
+
   END SUBROUTINE read_b4_section
 
 ! *****************************************************************************

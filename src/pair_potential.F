@@ -15,11 +15,14 @@ MODULE pair_potential
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE f77_blas
   USE fparser,                         ONLY: finalizef,&
                                              initf,&
                                              parsef
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gp_type, &
@@ -125,7 +128,6 @@ CONTAINS
                                                 my_do_zbl
     REAL(KIND=dp)                            :: energy_cutoff, hicut, hicut0, &
                                                 locut
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
@@ -144,18 +146,13 @@ CONTAINS
     CALL init_genpot(potparm, ntype)
     ! Real computation of splines
     DO i = 1, ntype
-       ! First Atom
-       atomic_kind=> atomic_kind_set(i)
        DO j = 1, i
-          ! Second Atom
           pot => potparm%pot(i,j)%pot
           IF (iw3>0 .AND. iw<=0) THEN
              IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) THEN
                  WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
              END IF
           ENDIF
-          atomic_kind=> atomic_kind_set(j)
-
           ! Setup of Exclusion Types
           pot%only_mb = .TRUE.
           pot%only_pp = .TRUE.
@@ -198,7 +195,7 @@ CONTAINS
           ! Real Generation of the Spline
           CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints, locut, &
                hicut, eps_spline, iw, iw2, i, j, n, ncount, max_energy, pot, &
-               energy_cutoff, found_locut, my_do_zbl, error)
+               energy_cutoff, found_locut, my_do_zbl, atomic_kind_set, error)
 
           pot%undef = .FALSE.
           ! Unique Spline working only for a pure LJ potential..
@@ -291,7 +288,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE generate_spline_low(spl_p, npoints, locut, hicut,  eps_spline, &
        iw, iw2, i, j, n, ncount, max_energy, pot, energy_cutoff, &
-       found_locut, do_zbl, error)
+       found_locut, do_zbl, atomic_kind_set, error)
 
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -303,16 +300,19 @@ CONTAINS
       POINTER                                :: pot
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: energy_cutoff
     LOGICAL, INTENT(IN)                      :: found_locut, do_zbl
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'generate_spline_low', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: message
-    INTEGER                                  :: jx, mfac
+    CHARACTER(LEN=default_string_length)     :: file_name
+    INTEGER                                  :: jx, mfac, nx, unit_number
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: diffmax, dx2, e, x, x2, xdum, &
-                                                xdum1, xsav
+    REAL(KIND=dp)                            :: diffmax, dx2, e, e_spline, x, &
+                                                x2, xdum, xdum1, xsav
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(spline_factor_type), POINTER        :: spl_f
@@ -399,22 +399,48 @@ CPSourceFileRef,&
             energy_cutoff
     END IF
     ! Print spline data on file if requested
-    IF (iw2>0) THEN
-       dx2 = (hicut - locut)/REAL(5000+1,KIND=dp)
+    IF (iw2 > 0) THEN
+       nx = 5000
+       dx2 = (hicut - locut)/REAL(nx+1,KIND=dp)
        x2  = locut + dx2
-       WRITE (1000+n,*) "# KINDS: ",i,j,"  SPLINE NUMBER:",ncount
-       DO jx = 1, 5000
+       file_name = ""
+       WRITE (UNIT=file_name,FMT="(A,I0,A)")&
+         "SPLINE_"//TRIM(ADJUSTL(cp_to_string(n)))//"_"//&
+         TRIM(ADJUSTL(atomic_kind_set(i)%name))//"_"//&
+         TRIM(ADJUSTL(atomic_kind_set(j)%name))
+       CALL open_file(file_name=file_name,&
+                      file_status="UNKNOWN",&
+                      file_form="FORMATTED",&
+                      file_action="WRITE",&
+                      unit_number=unit_number)
+       WRITE (UNIT=unit_number,&
+              FMT="(A,I0,/,A,I0,/,A,I0,1X,I0,/,A,/,A,I0,2(/,A,ES13.6),/,A,2ES13.6,/,A,I0,A,/,A)")&
+         "# Spline number: ",ncount,&
+         "# Unique spline number: ",n,&
+         "# Atomic kind numbers: ",i,j,&
+         "# Atomic kind names: "//TRIM(ADJUSTL(atomic_kind_set(i)%name))//" "//&
+                                  TRIM(ADJUSTL(atomic_kind_set(j)%name)),&
+         "# Number of spline points: ",npoints,&
+         "# Requested accuracy: ",eps_spline,&
+         "# Achieved accuracy:  ",diffmax,&
+         "# Spline range:       ",locut,hicut,&
+         "# Test spline using ",nx," points:",&
+         "# Point      Abscissa                 Energy                   Splined energy           1st derivative"
+       DO jx=1,nx
           x = x2
-          e = ener_pot(pot, x , energy_cutoff)
+          e = ener_pot(pot,x,energy_cutoff)
           IF (do_zbl) THEN
              e = e + ener_zbl(pot, x)
           END IF
-          WRITE(1000+n,*) x, e, potential_s(spl_p,x*x,xdum,spl_f,logger)
+          e_spline = potential_s(spl_p,x*x,xdum,spl_f,logger)
+          WRITE (UNIT=unit_number,FMT="(1X,I6,4ES25.15)") jx,x,e,e_spline,-xdum
           x2 = x2 + dx2
        END DO
-       WRITE(1000+n,*)
+       CALL close_file(unit_number=unit_number)
     END IF
-    CALL spline_factor_release(spl_f, error)
+
+    CALL spline_factor_release(spl_f,error)
+
   END SUBROUTINE generate_spline_low
 
 ! *****************************************************************************
