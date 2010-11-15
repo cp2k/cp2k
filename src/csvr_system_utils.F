@@ -100,6 +100,7 @@ CONTAINS
        resample = kk + (1.0_dp-factor)* (sigma*(sumnoises(ndeg-1, rng_stream, error)+rr**2)/REAL(ndeg,KIND=dp)-kk) &
                      +  2.0_dp*rr*SQRT(kk*sigma/ndeg*(1.0_dp-factor)*factor)
 
+       resample=MAX(0.0_dp,resample)
        my_res = reverse*SQRT(resample/kk)
     END IF
   END FUNCTION rescaling_factor
