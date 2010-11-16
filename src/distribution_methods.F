@@ -11,13 +11,14 @@
 !> \author MK (22.08.2003)
 ! *****************************************************************************
 MODULE distribution_methods
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc,&
+                                             real_to_scaled
   USE cluster_methods,                 ONLY: cluster_deallocate,&
                                              clustering_particles
   USE cluster_types,                   ONLY: cluster_type
@@ -41,7 +42,8 @@ MODULE distribution_methods
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: int_size
+  USE kinds,                           ONLY: dp,&
+                                             int_size
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: gcd,&
                                              lcm
@@ -471,10 +473,10 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cost_ele_pair
     INTEGER, DIMENSION(:), POINTER :: cluster_col_dist, cluster_row_dist, &
       col_distribution, lmax_basis, molecule_list, row_distribution
-    LOGICAL                                  :: basic_optimization, &
-                                                clustering, failure, &
-                                                molecular_distribution, &
-                                                skip_optimization
+    LOGICAL :: basic_optimization, basic_spatial_optimization, clustering, &
+      failure, molecular_distribution, skip_optimization
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pbc_scaled_coords
     TYPE(cluster_type)                       :: clusters
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
       POINTER                                :: local_particle_col, &
@@ -500,8 +502,8 @@ CONTAINS
 
     CALL section_vals_val_get(distribution_section,"2D_MOLECULAR_DISTRIBUTION",l_val=molecular_distribution,error=error)
     CALL section_vals_val_get(distribution_section,"SKIP_OPTIMIZATION",l_val=skip_optimization,error=error)
-    CALL section_vals_val_get(distribution_section,"BASIC_OPTIMIZATION",&
-         l_val=basic_optimization,error=error)
+    CALL section_vals_val_get(distribution_section,"BASIC_OPTIMIZATION", l_val=basic_optimization,error=error)
+    CALL section_vals_val_get(distribution_section,"BASIC_SPATIAL_OPTIMIZATION", l_val=basic_spatial_optimization,error=error)
 
     CALL section_vals_val_get(distribution_section,"COST_MODEL",i_val=cost_model,error=error)
     !
@@ -690,7 +692,7 @@ CONTAINS
              ENDDO
           ENDDO
        ENDDO
-    ELSEIF (basic_optimization) THEN
+    ELSEIF (basic_optimization .OR. basic_spatial_optimization) THEN
        CALL cp_assert (.NOT. molecular_distribution, cp_warning_level,&
             cp_caller_error, routineN, &
             "Molecular distribution and basic optimization are incompatible.",&
@@ -734,8 +736,19 @@ CONTAINS
           cluster_prices(iatom) = cluster_price
        ENDDO
        ! And distribute
-       CALL make_basic_distribution (cluster_list, cluster_prices,&
-            nprow, row_distribution, npcol, col_distribution, error=error)
+       IF (basic_optimization) THEN
+          CALL make_basic_distribution (cluster_list, cluster_prices,&
+               nprow, row_distribution, npcol, col_distribution, error=error)
+       ELSE ! basic_spatial_optimization
+          ALLOCATE(pbc_scaled_coords(3,natom))
+          DO iatom=1, natom
+             CALL real_to_scaled(pbc_scaled_coords(:,iatom),pbc(particle_set(iatom)%r(:),cell),cell)
+          ENDDO
+          CALL make_basic_spatial_distribution (pbc_scaled_coords, cluster_prices,&
+                         nprow, row_distribution, npcol, col_distribution, error)
+          DEALLOCATE(pbc_scaled_coords)
+       ENDIF
+
        DEALLOCATE (cluster_list, stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "cluster_list",&
@@ -1191,5 +1204,106 @@ CONTAINS
          routineN, "Error releasing heap.", error=error)
     CALL timestop (timing_handle)
   END SUBROUTINE make_basic_distribution
+
+! *****************************************************************************
+!> \brief Creates a basic spatial distribution
+!>        that tries to make the corresponding blocks as homogeneous as possible
+!> \par History
+!> - Created 2010-11-11 Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE make_basic_spatial_distribution (pbc_scaled_coords, costs,&
+       nprows, row_distribution, npcols, col_distribution, error)
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: pbc_scaled_coords
+    INTEGER, DIMENSION(:), INTENT(IN)        :: costs
+    INTEGER, INTENT(IN)                      :: nprows
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: row_distribution
+    INTEGER, INTENT(IN)                      :: npcols
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: col_distribution
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'make_basic_spatial_distribution', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iatom, natoms, nbins, &
+                                                pgrid_gcd
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_costs, distribution
+
+    CALL timeset (routineN, handle)
+
+    natoms=SIZE(costs)
+    nbins = lcm (nprows, npcols)
+    pgrid_gcd = gcd (nprows, npcols)
+    ALLOCATE(bin_costs(nbins),distribution(natoms))
+    bin_costs=0
+
+    CALL spatial_recurse(pbc_scaled_coords, costs, (/(iatom,iatom=1,natoms)/) , bin_costs, distribution,0)
+
+    ! WRITE(6,*) "Final bin costs: ",bin_costs
+ 
+    ! final row_distribution / col_distribution 
+    DO iatom=1,natoms
+       row_distribution (iatom) = (distribution(iatom)-1)*pgrid_gcd / npcols +1
+       col_distribution (iatom) = (distribution(iatom)-1)*pgrid_gcd / nprows +1
+    ENDDO
+
+    DEALLOCATE(bin_costs,distribution)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE make_basic_spatial_distribution
+
+  RECURSIVE SUBROUTINE spatial_recurse(pbc_scaled_coords, costs, indices, bin_costs, distribution,level)
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: pbc_scaled_coords
+    INTEGER, DIMENSION(:), INTENT(IN)        :: costs, indices
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: bin_costs, distribution
+    INTEGER, INTENT(IN)                      :: level
+
+    INTEGER                                  :: iatom, ibin, natoms, nbins, &
+                                                nhalf
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_costs_sorted, &
+                                                atom_permutation, &
+                                                bin_costs_sorted, permutation
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coord
+
+    natoms=SIZE(costs)
+    nbins=SIZE(bin_costs)
+    nhalf=(natoms+1)/2
+
+    IF (natoms<=nbins) THEN
+       ! assign the most expensive atom to the least costly bin
+       ALLOCATE(bin_costs_sorted(nbins),permutation(nbins)) 
+       bin_costs_sorted=bin_costs
+       CALL sort(bin_costs_sorted,nbins,permutation)
+       ALLOCATE(atom_costs_sorted(natoms),atom_permutation(natoms)) 
+       atom_costs_sorted=costs
+       CALL sort(atom_costs_sorted,natoms,atom_permutation)
+       ibin=0
+       ! WRITE(6,*) "Dealing with a new bunch of atoms "
+       DO iatom=natoms,1,-1
+          ibin=ibin+1
+          ! WRITE(6,*) "atom",indices(atom_permutation(iatom)),"cost",atom_costs_sorted(iatom),&
+          !            "bin",permutation(ibin),"its cost",bin_costs(permutation(ibin))
+          ! WRITE(100,'(A,I0,3F12.6)') "A",permutation(ibin),pbc_scaled_coords(:,atom_permutation(iatom))
+          bin_costs(permutation(ibin))=bin_costs(permutation(ibin))+atom_costs_sorted(iatom)
+          distribution(indices(atom_permutation(iatom)))=permutation(ibin)
+       ENDDO
+       DEALLOCATE(bin_costs_sorted,permutation,atom_costs_sorted,atom_permutation)
+    ELSE
+       ! divide atoms in two subsets, sorting according to their coordinates, alternatively x,y,z
+       ! recursively do this for both subsets
+       ALLOCATE(coord(natoms),permutation(natoms))
+       coord=pbc_scaled_coords(MOD(level,3)+1,:)
+       CALL sort(coord,natoms,permutation)
+       CALL spatial_recurse(pbc_scaled_coords(:,permutation(1:nhalf)), costs(permutation(1:nhalf)),&
+                            indices(permutation(1:nhalf)), bin_costs, distribution, level+1)
+       CALL spatial_recurse(pbc_scaled_coords(:,permutation(nhalf+1:)), costs(permutation(nhalf+1:)),&
+                            indices(permutation(nhalf+1:)), bin_costs, distribution, level+1)
+       DEALLOCATE(coord,permutation)
+    ENDIF
+
+  END SUBROUTINE spatial_recurse
 
 END MODULE distribution_methods
