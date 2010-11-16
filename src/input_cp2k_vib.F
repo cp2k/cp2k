@@ -68,7 +68,7 @@ CONTAINS
        CALL keyword_create(keyword, name="DX",&
             description="Specify the increment to be used to construct the HESSIAN with "//&
             "finite difference method",&
-            default_r_val=1.0E-2_dp, supported_feature=.TRUE.,error=error)
+            default_r_val=1.0E-2_dp, unit_str="bohr", supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
