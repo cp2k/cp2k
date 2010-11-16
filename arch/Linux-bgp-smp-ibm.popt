@@ -4,16 +4,16 @@ CPP      = cpp -traditional -E
 FC       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf95_r -qstacktemp=1 -qsuffix=f=f90 
 LD       = /bgsys/drivers/ppcfloor/comm/bin/mpixlf95_r -qstacktemp=1 
 AR       = ar -r
-DFLAGS   = -D__AIX -D__ESSL -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK -I/bgpusers/bek/LIB/fftw-3.1.2/include
+DFLAGS   = -D__AIX -D__ESSL -D__FFTW3 -D__parallel -D__BLACS -D__SCALAPACK -I/sp/LIB/BGP/fftw-3.1.2/include
 CPPFLAGS = -C $(DFLAGS) -P
-FCFLAGS  = -qsmp=omp -O2 -qarch=450d  -qtune=450  -I/bgpusers/bek/LIB/fftw-3.1.2/include
+FCFLAGS  = -qsmp=omp -O2 -qarch=450d  -qtune=450  -I/sp/LIB/BGP/fftw-3.1.2/include
 #-qmaxmem=-1  
 #-qalias=noaryovrlp  
-FCFLAGS_NOOMP  = -O2 -qarch=450d  -qtune=450  -I/bgpusers/bek/LIB/fftw-3.1.2/include
+FCFLAGS_NOOMP  = -O2 -qarch=450d  -qtune=450  -I/sp/LIB/BGP/fftw-3.1.2/include
 #-qmaxmem=-1  
 #-qalias=noaryovrlp 
 LDFLAGS  = $(FCFLAGS) -O2  -qarch=450d -qtune=450  -qnosave  --allow-multiple-definition
-LIBS     = -L/bgpusers/bek/LIB  -L/bgpusers/bek/LIB/fftw-3.1.2/lib -lmass -lscalapack -lblacsF77init -lblacs -llapack -lesslsmpbg -lfftw3  --allow-multiple-definition -lmpitrace
+LIBS     = -L/sp/LIB/BGP  -L/sp/LIB/BGP/fftw-3.1.2/lib -lmass -lscalapack -lblacsF77init -lblacs -llapack -lesslsmpbg -lfftw3  --allow-multiple-definition 
 
 OBJECTS_ARCHITECTURE = machine_aix.o
 
