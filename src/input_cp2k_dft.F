@@ -1431,15 +1431,33 @@ CONTAINS
             usage="NLUMO integer",default_i_val=0, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+!
+       CALL section_create(subsection,name="LDOS",&
+             description="Controls the printing of local PDOS, projected on subsets"//&
+             " of atoms given through lists",&
+             n_keywords=4, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+             error=error)
+       CALL keyword_create(keyword, name="COMPONENTS",&
+            description="Print out pdos distinguishing all angular momentum components.",&
+            usage="COMPONENTS", default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of indexes of atoms where to project the DOS  ",&
             usage="LIST {integer}  {integer} ..  {integer} ",type_of_var=integer_t,&
-            n_var=-1, required=.FALSE., repeats=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
+            n_var=-1, required=.TRUE., repeats=.TRUE., error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(print_key,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+!
        CALL section_create(print_key,name="LOCALIZATION",&
             description="Collects all printing options related to the Wannier centers and "//&
             "properties computed with Wannier centers.",&
