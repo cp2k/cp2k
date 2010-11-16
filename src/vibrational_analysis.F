@@ -326,6 +326,12 @@ CONTAINS
                    END IF
                 END DO
              END DO
+
+             ! restore original particle positions for output
+             DO i = 1, natoms
+                imap             = Mlist(i)
+                particles(imap)%r(1:3)=pos0((i-1)*3+1:(i-1)*3+3)
+             ENDDO
              ! Dump Info
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,A)')"VIB| Hessian in cartesian coordinates"
