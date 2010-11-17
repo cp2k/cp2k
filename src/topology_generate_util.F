@@ -1981,9 +1981,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iphi, iw, nphi, &
-                                                output_unit
+    INTEGER                                  :: atom_a, atom_b, handle, i, &
+                                                ionfo, iw, natom, nbond, &
+                                                nphi, ntheta, output_unit, &
+                                                stat
     LOGICAL                                  :: failure
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: bond_list, phi_list, &
+                                                theta_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1994,18 +1999,92 @@ CONTAINS
          extension=".subsysLog",error=error) 
     output_unit= cp_logger_get_default_io_unit(logger)
     CALL timeset(routineN,handle)    
-    conn_info => topology%conn_info    
+
+    conn_info => topology%conn_info
+    natom  = topology%natoms
+
+    ! Get list of bonds (sic). Get a list of bonded neighbors for every atom.
+    ALLOCATE(bond_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, natom
+       ALLOCATE(bond_list(i)%array1(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    nbond = SIZE(conn_info%bond_a)
+    CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond, error)
+
+    ! Get a list of next nearest neighbors for every atom.
+    ALLOCATE(theta_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, natom
+       ALLOCATE(theta_list(i)%array1(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    ntheta = SIZE(conn_info%theta_a)
+    CALL reorder_structure(theta_list, conn_info%theta_a, conn_info%theta_c, ntheta, error)
+
+    ! Get a list of next next nearest neighbors for every atom.
+    ALLOCATE(phi_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, natom
+       ALLOCATE(phi_list(i)%array1(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
     nphi = SIZE(conn_info%phi_a)
+    CALL reorder_structure(phi_list, conn_info%phi_a, conn_info%phi_d, nphi, error)
+
+    ! Allocate enough (possible too much)
     CALL reallocate(conn_info%onfo_a,1,nphi)
     CALL reallocate(conn_info%onfo_b,1,nphi)
 
-    DO iphi=1,nphi
-       conn_info%onfo_a(iphi) = conn_info%phi_a(iphi)
-       conn_info%onfo_b(iphi) = conn_info%phi_d(iphi)
+    ionfo = 0
+    DO atom_a = 1, natom
+       DO i = 1, SIZE(phi_list(atom_a)%array1)
+          atom_b = phi_list(atom_a)%array1(i)
+          ! Avoid trivial duplicates.
+          IF (atom_a > atom_b) CYCLE
+          ! Avoid onfo's in 4-rings.
+          IF (ANY(atom_b==bond_list(atom_a)%array1)) CYCLE
+          ! Avoid onfo's in 5-rings.
+          IF (ANY(atom_b==theta_list(atom_a)%array1)) CYCLE
+          ! Avoid onfo's in 6-rings.
+          IF (ANY(atom_b==phi_list(atom_a)%array1(:i-1))) CYCLE
+          ionfo = ionfo + 1
+          conn_info%onfo_a(ionfo) = atom_a
+          conn_info%onfo_b(ionfo) = atom_b
+       END DO
     END DO
+
+    ! Reallocate such that just enough memory is used.
+    CALL reallocate(conn_info%onfo_a,1,ionfo)
+    CALL reallocate(conn_info%onfo_b,1,ionfo)
+
+    ! Deallocate bond_list
+    DO i = 1, natom
+       DEALLOCATE(bond_list(i)%array1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(bond_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Deallocate theta_list
+    DO i = 1, natom
+       DEALLOCATE(theta_list(i)%array1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(theta_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Deallocate phi_list
+    DO i = 1, natom
+       DEALLOCATE(phi_list(i)%array1,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(phi_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! Final output
     IF (output_unit>0) THEN
        WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Number of 1-4 interactions generated:",&
-            nphi
+            ionfo
     END IF
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
