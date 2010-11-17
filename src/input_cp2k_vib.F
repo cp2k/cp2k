@@ -198,11 +198,11 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
 
-    NULLIFY(keyword,subsection)
+    NULLIFY(keyword, subsection, print_key)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="MODE_SELECTIVE",&
@@ -277,6 +277,20 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection, name="PRINT",&
+            description="Controls the printing mode selective vibrational analysis",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       CALL cp_print_key_section_create(print_key,"MS_RESTART",&
+            description="Controls the printing of the Mode Selective Restart file.", &
+            print_level=silent_print_level, common_iter_levels=1,  &
+            add_last=add_last_numeric, filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_mode_selective_section

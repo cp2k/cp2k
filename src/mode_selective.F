@@ -992,12 +992,12 @@ CONTAINS
           END DO
        END IF
        IF(calc_intens)THEN
-          CALL ms_out(output_unit_ms,converged,freq,criteria ,ms_vib,&
-                      nrep,approx_H,eigenval,calc_intens,&
-                      intensities=intensities,error=error)
+          CALL ms_out(output_unit_ms, converged, freq, criteria, ms_vib, &
+               input, nrep,approx_H, eigenval, calc_intens, &
+               intensities=intensities, error=error)
        ELSE
-          CALL ms_out(output_unit_ms,converged,freq,criteria ,ms_vib,&
-                      nrep,approx_H,eigenval,calc_intens,error=error)
+          CALL ms_out(output_unit_ms, converged, freq, criteria, ms_vib, &
+               input, nrep, approx_H, eigenval, calc_intens, error=error)
        ENDIF
        CALL molden_out(input,particles,eigenval,tmp_b,intensities,calc_intens,&
                        dump_only_positive=.TRUE.,error=error)
@@ -1011,8 +1011,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    IF(.NOT.converged)CALL ms_out(output_unit_ms,converged,freq,criteria ,ms_vib,&
-                      nrep,approx_H,eigenval,calc_intens,error=error)
+    IF(.NOT.converged) CALL ms_out(output_unit_ms, converged, freq, criteria, &
+        ms_vib, input, nrep,approx_H, eigenval, calc_intens, error=error)
 
     DEALLOCATE(freq,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1159,12 +1159,15 @@ CONTAINS
 !> \brief writes the output for a mode tracking calculation
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
-  SUBROUTINE ms_out(iw,converged,freq,criter ,ms_vib, nrep,approx_H,eigenval,calc_intens,intensities,error)
+  SUBROUTINE ms_out(iw, converged, freq, criter, ms_vib, input, nrep, &
+    approx_H, eigenval, calc_intens, intensities, error)
+
     INTEGER                                  :: iw
     LOGICAL                                  :: converged
     REAL(KIND=dp), DIMENSION(:)              :: freq
     REAL(KIND=dp), DIMENSION(:, :)           :: criter
     TYPE(ms_vib_type)                        :: ms_vib
+    TYPE(section_vals_type), POINTER         :: input
     INTEGER                                  :: nrep
     REAL(KIND=dp), DIMENSION(:, :)           :: approx_H
     REAL(KIND=dp), DIMENSION(:)              :: eigenval
@@ -1179,6 +1182,13 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: crit_a, crit_b
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: residuum
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: ms_vib_section
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ms_vib_section => section_vals_get_subs_vals(input, &
+        "VIBRATIONAL_ANALYSIS%MODE_SELECTIVE", error=error)
 
     IF(converged)THEN
        IF(iw.GT.0)THEN
@@ -1222,34 +1232,41 @@ CONTAINS
                        'VIB|',eigenval(i),crit_a,crit_b,'NO'
                 ENDIF
              END IF
-         END DO
-         DEALLOCATE(residuum,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL open_file(file_name="MS_RESTART",&
-               file_status="REPLACE",&
-               file_form="UNFORMATTED",&
-               file_action="WRITE",&
-               unit_number=msunit)
+          END DO
+          DEALLOCATE(residuum,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           
-          WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%mat_size
-          WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%b_mat
-          WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%s_mat
-          IF(calc_intens)WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%dip_deriv
-          CALL close_file(unit_number=msunit)
+          msunit = cp_print_key_unit_nr(logger, ms_vib_section, &
+               "PRINT%MS_RESTART", extension=".bin", middle_name="MS_RESTART", &
+               file_status="REPLACE", file_form="UNFORMATTED", &
+               file_action="WRITE", error=error)
+
+          IF (msunit>0) THEN
+             WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%mat_size
+             WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%b_mat
+             WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%s_mat
+             IF(calc_intens)WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%dip_deriv
+          END IF
+
+          CALL cp_print_key_finished_output(msunit, logger, ms_vib_section, &
+               "PRINT%MS_RESTART", error=error)
        END IF
     ELSE
        IF(iw.GT.0)THEN
-          CALL open_file(file_name="MS_RESTART",&
-               file_status="REPLACE",&
-               file_form="UNFORMATTED",&
-               file_action="WRITE",&
-               unit_number=msunit)
-          
-          WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%mat_size
-          WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%b_mat
-          WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%s_mat
-          IF(calc_intens)WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%dip_deriv
-          CALL close_file(unit_number=msunit)
+          msunit = cp_print_key_unit_nr(logger, ms_vib_section, &
+               "PRINT%MS_RESTART", extension=".bin", middle_name="MS_RESTART", &
+               file_status="REPLACE", file_form="UNFORMATTED", &
+               file_action="WRITE", error=error)
+
+          IF (msunit>0) THEN
+             WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%mat_size
+             WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%b_mat
+             WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%s_mat
+             IF(calc_intens)WRITE(UNIT=msunit,IOSTAT=stat)ms_vib%dip_deriv
+          END IF
+
+          CALL cp_print_key_finished_output(msunit, logger, ms_vib_section, &
+               "PRINT%MS_RESTART", error=error)
        
           WRITE(iw,'(T2,A,3X,I6)')"MS| ITERATION STEP", ms_vib%mat_size/nrep
           DO i=1,nrep
