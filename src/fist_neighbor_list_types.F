@@ -240,8 +240,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
-       list_exclude_ei, list_exclude_vdw, particle_set, rab, added, id_kind, &
-       is_full, cell, error)
+       list_exclude_ei, list_exclude_vdw, particle_set, rab, check_spline, &
+       id_kind, is_full, cell, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     INTEGER, DIMENSION(:), POINTER           :: list_exclude_ei, &
@@ -249,7 +249,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(3)              :: rab
-    LOGICAL, INTENT(OUT)                     :: added
+    LOGICAL, INTENT(OUT)                     :: check_spline
     INTEGER, INTENT(IN)                      :: id_kind
     LOGICAL, INTENT(IN)                      :: is_full
     TYPE(cell_type), POINTER                 :: cell
@@ -263,39 +263,43 @@ CONTAINS
                                                 old_npairs, stat
     INTEGER, DIMENSION(:), POINTER           :: new_id_kind
     INTEGER, DIMENSION(:, :), POINTER        :: new_list
-    LOGICAL                                  :: ex_ei, ex_vdw, failure, local
+    LOGICAL                                  :: ex_ei, ex_vdw, failure
     REAL(KIND=dp), DIMENSION(3)              :: rabc
 
     ex_ei = ANY(list_exclude_ei==atom_b)
     ex_vdw = ANY(list_exclude_vdw==atom_b)
-    local = .FALSE.
     IF (ex_ei.OR.ex_vdw) THEN
-       ! check if this pair could correspond to a local interaction (bond, bend,
+       ! Check if this pair could correspond to a local interaction (bond, bend,
        ! or torsion) to which the exclusion lists apply.
        !
        ! rab is the relative vector that may include some cell vectors. rabc is
        ! the 'shortest' possible relative vector, i.e. cell vectors are
-       ! subtracted. When they are the same, rab corresponds to a local
-       ! interaction and the exclusion lists must be taken into account. This
-       ! check is only done if ex_ei and ex_vdw are .TRUE. to save some time.
+       ! subtracted. When they are not the same, rab corresponds to a non-local
+       ! interaction and the exclusion lists do not apply.
        rabc = pbc(rab, cell)
-       IF ((ALL(ABS(rab-rabc)<eps_default))) local = .TRUE.
+       IF ((ANY(ABS(rab-rabc)>eps_default))) THEN
+          ex_ei = .FALSE.
+          ex_vdw = .FALSE.
+       END IF
     END IF
 
-    ! In some cases the pair can be completely omitted.
-    IF (local.AND.ex_ei.AND.ex_vdw.AND.(.NOT.is_full)) THEN
-       added = .FALSE.
-       RETURN
-    END IF
-    added = .TRUE.
+    ! The check_spline is set to .TRUE. when the van derwaals is not excluded.
+    ! Electrostatic interactions do not matter here as they are not evaluated
+    ! with splines. 
+    check_spline = (.NOT.ex_vdw).OR.(.NOT.ex_ei)
 
-    ! If the interaction is not local, disable exclusion
-    IF (.NOT.local) THEN
-       ex_ei = .FALSE.
-       ex_vdw = .FALSE.
+    ! THIS WILL MATTER SOON:
+    !! If both types of interactions are excluded, the corresponding potentials
+    !! will never be evaluated. At first sight such a pair would not need to be
+    !! added to the neighborlists at all. However, they are still needed for
+    !! proper corrections on interactions between the screening charges of bonded
+    !! atoms when the ewald summation is used for the electrostatic interactions.
+    ! THIS WILL GO AWAY SOON:
+    IF (ex_ei.AND.ex_vdw.AND.(.NOT.is_full)) THEN
+      RETURN
     END IF
 
-    ! If exclusions matter, store scale=0.
+    ! If an interaction is excluded, store scale=0.
     IF (ex_ei.OR.ex_vdw) THEN
        ! Allocate more memory for the scalings if necessary.
        nscale = neighbor_kind_pair%nscale

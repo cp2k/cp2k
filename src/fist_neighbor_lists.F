@@ -285,8 +285,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
                                                 periodic
-    LOGICAL                                  :: added, any_full, atom_order, &
-                                                failure, is_full, subcell000
+    LOGICAL                                  :: any_full, atom_order, &
+                                                check_spline, failure, &
+                                                is_full, subcell000
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
                                                 rab_max
@@ -574,8 +575,9 @@ CONTAINS
                    CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
                         list_exclude_ei=particle_set(atom_a)%list_exclude_ei, &
                         list_exclude_vdw=particle_set(atom_a)%list_exclude_vdw, &
-                        particle_set=particle_set, rab=rab, added=added, &
-                        id_kind=id_kind, is_full=is_full, cell=cell, error=error)
+                        particle_set=particle_set, rab=rab, &
+                        check_spline=check_spline, id_kind=id_kind, &
+                        is_full=is_full, cell=cell, error=error)
                    ! This is to handle properly when interaction radius is larger than cell size
                    IF ((atom_a==atom_b).AND.(ik_start==0)) THEN
                       invcellmap = cellmap(-b_pi,-b_pj,-b_pk)
@@ -584,11 +586,12 @@ CONTAINS
                       CALL fist_neighbor_add(inv_neighbor_kind_pair, atom_a, atom_b, &
                            list_exclude_ei=particle_set(atom_a)%list_exclude_ei, &
                            list_exclude_vdw=particle_set(atom_a)%list_exclude_vdw, &
-                           particle_set=particle_set, rab=rab, added=added, &
-                           id_kind=id_kind, is_full=is_full, cell=cell, error=error)
+                           particle_set=particle_set, rab=rab, &
+                           check_spline=check_spline, id_kind=id_kind, &
+                           is_full=is_full, cell=cell, error=error)
                    END IF
                    ! Check for too close hits
-                   IF (added) THEN
+                   IF (check_spline) THEN
                       rab2_min = r_minsq(ikind,jkind)
                       IF (rab2 < rab2_min) THEN
                          iw=cp_logger_get_default_unit_nr()
