@@ -1569,6 +1569,7 @@ CONTAINS
                   use_plasma=use_plasma,&
                   lflop=one_flop,error=error)
              mt_t_dgemm = mt_t_dgemm + one_time
+             lflop = lflop + one_flop
              stack_p = 0
              stack_p_a = 0
              stack_p_b = 0
