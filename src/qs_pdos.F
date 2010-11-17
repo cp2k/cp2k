@@ -36,10 +36,10 @@ MODULE qs_pdos
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
@@ -73,7 +73,7 @@ MODULE qs_pdos
   PUBLIC :: calculate_projected_dos
 
 
-  type ldos_type
+  TYPE ldos_type
      INTEGER :: maxl, nlist
      LOGICAL :: separate_components
      INTEGER, DIMENSION(:), POINTER           :: list_index
@@ -121,17 +121,19 @@ CONTAINS
       DIMENSION(:, :, :)                     :: tmp_str
     CHARACTER(LEN=default_string_length)     :: kind_name, my_act, my_mittle, &
                                                 my_pos, spin(2)
-    CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE     :: ldos_index
-    INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, ir, irow, iset, isgf, &
-      ishell, iso, iterstep, iw, j, kind_number, lcomponent, lshell, maxl, &
-      maxlgto, my_spin, n_dependent, n_rep, nao, natom, &
-      ncol_global, nkind, nldos, nlumo, nmo, nrow_global, nset, nsgf, nvirt, &
-      stat
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: firstrow
+    CHARACTER(LEN=default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: ldos_index
+    INTEGER :: handle, homo, i, iatom, il, ildos, im, imo, ir, irow, iset, &
+      isgf, ishell, iso, iterstep, iw, j, kind_number, lcomponent, lshell, &
+      maxl, maxlgto, my_spin, n_dependent, n_rep, nao, natom, ncol_global, &
+      nkind, nldos, nlumo, nmo, nrow_global, nset, nsgf, nvirt, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: firstrow
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL :: add_to_list, append, do_ldos, do_virt, failure, ionode, &
-      separate_components, should_output
+    LOGICAL                                  :: append, do_ldos, do_virt, &
+                                                failure, ionode, &
+                                                separate_components, &
+                                                should_output
     REAL(KIND=dp)                            :: e_fermi
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt, &
                                                 occupation_numbers
@@ -148,7 +150,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(ldos_p_type), POINTER, DIMENSION(:) :: ldos_p
+    TYPE(ldos_p_type), DIMENSION(:), POINTER :: ldos_p
     TYPE(section_vals_type), POINTER         :: ldos_section
 
     NULLIFY(logger)
@@ -383,7 +385,7 @@ CONTAINS
                           nset=nset,&
                           nshell=nshell,&
                           l=l, maxl=maxl)
-          ldos_p(ildos)%ldos%maxl = max(ldos_p(ildos)%ldos%maxl,maxl)
+          ldos_p(ildos)%ldos%maxl = MAX(ldos_p(ildos)%ldos%maxl,maxl)
           IF(ldos_p(ildos)%ldos%separate_components) THEN
             isgf = 1
             DO iset=1,nset
