@@ -434,12 +434,11 @@ CONTAINS
 
           Pairs: DO ipair = istart, iend
              ! skip pairs that are excluded for electrostatics
-             IF (ipair <= neighbor_kind_pair%nexclude) THEN
-                IF (neighbor_kind_pair%exclude_ei(ipair)) THEN
-                   CYCLE
-                END IF
-             END IF
              fac_ij = 1.0_dp
+             IF (ipair <= neighbor_kind_pair%nscale) THEN
+                fac_ij = fac_ij*neighbor_kind_pair%ei_scale(ipair)
+             END IF
+             IF (fac_ij<=0) CYCLE
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
              kind_a=particle_set(atom_a)%atomic_kind%kind_number

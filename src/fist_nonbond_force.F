@@ -89,14 +89,13 @@ CONTAINS
       ipair, istart, kind_a, kind_b, nkinds, npairs, shell_a, shell_b, &
       shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    LOGICAL                                  :: all_terms, do_ei, &
-                                                do_multipoles, do_vdw, &
+    LOGICAL                                  :: all_terms, do_multipoles, &
                                                 failure, full_nl, &
                                                 shell_present
-    REAL(KIND=dp) :: alpha, energy, fac, fac_kind, fscalar, mm_radius, &
-      mm_radius_a, mm_radius_b, ptens11, ptens12, ptens13, ptens21, ptens22, &
-      ptens23, ptens31, ptens32, ptens33, qcore_a, qcore_b, qeff_a, qeff_b, &
-      qshell_a, qshell_b, rab2, rab2_com, rab2_max
+    REAL(KIND=dp) :: alpha, energy, fac_ei, fac_kind, fac_vdw, fscalar, &
+      mm_radius, mm_radius_a, mm_radius_b, ptens11, ptens12, ptens13, &
+      ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, qcore_a, qcore_b, &
+      qeff_a, qeff_b, qshell_a, qshell_b, rab2, rab2_com, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, fr, rab, rab_cc, &
                                                 rab_com, rab_cs, rab_sc, &
                                                 rab_ss
@@ -167,8 +166,11 @@ CONTAINS
           Pairs: DO ipair = istart, iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
+             ! Get actual atomic kinds, since atom_a is not always of
+             ! kind_a and atom_b of kind_b, ie. they might be swapped.
              kind_a = particle_set(atom_a)%atomic_kind%kind_number
              kind_b = particle_set(atom_b)%atomic_kind%kind_number
+
              fac_kind = ij_kind_full_fac(kind_a,kind_b)
              pot => potparm%pot(kind_a,kind_b)%pot
              full_nl = ANY(pot%type==tersoff_type)
@@ -181,6 +183,7 @@ CONTAINS
                 CPPostcondition(shell_present,cp_failure_level,routineP,error,failure)
              END IF
              rab2_max = pot%rcutsq
+
              IF (.NOT.do_multipoles) THEN
                 ! Get electrostatic parameters for atom a
                 atomic_kind => atomic_kind_set(kind_a)
@@ -215,14 +218,20 @@ CONTAINS
                 ! combine parameters
                 mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
              END IF
-             fac    = fac_kind
-             IF ((.NOT.full_nl).AND.(atom_a == atom_b)) fac = fac*0.5_dp
+
+             fac_ei = fac_kind
+             fac_vdw = fac_kind
+             IF ((.NOT.full_nl).AND.(atom_a==atom_b)) THEN
+                fac_ei = fac_ei*0.5_dp
+                fac_vdw = fac_vdw*0.5_dp
+             END IF
              ! decide which interactions to compute
-             do_ei = (.NOT.do_multipoles)
-             do_vdw = .TRUE.
-             IF (ipair <= neighbor_kind_pair%nexclude) THEN
-                do_ei = do_ei .AND. (.NOT. neighbor_kind_pair%exclude_ei(ipair))
-                do_vdw = .NOT. neighbor_kind_pair%exclude_vdw(ipair)
+             IF (do_multipoles) THEN
+                fac_ei = 0.0_dp
+             END IF
+             IF (ipair <= neighbor_kind_pair%nscale) THEN
+                fac_ei = fac_ei*neighbor_kind_pair%ei_scale(ipair)
+                fac_vdw = fac_vdw*neighbor_kind_pair%vdw_scale(ipair)
              END IF
 
              ! compute the relative vector(s) for this pair
@@ -284,7 +293,7 @@ CONTAINS
              IF (shell_type /= nosh_nosh) THEN
                 ! do shell
                 IF ((rab2_com <= rab2_max).AND.all_terms) THEN
-                   IF (do_ei) THEN
+                   IF (fac_ei>0) THEN
                       ! core-core or core-ion/ion-core: Coulomb only
                       rab = rab_list(:,1)
                       rab2 = rab2_list(1)
@@ -292,23 +301,23 @@ CONTAINS
                       IF (shell_a == 0) THEN
                          ! atom a is a plain ion and can have mm_radius_a > 0
                          energy = potential_coulomb(rab2, fscalar, &
-                                  qeff_a*qcore_b, ewald_type, alpha, &
+                                  fac_ei*qeff_a*qcore_b, ewald_type, alpha, &
                                   mm_radius_a, &
                                   ei_interaction_cutoffs(2, kind_a, kind_b))
                       ELSE IF (shell_b == 0) THEN
                          ! atom b is a plain ion and can have mm_radius_b > 0
                          energy = potential_coulomb(rab2, fscalar, &
-                                  qcore_a*qeff_b, ewald_type, alpha, &
+                                  fac_ei*qcore_a*qeff_b, ewald_type, alpha, &
                                   mm_radius_b, &
                                   ei_interaction_cutoffs(2, kind_a, kind_b))
                       ELSE
                          ! core-core interaction is always pure point charge
                          energy = potential_coulomb(rab2, fscalar, &
-                                  qcore_a*qcore_b, ewald_type, alpha, 0.0_dp, &
+                                  fac_ei*qcore_a*qcore_b, ewald_type, alpha, &
+                                  0.0_dp, &
                                   ei_interaction_cutoffs(1, kind_a, kind_b))
                       END IF
-                      pot_nonbond = pot_nonbond + energy*fac
-                      fscalar = fscalar*fac
+                      pot_nonbond = pot_nonbond + energy
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
@@ -354,18 +363,19 @@ CONTAINS
                       rab2 = rab2_list(4)
                       fscalar = 0.0_dp
                       energy = 0.0_dp
-                      IF (do_vdw) THEN
+                      IF (fac_vdw>0) THEN
                          energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
-                         pot_nonbond = pot_nonbond + energy*fac
+                         pot_nonbond = pot_nonbond + energy*fac_vdw
+                         fscalar = fscalar*fac_vdw
                       END IF
-                      IF (do_ei) THEN
+                      IF (fac_ei>0) THEN
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
-                                  qshell_a*qshell_b, ewald_type, alpha, mm_radius, &
+                                  fac_ei*qshell_a*qshell_b, ewald_type, alpha, &
+                                  mm_radius, &
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
-                         pot_nonbond = pot_nonbond + energy*fac
+                         pot_nonbond = pot_nonbond + energy
                       END IF
-                      fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
@@ -387,17 +397,18 @@ CONTAINS
                          pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
                       END IF
 
-                      IF (do_ei) THEN
+                      IF (fac_ei>0) THEN
                          ! core-shell : Coulomb only
                          rab  = rab_list(:,2)
                          rab2 = rab2_list(2)
                          fscalar = 0.0_dp
                          ! swap kind_a and kind_b to get the right cutoff
                          energy = potential_coulomb(rab2, fscalar, &
-                                  qcore_a*qshell_b, ewald_type, alpha, mm_radius_b, &
+                                  fac_ei*qcore_a*qshell_b, ewald_type, alpha, &
+                                  mm_radius_b, &
                                   ei_interaction_cutoffs(2, kind_b, kind_a))
-                         pot_nonbond = pot_nonbond + energy*fac
-                         fscalar = fscalar * fac
+                         pot_nonbond = pot_nonbond + energy
+                         fscalar = fscalar
                          fr(1) = fscalar*rab(1)
                          fr(2) = fscalar*rab(2)
                          fr(3) = fscalar*rab(3)
@@ -424,10 +435,10 @@ CONTAINS
                          rab2 = rab2_list(3)
                          fscalar = 0.0_dp
                          energy = potential_coulomb(rab2, fscalar, &
-                                  qshell_a*qcore_b, ewald_type, alpha, mm_radius_a, &
+                                  fac_ei*qshell_a*qcore_b, ewald_type, alpha, &
+                                  mm_radius_a, &
                                   ei_interaction_cutoffs(2, kind_a, kind_b))
-                         pot_nonbond = pot_nonbond + energy*fac
-                         fscalar = fscalar * fac
+                         pot_nonbond = pot_nonbond + energy
                          fr(1) = fscalar*rab(1)
                          fr(2) = fscalar*rab(2)
                          fr(3) = fscalar*rab(3)
@@ -455,18 +466,19 @@ CONTAINS
                       rab2 = rab2_list(4)
                       energy = 0.0_dp
                       fscalar = 0.0_dp
-                      IF (do_vdw) THEN
+                      IF (fac_vdw>0) THEN
                          energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
-                         pot_nonbond = pot_nonbond + energy*fac
+                         pot_nonbond = pot_nonbond + energy*fac_vdw
+                         fscalar = fscalar*fac_vdw
                       END IF
-                      IF (do_ei) THEN
+                      IF (fac_ei>0) THEN
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
-                                  qeff_a*qshell_b, ewald_type, alpha, mm_radius, &
+                                  fac_ei*qeff_a*qshell_b, ewald_type, alpha, &
+                                  mm_radius, &
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
-                         pot_nonbond = pot_nonbond + energy*fac
+                         pot_nonbond = pot_nonbond + energy
                       END IF
-                      fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
@@ -493,18 +505,19 @@ CONTAINS
                       rab2 = rab2_list(4)
                       energy = 0.0_dp
                       fscalar = 0.0_dp
-                      IF (do_vdw) THEN
+                      IF (fac_vdw>0) THEN
                          energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
-                         pot_nonbond = pot_nonbond + energy*fac
+                         pot_nonbond = pot_nonbond + energy*fac_vdw
+                         fscalar = fscalar*fac_vdw
                       END IF
-                      IF (do_ei) THEN
+                      IF (fac_ei>0) THEN
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
-                                  qshell_a*qeff_b, ewald_type, alpha, mm_radius, &
+                                  fac_ei*qshell_a*qeff_b, ewald_type, alpha, &
+                                  mm_radius, &
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
-                         pot_nonbond = pot_nonbond + energy*fac
+                         pot_nonbond = pot_nonbond + energy
                       END IF
-                      fscalar = fscalar * fac
                       fr(1) = fscalar*rab(1)
                       fr(2) = fscalar*rab(2)
                       fr(3) = fscalar*rab(3)
@@ -546,18 +559,19 @@ CONTAINS
                    rab2 = rab2_com
                    energy = 0.0_dp
                    fscalar = 0.0_dp
-                   IF (do_vdw) THEN
+                   IF (fac_vdw>0) THEN
                       energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
-                      pot_nonbond = pot_nonbond + energy*fac
+                      pot_nonbond = pot_nonbond + energy*fac_vdw
+                      fscalar = fscalar*fac_vdw
                    END IF
-                   IF (do_ei) THEN
+                   IF (fac_ei>0) THEN
                       ! note that potential_coulomb increments fscalar
-                      energy = potential_coulomb(rab2, fscalar, qeff_a*qeff_b, &
-                               ewald_type, alpha, mm_radius, &
+                      energy = potential_coulomb(rab2, fscalar, &
+                               fac_ei*qeff_a*qeff_b, ewald_type, alpha, &
+                               mm_radius, &
                                ei_interaction_cutoffs(3, kind_a, kind_b))
-                      pot_nonbond = pot_nonbond + energy*fac
+                      pot_nonbond = pot_nonbond + energy
                    END IF
-                   fscalar = fscalar*fac
                    fr(1) = fscalar*rab(1)
                    fr(2) = fscalar*rab(2)
                    fr(3) = fscalar*rab(3)

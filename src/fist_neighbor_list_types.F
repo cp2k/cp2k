@@ -31,15 +31,15 @@ MODULE fist_neighbor_list_types
      INTEGER                           :: cell_vector(3), npairs
      INTEGER                           :: ngrp_kind
      REAL(KIND=dp)                     :: rmax
-     ! The exclude_* arrays are flags that mark corresponding pairs in 'list'
-     ! for exclusion for certain types of interactions. To keep the size of
-     ! these arrays small, pairs that must be excluded are moved to beginning
-     ! of the array 'list'. nexclude is the number of elements in exclude_*
-     ! that is effectively used. This way one does not have to reallocate the
-     ! exclude_* arrays for every new exclusion.
-     LOGICAL, POINTER, DIMENSION(:)    :: exclude_ei
-     LOGICAL, POINTER, DIMENSION(:)    :: exclude_vdw
-     INTEGER                           :: nexclude
+     ! The *_scale arrays are scaling factors for the corresponding nonbonding
+     ! interaction energies and forces for the pairs in 'list'. To keep the size
+     ! of these arrays small, pairs whose interaction must be scaled are moved
+     ! to beginning of the array 'list'. nscale is the number of elements in
+     ! *_scale that are effectively used. This way one does not have to
+     ! reallocate the *_scale arrays for every new scaled pair interaction.
+     REAL(KIND=dp), POINTER, DIMENSION(:)    :: ei_scale
+     REAL(KIND=dp), POINTER, DIMENSION(:)    :: vdw_scale
+     INTEGER                                 :: nscale
   END TYPE neighbor_kind_pairs_type
 
 ! *****************************************************************************
@@ -98,12 +98,12 @@ CONTAINS
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
-             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei, stat=stat)
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
-             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw, stat=stat)
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
           END DO
@@ -154,8 +154,8 @@ CONTAINS
              list_size = SIZE(new_pairs(i)%list)
              ALLOCATE(new_pairs(i)%id_kind(list_size),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(new_pairs(i)%exclude_ei(0),stat=stat)
-             ALLOCATE(new_pairs(i)%exclude_vdw(0),stat=stat)
+             ALLOCATE(new_pairs(i)%ei_scale(0),stat=stat)
+             ALLOCATE(new_pairs(i)%vdw_scale(0),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
@@ -176,12 +176,12 @@ CONTAINS
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
-             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei, stat=stat)
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
-             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw)) THEN
-                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw, stat=stat)
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
           ENDDO
@@ -211,9 +211,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_ei(0),stat=stat)
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%ei_scale(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%exclude_vdw(0),stat=stat)
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           NULLIFY(fist_neighbor%neighbor_kind_pairs(i)%ij_kind,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start,&
@@ -227,7 +227,7 @@ CONTAINS
        fist_neighbor%neighbor_kind_pairs(i)%list=HUGE(0)
        fist_neighbor%neighbor_kind_pairs(i)%id_kind=HUGE(0)
        fist_neighbor%neighbor_kind_pairs(i)%cell_vector=HUGE(0)
-       fist_neighbor%neighbor_kind_pairs(i)%nexclude = 0
+       fist_neighbor%neighbor_kind_pairs(i)%nscale = 0
     ENDDO
     CALL timestop ( handle )
   END SUBROUTINE fist_neighbor_init
@@ -259,7 +259,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER :: eps_default = EPSILON(0.0_dp)*1.0E4_dp
 
-    INTEGER                                  :: new_npairs, nexclude, npairs, &
+    INTEGER                                  :: new_npairs, npairs, nscale, &
                                                 old_npairs, stat
     INTEGER, DIMENSION(:), POINTER           :: new_id_kind
     INTEGER, DIMENSION(:, :), POINTER        :: new_list
@@ -295,20 +295,28 @@ CONTAINS
        ex_vdw = .FALSE.
     END IF
 
-    ! If exclusions matter, store the flags
+    ! If exclusions matter, store scale=0.
     IF (ex_ei.OR.ex_vdw) THEN
-       ! Allocate more memory for the exclusions if necessary.
-       nexclude = neighbor_kind_pair%nexclude
-       IF (nexclude==SIZE(neighbor_kind_pair%exclude_ei)) THEN
-          CALL reallocate(neighbor_kind_pair%exclude_ei, 1, INT(5+1.2*nexclude))
-          CALL reallocate(neighbor_kind_pair%exclude_vdw, 1, INT(5+1.2*nexclude))
+       ! Allocate more memory for the scalings if necessary.
+       nscale = neighbor_kind_pair%nscale
+       IF (nscale==SIZE(neighbor_kind_pair%ei_scale)) THEN
+          CALL reallocate(neighbor_kind_pair%ei_scale, 1, INT(5+1.2*nscale))
+          CALL reallocate(neighbor_kind_pair%vdw_scale, 1, INT(5+1.2*nscale))
        END IF
-       nexclude = nexclude + 1
-       neighbor_kind_pair%exclude_ei(nexclude) = ex_ei
-       neighbor_kind_pair%exclude_vdw(nexclude) = ex_vdw
-       neighbor_kind_pair%nexclude = nexclude
+       nscale = nscale + 1
+       IF (ex_ei) THEN
+          neighbor_kind_pair%ei_scale(nscale) = 0.0_dp
+       ELSE
+          neighbor_kind_pair%ei_scale(nscale) = 1.0_dp
+       END IF
+       IF (ex_vdw) THEN
+          neighbor_kind_pair%vdw_scale(nscale) = 0.0_dp
+       ELSE
+          neighbor_kind_pair%vdw_scale(nscale) = 1.0_dp
+       END IF
+       neighbor_kind_pair%nscale = nscale
     ELSE
-       nexclude = HUGE(0)
+       nscale = HUGE(0)
     END IF
 
     ! Allocate more memory for the pair list if necessary.
@@ -335,14 +343,14 @@ CONTAINS
     
     ! Store the pair ...
     npairs = neighbor_kind_pair%npairs + 1
-    IF ((ex_ei.OR.ex_vdw).AND.(npairs>nexclude)) THEN
-       ! ... after the previous pair that had exclusion flags.
-       neighbor_kind_pair%list(1,npairs) = neighbor_kind_pair%list(1,nexclude)
-       neighbor_kind_pair%list(2,npairs) = neighbor_kind_pair%list(2,nexclude)
-       neighbor_kind_pair%id_kind(npairs) = neighbor_kind_pair%id_kind(nexclude)
-       neighbor_kind_pair%list(1,nexclude) = atom_a
-       neighbor_kind_pair%list(2,nexclude) = atom_b
-       neighbor_kind_pair%id_kind(nexclude) = id_kind
+    IF ((ex_ei.OR.ex_vdw).AND.(npairs>nscale)) THEN
+       ! ... after the previous pair that had scaling factors.
+       neighbor_kind_pair%list(1,npairs) = neighbor_kind_pair%list(1,nscale)
+       neighbor_kind_pair%list(2,npairs) = neighbor_kind_pair%list(2,nscale)
+       neighbor_kind_pair%id_kind(npairs) = neighbor_kind_pair%id_kind(nscale)
+       neighbor_kind_pair%list(1,nscale) = atom_a
+       neighbor_kind_pair%list(2,nscale) = atom_b
+       neighbor_kind_pair%id_kind(nscale) = id_kind
     ELSE
        ! ... at the end of the list.
        neighbor_kind_pair%list(1,npairs) = atom_a

@@ -720,7 +720,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iab, id_kind, ikind, &
                                                 ipair, jkind, max_alloc_size, &
-                                                nexclude, npairs, stat, tmp
+                                                npairs, nscale, stat, tmp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indj
     INTEGER, DIMENSION(:), POINTER           :: work
     INTEGER, DIMENSION(:, :), POINTER        :: list_copy
@@ -744,28 +744,32 @@ CONTAINS
     DO iab=1, nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
        npairs = neighbor_kind_pair%npairs
-       nexclude = neighbor_kind_pair%nexclude
+       nscale = neighbor_kind_pair%nscale
        IF (npairs/=0) THEN 
-          ! 1) Sort the atom pairs by id_kind. Atoms with exclusion flags are
-          !    not touched.
-          ALLOCATE(work(1:npairs-nexclude),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(list_copy(2,1:npairs-nexclude),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ! Copy of the pair list is required to perform the permutation below
-          ! correctly.
-          list_copy = neighbor_kind_pair%list(:,nexclude+1:npairs)
-          CALL sort(neighbor_kind_pair%id_kind(nexclude+1:npairs),npairs-nexclude,work)
-          ! Reorder atoms using the same permutation that was used to sort
-          ! the array id_kind.
-          DO ipair = nexclude+1, npairs
-             tmp = work(ipair-nexclude)
-             neighbor_kind_pair%list(1,ipair) = list_copy(1,tmp)
-             neighbor_kind_pair%list(2,ipair) = list_copy(2,tmp)
-          END DO
-          DEALLOCATE(work,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(list_copy,stat=stat)
+          IF (npairs>nscale) THEN
+             ! 1) Sort the atom pairs by id_kind. Pairs whose interactions are
+             ! scaled (possibly to zero for exclusion) are not touched. They
+             ! stay packed in the beginning. Sorting is skipped altogether when
+             ! all pairs have scaled interactions.
+             ALLOCATE(work(1:npairs-nscale),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(list_copy(2,1:npairs-nscale),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ! Copy of the pair list is required to perform the permutation below
+             ! correctly.
+             list_copy = neighbor_kind_pair%list(:,nscale+1:npairs)
+             CALL sort(neighbor_kind_pair%id_kind(nscale+1:npairs),npairs-nscale,work)
+             ! Reorder atoms using the same permutation that was used to sort
+             ! the array id_kind.
+             DO ipair = nscale+1, npairs
+                tmp = work(ipair-nscale)
+                neighbor_kind_pair%list(1,ipair) = list_copy(1,tmp)
+                neighbor_kind_pair%list(2,ipair) = list_copy(2,tmp)
+             END DO
+             DEALLOCATE(work,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             DEALLOCATE(list_copy,stat=stat)
+          END IF
           ! 2) determine the intervals (groups) in the pair list that correspond
           !    to a certain id_kind. also store the corresponding ikind and
           !    jkind. Note that this part does not assume ikind to be sorted,
@@ -774,7 +778,7 @@ CONTAINS
           ! Allocate sufficient memory in case all pairs of atom kinds are
           ! present, and also provide storage for the pairs with exclusion
           ! flags, which are unsorted.
-          max_alloc_size = nkinds*(nkinds+1)/2 + nexclude
+          max_alloc_size = nkinds*(nkinds+1)/2 + nscale
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (ASSOCIATED(neighbor_kind_pair%grp_kind_start)) THEN
              DEALLOCATE(neighbor_kind_pair%grp_kind_start,stat=stat)
