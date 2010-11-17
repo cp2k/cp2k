@@ -93,10 +93,9 @@ CONTAINS
                                                 failure, full_nl, &
                                                 shell_present
     REAL(KIND=dp) :: alpha, energy, fac_ei, fac_kind, fac_vdw, fscalar, &
-      mm_radius, mm_radius_a, mm_radius_b, ptens11, ptens12, ptens13, &
-      ptens21, ptens22, ptens23, ptens31, ptens32, ptens33, qcore_a, qcore_b, &
-      qeff_a, qeff_b, qshell_a, qshell_b, rab2, rab2_com, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, fr, rab, rab_cc, &
+      mm_radius, mm_radius_a, mm_radius_b, qcore_a, qcore_b, qeff_a, qeff_b, &
+      qshell_a, qshell_b, rab2, rab2_com, rab2_max
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, rab, rab_cc, &
                                                 rab_com, rab_cs, rab_sc, &
                                                 rab_ss
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_com
@@ -141,9 +140,6 @@ CONTAINS
     
     IF (use_virial) THEN
        pv_nonbond(:,:) = 0.0_dp
-       ptens11 = 0.0_dp ; ptens12 = 0.0_dp ; ptens13 = 0.0_dp
-       ptens21 = 0.0_dp ; ptens22 = 0.0_dp ; ptens23 = 0.0_dp
-       ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
     END IF
     shell_present = .FALSE.
     IF(PRESENT(fshell_nonbond)) THEN
@@ -289,7 +285,10 @@ CONTAINS
              rab_com  = rab_com + cell_v
              rab2_com = rab_com(1)**2 + rab_com(2)**2 + rab_com(3)**2
 
-             ! compute the interactions
+             ! compute the interactions for the current pair.
+             IF (use_virial) THEN
+               pv_com(:,:) = 0.0_dp
+             END IF
              IF (shell_type /= nosh_nosh) THEN
                 ! do shell
                 IF ((rab2_com <= rab2_max).AND.all_terms) THEN
@@ -304,57 +303,26 @@ CONTAINS
                                   fac_ei*qeff_a*qcore_b, ewald_type, alpha, &
                                   mm_radius_a, &
                                   ei_interaction_cutoffs(2, kind_a, kind_b))
+                         CALL add_force_nonbond(atom_a, shell_b, fscalar, rab, &
+                              f_nonbond, fcore_nonbond, use_virial, pv_com)
                       ELSE IF (shell_b == 0) THEN
                          ! atom b is a plain ion and can have mm_radius_b > 0
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qcore_a*qeff_b, ewald_type, alpha, &
                                   mm_radius_b, &
-                                  ei_interaction_cutoffs(2, kind_a, kind_b))
+                                  ei_interaction_cutoffs(2, kind_b, kind_a))
+                         CALL add_force_nonbond(shell_a, atom_b, fscalar, rab, &
+                              fcore_nonbond, f_nonbond, use_virial, pv_com)
                       ELSE
                          ! core-core interaction is always pure point charge
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qcore_a*qcore_b, ewald_type, alpha, &
                                   0.0_dp, &
                                   ei_interaction_cutoffs(1, kind_a, kind_b))
+                         CALL add_force_nonbond(shell_a, shell_b, fscalar, rab, &
+                              fcore_nonbond, fcore_nonbond, use_virial, pv_com)
                       END IF
                       pot_nonbond = pot_nonbond + energy
-                      fr(1) = fscalar*rab(1)
-                      fr(2) = fscalar*rab(2)
-                      fr(3) = fscalar*rab(3)
-
-                      IF (shell_a /= 0 ) THEN
-                         fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
-                         fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
-                         fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
-                      ELSE
-                         f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-                         f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-                         f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
-                         CPPostcondition(shell_b/=0,cp_failure_level,routineP,error,failure)
-                      END IF
-
-                      IF (shell_b /= 0 ) THEN
-                         fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
-                         fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
-                         fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
-                      ELSE
-                         f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                         f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                         f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                         CPPostcondition(shell_a/=0,cp_failure_level,routineP,error,failure)
-                      END IF
-                   END IF
-
-                   IF (use_virial) THEN
-                      pv_com(1,1) = rab(1) * fr(1)
-                      pv_com(1,2) = rab(1) * fr(2)
-                      pv_com(1,3) = rab(1) * fr(3)
-                      pv_com(2,1) = rab(2) * fr(1)
-                      pv_com(2,2) = rab(2) * fr(2)
-                      pv_com(2,3) = rab(2) * fr(3)
-                      pv_com(3,1) = rab(3) * fr(1)
-                      pv_com(3,2) = rab(3) * fr(2)
-                      pv_com(3,3) = rab(3) * fr(3)
                    END IF
           
                    IF (shell_type == sh_sh) THEN
@@ -362,7 +330,6 @@ CONTAINS
                       rab  = rab_list(:,4)
                       rab2 = rab2_list(4)
                       fscalar = 0.0_dp
-                      energy = 0.0_dp
                       IF (fac_vdw>0) THEN
                          energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
                          pot_nonbond = pot_nonbond + energy*fac_vdw
@@ -376,26 +343,8 @@ CONTAINS
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
                          pot_nonbond = pot_nonbond + energy
                       END IF
-                      fr(1) = fscalar*rab(1)
-                      fr(2) = fscalar*rab(2)
-                      fr(3) = fscalar*rab(3)
-                      fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
-                      fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
-                      fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-                      fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
-                      fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
-                      fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
-                      IF (use_virial) THEN
-                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                      END IF
+                      CALL add_force_nonbond(shell_a, shell_b, fscalar, rab, &
+                           fshell_nonbond, fshell_nonbond, use_virial, pv_com)
 
                       IF (fac_ei>0) THEN
                          ! core-shell : Coulomb only
@@ -408,27 +357,8 @@ CONTAINS
                                   mm_radius_b, &
                                   ei_interaction_cutoffs(2, kind_b, kind_a))
                          pot_nonbond = pot_nonbond + energy
-                         fscalar = fscalar
-                         fr(1) = fscalar*rab(1)
-                         fr(2) = fscalar*rab(2)
-                         fr(3) = fscalar*rab(3)
-                         fcore_nonbond(1,shell_a) = fcore_nonbond(1,shell_a) - fr(1)
-                         fcore_nonbond(2,shell_a) = fcore_nonbond(2,shell_a) - fr(2)
-                         fcore_nonbond(3,shell_a) = fcore_nonbond(3,shell_a) - fr(3)
-                         fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
-                         fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
-                         fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
-                         IF (use_virial) THEN
-                            pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                            pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                            pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                            pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                            pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                            pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                            pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                            pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                            pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                         END IF
+                         CALL add_force_nonbond(shell_a, shell_b, fscalar, rab, &
+                              fcore_nonbond, fshell_nonbond, use_virial, pv_com)
 
                          ! shell-core : Coulomb only
                          rab  = rab_list(:,3)
@@ -439,32 +369,13 @@ CONTAINS
                                   mm_radius_a, &
                                   ei_interaction_cutoffs(2, kind_a, kind_b))
                          pot_nonbond = pot_nonbond + energy
-                         fr(1) = fscalar*rab(1)
-                         fr(2) = fscalar*rab(2)
-                         fr(3) = fscalar*rab(3)
-                         fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
-                         fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
-                         fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-                         fcore_nonbond(1,shell_b) = fcore_nonbond(1,shell_b) + fr(1)
-                         fcore_nonbond(2,shell_b) = fcore_nonbond(2,shell_b) + fr(2)
-                         fcore_nonbond(3,shell_b) = fcore_nonbond(3,shell_b) + fr(3)
-                         IF (use_virial) THEN
-                            pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                            pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                            pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                            pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                            pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                            pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                            pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                            pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                            pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                         END IF
+                         CALL add_force_nonbond(shell_a, shell_b, fscalar, rab, &
+                              fshell_nonbond, fcore_nonbond, use_virial, pv_com)
                       END IF
                    ELSE IF ((shell_type == nosh_sh).AND.(shell_a == 0)) THEN
                       ! ion-shell : VDW + Coulomb
                       rab = rab_list(:,4)
                       rab2 = rab2_list(4)
-                      energy = 0.0_dp
                       fscalar = 0.0_dp
                       IF (fac_vdw>0) THEN
                          energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
@@ -479,31 +390,12 @@ CONTAINS
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
                          pot_nonbond = pot_nonbond + energy
                       END IF
-                      fr(1) = fscalar*rab(1)
-                      fr(2) = fscalar*rab(2)
-                      fr(3) = fscalar*rab(3)
-                      f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-                      f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-                      f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
-                      fshell_nonbond(1,shell_b) = fshell_nonbond(1,shell_b) + fr(1)
-                      fshell_nonbond(2,shell_b) = fshell_nonbond(2,shell_b) + fr(2)
-                      fshell_nonbond(3,shell_b) = fshell_nonbond(3,shell_b) + fr(3)
-                      IF (use_virial) THEN
-                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                      END IF
-                   ELSE IF ((shell_type == nosh_sh).AND.(shell_b == 0)) THEN
+                      CALL add_force_nonbond(atom_a, shell_b, fscalar, rab, &
+                           f_nonbond, fshell_nonbond, use_virial, pv_com)
+                   ELSE IF ((shell_type == nosh_sh) .AND. (shell_b == 0)) THEN
                       ! shell-ion : VDW + Coulomb
                       rab = rab_list(:,4)
                       rab2 = rab2_list(4)
-                      energy = 0.0_dp
                       fscalar = 0.0_dp
                       IF (fac_vdw>0) THEN
                          energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
@@ -518,37 +410,8 @@ CONTAINS
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
                          pot_nonbond = pot_nonbond + energy
                       END IF
-                      fr(1) = fscalar*rab(1)
-                      fr(2) = fscalar*rab(2)
-                      fr(3) = fscalar*rab(3)
-                      fshell_nonbond(1,shell_a) = fshell_nonbond(1,shell_a) - fr(1)
-                      fshell_nonbond(2,shell_a) = fshell_nonbond(2,shell_a) - fr(2)
-                      fshell_nonbond(3,shell_a) = fshell_nonbond(3,shell_a) - fr(3)
-                      f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                      f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                      f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                      IF (use_virial) THEN
-                         pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
-                         pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
-                         pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
-                         pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
-                         pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
-                         pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
-                         pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
-                         pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
-                         pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
-                      END IF
-                   END IF
-                   IF (use_virial) THEN
-                      ptens11 = ptens11 + pv_com(1,1)
-                      ptens21 = ptens21 + pv_com(2,1)
-                      ptens31 = ptens31 + pv_com(3,1)
-                      ptens12 = ptens12 + pv_com(1,2)
-                      ptens22 = ptens22 + pv_com(2,2)
-                      ptens32 = ptens32 + pv_com(3,2)
-                      ptens13 = ptens13 + pv_com(1,3)
-                      ptens23 = ptens23 + pv_com(2,3)
-                      ptens33 = ptens33 + pv_com(3,3)
+                      CALL add_force_nonbond(shell_a, atom_b, fscalar, rab, &
+                           fshell_nonbond, f_nonbond, use_virial, pv_com)
                    END IF
                 END IF
              ELSE
@@ -557,7 +420,6 @@ CONTAINS
                    ! Ion-Ion: no shell model, VDW + coulomb
                    rab  = rab_com
                    rab2 = rab2_com
-                   energy = 0.0_dp
                    fscalar = 0.0_dp
                    IF (fac_vdw>0) THEN
                       energy = potential_s(spline_data,rab2,fscalar,spl_f,logger)
@@ -572,47 +434,63 @@ CONTAINS
                                ei_interaction_cutoffs(3, kind_a, kind_b))
                       pot_nonbond = pot_nonbond + energy
                    END IF
-                   fr(1) = fscalar*rab(1)
-                   fr(2) = fscalar*rab(2)
-                   fr(3) = fscalar*rab(3)
-                   f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
-                   f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
-                   f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
-                   f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
-                   f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
-                   f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
-                   IF (use_virial) THEN
-                      ptens11 = ptens11 + rab(1) * fr(1)
-                      ptens21 = ptens21 + rab(2) * fr(1)
-                      ptens31 = ptens31 + rab(3) * fr(1)
-                      ptens12 = ptens12 + rab(1) * fr(2)
-                      ptens22 = ptens22 + rab(2) * fr(2)
-                      ptens32 = ptens32 + rab(3) * fr(2)
-                      ptens13 = ptens13 + rab(1) * fr(3)
-                      ptens23 = ptens23 + rab(2) * fr(3)
-                      ptens33 = ptens33 + rab(3) * fr(3)
-                   END IF
+                   CALL add_force_nonbond(atom_a, atom_b, fscalar, rab, &
+                        f_nonbond, f_nonbond, use_virial, pv_com)
                 END IF
+             END IF
+             IF (use_virial) THEN
+               ! Add the contribution of the current pair to the total pressure
+               ! tensor.
+               pv_nonbond = pv_nonbond + pv_com
              END IF
           END DO Pairs
        END DO Kind_Group_Loop
     END DO Lists
 
+    CALL timestop ( handle )
+  END SUBROUTINE force_nonbond
+
+
+  ! *****************************************************************************
+  !> \brief Adds a non-bonding contribution to the total force and optionally to
+  !>        the virial.
+  ! *****************************************************************************
+  SUBROUTINE add_force_nonbond(atom_a, atom_b, fscalar, rab, f_nonbond_a, &
+             f_nonbond_b, use_virial, pv_com)
+
+    INTEGER, INTENT(IN)                      :: atom_a, atom_b
+    REAL(KIND=dp), INTENT(IN)                :: fscalar
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: f_nonbond_a, f_nonbond_b
+    LOGICAL, INTENT(IN)                      :: use_virial
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(INOUT)                          :: pv_com
+
+    REAL(KIND=dp), DIMENSION(3)              :: fr
+
+    fr(1) = fscalar*rab(1)
+    fr(2) = fscalar*rab(2)
+    fr(3) = fscalar*rab(3)
+    f_nonbond_a(1,atom_a) = f_nonbond_a(1,atom_a) - fr(1)
+    f_nonbond_a(2,atom_a) = f_nonbond_a(2,atom_a) - fr(2)
+    f_nonbond_a(3,atom_a) = f_nonbond_a(3,atom_a) - fr(3)
+    f_nonbond_b(1,atom_b) = f_nonbond_b(1,atom_b) + fr(1)
+    f_nonbond_b(2,atom_b) = f_nonbond_b(2,atom_b) + fr(2)
+    f_nonbond_b(3,atom_b) = f_nonbond_b(3,atom_b) + fr(3)
     IF (use_virial) THEN
-       pv_nonbond(1,1) = pv_nonbond(1,1) + ptens11
-       pv_nonbond(1,2) = pv_nonbond(1,2) + ptens12
-       pv_nonbond(1,3) = pv_nonbond(1,3) + ptens13
-       pv_nonbond(2,1) = pv_nonbond(2,1) + ptens21
-       pv_nonbond(2,2) = pv_nonbond(2,2) + ptens22
-       pv_nonbond(2,3) = pv_nonbond(2,3) + ptens23
-       pv_nonbond(3,1) = pv_nonbond(3,1) + ptens31
-       pv_nonbond(3,2) = pv_nonbond(3,2) + ptens32
-       pv_nonbond(3,3) = pv_nonbond(3,3) + ptens33
+       pv_com(1,1) = pv_com(1,1) + rab(1) * fr(1)
+       pv_com(1,2) = pv_com(1,2) + rab(1) * fr(2)
+       pv_com(1,3) = pv_com(1,3) + rab(1) * fr(3)
+       pv_com(2,1) = pv_com(2,1) + rab(2) * fr(1)
+       pv_com(2,2) = pv_com(2,2) + rab(2) * fr(2)
+       pv_com(2,3) = pv_com(2,3) + rab(2) * fr(3)
+       pv_com(3,1) = pv_com(3,1) + rab(3) * fr(1)
+       pv_com(3,2) = pv_com(3,2) + rab(3) * fr(2)
+       pv_com(3,3) = pv_com(3,3) + rab(3) * fr(3)
     END IF
 
-    CALL timestop(handle)
-
-  END SUBROUTINE force_nonbond
+  END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief corrects electrostatics for bonded terms
@@ -648,7 +526,7 @@ CONTAINS
                                                 j_is_shell, shell_adiabatic
     REAL(KIND=dp)                            :: alpha, const, qci, qcj, qsi, &
                                                 qsj
-    REAL(KIND=dp), DIMENSION(3)              :: fij_com, rci, rcj, rsi, rsj
+    REAL(KIND=dp), DIMENSION(3)              :: rci, rcj, rsi, rsj
 
     CALL timeset(routineN,handle)
     ! Initializing values
@@ -669,7 +547,6 @@ CONTAINS
                shell_i_index, i_is_shell, rsi, rci, qci, qsi)
 
           DO iexl = 1, SIZE(particle_set(i)%list_exclude_ei)
-             fij_com = 0.0_dp
              j = particle_set(i)%list_exclude_ei(iexl)
              IF ( j>=i ) CYCLE
 
