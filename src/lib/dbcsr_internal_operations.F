@@ -88,6 +88,8 @@ MODULE dbcsr_internal_operations
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
+  LOGICAL, PARAMETER                   :: careful_mod = .TRUE.
+
 
 #if defined (__INTERNAL_GEMM)
   LOGICAL, PARAMETER                   :: internal_gemm = .TRUE.
@@ -125,7 +127,7 @@ MODULE dbcsr_internal_operations
 
   LOGICAL, PARAMETER, PRIVATE :: detailed_timing = .FALSE.
 
-  INTEGER, PARAMETER :: dgemm_stack_size = 32
+  INTEGER, PARAMETER :: dgemm_stack_size = 100
 
   TYPE block_parameters
      LOGICAL :: tr
@@ -1506,20 +1508,14 @@ CONTAINS
              ELSE
                 dgemm_joins(stack_p)%alpha = my_alpha
              ENDIF
-             !i = SIZE (dgemm_joins,1) / 4
              i = dgemm_stack_size / 8
-             !IF (dbg) WRITE(*,*)routineN//" Before merge, stack pointer is at",stack_p
-             !IF (stack_p .GE. i .and. stack_p .gt. first_mergeable) THEN
-             IF (stack_p .GE. i + first_mergeable .OR. stack_p .GE. dgemm_stack_size) THEN
+             flush_stack = (stack_p .GE. dgemm_stack_size-1)
+             IF (flush_stack) THEN
                 CALL merge_dgemm_stack(dgemm_joins,&
                      parameters_a, parameters_b, parameters_c,&
                      first_mergeable,&
                      stack_p,&
-                     stack_p_a, stack_p_b, stack_p_c)
-             ENDIF
-             !IF (dbg) WRITE(*,*)routineN//"  After merge, stack pointer is at",stack_p
-             flush_stack = (stack_p .GE. dgemm_stack_size-1)
-             IF (flush_stack) THEN
+                     stack_p_a, stack_p_b, stack_p_c, error)
                 !IF (dbg) WRITE(*,*)routineN//" Processing stack at", stack_p
                 !mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
                 CALL process_dgemm_stack(dgemm_joins,&
@@ -1558,7 +1554,7 @@ CONTAINS
                   parameters_a, parameters_b, parameters_c,&
                   first_mergeable,&
                   stack_p,&
-                  stack_p_a, stack_p_b, stack_p_c)
+                  stack_p_a, stack_p_b, stack_p_c, error)
              CALL process_dgemm_stack(dgemm_joins,&
                   parameters_a, parameters_b, parameters_c,&
                   stack_p,&
@@ -1585,7 +1581,7 @@ CONTAINS
             parameters_a, parameters_b, parameters_c,&
             first_mergeable,&
             stack_p,&
-            stack_p_a, stack_p_b, stack_p_c)
+            stack_p_a, stack_p_b, stack_p_c, error)
        !mt_t_dgemm = mt_t_dgemm - (m_walltime() - epoch)
        CALL process_dgemm_stack(dgemm_joins,&
             parameters_a, parameters_b, parameters_c,&
@@ -1658,10 +1654,10 @@ CONTAINS
 !>      non-joinable.
 !> \par[in,out] n             Number of elements (stack size)
 ! *****************************************************************************
-  PURE SUBROUTINE merge_dgemm_stack(params, params_a, params_b, params_c,&
+  SUBROUTINE merge_dgemm_stack(params, params_a, params_b, params_c,&
        first_mergeable,&
        stack_size,&
-       stack_size_a, stack_size_b, stack_size_c)
+       stack_size_a, stack_size_b, stack_size_c, error)
     INTEGER, INTENT(INOUT)                   :: stack_size, first_mergeable, &
                                                 stack_size_c, stack_size_b, &
                                                 stack_size_a
@@ -1676,16 +1672,20 @@ CONTAINS
     TYPE(block_parameters), &
       DIMENSION(1:stack_size_c), &
       INTENT(INOUT)                          :: params_c
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'merge_dgemm_stack', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: f, last, sp, sp_a, sp_b, sp_c
+    INTEGER                                  :: error_handler, f, last, sp, &
+                                                sp_a, sp_b, sp_c
     LOGICAL                                  :: merge_this, remainder
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     last = stack_size
     f = first_mergeable
@@ -1756,6 +1756,7 @@ CONTAINS
           !IF (dbg) WRITE(*,*)routineN//" New first is ",first_mergeable
        ENDIF
     ENDDO
+    CALL dbcsr_error_stop(error_handler, error)
     !IF (dbg) THEN
     !   WRITE(*,*)routineN//" The new first and n are ",&
     !        first_mergeable, stack_size,";",&
