@@ -115,8 +115,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, &
                                                 rlow_nb, emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_zbl
-    LOGICAL, INTENT(IN)                      :: scale_cutoff
+    LOGICAL, INTENT(IN)                      :: do_zbl, scale_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
@@ -124,8 +123,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k, n, ncount, &
                                                 npoints, ntype
-    LOGICAL                                  :: failure, found_locut, &
-                                                my_do_zbl
+    LOGICAL                                  :: failure, found_locut
     REAL(KIND=dp)                            :: energy_cutoff, hicut, hicut0, &
                                                 locut
     TYPE(pair_potential_single_type), &
@@ -134,8 +132,6 @@ CONTAINS
     failure= .FALSE.
     n      = 0
     ncount = 0
-    my_do_zbl= .FALSE.
-    IF (PRESENT(do_zbl)) my_do_zbl = do_zbl
 
     ntype = SIZE ( atomic_kind_set )
     CALL timeset(routineN,handle)
@@ -188,14 +184,14 @@ CONTAINS
           energy_cutoff = pot%spl_f%cutoff
 
           ! Find the real locut according emax_spline
-          CALL get_spline_cutoff(hicut, locut, found_locut, pot, my_do_zbl, &
+          CALL get_spline_cutoff(hicut, locut, found_locut, pot, do_zbl, &
                energy_cutoff, emax_spline)
           locut=MAX(locut*SQRT(pot%spl_f%rcutsq_f),rlow_nb)
 
           ! Real Generation of the Spline
           CALL generate_spline_low(spline_env%spl_pp(n)%spl_p, npoints, locut, &
                hicut, eps_spline, iw, iw2, i, j, n, ncount, max_energy, pot, &
-               energy_cutoff, found_locut, my_do_zbl, atomic_kind_set, error)
+               energy_cutoff, found_locut, do_zbl, atomic_kind_set, error)
 
           pot%undef = .FALSE.
           ! Unique Spline working only for a pure LJ potential..
@@ -454,8 +450,7 @@ CPSourceFileRef,&
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_zbl
-    LOGICAL, INTENT(IN)                      :: scale_cutoff
+    LOGICAL, INTENT(IN)                      :: do_zbl, scale_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nonbond_storage', &
@@ -465,17 +460,13 @@ CPSourceFileRef,&
       ntype, nunique, nvar, pot_target, stat, tmpij(2), tmpij0(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: Iwork1, Iwork2, my_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: tmp_index
-    LOGICAL                                  :: at_least_one, check, failure, &
-                                                my_do_zbl
+    LOGICAL                                  :: at_least_one, check, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Cwork, Rwork, wtmp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pot_par
 
     failure     = .FALSE.
     CALL timeset(routineN,handle)
-
-    my_do_zbl= .FALSE.
-    IF (PRESENT(do_zbl)) my_do_zbl = do_zbl
 
     ntype = SIZE(atomic_kind_set)
     DO i = 1, ntype
@@ -749,7 +740,7 @@ CPSourceFileRef,&
              nunique = nunique + 1
              iend    = j - 1
              CALL set_potparm_index(potparm, my_index(istart:iend), pot_target, &
-                  ntype, tmpij, atomic_kind_set, scale_cutoff, my_do_zbl, error)
+                  ntype, tmpij, atomic_kind_set, scale_cutoff, do_zbl, error)
              !
              DO i = istart, iend
                 locij = my_index(i)
@@ -764,7 +755,7 @@ CPSourceFileRef,&
           nunique = nunique + 1
           iend    = ndim
           CALL set_potparm_index(potparm, my_index(istart:iend), pot_target, &
-               ntype, tmpij, atomic_kind_set, scale_cutoff, my_do_zbl, error)
+               ntype, tmpij, atomic_kind_set, scale_cutoff, do_zbl, error)
           DO i = istart, iend
              locij = my_index(i)
              CALL get_indexes(locij,ntype,tmpij)
@@ -778,7 +769,7 @@ CPSourceFileRef,&
        ELSE
           nunique = nunique + 1
           CALL set_potparm_index(potparm, my_index, pot_target, ntype, tmpij,&
-               atomic_kind_set, scale_cutoff, my_do_zbl, error)
+               atomic_kind_set, scale_cutoff, do_zbl, error)
        END IF
        DEALLOCATE(my_index,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -794,7 +785,7 @@ CPSourceFileRef,&
           tmp_index(j,i) = nunique
           !
           CALL set_potparm_index(potparm, (/n/), multi_type, ntype, tmpij, &
-               atomic_kind_set, scale_cutoff, my_do_zbl, error)
+               atomic_kind_set, scale_cutoff, do_zbl, error)
        END DO
     END DO
     ! Concluding the postprocess..
@@ -811,14 +802,14 @@ CPSourceFileRef,&
 !> \author Teodoro Laino [tlaino] 2007.06
 ! *****************************************************************************
   SUBROUTINE set_potparm_index(potparm, my_index, pot_target, ntype, tmpij_out,&
-       atomic_kind_set, scale_cutoff, my_do_zbl, error)
+       atomic_kind_set, scale_cutoff, do_zbl, error)
 
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, INTENT(IN)                      :: my_index(:), pot_target, ntype
     INTEGER, INTENT(OUT)                     :: tmpij_out(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    LOGICAL, INTENT(IN)                      :: scale_cutoff, my_do_zbl
+    LOGICAL, INTENT(IN)                      :: scale_cutoff, do_zbl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_potparm_index', &
@@ -915,7 +906,7 @@ CPSourceFileRef,&
           pot%spl_f%rscale    = 1.0_dp
           pot%spl_f%fscale    = 1.0_dp
        END IF
-       IF (my_do_zbl) THEN
+       IF (do_zbl) THEN
           atomic_kind => atomic_kind_set(tmpij(1))
           CALL get_atomic_kind(atomic_kind, rcov=rcovi, z=zi)
           atomic_kind => atomic_kind_set(tmpij(2))

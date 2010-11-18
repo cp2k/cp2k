@@ -74,6 +74,7 @@ MODULE force_fields_all
   USE splines_types,                   ONLY: spline_data_p_release,&
                                              spline_data_p_retain,&
                                              spline_data_p_type,&
+                                             spline_env_release,&
                                              spline_environment_type
   USE string_utilities,                ONLY: compress,&
                                              integer_to_string,&
@@ -104,9 +105,9 @@ MODULE force_fields_all
             force_field_pack_radius,&
             force_field_pack_pol, &
             force_field_pack_shell,&
-            force_field_pack_sbe,&
-            force_field_pack_sne,&
-            force_field_pack_ppse,&
+            force_field_pack_nonbond14,&
+            force_field_pack_nonbond,&
+            force_field_pack_splines,&
             force_field_pack_eicut,&
             force_field_pack_damp
 
@@ -2438,10 +2439,10 @@ CPSourceFileRef,&
   END SUBROUTINE force_field_pack_shell
 
 ! *****************************************************************************
-!> \brief Set spline_bond_env, use for ONFO interaction
+!> \brief Assign input and potential info to potparm_nonbond14
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_sbe(atomic_kind_set, ff_type, qmmm_env, iw, &
-       Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_bond, ewald_env, &
+  SUBROUTINE force_field_pack_nonbond14(atomic_kind_set, ff_type, qmmm_env, iw, &
+       Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond14, ewald_env, &
        iw2, iw3, iw4, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2455,12 +2456,12 @@ CPSourceFileRef,&
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
     TYPE(amber_info_type), POINTER           :: amb_info
-    TYPE(pair_potential_pp_type), POINTER    :: potparm_bond
+    TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond14
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     INTEGER                                  :: iw2, iw3, iw4
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_sbe', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_nonbond14', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_a_local, &
@@ -2481,7 +2482,7 @@ CPSourceFileRef,&
     NULLIFY(pot)
     CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
     CALL timeset(routineN,handle2)
-    CALL pair_potential_pp_create (potparm_bond, SIZE(atomic_kind_set), error)
+    CALL pair_potential_pp_create (potparm_nonbond14, SIZE(atomic_kind_set), error)
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,name=name_atm_a_local)
@@ -2496,7 +2497,7 @@ CPSourceFileRef,&
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
-          pot => potparm_bond%pot(i,j)%pot
+          pot => potparm_nonbond14%pot(i,j)%pot
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
@@ -2645,8 +2646,8 @@ CPSourceFileRef,&
                            " and "//TRIM(name_atm_b)//" ADDING! "//&
 CPSourceFileRef,&
                            only_ionode=.TRUE.)
-                      potparm_bond%pot(i,j)%pot => pot
-                      potparm_bond%pot(j,i)%pot => pot
+                      potparm_nonbond14%pot(i,j)%pot => pot
+                      potparm_nonbond14%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,pot,error)
                       CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
@@ -2683,8 +2684,8 @@ CPSourceFileRef,&
                                  " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
 CPSourceFileRef,&
                                  only_ionode=.TRUE.)
-                            potparm_bond%pot(i,j)%pot => pot
-                            potparm_bond%pot(j,i)%pot => pot
+                            potparm_nonbond14%pot(i,j)%pot => pot
+                            potparm_nonbond14%pot(j,i)%pot => pot
                          ELSE
                             CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot,error)
                             CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
@@ -2726,12 +2727,12 @@ CPSourceFileRef,&
     END DO  ! atom kind i
     CALL timestop(handle2)
 
-  END SUBROUTINE force_field_pack_sbe
+  END SUBROUTINE force_field_pack_nonbond14
 
 ! *****************************************************************************
-!> \brief Pack in spline nonbond env the information needed for the force_field
+!> \brief Assign input and potential info to potparm_nonbond
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_sne(atomic_kind_set, ff_type, qmmm_env, fatal, &
+  SUBROUTINE force_field_pack_nonbond(atomic_kind_set, ff_type, qmmm_env, fatal, &
        iw, Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond, &
        ewald_env, error)
 
@@ -2751,7 +2752,7 @@ CPSourceFileRef,&
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_sne', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_nonbond', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_a_local, &
@@ -3053,58 +3054,59 @@ CPSourceFileRef,&
        END DO  ! jkind
     END DO   ! ikind
     CALL timestop(handle2)
-  END SUBROUTINE force_field_pack_sne
+  END SUBROUTINE force_field_pack_nonbond
 
 ! *****************************************************************************
 !> \brief create the pair potential spline environment
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_ppse(atomic_kind_set, ff_type, iw2, iw3, iw4, &
-       spline_nonbond_env, potparm_nonbond, do_zbl, error)
+  SUBROUTINE force_field_pack_splines(atomic_kind_set, ff_type, iw2, iw3, iw4, &
+       potparm, do_zbl, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     INTEGER                                  :: iw2, iw3, iw4
-    TYPE(spline_environment_type), POINTER   :: spline_nonbond_env
-    TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
     LOGICAL, INTENT(IN)                      :: do_zbl
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_ppse', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_splines', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle2, ikind, jkind, n
     LOGICAL                                  :: failure
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
+    TYPE(spline_environment_type), POINTER   :: spline_env
 
     CALL timeset(routineN,handle2)
     failure = .FALSE.
     ! Figure out which nonbonded interactions happen to be indentical, and
     ! prepare storage for these, avoiding duplicates.
-    CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, &
-         atomic_kind_set, do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, &
-         error=error)
+    NULLIFY(spline_env)
+    CALL get_nonbond_storage(spline_env, potparm, atomic_kind_set, &
+         do_zbl, scale_cutoff=ff_type%scale_cutoff, error=error)
     ! Effectively compute the spline data.
-    CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
+    CALL spline_nonbond_control(spline_env, potparm, &
          atomic_kind_set, eps_spline=ff_type%eps_spline, &
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
          do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, error=error)
     ! Let the pointers on potparm point to the splines generated in
     ! spline_nonbond_control.
-    DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
-       DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
-          n = spline_nonbond_env % spltab ( ikind, jkind )
-          spl_p => spline_nonbond_env%spl_pp(n)%spl_p
+    DO ikind = 1, SIZE ( potparm%pot, 1 )
+       DO jkind = ikind, SIZE ( potparm%pot, 2)
+          n = spline_env % spltab ( ikind, jkind )
+          spl_p => spline_env%spl_pp(n)%spl_p
           CALL spline_data_p_retain ( spl_p, error )
-          CALL spline_data_p_release ( potparm_nonbond%pot(ikind,jkind)%pot%pair_spline_data, error )
-          potparm_nonbond%pot(ikind,jkind)%pot%pair_spline_data => spl_p
+          CALL spline_data_p_release ( potparm%pot(ikind,jkind)%pot%pair_spline_data, error )
+          potparm%pot(ikind,jkind)%pot%pair_spline_data => spl_p
        END DO
     END DO
+    CALL spline_env_release(spline_env,error)
     CALL timestop(handle2)
 
-  END SUBROUTINE force_field_pack_ppse
+  END SUBROUTINE force_field_pack_splines
 
 ! *****************************************************************************
 !> \brief Compute the electrostatic interaction cutoffs
