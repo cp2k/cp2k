@@ -52,3 +52,8 @@ G87.inp
 G87_2.inp
 G96.inp
 G96_ei_scale.inp
+# New reference energy for ei14 interactions, cutoff taken at screened potential
+G87.inp
+G87_2.inp
+G96.inp
+G96_ei_scale.inp

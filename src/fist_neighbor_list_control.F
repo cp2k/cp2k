@@ -87,7 +87,7 @@ CONTAINS
                                                 ei_scale14, lup, vdw_scale14, &
                                                 verlet_skin
     REAL(KIND=dp), DIMENSION(3)              :: dr, rab, s, s2r
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cut, rlist_lowsq
     TYPE(cell_type), POINTER                 :: cell_last_update
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
@@ -105,7 +105,7 @@ CONTAINS
     ! *** Assigning local pointers ***
     CALL fist_nonbond_env_get(fist_nonbond_env,&
                               nonbonded=nonbonded,&
-                              rlist_cutsq=rlist_cutsq,&
+                              rlist_cut=rlist_cut,&
                               rlist_lowsq=rlist_lowsq,&
                               aup=aup,&
                               lup=lup, &
@@ -213,7 +213,7 @@ CONTAINS
           full_nl = .FALSE.
        END IF
        CALL build_fist_neighbor_lists(atomic_kind_set, particle_set, &
-            local_particles, cell, rlist_cutsq, rlist_lowsq, ei_scale14, &
+            local_particles, cell, rlist_cut, rlist_lowsq, ei_scale14, &
             vdw_scale14, nonbonded, para_env, &
             build_from_scratch=build_from_scratch, geo_check=geo_check, &
             mm_section=mm_section, full_nl=full_nl, error=error)
