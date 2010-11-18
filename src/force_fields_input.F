@@ -149,10 +149,10 @@ CPSourceFileRef,&
        IF (unique_spline) potential_single_allocation = do_potential_single_allocation
 
        CALL section_vals_val_get(ff_section,"MULTIPLE_POTENTIAL",l_val=ff_type%multiple_potential,error=error)
-       CALL section_vals_val_get(ff_section,"NONBONDED",l_val=ff_type%nonbonded,error=error)
+       CALL section_vals_val_get(ff_section,"DO_NONBONDED",l_val=ff_type%do_nonbonded,error=error)
        tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit.AND.ff_type%nonbonded) THEN
+       IF (explicit.AND.ff_type%do_nonbonded) THEN
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
           ntot = 0
@@ -241,10 +241,9 @@ CPSourceFileRef,&
           END IF
        END IF
 
-       CALL section_vals_val_get(ff_section,"NONBONDED14",l_val=ff_type%nonbonded14,error=error)
        tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit.AND.ff_type%nonbonded14) THEN
+       IF (explicit.AND.ff_type%do_nonbonded) THEN
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
           ntot = 0

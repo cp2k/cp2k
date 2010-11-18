@@ -13,8 +13,7 @@
         ATOM HT
         CHARGE 0.4238
       &END CHARGE
-      NONBONDED F
-      NONBONDED14 F
+      DO_NONBONDED F
     &END FORCEFIELD
     &POISSON
       &EWALD

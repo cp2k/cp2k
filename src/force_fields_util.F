@@ -260,11 +260,11 @@ CONTAINS
     CALL force_field_pack_shell ( particle_set, atomic_kind_set,&
          molecule_kind_set, molecule_set, root_section, subsys_section,&
          shell_particle_set, core_particle_set, cell, iw, inp_info, error)
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 17. Set up potparm_nonbond14
-    !-----------------------------------------------------------------------------
-    IF (ff_type%nonbonded14) THEN
+    IF (ff_type%do_nonbonded) THEN
+       !-----------------------------------------------------------------------------
+       !-----------------------------------------------------------------------------
+       ! 17. Set up potparm_nonbond14
+       !-----------------------------------------------------------------------------
        ! Move the data from the info structures to potparm_nonbond
        CALL force_field_pack_nonbond14(atomic_kind_set, ff_type, qmmm_env, iw, Ainfo,&
             chm_info, inp_info, gro_info, amb_info, potparm_nonbond14, ewald_env, &
@@ -275,12 +275,10 @@ CONTAINS
        CALL section_vals_val_get(mm_section,"FORCEFIELD%ZBL_SCATTERING",l_val=do_zbl,error=error)
        CALL force_field_pack_splines(atomic_kind_set, ff_type, iw2, iw3, iw4, &
             potparm_nonbond14, do_zbl, error)
-    END IF
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 18. Set up potparm_nonbond
-    !-----------------------------------------------------------------------------
-    IF (ff_type%nonbonded) THEN
+       !-----------------------------------------------------------------------------
+       !-----------------------------------------------------------------------------
+       ! 18. Set up potparm_nonbond
+       !-----------------------------------------------------------------------------
        ! Move the data from the info structures to potparm_nonbond
        CALL force_field_pack_nonbond(atomic_kind_set, ff_type, qmmm_env, &
             fatal, iw, Ainfo, chm_info, inp_info, gro_info, amb_info, &
@@ -300,8 +298,8 @@ CONTAINS
     CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
          r_val=verlet_skin,error=error)
     CALL fist_nonbond_env_create (fist_nonbond_env, atomic_kind_set, &
-         potparm_nonbond14, potparm_nonbond, ff_type%nonbonded14, &
-         ff_type%nonbonded, verlet_skin, ewald_rcut, ff_type%ei_scale14, &
+         potparm_nonbond14, potparm_nonbond, ff_type%do_nonbonded, &
+         verlet_skin, ewald_rcut, ff_type%ei_scale14, &
          ff_type%vdw_scale14, ff_type%scale_cutoff, error)
     ! Compute the electrostatic interaction cutoffs.
     CALL force_field_pack_eicut(atomic_kind_set, ff_type, potparm_nonbond, &

@@ -288,21 +288,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="NONBONDED",&
+       CALL keyword_create(keyword, name="DO_NONBONDED",&
             description="Controls the computation of all the real-sapce "//&
                         "(short-range) nonbonded interactions. This also "//&
                         "includes the real-space corrections for excluded "//&
                         "or scaled 1-2, 1-3 and 1-4 interactions. When set "//&
                         "to F, the neighborlists are not created and all "//&
                         "interactions that depend on them are not computed.",&
-            usage="NONBONDED T",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="NONBONDED14",&
-            description="Controls the computation of the nonbonded-14 interactions.",&
-            usage="NONBONDED14 T",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
+            usage="DO_NONBONDED T",default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -3,8 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      NONBONDED F
-      NONBONDED14 F
+      DO_NONBONDED F
       parm_file_name ../sample_pot/deca_ala.pot
       parmtype CHM
     &END FORCEFIELD

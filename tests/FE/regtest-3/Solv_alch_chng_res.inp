@@ -161,8 +161,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      NONBONDED F
-      NONBONDED14 F
+      DO_NONBONDED F
       PARM_FILE_NAME ser_s.pot
       parmtype CHM
       &SPLINE
@@ -192,8 +191,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      NONBONDED F
-      NONBONDED14 F
+      DO_NONBONDED F
       PARM_FILE_NAME ala_s.pot
       parmtype CHM
       &SPLINE

@@ -40,13 +40,11 @@ MODULE fist_nonbond_env_types
   TYPE fist_nonbond_env_type
     INTEGER :: ref_count, id_nr, natom_types
     INTEGER :: counter, last_update, num_update
-    ! TODO: remove nonbonded14 option. it is an error-prone option that does not
-    ! offer any additional functionality compared to exclude and scaling options.
     ! TODO: rename scale_cutoff into shift_cutoff. The term scaling gives the
     ! impression that the interaction is multiplied by a constant factor, while
     ! it actually refers to a constant shift to make the nonbonding interactions
     ! coninuous at the cutoff radius.
-    LOGICAL :: do_nonbonded14, do_nonbonded, scale_cutoff
+    LOGICAL :: do_nonbonded, scale_cutoff
     CHARACTER ( len = default_string_length )   :: unit_type
     REAL (KIND=dp)                              :: lup, aup, ei_scale14, &
                                                    vdw_scale14
@@ -205,14 +203,14 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, &
-       potparm14, potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, &
-       ei_scale14, vdw_scale14, scale_cutoff, error)
+       potparm14, potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
+       vdw_scale14, scale_cutoff, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm14, potparm
-    LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
+    LOGICAL, INTENT(IN)                      :: do_nonbonded
     REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut, &
                                                 ei_scale14, vdw_scale14
     LOGICAL, INTENT(IN)                      :: scale_cutoff
@@ -239,8 +237,8 @@ CONTAINS
     NULLIFY(fist_nonbond_env%rshell_last_update_pbc)
     NULLIFY(fist_nonbond_env%rcore_last_update_pbc)
     CALL init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, potparm14, &
-         potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
-         vdw_scale14, scale_cutoff, error)
+         potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, vdw_scale14, &
+         scale_cutoff, error)
   END SUBROUTINE fist_nonbond_env_create
 
 ! *****************************************************************************
@@ -250,15 +248,15 @@ CONTAINS
 !>        see module cp_error_handling 
 ! *****************************************************************************
   SUBROUTINE init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, &
-       potparm14, potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, &
-       ei_scale14, vdw_scale14, scale_cutoff, error)
+       potparm14, potparm, do_nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
+       vdw_scale14, scale_cutoff, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm14, potparm
-    LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
+    LOGICAL, INTENT(IN)                      :: do_nonbonded
     REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut, &
                                                 ei_scale14, vdw_scale14
     LOGICAL, INTENT(IN)                      :: scale_cutoff
@@ -286,8 +284,7 @@ CONTAINS
     NULLIFY (fist_nonbond_env%rlist_lowsq)
     NULLIFY (fist_nonbond_env%ij_kind_full_fac)
     fist_nonbond_env % unit_type = "ANGSTROM"
-    fist_nonbond_env % do_nonbonded14 = nonbonded14
-    fist_nonbond_env % do_nonbonded = nonbonded
+    fist_nonbond_env % do_nonbonded = do_nonbonded
     fist_nonbond_env % lup = 0
     fist_nonbond_env % aup = 0
     fist_nonbond_env % ei_scale14 = ei_scale14
@@ -300,7 +297,7 @@ CONTAINS
     fist_nonbond_env%ref_count=1
     fist_nonbond_env%id_nr=last_fist_nonbond_env_id_nr
     last_fist_nonbond_env_id_nr=last_fist_nonbond_env_id_nr+1
-    IF (nonbonded) THEN
+    IF (do_nonbonded) THEN
        natom_types = 1
        ! Determine size of kind arrays
        natom_types = SIZE(atomic_kind_set)

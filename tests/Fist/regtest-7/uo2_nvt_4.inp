@@ -3,8 +3,7 @@
   METHOD Fist
   &MM
     &FORCEFIELD
-      NONBONDED F
-      NONBONDED14 F
+      DO_NONBONDED F
       &CHARGE
         ATOM U
         CHARGE  0.0
