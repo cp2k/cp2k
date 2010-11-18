@@ -2052,7 +2052,7 @@ CONTAINS
 !$omp             private(ipl,xzcoord,jj,nx,ir,jx,jy,jz),&
 !$omp             shared(p2p,group,bo,nray,my_pos,yzp),&
 !$omp             shared(rcount,rdispl,tb,yzbuf,zcor),&
-!$omp             shared(yzbuf_sgl,alltoall_sgl)
+!$omp             shared(yzbuf_sgl,alltoall_sgl,np)
     DO ip = 0, np - 1
        IF (rcount(ip) == 0) CYCLE
        ipl = p2p(ip)
