@@ -108,7 +108,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
-    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(pair_potential_pp_type), POINTER    :: potparm14, potparm
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
@@ -125,7 +125,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     NULLIFY(pot, rshell_last_update_pbc, spl_f, ij_kind_full_fac)
     CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, &
-         potparm=potparm, r_last_update=r_last_update, &
+         potparm14=potparm14, potparm=potparm, r_last_update=r_last_update, &
          r_last_update_pbc=r_last_update_pbc,natom_types=nkinds, &
          rshell_last_update_pbc=rshell_last_update_pbc, &
          rcore_last_update_pbc=rcore_last_update_pbc, &
@@ -168,19 +168,44 @@ CONTAINS
              kind_b = particle_set(atom_b)%atomic_kind%kind_number
 
              fac_kind = ij_kind_full_fac(kind_a,kind_b)
+             ! take the proper potential
              pot => potparm%pot(kind_a,kind_b)%pot
-             full_nl = ANY(pot%type==tersoff_type)
+             IF (ipair <= neighbor_kind_pair%nscale) THEN
+                IF (neighbor_kind_pair%is_onfo(ipair)) THEN
+                   pot => potparm14%pot(kind_a,kind_b)%pot
+                END IF
+             END IF
+             full_nl  = ANY(pot%type==tersoff_type)
+             ! In case we have only manybody potentials, this pair of atom types
+             ! can be ignored here.
              IF (pot%only_mb) CYCLE
+             ! Setup spline_data set
              spl_f => pot%spl_f
              spline_data => pot%pair_spline_data
              shell_type = pot%shell_type
-             IF (shell_type /= nosh_nosh) THEN
+             IF(shell_type/=nosh_nosh) THEN
                 CPPrecondition(.NOT.do_multipoles,cp_failure_level,routineP,error,failure)
                 CPPostcondition(shell_present,cp_failure_level,routineP,error,failure)
              END IF
              rab2_max = pot%rcutsq
 
-             IF (.NOT.do_multipoles) THEN
+             ! Determine the scaling factors
+             fac_ei = fac_kind
+             fac_vdw = fac_kind
+             IF ((.NOT.full_nl).AND.(atom_a==atom_b)) THEN
+                fac_ei = fac_ei*0.5_dp
+                fac_vdw = fac_vdw*0.5_dp
+             END IF
+             ! decide which interactions to compute
+             IF (do_multipoles) THEN
+                fac_ei = 0.0_dp
+             END IF
+             IF (ipair <= neighbor_kind_pair%nscale) THEN
+                fac_ei = fac_ei*neighbor_kind_pair%ei_scale(ipair)
+                fac_vdw = fac_vdw*neighbor_kind_pair%vdw_scale(ipair)
+             END IF
+
+             IF (fac_ei > 0) THEN
                 ! Get electrostatic parameters for atom a
                 atomic_kind => atomic_kind_set(kind_a)
                 CALL get_atomic_kind(atomic_kind,&
@@ -213,21 +238,6 @@ CONTAINS
                 END IF
                 ! combine parameters
                 mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
-             END IF
-
-             fac_ei = fac_kind
-             fac_vdw = fac_kind
-             IF ((.NOT.full_nl).AND.(atom_a==atom_b)) THEN
-                fac_ei = fac_ei*0.5_dp
-                fac_vdw = fac_vdw*0.5_dp
-             END IF
-             ! decide which interactions to compute
-             IF (do_multipoles) THEN
-                fac_ei = 0.0_dp
-             END IF
-             IF (ipair <= neighbor_kind_pair%nscale) THEN
-                fac_ei = fac_ei*neighbor_kind_pair%ei_scale(ipair)
-                fac_vdw = fac_vdw*neighbor_kind_pair%vdw_scale(ipair)
              END IF
 
              ! compute the relative vector(s) for this pair
@@ -597,7 +607,6 @@ CONTAINS
                 qcore_b = qeff_b
                 qshell_b = HUGE(0.0_dp)
              END IF
-
 
              ! Pair parameters. The ammount of correction is related to the
              ! ammount of scaling as follows:

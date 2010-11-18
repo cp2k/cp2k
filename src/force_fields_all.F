@@ -2925,7 +2925,8 @@ CPSourceFileRef,&
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             onfo_list=onfo_list)
     END DO
-    CALL pair_potential_pp_release ( potparm_bond, error )
+    ! XXX: temporary hack. this entire routine is slated for removal.
+    ! CALL pair_potential_pp_release ( potparm_bond, error )
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_onfo

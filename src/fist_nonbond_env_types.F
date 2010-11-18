@@ -40,6 +40,8 @@ MODULE fist_nonbond_env_types
   TYPE fist_nonbond_env_type
     INTEGER :: ref_count, id_nr, natom_types
     INTEGER :: counter, last_update, num_update
+    ! TODO: remove nonbonded14 option. it is an error-prone option that does not
+    ! offer any additional functionality compared to exclude and scaling options.
     LOGICAL :: do_nonbonded14, do_nonbonded, scale_cutoff
     CHARACTER ( len = default_string_length )   :: unit_type
     REAL (KIND=dp)                              :: lup, aup, ei_scale14, &
@@ -47,7 +49,7 @@ MODULE fist_nonbond_env_types
     REAL (KIND=dp)                              :: long_range_correction
     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cutsq, rlist_lowsq, ij_kind_full_fac
     TYPE(fist_neighbor_type), POINTER           :: nonbonded
-    TYPE(pair_potential_pp_type), POINTER       :: potparm
+    TYPE(pair_potential_pp_type), POINTER       :: potparm14, potparm
     TYPE(cell_type), POINTER                    :: cell_last_update
     TYPE(pos_type), DIMENSION(:), POINTER       :: r_last_update, r_last_update_pbc
     TYPE(pos_type), DIMENSION(:), POINTER       :: rshell_last_update_pbc
@@ -65,15 +67,15 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_nonbond_env_get(fist_nonbond_env, potparm, nonbonded,&
-       rlist_cutsq, rlist_lowsq, aup, lup, ei_scale14, vdw_scale14, &
+  SUBROUTINE fist_nonbond_env_get(fist_nonbond_env, potparm14, potparm, &
+       nonbonded, rlist_cutsq, rlist_lowsq, aup, lup, ei_scale14, vdw_scale14, &
        scale_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
        rcore_last_update_pbc, cell_last_update, num_update, last_update, &
        counter, natom_types, long_range_correction, ij_kind_full_fac, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
-      POINTER                                :: potparm
+      POINTER                                :: potparm14, potparm
     TYPE(fist_neighbor_type), OPTIONAL, &
       POINTER                                :: nonbonded
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -94,6 +96,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: ij_kind_full_fac
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    IF ( PRESENT ( potparm14 ) ) potparm14 => fist_nonbond_env % potparm14
     IF ( PRESENT ( potparm ) ) potparm => fist_nonbond_env % potparm
     IF ( PRESENT ( rlist_cutsq ) ) rlist_cutsq => fist_nonbond_env % rlist_cutsq
     IF ( PRESENT ( rlist_lowsq ) ) rlist_lowsq => fist_nonbond_env % rlist_lowsq
@@ -132,15 +135,15 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE fist_nonbond_env_set(fist_nonbond_env,  potparm, rlist_cutsq, &
-       rlist_lowsq, nonbonded, aup, lup, ei_scale14, vdw_scale14, &
+  SUBROUTINE fist_nonbond_env_set(fist_nonbond_env, potparm14, potparm, &
+       rlist_cutsq, rlist_lowsq, nonbonded, aup, lup, ei_scale14, vdw_scale14, &
        scale_cutoff, r_last_update, r_last_update_pbc, rshell_last_update_pbc, &
        rcore_last_update_pbc, cell_last_update, num_update, last_update, &
        counter, natom_types, long_range_correction, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
-      POINTER                                :: potparm
+      POINTER                                :: potparm14, potparm
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
     TYPE(fist_neighbor_type), OPTIONAL, &
@@ -159,9 +162,8 @@ CONTAINS
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    IF ( PRESENT ( potparm ) ) THEN
-       fist_nonbond_env % potparm => potparm
-    ENDIF
+    IF ( PRESENT ( potparm14 ) ) fist_nonbond_env % potparm14 => potparm14
+    IF ( PRESENT ( potparm ) ) fist_nonbond_env % potparm => potparm
     IF ( PRESENT ( rlist_cutsq ) ) fist_nonbond_env % rlist_cutsq => rlist_cutsq
     IF ( PRESENT ( rlist_lowsq ) ) fist_nonbond_env % rlist_lowsq => rlist_lowsq
     IF ( PRESENT ( nonbonded ) ) fist_nonbond_env % nonbonded => nonbonded
@@ -199,13 +201,13 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, atomic_kind_set, &
-       potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
-       vdw_scale14, scale_cutoff, error)
+       potparm14, potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, &
+       ei_scale14, vdw_scale14, scale_cutoff, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(pair_potential_pp_type), OPTIONAL, &
-      POINTER                                :: potparm
+      POINTER                                :: potparm14, potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
     REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut, &
                                                 ei_scale14, vdw_scale14
@@ -221,6 +223,7 @@ CONTAINS
     failure=.FALSE.
     ALLOCATE(fist_nonbond_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(fist_nonbond_env%potparm14)
     NULLIFY(fist_nonbond_env%potparm)
     NULLIFY(fist_nonbond_env%rlist_cutsq)
     NULLIFY(fist_nonbond_env%rlist_lowsq)
@@ -231,8 +234,8 @@ CONTAINS
     NULLIFY(fist_nonbond_env%r_last_update_pbc)
     NULLIFY(fist_nonbond_env%rshell_last_update_pbc)
     NULLIFY(fist_nonbond_env%rcore_last_update_pbc)
-    CALL init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, potparm, &
-         nonbonded14, nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
+    CALL init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, potparm14, &
+         potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
          vdw_scale14, scale_cutoff, error)
   END SUBROUTINE fist_nonbond_env_create
 
@@ -243,14 +246,14 @@ CONTAINS
 !>        see module cp_error_handling 
 ! *****************************************************************************
   SUBROUTINE init_fist_nonbond_env(fist_nonbond_env, atomic_kind_set, &
-       potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, ei_scale14, &
-       vdw_scale14, scale_cutoff, error)
+       potparm14, potparm, nonbonded14, nonbonded, verlet_skin, ewald_rcut, &
+       ei_scale14, vdw_scale14, scale_cutoff, error)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(pair_potential_pp_type), OPTIONAL, &
-      POINTER                                :: potparm
+      POINTER                                :: potparm14, potparm
     LOGICAL, INTENT(IN)                      :: nonbonded14, nonbonded
     REAL(KIND=dp), INTENT(IN)                :: verlet_skin, ewald_rcut, &
                                                 ei_scale14, vdw_scale14
@@ -261,10 +264,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim, jdim, natom_types, stat
-    LOGICAL                                  :: check, failure, use_potparm
-    REAL(KIND=dp)                            :: fac, rcut, tmp
+    LOGICAL                                  :: check, failure, use_potparm14, &
+                                                use_potparm
+    REAL(KIND=dp)                            :: fac, rcut, rlow
 
+    use_potparm14 = PRESENT(potparm14)
+    IF (use_potparm14) use_potparm14 = use_potparm14.OR.ASSOCIATED(potparm14)
     use_potparm = PRESENT(potparm)
+    IF (use_potparm) use_potparm = use_potparm.OR.ASSOCIATED(potparm)
     NULLIFY (fist_nonbond_env%nonbonded)
     NULLIFY (fist_nonbond_env%r_last_update)
     NULLIFY (fist_nonbond_env%r_last_update_pbc)
@@ -293,6 +300,10 @@ CONTAINS
        natom_types = 1
        ! Determine size of kind arrays
        natom_types = SIZE(atomic_kind_set)
+       IF (use_potparm14) THEN
+          check = (SIZE(potparm14%pot,1)==natom_types)
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       END IF
        IF (use_potparm) THEN
           check = (SIZE(potparm%pot,1)==natom_types)
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
@@ -306,16 +317,22 @@ CONTAINS
        fist_nonbond_env%ij_kind_full_fac = 1.0_dp
        DO idim = 1, natom_types
           DO jdim = idim, natom_types
-             IF (use_potparm) THEN
-                fac = potparm%pot(idim,jdim)%pot%spl_f%rscale(1)
-                rcut = SQRT(potparm%pot(idim,jdim)%pot%rcutsq)
+             IF ((use_potparm) .OR. (use_potparm14)) THEN
+                IF (use_potparm) THEN
+                    rcut = SQRT(potparm%pot(idim,jdim)%pot%rcutsq)
+                    fac = potparm%pot(idim,jdim)%pot%spl_f%rscale(1)
+                    rlow = fac / (potparm%pot(idim,jdim)%pot%pair_spline_data(1)%spline_data%xn)
+                ELSE
+                    rcut = SQRT(potparm14%pot(idim,jdim)%pot%rcutsq)
+                    fac = potparm14%pot(idim,jdim)%pot%spl_f%rscale(1)
+                    rlow = fac / (potparm14%pot(idim,jdim)%pot%pair_spline_data(1)%spline_data%xn)
+                END IF
                 rcut = MAX(rcut, ewald_rcut) + verlet_skin
-                fist_nonbond_env % rlist_cutsq(idim,jdim) = rcut
-                fist_nonbond_env % rlist_cutsq(jdim,idim) = rcut
-                rcut = fac / (potparm%pot(idim,jdim)%pot%pair_spline_data(1)%spline_data%xn)
-                tmp  = rcut*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline
-                fist_nonbond_env%rlist_lowsq(idim,jdim) = tmp
-                fist_nonbond_env%rlist_lowsq(jdim,idim) = tmp
+                fist_nonbond_env%rlist_cutsq(idim,jdim) = rcut
+                fist_nonbond_env%rlist_cutsq(jdim,idim) = rcut
+                rlow  = rlow*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline
+                fist_nonbond_env%rlist_lowsq(idim,jdim) = rlow
+                fist_nonbond_env%rlist_lowsq(jdim,idim) = rlow
                 ! In case of manybody potential the neighbor list will be full.
                 ! This means that for each atom pair (a,b) of the current types,
                 ! atom a is in the neighbor list of b and b is in the neighbor
@@ -323,23 +340,28 @@ CONTAINS
                 ! counting in the conventional pair potentials cause by this
                 ! situation.
                 IF (ANY(potparm%pot(idim,jdim)%pot%type==tersoff_type)) THEN
+                   ! TODO: what if 14 is not of tersoff type while the normal
+                   ! nonbond is? (or the reverse). We'd better impose
+                   ! consistency.
                    fist_nonbond_env%ij_kind_full_fac(idim,jdim) = 0.5_dp
                    fist_nonbond_env%ij_kind_full_fac(idim,jdim) = 0.5_dp
                 END IF
              ELSE
-                ! In case we don't use potparm for initialization let's account only
-                ! for the real part of Ewald
-                fist_nonbond_env % rlist_cutsq(idim,jdim) = ewald_rcut
-                fist_nonbond_env % rlist_cutsq(jdim,idim) = ewald_rcut
+                ! In case we don't use potparm for initialization let's account
+                ! only for the real-space part of the Ewald sum.
+                fist_nonbond_env%rlist_cutsq(idim,jdim) = ewald_rcut
+                fist_nonbond_env%rlist_cutsq(jdim,idim) = ewald_rcut
                 fist_nonbond_env%rlist_lowsq(idim,jdim) = 0.0_dp
                 fist_nonbond_env%rlist_lowsq(jdim,idim) = 0.0_dp
              END IF
           END DO
        END DO
+       IF (use_potparm14) fist_nonbond_env%potparm14 => potparm14
        IF (use_potparm) fist_nonbond_env%potparm => potparm
        fist_nonbond_env%natom_types = natom_types
     ELSE
        NULLIFY(fist_nonbond_env%potparm)
+       NULLIFY(fist_nonbond_env%potparm14)
     END IF
   END SUBROUTINE init_fist_nonbond_env
 
@@ -398,6 +420,8 @@ CONTAINS
           END IF
           ! Release potparm
           CALL pair_potential_pp_release ( fist_nonbond_env % potparm, error )
+          ! Release potparm14
+          CALL pair_potential_pp_release ( fist_nonbond_env % potparm14, error )
           IF (ASSOCIATED(fist_nonbond_env % r_last_update)) THEN
              DEALLOCATE (fist_nonbond_env % r_last_update,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

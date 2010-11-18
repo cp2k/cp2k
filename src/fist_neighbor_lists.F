@@ -677,8 +677,9 @@ CONTAINS
              atom_a = neighbor_kind_pair%list(1,ilist)
              atom_b = neighbor_kind_pair%list(2,ilist)
              IF (print_headline) THEN
-                WRITE (UNIT=output_unit,FMT="(/,T3,2(A6,3(5X,A,5X)),1X,A11,10X,A8)")&
-                     "Atom-A","X","Y","Z","Atom-B","X","Y","Z","Cell(i,j,k)","Distance"
+                WRITE (UNIT=output_unit,FMT="(T3,2(A6,3(5X,A,5X)),1X,A11,10X,A8,A5,A10,A9)")&
+                     "Atom-A","X","Y","Z","Atom-B","X","Y","Z","Cell(i,j,k)",&
+                     "Distance","ONFO","VDW-scale","EI-scale"
                 print_headline = .FALSE.
              END IF
              
@@ -686,11 +687,22 @@ CONTAINS
              rb(:) = pbc(particle_set(atom_b)%r,cell)
              rab   = rb(:)-ra(:)+cell_v
              dab   = SQRT(DOT_PRODUCT(rab,rab))
-             WRITE (UNIT=output_unit,FMT="(/,T3,2(I6,3(1X,F10.6)),3(1X,I3),10X,F8.4)")&
-                  atom_a,ra(1:3)*conv,&
-                  atom_b,rb(1:3)*conv,&
-                  neighbor_kind_pair%cell_vector,&
-                  dab*conv
+             IF (ilist <= neighbor_kind_pair%nscale) THEN
+                WRITE (UNIT=output_unit,FMT="(T3,2(I6,3(1X,F10.6)),3(1X,I3),10X,F8.4,L4,F11.5,F9.5)")&
+                     atom_a,ra(1:3)*conv,&
+                     atom_b,rb(1:3)*conv,&
+                     neighbor_kind_pair%cell_vector,&
+                     dab*conv,&
+                     neighbor_kind_pair%is_onfo(ilist),&
+                     neighbor_kind_pair%vdw_scale(ilist),&
+                     neighbor_kind_pair%ei_scale(ilist)
+             ELSE
+                WRITE (UNIT=output_unit,FMT="(T3,2(I6,3(1X,F10.6)),3(1X,I3),10X,F8.4)")&
+                     atom_a,ra(1:3)*conv,&
+                     atom_b,rb(1:3)*conv,&
+                     neighbor_kind_pair%cell_vector,&
+                     dab*conv
+             END IF
           END IF
        END DO ! ilist      
     END DO ! iab

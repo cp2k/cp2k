@@ -315,9 +315,9 @@ CONTAINS
     CALL section_vals_val_get(mm_section,"NEIGHBOR_LISTS%VERLET_SKIN",&
             r_val=verlet_skin,error=error)
     CALL fist_nonbond_env_create (fist_nonbond_env, atomic_kind_set, &
-         potparm_nonbond, ff_type%nonbonded14, ff_type%nonbonded, verlet_skin, &
-         ewald_rcut, ff_type%ei_scale14, ff_type%vdw_scale14, &
-         ff_type%scale_cutoff, error)
+         potparm_bond, potparm_nonbond, ff_type%nonbonded14, &
+         ff_type%nonbonded, verlet_skin, ewald_rcut, ff_type%ei_scale14, &
+         ff_type%vdw_scale14, ff_type%scale_cutoff, error)
     !-----------------------------------------------------------------------------
     ! 20. Compute the electrostatic interaction cutoffs
     !-----------------------------------------------------------------------------
