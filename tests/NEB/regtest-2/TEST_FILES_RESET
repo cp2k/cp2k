@@ -93,3 +93,5 @@
 2gly_DIIS-SD-NEB.inp
 # 
 2gly_DIIS-SM.inp
+#numerics
+2gly_DIIS-DNEB.inp
