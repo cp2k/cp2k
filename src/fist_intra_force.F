@@ -11,13 +11,11 @@
 ! *****************************************************************************
 MODULE fist_intra_force
 
-  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ff_harmonic
+  USE input_constants,                 ONLY: do_ff_harmonic
   USE kinds,                           ONLY: dp
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
@@ -33,11 +31,7 @@ MODULE fist_intra_force
        ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE pair_potential_coulomb,          ONLY: potential_coulomb
   USE particle_types,                  ONLY: particle_type
-  USE splines_methods,                 ONLY: potential_s
-  USE splines_types,                   ONLY: spline_data_p_type,&
-                                             spline_factor_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -91,12 +85,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
-      index_a, index_b, index_c, index_d, ionef, iopbend, ishell, itorsion, &
-      nbends, nbonds, nimptors, nkind, nmol_per_kind, nonefs, nopbends, &
-      nshell, ntorsions, nub
-    REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
-      id32, is32, ism, isn, mm_radius, mm_radius_a, mm_radius_b, qeff_a, &
-      qeff_b, rab2, rab2_max, s32, sm, sn, theta
+      index_a, index_b, index_c, index_d, iopbend, ishell, itorsion, nbends, &
+      nbonds, nimptors, nkind, nmol_per_kind, nonefs, nopbends, nshell, &
+      ntorsions, nub
+    REAL(KIND=dp)                            :: d12, d32, dist, dist1, dist2, &
+                                                energy, fscalar, id12, id32, &
+                                                is32, ism, isn, s32, sm, sn, &
+                                                theta
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, k1, k2, k3, &
                                                 k4, rij, t12, t32, t34, t41, &
@@ -110,9 +105,6 @@ CONTAINS
     TYPE(onfo_type), POINTER                 :: onef_list( : )
     TYPE(opbend_type), POINTER               :: opbend_list( : )
     TYPE(shell_type), POINTER                :: shell_list( : )
-    TYPE(spline_data_p_type), DIMENSION(:), &
-      POINTER                                :: spl_p
-    TYPE(spline_factor_type), POINTER        :: spl_f
     TYPE(torsion_type), POINTER              :: torsion_list( : )
     TYPE(ub_type), POINTER                   :: ub_list( : )
 
@@ -485,57 +477,6 @@ CONTAINS
                 f_opbend(:,index_d) = f_opbend(:,index_d) + fscalar*gt4
              END IF
           END DO OPBEND
-
-          ONEF: DO ionef = 1, nonefs
-             index_a = onef_list ( ionef ) % a + first_atom - 1
-             index_b = onef_list ( ionef ) % b + first_atom - 1
-             rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
-             rij = pbc(rij,cell)
-             rab2 = DOT_PRODUCT ( rij, rij )
-             spl_p => onef_list ( ionef ) % onfo_kind % spl_p
-             spl_f => onef_list ( ionef ) % onfo_kind % spl_f
-             IF (.NOT.ASSOCIATED(spl_p)) CYCLE
-             rab2_max = 1.0_dp/spl_f%rscale(1)/spl_p(1)%spline_data%x1
-             fscalar = 0.0_dp
-             IF ((vdw_scale14 > 0).AND.(rab2 <= rab2_max)) THEN
-                ! VDW contribution
-                energy = potential_s(spl_p, rab2, fscalar, spl_f, logger)
-                pot_onef = pot_onef + vdw_scale14*energy
-                fscalar = fscalar*vdw_scale14
-             END IF
-
-             ! EI contribution
-             IF ((ei_scale14 > 0).AND.(rab2 <= rab2_max)) THEN
-                CALL get_atomic_kind(particle_set(index_a)%atomic_kind, qeff=qeff_a, mm_radius=mm_radius_a)
-                CALL get_atomic_kind(particle_set(index_b)%atomic_kind, qeff=qeff_b, mm_radius=mm_radius_b)
-                mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
-                energy = potential_coulomb(rab2, fscalar, qeff_a*qeff_b*ei_scale14,&
-                            do_ewald_none, 0.0_dp, mm_radius, 0.0_dp)
-                IF (scale_cutoff) THEN
-                   energy = energy - potential_coulomb(rab2_max, mm_radius_a,&
-                            qeff_a*qeff_b*ei_scale14, do_ewald_none, 0.0_dp, mm_radius, 0.0_dp)
-                END IF
-                pot_onef = pot_onef + energy
-             END IF
-
-             ! add forces
-             particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) -rij(1) * fscalar
-             particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) -rij(2) * fscalar
-             particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) -rij(3) * fscalar
-             particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1) +rij(1) * fscalar
-             particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2) +rij(2) * fscalar
-             particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3) +rij(3) * fscalar
-
-             ! computing the pressure tensor
-             k2 = rij * fscalar
-             IF (use_virial) CALL get_pv_bond ( k2,rij,pv_onef )
-
-             ! the contribution from the bonds. ONLY FOR DEBUG
-             IF ( PRESENT ( f_onef ) ) THEN
-                f_onef(:,index_a) = f_onef(:,index_a) - rij*fscalar
-                f_onef(:,index_b) = f_onef(:,index_b) + rij*fscalar
-             END IF
-          END DO ONEF
        END DO
     END DO MOL
 

@@ -194,3 +194,8 @@ zwitt.inp
 zwitt.inp
 # Numerics introduced by major QS refactoring 
 zwitt.inp
+# 
+mol_CSVR_gen1.inp
+mol_CSVR_gen2.inp
+mol_CSVR_gen3.inp
+mol.inp

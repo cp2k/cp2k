@@ -83,7 +83,8 @@ CONTAINS
     LOGICAL :: build_from_scratch, failure, geo_check, shell_adiabatic, &
       shell_present, update_neighbor_lists
     LOGICAL, DIMENSION(:, :), POINTER        :: full_nl
-    REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
+    REAL(KIND=dp)                            :: aup, dr2, dr2_max, &
+                                                ei_scale14, lup, vdw_scale14, &
                                                 verlet_skin
     REAL(KIND=dp), DIMENSION(3)              :: dr, rab, s, s2r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
@@ -108,6 +109,8 @@ CONTAINS
                               rlist_lowsq=rlist_lowsq,&
                               aup=aup,&
                               lup=lup, &
+                              ei_scale14=ei_scale14, &
+                              vdw_scale14=vdw_scale14, &
                               counter=counter,&
                               r_last_update=r_last_update,&
                               r_last_update_pbc=r_last_update_pbc,&
@@ -209,14 +212,11 @@ CONTAINS
        ELSE
           full_nl = .FALSE.
        END IF
-       CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-                                      local_particles,cell,rlist_cutsq,rlist_lowsq,&
-                                      nonbonded,para_env,&
-                                      build_from_scratch=build_from_scratch,&
-                                      geo_check=geo_check,&
-                                      mm_section=mm_section,&
-                                      full_nl=full_nl,&
-                                      error=error)
+       CALL build_fist_neighbor_lists(atomic_kind_set, particle_set, &
+            local_particles, cell, rlist_cutsq, rlist_lowsq, ei_scale14, &
+            vdw_scale14, nonbonded, para_env, &
+            build_from_scratch=build_from_scratch, geo_check=geo_check, &
+            mm_section=mm_section, full_nl=full_nl, error=error)
        
        CALL cell_release(cell_last_update,error=error)
        CALL cell_create(cell_last_update,error=error)

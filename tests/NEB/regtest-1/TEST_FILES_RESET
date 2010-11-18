@@ -67,3 +67,7 @@
 # numerics after patch 0006
 2gly_B-NEB.inp
 2gly_CI-NEB.inp
+# Numerical changes due to new implementation of 14 nonboned terms
+2gly_B-NEB.inp
+# 
+2gly_CI-NEB.inp

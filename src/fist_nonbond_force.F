@@ -27,6 +27,7 @@ MODULE fist_nonbond_force
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type,&
                                              pos_type
+  USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: oorootpi
   USE mathlib,                         ONLY: matvec_3x3
@@ -108,7 +109,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
-    TYPE(pair_potential_pp_type), POINTER    :: potparm14, potparm
+    TYPE(pair_potential_pp_type), POINTER    :: potparm, potparm14
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
@@ -511,7 +512,7 @@ CONTAINS
   SUBROUTINE bonded_correct_gaussian(fist_nonbond_env, atomic_kind_set, &
              local_particles, particle_set, ewald_env, v_bonded_corr, pv_bc, &
              shell_particle_set, core_particle_set, cell, use_virial, error)
-
+ 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -529,20 +530,23 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, iatom, iend, igrp, ilist, ipair, &
-      istart, kind_a, kind_b, natoms_per_kind, nkind, npairs, shell_a, shell_b
+    INTEGER :: atom_a, atom_b, ewald_type, handle, iatom, iend, igrp, ilist, &
+      ipair, istart, kind_a, kind_b, natoms_per_kind, nkind, npairs, shell_a, &
+      shell_b
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: a_is_shell, b_is_shell, &
                                                 do_multipoles, do_shell, &
-                                                shell_adiabatic
+                                                scale_cutoff, shell_adiabatic
     REAL(KIND=dp)                            :: alpha, const, fac_cor, &
                                                 qcore_a, qcore_b, qeff_a, &
-                                                qeff_b, qshell_a, qshell_b
+                                                qeff_b, qshell_a, qshell_b, &
+                                                rcut2, rcut2_ewald
     REAL(KIND=dp), DIMENSION(3)              :: rca, rcb, rsa, rsb
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
+    TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
     TYPE(shell_kind_type), POINTER           :: shell_kind
 
     CALL timeset(routineN,handle)
@@ -554,9 +558,10 @@ CONTAINS
     v_bonded_corr = 0.0_dp
 
     CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, &
-         error=error)
+         scale_cutoff=scale_cutoff, potparm=potparm_nonbond, error=error)
     CALL ewald_env_get(ewald_env, alpha=alpha, do_multipoles=do_multipoles, &
-         error=error)
+         ewald_type=ewald_type, rcut=rcut2_ewald, error=error)
+    rcut2_ewald = rcut2_ewald*rcut2_ewald
     ! Defining the constants
     const = 2.0_dp*alpha*oorootpi
 
@@ -584,6 +589,7 @@ CONTAINS
              kind_a = particle_set(atom_a)%atomic_kind%kind_number
              kind_b = particle_set(atom_b)%atomic_kind%kind_number
 
+             ! TODO: merge the conditionals.
              ! electrostatic parameters for kind a
              atomic_kind => atomic_kind_set(kind_a)
              CALL get_atomic_kind(atomic_kind, qeff=qeff_a, shell=shell_kind)
@@ -608,10 +614,6 @@ CONTAINS
                 qshell_b = HUGE(0.0_dp)
              END IF
 
-             ! Pair parameters. The ammount of correction is related to the
-             ! ammount of scaling as follows:
-             fac_cor = 1.0_dp - neighbor_kind_pair%ei_scale(ipair)
-             IF (fac_cor <= 0.0_dp) CYCLE
              do_shell = (a_is_shell .OR. b_is_shell)
 
              ! Data for atom a
@@ -635,6 +637,35 @@ CONTAINS
                 rcb = particle_set(atom_b)%r
                 rsb = 0.0_dp
              END IF
+
+             ! Part zero: this is just a temporary attempt to mimic the original
+             ! behavior ei14 implementation. TODO: remove this if block.
+             IF ((.NOT.do_shell).AND.neighbor_kind_pair%is_onfo(ipair).AND.scale_cutoff) THEN
+                rcut2=rcut2_ewald
+                IF (ASSOCIATED(potparm_nonbond)) THEN
+                   rcut2 = MAX(potparm_nonbond%pot(kind_a,kind_b)%pot%rcutsq, rcut2_ewald)
+                END IF
+                ! undo the scale_cutoff for to the screened electrostatics
+                v_bonded_corr = v_bonded_corr + potential_coulomb(rcut2, &
+                    fac_cor, neighbor_kind_pair%ei_scale(ipair)*qeff_a*qeff_b, &
+                    ewald_type, alpha, 0.0_dp, 0.0_dp)
+                ! do the scale_cutoff for to the unscreened electrostatics
+                v_bonded_corr = v_bonded_corr - potential_coulomb(rcut2, &
+                    fac_cor, neighbor_kind_pair%ei_scale(ipair)*qeff_a*qeff_b, &
+                    do_ewald_none, alpha, 0.0_dp, 0.0_dp)
+                ! check
+                !print *, "BOO", potential_coulomb(rcut2, &
+                !    fac_cor, 1.0_dp, ewald_type, alpha, 0.0_dp, 0.0_dp), &
+                !    ei_interaction_cutoffs(3, kind_a, kind_b)
+             END IF
+
+
+             ! TODO: Move this to the beginning of the loop.
+             ! The amount of correction is related to the
+             ! amount of scaling as follows:
+             fac_cor = 1.0_dp - neighbor_kind_pair%ei_scale(ipair)
+             IF (fac_cor <= 0.0_dp) CYCLE
+
 
              ! First part: take care of core/ion-core/ion correction
              IF (a_is_shell .AND. b_is_shell) THEN

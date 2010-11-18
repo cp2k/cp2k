@@ -81,9 +81,10 @@ CONTAINS
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,local_particles,&
-       cell,r_max, r_minsq, nonbonded,para_env,build_from_scratch,geo_check,mm_section,&
-       full_nl,error)
+  SUBROUTINE build_fist_neighbor_lists(atomic_kind_set, particle_set, &
+        local_particles, cell, r_max, r_minsq, ei_scale14, vdw_scale14, &
+        nonbonded, para_env, build_from_scratch, geo_check, mm_section, &
+        full_nl, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -93,6 +94,7 @@ CONTAINS
       POINTER                                :: local_particles
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
+    REAL(KIND=DP), INTENT(IN)                :: ei_scale14, vdw_scale14
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: build_from_scratch, geo_check
@@ -185,9 +187,10 @@ CONTAINS
     END IF
 
     ! Build the nonbonded neighbor lists
-    CALL build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
-         print_subcell_grid,output_unit,r_max,r_minsq, geo_check,"NONBONDED",&
-         skip_kind,my_full_nl,error)
+    CALL build_neighbor_lists(nonbonded, particle_set, atom, cell, &
+         maxatom_local, print_subcell_grid, output_unit, r_max, r_minsq, &
+         ei_scale14, vdw_scale14, geo_check,"NONBONDED", skip_kind, &
+         my_full_nl, error)
 
     ! Sort the list according kinds for each cell
     CALL sort_neighbor_lists(nonbonded, nkind, error)
@@ -252,9 +255,9 @@ CONTAINS
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
-       print_subcell_grid,output_unit,r_max,r_minsq,geo_check,name,skip_kind,&
-       full_nl,error)
+  SUBROUTINE build_neighbor_lists(nonbonded, particle_set, atom,cell, &
+        maxatom_local, print_subcell_grid, output_unit, r_max, r_minsq, &
+        ei_scale14, vdw_scale14, geo_check, name, skip_kind, full_nl, error)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
@@ -266,6 +269,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: print_subcell_grid
     INTEGER, INTENT(IN)                      :: output_unit
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
+    REAL(KIND=dp), INTENT(IN)                :: ei_scale14, vdw_scale14
     LOGICAL, INTENT(IN)                      :: geo_check
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
@@ -576,8 +580,8 @@ CONTAINS
                         check_spline=check_spline, id_kind=id_kind, &
                         is_full=is_full, &
                         skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
-                        cell=cell, ei_scale14=0.0_dp, vdw_scale14=0.0_dp, &
-                        error=error)
+                        cell=cell, ei_scale14=ei_scale14, &
+                        vdw_scale14=vdw_scale14, error=error)
                    ! This is to handle properly when interaction radius is larger than cell size
                    IF ((atom_a==atom_b).AND.(ik_start==0)) THEN
                       invcellmap = cellmap(-b_pi,-b_pj,-b_pk)
@@ -588,8 +592,8 @@ CONTAINS
                            check_spline=check_spline, id_kind=id_kind, &
                            is_full=is_full, &
                            skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
-                           cell=cell, ei_scale14=0.0_dp, vdw_scale14=0.0_dp, &
-                           error=error)
+                           cell=cell, ei_scale14=ei_scale14, &
+                           vdw_scale14=vdw_scale14, error=error)
                    END IF
                    ! Check for too close hits
                    IF (check_spline) THEN

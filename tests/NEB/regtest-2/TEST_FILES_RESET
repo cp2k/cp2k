@@ -51,6 +51,9 @@
 2gly_DIIS-SD-2.inp
 2gly_DIIS-NEB.inp
 2gly_DIIS-DNEB.inp
+# Numerical changes due to new implementation of 14 nonboned terms
+2gly_DIIS-SD-NEB.inp
+2gly_DIIS-SD-2.inp
 #  
 2gly_DIIS-SD-NEB.inp
 # numerics after new units converter
@@ -88,3 +91,5 @@
 2gly_DIIS-SM.inp
 # numerics after patch 0006
 2gly_DIIS-SD-NEB.inp
+# 
+2gly_DIIS-SM.inp

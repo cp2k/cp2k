@@ -61,10 +61,9 @@ MODULE force_fields_all
   USE pair_potential_types,            ONLY: &
        ea_type, lj_charmm_type, lj_type, nn_type, nosh_nosh, nosh_sh, &
        pair_potential_lj_create, pair_potential_pp_create, &
-       pair_potential_pp_release, pair_potential_pp_type, &
-       pair_potential_single_add, pair_potential_single_clean, &
-       pair_potential_single_copy, pair_potential_single_type, sh_sh, &
-       tersoff_type
+       pair_potential_pp_type, pair_potential_single_add, &
+       pair_potential_single_clean, pair_potential_single_copy, &
+       pair_potential_single_type, sh_sh, tersoff_type
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              particle_type
   USE physcon,                         ONLY: bohr

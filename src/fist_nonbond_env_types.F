@@ -264,8 +264,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim, jdim, natom_types, stat
-    LOGICAL                                  :: check, failure, use_potparm14, &
-                                                use_potparm
+    LOGICAL                                  :: check, failure, use_potparm, &
+                                                use_potparm14
     REAL(KIND=dp)                            :: fac, rcut, rlow
 
     use_potparm14 = PRESENT(potparm14)
@@ -327,6 +327,9 @@ CONTAINS
                     fac = potparm14%pot(idim,jdim)%pot%spl_f%rscale(1)
                     rlow = fac / (potparm14%pot(idim,jdim)%pot%pair_spline_data(1)%spline_data%xn)
                 END IF
+                ! Warning: rlist_rcut should only be used by the neighbor list
+                ! algorithm. It is not the cutoff for the evaluation of the
+                ! interactions because rlist_rcut includes the Verlet skin.
                 rcut = MAX(rcut, ewald_rcut) + verlet_skin
                 fist_nonbond_env%rlist_cutsq(idim,jdim) = rcut
                 fist_nonbond_env%rlist_cutsq(jdim,idim) = rcut

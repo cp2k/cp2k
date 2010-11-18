@@ -47,3 +47,8 @@ G87.inp
 G87_2.inp
 G96.inp
 G96_ei_scale.inp
+# Numerical changes due to new implementation of 14 electrostatics
+G87.inp
+G87_2.inp
+G96.inp
+G96_ei_scale.inp

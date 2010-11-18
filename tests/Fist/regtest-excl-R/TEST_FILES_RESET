@@ -1,4 +1,9 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
+# Numerical changes due to new implementation of 14 electrostatics
+ethanol_both_rcut10.0_e1-1_v1-1_R_R.inp
+ethanol_both_rcut10.0_e1-1_v1-4__SR.inp
 # numerics after patch 0006
 ethanol_both_rcut10.0_e1-1_v1-1_R_R.inp
+# 
+ethanol_both_rcut10.0_e1-3_v1-4_RSR.inp

@@ -591,3 +591,9 @@ multipole_dip_qu.dbg_st.inp
 multipole_dip_qu.dbg_f_real.inp
 #reintroducing a cancelled regtest
 water_3.inp
+# Numerical changes due to new implementation of 14 electrostatics
+# And tests that depend on the output of deca_ala4.inp
+deca_ala4.inp
+deca_ala5.inp
+deca_ala_reftraj2.inp
+deca_ala_reftraj3.inp

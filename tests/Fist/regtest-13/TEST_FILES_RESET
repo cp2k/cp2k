@@ -7,3 +7,5 @@ pc-222.inp
 si_muc_cell_opt.inp
 # Numerical noise due to fixing of two single-precision constants 
 pc-222.inp
+# Numerical changes due to new implementation of 14 electrostatics
+pc-222.inp

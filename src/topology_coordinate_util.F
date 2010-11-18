@@ -568,8 +568,8 @@ CPSourceFileRef,&
        IF  (topology%exclude_vdw==do_skip_13.OR. &
             topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
        dim2 = dim1 + dim2
-       ! Always exclude 1-4 since we treat them in a different way..
-       dim3 = SIZE(ex_onfo_list(iatom)%array1)
+       dim3 = 0
+       IF  (topology%exclude_vdw==do_skip_14) dim3 = SIZE(ex_onfo_list(iatom)%array1)
        dim3 = dim2 + dim3
        IF (dim3 /= 0) THEN
           NULLIFY(list, wlist)
@@ -615,8 +615,8 @@ CPSourceFileRef,&
              IF  (topology%exclude_ei==do_skip_13.OR. &
                   topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%array1)
              dim2 = dim1 + dim2
-             ! Always exclude 1-4 since we treat them in a different way..
-             dim3 = SIZE(ex_onfo_list(iatom)%array1)
+             dim3 = 0
+             IF  (topology%exclude_ei==do_skip_14) dim3 = SIZE(ex_onfo_list(iatom)%array1)
              dim3 = dim2 + dim3
 
              IF (dim3 /= 0) THEN
@@ -650,12 +650,8 @@ CPSourceFileRef,&
        END IF
        particle_set(iatom)%list_exclude_vdw => list
        particle_set(iatom)%list_exclude_ei  => list2
-       ! The onfo must always be excluded to avoid double counting
-       DO i=1,SIZE(ex_onfo_list(iatom)%array1)
-          CPPostcondition(ANY(list==ex_onfo_list(iatom)%array1(i)),cp_failure_level,routineP,error,failure)
-          CPPostcondition(ANY(list2==ex_onfo_list(iatom)%array1(i)),cp_failure_level,routineP,error,failure)
-       END DO
-       ! Keep a list of onfo atoms
+       ! Keep a list of onfo atoms for proper selection of specialized 1-4
+       ! potentials instead of conventional nonbonding potentials.
        ALLOCATE(particle_set(iatom)%list_onfo(SIZE(ex_onfo_list(iatom)%array1)))
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! copy of data, not copy of pointer

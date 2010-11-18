@@ -137,3 +137,6 @@ JAC_distr.inp
 H2O-32_PME_distr.inp
 water_3_ddist_g.inp
 uo2_buckmorse_nve.inp
+# Numerical changes due to new implementation of 14 electrostatics
+cubane_0.inp
+cubane_15.inp
