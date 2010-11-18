@@ -175,23 +175,11 @@ CONTAINS
                    pot => potparm14%pot(kind_a,kind_b)%pot
                 END IF
              END IF
-             full_nl  = ANY(pot%type==tersoff_type)
-             ! In case we have only manybody potentials, this pair of atom types
-             ! can be ignored here.
-             IF (pot%only_mb) CYCLE
-             ! Setup spline_data set
-             spl_f => pot%spl_f
-             spline_data => pot%pair_spline_data
-             shell_type = pot%shell_type
-             IF(shell_type/=nosh_nosh) THEN
-                CPPrecondition(.NOT.do_multipoles,cp_failure_level,routineP,error,failure)
-                CPPostcondition(shell_present,cp_failure_level,routineP,error,failure)
-             END IF
-             rab2_max = pot%rcutsq
 
              ! Determine the scaling factors
              fac_ei = fac_kind
              fac_vdw = fac_kind
+             full_nl = ANY(pot%type==tersoff_type)
              IF ((.NOT.full_nl).AND.(atom_a==atom_b)) THEN
                 fac_ei = fac_ei*0.5_dp
                 fac_vdw = fac_vdw*0.5_dp
@@ -217,9 +205,11 @@ CONTAINS
                                   charge_core=qcore_a,&
                                   charge_shell=qshell_a,&
                                   error=error)
+                   IF ((qcore_a==0.0_dp).AND.(qshell_a==0.0_dp)) fac_ei = 0.0_dp
                 ELSE
                    qcore_a = qeff_a
                    qshell_a = HUGE(0.0_dp)
+                   IF (qeff_a==0.0_dp) fac_ei = 0.0_dp
                 END IF
                 ! Get electrostatic parameters for atom b
                 atomic_kind => atomic_kind_set(kind_b)
@@ -232,13 +222,29 @@ CONTAINS
                                   charge_core=qcore_b,&
                                   charge_shell=qshell_b,&
                                   error=error)
+                   IF ((qcore_b==0.0_dp).AND.(qshell_b==0.0_dp)) fac_ei = 0.0_dp
                 ELSE
                    qcore_b = qeff_b
                    qshell_b = HUGE(0.0_dp)
+                   IF (qeff_b==0.0_dp) fac_ei = 0.0_dp
                 END IF
                 ! combine parameters
                 mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
              END IF
+
+             ! In case we have only manybody potentials and no charges, this
+             ! pair of atom types can be ignored here.
+             IF (pot%only_mb.AND.(fac_ei==0.0)) CYCLE
+
+             ! Setup spline_data set
+             spl_f => pot%spl_f
+             spline_data => pot%pair_spline_data
+             shell_type = pot%shell_type
+             IF(shell_type/=nosh_nosh) THEN
+                CPPrecondition(.NOT.do_multipoles,cp_failure_level,routineP,error,failure)
+                CPPostcondition(shell_present,cp_failure_level,routineP,error,failure)
+             END IF
+             rab2_max = pot%rcutsq
 
              ! compute the relative vector(s) for this pair
              IF (shell_type /= nosh_nosh) THEN
@@ -534,14 +540,20 @@ CONTAINS
       shell_b
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: a_is_shell, b_is_shell, &
-                                                do_multipoles, shell_adiabatic
+                                                do_multipoles, full_nl, &
+                                                shell_adiabatic
     REAL(KIND=dp)                            :: alpha, const, fac_cor, &
-                                                qcore_a, qcore_b, qeff_a, &
-                                                qeff_b, qshell_a, qshell_b
+                                                fac_ei, qcore_a, qcore_b, &
+                                                qeff_a, qeff_b, qshell_a, &
+                                                qshell_b
     REAL(KIND=dp), DIMENSION(3)              :: rca, rcb, rsa, rsb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ij_kind_full_fac
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
+    TYPE(pair_potential_pp_type), POINTER    :: potparm, potparm14
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
     TYPE(shell_kind_type), POINTER           :: shell_kind
 
     CALL timeset(routineN,handle)
@@ -551,7 +563,8 @@ CONTAINS
     v_bonded_corr = 0.0_dp
 
     CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, &
-         error=error)
+         potparm14=potparm14, potparm=potparm, &
+         ij_kind_full_fac=ij_kind_full_fac, error=error)
     CALL ewald_env_get(ewald_env, alpha=alpha, do_multipoles=do_multipoles, &
          group=group, error=error)
     ! Defining the constants
@@ -574,17 +587,34 @@ CONTAINS
           iend = MIN(npairs,neighbor_kind_pair%grp_kind_end(igrp))
 
           Pairs: DO ipair = istart, iend
-             ! The amount of correction is related to the
-             ! amount of scaling as follows:
-             fac_cor = 1.0_dp - neighbor_kind_pair%ei_scale(ipair)
-             IF (fac_cor <= 0.0_dp) CYCLE
-
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
              ! Get actual atomic kinds, since atom_a is not always of
              ! kind_a and atom_b of kind_b, ie. they might be swapped.
              kind_a = particle_set(atom_a)%atomic_kind%kind_number
              kind_b = particle_set(atom_b)%atomic_kind%kind_number
+
+             ! take the proper potential, only for full_nl test
+             pot => potparm%pot(kind_a,kind_b)%pot
+             IF (ipair <= neighbor_kind_pair%nscale) THEN
+                IF (neighbor_kind_pair%is_onfo(ipair)) THEN
+                   pot => potparm14%pot(kind_a,kind_b)%pot
+                END IF
+             END IF
+
+             ! Determine the scaling factors
+             fac_ei = ij_kind_full_fac(kind_a, kind_b)
+             full_nl = ANY(pot%type==tersoff_type)
+             IF ((.NOT.full_nl).AND.(atom_a==atom_b)) THEN
+                fac_ei = fac_ei*0.5_dp
+             END IF
+             IF (ipair <= neighbor_kind_pair%nscale) THEN
+                fac_ei = fac_ei*neighbor_kind_pair%ei_scale(ipair)
+             END IF
+             ! The amount of correction is related to the
+             ! amount of scaling as follows:
+             fac_cor = 1.0_dp - fac_ei
+             IF (fac_cor <= 0.0_dp) CYCLE
 
              ! Parameters for kind a
              atomic_kind => atomic_kind_set(kind_a)

@@ -39,8 +39,7 @@ MODULE fist_force
                                              get_fist_env
   USE fist_intra_force,                ONLY: force_intra_control
   USE fist_neighbor_list_control,      ONLY: list_control
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
-                                             fist_nonbond_env_type
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
   USE fist_nonbond_force,              ONLY: bonded_correct_gaussian,&
                                              force_nonbond
   USE fist_pol_scf,                    ONLY: fist_pol_evaluate
@@ -83,12 +82,12 @@ MODULE fist_force
   TYPE debug_variables_type
      REAL (KIND=dp)                           :: pot_manybody, pot_bend, pot_torsion
      REAL (KIND=dp)                           :: pot_nonbond, pot_g, pot_bond
-     REAL (KIND=dp)                           :: pot_imptors, pot_onef, pot_urey_bradley
+     REAL (KIND=dp)                           :: pot_imptors, pot_urey_bradley
      REAL (KIND=dp)                           :: pot_opbend
      REAL (KIND=dp), DIMENSION (:,:), POINTER :: f_nonbond, f_g, f_bond, f_bend,&
-                                                 f_torsion, f_imptors, f_onef, f_ub,&
+                                                 f_torsion, f_imptors, f_ub,&
                                                  f_opbend
-     REAL (KIND=dp), DIMENSION (3,3)          :: pv_nonbond, pv_g, pv_bond, pv_onef, pv_ub,&
+     REAL (KIND=dp), DIMENSION (3,3)          :: pv_nonbond, pv_g, pv_bond, pv_ub,&
                                                  pv_bend, pv_torsion, pv_imptors,&
                                                  pv_opbend
   END TYPE debug_variables_type
@@ -125,17 +124,16 @@ CONTAINS
       iparticle_kind, iparticle_local, iw, iw2, j, natoms, nlocal_particles, &
       node, nparticle_kind, nparticle_local, nshell, shell_index, stat
     LOGICAL                                  :: do_multipoles, failure, &
-                                                scale_cutoff, shell_model_ad, &
+                                                shell_model_ad, &
                                                 shell_present, use_virial
-    REAL(KIND=dp) :: ei_scale14, mass, massc, masss, pot_bend, pot_bond, &
-      pot_imptors, pot_manybody, pot_nonbond, pot_onef, pot_opbend, &
-      pot_shell, pot_torsion, pot_urey_bradley, umass, vdw_scale14, &
-      vg_coulomb, xdum1, xdum2, xdum3
+    REAL(KIND=dp) :: mass, massc, masss, pot_bend, pot_bond, pot_imptors, &
+      pot_manybody, pot_nonbond, pot_opbend, pot_shell, pot_torsion, &
+      pot_urey_bradley, umass, vg_coulomb, xdum1, xdum2, xdum3
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: f_nonbond, f_total, &
       fcore_nonbond, fcore_total, fg_coulomb, fgcore_coulomb, &
       fgshell_coulomb, fshell_nonbond, fshell_total
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
-      pv_imptors, pv_nonbond, pv_onef, pv_opbend, pv_torsion, pv_urey_bradley
+      pv_imptors, pv_nonbond, pv_opbend, pv_torsion, pv_urey_bradley
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -182,9 +180,6 @@ CONTAINS
          molecule_kind_set=molecule_kind_set, fist_nonbond_env=fist_nonbond_env,&
          cell=cell, shell_model=shell_present, shell_model_ad=shell_model_ad, &
          multipoles=multipoles, error=error)
-
-    CALL fist_nonbond_env_get(fist_nonbond_env, ei_scale14=ei_scale14, &
-         vdw_scale14=vdw_scale14, scale_cutoff=scale_cutoff, error=error)
 
     CALL ewald_env_get (ewald_env, ewald_type=ewald_type, do_multipoles=do_multipoles,&
          do_ipol=do_ipol,error=error)
@@ -251,7 +246,6 @@ CONTAINS
        pv_torsion       = 0.0_dp
        pv_imptors       = 0.0_dp
        pv_opbend        = 0.0_dp
-       pv_onef          = 0.0_dp
        pv_urey_bradley  = 0.0_dp
        pv_nonbond       = 0.0_dp
        pv_g             = 0.0_dp
@@ -265,7 +259,6 @@ CONTAINS
     pot_torsion       = 0.0_dp
     pot_opbend        = 0.0_dp
     pot_imptors       = 0.0_dp
-    pot_onef          = 0.0_dp
     pot_urey_bradley  = 0.0_dp
     pot_shell         = 0.0_dp
     vg_coulomb        = 0.0_dp
@@ -502,35 +495,36 @@ CONTAINS
     IF ( PRESENT ( debug ) ) THEN
        CALL force_intra_control(molecule_set, molecule_kind_set, &
             local_molecules, particle_set, shell_particle_set, &
-            core_particle_set, ei_scale14, vdw_scale14, scale_cutoff, &
-            pot_bond, pot_bend, pot_urey_bradley, pot_torsion, pot_imptors, &
-            pot_opbend, pot_onef, pot_shell, pv_bond, pv_bend, &
-            pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, pv_onef, &
+            core_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+            pot_torsion, pot_imptors, pot_opbend, pot_shell, pv_bond, pv_bend, &
+            pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, &
             debug%f_bond, debug%f_bend, debug%f_torsion, debug%f_ub, &
-            debug%f_imptors, debug%f_opbend, debug%f_onef, cell, use_virial, &
+            debug%f_imptors, debug%f_opbend, cell, use_virial, &
             error)
 
     ELSE
        CALL force_intra_control(molecule_set, molecule_kind_set, &
             local_molecules, particle_set, shell_particle_set, &
-            core_particle_set, ei_scale14, vdw_scale14, scale_cutoff, &
-            pot_bond, pot_bend, pot_urey_bradley, pot_torsion, pot_imptors, &
-            pot_opbend, pot_onef, pot_shell, pv_bond, pv_bend, &
-            pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, pv_onef, &
+            core_particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+            pot_torsion, pot_imptors, pot_opbend, pot_shell, pv_bond, pv_bend, &
+            pv_urey_bradley, pv_torsion, pv_imptors, pv_opbend, &
             cell=cell, use_virial=use_virial, error=error)
     ENDIF
 
     IF (iw>0) THEN
        xdum1 = cp_unit_from_cp2k(pot_bond,"kcalmol",error=error)
        xdum2 = cp_unit_from_cp2k(pot_bend,"kcalmol",error=error)
-       xdum3 = cp_unit_from_cp2k(pot_torsion+pot_imptors+pot_opbend,"kcalmol",error=error)
-       WRITE(iw,'(1x,"BOND    = ",f13.4,2x,"ANGLE   = ",f13.4,2x,'//&
-            '"DIHED      = ",f13.4)')xdum1, xdum2, xdum3
-       xdum1 = cp_unit_from_cp2k(pot_onef,"kcalmol",error=error)
-       xdum2 = cp_unit_from_cp2k(pot_urey_bradley,"kcalmol",error=error)
-       WRITE(iw,'(1x,"1-4 VDW + 1-4 EEL (SHORT RANGE)  = ",f13.4,2x,'//&
-            '"UBRAD      = ",f13.4)')xdum1,&
-            xdum2
+       xdum3 = cp_unit_from_cp2k(pot_urey_bradley,"kcalmol",error=error)
+       WRITE(iw,'(A)')" FIST energy contributions in kcal/mol:"
+       WRITE(iw,'(1x,"BOND    = ",f13.4,'//&
+                 '2x,"ANGLE   = ",f13.4,'//&
+                 '2x,"UBRAD   = ",f13.4)') xdum1, xdum2, xdum3
+       xdum1 = cp_unit_from_cp2k(pot_torsion,"kcalmol",error=error)
+       xdum2 = cp_unit_from_cp2k(pot_imptors,"kcalmol",error=error)
+       xdum3 = cp_unit_from_cp2k(pot_opbend,"kcalmol",error=error)
+       WRITE(iw,'(1x,"TORSION = ",f13.4,'//&
+                 '2x,"IMPTORS = ",f13.4,'//&
+                 '2x,"OPBEND  = ",f13.4)') xdum1, xdum2, xdum3
 
        WRITE(iw,'(A)')" FIST:: CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
        WRITE(iw,'(3f15.9)')((particle_set ( i )%f ( j ),j=1,3), i = 1, SIZE(particle_set))
@@ -544,7 +538,7 @@ CONTAINS
 
     ! add up all the potential energies
     thermo%pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_opbend + &
-         pot_onef + pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
+         pot_imptors + pot_urey_bradley + pot_manybody + pot_shell
 
     CALL mp_sum ( thermo%pot, para_env%group )
     IF(shell_present) THEN
@@ -777,8 +771,6 @@ CONTAINS
        debug%pot_imptors = pot_imptors
        CALL mp_sum ( pot_opbend, para_env%group )
        debug%pot_opbend = pot_opbend
-       CALL mp_sum ( pot_onef, para_env%group )
-       debug%pot_onef = pot_onef
        CALL mp_sum ( pot_urey_bradley, para_env%group )
        debug%pot_urey_bradley = pot_urey_bradley
        CALL mp_sum ( f_nonbond, para_env%group )
@@ -794,8 +786,6 @@ CONTAINS
           debug%pv_torsion = pv_torsion
           CALL mp_sum (pv_imptors, para_env%group )
           debug%pv_imptors = pv_imptors
-          CALL mp_sum (pv_onef, para_env%group )
-          debug%pv_onef = pv_onef
           CALL mp_sum (pv_urey_bradley, para_env%group )
           debug%pv_ub = pv_urey_bradley
        END IF

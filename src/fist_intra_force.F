@@ -51,11 +51,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE force_intra_control(molecule_set, molecule_kind_set, &
        local_molecules, particle_set, shell_particle_set, core_particle_set, &
-       ei_scale14, vdw_scale14, scale_cutoff, pot_bond, pot_bend, &
-       pot_urey_bradley, pot_torsion, pot_imp_torsion, pot_opbend, pot_onef, &
-       pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, &
-       pv_imp_torsion, pv_opbend, pv_onef, f_bond, f_bend, f_torsion, f_ub, &
-       f_imptor, f_opbend, f_onef, cell, use_virial, error)
+       pot_bond, pot_bend, pot_urey_bradley, pot_torsion, pot_imp_torsion, &
+       pot_opbend, pot_shell, pv_bond, pv_bend, pv_urey_bradley, pv_torsion, &
+       pv_imp_torsion, pv_opbend, f_bond, f_bend, f_torsion, f_ub, &
+       f_imptor, f_opbend, cell, use_virial, error)
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -63,19 +62,15 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : ), &
                                                 shell_particle_set( : ), &
                                                 core_particle_set( : )
-    REAL(KIND=dp), INTENT(IN)                :: ei_scale14, vdw_scale14
-    LOGICAL, INTENT(IN)                      :: scale_cutoff
     REAL(KIND=dp), INTENT(INOUT) :: pot_bond, pot_bend, pot_urey_bradley, &
-      pot_torsion, pot_imp_torsion, pot_opbend, pot_onef, pot_shell
+      pot_torsion, pot_imp_torsion, pot_opbend, pot_shell
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_bond, pv_bend, &
                                                 pv_urey_bradley, pv_torsion, &
-                                                pv_imp_torsion, pv_opbend, &
-                                                pv_onef
+                                                pv_imp_torsion, pv_opbend
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: f_bond, f_bend, f_torsion, &
-                                                f_ub, f_imptor, f_opbend, &
-                                                f_onef
+                                                f_ub, f_imptor, f_opbend
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -114,7 +109,6 @@ CONTAINS
     IF ( PRESENT ( f_torsion)) f_torsion = 0.0_dp
     IF ( PRESENT ( f_imptor)) f_imptor = 0.0_dp
     IF ( PRESENT ( f_ub)) f_ub = 0.0_dp
-    IF ( PRESENT ( f_onef)) f_onef = 0.0_dp
 
     pot_bond =  0.0_dp
     pot_bend =  0.0_dp
@@ -122,7 +116,6 @@ CONTAINS
     pot_torsion =  0.0_dp
     pot_imp_torsion =  0.0_dp
     pot_opbend =0.0_dp
-    pot_onef =  0.0_dp
     pot_shell =  0.0_dp
 
     nkind = SIZE ( molecule_kind_set )
