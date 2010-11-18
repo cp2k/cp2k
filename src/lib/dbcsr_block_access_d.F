@@ -34,7 +34,7 @@
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error=error)
     CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_8,&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data type mismatch for requested block.",__LINE__,error)
@@ -96,7 +96,7 @@
           ENDIF
        ENDIF
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error=error)
   END SUBROUTINE dbcsr_get_2d_block_d
 
 ! *****************************************************************************
@@ -134,7 +134,7 @@
     LOGICAL                                  :: stored_tr
     REAL(kind=real_8), DIMENSION(1,1), TARGET, SAVE    :: block0
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error=error)
     CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_real_8,&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data type mismatch for requested block.",__LINE__,error)
@@ -188,7 +188,7 @@
           ENDIF
        ENDIF
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error=error)
   END SUBROUTINE dbcsr_get_2d_block_p_d
 
 
@@ -766,7 +766,7 @@
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handler, error)
     IF (dbcsr_buffers_2d_needed) THEN
        IF (PRESENT (contiguous_pointers)) THEN
           cont_p = contiguous_pointers
@@ -795,7 +795,7 @@
        CALL pointer_d_rank_remap2 (pointer_any, rsize, csize,&
             lin_blk_p)
     ENDIF
-    CALL dbcsr_error_stop (error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_set_block_pointer_2d_d
 
 ! *****************************************************************************
@@ -835,9 +835,9 @@
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handler, error)
     CALL dbcsr_get_data (matrix%m%data_area, pointer_any,&
          lb=base_offset, ub=base_offset+rsize*csize-1)
-    CALL dbcsr_error_stop (error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handler, error)
   END SUBROUTINE dbcsr_set_block_pointer_1d_d
 

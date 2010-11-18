@@ -114,6 +114,7 @@ MODULE dbcsr_data_methods
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 CONTAINS
 
@@ -864,13 +865,13 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
     CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data area must be setup.",__LINE__,error)
     current_size = dbcsr_data_get_size (area)
     CALL dbcsr_data_set_size_referenced (area, data_size)
     IF (current_size .GT. 1 .AND. current_size .GE. data_size) THEN
-       CALL dbcsr_error_stop(error_handler, error)
+       IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
     !
@@ -937,7 +938,7 @@ CONTAINS
             dbcsr_unimplemented_error_nr, routineN,&
             "Invalid data type are supported",__LINE__,error)
     END SELECT
-    CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_data_ensure_size
 
 

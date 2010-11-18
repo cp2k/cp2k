@@ -36,6 +36,8 @@ MODULE dbcsr_ptr_util
 
   REAL, PARAMETER                      :: default_resize_factor = 1.618034
 
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
+
 #if defined(__PTR_RANK_REMAP)
   ! True pointer rank remapping can be used.
   LOGICAL, PARAMETER :: dbcsr_ptr_remapping = .TRUE.
@@ -118,7 +120,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
 
     docopy = .TRUE.
@@ -142,7 +144,7 @@ CONTAINS
        ENDIF
        CALL dbcsr_assert (stat == 0, dbcsr_warning_level, dbcsr_internal_error,&
             routineN, "array",__LINE__,error)
-       CALL dbcsr_error_stop(error_handler, error)
+       IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
@@ -150,7 +152,7 @@ CONTAINS
     old_size = ub_orig - lb_orig + 1
     ! The existing array is big enough.
     IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
-       CALL dbcsr_error_stop(error_handler, error)
+       IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
        RETURN
     ENDIF
     IF(dbg) WRITE(*,*)routineP//' Current bounds are',lb_orig,':',ub_orig
@@ -212,7 +214,7 @@ CONTAINS
        newarray(:) = 0
     END IF
     array => newarray
-    CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE ensure_array_size_i
 
 

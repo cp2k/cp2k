@@ -152,6 +152,7 @@ MODULE dbcsr_block_access
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
@@ -270,7 +271,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
     IF (PRESENT (block_number)) THEN
        b = block_number
        CALL dbcsr_assert (block_number .LE. matrix%m%nblks, dbcsr_failure_level,&
@@ -295,7 +296,7 @@ CONTAINS
             dbcsr_warning_level, dbcsr_caller_error, routineN,&
             "Block does not exist or is already deleted.",__LINE__,error)
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_remove_block
 
 ! *****************************************************************************

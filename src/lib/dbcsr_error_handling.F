@@ -81,6 +81,9 @@ MODULE dbcsr_error_handling
      CHARACTER(default_string_length) :: post = ''
      CHARACTER(default_string_length), DIMENSION(dbcsr_error_stack_size) :: s = ''
      INTEGER, DIMENSION(dbcsr_error_stack_size) :: handler = 0
+#if defined(__USE_CP2K_TRACE)
+     INTEGER, DIMENSION(dbcsr_error_stack_size) :: cp2k_handler = 0
+#endif
   END TYPE dbcsr_error_stack_type
 
 ! *****************************************************************************
@@ -114,6 +117,9 @@ CONTAINS
     error%stack%s(error%stack%level) = name
     handler = error%stack%level
     error%stack%handler(error%stack%level) = handler
+#if defined(__USE_CP2K_TRACE)
+    CALL timeset_mp(name, error%stack%cp2k_handler(error%stack%level) )
+#endif
 !$OMP END MASTER
   END SUBROUTINE dbcsr_error_set
 
@@ -139,6 +145,9 @@ CONTAINS
        WRITE(*,*) 'you may have forget to call dbcsr_error_stop (may be a RETURN)...'
        STOP
     ENDIF
+#if defined(__USE_CP2K_TRACE)
+    CALL timestop_mp(error%stack%cp2k_handler(error%stack%level) )
+#endif
     error%stack%s(error%stack%level) = ''
     error%stack%handler(error%stack%level) = 0
     error%stack%level = error%stack%level - 1

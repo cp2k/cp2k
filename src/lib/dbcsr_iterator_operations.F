@@ -91,7 +91,7 @@ MODULE dbcsr_iterator_operations
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
-
+  LOGICAL, PARAMETER :: careful_mod  = .FALSE.
 
 #define temp_transpose(v, r, c) RESHAPE(TRANSPOSE(RESHAPE(v,(/r,c/))),(/r*c/))
 
@@ -695,7 +695,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -717,7 +717,7 @@ CONTAINS
        row = 0
        column = 0
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE iterator_next_block_index
 
 ! *****************************************************************************
@@ -753,7 +753,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
+
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -800,7 +801,9 @@ CONTAINS
        column = 0
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
+
   END SUBROUTINE iterator_next_area_block
 
 

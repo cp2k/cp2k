@@ -118,6 +118,7 @@ MODULE dbcsr_work_operations
   LOGICAL, PARAMETER :: bcsr_debug =   .TRUE.
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
+  LOGICAL, PARAMETER :: careful_mod = .FALSE.
 
 CONTAINS
 
@@ -1173,7 +1174,7 @@ CONTAINS
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
     DEBUG_BODY
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
     dbg = .FALSE.
     matrix%lastblk = matrix%lastblk+1
     CALL ensure_array_size(matrix%row_i, ub=matrix%lastblk,&
@@ -1195,7 +1196,7 @@ CONTAINS
        WRITE(*,*)routineP//' blk_p=',matrix%blk_p(1:matrix%lastblk)
     ENDIF
     IF (PRESENT (index)) index = matrix%lastblk
-    CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE add_work_coordinate
 
 

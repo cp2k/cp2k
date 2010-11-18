@@ -19,7 +19,7 @@
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size,&
          row_offset, col_offset
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_complex(kind=real_8)', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_1d_block_z', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_p, bp, csize, ithread, &
@@ -83,7 +83,7 @@
     INTEGER, INTENT(OUT), OPTIONAL           :: block_number
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size, row_offset, col_offset
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_block_z', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'iterator_next_2d_block_z', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_p, bp, csize, ithread, &
@@ -96,7 +96,7 @@
 !   ---------------------------------------------------------------------------
 ! If we're pointing to a valid block, return that block.
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -140,5 +140,5 @@
        NULLIFY (block)
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE iterator_next_2d_block_z
