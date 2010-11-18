@@ -23,8 +23,8 @@ MODULE topology_connectivity_util
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        allocate_molecule_kind_set, atom_type, bend_type, bond_type, &
-       get_molecule_kind, impr_type, molecule_kind_type, onfo_type, &
-       opbend_type, set_molecule_kind, torsion_type, ub_type
+       get_molecule_kind, impr_type, molecule_kind_type, opbend_type, &
+       set_molecule_kind, torsion_type, ub_type
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
                                              get_molecule,&
                                              local_molecule_type,&
@@ -72,9 +72,9 @@ CONTAINS
     INTEGER :: counter, first, handle, handle2, i, ibend, ibond, idim, iimpr, &
       ikind, imol, inter_bends, inter_bonds, inter_imprs, inter_torsions, &
       inter_ubs, intra_bends, intra_bonds, intra_imprs, intra_torsions, &
-      intra_ubs, inum, ionfo, ires, istart_mol, istart_typ, itorsion, ityp, &
-      iub, iw, j, j1, j2, j3, j4, jind, last, min_index, natom, nelectron, &
-      nsgf, nval_tot1, nval_tot2, nvar1, nvar2, output_unit, stat
+      intra_ubs, inum, ires, istart_mol, istart_typ, itorsion, ityp, iub, iw, &
+      j, j1, j2, j3, j4, jind, last, min_index, natom, nelectron, nsgf, &
+      nval_tot1, nval_tot2, nvar1, nvar2, output_unit, stat
     INTEGER, DIMENSION(:), POINTER :: c_var_a, c_var_b, c_var_c, c_var_d, &
       c_var_type, first_list, last_list, map_atom_mol, map_atom_type, &
       map_cvar_mol, map_cvars, map_var_mol, map_vars, molecule_list
@@ -90,7 +90,6 @@ CONTAINS
     TYPE(local_molecule_type), POINTER       :: lmi
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
     TYPE(opbend_type), DIMENSION(:), POINTER :: opbend_list
     TYPE(torsion_type), DIMENSION(:), &
       POINTER                                :: torsion_list
@@ -1272,66 +1271,8 @@ CONTAINS
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 15. Set the molecule_kind%[nonfo,onfo_list] via set_molecule_kind
+    ! Finally deallocate some stuff.
     !-----------------------------------------------------------------------------
-    CALL timeset(routineN//"_15",handle2)
-    ! First map onfos on molecules
-    nvar1 = 0
-    NULLIFY(map_vars, bnd_type)
-    IF(ASSOCIATED(conn_info%onfo_a))   nvar1 = SIZE(conn_info%onfo_a)
-    ALLOCATE(map_var_mol(nvar1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    map_var_mol  = -1
-    nval_tot1 = nvar1
-    nval_tot2 = 0
-    DO i = 1, nvar1
-       j1 = map_atom_mol(conn_info%onfo_a(i))
-       IF ( j1 > 0 ) map_var_mol(i) = map_atom_type(conn_info%onfo_a(i))
-    END DO
-    CALL find_bnd_typ(topology%nmol_type, map_vars,  map_var_mol,  bnd_type,  nvar1, error)
-    DO i = 1, topology%nmol_type
-       ionfo = 0
-       IF (ALL(bnd_type(:,i)>0)) THEN
-          ionfo = bnd_type(2,i)-bnd_type(1,i)+1
-       END IF
-       IF(iw>0) THEN
-          WRITE(iw,*) "    Total number onfos for molecule type ",i," :",ionfo
-       END IF
-       molecule_kind => molecule_kind_set(i)
-       nval_tot2 = nval_tot2 + ionfo * SIZE(molecule_kind%molecule_list)
-       ALLOCATE(onfo_list(ionfo),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ionfo = 0
-       DO j=bnd_type(1,i),bnd_type(2,i)
-          IF (j==0) CYCLE
-          ionfo = ionfo + 1
-          jind  = map_vars(j)
-          first = first_list(map_atom_mol(conn_info%onfo_a(jind)))
-          onfo_list(ionfo)%a=conn_info%onfo_a(jind)-first+1
-          onfo_list(ionfo)%b=conn_info%onfo_b(jind)-first+1
-          !point this to the right onfo_kind_type if using force field
-          NULLIFY(onfo_list(ionfo)%onfo_kind)
-          IF(iw>0) THEN
-             WRITE(iw,'(7X,A,I3,1X,A,I5,I5,1X,A,I5,I5)') "molecule_kind",&
-                  i,"  onfo",&
-                  conn_info%onfo_a(jind),&
-                  conn_info%onfo_b(jind),&
-                  "offset number at",&
-                  conn_info%onfo_a(jind)-first+1,&
-                  conn_info%onfo_b(jind)-first+1
-          END IF
-       END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            nonfo=SIZE(onfo_list),onfo_list=onfo_list)
-    END DO
-    CPPostcondition(nval_tot1==nval_tot2,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(map_var_mol,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(map_vars,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(bnd_type,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL timestop(handle2)
     DEALLOCATE(first_list,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(last_list,STAT=stat)

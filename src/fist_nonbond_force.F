@@ -529,25 +529,22 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, iatom, iend, igrp, ilist, ipair, &
-      istart, kind_a, kind_b, natoms_per_kind, nkind, npairs, shell_a, shell_b
+    INTEGER :: atom_a, atom_b, group, handle, iatom, iend, igrp, ilist, &
+      ipair, istart, kind_a, kind_b, natoms_per_kind, nkind, npairs, shell_a, &
+      shell_b
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: a_is_shell, b_is_shell, &
-                                                do_multipoles, do_shell, &
-                                                shell_adiabatic
+                                                do_multipoles, shell_adiabatic
     REAL(KIND=dp)                            :: alpha, const, fac_cor, &
                                                 qcore_a, qcore_b, qeff_a, &
                                                 qeff_b, qshell_a, qshell_b
     REAL(KIND=dp), DIMENSION(3)              :: rca, rcb, rsa, rsb
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(shell_kind_type), POINTER           :: shell_kind
 
     CALL timeset(routineN,handle)
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
 
     ! Initializing values
     IF (use_virial) pv_bc = 0.0_dp
@@ -556,7 +553,7 @@ CONTAINS
     CALL fist_nonbond_env_get(fist_nonbond_env, nonbonded=nonbonded, &
          error=error)
     CALL ewald_env_get(ewald_env, alpha=alpha, do_multipoles=do_multipoles, &
-         error=error)
+         group=group, error=error)
     ! Defining the constants
     const = 2.0_dp*alpha*oorootpi
 
@@ -577,6 +574,11 @@ CONTAINS
           iend = MIN(npairs,neighbor_kind_pair%grp_kind_end(igrp))
 
           Pairs: DO ipair = istart, iend
+             ! The amount of correction is related to the
+             ! amount of scaling as follows:
+             fac_cor = 1.0_dp - neighbor_kind_pair%ei_scale(ipair)
+             IF (fac_cor <= 0.0_dp) CYCLE
+
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
              ! Get actual atomic kinds, since atom_a is not always of
@@ -584,61 +586,41 @@ CONTAINS
              kind_a = particle_set(atom_a)%atomic_kind%kind_number
              kind_b = particle_set(atom_b)%atomic_kind%kind_number
 
-             ! TODO: merge the conditionals.
-             ! electrostatic parameters for kind a
+             ! Parameters for kind a
              atomic_kind => atomic_kind_set(kind_a)
              CALL get_atomic_kind(atomic_kind, qeff=qeff_a, shell=shell_kind)
              a_is_shell = ASSOCIATED(shell_kind)
              IF (a_is_shell) THEN
                 CALL get_shell(shell=shell_kind, charge_core=qcore_a, &
                                charge_shell=qshell_a, error=error)
+                shell_a = particle_set(atom_a)%shell_index
+                rca = core_particle_set(shell_a)%r
+                rsa = shell_particle_set(shell_a)%r
              ELSE
                 qcore_a = qeff_a
                 qshell_a = HUGE(0.0_dp)
+                shell_a = 0
+                rca = particle_set(atom_a)%r
+                rsa = 0.0_dp
              END IF
 
-             ! electrostatic parameters for kind b
+             ! Parameters for kind b
              atomic_kind => atomic_kind_set(kind_b)
              CALL get_atomic_kind(atomic_kind, qeff=qeff_b, shell=shell_kind)
              b_is_shell = ASSOCIATED(shell_kind)
              IF (b_is_shell) THEN
                 CALL get_shell(shell=shell_kind, charge_core=qcore_b, &
                                charge_shell=qshell_b, error=error)
-             ELSE
-                qcore_b = qeff_b
-                qshell_b = HUGE(0.0_dp)
-             END IF
-
-             do_shell = (a_is_shell .OR. b_is_shell)
-
-             ! Data for atom a
-             IF (a_is_shell) THEN
-                shell_a = particle_set(atom_a)%shell_index
-                rca = core_particle_set(shell_a)%r
-                rsa = shell_particle_set(shell_a)%r
-             ELSE
-                shell_a = 0
-                rca = particle_set(atom_a)%r
-                rsa = 0.0_dp
-             END IF
-
-             ! Data for atom b
-             IF (b_is_shell) THEN
                 shell_b = particle_set(atom_b)%shell_index
                 rcb = core_particle_set(shell_b)%r
                 rsb = shell_particle_set(shell_b)%r
              ELSE
+                qcore_b = qeff_b
+                qshell_b = HUGE(0.0_dp)
                 shell_b = 0
                 rcb = particle_set(atom_b)%r
                 rsb = 0.0_dp
              END IF
-
-             ! TODO: Move this to the beginning of the loop.
-             ! The amount of correction is related to the
-             ! amount of scaling as follows:
-             fac_cor = 1.0_dp - neighbor_kind_pair%ei_scale(ipair)
-             IF (fac_cor <= 0.0_dp) CYCLE
-
 
              ! First part: take care of core/ion-core/ion correction
              IF (a_is_shell .AND. b_is_shell) THEN
@@ -669,43 +651,41 @@ CONTAINS
 
              ! Second part: take care of shell-shell, shell-core/ion and
              ! core/ion-shell corrections
-             IF (do_shell) THEN
-                IF (a_is_shell .AND. b_is_shell) THEN
-                   ! correct for shell-shell interaction
-                   CALL bonded_correct_gaussian_low(rsa, rsa, cell, &
-                        v_bonded_corr, shell_particle_set, shell_particle_set, &
-                        shell_a, shell_b, shell_adiabatic, alpha, qshell_a, &
-                        qshell_b, const, fac_cor, pv_bc, use_virial)
-                END IF
-                IF (a_is_shell) THEN
-                   IF (b_is_shell) THEN
-                      ! correct for shell-core interaction
-                      CALL bonded_correct_gaussian_low(rsa, rcb, cell, &
-                           v_bonded_corr, shell_particle_set, core_particle_set, &
-                           shell_a, shell_b, shell_adiabatic, alpha, qshell_a, qcore_b, &
-                           const, fac_cor, pv_bc, use_virial)
-                   ELSE
-                      ! correct for shell-ion interaction
-                      CALL bonded_correct_gaussian_low(rsa, rcb, cell, &
-                           v_bonded_corr, shell_particle_set, particle_set, &
-                           shell_a, atom_b, shell_adiabatic, alpha, qshell_a, qcore_b, &
-                           const, fac_cor, pv_bc,use_virial)
-                   END IF
-                END IF
+             IF (a_is_shell .AND. b_is_shell) THEN
+                ! correct for shell-shell interaction
+                CALL bonded_correct_gaussian_low(rsa, rsa, cell, &
+                     v_bonded_corr, shell_particle_set, shell_particle_set, &
+                     shell_a, shell_b, shell_adiabatic, alpha, qshell_a, &
+                     qshell_b, const, fac_cor, pv_bc, use_virial)
+             END IF
+             IF (a_is_shell) THEN
                 IF (b_is_shell) THEN
-                   IF (a_is_shell) THEN
-                      ! correct for core-shell interaction
-                      CALL bonded_correct_gaussian_low(rca, rsb, cell, &
-                           v_bonded_corr, core_particle_set, shell_particle_set, &
-                           shell_a, shell_b, shell_adiabatic, alpha, qcore_a, qshell_b, &
-                           const, fac_cor, pv_bc, use_virial)
-                   ELSE
-                      ! correct for ion-shell interaction
-                      CALL bonded_correct_gaussian_low(rca, rsb, cell, &
-                           v_bonded_corr, particle_set, shell_particle_set, &
-                           atom_a, shell_b, shell_adiabatic, alpha, qcore_a, qshell_b, &
-                           const, fac_cor, pv_bc, use_virial)
-                   END IF
+                   ! correct for shell-core interaction
+                   CALL bonded_correct_gaussian_low(rsa, rcb, cell, &
+                        v_bonded_corr, shell_particle_set, core_particle_set, &
+                        shell_a, shell_b, shell_adiabatic, alpha, qshell_a, qcore_b, &
+                        const, fac_cor, pv_bc, use_virial)
+                ELSE
+                   ! correct for shell-ion interaction
+                   CALL bonded_correct_gaussian_low(rsa, rcb, cell, &
+                        v_bonded_corr, shell_particle_set, particle_set, &
+                        shell_a, atom_b, shell_adiabatic, alpha, qshell_a, qcore_b, &
+                        const, fac_cor, pv_bc,use_virial)
+                END IF
+             END IF
+             IF (b_is_shell) THEN
+                IF (a_is_shell) THEN
+                   ! correct for core-shell interaction
+                   CALL bonded_correct_gaussian_low(rca, rsb, cell, &
+                        v_bonded_corr, core_particle_set, shell_particle_set, &
+                        shell_a, shell_b, shell_adiabatic, alpha, qcore_a, qshell_b, &
+                        const, fac_cor, pv_bc, use_virial)
+                ELSE
+                   ! correct for ion-shell interaction
+                   CALL bonded_correct_gaussian_low(rca, rsb, cell, &
+                        v_bonded_corr, particle_set, shell_particle_set, &
+                        atom_a, shell_b, shell_adiabatic, alpha, qcore_a, qshell_b, &
+                        const, fac_cor, pv_bc, use_virial)
                 END IF
              END IF
           END DO Pairs
@@ -740,7 +720,7 @@ CONTAINS
        END IF
     END DO
 
-    CALL mp_sum(v_bonded_corr,logger%para_env%group)
+    CALL mp_sum(v_bonded_corr,group)
 
     CALL timestop(handle)
 

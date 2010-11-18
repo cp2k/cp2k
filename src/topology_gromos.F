@@ -242,7 +242,6 @@ CONTAINS
              IF(ASSOCIATED(conn_info%onfo_a)) offset = SIZE(conn_info%onfo_a)
              CALL reallocate(conn_info%onfo_a,1,offset+ntype)
              CALL reallocate(conn_info%onfo_b,1,offset+ntype)
-             CALL reallocate(conn_info%onfo_type,1,offset+ntype)
              conn_info%onfo_a(offset+1:offset+ntype)=index_now
              DO i=1,50
                 ii(i)=-1

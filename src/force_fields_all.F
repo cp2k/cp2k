@@ -29,12 +29,11 @@ MODULE force_fields_all
   USE f77_blas
   USE force_field_types,               ONLY: &
        allocate_bend_kind_set, allocate_bond_kind_set, &
-       allocate_impr_kind_set, allocate_onfo_kind_set, &
-       allocate_opbend_kind_set, allocate_torsion_kind_set, &
-       allocate_ub_kind_set, amber_info_type, bend_kind_type, bond_kind_type, &
-       charmm_info_type, force_field_type, gromos_info_type, impr_kind_type, &
-       input_info_type, onfo_kind_type, opbend_kind_type, torsion_kind_type, &
-       ub_kind_type
+       allocate_impr_kind_set, allocate_opbend_kind_set, &
+       allocate_torsion_kind_set, allocate_ub_kind_set, amber_info_type, &
+       bend_kind_type, bond_kind_type, charmm_info_type, force_field_type, &
+       gromos_info_type, impr_kind_type, input_info_type, opbend_kind_type, &
+       torsion_kind_type, ub_kind_type
   USE input_constants,                 ONLY: do_ff_amber,&
                                              do_ff_charmm,&
                                              do_ff_g87,&
@@ -51,8 +50,8 @@ MODULE force_fields_all
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        bend_type, bond_type, get_molecule_kind, impr_type, &
-       molecule_kind_type, onfo_type, opbend_type, set_molecule_kind, &
-       shell_type, torsion_type, ub_type
+       molecule_kind_type, opbend_type, set_molecule_kind, shell_type, &
+       torsion_type, ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE pair_potential,                  ONLY: get_nonbond_storage,&
@@ -75,8 +74,7 @@ MODULE force_fields_all
   USE splines_types,                   ONLY: spline_data_p_release,&
                                              spline_data_p_retain,&
                                              spline_data_p_type,&
-                                             spline_environment_type,&
-                                             spline_factor_copy
+                                             spline_environment_type
   USE string_utilities,                ONLY: compress,&
                                              integer_to_string,&
                                              uppercase
@@ -96,7 +94,6 @@ MODULE force_fields_all
             force_field_unique_tors,&
             force_field_unique_impr,&
             force_field_unique_opbend,&
-            force_field_unique_onfo,&
             force_field_pack_bond,&
             force_field_pack_bend,&
             force_field_pack_ub,&
@@ -108,10 +105,8 @@ MODULE force_fields_all
             force_field_pack_pol, &
             force_field_pack_shell,&
             force_field_pack_sbe,&
-            force_field_pack_onfo,&
             force_field_pack_sne,&
             force_field_pack_ppse,&
-            force_field_pack_pp,&
             force_field_pack_eicut,&
             force_field_pack_damp
 
@@ -813,103 +808,6 @@ CONTAINS
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_unique_opbend
-
-! *****************************************************************************
-!> \brief Determine the number of unique onfo kind and allocate onfo_kind_set
-! *****************************************************************************
-  SUBROUTINE force_field_unique_onfo  (particle_set, &
-       molecule_kind_set, molecule_set, error)
-
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_onfo', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_a2, &
-                                                name_atm_b, name_atm_b2
-    INTEGER                                  :: atm_a, atm_b, counter, first, &
-                                                handle2, i, j, k, last, &
-                                                natom, nonfo, stat
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    INTEGER, POINTER                         :: map_onfo_kind(:)
-    LOGICAL                                  :: failure, found
-    REAL(KIND=dp)                            :: qi1, qi2, qi3, qi4
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(onfo_kind_type), DIMENSION(:), &
-      POINTER                                :: onfo_kind_set
-    TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
-
-    failure = .FALSE.
-
-    CALL timeset(routineN,handle2)
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nonfo=nonfo,onfo_list=onfo_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-       IF(nonfo>0) THEN
-          ALLOCATE(map_onfo_kind(nonfo),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          counter=0
-          DO j=1,nonfo
-             atm_a = onfo_list(j)%a
-             atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_a,qeff=qi1)
-             atm_b = onfo_list(j)%b
-             atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-             CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                  name=name_atm_b,qeff=qi2)
-             found = .FALSE.
-             DO k=1,j-1
-                atm_a = onfo_list(k)%a
-                atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_a2,qeff=qi3)
-                atm_b = onfo_list(k)%b
-                atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     name=name_atm_b2,qeff=qi4)
-                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
-                     ((name_atm_b)==(name_atm_b2))) .OR. &
-                     (((name_atm_a)==(name_atm_b2)) .AND. &
-                     ((name_atm_b)==(name_atm_a2))) ) THEN
-                   IF(((qi1==qi3).AND.(qi2==qi4)).OR.((qi1==qi4).AND.(qi2==qi3)))THEN
-                      found = .TRUE.
-                      map_onfo_kind(j) = map_onfo_kind(k)
-                      EXIT
-                   END IF
-                END IF
-             END DO
-             IF(.NOT.found) THEN
-                counter=counter+1
-                map_onfo_kind(j) = counter
-             END IF
-          END DO
-          CALL allocate_onfo_kind_set(onfo_kind_set,counter,error)
-          DO j=1,nonfo
-             onfo_list(j)%onfo_kind => onfo_kind_set(map_onfo_kind(j))
-          END DO
-          CALL set_molecule_kind(molecule_kind=molecule_kind,&
-               onfo_kind_set=onfo_kind_set,onfo_list=onfo_list)
-          DEALLOCATE(map_onfo_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-    END DO
-    CALL timestop(handle2)
-
-  END SUBROUTINE force_field_unique_onfo
 
 ! *****************************************************************************
 !> \brief Pack in bonds information needed for the force_field
@@ -2544,7 +2442,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
   SUBROUTINE force_field_pack_sbe(atomic_kind_set, ff_type, qmmm_env, iw, &
        Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_bond, ewald_env, &
-       spline_bond_env, iw2, iw3, iw4, error)
+       iw2, iw3, iw4, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2559,7 +2457,6 @@ CPSourceFileRef,&
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_bond
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(spline_environment_type), POINTER   :: spline_bond_env
     INTEGER                                  :: iw2, iw3, iw4
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -2568,10 +2465,9 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_a_local, &
                                                 name_atm_b, name_atm_b_local
-    INTEGER                                  :: handle2, i, ii, ikind, j, jj, &
-                                                jkind, k, match_names, n
-    LOGICAL                                  :: allocate_spline_bond_env, &
-                                                failure, found, found_a, &
+    INTEGER                                  :: handle2, i, ii, j, jj, k, &
+                                                match_names
+    LOGICAL                                  :: failure, found, found_a, &
                                                 found_b, only_qm, use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon0, epsilon_a, &
                                                 epsilon_b, ewald_rcut, rmin, &
@@ -2579,12 +2475,9 @@ CPSourceFileRef,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
-    TYPE(spline_data_p_type), DIMENSION(:), &
-      POINTER                                :: spl_p
 
     failure = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
-    allocate_spline_bond_env = .FALSE.
     NULLIFY(pot)
     CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
     CALL timeset(routineN,handle2)
@@ -2819,8 +2712,6 @@ CPSourceFileRef,&
              pot%type       = nn_type
              pot%at1        = name_atm_a
              pot%at2        = name_atm_b
-          ELSE
-             allocate_spline_bond_env = .TRUE.
           END IF
           ! If defined global RCUT let's use it
           IF(ff_type%rcut_nb>0.0_dp) THEN
@@ -2833,102 +2724,9 @@ CPSourceFileRef,&
           END IF
        END DO  ! atom kind j
     END DO  ! atom kind i
-
-    ! Allocate Spline Bond Env
-    CALL get_nonbond_storage(spline_bond_env, potparm_bond, atomic_kind_set, &
-         scale_cutoff=ff_type%scale_cutoff, error=error)
-    CALL spline_nonbond_control(spline_bond_env, potparm_bond, &
-         atomic_kind_set, eps_spline=ff_type%eps_spline, &
-         max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
-         scale_cutoff=ff_type%scale_cutoff, error=error)
-
-    DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
-       DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
-          n = spline_bond_env % spltab ( ikind, jkind )
-          spl_p => spline_bond_env%spl_pp(n)%spl_p
-          CALL spline_data_p_retain(spl_p, error)
-          CALL spline_data_p_release(potparm_bond%pot(ikind,jkind)%pot%pair_spline_data,error)
-          potparm_bond%pot(ikind,jkind)%pot%pair_spline_data => spl_p
-       END DO
-    END DO
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_sbe
-
-! *****************************************************************************
-!> \brief Pack in ONFO information needed for the force_field
-! *****************************************************************************
-  SUBROUTINE force_field_pack_onfo(particle_set, molecule_kind_set, &
-       molecule_set, iw, potparm_bond, error)
-
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    INTEGER                                  :: iw
-    TYPE(pair_potential_pp_type), POINTER    :: potparm_bond
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_onfo', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b
-    INTEGER                                  :: atm_a, atm_b, first, handle2, &
-                                                i, ikind, j, jkind, last, &
-                                                natom, nonfo
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: failure, only_qm
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
-
-    CALL timeset(routineN,handle2)
-    failure = .FALSE.
-
-    DO i=1,SIZE(molecule_kind_set)
-       molecule_kind => molecule_kind_set(i)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            molecule_list=molecule_list,&
-            natom=natom,&
-            nonfo=nonfo,&
-            onfo_list=onfo_list)
-       molecule=>molecule_set(molecule_list(1))
-       CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
-
-       DO j=1,nonfo
-          atm_a = onfo_list(j)%a
-          atomic_kind => particle_set(atm_a+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_a, kind_number = ikind )
-          atm_b = onfo_list(j)%b
-          atomic_kind => particle_set(atm_b+first-1)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               name=name_atm_b, kind_number = jkind )
-          only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-          CALL uppercase(name_atm_a)
-          CALL uppercase(name_atm_b)
-
-          CALL spline_data_p_retain (potparm_bond%pot(ikind,jkind)%pot%pair_spline_data,error=error)
-          CALL spline_data_p_release(onfo_list(j)%onfo_kind%spl_p, error=error)
-          onfo_list(j)%onfo_kind%spl_p => potparm_bond%pot(ikind,jkind)%pot%pair_spline_data
-          CALL spline_factor_copy(potparm_bond%pot(ikind,jkind)%pot%spl_f,onfo_list(j)%onfo_kind%spl_f,error)
-
-          IF(iw>0) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
-               TRIM(name_atm_a)," ",&
-               TRIM(name_atm_b)
-       END DO
-       CALL set_molecule_kind(molecule_kind=molecule_kind,&
-            onfo_list=onfo_list)
-    END DO
-    ! XXX: temporary hack. this entire routine is slated for removal.
-    ! CALL pair_potential_pp_release ( potparm_bond, error )
-    CALL timestop(handle2)
-
-  END SUBROUTINE force_field_pack_onfo
 
 ! *****************************************************************************
 !> \brief Pack in spline nonbond env the information needed for the force_field
@@ -3275,55 +3073,28 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_ppse', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle2
-    LOGICAL                                  :: failure
-
-    CALL timeset(routineN,handle2)
-    failure = .FALSE.
-    CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, &
-         atomic_kind_set, do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, &
-         error=error)
-    CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
-         atomic_kind_set, eps_spline=ff_type%eps_spline, &
-         max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
-         do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, error=error)
-    CALL timestop(handle2)
-
-  END SUBROUTINE force_field_pack_ppse
-
-! *****************************************************************************
-!> \brief Setup the pair potential spline environment
-! *****************************************************************************
-  SUBROUTINE  force_field_pack_pp(atomic_kind_set, spline_nonbond_env, &
-       potparm_nonbond, error)
-
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(spline_environment_type), POINTER   :: spline_nonbond_env
-    TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_pp', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle2, ikind, jkind, n, &
-                                                nkinds
+    INTEGER                                  :: handle2, ikind, jkind, n
     LOGICAL                                  :: failure
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
 
     CALL timeset(routineN,handle2)
     failure = .FALSE.
-
-    nkinds = SIZE(atomic_kind_set)
-
+    ! Figure out which nonbonded interactions happen to be indentical, and
+    ! prepare storage for these, avoiding duplicates.
+    CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, &
+         atomic_kind_set, do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, &
+         error=error)
+    ! Effectively compute the spline data.
+    CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
+         atomic_kind_set, eps_spline=ff_type%eps_spline, &
+         max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
+         do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, error=error)
+    ! Let the pointers on potparm point to the splines generated in
+    ! spline_nonbond_control.
     DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
-          !---------------------------------------
-          ! 1st: The pair-potential contribution,
-          !      if shell-model, it is ion-shell or shell-shell
-          !---------------------------------------
           n = spline_nonbond_env % spltab ( ikind, jkind )
           spl_p => spline_nonbond_env%spl_pp(n)%spl_p
           CALL spline_data_p_retain ( spl_p, error )
@@ -3331,10 +3102,9 @@ CPSourceFileRef,&
           potparm_nonbond%pot(ikind,jkind)%pot%pair_spline_data => spl_p
        END DO
     END DO
-
     CALL timestop(handle2)
 
-  END SUBROUTINE force_field_pack_pp
+  END SUBROUTINE force_field_pack_ppse
 
 ! *****************************************************************************
 !> \brief Compute the electrostatic interaction cutoffs

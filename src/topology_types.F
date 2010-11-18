@@ -55,7 +55,7 @@ MODULE topology_types
      INTEGER, POINTER :: theta_a(:),theta_b(:),theta_c(:),theta_type(:)
      INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:),phi_type(:)
      INTEGER, POINTER :: impr_a(:),impr_b(:),impr_c(:),impr_d(:),impr_type(:)
-     INTEGER, POINTER :: onfo_a(:),onfo_b(:),onfo_type(:)
+     INTEGER, POINTER :: onfo_a(:),onfo_b(:)
      INTEGER, POINTER :: c_bond_a(:),c_bond_b(:),c_bond_type(:)
   END TYPE connectivity_info_type
 
@@ -295,7 +295,6 @@ CONTAINS
     NULLIFY(topology%conn_info%impr_type)
     NULLIFY(topology%conn_info%onfo_a)
     NULLIFY(topology%conn_info%onfo_b)
-    NULLIFY(topology%conn_info%onfo_type)
     NULLIFY(topology%conn_info%c_bond_a)
     NULLIFY(topology%conn_info%c_bond_b)
     NULLIFY(topology%conn_info%c_bond_type)
@@ -561,10 +560,6 @@ CONTAINS
     END IF
     IF(ASSOCIATED(topology%conn_info%onfo_b)) THEN
        DEALLOCATE(topology%conn_info%onfo_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF(ASSOCIATED(topology%conn_info%onfo_type)) THEN
-       DEALLOCATE(topology%conn_info%onfo_type,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_a)) THEN

@@ -39,12 +39,11 @@ MODULE force_fields_util
   USE force_fields_all,                ONLY: &
        force_field_pack_bend, force_field_pack_bond, force_field_pack_charge, &
        force_field_pack_damp, force_field_pack_eicut, force_field_pack_impr, &
-       force_field_pack_onfo, force_field_pack_opbend, force_field_pack_pol, &
-       force_field_pack_pp, force_field_pack_ppse, force_field_pack_radius, &
-       force_field_pack_sbe, force_field_pack_shell, force_field_pack_sne, &
-       force_field_pack_tors, force_field_pack_ub, force_field_unique_bend, &
-       force_field_unique_bond, force_field_unique_impr, &
-       force_field_unique_onfo, force_field_unique_opbend, &
+       force_field_pack_opbend, force_field_pack_pol, force_field_pack_ppse, &
+       force_field_pack_radius, force_field_pack_sbe, force_field_pack_shell, &
+       force_field_pack_sne, force_field_pack_tors, force_field_pack_ub, &
+       force_field_unique_bend, force_field_unique_bond, &
+       force_field_unique_impr, force_field_unique_opbend, &
        force_field_unique_tors, force_field_unique_ub
   USE input_constants,                 ONLY: do_ff_undef
   USE input_section_types,             ONLY: section_vals_type,&
@@ -194,19 +193,13 @@ CONTAINS
          ff_type, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 7. Determine the number of unique onfo kind and allocate onfo_kind_set
-    !-----------------------------------------------------------------------------
-    CALL force_field_unique_onfo (particle_set, molecule_kind_set,&
-         molecule_set, error)
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 8. Bonds
+    ! 7. Bonds
     !-----------------------------------------------------------------------------
     CALL force_field_pack_bond (particle_set, molecule_kind_set, molecule_set,   &
          fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 9. Bends
+    ! 8. Bends
     !-----------------------------------------------------------------------------
     CALL force_field_pack_bend (particle_set, molecule_kind_set, molecule_set,   &
          fatal, Ainfo, chm_info, inp_info, gro_info, amb_info, error)
@@ -214,25 +207,25 @@ CONTAINS
     CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 10. Urey-Bradley
+    ! 9. Urey-Bradley
     !-----------------------------------------------------------------------------
     CALL force_field_pack_ub (particle_set, molecule_kind_set, molecule_set,     &
          Ainfo, chm_info, inp_info, iw, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 11. Torsions
+    ! 10. Torsions
     !-----------------------------------------------------------------------------
     CALL force_field_pack_tors (particle_set, molecule_kind_set, molecule_set,   &
          Ainfo, chm_info, inp_info, gro_info, amb_info, iw, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 12. Impropers
+    ! 11. Impropers
     !-----------------------------------------------------------------------------
     CALL force_field_pack_impr (particle_set, molecule_kind_set, molecule_set,   &
          Ainfo, chm_info, inp_info, gro_info, amb_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 13. Out of plane bends
+    ! 12. Out of plane bends
     !-----------------------------------------------------------------------------
     CALL force_field_pack_opbend (particle_set, molecule_kind_set, molecule_set, &
        Ainfo, inp_info, error)
@@ -242,7 +235,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 14. Set up atomic_kind_set()%fist_potentail%[qeff] (PART 2) and shell
+    ! 13. Set up atomic_kind_set()%fist_potentail%[qeff] (PART 2) and shell
     !      potential parameters
     !-----------------------------------------------------------------------------
     CALL force_field_pack_charge(atomic_kind_set, qmmm_env, fatal, iw, iw4,&
@@ -252,44 +245,45 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 15. Set up the radius of the electrostatic multipole in Fist
+    ! 14. Set up the radius of the electrostatic multipole in Fist
     !-----------------------------------------------------------------------------
     CALL force_field_pack_radius(atomic_kind_set, iw, subsys_section, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 16. Set up the polarizable FF parameters
+    ! 15. Set up the polarizable FF parameters
     !-----------------------------------------------------------------------------
     CALL force_field_pack_pol(atomic_kind_set, iw, inp_info, error)
     CALL force_field_pack_damp(atomic_kind_set, iw, inp_info, error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 17. Set up  Shell potential
+    ! 16. Set up  Shell potential
     !-----------------------------------------------------------------------------
     CALL force_field_pack_shell ( particle_set, atomic_kind_set,&
          molecule_kind_set, molecule_set, root_section, subsys_section,&
          shell_particle_set, core_particle_set, cell, iw, inp_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 18. Set spline_bond_env, use for ONFO interaction
+    ! 17. Set spline_bond_env, use for ONFO interaction
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded14) THEN
        NULLIFY(spline_bond_env)
        CALL force_field_pack_sbe(atomic_kind_set, ff_type, qmmm_env, iw, Ainfo,&
             chm_info, inp_info, gro_info, amb_info, potparm_bond, ewald_env, &
-            spline_bond_env, iw2, iw3, iw4, error)
+            iw2, iw3, iw4, error)
        ! Give information if any 1-4 is missing.. continue calculation..
        CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
+       ! 17.(a) create the pair potential spline environment
        !--------------------------------------------------------------------------
-       ! 18.(a) ONFO
-       !--------------------------------------------------------------------------
-       CALL force_field_pack_onfo(particle_set, molecule_kind_set, molecule_set,&
-            iw, potparm_bond, error)
+       NULLIFY(spline_bond_env)
+       CALL section_vals_val_get(mm_section,"FORCEFIELD%ZBL_SCATTERING",l_val=do_zbl,error=error)
+       CALL force_field_pack_ppse(atomic_kind_set, ff_type, iw2, iw3, iw4, &
+            spline_bond_env, potparm_bond, do_zbl, error)
     END IF
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 19. Set spline_nonbond_env
+    ! 18. Set spline_nonbond_env
     !-----------------------------------------------------------------------------
     IF (ff_type%nonbonded) THEN
        CALL force_field_pack_sne(atomic_kind_set, ff_type, qmmm_env, &
@@ -298,17 +292,12 @@ CONTAINS
        ! Give information and abort if any pair potential spline is missing..
        CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
        !--------------------------------------------------------------------------
-       ! 19.(a) create the pair potential spline environment
+       ! 18.(a) create the pair potential spline environment
        !--------------------------------------------------------------------------
        NULLIFY(spline_nonbond_env)
        CALL section_vals_val_get(mm_section,"FORCEFIELD%ZBL_SCATTERING",l_val=do_zbl,error=error)
        CALL force_field_pack_ppse(atomic_kind_set, ff_type, iw2, iw3, iw4, &
             spline_nonbond_env, potparm_nonbond, do_zbl, error)
-       !--------------------------------------------------------------------------
-       ! 19.(b) Setup of the pair potential spline environment (Evtl. Core/Shell)
-       !--------------------------------------------------------------------------
-       CALL force_field_pack_pp (atomic_kind_set, spline_nonbond_env, &
-            potparm_nonbond, error)
     END IF
     ! Create non bond environment
     CALL ewald_env_get(ewald_env, rcut=ewald_rcut, error=error)
@@ -319,7 +308,7 @@ CONTAINS
          ff_type%nonbonded, verlet_skin, ewald_rcut, ff_type%ei_scale14, &
          ff_type%vdw_scale14, ff_type%scale_cutoff, error)
     !-----------------------------------------------------------------------------
-    ! 20. Compute the electrostatic interaction cutoffs
+    ! 19. Compute the electrostatic interaction cutoffs
     !-----------------------------------------------------------------------------
     CALL force_field_pack_eicut(atomic_kind_set, ff_type, potparm_nonbond, &
          ewald_env, error)

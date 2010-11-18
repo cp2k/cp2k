@@ -32,3 +32,5 @@ NEB-MIXED.inp
 2gly_IT-NEB-CV.inp
 2gly_IT-NEB-CV-res.inp
 NEB-MIXED.inp
+#numerics
+2gly_DIIS-SD-2.inp

@@ -27,8 +27,7 @@ MODULE fist_intra_force
                                              get_pv_torsion
   USE molecule_kind_types,             ONLY: &
        bend_type, bond_type, get_molecule_kind, impr_type, &
-       molecule_kind_type, onfo_type, opbend_type, shell_type, torsion_type, &
-       ub_type
+       molecule_kind_type, opbend_type, shell_type, torsion_type, ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -86,8 +85,7 @@ CONTAINS
 
     INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
       index_a, index_b, index_c, index_d, iopbend, ishell, itorsion, nbends, &
-      nbonds, nimptors, nkind, nmol_per_kind, nonefs, nopbends, nshell, &
-      ntorsions, nub
+      nbonds, nimptors, nkind, nmol_per_kind, nopbends, nshell, ntorsions, nub
     REAL(KIND=dp)                            :: d12, d32, dist, dist1, dist2, &
                                                 energy, fscalar, id12, id32, &
                                                 is32, ism, isn, s32, sm, sn, &
@@ -102,7 +100,6 @@ CONTAINS
     TYPE(impr_type), POINTER                 :: impr_list( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(onfo_type), POINTER                 :: onef_list( : )
     TYPE(opbend_type), POINTER               :: opbend_list( : )
     TYPE(shell_type), POINTER                :: shell_list( : )
     TYPE(torsion_type), POINTER              :: torsion_list( : )
@@ -138,11 +135,11 @@ CONTAINS
           molecule_kind => molecule % molecule_kind
           CALL get_molecule_kind ( molecule_kind, nbend = nbends, nbond = nbonds,  &
                                    nimpr = nimptors, nub = nub, ntorsion = ntorsions, &
-                                   nopbend = nopbends, nonfo = nonefs, nshell=nshell, &
+                                   nopbend = nopbends, nshell=nshell, &
                                    bond_list = bond_list, ub_list = ub_list, &
                                    bend_list = bend_list, torsion_list = torsion_list, &
                                    impr_list = impr_list, opbend_list = opbend_list, &
-                                   onfo_list = onef_list, shell_list=shell_list )
+                                   shell_list=shell_list )
 
           CALL get_molecule ( molecule, first_atom=first_atom )
 

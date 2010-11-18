@@ -31,9 +31,8 @@ MODULE molecule_kind_types
   USE f77_blas
   USE force_field_types,               ONLY: &
        bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, &
-       onfo_kind_dealloc_ref, onfo_kind_type, opbend_kind_type, &
-       torsion_kind_dealloc_ref, torsion_kind_type, ub_kind_dealloc_ref, &
-       ub_kind_type
+       opbend_kind_type, torsion_kind_dealloc_ref, torsion_kind_type, &
+       ub_kind_dealloc_ref, ub_kind_type
   USE input_constants,                 ONLY: use_perd_x,&
                                              use_perd_xy,&
                                              use_perd_xyz,&
@@ -112,13 +111,6 @@ MODULE molecule_kind_types
   END TYPE opbend_type
 
 ! *****************************************************************************
-  TYPE onfo_type
-    INTEGER :: a,b
-    INTEGER :: id_type
-    TYPE(onfo_kind_type), POINTER :: onfo_kind
-  END TYPE onfo_type
-
-! *****************************************************************************
   TYPE restraint_type
      LOGICAL       :: active
      REAL(KIND=dp) :: k0
@@ -183,8 +175,6 @@ MODULE molecule_kind_types
     TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list
     TYPE(opbend_kind_type), DIMENSION(:), POINTER     :: opbend_kind_set
     TYPE(opbend_type), DIMENSION(:), POINTER          :: opbend_list
-    TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: onfo_kind_set
-    TYPE(onfo_type), DIMENSION(:), POINTER            :: onfo_list
     TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list
     TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list
     TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list
@@ -200,7 +190,6 @@ MODULE molecule_kind_types
                                                          nbend,&
                                                          nimpr,&
                                                          nopbend,&
-                                                         nonfo,&
                                                          ntorsion,&
                                                          nub,&
                                                          ng3x3, ng3x3_restraint,&
@@ -233,7 +222,6 @@ MODULE molecule_kind_types
             torsion_type,&
             impr_type,&
             opbend_type,&
-            onfo_type,&
             restraint_type,&
             colvar_constraint_type,&
             g3x3_constraint_type,&
@@ -376,8 +364,6 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%impr_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%opbend_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%opbend_list)
-      NULLIFY (molecule_kind_set(imolecule_kind)%onfo_list)
-      NULLIFY (molecule_kind_set(imolecule_kind)%onfo_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%g3x3_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%g4x6_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%vsite_list)
@@ -396,7 +382,6 @@ CONTAINS
       molecule_kind_set(imolecule_kind)%nbend = 0
       molecule_kind_set(imolecule_kind)%nbond = 0
       molecule_kind_set(imolecule_kind)%nimpr = 0
-      molecule_kind_set(imolecule_kind)%nonfo = 0
       molecule_kind_set(imolecule_kind)%nopbend = 0
       molecule_kind_set(imolecule_kind)%nub = 0
       CALL setup_colvar_counters(molecule_kind_set(imolecule_kind)%colv_list,&
@@ -481,13 +466,6 @@ CONTAINS
            DEALLOCATE (molecule_kind_set(imolecule_kind)%opbend_kind_set,STAT=stat)
            CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
-        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_list)) THEN
-           DEALLOCATE(molecule_kind_set(imolecule_kind)%onfo_list, STAT=stat)
-           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_kind_set)) THEN
-          CALL onfo_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%onfo_kind_set,error=error)
-        END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_kind_set)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_kind_set,STAT=stat)
            CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -557,14 +535,14 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE get_molecule_kind(molecule_kind,atom_list,bond_list,bend_list,&
-                               ub_list,impr_list,opbend_list,onfo_list,colv_list,fixd_list,&
+                               ub_list,impr_list,opbend_list,colv_list,fixd_list,&
                                g3x3_list,g4x6_list,vsite_list,torsion_list,shell_list,&
                                name,mass,charge,kind_number,natom,nbend,nbond,nub,&
-                               nimpr,nopbend,nonfo,nconstraint,nconstraint_fixd,nfixd,ncolv,ng3x3,ng4x6,&
+                               nimpr,nopbend,nconstraint,nconstraint_fixd,nfixd,ncolv,ng3x3,ng4x6,&
                                nvsite,nfixd_restraint,ng3x3_restraint, ng4x6_restraint,&
                                nvsite_restraint,nrestraints,nmolecule,nsgf,nshell,ntorsion,&
                                molecule_list,nelectron, bond_kind_set,bend_kind_set,&
-                               ub_kind_set,impr_kind_set,opbend_kind_set,onfo_kind_set,torsion_kind_set,&
+                               ub_kind_set,impr_kind_set,opbend_kind_set,torsion_kind_set,&
                                molname_generated)
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -580,8 +558,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: impr_list
     TYPE(opbend_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: opbend_list
-    TYPE(onfo_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: onfo_list
     TYPE(colvar_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: colv_list
     TYPE(fixd_constraint_type), &
@@ -599,8 +575,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
     REAL(KIND=dp), OPTIONAL                  :: mass, charge
-    INTEGER, INTENT(OUT), OPTIONAL :: kind_number, natom, nbend, nbond, nub, &
-      nimpr, nopbend, nonfo, nconstraint, nconstraint_fixd, nfixd
+    INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
+                                                nbond, nub, nimpr, nopbend, &
+                                                nconstraint, &
+                                                nconstraint_fixd, nfixd
     TYPE(colvar_counters), INTENT(out), &
       OPTIONAL                               :: ncolv
     INTEGER, INTENT(OUT), OPTIONAL :: ng3x3, ng4x6, nvsite, nfixd_restraint, &
@@ -618,8 +596,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: impr_kind_set
     TYPE(opbend_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: opbend_kind_set
-    TYPE(onfo_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: onfo_kind_set
     TYPE(torsion_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_kind_set
     LOGICAL, INTENT(OUT), OPTIONAL           :: molname_generated
@@ -636,14 +612,12 @@ CONTAINS
       IF (PRESENT(bond_list)) bond_list => molecule_kind%bond_list
       IF (PRESENT(impr_list)) impr_list => molecule_kind%impr_list
       IF (PRESENT(opbend_list)) opbend_list => molecule_kind%opbend_list
-      IF (PRESENT(onfo_list)) onfo_list => molecule_kind%onfo_list
       IF (PRESENT(ub_list)) ub_list => molecule_kind%ub_list
       IF (PRESENT(bond_kind_set)) bond_kind_set => molecule_kind%bond_kind_set
       IF (PRESENT(bend_kind_set)) bend_kind_set => molecule_kind%bend_kind_set
       IF (PRESENT(ub_kind_set)) ub_kind_set => molecule_kind%ub_kind_set
       IF (PRESENT(impr_kind_set)) impr_kind_set => molecule_kind%impr_kind_set
       IF (PRESENT(opbend_kind_set)) opbend_kind_set => molecule_kind%opbend_kind_set
-      IF (PRESENT(onfo_kind_set)) onfo_kind_set => molecule_kind%onfo_kind_set
       IF (PRESENT(torsion_kind_set)) torsion_kind_set => molecule_kind%torsion_kind_set
       IF (PRESENT(colv_list)) colv_list => molecule_kind%colv_list
       IF (PRESENT(g3x3_list)) g3x3_list => molecule_kind%g3x3_list
@@ -663,7 +637,6 @@ CONTAINS
       IF (PRESENT(nub)) nub = molecule_kind%nub
       IF (PRESENT(nimpr)) nimpr = molecule_kind%nimpr
       IF (PRESENT(nopbend)) nopbend = molecule_kind%nopbend
-      IF (PRESENT(nonfo)) nonfo = molecule_kind%nonfo
       IF (PRESENT(nconstraint)) nconstraint = (molecule_kind%ncolv%ntot - molecule_kind%ncolv%nrestraint) +&
                                               3*(molecule_kind%ng3x3-molecule_kind%ng3x3_restraint) +&
                                               6*(molecule_kind%ng4x6-molecule_kind%ng4x6_restraint)+&
@@ -722,20 +695,20 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE get_molecule_kind_set(molecule_kind_set,maxatom,natom,&
-                                   nbond,nbend,nub,ntorsion,nimpr,nopbend,nonfo,&
+                                   nbond,nbend,nub,ntorsion,nimpr,nopbend,&
                                    nconstraint,nmolecule,nrestraints)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, natom, nbond, nbend, nub, &
-      ntorsion, nimpr, nopbend, nonfo, nconstraint, nmolecule, nrestraints
+      ntorsion, nimpr, nopbend, nconstraint, nmolecule, nrestraints
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule_kind_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ibend, ibond, iimpr, imolecule_kind, ionfo, iopbend, itorsion, &
-      iub, na, nc, nconstraint_fixd, nfixd, nfixd_restraint, nm, &
-      nmolecule_kind, nrestraints_tot
+    INTEGER :: ibend, ibond, iimpr, imolecule_kind, iopbend, itorsion, iub, &
+      na, nc, nconstraint_fixd, nfixd, nfixd_restraint, nm, nmolecule_kind, &
+      nrestraints_tot
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
@@ -748,7 +721,6 @@ CONTAINS
       IF (PRESENT(ntorsion)) ntorsion = 0
       IF (PRESENT(nimpr)) nimpr = 0
       IF (PRESENT(nopbend)) nopbend = 0
-      IF (PRESENT(nonfo)) nonfo = 0
       IF (PRESENT(nconstraint)) nconstraint = 0
       IF (PRESENT(nrestraints)) nrestraints = 0
       IF (PRESENT(nmolecule)) nmolecule = 0
@@ -767,7 +739,6 @@ CONTAINS
                                ntorsion=itorsion,&
                                nimpr=iimpr,&
                                nopbend=iopbend,&
-                               nonfo=ionfo,&
                                nconstraint=nc,&
                                nconstraint_fixd=nconstraint_fixd,&
                                nfixd=nfixd,&
@@ -782,7 +753,6 @@ CONTAINS
         IF (PRESENT(ntorsion)) ntorsion = ntorsion + itorsion*nm
         IF (PRESENT(nimpr)) nimpr = nimpr + iimpr*nm
         IF (PRESENT(nopbend)) nopbend = nopbend + iopbend*nm
-        IF (PRESENT(nonfo)) nonfo = nonfo + ionfo*nm
         IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + nconstraint_fixd
         IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
         IF (PRESENT(nrestraints)) nrestraints = nrestraints + nm*nrestraints_tot + nfixd_restraint
@@ -881,14 +851,14 @@ CONTAINS
  SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
                                molecule_list,atom_list,nbond,bond_list,&
                                nbend,bend_list,nub,ub_list,nimpr,impr_list,&
-                               nopbend, opbend_list, nonfo,onfo_list,ntorsion,&
+                               nopbend, opbend_list, ntorsion,&
                                torsion_list,fixd_list,ncolv,colv_list,ng3x3,&
                                g3x3_list,ng4x6,nfixd,g4x6_list,nvsite,&
                                vsite_list,ng3x3_restraint,ng4x6_restraint,&
                                nfixd_restraint,nshell, shell_list,&
                                nvsite_restraint,bond_kind_set,bend_kind_set,&
                                ub_kind_set,torsion_kind_set,impr_kind_set,&
-                               opbend_kind_set,onfo_kind_set,nelectron,nsgf,&
+                               opbend_kind_set, nelectron,nsgf,&
                                molname_generated)
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -913,9 +883,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: nopbend
     TYPE(opbend_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: opbend_list
-    INTEGER, INTENT(IN), OPTIONAL            :: nonfo
-    TYPE(onfo_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: onfo_list
     INTEGER, INTENT(IN), OPTIONAL            :: ntorsion
     TYPE(torsion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_list
@@ -952,8 +919,6 @@ CONTAINS
       OPTIONAL, POINTER                      :: impr_kind_set
     TYPE(opbend_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: opbend_kind_set
-    TYPE(onfo_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: onfo_kind_set
     INTEGER, INTENT(IN), OPTIONAL            :: nelectron, nsgf
     LOGICAL, INTENT(IN), OPTIONAL            :: molname_generated
 
@@ -988,8 +953,6 @@ CONTAINS
       IF (PRESENT(impr_list)) molecule_kind%impr_list => impr_list
       IF (PRESENT(nopbend)) molecule_kind%nopbend = nopbend
       IF (PRESENT(opbend_list)) molecule_kind%opbend_list => opbend_list
-      IF (PRESENT(nonfo)) molecule_kind%nonfo = nonfo
-      IF (PRESENT(onfo_list)) molecule_kind%onfo_list => onfo_list
       IF (PRESENT(ncolv)) molecule_kind%ncolv = ncolv
       IF (PRESENT(colv_list)) molecule_kind%colv_list => colv_list
       IF (PRESENT(ng3x3)) molecule_kind%ng3x3 = ng3x3
@@ -1010,7 +973,6 @@ CONTAINS
       IF (PRESENT(torsion_kind_set)) molecule_kind%torsion_kind_set => torsion_kind_set
       IF (PRESENT(impr_kind_set)) molecule_kind%impr_kind_set => impr_kind_set
       IF (PRESENT(opbend_kind_set)) molecule_kind%opbend_kind_set => opbend_kind_set
-      IF (PRESENT(onfo_kind_set)) molecule_kind%onfo_kind_set => onfo_kind_set
       IF (PRESENT(nshell)) molecule_kind%nshell = nshell
       IF (PRESENT(shell_list)) molecule_kind%shell_list => shell_list
       IF (PRESENT(molecule_list)) THEN
@@ -1101,9 +1063,6 @@ CONTAINS
           IF ( molecule_kind%nopbend > 0 ) &
             WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
             "Number of out opbends:    ",molecule_kind%nopbend
-          IF ( molecule_kind%nonfo > 0 ) &
-            WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
-            "Number of one-four:    ",molecule_kind%nonfo
         END IF
 
       ELSE
@@ -1129,7 +1088,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: imolecule_kind, natom, nbend, nbond, nimpr, nmolecule, &
-      nmolecule_kind, nonfo, nopbend, ntors, ntotal, nub, output_unit
+      nmolecule_kind, nopbend, ntors, ntotal, nub, output_unit
     LOGICAL                                  :: all_single_atoms, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -1168,9 +1127,8 @@ CONTAINS
                                    nub=nub,&
                                    ntorsion=ntors,&
                                    nimpr=nimpr,&
-                                   nopbend=nopbend,&
-                                   nonfo=nonfo)
-        ntotal = nbond+nbend+nub+ntors+nimpr+nopbend+nonfo
+                                   nopbend=nopbend)
+        ntotal = nbond+nbend+nub+ntors+nimpr+nopbend
         IF ( ntotal > 0 ) THEN
            WRITE(UNIT=output_unit,FMT="(/,/,T2,A,T45,A30,I6)") &
              "MOLECULE KIND SET INFORMATION", &
@@ -1185,8 +1143,6 @@ CONTAINS
              "Total Number of improper:    ",nimpr
            WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
              "Total Number of opbends:    ",nopbend
-           WRITE (UNIT=output_unit,FMT="(T45,A30,I6)")&
-             "Total Number of one-four:    ",nonfo
         END IF
       ELSE
          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)

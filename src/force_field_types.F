@@ -22,10 +22,6 @@ MODULE force_field_types
                                              pair_potential_p_type
   USE shell_potential_types,           ONLY: shell_p_release,&
                                              shell_p_type
-  USE splines_types,                   ONLY: spline_data_p_release,&
-                                             spline_data_p_type,&
-                                             spline_factor_release,&
-                                             spline_factor_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -80,13 +76,6 @@ MODULE force_field_types
      REAL(KIND = dp)                :: k,phi0
      INTEGER                        :: kind_number
   END TYPE opbend_kind_type
-
-! *****************************************************************************
-  TYPE onfo_kind_type
-     TYPE ( spline_factor_type ), POINTER               :: spl_f
-     TYPE ( spline_data_p_type ), POINTER, DIMENSION(:) :: spl_p
-     INTEGER                                            :: kind_number
-  END TYPE onfo_kind_type
 
 ! *****************************************************************************
   TYPE input_info_type
@@ -261,7 +250,6 @@ MODULE force_field_types
             allocate_torsion_kind_set,&
             allocate_impr_kind_set,&
             allocate_opbend_kind_set,&
-            allocate_onfo_kind_set,&
             init_ff_type,&
             deallocate_ff_type,&
             deallocate_bend_kind_set,&
@@ -276,8 +264,6 @@ MODULE force_field_types
   PUBLIC :: bend_kind_type,&
             bond_kind_type,&
             impr_kind_type,&
-            onfo_kind_type,&
-            onfo_kind_dealloc_ref,&
             torsion_kind_type,&
             opbend_kind_type,&
             ub_kind_type,&
@@ -473,33 +459,6 @@ CONTAINS
       opbend_kind_set(ikind)%kind_number = ikind
     END DO
   END SUBROUTINE allocate_opbend_kind_set
-
-! *****************************************************************************
-!> \brief Allocate and initialize a onfo kind set.
-! *****************************************************************************
-  SUBROUTINE allocate_onfo_kind_set(onfo_kind_set,nkind,error)
-
-    TYPE(onfo_kind_type), DIMENSION(:), &
-      POINTER                                :: onfo_kind_set
-    INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_onfo_kind_set', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ikind, stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    NULLIFY(onfo_kind_set)
-    ALLOCATE (onfo_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO ikind=1,nkind
-      onfo_kind_set(ikind)%kind_number = ikind
-      NULLIFY(onfo_kind_set(ikind)%spl_p)
-      NULLIFY(onfo_kind_set(ikind)%spl_f)
-    END DO
-  END SUBROUTINE allocate_onfo_kind_set
 
 ! *****************************************************************************
 !> \brief 1. Just NULLIFY and zero all the stuff
@@ -1465,28 +1424,5 @@ CONTAINS
     ! Questa e' la migliore routine che mente umana abbia concepito! ;-)
     !
   END SUBROUTINE impr_kind_dealloc_ref
-
-! *****************************************************************************
-!> \brief Deallocate a onfo kind set.
-! *****************************************************************************
-  SUBROUTINE  onfo_kind_dealloc_ref(onfo_kind_set, error)
-    TYPE(onfo_kind_type), DIMENSION(:), &
-      POINTER                                :: onfo_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'onfo_kind_dealloc_ref', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ionfo, stat
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    DO ionfo=1,SIZE(onfo_kind_set)
-      CALL spline_data_p_release(onfo_kind_set(ionfo)%spl_p, error)
-      CALL spline_factor_release(onfo_kind_set(ionfo)%spl_f, error)
-    END DO
-    DEALLOCATE(onfo_kind_set,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END SUBROUTINE onfo_kind_dealloc_ref
 
 END MODULE force_field_types
