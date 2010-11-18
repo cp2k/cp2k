@@ -519,9 +519,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, group, handle, iatom, iend, igrp, ilist, &
-      ipair, istart, kind_a, kind_b, natoms_per_kind, nkind, npairs, shell_a, &
-      shell_b
+    INTEGER :: atom_a, atom_b, handle, iatom, iend, igrp, ilist, ipair, &
+      istart, kind_a, kind_b, natoms_per_kind, nkind, npairs, shell_a, shell_b
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: a_is_shell, b_is_shell, &
                                                 do_multipoles, do_shell, &
@@ -531,11 +530,15 @@ CONTAINS
                                                 qeff_b, qshell_a, qshell_b
     REAL(KIND=dp), DIMENSION(3)              :: rca, rcb, rsa, rsb
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(shell_kind_type), POINTER           :: shell_kind
 
     CALL timeset(routineN,handle)
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
     ! Initializing values
     IF (use_virial) pv_bc = 0.0_dp
     v_bonded_corr = 0.0_dp
@@ -724,7 +727,8 @@ CONTAINS
        END IF
     END DO
 
-    CALL mp_sum ( v_bonded_corr, group )
+    CALL mp_sum(v_bonded_corr,logger%para_env%group)
+
     CALL timestop(handle)
 
   END SUBROUTINE bonded_correct_gaussian
