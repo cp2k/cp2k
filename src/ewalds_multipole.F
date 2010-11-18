@@ -232,8 +232,10 @@ CONTAINS
 
     e_rspace = 0.0_dp
     e_bonded = 0.0_dp
-    IF (.NOT.debug_g_space) THEN
-       ! Compute the Real Space (Short-Range) part of the Ewald sum
+    IF ((.NOT.debug_g_space) .AND. (nonbond_env%do_nonbonded)) THEN
+       ! Compute the Real Space (Short-Range) part of the Ewald sum.
+       ! This contribution is only added when the nonbonded flag in the input
+       ! is set, because these contributions depend. the neighborlists.
        CALL ewald_multipole_SR (nonbond_env, ewald_env, atomic_kind_set,&
             particle_set, cell, e_rspace, my_task,&
             do_forces, do_efield, do_stress, radii, charges, dipoles, quadrupoles,&
@@ -241,11 +243,11 @@ CONTAINS
        energy_glob = energy_glob + e_rspace
 
        IF (do_correction_bonded) THEN
-          ! If we request for the bonded correction we store in the SR part of the fields array
-          ! also the contribution coming from the correction.. 
-          CALL ewald_multipole_bonded (atomic_kind_set, local_particles, particle_set,&
-               ewald_env, cell, e_bonded, my_task, do_forces, do_efield, do_stress,&
-               charges, dipoles, quadrupoles, forces_glob, pv_glob,&
+          ! The corrections for bonded interactions are stored in the Real Space
+          ! (Short-Range) part of the fields array.
+          CALL ewald_multipole_bonded(nonbond_env, particle_set, ewald_env, &
+               cell, e_bonded, my_task, do_forces, do_efield, do_stress, &
+               charges, dipoles, quadrupoles, forces_glob, pv_glob, &
                efield0_sr, efield1_sr, efield2_sr, error)
           energy_glob = energy_glob + e_bonded 
        END IF
@@ -433,12 +435,14 @@ CONTAINS
           END IF
 
           Pairs: DO ipair = istart, iend
-             ! skip pairs that are excluded for electrostatics
-             fac_ij = 1.0_dp
              IF (ipair <= neighbor_kind_pair%nscale) THEN
-                fac_ij = fac_ij*neighbor_kind_pair%ei_scale(ipair)
+                ! scale the electrostatic interaction if needed
+                ! (most often scaled to zero)
+                fac_ij = neighbor_kind_pair%ei_scale(ipair)
+                IF (fac_ij<=0) CYCLE
+             ELSE
+                fac_ij = 1.0_dp
              END IF
-             IF (fac_ij<=0) CYCLE
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
              kind_a=particle_set(atom_a)%atomic_kind%kind_number
@@ -497,12 +501,11 @@ CONTAINS
 !>        lattice sum of multipoles up to quadrupole
 !> \author Teodoro Laino [tlaino] - 05.2009 
 ! *****************************************************************************
-  SUBROUTINE ewald_multipole_bonded (atomic_kind_set, local_particles, particle_set, &
-       ewald_env, cell, energy, task, do_forces, do_efield, do_stress, charges, &
+  SUBROUTINE ewald_multipole_bonded (nonbond_env, particle_set, ewald_env, &
+       cell, energy, task, do_forces, do_efield, do_stress, charges, &
        dipoles, quadrupoles, forces, pv, efield0, efield1, efield2, error)
 
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(fist_nonbond_env_type), POINTER     :: nonbond_env
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cell_type), POINTER                 :: cell
@@ -526,12 +529,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a, atom_a, atom_b, b, c, d, &
-                                                e, handle, i, iatom, iexcl, &
-                                                ikind, k, natoms_per_kind, &
-                                                nkind
+                                                e, handle, i, iend, igrp, &
+                                                ilist, ipair, istart, k, &
+                                                nscale
+    INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: do_efield0, do_efield1, &
-                                                do_efield2, failure, &
-                                                force_eval
+                                                do_efield2, force_eval
     REAL(KIND=dp) :: alpha, ch_i, ch_j, ef0_i, ef0_j, eloc, fac, fac_ij, ir, &
       irab2, ptens11, ptens12, ptens13, ptens21, ptens22, ptens23, ptens31, &
       ptens32, ptens33, r, rab2, tij, tmp, tmp1, tmp11, tmp12, tmp13, tmp2, &
@@ -544,8 +547,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3, 3)        :: tij_abc
     REAL(KIND=dp), DIMENSION(3, 3, 3, 3)     :: tij_abcd
     REAL(KIND=dp), DIMENSION(3, 3, 3, 3, 3)  :: tij_abcde
+    TYPE(fist_neighbor_type), POINTER        :: nonbonded
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
-    failure = .FALSE.
     CALL timeset ( routineN, handle )
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)
     do_efield1 = do_efield.AND.ASSOCIATED(efield1)
@@ -556,21 +560,29 @@ CONTAINS
        ptens31 = 0.0_dp ; ptens32 = 0.0_dp ; ptens33 = 0.0_dp
     END IF
     CALL ewald_env_get (ewald_env, alpha=alpha, error=error)
+    CALL fist_nonbond_env_get(nonbond_env, nonbonded=nonbonded, error=error)
 
     ! Starting the force loop
-    nkind = SIZE ( atomic_kind_set )
-    kinds: DO ikind=1,nkind
-       natoms_per_kind = local_particles % n_el ( ikind )
-     atom: DO iatom = 1, natoms_per_kind
-          atom_a = local_particles % list ( ikind ) % array ( iatom )
-       excl:  DO iexcl = 1, SIZE ( particle_set ( atom_a ) % list_exclude_ei )
-             atom_b = particle_set ( atom_a ) % list_exclude_ei ( iexcl )
-             IF ( atom_b >= atom_a ) CYCLE
-             fac_ij = -1.0_dp ! The minus sign accounts for the removal of this
-                              ! correction term
-             rab    = particle_set (atom_b)%r-particle_set(atom_a)%r
+    Lists: DO ilist=1,nonbonded%nlists
+       neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
+       nscale = neighbor_kind_pair%nscale
+       IF (nscale==0) CYCLE
+       list => neighbor_kind_pair%list
+       Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
+          istart = neighbor_kind_pair%grp_kind_start(igrp)
+          IF (istart>nscale) CYCLE
+          iend = MIN(neighbor_kind_pair%grp_kind_end(igrp), nscale)
+          Pairs: DO ipair = istart, iend
+             ! only use pairs that are (partially) excluded for electrostatics
+             fac_ij = -1.0_dp + neighbor_kind_pair%ei_scale(ipair)
+             IF (fac_ij>=0) CYCLE
+
+             atom_a = list(1,ipair)
+             atom_b = list(2,ipair)
+
+             rab = particle_set(atom_b)%r - particle_set(atom_a)%r
              rab = pbc(rab, cell)
-             rab2   = rab(1)**2 + rab(2)**2 + rab(3)**2
+             rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
 #define SCREENED_COULOMB_ERF
 #define STORE_ENERGY
 #define STORE_FORCES
@@ -578,9 +590,9 @@ CONTAINS
 #undef STORE_FORCES
 #undef STORE_ENERGY
 #undef SCREENED_COULOMB_ERF
-          END DO excl
-       END DO atom
-    END DO kinds
+          END DO Pairs
+       END DO Kind_Group_Loop
+    END DO Lists
     IF (do_stress) THEN
        pv(1,1) = pv(1,1) +  ptens11
        pv(1,2) = pv(1,2) + (ptens12+ptens21)*0.5_dp

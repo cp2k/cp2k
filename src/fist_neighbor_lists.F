@@ -548,7 +548,6 @@ CONTAINS
              DO iatom_local = 1, subcell_a(a_i,a_j,a_k)%natom
                 atom_a = subcell_a(a_i,a_j,a_k)%atom_list(iatom_local)
                 ikind  = particle_set(atom_a)%atomic_kind%kind_number
-                IF (skip_kind(ikind).AND.skip_kind(jkind)) CYCLE
                 ! Screen interaction to avoid double counting
                 atom_order = (atom_a<=atom_b)
                 ! Special case for kind combination requiring the full NL
@@ -575,6 +574,7 @@ CONTAINS
                    CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
                         list_exclude_ei=particle_set(atom_a)%list_exclude_ei, &
                         list_exclude_vdw=particle_set(atom_a)%list_exclude_vdw, &
+                        skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                         particle_set=particle_set, rab=rab, &
                         check_spline=check_spline, id_kind=id_kind, &
                         is_full=is_full, cell=cell, error=error)
@@ -586,6 +586,7 @@ CONTAINS
                       CALL fist_neighbor_add(inv_neighbor_kind_pair, atom_a, atom_b, &
                            list_exclude_ei=particle_set(atom_a)%list_exclude_ei, &
                            list_exclude_vdw=particle_set(atom_a)%list_exclude_vdw, &
+                           skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                            particle_set=particle_set, rab=rab, &
                            check_spline=check_spline, id_kind=id_kind, &
                            is_full=is_full, cell=cell, error=error)

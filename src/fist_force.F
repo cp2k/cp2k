@@ -451,19 +451,27 @@ CONTAINS
           END SELECT
        END IF
 
-       ! Correction for core-shell model
-       IF(shell_present) THEN
-          CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, particle_set,&
-               ewald_env, thermo%e_bonded, pv_bc, shell_particle_set=shell_particle_set,&
-               core_particle_set=core_particle_set, cell=cell, use_virial=use_virial, error=error)
-
-       ELSE
-          IF (.NOT. do_multipoles) THEN
-             CALL bonded_correct_gaussian ( atomic_kind_set, local_particles,&
-                  particle_set, ewald_env, thermo%e_bonded, pv_bc=pv_bc , cell=cell,&
+       ! Subtract the interaction between screening charges. This is a
+       ! correction in real-space and depends on the neighborlists. Therefore
+       ! it is only executed if fist_nonbond_env%do_nonbonded is set.
+       IF (fist_nonbond_env%do_nonbonded) THEN
+          ! Correction for core-shell model
+          IF (shell_present) THEN
+             CALL bonded_correct_gaussian(fist_nonbond_env, atomic_kind_set, &
+                  local_particles, particle_set, ewald_env, thermo%e_bonded, &
+                  pv_bc, shell_particle_set=shell_particle_set, &
+                  core_particle_set=core_particle_set, cell=cell, &
                   use_virial=use_virial, error=error)
+          ELSE
+             IF (.NOT. do_multipoles) THEN
+                CALL bonded_correct_gaussian(fist_nonbond_env, &
+                     atomic_kind_set, local_particles, particle_set, &
+                     ewald_env, thermo%e_bonded, pv_bc=pv_bc, cell=cell, &
+                     use_virial=use_virial, error=error)
+             END IF
           END IF
        END IF
+
        IF (.NOT. do_multipoles) THEN
           ! Multipole code has its own printing routine.
           CALL ewald_print (iw2, pot_nonbond, vg_coulomb, thermo%e_self, thermo%e_neut,&
@@ -556,7 +564,7 @@ CONTAINS
 
     ! add up all the forces
     !
-    ! nonbonded forces might be claculated for atoms not on this node
+    ! nonbonded forces might be calculated for atoms not on this node
     ! ewald forces are strictly local -> sum only over pnode
     ! We first sum the forces in f_nonbond, this allows for a more efficient
     ! global sum in the parallel code and in the end copy them back to part

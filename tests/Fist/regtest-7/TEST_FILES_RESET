@@ -402,3 +402,8 @@ uo2_shell_nve_dsc.inp
 uo2_shell_npt_dsc.inp
 uo2_shell_nve_zbl.inp
 uo2_shell_nve_cascade.inp
+# numerics after patch 0006
+uo2_nvt_1.inp
+uo2_nvt_2.inp
+uo2_nvt_3.inp
+uo2_nvt_4.inp

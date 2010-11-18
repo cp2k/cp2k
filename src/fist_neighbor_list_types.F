@@ -240,12 +240,13 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
-       list_exclude_ei, list_exclude_vdw, particle_set, rab, check_spline, &
-       id_kind, is_full, cell, error)
+       list_exclude_ei, list_exclude_vdw, skip, particle_set, rab, &
+       check_spline, id_kind, is_full, cell, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     INTEGER, DIMENSION(:), POINTER           :: list_exclude_ei, &
                                                 list_exclude_vdw
+    LOGICAL, INTENT(IN)                      :: skip
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -283,21 +284,26 @@ CONTAINS
        END IF
     END IF
 
+    ! The skip option is .TRUE. for QM-QM pairs in an QM/MM run. In case these
+    ! interactions have an ex_ei option, we store it in the neighbor list to
+    ! do a proper bonded correction for the ewald summation. If there is no
+    ! exclusion, the pair can be neglected.
+    IF (skip.AND.(.NOT.ex_ei)) THEN
+       ! If the pair is not present, checking is obviously not need.
+       check_spline = .FALSE.
+       RETURN
+    END IF
+
     ! The check_spline is set to .TRUE. when the van derwaals is not excluded.
     ! Electrostatic interactions do not matter here as they are not evaluated
     ! with splines. 
-    check_spline = (.NOT.ex_vdw).OR.(.NOT.ex_ei)
+    check_spline = (.NOT.ex_vdw)
 
-    ! THIS WILL MATTER SOON:
-    !! If both types of interactions are excluded, the corresponding potentials
-    !! will never be evaluated. At first sight such a pair would not need to be
-    !! added to the neighborlists at all. However, they are still needed for
-    !! proper corrections on interactions between the screening charges of bonded
-    !! atoms when the ewald summation is used for the electrostatic interactions.
-    ! THIS WILL GO AWAY SOON:
-    IF (ex_ei.AND.ex_vdw.AND.(.NOT.is_full)) THEN
-      RETURN
-    END IF
+    ! If both types of interactions are excluded, the corresponding potentials
+    ! will never be evaluated. At first sight such a pair would not need to be
+    ! added to the neighborlists at all. However, they are still needed for
+    ! proper corrections on interactions between the screening charges of bonded
+    ! atoms when the ewald summation is used for the electrostatic interactions.
 
     ! If an interaction is excluded, store scale=0.
     IF (ex_ei.OR.ex_vdw) THEN
