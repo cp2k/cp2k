@@ -318,7 +318,7 @@ CONTAINS
           list  => neighbor_kind_pair%list
           cvi   =  neighbor_kind_pair%cell_vector
           pot   => potparm %pot( ikind, jkind )%pot
-          IF (pot%only_pp) CYCLE
+          IF (pot%no_mb) CYCLE
           rab2_max = pot%rcutsq
           CALL matvec_3x3(cell_v, cell%hmat,cvi)
           any_tersoff = any_tersoff.OR.ANY(pot%type==tersoff_type)
@@ -391,7 +391,7 @@ CONTAINS
              cvi   =  neighbor_kind_pair%cell_vector
              pot   => potparm %pot( ikind, jkind )%pot
              
-             IF (pot%only_pp) CYCLE
+             IF (pot%no_mb) CYCLE
              rab2_max = pot%rcutsq
              CALL matvec_3x3(cell_v, cell%hmat,cvi)
              DO i = 1, SIZE(pot%type)

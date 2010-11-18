@@ -736,7 +736,7 @@ CONTAINS
                r_val=verlet_skin,error=error)
           CALL fist_nonbond_env_create(se_nonbond_env, atomic_kind_set, &
                do_nonbonded=.TRUE., verlet_skin=verlet_skin, ewald_rcut=ewald_rcut, &
-               ei_scale14=0.0_dp, vdw_scale14=0.0_dp, scale_cutoff=.FALSE., &
+               ei_scale14=0.0_dp, vdw_scale14=0.0_dp, shift_cutoff=.FALSE., &
                error=error)
           ! Create and Setup NDDO multipole environment
           CALL nddo_mpole_setup(se_nddo_mpole, natom, error)

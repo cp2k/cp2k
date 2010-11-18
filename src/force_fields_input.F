@@ -142,7 +142,7 @@ CPSourceFileRef,&
                only_ionode=.TRUE.)
           ff_type%eps_spline = min_eps_spline_allowed
        END IF
-       CALL section_vals_val_get(ff_section,"SCALE_CUTOFF",l_val=ff_type%scale_cutoff,error=error)
+       CALL section_vals_val_get(ff_section,"SHIFT_CUTOFF",l_val=ff_type%shift_cutoff,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%UNIQUE_SPLINE",l_val=unique_spline,error=error)
        ! Single spline
        potential_single_allocation = no_potential_single_allocation

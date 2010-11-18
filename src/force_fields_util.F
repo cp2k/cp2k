@@ -300,7 +300,7 @@ CONTAINS
     CALL fist_nonbond_env_create (fist_nonbond_env, atomic_kind_set, &
          potparm_nonbond14, potparm_nonbond, ff_type%do_nonbonded, &
          verlet_skin, ewald_rcut, ff_type%ei_scale14, &
-         ff_type%vdw_scale14, ff_type%scale_cutoff, error)
+         ff_type%vdw_scale14, ff_type%shift_cutoff, error)
     ! Compute the electrostatic interaction cutoffs.
     CALL force_field_pack_eicut(atomic_kind_set, ff_type, potparm_nonbond, &
          ewald_env, error)

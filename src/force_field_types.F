@@ -221,7 +221,7 @@ MODULE force_field_types
 
 ! *****************************************************************************
   TYPE force_field_type
-    LOGICAL                                   :: scale_cutoff,&
+    LOGICAL                                   :: shift_cutoff,&
                                                  do_nonbonded,&
                                                  electrostatics,&
                                                  multiple_potential,&

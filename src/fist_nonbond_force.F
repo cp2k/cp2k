@@ -234,7 +234,7 @@ CONTAINS
 
              ! In case we have only manybody potentials and no charges, this
              ! pair of atom types can be ignored here.
-             IF (pot%only_mb.AND.(fac_ei==0.0)) CYCLE
+             IF (pot%no_pp.AND.(fac_ei==0.0)) CYCLE
 
              ! Setup spline_data set
              spl_f => pot%spl_f

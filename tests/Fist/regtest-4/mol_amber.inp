@@ -11,7 +11,7 @@
       EI_SCALE14  0.83333333333333333333
       parm_file_name ../sample_pot/mol.pot
       parmtype CHM
-      scale_cutoff .false.
+      SHIFT_CUTOFF .false.
 #&charge
 #atom C 
 #charge    0.0 

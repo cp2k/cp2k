@@ -281,10 +281,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="SCALE_CUTOFF",&
-            description="Enables the scaling of the energy at the cutoff radius."//&
-            " In this way the energy at the cutoff radius is zero.",&
-            usage="SCALE_CUTOFF <LOGICAL>", default_l_val=.TRUE.,error=error)
+       CALL keyword_create(keyword, name="SHIFT_CUTOFF",&
+            description="Add a constant energy shift to the real-space "//&
+            "non-bonding interactions (both Van der Waals and "//&
+            "electrostatic) such that the energy at the cutoff radius is "//&
+            "zero. This makes the non-bonding interactions continuous at "//&
+            "the cutoff.",&
+            usage="SHIFT_CUTOFF <LOGICAL>", default_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

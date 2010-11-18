@@ -4,7 +4,7 @@
     &FORCEFIELD
       VDW_SCALE14 0.5 
       EI_SCALE14  0.8333333
-      SCALE_CUTOFF .FALSE.
+      SHIFT_CUTOFF .FALSE.
       PARM_FILE_NAME ../sample_top/pc.top
       PARMTYPE AMBER    
       &SPLINE

@@ -3085,13 +3085,13 @@ CPSourceFileRef,&
     ! prepare storage for these, avoiding duplicates.
     NULLIFY(spline_env)
     CALL get_nonbond_storage(spline_env, potparm, atomic_kind_set, &
-         do_zbl, scale_cutoff=ff_type%scale_cutoff, error=error)
+         do_zbl, shift_cutoff=ff_type%shift_cutoff, error=error)
     ! Effectively compute the spline data.
     CALL spline_nonbond_control(spline_env, potparm, &
          atomic_kind_set, eps_spline=ff_type%eps_spline, &
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4, &
-         do_zbl=do_zbl, scale_cutoff=ff_type%scale_cutoff, error=error)
+         do_zbl=do_zbl, shift_cutoff=ff_type%shift_cutoff, error=error)
     ! Let the pointers on potparm point to the splines generated in
     ! spline_nonbond_control.
     DO ikind = 1, SIZE ( potparm%pot, 1 )
@@ -3146,8 +3146,8 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     interaction_cutoffs = 0.0_dp
 
-    ! compute the interaction cutoff if SCALE_CUTOFF is active
-    IF (ff_type%scale_cutoff) THEN
+    ! compute the interaction cutoff if SHIFT_CUTOFF is active
+    IF (ff_type%shift_cutoff) THEN
        CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type, &
             rcut=rcut2_ewald)
        rcut2_ewald = rcut2_ewald*rcut2_ewald

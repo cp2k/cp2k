@@ -11,7 +11,7 @@
       EI_SCALE14  0.8333333
       parm_file_name ../sample_pot/gly.pot
       parmtype CHM
-      scale_cutoff .false.
+      SHIFT_CUTOFF .false.
     &END FORCEFIELD
     &POISSON
       &EWALD

@@ -241,9 +241,9 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: z2
      REAL (KIND=dp) :: zbl_poly(0:5)
      REAL (KIND=dp) :: zbl_rcut(2)
-     LOGICAL        :: undef, &    ! non-bonding interaction not defined
-                       only_pp, &  ! only a pair (=two-body) potential
-                       only_mb     ! only a many-body potential
+     LOGICAL        :: undef, &  ! non-bonding interaction not defined
+                       no_mb, &  ! no many-body potential
+                       no_pp     ! no pair (=two-body) potential
      INTEGER        :: shell_type
      CHARACTER ( LEN = default_string_length )   :: at1
      CHARACTER ( LEN = default_string_length )   :: at2
@@ -438,8 +438,8 @@ CONTAINS
     potparm % type          = nn_type
     potparm % shell_type    = nosh_nosh
     potparm % undef         = .TRUE.
-    potparm % only_mb       = .FALSE.
-    potparm % only_pp       = .FALSE.
+    potparm % no_pp         = .FALSE.
+    potparm % no_mb         = .FALSE.
     potparm % at1           = 'NULL'
     potparm % at2           = 'NULL'
     potparm % rcutsq        = 0.0_dp
@@ -491,8 +491,8 @@ CONTAINS
        potparm_dest % type          = potparm_source % type
        potparm_dest % shell_type    = potparm_source % shell_type
        potparm_dest % undef         = potparm_source % undef
-       potparm_dest % only_pp       = potparm_source % only_pp
-       potparm_dest % only_mb       = potparm_source % only_mb
+       potparm_dest % no_mb         = potparm_source % no_mb
+       potparm_dest % no_pp         = potparm_source % no_pp
        potparm_dest % at1           = potparm_source % at1
        potparm_dest % at2           = potparm_source % at2
        potparm_dest % rcutsq        = potparm_source % rcutsq
@@ -579,8 +579,8 @@ CONTAINS
           CALL pair_potential_single_create(potparm_dest,size_source,error)
           potparm_dest % shell_type    = potparm_source % shell_type
           potparm_dest % undef         = potparm_source % undef
-          potparm_dest % only_pp       = potparm_source % only_pp
-          potparm_dest % only_mb       = potparm_source % only_mb
+          potparm_dest % no_mb         = potparm_source % no_mb
+          potparm_dest % no_pp         = potparm_source % no_pp
           potparm_dest % at1           = potparm_source % at1
           potparm_dest % at2           = potparm_source % at2
           potparm_dest % rcutsq        = potparm_source % rcutsq
@@ -593,8 +593,8 @@ CONTAINS
           ! Copy back original informations.. 
           potparm_dest % shell_type = potparm_tmp % shell_type
           potparm_dest % undef      = potparm_tmp % undef
-          potparm_dest % only_pp    = potparm_tmp % only_pp
-          potparm_dest % only_mb    = potparm_tmp % only_mb
+          potparm_dest % no_mb      = potparm_tmp % no_mb
+          potparm_dest % no_pp      = potparm_tmp % no_pp
           potparm_dest % at1        = potparm_tmp % at1
           potparm_dest % at2        = potparm_tmp % at2
           potparm_dest % rcutsq     = potparm_tmp % rcutsq
@@ -619,8 +619,8 @@ CONTAINS
        ! Further check with main option with source and dest (already filled with few informations)
        check= (potparm_dest % shell_type == potparm_source % shell_type).AND.&
               (potparm_dest % undef    .EQV.potparm_source % undef     ).AND.&
-              (potparm_dest % only_pp  .EQV.potparm_source % only_pp   ).AND.&
-              (potparm_dest % only_mb  .EQV.potparm_source % only_mb   ).AND.&
+              (potparm_dest % no_mb    .EQV.potparm_source % no_mb     ).AND.&
+              (potparm_dest % no_pp    .EQV.potparm_source % no_pp     ).AND.&
               (potparm_dest % at1        == potparm_source % at1       ).AND.&
               (potparm_dest % at2        == potparm_source % at2       ).AND.&
               (potparm_dest % rcutsq     == potparm_source % rcutsq    )
@@ -1030,9 +1030,9 @@ CONTAINS
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
           p % pot ( i ) % pot % type  = nn_type
           p % pot ( i ) % pot % shell_type  = nosh_nosh
-          p % pot ( i ) % pot % undef   = .TRUE.
-          p % pot ( i ) % pot % only_pp = .FALSE.
-          p % pot ( i ) % pot % only_mb = .FALSE.
+          p % pot ( i ) % pot % undef = .TRUE.
+          p % pot ( i ) % pot % no_mb = .FALSE.
+          p % pot ( i ) % pot % no_pp = .FALSE.
           p % pot ( i ) % pot % at1   = 'NULL'
           p % pot ( i ) % pot % at2   = 'NULL'
           p % pot ( i ) % pot % set(std_dim) % rmin = not_initialized

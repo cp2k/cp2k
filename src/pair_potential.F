@@ -106,7 +106,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE spline_nonbond_control(spline_env, potparm, atomic_kind_set, &
        eps_spline, max_energy, rlow_nb, emax_spline, iw, iw2, iw3, do_zbl, &
-       scale_cutoff, error)
+       shift_cutoff, error)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -115,7 +115,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, &
                                                 rlow_nb, emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
-    LOGICAL, INTENT(IN)                      :: do_zbl, scale_cutoff
+    LOGICAL, INTENT(IN)                      :: do_zbl, shift_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
@@ -150,15 +150,15 @@ CONTAINS
              END IF
           ENDIF
           ! Setup of Exclusion Types
-          pot%only_mb = .TRUE.
-          pot%only_pp = .TRUE.
+          pot%no_pp = .TRUE.
+          pot%no_mb = .TRUE.
           DO k = 1, SIZE(pot%type)
              SELECT CASE(pot%type(k))
              CASE (lj_type,lj_charmm_type,wl_type,gw_type,ft_type, ftd_type, ip_type,&
                    b4_type,bm_type,gp_type,ea_type)
-                pot%only_mb = .FALSE.
+                pot%no_pp = .FALSE.
              CASE (tersoff_type)
-                pot%only_pp = .FALSE.
+                pot%no_mb = .FALSE.
              CASE (nn_type)
                 ! Do nothing..
              CASE DEFAULT
@@ -168,7 +168,7 @@ CONTAINS
              ! Special case for EAM
              SELECT CASE(pot%type(k))
              CASE (ea_type)
-                pot%only_pp = .FALSE.
+                pot%no_mb = .FALSE.
              END SELECT
           END DO
 
@@ -206,7 +206,7 @@ CONTAINS
              END IF
           END IF
           ! Correct Cutoff...
-          IF (scale_cutoff) THEN
+          IF (shift_cutoff) THEN
              pot%spl_f%cutoff = pot%spl_f%cutoff*pot%spl_f%fscale(1) - &
                 ener_pot(pot, hicut0, 0.0_dp)
           END IF
@@ -444,13 +444,13 @@ CPSourceFileRef,&
 !> \author Teodoro Laino [tlaino] 2006.05
 ! *****************************************************************************
   SUBROUTINE get_nonbond_storage(spline_env, potparm, atomic_kind_set, do_zbl, &
-       scale_cutoff, error)
+       shift_cutoff, error)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    LOGICAL, INTENT(IN)                      :: do_zbl, scale_cutoff
+    LOGICAL, INTENT(IN)                      :: do_zbl, shift_cutoff
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nonbond_storage', &
@@ -740,7 +740,7 @@ CPSourceFileRef,&
              nunique = nunique + 1
              iend    = j - 1
              CALL set_potparm_index(potparm, my_index(istart:iend), pot_target, &
-                  ntype, tmpij, atomic_kind_set, scale_cutoff, do_zbl, error)
+                  ntype, tmpij, atomic_kind_set, shift_cutoff, do_zbl, error)
              !
              DO i = istart, iend
                 locij = my_index(i)
@@ -755,7 +755,7 @@ CPSourceFileRef,&
           nunique = nunique + 1
           iend    = ndim
           CALL set_potparm_index(potparm, my_index(istart:iend), pot_target, &
-               ntype, tmpij, atomic_kind_set, scale_cutoff, do_zbl, error)
+               ntype, tmpij, atomic_kind_set, shift_cutoff, do_zbl, error)
           DO i = istart, iend
              locij = my_index(i)
              CALL get_indexes(locij,ntype,tmpij)
@@ -769,7 +769,7 @@ CPSourceFileRef,&
        ELSE
           nunique = nunique + 1
           CALL set_potparm_index(potparm, my_index, pot_target, ntype, tmpij,&
-               atomic_kind_set, scale_cutoff, do_zbl, error)
+               atomic_kind_set, shift_cutoff, do_zbl, error)
        END IF
        DEALLOCATE(my_index,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -785,7 +785,7 @@ CPSourceFileRef,&
           tmp_index(j,i) = nunique
           !
           CALL set_potparm_index(potparm, (/n/), multi_type, ntype, tmpij, &
-               atomic_kind_set, scale_cutoff, do_zbl, error)
+               atomic_kind_set, shift_cutoff, do_zbl, error)
        END DO
     END DO
     ! Concluding the postprocess..
@@ -802,14 +802,14 @@ CPSourceFileRef,&
 !> \author Teodoro Laino [tlaino] 2007.06
 ! *****************************************************************************
   SUBROUTINE set_potparm_index(potparm, my_index, pot_target, ntype, tmpij_out,&
-       atomic_kind_set, scale_cutoff, do_zbl, error)
+       atomic_kind_set, shift_cutoff, do_zbl, error)
 
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, INTENT(IN)                      :: my_index(:), pot_target, ntype
     INTEGER, INTENT(OUT)                     :: tmpij_out(2)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    LOGICAL, INTENT(IN)                      :: scale_cutoff, do_zbl
+    LOGICAL, INTENT(IN)                      :: shift_cutoff, do_zbl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_potparm_index', &
@@ -869,7 +869,7 @@ CPSourceFileRef,&
     tmpij_out = tmpij
     pot => potparm%pot(tmpij(1),tmpij(2))%pot
     pot%undef = .TRUE.
-    IF (scale_cutoff) THEN
+    IF (shift_cutoff) THEN
        hicut0 = SQRT(pot%rcutsq)
        IF (ABS(hicut0) <= MIN_HICUT_VALUE) hicut0 = DEFAULT_HICUT_VALUE
     END IF
@@ -917,13 +917,13 @@ CPSourceFileRef,&
        ! Derivative factors
        pot%spl_f%dscale  = pot%spl_f%fscale  / pot%spl_f%rscale
        ! Cutoff for the potentials on splines
-       IF (scale_cutoff) THEN
+       IF (shift_cutoff) THEN
           ! Cutoff NonBonded
           pot%spl_f%cutoff = ener_pot(pot, hicut0, 0.0_dp)
        END IF
     END DO
     ! Handle the cutoff
-    IF (scale_cutoff) THEN
+    IF (shift_cutoff) THEN
        pot_ref => potparm%pot(tmpij_out(1),tmpij_out(2))%pot
        DO i = 1, nvalues
           value = my_index(i)

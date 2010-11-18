@@ -66,7 +66,7 @@ MODULE ewald_environment_types
     TYPE(section_vals_type), POINTER         :: poisson_section
     ! interaction cutoff is required to make the electrostatic interaction
     ! continuous at a pair distance equal to rcut. this is ignored by the
-    ! multipole code and is otherwise only active when SCALE_CUTOFF is used.
+    ! multipole code and is otherwise only active when SHIFT_CUTOFF is used.
     REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: interaction_cutoffs
   END TYPE ewald_environment_type
 
