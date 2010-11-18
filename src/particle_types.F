@@ -61,6 +61,7 @@ MODULE particle_types
   TYPE particle_type
      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_vdw
      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei
+     INTEGER, POINTER, DIMENSION(:)        :: list_onfo
      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
@@ -116,10 +117,12 @@ CONTAINS
     NULLIFY(p_out%atomic_kind)
     NULLIFY(p_out%list_exclude_vdw)
     NULLIFY(p_out%list_exclude_ei)
+    NULLIFY(p_out%list_onfo)
     IF (.NOT.nullify_non_owned_pointers) THEN
        p_out%atomic_kind => p_in%atomic_kind
        p_out%list_exclude_vdw => p_in%list_exclude_vdw
        p_out%list_exclude_ei => p_in%list_exclude_ei
+       p_out%list_onfo => p_in%list_onfo
     END IF
     p_out%r=p_in%r
     p_out%f=p_in%f
@@ -158,6 +161,7 @@ CONTAINS
       NULLIFY (particle_set(iparticle)%atomic_kind)
       NULLIFY (particle_set(iparticle)%list_exclude_vdw)
       NULLIFY (particle_set(iparticle)%list_exclude_ei)
+      NULLIFY (particle_set(iparticle)%list_onfo)
       particle_set(iparticle)%f(:) = 0.0_dp
       particle_set(iparticle)%r(:) = 0.0_dp
       particle_set(iparticle)%v(:) = 0.0_dp
@@ -202,6 +206,10 @@ CONTAINS
                 DEALLOCATE(particle_set(iparticle)%list_exclude_ei,STAT=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
+         END IF
+         IF (ASSOCIATED(particle_set(iparticle)%list_onfo)) THEN
+            DEALLOCATE(particle_set(iparticle)%list_onfo,STAT=stat)
+            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          END IF
          NULLIFY(particle_set(iparticle)%atomic_kind)
       END DO

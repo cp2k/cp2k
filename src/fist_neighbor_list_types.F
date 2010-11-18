@@ -37,8 +37,11 @@ MODULE fist_neighbor_list_types
      ! to beginning of the array 'list'. nscale is the number of elements in
      ! *_scale that are effectively used. This way one does not have to
      ! reallocate the *_scale arrays for every new scaled pair interaction.
+     ! The field is_info is only used to switch between the regular nonbonded
+     ! and the nonbonded14 splines for the van der waals interactions.
      REAL(KIND=dp), POINTER, DIMENSION(:)    :: ei_scale
      REAL(KIND=dp), POINTER, DIMENSION(:)    :: vdw_scale
+     LOGICAL, POINTER, DIMENSION(:)          :: is_onfo
      INTEGER                                 :: nscale
   END TYPE neighbor_kind_pairs_type
 
@@ -106,6 +109,10 @@ CONTAINS
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
           END DO
           DEALLOCATE(fist_neighbor%neighbor_kind_pairs, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -156,6 +163,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(new_pairs(i)%ei_scale(0),stat=stat)
              ALLOCATE(new_pairs(i)%vdw_scale(0),stat=stat)
+             ALLOCATE(new_pairs(i)%is_onfo(0),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              NULLIFY(new_pairs(i)%ij_kind,&
                      new_pairs(i)%grp_kind_start,&
@@ -182,6 +190,10 @@ CONTAINS
              END IF
              IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
                 DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
+                DEALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              END IF
           ENDDO
@@ -215,6 +227,8 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%is_onfo(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           NULLIFY(fist_neighbor%neighbor_kind_pairs(i)%ij_kind,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start,&
                   fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
@@ -240,20 +254,18 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
-       list_exclude_ei, list_exclude_vdw, skip, particle_set, rab, &
-       check_spline, id_kind, is_full, cell, error)
+       particle_set, rab, check_spline, id_kind, is_full, skip, cell, &
+       ei_scale14, vdw_scale14, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
-    INTEGER, DIMENSION(:), POINTER           :: list_exclude_ei, &
-                                                list_exclude_vdw
-    LOGICAL, INTENT(IN)                      :: skip
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(3)              :: rab
     LOGICAL, INTENT(OUT)                     :: check_spline
     INTEGER, INTENT(IN)                      :: id_kind
-    LOGICAL, INTENT(IN)                      :: is_full
+    LOGICAL, INTENT(IN)                      :: is_full, skip
     TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(IN)                :: ei_scale14, vdw_scale14
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add', &
@@ -264,14 +276,16 @@ CONTAINS
                                                 old_npairs, stat
     INTEGER, DIMENSION(:), POINTER           :: new_id_kind
     INTEGER, DIMENSION(:, :), POINTER        :: new_list
-    LOGICAL                                  :: ex_ei, ex_vdw, failure
+    LOGICAL                                  :: ex_ei, ex_vdw, failure, &
+                                                is_onfo
     REAL(KIND=dp), DIMENSION(3)              :: rabc
 
-    ex_ei = ANY(list_exclude_ei==atom_b)
-    ex_vdw = ANY(list_exclude_vdw==atom_b)
-    IF (ex_ei.OR.ex_vdw) THEN
+    ex_ei = ANY(particle_set(atom_a)%list_exclude_ei==atom_b)
+    ex_vdw = ANY(particle_set(atom_a)%list_exclude_vdw==atom_b)
+    is_onfo = ANY(particle_set(atom_a)%list_onfo==atom_b)
+    IF (ex_ei.OR.ex_vdw.OR.is_onfo) THEN
        ! Check if this pair could correspond to a local interaction (bond, bend,
-       ! or torsion) to which the exclusion lists apply.
+       ! or torsion) to which the exclusion lists and 14 potentials apply.
        !
        ! rab is the relative vector that may include some cell vectors. rabc is
        ! the 'shortest' possible relative vector, i.e. cell vectors are
@@ -281,6 +295,7 @@ CONTAINS
        IF ((ANY(ABS(rab-rabc)>eps_default))) THEN
           ex_ei = .FALSE.
           ex_vdw = .FALSE.
+          is_onfo = .FALSE.
        END IF
     END IF
 
@@ -305,25 +320,32 @@ CONTAINS
     ! proper corrections on interactions between the screening charges of bonded
     ! atoms when the ewald summation is used for the electrostatic interactions.
 
-    ! If an interaction is excluded, store scale=0.
-    IF (ex_ei.OR.ex_vdw) THEN
+    ! If an interaction is excluded or scaled, store scale. If the interaction
+    ! is an onfo, also store that property.
+    IF (ex_ei.OR.ex_vdw.OR.is_onfo) THEN
        ! Allocate more memory for the scalings if necessary.
        nscale = neighbor_kind_pair%nscale
        IF (nscale==SIZE(neighbor_kind_pair%ei_scale)) THEN
           CALL reallocate(neighbor_kind_pair%ei_scale, 1, INT(5+1.2*nscale))
           CALL reallocate(neighbor_kind_pair%vdw_scale, 1, INT(5+1.2*nscale))
+          CALL reallocate(neighbor_kind_pair%is_onfo, 1, INT(5+1.2*nscale))
        END IF
        nscale = nscale + 1
        IF (ex_ei) THEN
           neighbor_kind_pair%ei_scale(nscale) = 0.0_dp
+       ELSE IF (is_onfo) THEN
+          neighbor_kind_pair%ei_scale(nscale) = ei_scale14
        ELSE
           neighbor_kind_pair%ei_scale(nscale) = 1.0_dp
        END IF
        IF (ex_vdw) THEN
           neighbor_kind_pair%vdw_scale(nscale) = 0.0_dp
+       ELSE IF (is_onfo) THEN
+          neighbor_kind_pair%vdw_scale(nscale) = vdw_scale14
        ELSE
           neighbor_kind_pair%vdw_scale(nscale) = 1.0_dp
        END IF
+       neighbor_kind_pair%is_onfo(nscale) = is_onfo
        neighbor_kind_pair%nscale = nscale
     ELSE
        nscale = HUGE(0)
@@ -353,7 +375,7 @@ CONTAINS
     
     ! Store the pair ...
     npairs = neighbor_kind_pair%npairs + 1
-    IF ((ex_ei.OR.ex_vdw).AND.(npairs>nscale)) THEN
+    IF ((ex_ei.OR.ex_vdw.OR.is_onfo).AND.(npairs>nscale)) THEN
        ! ... after the previous pair that had scaling factors.
        neighbor_kind_pair%list(1,npairs) = neighbor_kind_pair%list(1,nscale)
        neighbor_kind_pair%list(2,npairs) = neighbor_kind_pair%list(2,nscale)

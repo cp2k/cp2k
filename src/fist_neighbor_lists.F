@@ -572,24 +572,24 @@ CONTAINS
                    id_kind = nkind00-(j1*(j1+1)/2)+i1
                    ! Store the pair
                    CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, &
-                        list_exclude_ei=particle_set(atom_a)%list_exclude_ei, &
-                        list_exclude_vdw=particle_set(atom_a)%list_exclude_vdw, &
-                        skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                         particle_set=particle_set, rab=rab, &
                         check_spline=check_spline, id_kind=id_kind, &
-                        is_full=is_full, cell=cell, error=error)
+                        is_full=is_full, &
+                        skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
+                        cell=cell, ei_scale14=0.0_dp, vdw_scale14=0.0_dp, &
+                        error=error)
                    ! This is to handle properly when interaction radius is larger than cell size
                    IF ((atom_a==atom_b).AND.(ik_start==0)) THEN
                       invcellmap = cellmap(-b_pi,-b_pj,-b_pk)
                       inv_neighbor_kind_pair => nonbonded%neighbor_kind_pairs(invcellmap)
                       rab = rab - 2.0_dp * cell_v
                       CALL fist_neighbor_add(inv_neighbor_kind_pair, atom_a, atom_b, &
-                           list_exclude_ei=particle_set(atom_a)%list_exclude_ei, &
-                           list_exclude_vdw=particle_set(atom_a)%list_exclude_vdw, &
-                           skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
                            particle_set=particle_set, rab=rab, &
                            check_spline=check_spline, id_kind=id_kind, &
-                           is_full=is_full, cell=cell, error=error)
+                           is_full=is_full, &
+                           skip=(skip_kind(ikind).AND.skip_kind(jkind)), &
+                           cell=cell, ei_scale14=0.0_dp, vdw_scale14=0.0_dp, &
+                           error=error)
                    END IF
                    ! Check for too close hits
                    IF (check_spline) THEN

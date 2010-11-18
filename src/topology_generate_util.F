@@ -613,10 +613,13 @@ CONTAINS
           pbc_coord(:,i) = pbc(atom_info%r(:,i),topology%cell)
           NULLIFY(particle_set(i)%list_exclude_vdw)
           NULLIFY(particle_set(i)%list_exclude_ei)
+          NULLIFY(particle_set(i)%list_onfo)
           ALLOCATE(particle_set(i)%list_exclude_vdw(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(particle_set(i)%list_exclude_ei(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(particle_set(i)%list_onfo(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MIN",r_val=tmp,&
             error=error)

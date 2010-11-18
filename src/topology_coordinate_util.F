@@ -385,6 +385,7 @@ CPSourceFileRef,&
     !-----------------------------------------------------------------------------
     ! 8. Fill in the particle_set%list_exclude_vdw
     ! 9. Fill in the particle_set%list_exclude_ei
+    ! 10. Fill in the particle_set%list_onfo
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_89',handle2)
     natom=topology%natoms
@@ -553,9 +554,9 @@ CPSourceFileRef,&
        END IF
     END IF
 
-    !
+    ! Build the exclusion (and onfo) list per atom.
     DO iatom = 1, SIZE(particle_set)
-       !  Setup exclusion list for VDW : always exclude itself
+       ! Setup exclusion list for VDW: always exclude itself
        dim0 = 1
        ! exclude bond-neighbors (only if do_skip_12 .OR. do_skip_13 .OR. do_skip_14)
        dim1 = 0
@@ -654,6 +655,11 @@ CPSourceFileRef,&
           CPPostcondition(ANY(list==ex_onfo_list(iatom)%array1(i)),cp_failure_level,routineP,error,failure)
           CPPostcondition(ANY(list2==ex_onfo_list(iatom)%array1(i)),cp_failure_level,routineP,error,failure)
        END DO
+       ! Keep a list of onfo atoms
+       ALLOCATE(particle_set(iatom)%list_onfo(SIZE(ex_onfo_list(iatom)%array1)))
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! copy of data, not copy of pointer
+       particle_set(iatom)%list_onfo = ex_onfo_list(iatom)%array1
        IF (iw>0) THEN
           IF (ASSOCIATED(list)) &
                WRITE(iw,*)"exclusion list_vdw :: ",&
@@ -665,6 +671,10 @@ CPSourceFileRef,&
                   "atom num :",iatom,"exclusion list ::",&
                   list2
           END IF
+          IF (ASSOCIATED(particle_set(iatom)%list_onfo)) &
+               WRITE(iw,*)"onfo list :: ",&
+               "atom num :",iatom,"onfo list ::",&
+               particle_set(iatom)%list_onfo
        END IF
     END DO
     ! deallocate onfo
@@ -709,10 +719,9 @@ CPSourceFileRef,&
     DEALLOCATE(ex_bond_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle2)
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 10. Set the atomic_kind_set()%fist_potentail%[qeff] (PART 1)
+    ! 11. Set the atomic_kind_set()%fist_potentail%[qeff] (PART 1)
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_10',handle2)
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
@@ -733,7 +742,7 @@ CPSourceFileRef,&
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 11. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
+    ! 12. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_11',handle2)
     DO i=1,SIZE(molecule_kind_set)
