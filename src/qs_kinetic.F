@@ -496,7 +496,7 @@ CONTAINS
                             ai_work,ldai)
             END IF
 
-                 IF(allocate_matrix) THEN
+            IF(allocate_matrix) THEN
                ! *** Contraction step (overlap matrix and its derivatives) ***
                DO i=1,SIZE(matrix_t)
                   iblock = (i - 1)*SIZE(tab,1) + 1

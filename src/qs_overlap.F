@@ -78,8 +78,7 @@ MODULE qs_overlap
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_overlap_matrix, &
-            atom_overlap_matrix
+  PUBLIC :: build_overlap_matrix
 
 CONTAINS
 
@@ -607,86 +606,6 @@ CONTAINS
   END SUBROUTINE build_overlap_matrix
 
 ! *****************************************************************************
-  SUBROUTINE atom_overlap_matrix(iatom,nseta,set_radius_a,npgfa,nsgfa,la_max,&
-                                 la_min,first_sgfa,rpgfa,zeta,sphi_a,&
-                                 jatom,nsetb,set_radius_b,npgfb,nsgfb,lb_max,&
-                                 lb_min,first_sgfb,rpgfb,zetb,sphi_b,&
-                                 rab,nder,ldai,sint,sab,work,ai_work,error)
-
-    INTEGER, INTENT(IN)                      :: iatom, nseta
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: set_radius_a
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npgfa, nsgfa, la_max, la_min
-    INTEGER, DIMENSION(:, :), INTENT(IN)     :: first_sgfa
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rpgfa, zeta, sphi_a
-    INTEGER, INTENT(IN)                      :: jatom, nsetb
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: set_radius_b
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npgfb, nsgfb, lb_max, lb_min
-    INTEGER, DIMENSION(:, :), INTENT(IN)     :: first_sgfb
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rpgfb, zetb, sphi_b
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rab
-    INTEGER, INTENT(IN)                      :: nder, ldai
-    TYPE(block_p_type), DIMENSION(:)         :: sint
-    REAL(KIND=dp), DIMENSION(:, :)           :: sab, work
-    REAL(KIND=dp), DIMENSION(:, :, :)        :: ai_work
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: i, iblock, iset, jset, &
-                                                maxder, ncoa, ncob, sgfa, sgfb
-    LOGICAL                                  :: return_s_derivatives
-    REAL(dp)                                 :: dab, rab2
-
-!-------------------------------------------------------------------------------
-
-    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-    dab = SQRT(rab2)
-    return_s_derivatives = (nder /= 0)
-    maxder = ncoset(nder)
-
-    DO iset=1,nseta
-
-       ncoa = npgfa(iset)*ncoset(la_max(iset))
-       sgfa = first_sgfa(1,iset)
-
-       DO jset=1,nsetb
-
-          IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-          ncob = npgfb(jset)*ncoset(lb_max(jset))
-          sgfb = first_sgfb(1,jset)
-
-!         *** Calculate the primitive overlap integrals ***
-
-          CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
-                       rpgfa(:,iset),zeta(:,iset),&
-                       lb_max(jset),lb_min(jset),npgfb(jset),&
-                       rpgfb(:,jset),zetb(:,jset),&
-                       rab,dab,sab,nder,return_s_derivatives,&
-                       ai_work,ldai)
-
-!         *** Contraction step (overlap matrix and its derivatives) ***
-
-          DO i=1,maxder
-
-            iblock = (i - 1)*SIZE(sab,1) + 1
-
-            CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                       1.0_dp,sab(1,iblock),SIZE(sab,1),&
-                       sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                       0.0_dp,work(1,1),SIZE(work,1))
-
-            CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                       work(1,1),SIZE(work,1),&
-                       1.0_dp,sint(i)%block(sgfa,sgfb),&
-                       SIZE(sint(i)%block,1))
-
-          END DO
-
-       END DO
-
-    END DO
-
-  END SUBROUTINE atom_overlap_matrix
 
 END MODULE qs_overlap
 
