@@ -168,7 +168,7 @@ MODULE dbcsr_block_operations
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
   LOGICAL, PARAMETER :: debug_mod  =   .FALSE.
-  LOGICAL, PARAMETER :: careful_mod  = .TRUE.
+  LOGICAL, PARAMETER :: careful_mod  = .FALSE.
 
 CONTAINS
 
@@ -1552,9 +1552,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) THEN
-       CALL dbcsr_error_set(routineN, error_handler, error)
-    ENDIF
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_8)
        CALL block_norm_frob_d_s (SIZE(area%d%r_dp), area%d%r_dp, norm)
@@ -1576,9 +1575,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
             routineN, "Invalid data type",__LINE__,error)
     END SELECT
-    IF (careful_mod) THEN
-       CALL dbcsr_error_stop(error_handler, error)
-    END IF
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE block_norm_frob_anytype_s
 
   SUBROUTINE block_norm_frob_s_s (m, blk, norm)
