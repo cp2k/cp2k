@@ -195,29 +195,29 @@ CONTAINS
     LOGICAL, PARAMETER                       :: use_combined_types = .FALSE.
 
     CHARACTER                                :: data_type
-    INTEGER :: error_handler, grp, i, left_col_image, left_col_mult, &
-      left_col_nimages, left_col_v_offset, left_dst_icol, left_dst_irow, &
-      left_dst_p, left_dst_pcol, left_dst_prow, left_dst_v_col, &
-      left_dst_v_row, left_max_nze, left_recv_icol, left_recv_irow, &
-      left_recv_p, left_recv_pcol, left_recv_prow, left_recv_v_col, &
-      left_recv_v_row, left_row_image, left_row_mult, left_row_nimages, &
-      left_send_icol, left_send_irow, left_send_p, left_send_pcol, &
-      left_send_prow, left_send_v_col, left_send_v_row, left_src_icol, &
-      left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
-      left_src_v_col, left_src_v_row, max_nblks, max_nze
-    INTEGER :: metronome, min_nimages, mp_group, mynode, nblkrows_total, &
-      nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, output_unit, &
-      right_col_image, right_col_mult, right_col_nimages, right_dst_icol, &
-      right_dst_irow, right_dst_p, right_dst_pcol, right_dst_prow, &
-      right_dst_v_col, right_dst_v_row, right_max_nze, right_recv_icol, &
-      right_recv_irow, right_recv_p, right_recv_pcol, right_recv_prow, &
-      right_recv_v_col, right_recv_v_row, right_row_image, right_row_mult, &
-      right_row_nimages, right_row_v_offset, right_send_icol, &
+    INTEGER :: error_handler, error_handler2, grp, i, left_col_image, &
+      left_col_mult, left_col_nimages, left_col_v_offset, left_dst_icol, &
+      left_dst_irow, left_dst_p, left_dst_pcol, left_dst_prow, &
+      left_dst_v_col, left_dst_v_row, left_max_nze, left_recv_icol, &
+      left_recv_irow, left_recv_p, left_recv_pcol, left_recv_prow, &
+      left_recv_v_col, left_recv_v_row, left_row_image, left_row_mult, &
+      left_row_nimages, left_send_icol, left_send_irow, left_send_p, &
+      left_send_pcol, left_send_prow, left_send_v_col, left_send_v_row, &
+      left_src_icol, left_src_irow, left_src_p, left_src_pcol, left_src_prow, &
+      left_src_v_col, left_src_v_row, max_nblks
+    INTEGER :: max_nze, metronome, min_nimages, mp_group, mynode, &
+      nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
+      output_unit, right_col_image, right_col_mult, right_col_nimages, &
+      right_dst_icol, right_dst_irow, right_dst_p, right_dst_pcol, &
+      right_dst_prow, right_dst_v_col, right_dst_v_row, right_max_nze, &
+      right_recv_icol, right_recv_irow, right_recv_p, right_recv_pcol, &
+      right_recv_prow, right_recv_v_col, right_recv_v_row, right_row_image, &
+      right_row_mult, right_row_nimages, right_row_v_offset, right_send_icol, &
       right_send_irow, right_send_p, right_send_pcol, right_send_prow, &
-      right_send_v_col, right_send_v_row
-    INTEGER :: right_src_icol, right_src_irow, right_src_p, right_src_pcol, &
-      right_src_prow, right_src_v_col, right_src_v_row, row, size_guess, &
-      stat, v_k, v_ki
+      right_send_v_col
+    INTEGER :: right_send_v_row, right_src_icol, right_src_irow, right_src_p, &
+      right_src_pcol, right_src_prow, right_src_v_col, right_src_v_row, row, &
+      size_guess, stat, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
@@ -690,6 +690,7 @@ CONTAINS
             "last k",(metronome+1)*min_nimages-1
        ! Wait for right matrix transfer completion. Wait in all but
        ! the first loop iteration.
+       CALL dbcsr_error_set(routineN//"_wait_right", error_handler2, error)
        wait_right: IF (metronome .GT. 1) THEN
           IF (dbg) WRITE (*,'(1X,A)')routineN//" waiting for right"
           CALL mp_waitall (right_data_sr)
@@ -704,6 +705,7 @@ CONTAINS
              CALL mp_waitall (right_index_rr)
           ENDIF
        ENDIF wait_right
+       CALL dbcsr_error_stop(error_handler2, error)
        ! Right matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_right: IF (metronome .LT. nsteps_k) THEN
@@ -846,6 +848,7 @@ CONTAINS
                 grp = dbcsr_mp_group (right_mp_obj)
              ENDIF
              !
+             CALL dbcsr_error_set(routineN//"_isend_right", error_handler2, error)
              IF (use_combined_types) THEN
                 right_send_subtypes(1) = dbcsr_mp_type_from_anytype (right_data_sp)
                 right_send_subtypes(2) = mp_type_make (right_index_sp)
@@ -869,6 +872,7 @@ CONTAINS
                 CALL mp_irecv (right_index_rp, right_recv_p,&
                      grp, right_index_rr(v_ki+1, 1), tag=right_src_v_row)
              ENDIF
+             CALL dbcsr_error_stop(error_handler2, error)
           ENDDO
        ENDIF xfer_right
        !
@@ -882,6 +886,7 @@ CONTAINS
        !
        ! Wait for left matrix transfer completion. Wait in all but
        ! the first loop iteration.
+       CALL dbcsr_error_set(routineN//"_wait_left", error_handler2, error)
        wait_left: IF (metronome .GT. 1) THEN
           IF (dbg) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
@@ -896,6 +901,7 @@ CONTAINS
              CALL mp_waitall (left_index_rr)
           ENDIF
        ENDIF wait_left
+       CALL dbcsr_error_stop(error_handler2, error)
        ! Left matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_left: IF (metronome .LT. nsteps_k) THEN
@@ -1040,6 +1046,7 @@ CONTAINS
                 grp = dbcsr_mp_group (left_mp_obj)
              ENDIF
              !
+             CALL dbcsr_error_set(routineN//"_isend_left", error_handler2, error)
              IF (use_combined_types) THEN
                 left_send_subtypes(1) = dbcsr_mp_type_from_anytype (left_data_sp)
                 left_send_subtypes(2) = mp_type_make (left_index_sp)
@@ -1063,6 +1070,7 @@ CONTAINS
                 CALL mp_irecv (left_index_rp, left_recv_p,&
                      grp, left_index_rr(1, v_ki+1), tag=left_src_v_col)
              ENDIF
+             CALL dbcsr_error_stop(error_handler2, error)
           ENDDO
        ENDIF xfer_left
        !
