@@ -421,7 +421,7 @@ CPSourceFileRef,&
          "# Achieved accuracy:  ",diffmax,&
          "# Spline range:       ",locut,hicut,&
          "# Test spline using ",nx," points:",&
-         "# Point      Abscissa                 Energy                   Splined energy           1st derivative"
+         "# Point      Abscissa [bohr]          Energy [a.u.]            Splined energy           1st derivative"
        DO jx=1,nx
           x = x2
           e = ener_pot(pot,x,energy_cutoff)
