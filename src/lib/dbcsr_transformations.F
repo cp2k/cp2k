@@ -38,8 +38,9 @@ MODULE dbcsr_transformations
   USE dbcsr_dist_operations,           ONLY: &
        dbcsr_get_stored_coordinates, dbcsr_reblocking_targets, &
        dbcsr_transpose_dims, dbcsr_transpose_distribution, &
-       find_local_virtual_elements, make_image_distribution_dense, &
-       make_sizes_dense, match_sizes_to_dist, mostly_non_transposed
+       find_local_virtual_elements, image_calculator, &
+       make_image_distribution_dense, make_sizes_dense, match_sizes_to_dist, &
+       mostly_non_transposed
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
@@ -89,9 +90,11 @@ MODULE dbcsr_transformations
        dbcsr_imagedistribution_type, dbcsr_iterator, dbcsr_meta_size, &
        dbcsr_mp_obj, dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, &
        dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, dbcsr_slot_col_i, &
-       dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8
+       dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
+       dbcsr_slot_home_rowi, dbcsr_slot_nblks, dbcsr_slot_nze, &
+       dbcsr_slot_row_p, dbcsr_type, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_8
   USE dbcsr_util,                      ONLY: &
        convert_sizes_to_offsets, dbcsr_checksum, dbcsr_pack_meta, &
        dbcsr_set_debug, dbcsr_unpack_meta, dbcsr_verify_matrix, &
@@ -1389,6 +1392,39 @@ CONTAINS
              CALL dbcsr_finalize(ums%mats(row_img,col_img),reshuffle=.FALSE.,error=dbcsr_error)
           ELSE
              CALL dbcsr_finalize(ums%mats(row_img,col_img),reshuffle=.TRUE.,error=dbcsr_error)
+          ENDIF
+          ! Save the home process and image row and column
+          IF (predist) THEN
+             SELECT CASE (predistribute)
+             CASE ("R")
+                CALL image_calculator (target_imgdist,&
+                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_prow),&
+                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_rowi),&
+                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_pcol),&
+                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_coli),&
+                     myrowi=row_img, mycoli=col_img,&
+                     shifting=predistribute)
+             CASE ("L")
+                CALL image_calculator (target_imgdist,&
+                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_prow),&
+                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_rowi),&
+                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_pcol),&
+                     ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_coli),&
+                     myrowi=row_img, mycoli=col_img,&
+                     shifting=predistribute)
+             CASE default
+                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,&
+                     dbcsr_wrong_args_error, routineN,&
+                     "Incorrect pre-shift specifier.", __LINE__, error=error)
+             END SELECT
+          ELSE
+             CALL image_calculator (target_imgdist,&
+                  ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_prow),&
+                  ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_rowi),&
+                  ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_pcol),&
+                  ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_coli),&
+                  myrowi=row_img, mycoli=col_img,&
+                  shifting='0')
           ENDIF
        ENDDO
     ENDDO

@@ -48,7 +48,9 @@ MODULE dbcsr_operations
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_expand_row_index,&
+                                             dbcsr_index_compact,&
                                              dbcsr_make_index_canonical,&
+                                             dbcsr_make_index_local_row,&
                                              dbcsr_repoint_index
   USE dbcsr_internal_operations,       ONLY: dbcsr_insert_blocks,&
                                              dbcsr_mult_m_e_e
@@ -357,6 +359,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_multiply_anytype', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: use_local_indexing = .TRUE.
     REAL(real_8), PARAMETER                  :: make_dense_occ_thresh = 1.0_dp
 
     CHARACTER                                :: transa_l, transb_l
@@ -375,8 +378,6 @@ CONTAINS
     TYPE(dbcsr_imagedistribution_type)       :: rdist_left, rdist_right
     TYPE(dbcsr_obj)                          :: matrix_left, matrix_right, &
                                                 product_matrix
-
-! this will become the default
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -726,6 +727,13 @@ CONTAINS
                join_cols = use_dense_mult, error=error)
           rdist_right = m2s_right%image_dist
        ENDIF
+       IF (use_local_indexing) THEN
+          ! Convert to local-row index
+          DO i = 1, SIZE (m2s_right%mats,1)
+             CALL dbcsr_make_index_local_row(m2s_right%mats(i,1), error=error)
+             CALL dbcsr_index_compact(m2s_right%mats(i,1), error=error)
+          ENDDO
+       ENDIF
        IF (PRESENT (right_set)) THEN
           right_set => m2s_right
           right_set%image_dist = rdist_right
@@ -743,6 +751,13 @@ CONTAINS
                join_rows = use_dense_mult, error=error)
           rdist_left = m2s_left%image_dist
        ENDIF
+       IF (use_local_indexing) THEN
+          ! Convert to local-row index
+          DO i = 1, SIZE (m2s_left%mats,2)
+             CALL dbcsr_make_index_local_row (m2s_left%mats(1,i), error=error)
+             CALL dbcsr_index_compact (m2s_left%mats(1,i), error=error)
+          ENDDO
+       END IF
        IF (PRESENT (left_set)) THEN
           left_set =>  m2s_left
           left_set%image_dist = rdist_left

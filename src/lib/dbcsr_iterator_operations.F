@@ -13,7 +13,8 @@
 !  - 2010-02-18 Moved from dbcsr_operations and dbcsr_methods
 ! *****************************************************************************
 MODULE dbcsr_iterator_operations
-  USE array_types,                     ONLY: array_data
+  USE array_types,                     ONLY: array_data,&
+                                             array_exists
   USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_2d_needed,&
                                              dbcsr_buffers_flush,&
                                              dbcsr_buffers_hold,&
@@ -270,6 +271,25 @@ CONTAINS
     iterator%roff => array_data (matrix%m%row_blk_offset)
     iterator%coff => array_data (matrix%m%col_blk_offset)
 
+    iterator%local_indexing = matrix%m%local_indexing
+    !CALL dbcsr_assert (iterator%local_indexing, "IMP",&
+    !     iterator%dynamic,&
+    !     dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+    !     "Locally-indexed matrices can only have a dynamic iterator.",&
+    !     __LINE__, error=error)
+    CALL dbcsr_assert (iterator%local_indexing, "IMP",&
+         array_exists (matrix%m%local_rows),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Local rows mapping array should exist when local indexing is used.",&
+         __LINE__, error=error)
+    CALL dbcsr_assert (iterator%local_indexing, "IMP",&
+         array_exists (matrix%m%global_rows),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Global rows mapping array should exist when local indexing is used.",&
+         __LINE__, error=error)
+    iterator%global_rows => array_data(matrix%m%global_rows)
+    iterator%local_rows => array_data(matrix%m%local_rows)
+
     iterator%transpose = .FALSE.!matrix%m%transpose
     iterator%nblks = matrix%m%nblks
     IF (iterator%transpose) THEN
@@ -353,6 +373,10 @@ CONTAINS
        !$OMP END MASTER
        !$OMP BARRIER
        NULLIFY (iterator%common_pos)
+    ENDIF
+    IF (iterator%local_indexing) THEN
+       NULLIFY (iterator%local_rows)
+       NULLIFY (iterator%global_rows)
     ENDIF
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_iterator_stop
@@ -445,7 +469,7 @@ CONTAINS
 !> \param[in] tid            my thread number
 ! *****************************************************************************
   PURE SUBROUTINE find_proper_position (pos, row, maxpos, maxrows,&
-       blk_p, row_p, tdist, tid)
+       blk_p, row_p, tdist, tid, local2global)
     INTEGER, INTENT(INOUT)                   :: pos, row
     INTEGER, INTENT(IN)                      :: maxpos, maxrows
     INTEGER, DIMENSION(1:maxpos), INTENT(IN) :: blk_p
@@ -454,14 +478,17 @@ CONTAINS
     INTEGER, DIMENSION(1:maxrows), &
       INTENT(IN), OPTIONAL                   :: tdist
     INTEGER, INTENT(IN), OPTIONAL            :: tid
+    INTEGER, DIMENSION(1:*), INTENT(IN), &
+      OPTIONAL                               :: local2global
 
     CHARACTER(len=*), PARAMETER :: routineN = 'find_proper_position', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: row_inrange, row_ok
+    LOGICAL                                  :: local, row_inrange, row_ok
 
 !   ---------------------------------------------------------------------------
 
+    local = PRESENT (local2global)
     IF (maxpos .GE. 1) THEN
        !IF (pos.EQ.0) pos = 1
        CALL find_first_valid_block (pos, maxpos, blk_p)
@@ -469,7 +496,11 @@ CONTAINS
        row_inrange = row .NE. 0 .AND. row .LE. maxrows
        row_ok = row_inrange
 !$     IF (present (tdist) .AND. PRESENT (tid) .AND. row_inrange) THEN
-!$        row_ok = tdist(row) .EQ. tid
+!$        IF (.NOT. local) THEN
+!$           row_ok = tdist(row) .EQ. tid
+!$        ELSE
+!$           row_ok = tdist(local2global(row)) .EQ. tid
+!$        ENDIF
 !$     ENDIF
        DO WHILE (row_inrange .AND. .NOT. row_ok)
           row = row + 1
@@ -483,7 +514,11 @@ CONTAINS
           row_inrange = row .NE. 0
           row_ok = row_inrange
 !$     IF (present (tdist) .AND. PRESENT (tid) .AND. row_inrange) THEN
-!$        row_ok = tdist(row) .EQ. tid
+!$        IF (.NOT. local) THEN
+!$           row_ok = tdist(row) .EQ. tid
+!$        ELSE
+!$           row_ok = tdist(local2global(row)) .EQ. tid
+!$        ENDIF
 !$     ENDIF
        ENDDO
        IF (row .EQ. 0) pos = 0
@@ -518,9 +553,7 @@ CONTAINS
           DO WHILE (advance)
              iterator%pos = iterator%pos + 1
              my_old_row = iterator%row
-             CALL find_proper_position(iterator%pos,&
-                  iterator%row, iterator%nblks, iterator%nblkrows_total,&
-                  iterator%blk_p, iterator%row_p)
+             CALL find_proper_position_caller(iterator)
              jumped_row = iterator%row .GT. my_old_row
              advance = jumped_row
              IF (jumped_row) THEN
@@ -537,7 +570,11 @@ CONTAINS
                    advance = .FALSE.
                 ELSE
                    ! To be incremented in the next loop.
-                   iterator%pos = iterator%row_p(iterator%row)
+                   IF (.NOT. iterator%local_indexing) THEN
+                      iterator%pos = iterator%row_p(iterator%row)
+                   ELSE
+                      iterator%pos = iterator%row_p(iterator%global_rows(iterator%row))
+                   ENDIF
                 ENDIF
                 !$OMP END CRITICAL (common_row)
              ENDIF
@@ -549,9 +586,7 @@ CONTAINS
           !$OMP ATOMIC
           iterator%common_pos = iterator%common_pos + 1
           iterator%pos = iterator%common_pos
-          CALL find_proper_position(iterator%pos,&
-               iterator%row, iterator%nblks, iterator%nblkrows_total,&
-               iterator%blk_p, iterator%row_p)
+          CALL find_proper_position_caller(iterator)
           p = iterator%pos
           !$OMP ATOMIC
           iterator%common_pos = MAX(iterator%common_pos, p)
@@ -561,17 +596,61 @@ CONTAINS
        iterator%pos = iterator%pos+1
        ithread = 0
 !$     ithread = OMP_GET_THREAD_NUM()
-       CALL find_proper_position(iterator%pos,&
-            iterator%row, iterator%nblks, iterator%nblkrows_total,&
-            iterator%blk_p, iterator%row_p,&
-            tdist=iterator%tdist, tid=ithread)
+       CALL find_proper_position_caller(iterator, use_ithread=ithread)
     ELSE
        iterator%pos = iterator%pos+1
-       CALL find_proper_position(iterator%pos,&
-            iterator%row, iterator%nblks, iterator%nblkrows_total,&
-            iterator%blk_p, iterator%row_p)
+       CALL find_proper_position_caller(iterator)
     ENDIF
   END SUBROUTINE iterator_advance
+
+
+  SUBROUTINE find_proper_position_caller (iterator, use_ithread)
+    TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
+    INTEGER, INTENT(in), OPTIONAL            :: use_ithread
+
+    INTEGER                                  :: post_pos, post_row, pre_pos, &
+                                                pre_row, r
+
+    pre_row = iterator%row
+    pre_pos = iterator%pos
+    IF (.NOT. iterator%local_indexing) THEN
+       IF (PRESENT (use_ithread)) THEN
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p,&
+               tdist=iterator%tdist, tid=use_ithread)
+       ELSE
+          CALL find_proper_position(iterator%pos,&
+               iterator%row, iterator%nblks, iterator%nblkrows_total,&
+               iterator%blk_p, iterator%row_p)
+       ENDIF
+    ELSE
+       IF (iterator%row .GT. 0) THEN
+          r = iterator%global_rows(iterator%row)
+       ELSE
+          r = 0
+       ENDIF
+       IF (PRESENT(use_ithread)) THEN
+          CALL find_proper_position(iterator%pos,&
+               r, iterator%nblks, SIZE(iterator%local_rows),&
+               iterator%blk_p, iterator%row_p,&
+               local2global=iterator%local_rows,&
+               tdist=iterator%tdist, tid=use_ithread)
+       ELSE
+          CALL find_proper_position(iterator%pos,&
+               r, iterator%nblks, SIZE(iterator%local_rows),&
+               iterator%blk_p, iterator%row_p,&
+               local2global=iterator%local_rows)
+       ENDIF
+       IF (r .GT. 0) THEN
+          iterator%row = iterator%local_rows(r)
+       ELSE
+          iterator%row = 0
+       ENDIF
+    ENDIF
+    post_row = iterator%row
+    post_pos = iterator%pos
+  END SUBROUTINE find_proper_position_caller
 
 ! *****************************************************************************
 !> \brief Updates the row info stored in the iterator

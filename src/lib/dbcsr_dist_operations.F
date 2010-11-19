@@ -28,8 +28,8 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_mp, dbcsr_distribution_ncols, &
        dbcsr_distribution_new, dbcsr_distribution_nrows, &
        dbcsr_distribution_processor, dbcsr_distribution_row_dist, &
-       dbcsr_mp_new_transposed, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_release
+       dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_new_transposed, &
+       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_release
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_imagedistribution_type,&
                                              dbcsr_magic_number,&
@@ -81,8 +81,11 @@ MODULE dbcsr_dist_operations
              test_create_bl_distribution,&
              match_sizes_to_dist, make_sizes_dense,&
              find_local_virtual_elements,&
+             get_global_bins, get_local_bins,&
+             map_local_virtual_elements,&
              mostly_non_transposed,&
-             dbcsr_print_dist
+             dbcsr_print_dist,&
+             image_calculator
 
 
   INTERFACE dbcsr_get_stored_block_info
@@ -1902,6 +1905,125 @@ CONTAINS
   END SUBROUTINE find_local_virtual_elements
 
 ! *****************************************************************************
+!> \brief Points to local virtual elements.
+!> \note Inverse of find_local_virtual_elements.
+!> \param[out] global_virtual_elements   enumerated local virtual elements
+!> \param[out] nvle                      number of local virtual elements
+!> \param[in] grid_distribution          distribution of elements to bins
+!> \param[in] image_distribution         distribution into images of all
+!>                                       elements
+!> \param[in] local_grid                 local grid
+!> \param[in] local_image                local image
+!> \note virtual_local_elements should be large enough to accomodate
+!>       all possible data
+!> \note Used for making matrices dense/undense
+!> \par The output global_virtual_elements is 0 when the element is
+!>      not local.  Otherwise, it is the (local) element's sequential order.
+! *****************************************************************************
+  PURE SUBROUTINE map_local_virtual_elements (global_virtual_elements, nlve,&
+       grid_distribution, image_distribution, local_grid, local_image)
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: global_virtual_elements
+    INTEGER, INTENT(OUT)                     :: nlve
+    INTEGER, DIMENSION(:), INTENT(IN)        :: grid_distribution
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: image_distribution
+    INTEGER, INTENT(IN)                      :: local_grid
+    INTEGER, INTENT(IN), OPTIONAL            :: local_image
+
+    INTEGER                                  :: el
+
+    nlve = 0
+    IF (PRESENT (image_distribution) .AND. PRESENT (local_image)) THEN
+       DO el = 1, SIZE (grid_distribution)
+          IF (grid_distribution(el) .EQ. local_grid&
+               .AND. image_distribution(el) .EQ. local_image) THEN
+             nlve = nlve + 1
+             global_virtual_elements(el) = nlve
+          ELSE
+             global_virtual_elements(el) = 0
+          ENDIF
+       ENDDO
+    ELSE
+       DO el = 1, SIZE (grid_distribution)
+          IF (grid_distribution(el) .EQ. local_grid) THEN
+             nlve = nlve + 1
+             global_virtual_elements(el) = nlve
+          ELSE
+             global_virtual_elements(el) = 0
+          ENDIF
+       ENDDO
+    ENDIF
+  END SUBROUTINE map_local_virtual_elements
+
+
+! *****************************************************************************
+!> \brief Determines mapping from local to global bins
+!> \par Use
+!>      Used to map a row-local row_p index to global rows.
+!> \param[out] global_map       mapping of local elements to global bins
+!> \param[in] bin_distribution  mapping of elements to bins
+!> \param[in] local_bin         the local bin
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE get_local_bins (local_map, bin_distribution, local_bin, error)
+    TYPE(array_i1d_obj), INTENT(OUT)         :: local_map
+    TYPE(array_i1d_obj), INTENT(IN)          :: bin_distribution
+    INTEGER, INTENT(IN)                      :: local_bin
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_local_bins', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: cnt, error_handle, &
+                                                nlocal_elements
+    INTEGER, DIMENSION(:), POINTER           :: bin_dist, map
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    bin_dist => array_data (bin_distribution)
+    nlocal_elements = COUNT (bin_dist .EQ. local_bin)
+    ALLOCATE (map(nlocal_elements))
+    CALL find_local_virtual_elements (map, cnt, bin_dist, local_grid=local_bin)
+    CALL dbcsr_assert (nlocal_elements, "EQ", cnt,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "Inconsistent counts", __LINE__, error=error)
+    CALL array_nullify (local_map)
+    CALL array_new (local_map, map, gift=.TRUE.)
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE get_local_bins
+
+! *****************************************************************************
+!> \brief Determines mapping from global to local bins
+!> \par Use
+!> \param[out] global_map       mapping of local elements to global bins
+!> \param[in] bin_distribution  mapping of elements to bins
+!> \param[in] local_bin         the local bin
+!> \param[in,out] error         error
+! *****************************************************************************
+  SUBROUTINE get_global_bins (global_map, bin_distribution, local_bin, error)
+    TYPE(array_i1d_obj), INTENT(OUT)         :: global_map
+    TYPE(array_i1d_obj), INTENT(IN)          :: bin_distribution
+    INTEGER, INTENT(IN)                      :: local_bin
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_global_bins', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: cnt, error_handle, nelements
+    INTEGER, DIMENSION(:), POINTER           :: bin_dist, map
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    bin_dist => array_data (bin_distribution)
+    nelements = array_size (bin_distribution)
+    ALLOCATE (map(nelements))
+    CALL map_local_virtual_elements (map, cnt, bin_dist,&
+         local_grid=local_bin)
+    CALL array_nullify (global_map)
+    CALL array_new (global_map, map, gift=.TRUE.)
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE get_global_bins
+
+
+! *****************************************************************************
 !> \brief Determines whether most blocks are stored transposed in normally.
 !> \note Tries to be quick and not necessarily accurate.
 !> \param[in] blk_p           Pointers to blocks
@@ -1949,5 +2071,59 @@ CONTAINS
     END SUBROUTINE check_range
   END FUNCTION mostly_non_transposed
 
+
+  SUBROUTINE image_calculator (image_dist,&
+       prow, rowi, pcol, coli,&
+       myprow, mypcol, myrowi, mycoli,&
+       shifting)
+    TYPE(dbcsr_imagedistribution_type), &
+      INTENT(IN)                             :: image_dist
+    INTEGER, INTENT(OUT)                     :: prow, rowi, pcol, coli
+    INTEGER, INTENT(in), OPTIONAL            :: myprow, mypcol
+    INTEGER, INTENT(in)                      :: myrowi, mycoli
+    CHARACTER, INTENT(IN)                    :: shifting
+
+    INTEGER :: col_mult, my_pcol, my_prow, ncol_images, npcols, nprows, &
+      nrow_images, nvpcols, nvprows, row_mult, vcol, vrow
+    TYPE(dbcsr_mp_obj)                       :: mp
+
+    mp = dbcsr_distribution_mp (image_dist%main)
+    nprows = dbcsr_mp_nprows (mp)
+    npcols = dbcsr_mp_npcols (mp)
+    IF (PRESENT (myprow)) THEN
+       my_prow = myprow
+    ELSE
+       my_prow = dbcsr_mp_myprow (mp)
+    ENDIF
+    IF (PRESENT (mypcol)) THEN
+       my_pcol = mypcol
+    ELSE
+       my_pcol = dbcsr_mp_mypcol (mp)
+    ENDIF
+    !
+    nrow_images = image_dist%row_decimation
+    ncol_images = image_dist%col_decimation
+    row_mult = image_dist%row_multiplicity
+    col_mult = image_dist%col_multiplicity
+    nvprows = nprows * nrow_images
+    nvpcols = npcols * ncol_images
+    !
+    vrow = my_prow*nrow_images+myrowi-1
+    vcol = my_pcol*ncol_images+mycoli-1
+    SELECT CASE (shifting)
+    CASE ('R')
+       vrow = MODULO (&
+            vrow + my_pcol*row_mult,&
+            nvprows)
+    CASE ('L')
+       vcol = MODULO (&
+            vcol + my_prow*col_mult,&
+            nvpcols)
+    END SELECT
+    prow = vrow / nrow_images
+    rowi = MODULO (vrow, nrow_images)+1
+    pcol = vcol / ncol_images
+    coli = MODULO (vcol, ncol_images)+1
+  END SUBROUTINE image_calculator
 
 END MODULE dbcsr_dist_operations

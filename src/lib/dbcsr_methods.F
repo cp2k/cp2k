@@ -509,6 +509,16 @@ CONTAINS
           CALL array_release (matrix%m%row_blk_offset)
           CALL array_release (matrix%m%col_blk_offset)
           CALL dbcsr_distribution_release(matrix%m%dist)
+          IF (matrix%m%local_indexing) THEN
+             CALL dbcsr_assert (array_exists (matrix%m%local_rows),&
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Global row mapping should exist", __LINE__, error=error)
+             CALL array_release (matrix%m%local_rows)
+             CALL dbcsr_assert (array_exists (matrix%m%global_rows),&
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Global row mapping should exist", __LINE__, error=error)
+             CALL array_release (matrix%m%global_rows)
+          ENDIF
           matrix%m%valid = .FALSE.
 !$        CALL OMP_DESTROY_LOCK (matrix%m%modification_lock)
           CALL dbcsr_init (matrix%m)

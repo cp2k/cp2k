@@ -66,6 +66,10 @@ MODULE dbcsr_types
             dbcsr_slot_nfullrows_local,&
             dbcsr_slot_nfullcols_local,&
             dbcsr_slot_type,&
+            dbcsr_slot_home_prow,&
+            dbcsr_slot_home_pcol,&
+            dbcsr_slot_home_rowi,&
+            dbcsr_slot_home_coli,&
             dbcsr_num_slots
   PUBLIC :: dbcsr_type_real_4, dbcsr_type_real_8,&
             dbcsr_type_complex_4, dbcsr_type_complex_8,&
@@ -81,7 +85,7 @@ MODULE dbcsr_types
   PUBLIC :: dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm,&
             dbcsr_norm_gershgorin, dbcsr_norm_column
 
-  INTEGER, PARAMETER :: dbcsr_meta_size = 13 ! The number of meta fields
+  INTEGER, PARAMETER :: dbcsr_meta_size = 17 ! The number of meta fields
 
 
 ! *****************************************************************************
@@ -291,6 +295,7 @@ MODULE dbcsr_types
 !> \var row_size         Size of current row
 !> \var rbs, cbs         Pointer to row and column size array
 !> \var roff, coff       Pointer to row and column offset array
+!> \var local_indexing   The matrix has local indexing
 !> \var contiguous_pointers   Whether pointers to data should be contiguous
 !>                            in memory.
 !> \var shared           Iterators share matrix
@@ -298,6 +303,10 @@ MODULE dbcsr_types
 !> \var dynamic_byrows   Ignores the thread distribution (FCFS by row)
 !> \var common_pos       Position when in mixed mode (row or block
 !>                       depending in dynamic_byrows
+!> \var local_rows       Mapping of local rows to global rows (if local
+!>                       indexing is enabled)
+!> \var global_rows      Mapping of global rows to local rows (if local
+!>                       indexing is enabled)
 ! *****************************************************************************
   TYPE dbcsr_iterator
      TYPE(dbcsr_obj), POINTER                       :: matrix
@@ -305,12 +314,14 @@ MODULE dbcsr_types
      INTEGER                                        :: pos, row, row_size, &
           row_offset
      INTEGER, DIMENSION(:), POINTER :: rbs, cbs, roff, coff
+     LOGICAL            :: local_indexing
      LOGICAL            :: contiguous_pointers, transpose, read_only
      LOGICAL            :: shared, dynamic, dynamic_byrows
      INTEGER, POINTER   :: common_pos
      ! Copies from the matrix.
      INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
-     INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p, tdist
+     INTEGER, DIMENSION(:), POINTER :: row_p, col_i, blk_p, tdist,&
+                                       local_rows, global_rows
      TYPE(dbcsr_data_obj) :: data_area
   END TYPE dbcsr_iterator
 
@@ -401,6 +412,11 @@ MODULE dbcsr_types
 !> \var replication_type      multi-process replication used in the matrix
 !> \var transpose             matrix is logically transposed
 !> \var bscs                  BCS Column instead of BCS Row
+!> \var local_indexing        Local indexing instead of global indexing.
+!> \var local_rows            Map of local to global rows when local indexing
+!>                            is enabled
+!> \var local_rows            Map of global to local rows when local indexing
+!>                            is enabled
 !> \var special_memory        uses special (MPI-allocated) memory
 !> \var buffers               Block buffers
 !> \var refcount              reference count
@@ -422,7 +438,8 @@ MODULE dbcsr_types
      TYPE(array_i1d_obj)                   row_blk_size,&
           &                                col_blk_size,&
           &                                row_blk_offset,&
-          &                                col_blk_offset
+          &                                col_blk_offset,&
+          &                                local_rows, global_rows
      INTEGER                            :: max_rbs, max_cbs
 
      INTEGER                             :: sparsity_id
@@ -436,7 +453,7 @@ MODULE dbcsr_types
      CHARACTER               :: data_type, replication_type
      LOGICAL                 :: symmetry, negate_real, negate_imaginary
      !LOGICAL                 :: transpose
-     LOGICAL                 :: bcsc
+     LOGICAL                 :: bcsc, local_indexing
      LOGICAL                 :: special_memory
      TYPE(dbcsr_block_buffer_obj) :: buffers
      !TYPE(dbcsr_work_type)   :: w
@@ -487,6 +504,10 @@ MODULE dbcsr_types
   INTEGER, PARAMETER          :: dbcsr_slot_nfullrows_local  = 11
   INTEGER, PARAMETER          :: dbcsr_slot_nfullcols_local  = 12
   INTEGER, PARAMETER          :: dbcsr_slot_type = 13
+  INTEGER, PARAMETER          :: dbcsr_slot_home_prow = 14
+  INTEGER, PARAMETER          :: dbcsr_slot_home_pcol = 15
+  INTEGER, PARAMETER          :: dbcsr_slot_home_rowi = 16
+  INTEGER, PARAMETER          :: dbcsr_slot_home_coli = 17
   INTEGER, PARAMETER          :: dbcsr_slot_row_p = dbcsr_meta_size+2
   INTEGER, PARAMETER          :: dbcsr_slot_col_i = dbcsr_meta_size+4
   INTEGER, PARAMETER          :: dbcsr_slot_blk_p = dbcsr_meta_size+6

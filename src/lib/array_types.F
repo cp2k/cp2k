@@ -35,6 +35,7 @@ MODULE array_types
   PUBLIC :: array_data,&
             array_size,&
             array_equality
+  PUBLIC :: array_get
 
 
   INTERFACE array_new
@@ -73,6 +74,12 @@ MODULE array_types
      MODULE PROCEDURE array_equality_i1d, array_equality_i2d,&
                       array_equality_d1d, array_equality_d2d
   END INTERFACE
+
+  INTERFACE array_get
+     MODULE PROCEDURE array_get_i1d,&
+                      array_get_d1d
+  END INTERFACE
+     
 
   TYPE array_i1d_type
      INTEGER, DIMENSION(:), POINTER     :: DATA
@@ -511,5 +518,37 @@ CONTAINS
        are_equal = ALL(array1%low%data .EQ. array2%low%data)
     ENDIF
   END FUNCTION array_equality_d2d
+
+  !
+  
+  PURE FUNCTION array_get_i1d(array, index1) RESULT (value)
+    TYPE(array_i1d_obj), INTENT(IN)          :: array
+    INTEGER, INTENT(IN)                      :: index1
+    INTEGER                                  :: value
+
+    value = array%low%data(index1)
+  END FUNCTION array_get_i1d
+  PURE FUNCTION array_get_i2d(array, index1, index2) RESULT (value)
+    TYPE(array_i2d_obj), INTENT(IN)          :: array
+    INTEGER, INTENT(IN)                      :: index1, index2
+    INTEGER                                  :: value
+
+    value = array%low%data(index1, index2)
+  END FUNCTION array_get_i2d
+  PURE FUNCTION array_get_d1d(array, index1) RESULT (value)
+    TYPE(array_d1d_obj), INTENT(IN)          :: array
+    INTEGER, INTENT(IN)                      :: index1
+    REAL(KIND=dp)                            :: value
+
+    value = array%low%data(index1)
+  END FUNCTION array_get_d1d
+  PURE FUNCTION array_get_d2d(array, index1, index2) RESULT (value)
+    TYPE(array_d2d_obj), INTENT(IN)          :: array
+    INTEGER, INTENT(IN)                      :: index1, index2
+    REAL(KIND=dp)                            :: value
+
+    value = array%low%data(index1, index2)
+  END FUNCTION array_get_d2d
+
 
 END MODULE array_types

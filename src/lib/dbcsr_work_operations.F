@@ -18,6 +18,7 @@ MODULE dbcsr_work_operations
                                              array_hold,&
                                              array_i1d_obj,&
                                              array_new,&
+                                             array_nullify,&
                                              array_release,&
                                              array_size
   USE btree_I8_k_cp2d_v,               ONLY: btree_2d_data_c => cp2d
@@ -72,16 +73,18 @@ MODULE dbcsr_work_operations
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
        dbcsr_magic_number, dbcsr_meta_size, dbcsr_num_slots, dbcsr_obj, &
        dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
-       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_nblkcols_local, &
-       dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_local, &
-       dbcsr_slot_nblkrows_total, dbcsr_slot_nblks, &
-       dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
-       dbcsr_slot_nfullrows_local, dbcsr_slot_nfullrows_total, &
-       dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type, &
-       dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_hermitian, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_work_type
+       dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_coli, &
+       dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_rowi, &
+       dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
+       dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
+       dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, &
+       dbcsr_slot_nfullcols_total, dbcsr_slot_nfullrows_local, &
+       dbcsr_slot_nfullrows_total, dbcsr_slot_nze, dbcsr_slot_row_p, &
+       dbcsr_slot_size, dbcsr_type, dbcsr_type_antihermitian, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
+       dbcsr_work_type
   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
                                              dbcsr_calc_block_sizes,&
                                              dbcsr_set_debug,&
@@ -332,6 +335,11 @@ CONTAINS
     matrix%m%index(1:dbcsr_num_slots) = 0
     matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
     !
+    matrix%m%index(dbcsr_slot_home_prow) = -1
+    matrix%m%index(dbcsr_slot_home_pcol) = -1
+    matrix%m%index(dbcsr_slot_home_rowi) = -1
+    matrix%m%index(dbcsr_slot_home_coli) = -1
+    !
     matrix%m%symmetry = .FALSE.
     matrix%m%negate_real = .FALSE.
     matrix%m%negate_imaginary = .FALSE.
@@ -358,6 +366,9 @@ CONTAINS
     END SELECT
     NULLIFY (matrix%m%predistributed)
     matrix%m%bcsc = .FALSE.
+    matrix%m%local_indexing = .FALSE.
+    CALL array_nullify (matrix%m%local_rows)
+    CALL array_nullify (matrix%m%global_rows)
     CALL dbcsr_buffers_init (matrix%m%buffers)
     IF (dbcsr_buffers_2d_needed) THEN
        CALL dbcsr_buffers_new (matrix%m%buffers, matrix%m%data_area,&
