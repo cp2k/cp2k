@@ -48,7 +48,7 @@ MODULE dbcsr_block_operations
   PUBLIC :: block_set
   PUBLIC :: block_add_on_diag
   PUBLIC :: block_chol_inv
-
+  PUBLIC :: dbcsr_block_norm_frob
 
   INTERFACE dbcsr_block_transpose
      MODULE PROCEDURE block_transpose_inplace_s, block_transpose_inplace_d,&
@@ -150,6 +150,11 @@ MODULE dbcsr_block_operations
   END INTERFACE
 
 
+  INTERFACE dbcsr_block_norm_frob
+     MODULE PROCEDURE block_norm_frob_anytype_s
+     MODULE PROCEDURE block_norm_frob_s_s, block_norm_frob_d_s,&
+                      block_norm_frob_c_s, block_norm_frob_z_s
+  END INTERFACE
 
 
 #define DBG IF (dbg) WRITE(*,*)routineN//" ",
@@ -163,7 +168,7 @@ MODULE dbcsr_block_operations
   LOGICAL, PARAMETER :: bcsr_info =    .FALSE.
   LOGICAL, PARAMETER :: bcsr_verbose = .FALSE.
   LOGICAL, PARAMETER :: debug_mod  =   .FALSE.
-  LOGICAL, PARAMETER :: careful_mod  = .FALSE.
+  LOGICAL, PARAMETER :: careful_mod  = .TRUE.
 
 CONTAINS
 
@@ -1526,6 +1531,101 @@ CONTAINS
             routineN, "Invalid data type!",__LINE__,error)
     END SELECT
   END SUBROUTINE block_add_on_diag_anytype
+
+
+! *****************************************************************************
+!> \brief Calculates frobenious norm of a block
+!>
+!> \param[in] area       encapsulated data area
+!> \param[in,out] error  error
+!> \result norm     single-precision real frobenius norm
+! *****************************************************************************
+  SUBROUTINE block_norm_frob_anytype_s (area, norm, error)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    REAL(kind=sp), INTENT(OUT)               :: norm
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_norm_frob_anytype_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handler
+
+!   ---------------------------------------------------------------------------
+
+    IF (careful_mod) THEN
+       CALL dbcsr_error_set(routineN, error_handler, error)
+    ENDIF
+    SELECT CASE (area%d%data_type)
+    CASE (dbcsr_type_real_8)
+       CALL block_norm_frob_d_s (SIZE(area%d%r_dp), area%d%r_dp, norm)
+    CASE (dbcsr_type_real_4)
+       CALL block_norm_frob_s_s (SIZE(area%d%r_sp), area%d%r_sp, norm)
+    CASE (dbcsr_type_complex_8)
+       CALL block_norm_frob_z_s (SIZE(area%d%c_dp), area%d%c_dp, norm)
+    CASE (dbcsr_type_complex_4)
+       CALL block_norm_frob_c_s (SIZE(area%d%c_sp), area%d%c_sp, norm)
+    CASE (dbcsr_type_real_8_2d)
+       CALL block_norm_frob_d_s (SIZE(area%d%r2_dp), area%d%r2_dp, norm)
+    CASE (dbcsr_type_real_4_2d)
+       CALL block_norm_frob_s_s (SIZE(area%d%r2_sp), area%d%r2_sp, norm)
+    CASE (dbcsr_type_complex_8_2d)
+       CALL block_norm_frob_z_s (SIZE(area%d%c2_dp), area%d%c2_dp, norm)
+    CASE (dbcsr_type_complex_4_2d)
+       CALL block_norm_frob_c_s (SIZE(area%d%c2_sp), area%d%c2_sp, norm)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Invalid data type",__LINE__,error)
+    END SELECT
+    IF (careful_mod) THEN
+       CALL dbcsr_error_stop(error_handler, error)
+    END IF
+  END SUBROUTINE block_norm_frob_anytype_s
+
+  SUBROUTINE block_norm_frob_s_s (m, blk, norm)
+    INTEGER, INTENT(IN)                      :: m
+    REAL(KIND=real_4), DIMENSION(m), &
+      INTENT(IN)                             :: blk
+    REAL(KIND=real_4), INTENT(OUT)           :: norm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_norm_frob_s_s', &
+      routineP = moduleN//':'//routineN
+
+    norm = SQRT (REAL (SUM (blk**2), KIND=real_4))
+  END SUBROUTINE block_norm_frob_s_s
+  SUBROUTINE block_norm_frob_d_s (m, blk, norm)
+    INTEGER, INTENT(IN)                      :: m
+    REAL(KIND=real_8), DIMENSION(m), &
+      INTENT(IN)                             :: blk
+    REAL(KIND=real_4), INTENT(OUT)           :: norm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_norm_frob_d_s', &
+      routineP = moduleN//':'//routineN
+
+    norm = SQRT (REAL (SUM (blk**2), KIND=real_4))
+  END SUBROUTINE block_norm_frob_d_s
+  SUBROUTINE block_norm_frob_c_s (m, blk, norm)
+    INTEGER, INTENT(IN)                      :: m
+    COMPLEX(KIND=real_4), DIMENSION(m), &
+      INTENT(IN)                             :: blk
+    REAL(KIND=real_4), INTENT(OUT)           :: norm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_norm_frob_c_s', &
+      routineP = moduleN//':'//routineN
+
+    norm = SQRT (REAL (SUM (CONJG(blk) * blk), KIND=real_4))
+  END SUBROUTINE block_norm_frob_c_s
+  SUBROUTINE block_norm_frob_z_s (m, blk, norm)
+    INTEGER, INTENT(IN)                      :: m
+    COMPLEX(KIND=real_8), DIMENSION(m), &
+      INTENT(IN)                             :: blk
+    REAL(KIND=real_4), INTENT(OUT)           :: norm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'block_norm_frob_z_s', &
+      routineP = moduleN//':'//routineN
+
+    norm = SQRT (REAL (SUM (CONJG(blk)* blk), KIND=real_4))
+  END SUBROUTINE block_norm_frob_z_s
+
 
 
 #include "dbcsr_block_operations_d.F"

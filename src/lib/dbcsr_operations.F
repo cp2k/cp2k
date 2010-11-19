@@ -297,6 +297,16 @@ CONTAINS
 !>      right_set argument is present and non-NULL), or they may be
 !>      requeseted to be saved (present and NULL). No verification is done
 !>      that the set is consistent with the given matrix.
+!> \par Filtering
+!>      The filter_eps parameter, if present, is used to filter the
+!>      resulting matrix.  The filtering criterion is whether the
+!>      block-frobenius norm is less than the specified epsilon.
+!>      One-the-fly filtering is done such that individual
+!>      multiplications are skipped if the product of the frobenius
+!>      norms of the left- and right-matrix blocks are less than the
+!>      specified epsilon divided by the maximum number of possible
+!>      multiplies in each row.  In addition a final filtering is done
+!>      as well with the same epsilon value.
 !> \param[in] transa, transb  specifies the form of op( A or B ) to be used in 
 !>                            the matrix multiplication 
 !>                            transx = 'N' or 'n',  op( X ) = X.
@@ -317,6 +327,7 @@ CONTAINS
 !>                            product
 !> \param[in] retain_sparsity (optional) enforce the sparsity pattern of the
 !>                            existing product matrix; default is no
+!> \param[in] filter_eps      Filtering of the matrix
 !> \param[in,out] left_set    (optional) multiplication set for left matrix
 !> \param[in,out] right_set   (optional) multiplication set for right matrix
 !> \param[in,out] error       error
@@ -325,7 +336,8 @@ CONTAINS
   SUBROUTINE dbcsr_multiply_anytype(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, filter_eps,&
+       left_set, right_set, error, flop)
     
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
@@ -336,6 +348,7 @@ CONTAINS
                                                 first_column, last_column, &
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
@@ -756,13 +769,13 @@ CONTAINS
     ENDDO
     CALL dbcsr_access_flush (product_matrix, error=error)
     !
-    !
     IF (PRESENT (flop)) flop = 0
     my_flop = 0
     CALL dbcsr_mult_m_e_e (m2s_left, m2s_right, product_matrix,&
          (/ f_row, l_row, f_col, l_col, f_k, l_k /),&
          alpha=alpha, beta=beta, retain_sparsity=retain_sparsity,&
-         use_plasma=use_plasma, error=error, flop=my_flop)
+         use_plasma=use_plasma, filter_eps=filter_eps, error=error,&
+         flop=my_flop)
     IF (PRESENT (flop)) flop = my_flop
     !
     IF (new_left) CALL dbcsr_release (matrix_left)
@@ -811,6 +824,9 @@ CONTAINS
           CALL dbcsr_destroy_image_dist (rdist_right)
        ENDIF
     ENDIF
+    IF (PRESENT (filter_eps)) THEN
+       CALL dbcsr_filter (matrix_c, filter_eps, quick=.FALSE., error=error)
+    ENDIF
     IF (dbg) THEN
        WRITE(*,*)routineN//" Use dense mult, symm", use_dense_mult, ab_dense, &
             dbcsr_has_symmetry (matrix_c)
@@ -832,7 +848,8 @@ CONTAINS
   SUBROUTINE dbcsr_multiply_s(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, left_set, right_set, filter_eps,&
+       error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(KIND=real_4), INTENT(IN)            :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -844,6 +861,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -851,12 +869,15 @@ CONTAINS
     CALL dbcsr_multiply_anytype(transa, transb,&
          dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set,&
+         filter_eps=filter_eps,&
+         error=error, flop=flop)
   END SUBROUTINE dbcsr_multiply_s
   SUBROUTINE dbcsr_multiply_d(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, left_set, right_set, filter_eps,&
+       error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(KIND=real_8), INTENT(IN)            :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -868,6 +889,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -882,14 +904,18 @@ CONTAINS
             dbcsr_scalar(REAL(alpha,real_4)), matrix_a, matrix_b, &
             dbcsr_scalar(REAL(beta,real_4)), matrix_c,&
             first_row, last_row, first_column, last_column, first_k, last_k,&
-            retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
+            retain_sparsity, left_set=left_set, right_set=right_set,&
+            filter_eps=filter_eps,&
+            error=error, flop=flop)
     ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND.&
            dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8 .AND.&
            dbcsr_get_data_type(matrix_c) .EQ. dbcsr_type_real_8) THEN
        CALL dbcsr_multiply_anytype(transa, transb,&
             dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
             first_row, last_row, first_column, last_column, first_k, last_k,&
-            retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
+            retain_sparsity, left_set=left_set, right_set=right_set,&
+            filter_eps=filter_eps,&
+            error=error, flop=flop)
     ELSE
        CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_internal_error,&
             routineP, "This combination of data types NYI",__LINE__, error)       
@@ -898,7 +924,8 @@ CONTAINS
   SUBROUTINE dbcsr_multiply_c(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, left_set, right_set, filter_eps,&
+       error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(KIND=real_4), INTENT(IN)         :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -910,6 +937,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -917,12 +945,15 @@ CONTAINS
     CALL dbcsr_multiply_anytype(transa, transb,&
          dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set,&
+         filter_eps=filter_eps,&
+         error=error, flop=flop)
   END SUBROUTINE dbcsr_multiply_c
   SUBROUTINE dbcsr_multiply_z(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, left_set, right_set, filter_eps,&
+       error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(KIND=real_8), INTENT(IN)         :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -934,6 +965,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
@@ -941,9 +973,11 @@ CONTAINS
     CALL dbcsr_multiply_anytype(transa, transb,&
          dbcsr_scalar(alpha), matrix_a, matrix_b, dbcsr_scalar(beta), matrix_c,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set,&
+         filter_eps=filter_eps,&
+         error=error, flop=flop)
   END SUBROUTINE dbcsr_multiply_z
-
+  
 ! *****************************************************************************
 !> \brief Scales a DBCSR matrix by alpha
 !> \param[inout] matrix_a       DBCSR matrix

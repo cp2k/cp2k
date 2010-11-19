@@ -2460,7 +2460,8 @@ CONTAINS
   SUBROUTINE cp_dbcsr_multiply_s(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, left_set, right_set, &
+       filter_eps, error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(real_4), INTENT(IN)                 :: alpha
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
@@ -2472,6 +2473,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 
@@ -2504,7 +2506,9 @@ CONTAINS
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set,&
+         filter_eps=filter_eps,&
+         error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_s
@@ -2512,7 +2516,8 @@ CONTAINS
   SUBROUTINE cp_dbcsr_multiply_d(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, left_set, right_set, filter_eps,&
+       error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(real_8), INTENT(IN)                 :: alpha
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
@@ -2524,6 +2529,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 
@@ -2580,7 +2586,9 @@ CONTAINS
        CALL dbcsr_multiply (transa, transb,&
             alpha, clustered_a%matrix, clustered_b%matrix, beta, clustered_c%matrix,&
             first_row, last_row, first_column, last_column, first_k, last_k,&
-            retain_sparsity, left_set, right_set, dbcsr_error, flop)
+            retain_sparsity, left_set, right_set,&
+            filter_eps=filter_eps,&
+            error=dbcsr_error, flop=flop)
        IF (verify) cs_c = cp_dbcsr_checksum (clustered_c, error=error)
        IF (prnt) THEN
           CALL cp_dbcsr_print (clustered_c, matlab_format=.TRUE.,&
@@ -2621,7 +2629,9 @@ CONTAINS
        CALL dbcsr_multiply (transa, transb,&
             alpha, clustered_a%matrix, clustered_b%matrix, beta, clustered_c%matrix,&
             first_row, last_row, first_column, last_column, first_k, last_k,&
-            retain_sparsity, left_set, right_set, dbcsr_error, flop)
+            retain_sparsity, left_set, right_set,&
+            filter_eps=filter_eps,&
+            error=dbcsr_error, flop=flop)
        IF (verify) cs_c = cp_dbcsr_checksum (clustered_c, error=error)
        IF (prnt) THEN
           CALL cp_dbcsr_print (clustered_c, matlab_format=.TRUE.,&
@@ -2648,7 +2658,9 @@ CONTAINS
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set, right_set, dbcsr_error, flop)
+         retain_sparsity, left_set, right_set,&
+         filter_eps=filter_eps,&
+         error=dbcsr_error, flop=flop)
 
     IF (prnt) THEN
        CALL cp_dbcsr_print (matrix_c, matlab_format=.TRUE.,&
@@ -2671,7 +2683,8 @@ CONTAINS
   SUBROUTINE cp_dbcsr_multiply_c(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, left_set, right_set, error,&
+       filter_eps, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(real_4), INTENT(IN)              :: alpha
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
@@ -2684,6 +2697,7 @@ CONTAINS
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_multiply_c', &
@@ -2715,7 +2729,9 @@ CONTAINS
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set,&
+         filter_eps=filter_eps,&
+         error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_c
@@ -2723,7 +2739,9 @@ CONTAINS
   SUBROUTINE cp_dbcsr_multiply_z(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
-       retain_sparsity, left_set, right_set, error, flop)
+       retain_sparsity, left_set, right_set,&
+       filter_eps,&
+       error, flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(real_8), INTENT(IN)              :: alpha
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_a, matrix_b
@@ -2735,6 +2753,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     TYPE(dbcsr_2d_array_type), OPTIONAL, &
       POINTER                                :: left_set, right_set
+    REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER(int_8), INTENT(OUT), OPTIONAL    :: flop
 
@@ -2767,7 +2786,9 @@ CONTAINS
     CALL dbcsr_multiply(transa, transb,&
          alpha, matrix_a%matrix, matrix_b%matrix, beta, matrix_c%matrix,&
          first_row, last_row, first_column, last_column, first_k, last_k,&
-         retain_sparsity, left_set=left_set, right_set=right_set, error=dbcsr_error, flop=flop)
+         retain_sparsity, left_set=left_set, right_set=right_set,&
+         filter_eps=filter_eps,&
+         error=dbcsr_error, flop=flop)
     CALL timestop(timing_handle_detail)
     CALL timestop(timing_handle)
   END SUBROUTINE cp_dbcsr_multiply_z

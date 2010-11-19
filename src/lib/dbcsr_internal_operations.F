@@ -16,6 +16,7 @@ MODULE dbcsr_internal_operations
   USE array_types,                     ONLY: array_data
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
+  USE dbcsr_block_operations,          ONLY: dbcsr_block_norm_frob
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_init, dbcsr_data_new, &
@@ -24,7 +25,8 @@ MODULE dbcsr_internal_operations
        dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: checker_tr
   USE dbcsr_error_handling
-  USE dbcsr_index_operations,          ONLY: dbcsr_expand_row_index,&
+  USE dbcsr_index_operations,          ONLY: dbcsr_count_row_index,&
+                                             dbcsr_expand_row_index,&
                                              dbcsr_repoint_index,&
                                              merge_index_arrays
   USE dbcsr_io,                        ONLY: all_print,&
@@ -44,6 +46,7 @@ MODULE dbcsr_internal_operations
   USE dbcsr_message_passing,           ONLY: mp_allgather,&
                                              mp_irecv,&
                                              mp_isend,&
+                                             mp_sum,&
                                              mp_type_descriptor_type,&
                                              mp_type_free,&
                                              mp_type_make,&
@@ -69,7 +72,8 @@ MODULE dbcsr_internal_operations
        dbcsr_2d_array_type, dbcsr_data_obj, dbcsr_mp_obj, dbcsr_obj, &
        dbcsr_scalar_type, dbcsr_type, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8,&
-       dbcsr_iterator
+       dbcsr_iterator, dbcsr_slot_size, dbcsr_slot_row_p, dbcsr_slot_blk_p,&
+       dbcsr_num_slots
   USE dbcsr_util,                      ONLY: dbcsr_checksum,&
                                              dbcsr_set_debug
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
@@ -160,7 +164,8 @@ CONTAINS
 !> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE dbcsr_mult_m_e_e (left_set, right_set, product_matrix,&
-       submatrix_selection, error, retain_sparsity, use_plasma, alpha, beta, flop)
+       submatrix_selection, error, retain_sparsity, use_plasma, alpha, beta,&
+       filter_eps, flop)
     TYPE(dbcsr_2d_array_type), &
       INTENT(INOUT), TARGET                  :: left_set, right_set
     TYPE(dbcsr_obj), INTENT(INOUT)           :: product_matrix
@@ -169,6 +174,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity, use_plasma
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha, beta
+    REAL(kind=real_8), INTENT(in), OPTIONAL  :: filter_eps
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
@@ -204,8 +210,9 @@ CONTAINS
       right_send_prow, right_send_v_col, right_send_v_row, right_src_icol, &
       right_src_irow
     INTEGER :: right_src_p, right_src_pcol, right_src_prow, right_src_v_col, &
-      right_src_v_row, size_guess, v_k, v_ki
+      right_src_v_row, row, size_guess, stat, v_k, v_ki
     INTEGER(KIND=int_8)                      :: flop_single, flop_total, size8
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: left_data_rr, left_data_sr, &
       left_index_rr, left_index_sr, right_data_rr, right_data_sr, &
       right_index_rr, right_index_sr
@@ -218,11 +225,14 @@ CONTAINS
                                                 right_index_rp, right_index_sp
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
                                                 right_pgrid
-    LOGICAL                                  :: keep_sparsity, my_use_plasma
+    LOGICAL                                  :: keep_sparsity, my_use_plasma, &
+                                                otf_filtering
     REAL(KIND=dp)                            :: checksum, t_all, t_dgemm, &
                                                 trun, trun_t, tstart, tstop
     REAL(KIND=real_8)                        :: fill_guess, left_fill, &
                                                 right_fill
+    REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: left_block_epss, left_norms, &
+                                                right_norms
     TYPE(dbcsr_2d_array_type), POINTER       :: left_buffer_calc, &
                                                 left_buffer_comm, &
                                                 right_buffer_calc, &
@@ -259,6 +269,7 @@ CONTAINS
     ELSE
        keep_sparsity = .FALSE.
     ENDIF
+    otf_filtering = PRESENT (filter_eps)
 
 !$omp parallel if( .NOT. my_use_plasma ) &
 !$omp default (none) &
@@ -365,8 +376,9 @@ CONTAINS
           my_sizes(idata, left_row_image, left_col_image) &
                = dbcsr_data_get_size_referenced (&
                left_set%mats(left_row_image, left_col_image)%m%data_area)
-          my_sizes(imeta, left_row_image, left_col_image) = SIZE (&
-               left_set%mats(left_row_image, left_col_image)%m%index)
+          my_sizes(imeta, left_row_image, left_col_image) = &
+               left_set%mats(left_row_image, left_col_image)%m%index&
+               (dbcsr_slot_size)
        ENDDO
     ENDDO
     DO right_row_image = 1, right_row_nimages
@@ -374,14 +386,85 @@ CONTAINS
           my_sizes(idata+2, right_row_image, right_col_image) &
                = dbcsr_data_get_size_referenced (&
                right_set%mats(right_row_image, right_col_image)%m%data_area)
-          my_sizes(imeta+2, right_row_image, right_col_image) = SIZE (&
-               right_set%mats(right_row_image, right_col_image)%m%index)
+          my_sizes(imeta+2, right_row_image, right_col_image) = &
+               right_set%mats(right_row_image, right_col_image)%m%index&
+               (dbcsr_slot_size)
        ENDDO
     ENDDO
     ALLOCATE (all_sizes(4, LBOUND(my_sizes,2):UBOUND(my_sizes,2),&
          LBOUND(my_sizes,3):UBOUND(my_sizes,3), 0:numnodes-1))
     CALL mp_allgather(my_sizes, all_sizes, mp_group)
     !
+    ! Count the maximum possible multiplies per row for on-the-fly
+    ! filtering.
+    IF (otf_filtering) THEN
+       IF (careful_mod) THEN
+          CALL dbcsr_assert ("NOT", left_set%mats(1, 1)%m%bcsc,&
+               dbcsr_warning_level, dbcsr_unimplemented_error_nr, routineN,&
+               "Can not do on-the-fly filtering with CSC-indexed matrices.",&
+               __LINE__, error=error)
+       ENDIF
+       IF (left_set%mats(1, 1)%m%bcsc) otf_filtering = .FALSE.
+
+       i = dbcsr_nblkrows_total (left_set%mats(1, 1))
+       ALLOCATE (left_block_epss (i), stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_warning_level,&
+            dbcsr_internal_error,&
+            routineN, "Could not allocate memory for left epsilons", __LINE__,&
+            error=error)
+       IF (stat .NE. 0) &
+            otf_filtering = .FALSE.
+       ALLOCATE (row_counts (i), stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_warning_level,&
+            dbcsr_internal_error,&
+            routineN, "Could not allocate memory for left row counts",&
+            __LINE__, error=error)
+       IF (stat .NE. 0) &
+            otf_filtering = .FALSE.
+       ALLOCATE (total_row_counts (i), stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_warning_level,&
+            dbcsr_internal_error,&
+            routineN, "Could not allocate memory for left row counts",&
+            __LINE__, error=error)
+       IF (stat .NE. 0) &
+            otf_filtering = .FALSE.
+    ENDIF
+    IF (otf_filtering) THEN
+       total_row_counts(:) = 0
+       DO left_row_image = 1, left_row_nimages
+          DO left_col_image = 1, left_col_nimages
+             CALL dbcsr_assert (i+1, "EQ", SIZE(left_set%mats(left_row_image, left_col_image)%m%row_p),&
+                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                  "Row count mismatch", __LINE__, error=error)
+             CALL dbcsr_count_row_index (&
+                  left_set%mats(left_row_image, left_col_image)%m%row_p,&
+                  row_counts, i)
+             total_row_counts(:) = total_row_counts(:) + row_counts
+          ENDDO
+       ENDDO
+       CALL mp_sum(total_row_counts, mp_group)
+       ! and used to determine the maximum per-block epsilon.
+       FORALL (row = 1 : i)
+          left_block_epss (row) &
+               = REAL(filter_eps&
+               / REAL(MAX(1, total_row_counts(row)), KIND=KIND(left_block_epss)),&
+               KIND=KIND(left_block_epss))
+       END FORALL
+    ENDIF
+    IF (ALLOCATED (row_counts)) THEN
+       DEALLOCATE (row_counts, stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN,&
+            "Could not deallocate memory for right matrix row counts",&
+            __LINE__, error=error)
+    ENDIF
+    IF (ALLOCATED (total_row_counts)) THEN
+       DEALLOCATE (total_row_counts, stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
+            dbcsr_internal_error, routineN,&
+            "Could not deallocate memory for right matrix row counts",&
+            __LINE__, error=error)
+    ENDIF
     !
     ! The main transfer loop goes through the virtual
     ! rows/columns. They are grouped together according to the process
@@ -516,6 +599,14 @@ CONTAINS
     CALL setup_buffer_matrices (left_buffer_2, left_row_mult, left_col_nimages,&
          left_set%mats(1,1), index_size=max_nblks,&
          data_size=max_nze, error=error)
+    IF (otf_filtering) THEN
+       ALLOCATE (left_norms (max_nblks), stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_warning_level,&
+            dbcsr_internal_error,&
+            routineN, "Could not allocate memory for left norms", __LINE__,&
+            error=error)
+       IF (stat .NE. 0) otf_filtering = .FALSE.
+    ENDIF
     !left_buffer_calc => left_buffer_1
     left_buffer_calc => left_set
     left_buffer_comm => left_buffer_2
@@ -534,6 +625,14 @@ CONTAINS
     CALL setup_buffer_matrices (right_buffer_2, right_row_nimages, right_col_mult,&
          right_set%mats(1,1), index_size=max_nblks, data_size=max_nze,&
          error=error)
+    IF (otf_filtering) THEN
+       ALLOCATE (right_norms (max_nblks), stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_warning_level,&
+            dbcsr_internal_error,&
+            routineN, "Could not allocate memory for right norms", __LINE__,&
+            error=error)
+       IF (stat .NE. 0) otf_filtering = .FALSE.
+    ENDIF
     !right_buffer_calc => right_buffer_1
     right_buffer_calc => right_set
     right_buffer_comm => right_buffer_2
@@ -953,6 +1052,14 @@ CONTAINS
                 CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE., error=error)
                 CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
              ENDIF
+             !
+             IF (otf_filtering) THEN
+                CALL calculate_norms(left_buffer_calc%mats(1, v_ki+1),&
+                     left_norms, error=error)
+                CALL calculate_norms(right_buffer_calc%mats(v_ki+1, 1),&
+                     right_norms, error=error)
+             ENDIF
+             !
              tstart = m_walltime ()
              flop_single = 0
 !$omp parallel if( .NOT. my_use_plasma ) &
@@ -960,6 +1067,7 @@ CONTAINS
 !$omp shared (left_buffer_calc, right_buffer_calc, &
 !$omp         v_ki, &
 !$omp         product_matrix, submatrix_selection, &
+!$omp         filter_eps, right_norms, left_norms, left_block_epss, &
 !$omp         retain_sparsity, alpha, use_plasma, error) &
 !$omp reduction (+: flop_single, t_all, t_dgemm)
 
@@ -971,6 +1079,9 @@ CONTAINS
                   use_plasma=use_plasma,&
                   alpha=alpha,&
                   flop=flop_single,&
+                  left_norms=left_norms, right_norms=right_norms,&
+                  eps=filter_eps,&
+                  k_block_epss = left_block_epss, &
                   t_all=t_all, t_dgemm=t_dgemm, error=error)
 
 !$omp end parallel
@@ -1009,6 +1120,30 @@ CONTAINS
             (REAL(flop_total, dp)/1000000.0_dp)/trun_t,&
             "MFLOPS"
     ENDIF
+    !
+    IF (ALLOCATED (right_norms)) THEN
+       DEALLOCATE (right_norms, stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
+            dbcsr_internal_error,&
+            routineN, "Could not deallocate memory for right norms", __LINE__,&
+            error=error)
+    ENDIF
+    IF (ALLOCATED (left_norms)) THEN
+       DEALLOCATE (left_norms, stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
+            dbcsr_internal_error,&
+            routineN, "Could not deallocate memory for left norms", __LINE__,&
+            error=error)
+    ENDIF
+    IF (ALLOCATED (left_block_epss)) THEN
+       DEALLOCATE (left_block_epss, stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
+            dbcsr_internal_error,&
+            routineN, "Could not deallocate memory for row block epsilons",&
+            __LINE__,&
+            error=error)
+    ENDIF
+ 
     !
     CALL dbcsr_destroy_array (right_buffer_1, error=error)
     CALL dbcsr_destroy_array (right_buffer_2, error=error)
@@ -1106,12 +1241,18 @@ CONTAINS
 !> \param[in] alpha_d              (optional) product multiplication factor
 !> \param[in] beta_d               (optional) existing target multiplication
 !>                                 factor
+!> \param[in,out] t_all       accumulated time spent in entire routine
+!> \param[in,out] t_dgemm     accumulated time spent just for multiplication
+!> \param[in] left_norms      (optional) norms of left-matrix blocks
+!> \param[in] right_norms     (optional) norms of right-matrix blocks
+!> \param[in] eps             (optional) on-the-fly filtering epsilon
+!> \param[in] k_block_epss    (optional) on-the-fly filtering epsilon per block
 !> \param[out] flop           (optional) number of effective double-precision
 !>                            floating point operations performed
 ! *****************************************************************************
   SUBROUTINE dbcsr_nn_mult_lin(left, right, product, submatrix_box, flop,&
        retain_sparsity, use_plasma, alpha,&
-       t_all, t_dgemm, error)
+       t_all, t_dgemm, left_norms, right_norms, eps, k_block_epss, error)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     INTEGER, DIMENSION(6), INTENT(in)        :: submatrix_box
@@ -1121,6 +1262,11 @@ CONTAINS
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha
     REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
+    REAL(kind=sp), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: left_norms, right_norms
+    REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
+    REAL(kind=sp), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: k_block_epss
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult_lin', &
@@ -1148,7 +1294,7 @@ CONTAINS
 !$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
     LOGICAL :: block_exists, flush_stack, keep_sparsity, &
       left_limit_rows, limit_k, negate_alpha, product_is_symmetric, &
-      right_limit_cols, tr_p
+      right_limit_cols, tr_p, otf_filtering
     REAL(KIND=dp)                            :: epoch, mt_t_dgemm
     REAL(KIND=real_8)                        :: one_time, left_fill, right_fill,&
          product_fill
@@ -1159,6 +1305,7 @@ CONTAINS
                                                 which_beta
     TYPE(dgemm_join), &
       DIMENSION(dgemm_stack_size)            :: dgemm_joins
+    REAL(kind=sp)                            :: a_norm, b_norm, a_row_eps
 
     DEBUG_HEADER
 !   ---------------------------------------------------------------------------
@@ -1174,6 +1321,9 @@ CONTAINS
        !WRITE(*,*)routineN//" Retaining sparsity!"
        keep_sparsity = retain_sparsity
     END IF
+    !otf_filtering = present (left_norms) .and. present (right_norms)&
+    !     .and. present (k_block_epss)
+    otf_filtering = PRESENT (eps)
     product_is_symmetric = product%symmetry
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
@@ -1320,6 +1470,8 @@ CONTAINS
           WRITE(*,*)ithread,routineN//" c_blk_ps="
           WRITE(*,'(10(1X,I7))')c_blk_ps
        ENDIF
+       IF (otf_filtering) &
+            a_row_eps = k_block_epss (a_row_logical)
        c_row_logical = a_row_logical
        new_row_blks = 0
        DO a_blk = left%row_p(a_row_logical)+1, left%row_p(a_row_logical+1)
@@ -1352,6 +1504,8 @@ CONTAINS
                 !write(*,*)routineN//" Clamping", clamp_k_offset, clamp_k_len
              ENDIF
           ENDIF
+          IF (otf_filtering) &
+               a_norm = left_norms(a_blk)
           a_col_size_logical = left_col_blk_offset (a_col_logical+1) - blk_start
           stack_p_a = stack_p_a + 1
           parameters_a(stack_p_a)%offset = ABS(left%blk_p(a_blk))
@@ -1369,6 +1523,12 @@ CONTAINS
              b_col_logical = right%col_i(b_blk)
              c_col_logical = b_col_logical
              block_exists = c_blk_ps(c_col_logical) .NE. 0
+             IF (otf_filtering) THEN
+                b_norm = right_norms(b_blk)
+                IF (a_norm * b_norm .LT. a_row_eps) THEN
+                   CYCLE
+                ENDIF
+             ENDIF
              sparsity_enforcement: IF &
                   (keep_sparsity .AND. .NOT. block_exists) THEN
                 CYCLE
@@ -2124,6 +2284,58 @@ CONTAINS
     CALL dbcsr_finalize (matrix_a, error=error)
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_insert_blocks
+
+
+! *****************************************************************************
+!> \brief Calculates per-block norms.
+!> \param[in,out] matrix     DBCSR matrix for which to calculate norms
+!> \param[in] norms          Block norms
+!> \param[in,out] error      error
+! *****************************************************************************
+  SUBROUTINE calculate_norms(matrix, norms, error)
+    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER                                :: data_type
+    INTEGER                                  :: blk, col, error_handle, row
+    LOGICAL                                  :: tr
+    REAL(kind=sp)                            :: norm
+    TYPE(dbcsr_data_obj)                     :: data_block
+    TYPE(dbcsr_iterator)                     :: iter
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    ! Checks for validity
+    CALL dbcsr_assert (dbcsr_valid_index (matrix),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "The matrix must be valid.", __LINE__, error)
+    data_type = dbcsr_get_data_type (matrix)
+    !$omp parallel default (none) &
+    !$omp          private (iter, data_block, row, col, tr, blk, norm) &
+    !$omp          shared (data_type, matrix, norms, error)
+    CALL dbcsr_data_init (data_block)
+    CALL dbcsr_data_new (data_block, data_type)
+    CALL dbcsr_iterator_start(iter, matrix, shared=.TRUE., read_only=.TRUE.)
+    DO WHILE (dbcsr_iterator_blocks_left(iter))
+       CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
+       CALL dbcsr_block_norm_frob(data_block, norm, error=error)
+       norms(blk) = norm
+    ENDDO
+    CALL dbcsr_iterator_stop(iter)
+    CALL dbcsr_data_clear_pointer (data_block)
+    CALL dbcsr_data_release (data_block)
+    !$omp end parallel
+    !
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE calculate_norms
+
+
+
 
 
 
