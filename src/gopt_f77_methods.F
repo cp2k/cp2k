@@ -34,6 +34,8 @@
     USE cp_para_types,                   ONLY: cp_para_env_type
     USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                                cp_subsys_type
+    USE cp_subsys_methods,               ONLY: pack_subsys_particles,&
+                                               unpack_subsys_particles
     USE dimer_methods,                   ONLY: cp_eval_at_ts
     USE f77_blas
     USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -84,8 +86,7 @@
 
     INTEGER                                  :: ensemble, handle, i, idg, idir, ip, shell_index, stat
     LOGICAL                                  :: failure, explicit, is_shell
-    REAL(KIND=dp)                            :: f_ts, mass, potential_energy,&
-    mass_core, mass_shell
+    REAL(KIND=dp)                            :: f_ts, mass, potential_energy
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     REAL(KIND=dp), DIMENSION(3,3)            :: av_ptens
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient_ts
@@ -116,40 +117,11 @@
     CALL timeset(routineN,handle)
     CALL force_env_get(gopt_env%force_env,subsys=subsys,cell=cell,error=error)
     CALL cp_subsys_get(subsys,&
-                       core_particles=core_particles,&
                        particles=particles,&
-                       shell_particles=shell_particles,&
                        error=error)
     SELECT CASE (gopt_env%type_id)
     CASE (default_minimization_method_id,default_ts_method_id)
-      idg = 0
-      DO ip=1,particles%n_els
-        shell_index = particles%els(ip)%shell_index
-        IF (shell_index == 0) THEN
-          DO i=1,3
-            idg = idg + 1
-            particles%els(ip)%r(i) = x(idg)
-          END DO
-        END IF
-      END DO
-      DO ip=1,particles%n_els
-        shell_index = particles%els(ip)%shell_index
-        IF (shell_index /= 0) THEN
-          DO i=1,3
-            idg = idg + 1
-            core_particles%els(shell_index)%r(i) = x(idg)
-          END DO
-          DO i=1,3
-            idg = idg + 1
-            shell_particles%els(shell_index)%r(i) = x(idg)
-          END DO
-          mass_core = core_particles%els(shell_index)%atomic_kind%shell%mass_core
-          mass_shell = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell
-          mass = particles%els(ip)%atomic_kind%mass
-          particles%els(ip)%r(:) = (mass_core*core_particles%els(shell_index)%r(:) +&
-                                    mass_shell*shell_particles%els(shell_index)%r(:))/mass
-        END IF
-      END DO
+      CALL unpack_subsys_particles(subsys=subsys,r=x,error=error)
       CALL write_structure_data(particles%els,cell,gopt_env%motion_section,error)
       SELECT CASE (gopt_env%type_id)
       CASE (default_minimization_method_id)
@@ -164,39 +136,8 @@
         ! Possibly take the gradients
         IF (PRESENT(gradient)) THEN
           IF (master == para_env%mepos) THEN ! we are on the master
-            CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
             CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
-            CALL cp_subsys_get(subsys,&
-                               core_particles=core_particles,&
-                               particles=particles,&
-                               shell_particles=shell_particles,&
-                               error=error)
-            idg = 0
-            DO ip=1,particles%n_els
-              shell_index = particles%els(ip)%shell_index
-              IF (shell_index == 0) THEN
-                DO i=1,3
-                  idg = idg + 1
-                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                  gradient(idg) = -particles%els(ip)%f(i)
-                END DO
-              END IF
-            END DO
-            DO ip=1,particles%n_els
-              shell_index = particles%els(ip)%shell_index
-              IF (shell_index /= 0) THEN
-                DO i=1,3
-                  idg = idg + 1
-                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                  gradient(idg) = -core_particles%els(shell_index)%f(i)
-                END DO
-                DO i=1,3
-                  idg = idg + 1
-                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                  gradient(idg) = -shell_particles%els(shell_index)%f(i)
-                END DO
-              END IF
-            END DO
+            CALL pack_subsys_particles(subsys=subsys,f=gradient,fscale=-1.0_dp,error=error)
           END IF
         END IF
       CASE (default_ts_method_id)
@@ -209,7 +150,6 @@
           CALL cp_eval_at_ts (gopt_env, x, f_ts, gradient_ts, calc_force=.TRUE., error=error)
           ! Possibly take the potential energy
           IF (PRESENT(f)) f = f_ts
-
           ! Possibly take the gradients
           IF (PRESENT(gradient)) THEN
              IF (master==para_env%mepos) THEN ! we are on the master
@@ -222,34 +162,7 @@
       END SELECT
       ! This call is necessary for QM/MM if a Translation is applied
       ! this makes the geometry optimizer consistent
-      idg = 0
-      DO ip=1,particles%n_els
-        shell_index = particles%els(ip)%shell_index
-        IF (shell_index == 0) THEN
-          DO i=1,3
-            idg = idg + 1
-            particles%els(ip)%r(i) = x(idg)
-          END DO
-        END IF
-      END DO
-      DO ip=1,particles%n_els
-        shell_index = particles%els(ip)%shell_index
-        IF (shell_index /= 0) THEN
-          DO i=1,3
-            idg = idg + 1
-            core_particles%els(shell_index)%r(i) = x(idg)
-          END DO
-          DO i=1,3
-            idg = idg + 1
-            shell_particles%els(shell_index)%r(i) = x(idg)
-          END DO
-          mass_core = core_particles%els(shell_index)%atomic_kind%shell%mass_core
-          mass_shell = shell_particles%els(shell_index)%atomic_kind%shell%mass_shell
-          mass = particles%els(ip)%atomic_kind%mass
-          particles%els(ip)%r(:) = (mass_core*core_particles%els(shell_index)%r(:) +&
-                                    mass_shell*shell_particles%els(shell_index)%r(:))/mass
-        END IF
-      END DO
+      CALL unpack_subsys_particles(subsys=subsys,r=x,error=error)
     CASE(default_cell_method_id)
        ! Check for VIRIAL
        CALL force_env_get(gopt_env%force_env,virial=virial,error=error)

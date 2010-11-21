@@ -16,6 +16,7 @@ MODULE gopt_f_methods
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsys_methods,               ONLY: pack_subsys_particles
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -78,19 +79,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_f_create_x0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, idg, ip, j, ndg, nshell, &
-                                                shell_index, stat
+    INTEGER                                  :: i, idg, j, nshell, stat
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
 
     failure = .FALSE.
 
     NULLIFY (cell)
-    NULLIFY (particles)
-    NULLIFY (shell_particles)
     NULLIFY (subsys)
 
     nshell = 0
@@ -100,42 +96,7 @@ CONTAINS
       CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
       ! before starting we handle the case of translating coordinates (QM/MM)
       CALL apply_qmmm_translate(gopt_env%force_env,error=error)
-      CALL cp_subsys_get(subsys,&
-                         particles=particles,&
-                         core_particles=core_particles,&
-                         shell_particles=shell_particles,&
-                         error=error)
-      IF (ASSOCIATED(shell_particles)) nshell = shell_particles%n_els
-      ! The same number of shell and core particles is assumed
-      ndg = 3*(particles%n_els + nshell)
-      ALLOCATE (x0(ndg),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      idg = 0
-      DO ip=1,particles%n_els
-        shell_index = particles%els(ip)%shell_index
-        IF (shell_index == 0) THEN
-          DO i=1,3
-            idg = idg + 1
-            CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
-            x0(idg) = particles%els(ip)%r(i)
-          END DO
-        END IF
-      END DO
-      DO ip=1,particles%n_els
-        shell_index = particles%els(ip)%shell_index
-        IF (shell_index /= 0) THEN
-          DO i=1,3
-            idg = idg + 1
-            CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
-            x0(idg) = core_particles%els(shell_index)%r(i)
-          END DO
-          DO i=1,3
-            idg = idg + 1
-            CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
-            x0(idg) = shell_particles%els(shell_index)%r(i)
-          END DO
-        END IF
-      END DO
+      CALL pack_subsys_particles(subsys=subsys,r=x0,error=error)
     CASE (default_cell_method_id)
       CALL force_env_get(gopt_env%force_env,cell=cell,error=error)
       ALLOCATE (x0(6),stat=stat)
