@@ -13,6 +13,10 @@ MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_control_utils,                ONLY: read_becke_section,&
                                              read_ddapc_section
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_set
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_allocate_matrix_set
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_to_fm
@@ -38,12 +42,19 @@ MODULE qs_energy
   USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
+                                             calculate_w_matrix_ot,&
+                                             qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_mo_types,                     ONLY: mo_set_p_type,&
+                                             mo_set_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: scf
   USE rt_propagation_methods,          ONLY: propagation_step,&
                                              put_data_to_history,&
@@ -54,6 +65,7 @@ MODULE qs_energy
                                              rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE rt_propagator_init,              ONLY: init_emd_propagators
+  USE scf_control_types,               ONLY: scf_control_type
   USE scp_dispersion,                  ONLY: scp_nddo_dispersion,&
                                              scp_qs_dispersion
   USE se_core_core,                    ONLY: se_core_core_interaction
@@ -121,19 +133,28 @@ CONTAINS
                           error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
-                                                calc_forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies
+    LOGICAL, INTENT(IN)                      :: calc_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-    LOGICAL                                  :: do_et
+    INTEGER                                  :: handle, ispin, nspin
+    LOGICAL                                  :: do_et, has_unit_metric
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s, &
+                                                matrix_w, mo_derivs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: input, rest_b_section
 
     CALL timeset(routineN,handle)
@@ -183,8 +204,65 @@ CONTAINS
 
     END IF
 
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,&
+         dft_control=dft_control, has_unit_metric=has_unit_metric, error=error)
+    IF (calc_forces.AND..NOT.has_unit_metric) THEN
+       IF (.NOT.has_unit_metric) THEN
+          CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
+          DO ispin=1,dft_control%nspins
+             ALLOCATE(matrix_w(ispin)%matrix)
+             CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
+             CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
+                  name="W MATRIX",error=error)
+             CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+          END DO
+       END IF
+       CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+    ENDIF
+
     ! *** Perform a SCF run ***
     CALL scf(qs_env=qs_env,  error=error)
+ 
+    ! if calculate forces, time to compute the w matrix
+    CALL get_qs_env(qs_env=qs_env,has_unit_metric=has_unit_metric,error=error)
+    IF (calc_forces.AND..NOT.has_unit_metric) THEN
+       CALL get_qs_env(qs_env=qs_env,&
+            ks_env=ks_env,&
+            matrix_ks=matrix_ks,&
+            matrix_s=matrix_s,&
+            mo_derivs=mo_derivs,&
+            scf_control=scf_control,&
+            mos=mos,&
+            rho=rho,error=error)
+       nspin = SIZE(mos)
+       DO ispin=1,nspin
+          mo_set => mos(ispin)%mo_set
+          IF (qs_env%dft_control%roks) THEN
+             IF (scf_control%use_ot) THEN
+                IF (ispin > 1) THEN
+                   ! not very elegant, indeed ...
+                   CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+                ELSE
+                   CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
+                        matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+                END IF
+             ELSE
+                CALL calculate_w_matrix(mo_set=mo_set,&
+                     matrix_ks=matrix_ks(ispin)%matrix,&
+                     matrix_p=rho%rho_ao(ispin)%matrix,&
+                     matrix_w=matrix_w(ispin)%matrix,&
+                     error=error)
+             END IF
+          ELSE
+             IF (scf_control%use_ot) THEN
+                CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
+                     matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+             ELSE
+                CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
+             END IF
+          END IF
+       END DO
+    END IF
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN

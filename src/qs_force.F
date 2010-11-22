@@ -59,9 +59,7 @@ MODULE qs_force
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type,&
                                              zero_qs_force
-  USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
-                                             calculate_w_matrix_ot,&
-                                             qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -219,7 +217,10 @@ CONTAINS
     END IF
     CALL zero_qs_force(force)
 
-
+    CALL get_qs_env(qs_env=qs_env,&
+         matrix_s=matrix_s,&
+         has_unit_metric=has_unit_metric,&
+         mos=mos, error=error)
 
     CALL qs_energies(qs_env,globenv,calc_forces=.TRUE.,error=error)
 
@@ -227,85 +228,40 @@ CONTAINS
          ks_env=ks_env,&
          matrix_ks=matrix_ks,&
          matrix_s=matrix_s,&
+         matrix_w=matrix_w,&
          mo_derivs=mo_derivs,&
          mos=mos,&
          rho=rho,error=error)
 
-    IF (.NOT.qs_env%run_rtp)THEN
-       IF (.NOT.has_unit_metric) THEN
-
-          ! Build W matrix (from the orthonormality constraint lambda C^T S C)
-
-          nspin = SIZE(mos)
-
-          CALL cp_dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
-
-          DO ispin=1,nspin
-             ALLOCATE(matrix_w(ispin)%matrix)
-             CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
-             CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
-                  name="W MATRIX",error=error)
-
-             mo_set => mos(ispin)%mo_set
-
-             IF (qs_env%dft_control%roks) THEN
-                IF (scf_control%use_ot) THEN
-                   IF (ispin > 1) THEN
-                      ! not very elegant, indeed ...
-                      CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
-                   ELSE
-                      CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
-                           matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
-                   END IF
-                ELSE
-                   CALL calculate_w_matrix(mo_set=mo_set,&
-                        matrix_ks=matrix_ks(ispin)%matrix,&
-                        matrix_p=rho%rho_ao(ispin)%matrix,&
-                        matrix_w=matrix_w(ispin)%matrix,&
-                        error=error)
-                END IF
-             ELSE
-                IF (scf_control%use_ot) THEN
-                   CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
-                        matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
-                ELSE
-                   CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
-                END IF
-             END IF
-
-             IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-                  qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
-                iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
-                     extension=".Log",error=error)
-                CALL cp_dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
-                CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                     "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
-             END IF
-
-          END DO
-
-       END IF
-    ELSE
+    IF (.NOT.has_unit_metric) THEN
        nspin = SIZE(mos)
-       
-       CALL cp_dbcsr_allocate_matrix_set(matrix_w,nspin,error=error)
-
-
        DO ispin=1,nspin
-             ALLOCATE(matrix_w(ispin)%matrix)
-             CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
-             CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,rho%rho_ao(ispin)%matrix,&
-                  name="W MATRIX",error=error)
-             CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+               qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
+             iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
+                  extension=".Log",error=error)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+                  "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
+          END IF
        END DO
-       
+    ENDIF
+
+    IF (qs_env%run_rtp) THEN
+       CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
+       DO ispin=1,dft_control%nspins
+          ALLOCATE(matrix_w(ispin)%matrix)
+          CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
+          CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
+               name="W MATRIX",error=error)
+          CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+       END DO
+       CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
+
        CALL calc_c_mat_force(qs_env,dp_imag,error)
-
-
     END IF
 
     ! from an eventual Mulliken restraint
-
     IF (dft_control%qs_control%mulliken_restraint) THEN
        CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
             para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w,error=error)
@@ -313,12 +269,9 @@ CONTAINS
 
     ! Add non-Pulay contribution of DFT+U to W matrix, since it has also to be
     ! digested with overlap matrix derivatives
-
     IF (dft_control%dft_plus_u) THEN
        CALL plus_u(qs_env=qs_env,matrix_w=matrix_w,error=error)
     END IF
-
-    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w,error=error)
 
     IF (.NOT. harris_flag) THEN ! harris computes the forces differenctly
        ! Compute core forces (also overwrites matrix_w)
