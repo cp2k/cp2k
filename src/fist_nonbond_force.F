@@ -28,7 +28,8 @@ MODULE fist_nonbond_force
                                              fist_nonbond_env_type,&
                                              pos_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: oorootpi
+  USE mathconstants,                   ONLY: oorootpi,&
+                                             sqrthalf
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE pair_potential_coulomb,          ONLY: potential_coulomb
@@ -92,9 +93,9 @@ CONTAINS
     LOGICAL                                  :: all_terms, do_multipoles, &
                                                 failure, full_nl, &
                                                 shell_present
-    REAL(KIND=dp) :: alpha, energy, fac_ei, fac_kind, fac_vdw, fscalar, &
-      mm_radius, mm_radius_a, mm_radius_b, qcore_a, qcore_b, qeff_a, qeff_b, &
-      qshell_a, qshell_b, rab2, rab2_com, rab2_max
+    REAL(KIND=dp) :: alpha, beta, beta_a, beta_b, energy, fac_ei, fac_kind, &
+      fac_vdw, fscalar, mm_radius_a, mm_radius_b, qcore_a, qcore_b, qeff_a, &
+      qeff_b, qshell_a, qshell_b, rab2, rab2_com, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi, rab, rab_cc, &
                                                 rab_com, rab_cs, rab_sc, &
                                                 rab_ss
@@ -228,8 +229,19 @@ CONTAINS
                    qshell_b = HUGE(0.0_dp)
                    IF (qeff_b==0.0_dp) fac_ei = 0.0_dp
                 END IF
-                ! combine parameters
-                mm_radius = SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
+                ! Derive beta parameters
+                beta = 0.0_dp
+                beta_a = 0.0_dp
+                beta_b = 0.0_dp
+                IF (mm_radius_a > 0) THEN
+                   beta_a = sqrthalf/mm_radius_a
+                END IF
+                IF (mm_radius_b > 0) THEN
+                   beta_b = sqrthalf/mm_radius_b
+                END IF
+                IF ((mm_radius_a > 0) .OR. (mm_radius_b > 0)) THEN
+                   beta = sqrthalf/SQRT(mm_radius_a*mm_radius_a + mm_radius_b*mm_radius_b)
+                END IF
              END IF
 
              ! In case we have only manybody potentials and no charges, this
@@ -314,18 +326,18 @@ CONTAINS
                       rab2 = rab2_list(1)
                       fscalar = 0.0_dp
                       IF (shell_a == 0) THEN
-                         ! atom a is a plain ion and can have mm_radius_a > 0
+                         ! atom a is a plain ion and can have beta_a > 0
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qeff_a*qcore_b, ewald_type, alpha, &
-                                  mm_radius_a, &
+                                  beta_a, &
                                   ei_interaction_cutoffs(2, kind_a, kind_b))
                          CALL add_force_nonbond(atom_a, shell_b, fscalar, rab, &
                               f_nonbond, fcore_nonbond, use_virial, pv_com)
                       ELSE IF (shell_b == 0) THEN
-                         ! atom b is a plain ion and can have mm_radius_b > 0
+                         ! atom b is a plain ion and can have beta_b > 0
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qcore_a*qeff_b, ewald_type, alpha, &
-                                  mm_radius_b, &
+                                  beta_b, &
                                   ei_interaction_cutoffs(2, kind_b, kind_a))
                          CALL add_force_nonbond(shell_a, atom_b, fscalar, rab, &
                               fcore_nonbond, f_nonbond, use_virial, pv_com)
@@ -355,7 +367,7 @@ CONTAINS
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qshell_a*qshell_b, ewald_type, alpha, &
-                                  mm_radius, &
+                                  beta, &
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
                          pot_nonbond = pot_nonbond + energy
                       END IF
@@ -370,7 +382,7 @@ CONTAINS
                          ! swap kind_a and kind_b to get the right cutoff
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qcore_a*qshell_b, ewald_type, alpha, &
-                                  mm_radius_b, &
+                                  beta_b, &
                                   ei_interaction_cutoffs(2, kind_b, kind_a))
                          pot_nonbond = pot_nonbond + energy
                          CALL add_force_nonbond(shell_a, shell_b, fscalar, rab, &
@@ -382,7 +394,7 @@ CONTAINS
                          fscalar = 0.0_dp
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qshell_a*qcore_b, ewald_type, alpha, &
-                                  mm_radius_a, &
+                                  beta_a, &
                                   ei_interaction_cutoffs(2, kind_a, kind_b))
                          pot_nonbond = pot_nonbond + energy
                          CALL add_force_nonbond(shell_a, shell_b, fscalar, rab, &
@@ -402,7 +414,7 @@ CONTAINS
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qeff_a*qshell_b, ewald_type, alpha, &
-                                  mm_radius, &
+                                  beta, &
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
                          pot_nonbond = pot_nonbond + energy
                       END IF
@@ -422,7 +434,7 @@ CONTAINS
                          ! note that potential_coulomb increments fscalar
                          energy = potential_coulomb(rab2, fscalar, &
                                   fac_ei*qshell_a*qeff_b, ewald_type, alpha, &
-                                  mm_radius, &
+                                  beta, &
                                   ei_interaction_cutoffs(3, kind_a, kind_b))
                          pot_nonbond = pot_nonbond + energy
                       END IF
@@ -446,7 +458,7 @@ CONTAINS
                       ! note that potential_coulomb increments fscalar
                       energy = potential_coulomb(rab2, fscalar, &
                                fac_ei*qeff_a*qeff_b, ewald_type, alpha, &
-                               mm_radius, &
+                               beta, &
                                ei_interaction_cutoffs(3, kind_a, kind_b))
                       pot_nonbond = pot_nonbond + energy
                    END IF

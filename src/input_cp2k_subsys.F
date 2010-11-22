@@ -1245,14 +1245,15 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MM_RADIUS",&
-            description="Defines the radius of the electrostatic multipole"//&
-                        " of the atom in Fist. This radius applies to the"//&
-                        " charge, the dipole and the quadrupole. When zero,"//&
-                        " the atom is treated as a point multipole,"//&
-                        " otherwise it is treated as a Gaussian charge"//&
-                        " distribution with the given radius. In the core-shell"//&
-                        " model, only the shell is treated as a Gaussian"//&
-                        " and the core is always a point charge.",&
+            description="Defines the radius of the electrostatic multipole "//&
+            "of the atom in Fist. This radius applies to the charge, the "//&
+            "dipole and the quadrupole. When zero, the atom is treated as "//&
+            "a point multipole, otherwise it is treated as a Gaussian "//&
+            "charge distribution with the given radius: "//&
+            "p(x,y,z)*N*exp(-(x**2+y**2+z**2)/(2*MM_RADIUS**2)), where N is "//&
+            "a normalization constant. In the core-shell model, only the "//&
+            "shell is treated as a Gaussian and the core is always a point "//&
+            "charge.",&
             usage="MM_RADIUS {real}", default_r_val=0.0_dp, type_of_var=real_t,&
             unit_str="angstrom", n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)

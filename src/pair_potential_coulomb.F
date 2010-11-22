@@ -25,14 +25,14 @@ CONTAINS
 !> \brief Evaluates the electrostatic energy and force
 !> \author Toon.Verstraelen@gmail.com
 ! *****************************************************************************
-  FUNCTION potential_coulomb(r2,fscalar,qfac,ewald_type,alpha,mm_radius,&
-                             interaction_cutoff)
+  FUNCTION potential_coulomb(r2, fscalar, qfac, ewald_type, alpha, beta, &
+       interaction_cutoff)
 
     REAL(KIND=dp), INTENT(IN)                :: r2
     REAL(KIND=dp), INTENT(INOUT)             :: fscalar
     REAL(KIND=dp), INTENT(IN)                :: qfac
     INTEGER, INTENT(IN)                      :: ewald_type
-    REAL(KIND=dp), INTENT(IN)                :: alpha, mm_radius, &
+    REAL(KIND=dp), INTENT(IN)                :: alpha, beta, &
                                                 interaction_cutoff
     REAL(KIND=dp)                            :: potential_coulomb
 
@@ -41,18 +41,18 @@ CONTAINS
     REAL(KIND=dp)                            :: r, x1, x2
 
     r = SQRT(r2)
-    IF (mm_radius > 0.0_dp) THEN
+    IF (beta > 0.0_dp) THEN
        IF (ewald_type == do_ewald_none) THEN
-          x2 = r/mm_radius
+          x2 = r*beta
           potential_coulomb = erf(x2)/r
           fscalar = fscalar + qfac*(potential_coulomb - &
-            two_over_sqrt_pi*EXP(-x2*x2)/mm_radius)/r2
+            two_over_sqrt_pi*EXP(-x2*x2)*beta)/r2
        ELSE
           x1 = alpha*r
-          x2 = r/mm_radius
+          x2 = r*beta
           potential_coulomb = (erf(x2) - erf(x1))/r
           fscalar = fscalar + qfac*(potential_coulomb + &
-            two_over_sqrt_pi*(EXP(-x1*x1)*alpha-EXP(-x2*x2)/mm_radius))/r2
+            two_over_sqrt_pi*(EXP(-x1*x1)*alpha-EXP(-x2*x2)*beta))/r2
        END IF
     ELSE
        IF (ewald_type == do_ewald_none) THEN

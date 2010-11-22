@@ -284,13 +284,13 @@ CONTAINS
           q_sum  = q_sum + qcore*nparticle_local + qshell*nparticle_local
           IF (mm_radius > 0) THEN
              ! the core is always a point charge
-             q_neutg = q_neutg + qshell*mm_radius**2
+             q_neutg = q_neutg + 2.0_dp*qshell*mm_radius**2
           END IF
        ELSE
           q_self = q_self + q*q*nparticle_local
           q_sum  = q_sum + q*nparticle_local
           IF (mm_radius > 0) THEN
-             q_neutg = q_neutg + q*mm_radius**2
+             q_neutg = q_neutg + 2.0_dp*q*mm_radius**2
           END IF
        END IF
     END DO

@@ -47,6 +47,7 @@ MODULE force_fields_all
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE mathconstants,                   ONLY: sqrthalf
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        bend_type, bond_type, get_molecule_kind, impr_type, &
@@ -3128,7 +3129,7 @@ CPSourceFileRef,&
     INTEGER                                  :: ewald_type, handle, i1, i2, &
                                                 nkinds, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, mm_radius1, &
+    REAL(KIND=dp)                            :: alpha, beta, mm_radius1, &
                                                 mm_radius2, rcut2, &
                                                 rcut2_ewald, tmp
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -3166,12 +3167,21 @@ CPSourceFileRef,&
                 interaction_cutoffs(1,i1,i2) = potential_coulomb(rcut2, tmp, &
                   1.0_dp, ewald_type, alpha, 0.0_dp, 0.0_dp)
                 ! cutoff for core-shell, core-ion, shell-core or ion-core
+                IF (mm_radius1 > 0.0_dp) THEN
+                   beta = sqrthalf/mm_radius1
+                ELSE
+                   beta = 0.0_dp
+                END IF
                 interaction_cutoffs(2,i1,i2) = potential_coulomb(rcut2, tmp, &
-                  1.0_dp, ewald_type, alpha, mm_radius1, 0.0_dp)
+                  1.0_dp, ewald_type, alpha, beta, 0.0_dp)
                 ! cutoff for shell-shell or ion-ion
-                mm_radius2 = SQRT(mm_radius1*mm_radius1+mm_radius2*mm_radius2)
+                IF (mm_radius1 + mm_radius2 > 0.0_dp) THEN
+                   beta = sqrthalf/SQRT(mm_radius1*mm_radius1+mm_radius2*mm_radius2)
+                ELSE
+                   beta = 0.0_dp
+                END IF
                 interaction_cutoffs(3,i1,i2) = potential_coulomb(rcut2, tmp, &
-                  1.0_dp, ewald_type, alpha, mm_radius2, 0.0_dp)
+                  1.0_dp, ewald_type, alpha, beta, 0.0_dp)
              END IF
           END DO
        END DO

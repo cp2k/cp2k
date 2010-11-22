@@ -39,7 +39,8 @@ MODULE ewalds_multipole
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
                                              oorootpi,&
-                                             pi
+                                             pi,&
+                                             sqrthalf
   USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -452,13 +453,13 @@ CONTAINS
              rab    = rab + cell_v
              rab2   = rab(1)**2 + rab(2)**2 + rab(3)**2
              IF (rab2 <= rab2_max) THEN
-               IF (PRESENT(radii)) THEN
-                 radius = SQRT(radii(atom_a)*radii(atom_a) + radii(atom_b)*radii(atom_b))
-               ELSE
-                 radius = 0.0_dp
-               END IF
-               IF (radius > 0.0_dp) THEN
-                 beta = 1.0_dp/radius
+                IF (PRESENT(radii)) THEN
+                   radius = SQRT(radii(atom_a)*radii(atom_a) + radii(atom_b)*radii(atom_b))
+                ELSE
+                   radius = 0.0_dp
+                END IF
+                IF (radius > 0.0_dp) THEN
+                   beta = sqrthalf/radius
 #define SCREENED_COULOMB_GAUSS
 #define STORE_ENERGY
 #define STORE_FORCES
@@ -1106,7 +1107,7 @@ CONTAINS
              q = charges(iparticle)
              IF (lradii) radius = radii(iparticle)
              IF (radius>0) THEN
-                q_neutg = q_neutg + q*radius**2
+                q_neutg = q_neutg + 2.0_dp*q*radius**2
              END IF
              q_self = q_self + q*q
              q_sum  = q_sum  + q

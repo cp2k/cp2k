@@ -8,3 +8,6 @@ pntcs-pntcs.inp
 pnt-gsscs.inp
 pnt-pntcs.inp
 pnt-pnt.inp
+# New definition of MM_RADIUS (factor sqrt(2)). All test inputs are modified
+# to compensate, but some tests show numerical changes
+gc_.gq_.inp

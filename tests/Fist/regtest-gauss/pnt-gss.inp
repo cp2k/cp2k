@@ -68,10 +68,10 @@
        PERIODIC NONE
      &END CELL
      &KIND Na
-       MM_RADIUS 0.0
+       MM_RADIUS 0.000000000000000
      &END KIND
      &KIND Cl
-       MM_RADIUS 1.5875316249
+       MM_RADIUS 1.122554377314889
      &END KIND
      &COORD
        Na 0.0 0.0 0.0

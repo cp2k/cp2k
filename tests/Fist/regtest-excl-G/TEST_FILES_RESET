@@ -3,3 +3,5 @@
 # Numerical changes due to new implementation of 14 electrostatics
 ethanol_both_rcut10.0_e1-2_v1-2__SG.inp
 ethanol_both_rcut10.0_e1-3_v1-4_RSG.inp
+# numerics
+ethanol_both_rcut10.0_e1-3_v1-4_RSG.inp
