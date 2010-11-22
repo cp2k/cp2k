@@ -36,7 +36,7 @@ MODULE dbcsr_block_buffers
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_buffers'
 
-  LOGICAL, PARAMETER, PRIVATE :: debug_mod = .TRUE., careful_mod = .TRUE.
+  LOGICAL, PARAMETER, PRIVATE :: debug_mod = .FALSE., careful_mod = .FALSE.
 
   LOGICAL, PARAMETER :: dbcsr_buffers_2d_needed = .NOT. dbcsr_ptr_remapping
 
@@ -270,14 +270,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (debug_mod) &
-         CALL dbcsr_error_set (routineN, error_handler, error)
     IF (careful_mod) &
+         CALL dbcsr_error_set (routineN, error_handler, error)
+    IF (debug_mod) &
          CALL dbcsr_assert (ASSOCIATED (buffers%b), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Buffers not valid", __LINE__,&
          error=error)
     dirty = buffers%b%dirty(which_buffer)
-    IF (debug_mod) &
+    IF (careful_mod) &
          CALL dbcsr_error_stop(error_handler, error)
   END FUNCTION dbcsr_buffers_is_dirty
 
@@ -303,9 +303,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (debug_mod) &
-         CALL dbcsr_error_set (routineN, error_handler, error)
     IF (careful_mod) &
+         CALL dbcsr_error_set (routineN, error_handler, error)
+    IF (debug_mod) &
          CALL dbcsr_assert (ASSOCIATED (buffers%b), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Buffers not valid", __LINE__,&
          error=error)
@@ -319,7 +319,7 @@ CONTAINS
     ELSE
        buffers%b%dirty(which) = .TRUE.
     ENDIF
-    IF (debug_mod) &
+    IF (careful_mod) &
          CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_buffers_mark_dirty
 
@@ -339,7 +339,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) &
+    IF (debug_mod) &
          CALL dbcsr_assert (ASSOCIATED (buffers%b), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Buffers not valid", __LINE__,&
          error=error)
@@ -363,7 +363,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) &
+    IF (debug_mod) &
          CALL dbcsr_assert (ASSOCIATED (buffers%b), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Buffers not valid", __LINE__,&
          error=error)
