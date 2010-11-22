@@ -12,8 +12,6 @@
 !>      - calculate_density_matrix moved from qs_scf to here (22.04.02,MK)
 !>      - mo_set_p_type added (23.04.02,MK)
 !>      - PRIVATE attribute set for TYPE mo_set_type (23.04.02,MK)
-!>      - calculate_w_matrix added for the calculation of the Pulay forces
-!>        (23.05.02,MK)
 !>      - started conversion to LSD (1.2003, Joost VandeVondele)
 !> \author Matthias Krack (09.05.2001,MK)
 ! *****************************************************************************
