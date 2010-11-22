@@ -16,6 +16,7 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_opt_utils
+  USE band_replica_methods,            ONLY: reorient_images
   USE f77_blas
   USE f77_blas_extra
   USE f77_blas_generic
@@ -25,8 +26,7 @@ MODULE neb_opt_utils
                                              dp
   USE neb_types,                       ONLY: neb_type,&
                                              neb_var_type
-  USE neb_utils,                       ONLY: neb_calc_energy_forces,&
-                                             reorient_images
+  USE neb_utils,                       ONLY: neb_calc_energy_forces
   USE particle_types,                  ONLY: particle_type
   USE replica_types,                   ONLY: replica_env_type
 #include "cp_common_uses.h"
@@ -321,6 +321,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Perform a line minimization search in optimizing a NEB with DIIS
+!>        replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3 
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
   SUBROUTINE  neb_ls(stepsize, sline, rep_env, neb_env, coords, energies, forces,&
@@ -351,8 +352,6 @@ CONTAINS
                                                 xc_cray, ya, yb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Icoord
-
-! replaced xc by xc_cray to work around yet another bug in pgf90 on CRAY xt3 
 
     failure  = .FALSE.
     IF (.NOT.failure) THEN

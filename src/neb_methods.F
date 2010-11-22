@@ -19,6 +19,8 @@
 !>         Extension to a subspace of collective variables  
 ! *****************************************************************************
 MODULE neb_methods
+  USE band_replica_methods,            ONLY: reorient_images,&
+                                             reparametrize_images
   USE colvar_utils,                    ONLY: number_of_colvar
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -56,9 +58,7 @@ MODULE neb_methods
                                              neb_var_type
   USE neb_utils,                       ONLY: build_replica_coords,&
                                              check_convergence,&
-                                             neb_calc_energy_forces,&
-                                             reorient_images,&
-                                             reparametrize_images
+                                             neb_calc_energy_forces
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: massunit
   USE replica_types,                   ONLY: rep_env_create,&
@@ -176,7 +176,7 @@ CPSourceFileRef,&
           iw = cp_print_key_unit_nr(logger,neb_section,"PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO",&
             extension=".nebLog",error=error)
           CALL build_replica_coords(neb_section, particle_set,&
-               coords, vels, neb_env, iw, globenv, &
+               coords, vels, neb_env, rep_env%ndim, iw, globenv, &
                rep_env%para_env, error)
           CALL cp_print_key_finished_output(iw,logger,neb_section,&
                "PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
@@ -439,7 +439,7 @@ CPSourceFileRef,&
        CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
             output_unit, distances, neb_env%number_of_replica, error=error)
        CALL reparametrize_images(neb_env%reparametrize_frames, neb_env%spline_order,&
-            neb_env%smoothing, coords%wrk, sline%wrk, distances, error)
+            neb_env%smoothing, coords, sline, distances, error)
        neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
        CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
             particle_set, iw, error)
@@ -498,7 +498,7 @@ CPSourceFileRef,&
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
                output_unit, distances, neb_env%number_of_replica, error)
           CALL reparametrize_images(neb_env%reparametrize_frames, neb_env%spline_order,&
-               neb_env%smoothing, coords%wrk, sline%wrk, distances, error)
+               neb_env%smoothing, coords, sline, distances, error)
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)

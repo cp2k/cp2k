@@ -61,7 +61,7 @@ MODULE neb_types
 
 ! *****************************************************************************
   TYPE neb_var_type
-     INTEGER :: in_use, size_wrk(2)
+     INTEGER                                   :: in_use, size_wrk(2)
      REAL(KIND=dp), DIMENSION(:, :),  POINTER  :: xyz, int, wrk
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER  :: Mmatrix
   END TYPE neb_var_type
