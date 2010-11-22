@@ -1,3 +1,4 @@
+#CPQA DEPENDS uo2_shell_npe_2.inp
 
 &FORCE_EVAL
   METHOD Fist
@@ -83,7 +84,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_npe
+  PROJECT uo2_shell_npe_2res
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
@@ -153,7 +154,7 @@
   &END
 &END MOTION
 &EXT_RESTART
-  RESTART_FILE_NAME uo2_shell_npe-1.restart
+  RESTART_FILE_NAME uo2_shell_npe_2-1.restart
   RESTART_COUNTERS  T
   RESTART_POS  T
   RESTART_VEL  T

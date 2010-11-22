@@ -1,3 +1,4 @@
+#CPQA DEPENDS uo2_shell_nve.inp
 
 &FORCE_EVAL
   METHOD Fist
@@ -82,7 +83,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_nve
+  PROJECT uo2_shell_nve_r
   RUN_TYPE MD
 &END GLOBAL
 &MOTION

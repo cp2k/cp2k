@@ -1,3 +1,4 @@
+#CPQA DEPENDS deca_ala4.inp
 
 &FORCE_EVAL
   METHOD FIST
@@ -36,8 +37,8 @@
     ENSEMBLE REFTRAJ
     STEPS 11
     &REFTRAJ
-      TRAJ_FILE_NAME deca_ala-pos-1.xyz
-      CELL_FILE_NAME cell-deca_ala
+      TRAJ_FILE_NAME deca_ala4-pos-1.xyz
+      CELL_FILE_NAME deca_ala4-1.cell
       VARIABLE_VOLUME
       FIRST_SNAPSHOT 3
       LAST_SNAPSHOT 11

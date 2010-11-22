@@ -1,3 +1,4 @@
+#CPQA DEPENDS silicon_cluster.inp
 
 &FORCE_EVAL
   METHOD FIST

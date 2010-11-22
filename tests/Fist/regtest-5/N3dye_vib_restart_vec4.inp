@@ -1,3 +1,4 @@
+#CPQA DEPENDS N3dye_vib_restart_vec.inp
 
 &FORCE_EVAL
   METHOD FIST

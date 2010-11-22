@@ -1,3 +1,4 @@
+#CPQA DEPENDS deca_ala4.inp
 
 &FORCE_EVAL
   METHOD FIST
@@ -16,7 +17,7 @@
   &END MM
   &SUBSYS
     &CELL
-      CELL_FILE_NAME cell-deca_ala
+      CELL_FILE_NAME deca_ala4-1.cell
       CELL_FILE_FORMAT CP2K
     &END CELL
     &TOPOLOGY

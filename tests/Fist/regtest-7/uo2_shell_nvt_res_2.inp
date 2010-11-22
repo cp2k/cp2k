@@ -1,3 +1,4 @@
+#CPQA DEPENDS uo2_shell_nvt_res.inp
 
 &FORCE_EVAL
   METHOD Fist
@@ -170,7 +171,7 @@
 &END MOTION
 &EXT_RESTART
     RESTART_FILE_NAME uo2_shell_nvt_res-1.restart
-      RESTART_COUNTERS  T
+    RESTART_COUNTERS  T
     RESTART_POS  T
     RESTART_VEL  T
     RESTART_SHELL_POS  T

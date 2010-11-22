@@ -1,3 +1,4 @@
+#CPQA DEPENDS deca_ala2.inp
 
 &FORCE_EVAL
   METHOD FIST

@@ -1,3 +1,4 @@
+#CPQA DEPENDS nh3_wat-restraint-fixd-3.inp
 
 &FORCE_EVAL
   METHOD FIST
@@ -45,8 +46,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL HIGH
-
-  PROJECT NH3
+  PROJECT nh3_wat-restraint-fixd
   RUN_TYPE GEO_OPT
 &END GLOBAL
 &MOTION
@@ -77,5 +77,5 @@
   &END
 &END MOTION
 &EXT_RESTART
- RESTART_FILE_NAME NH3-1.restart
+ RESTART_FILE_NAME nh3_wat-restraint-fixd-1.restart
 &END

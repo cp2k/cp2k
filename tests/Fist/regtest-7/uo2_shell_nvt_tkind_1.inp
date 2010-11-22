@@ -82,7 +82,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_nvt
+  PROJECT uo2_shell_nvt_tkind_1
   RUN_TYPE MD
 &END GLOBAL
 &MOTION

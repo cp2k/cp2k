@@ -1,3 +1,4 @@
+#CPQA DEPENDS nh3-meta-ref.inp
 
 &FORCE_EVAL
   METHOD FIST

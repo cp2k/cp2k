@@ -1,3 +1,4 @@
+#CPQA DEPENDS nh3-meta-walks_1r.inp
 
 &FORCE_EVAL
   METHOD FIST

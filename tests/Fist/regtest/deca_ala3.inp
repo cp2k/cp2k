@@ -29,7 +29,7 @@
 &GLOBAL
   PRINT_LEVEL LOW
 
-  PROJECT deca_ala
+  PROJECT deca_ala3
   RUN_TYPE md
 &END GLOBAL
 &MOTION

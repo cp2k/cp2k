@@ -1,3 +1,4 @@
+#CPQA DEPENDS ar3_angvel_zero_000.inp
 
 &FORCE_EVAL
   METHOD FIST

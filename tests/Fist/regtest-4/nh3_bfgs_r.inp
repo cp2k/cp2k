@@ -1,3 +1,4 @@
+#CPQA DEPENDS nh3_bfgs.inp
 
 &FORCE_EVAL
   METHOD FIST

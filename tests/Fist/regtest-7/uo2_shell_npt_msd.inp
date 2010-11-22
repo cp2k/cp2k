@@ -1,3 +1,4 @@
+#CPQA DEPENDS uo2_shell_npt300.inp
 
 &FORCE_EVAL
   METHOD Fist

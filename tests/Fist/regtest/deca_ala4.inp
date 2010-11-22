@@ -29,8 +29,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-
-  PROJECT deca_ala
+  PROJECT deca_ala4
   RUN_TYPE md
 &END GLOBAL
 &MOTION
@@ -49,7 +48,6 @@
   &END MD
   &PRINT
      &CELL
-        FILENAME =cell-deca_ala
      &END
   &END
 &END MOTION

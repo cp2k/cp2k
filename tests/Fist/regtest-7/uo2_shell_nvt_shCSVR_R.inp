@@ -1,3 +1,4 @@
+#CPQA DEPENDS uo2_shell_nvt_shCSVR.inp
 
 &FORCE_EVAL
   METHOD Fist

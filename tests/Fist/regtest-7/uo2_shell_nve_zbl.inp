@@ -31,7 +31,7 @@
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT uo2_shell_nve
+  PROJECT uo2_shell_nve_zbl
   RUN_TYPE MD
 &END GLOBAL
 &MOTION

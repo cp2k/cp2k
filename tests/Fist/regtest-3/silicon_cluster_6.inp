@@ -1,3 +1,4 @@
+#CPQA DEPENDS silicon_cluster_5.inp
 #
 # this one depends on the previous geo_opt runs that are not checked for correctness
 # if this fails, also check the previous runs
