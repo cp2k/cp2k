@@ -134,7 +134,7 @@ CONTAINS
                                                 nelec_kind, nshell, sort_kind
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: do_std_diag, exist, failure, &
-                                                ofgpw, ortho_basis, scp
+                                                has_unit_metric, ofgpw, scp
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, maxocc, &
@@ -192,7 +192,7 @@ CONTAINS
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
-         error=error)
+         has_unit_metric=has_unit_metric, error=error)
 
     nspin=dft_control%nspins
     scp = dft_control%scp
@@ -207,17 +207,8 @@ CONTAINS
     ofgpw = dft_control%qs_control%ofgpw
     density_guess=scf_control%density_guess
     do_std_diag = .FALSE.
-    ortho_basis = .FALSE.
-    IF ( dft_control%qs_control%semi_empirical ) THEN
-       IF ( dft_control%qs_control%se_control%orthogonal_basis ) &
-          ortho_basis = .TRUE.
-       ! if non-explicit basis, use Mopac Atomic guess
-       IF (density_guess == atomic_guess) density_guess = mopac_guess
-    END IF
-    IF ( dft_control%qs_control%dftb ) THEN
-       IF ( dft_control%qs_control%dftb_control%orthogonal_basis ) &
-          ortho_basis = .TRUE.
-       ! if non-explicit basis, use Mopac Atomic guess
+
+    IF ( dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb ) THEN
        IF (density_guess == atomic_guess) density_guess = mopac_guess
     END IF
 
@@ -301,7 +292,7 @@ CPSourceFileRef,&
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
-          IF(ortho_basis) THEN
+          IF(has_unit_metric) THEN
             CALL make_basis_simple(mo_coeff,nmo,error=error)
           ELSE
             ! ortho so that one can restart for different positions (basis sets?)
@@ -347,7 +338,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                 ! make all nmo vectors present orthonormal
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo, homo=homo)
           
-                IF(ortho_basis) THEN
+                IF(has_unit_metric) THEN
                    CALL make_basis_simple(mo_coeff,nmo,error=error)
                 ELSE
                    ! ortho so that one can restart for different positions (basis sets?)
@@ -383,7 +374,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                mo_coeff=mo_coeff, nmo=nmo)
           CALL cp_fm_init_random(mo_coeff,nmo,error=error)
-          IF(ortho_basis) THEN
+          IF(has_unit_metric) THEN
             CALL make_basis_simple(mo_coeff,nmo,error=error)
           ELSE
             CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
@@ -420,7 +411,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        ! Diagonalize the core Hamiltonian matrix and retrieve a first set of
        ! molecular orbitals (MOs)
 
-       IF (ortho_basis) THEN
+       IF (has_unit_metric) THEN
           CALL simple_eigensolver(matrix_ks=work1(ispin)%matrix,&
                                   mo_set=mo_array(ispin)%mo_set,&
                                   work=work2,&
@@ -501,7 +492,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
    
                    CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
                    ! multiply times PS
-                   IF (ortho_basis) THEN
+                   IF (has_unit_metric) THEN
                       CALL cp_fm_to_fm(mo_coeff,sv,error=error)
                    ELSE
                       ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
@@ -511,7 +502,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
    
                    CALL cp_fm_release(sv,error=error)
                    ! and ortho the result
-                   IF (ortho_basis) THEN
+                   IF (has_unit_metric) THEN
                       CALL make_basis_simple(mo_coeff,nmo,error=error)
                    ELSE
                       CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)
@@ -742,8 +733,8 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              IF(output_unit>0)WRITE(output_unit,*) 'C occ',occ,' checksum',checksum
              !
              ! multiply times PS
-             IF(ortho_basis) THEN
-                CALL stop_program(routineN,"ortho_basis will be removed soon")
+             IF(has_unit_metric) THEN
+                CALL stop_program(routineN,"has_unit_metric will be removed soon")
              ENDIF
              !
              ! S*C
@@ -834,7 +825,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        ALLOCATE (sdiag(nao),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        sdiag(:) = 0.0_dp
-       IF (ortho_basis) THEN
+       IF (has_unit_metric) THEN
           sdiag(:) = 1.0_dp
        ELSE
           CALL cp_dbcsr_get_diag(s_sparse(1)%matrix, sdiag, error=error)
@@ -1046,7 +1037,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                 CALL cp_fm_init_random(mo_coeff,nmo,error=error)
                 CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV",error=error)
                 ! multiply times PS
-                IF (ortho_basis) THEN
+                IF (has_unit_metric) THEN
                    CALL cp_fm_to_fm(mo_coeff,sv,error=error)
                 ELSE
                    CALL cp_dbcsr_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,error=error)
@@ -1055,7 +1046,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                 CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,homo,error=error)
                 CALL cp_fm_release(sv,error=error)
                 ! and ortho the result
-                IF (ortho_basis) THEN
+                IF (has_unit_metric) THEN
                    CALL make_basis_simple(mo_coeff,nmo,error=error)
                 ELSE
                    CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix,error=error)

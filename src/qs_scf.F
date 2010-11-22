@@ -270,12 +270,7 @@ CONTAINS
           IF (scf_control%use_diag) THEN
             IF ( scf_control%diagonalization%method == diag_standard ) THEN
               scf_env%method=general_diag_method_nr
-              IF (dft_control%qs_control%semi_empirical) THEN
-                IF (dft_control%qs_control%se_control%orthogonal_basis) &
-                  scf_env%method=special_diag_method_nr
-              END IF
-              IF (dft_control%qs_control%dftb) THEN
-                IF (dft_control%qs_control%dftb_control%orthogonal_basis) &
+              IF (qs_env%has_unit_metric) THEN
                   scf_env%method=special_diag_method_nr
               END IF
             ELSEIF ( scf_control%diagonalization%method == diag_ot ) THEN
@@ -522,11 +517,7 @@ CONTAINS
     ENDIF
     ! **** SCP
     harris_flag = qs_env%use_harris
-    has_unit_metric=.FALSE.
-    IF (dft_control%qs_control%semi_empirical) &
-       has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
-    IF (dft_control%qs_control%dftb) &
-       has_unit_metric=dft_control%qs_control%dftb_control%orthogonal_basis
+    CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
 
     IF ((output_unit > 0).AND.(.NOT.scf_control%use_ot)) THEN
        WRITE (UNIT=output_unit,&
@@ -1352,9 +1343,9 @@ END SUBROUTINE qs_scf_print_summary
     CHARACTER(LEN=80)                        :: msg
     INTEGER                                  :: handle, i, ispin, nmo, &
                                                 number_of_OT_envs, stat
-    LOGICAL                                  :: dftb, do_rotation, failure, &
+    LOGICAL                                  :: do_rotation, failure, &
                                                 has_unit_metric, scp_dft, &
-                                                scp_nddo, semi
+                                                scp_nddo
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
@@ -1510,22 +1501,7 @@ END SUBROUTINE qs_scf_print_summary
 
     CASE (ot_method_nr)
 
-
-       dftb = .FALSE.
-       semi = .FALSE.
-       has_unit_metric=.FALSE.
-       IF (dft_control%qs_control%semi_empirical) THEN
-          IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
-                has_unit_metric=.TRUE.
-          ENDIF
-          semi = .TRUE.
-       END IF
-       IF (dft_control%qs_control%dftb) THEN
-          IF (dft_control%qs_control%dftb_control%orthogonal_basis) THEN
-                has_unit_metric=.TRUE.
-          ENDIF
-          dftb = .TRUE.
-       END IF
+       CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
 
        ! reortho the wavefunctions if we are having an outer scf and 
        ! this is not the first iteration
@@ -1630,7 +1606,7 @@ CPSourceFileRef)
           ELSE
              orthogonality_metric=>matrix_s(1)%matrix
           ENDIF
-          IF(semi .OR. dftb) THEN
+          IF(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
              ! we have to treat the semi-empirical methods separately
              SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
              CASE(ot_precond_none)

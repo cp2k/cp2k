@@ -117,7 +117,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: failure, gapw, harris_flag, &
-                                                obasis, use_virial
+                                                has_unit_metric, use_virial
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -178,6 +178,7 @@ CONTAINS
          particle_set=particle_set,&
          scf_control=scf_control,&
          virial=virial,&
+         has_unit_metric=has_unit_metric,&
          energy=energy,error=error)
 
     natom = SIZE(particle_set)
@@ -188,16 +189,7 @@ CONTAINS
     END DO
 
     gapw = (dft_control%qs_control%method=="GAPW")
-    IF(dft_control%qs_control%semi_empirical .AND. &
-         dft_control%qs_control%se_control%orthogonal_basis) THEN
-       obasis = .TRUE.
-    ELSEIF(dft_control%qs_control%dftb .AND. &
-         dft_control%qs_control%dftb_control%orthogonal_basis) THEN
-       obasis = .TRUE.
-    ELSE
-       obasis = .FALSE.
-    END IF
-
+     
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
@@ -227,6 +219,8 @@ CONTAINS
     END IF
     CALL zero_qs_force(force)
 
+
+
     CALL qs_energies(qs_env,globenv,calc_forces=.TRUE.,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -238,7 +232,7 @@ CONTAINS
          rho=rho,error=error)
 
     IF (.NOT.qs_env%run_rtp)THEN
-       IF (.NOT.obasis) THEN
+       IF (.NOT.has_unit_metric) THEN
 
           ! Build W matrix (from the orthonormality constraint lambda C^T S C)
 
@@ -466,10 +460,10 @@ CONTAINS
        output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
             extension=".Log",error=error)
        print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
-       IF (dft_control%qs_control%semi_empirical.AND.obasis) THEN
+       IF (dft_control%qs_control%semi_empirical.AND.has_unit_metric) THEN
           CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit,&
                print_section=print_section,error=error)
-       ELSE IF (dft_control%qs_control%dftb.AND.(.NOT.obasis)) THEN
+       ELSE IF (dft_control%qs_control%dftb.AND.(.NOT.has_unit_metric)) THEN
           CALL write_forces(force,atomic_kind_set,4,output_unit=output_unit,&
                print_section=print_section,error=error)
        ELSE IF (gapw) THEN

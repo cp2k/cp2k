@@ -375,7 +375,7 @@ CONTAINS
       n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL :: all_potential_present, exfun, explicit, failure = .FALSE., &
-      harris_flag, nometric, was_present
+      harris_flag, has_unit_metric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     REAL(dp), POINTER                        :: scal(:)
@@ -615,19 +615,21 @@ CONTAINS
     END IF
 
     ! check for orthogoanl basis
-    nometric = .FALSE.
+    has_unit_metric = .FALSE.
     IF (dft_control%qs_control%semi_empirical) THEN
-      IF (dft_control%qs_control%se_control%orthogonal_basis) nometric = .TRUE.
+      IF (dft_control%qs_control%se_control%orthogonal_basis) has_unit_metric = .TRUE.
     END IF
     IF (dft_control%qs_control%dftb) THEN
-      IF (dft_control%qs_control%dftb_control%orthogonal_basis) nometric = .TRUE.
+      IF (dft_control%qs_control%dftb_control%orthogonal_basis) has_unit_metric = .TRUE.
     END IF
+    CALL set_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
+
     !   *** Activate the interpolation ***
     CALL wfi_create(wf_history,&
                     interpolation_method_nr=&
                     dft_control%qs_control%wf_interpolation_method_nr,&
                     extrapolation_order = dft_control%qs_control%wf_extrapolation_order,&
-                    unit_metric = nometric, &
+                    has_unit_metric = has_unit_metric, &
                     error=error)
 
     !   *** Set the actual Harris environment ***

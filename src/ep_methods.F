@@ -2138,6 +2138,7 @@ CONTAINS
        CALL wfi_create(tmp_wf_history,&
             interpolation_method_nr=wfi_use_prev_wf_method_nr,&
             extrapolation_order = 1,&
+            has_unit_metric = .FALSE.,&
             error=new_error)
        CALL wfi_change_memory_depth(tmp_wf_history,&
             MAX(1,tmp_wf_history%memory_depth),error=error)

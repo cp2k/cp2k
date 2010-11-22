@@ -439,11 +439,11 @@ END SUBROUTINE wfs_update
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, unit_metric, error)
+SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, has_unit_metric, error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: interpolation_method_nr
     INTEGER, INTENT(in), OPTIONAL            :: extrapolation_order
-    LOGICAL, INTENT(IN), OPTIONAL            :: unit_metric
+    LOGICAL, INTENT(IN)                      :: has_unit_metric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create', &
@@ -451,16 +451,10 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
 
     INTEGER                                  :: i, my_extrapolation_order, &
                                                 stat
-    LOGICAL                                  :: failure, nometric
+    LOGICAL                                  :: failure
 
   my_extrapolation_order = 1
   IF (PRESENT(extrapolation_order)) my_extrapolation_order=extrapolation_order
-
-  IF (PRESENT(unit_metric)) THEN
-    nometric = unit_metric
-  ELSE
-    nometric = .FALSE.
-  END IF
 
   failure=.FALSE.
 
@@ -503,19 +497,19 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
      CASE(wfi_linear_ps_method_nr)
         wf_history%memory_depth=2
         wf_history%store_wf=.TRUE.
-        IF(.NOT.nometric) wf_history%store_overlap=.TRUE.
+        IF(.NOT.has_unit_metric) wf_history%store_overlap=.TRUE.
      CASE(wfi_ps_method_nr)
         CALL cite_reference(VandeVondele2005a)
         wf_history%memory_depth=my_extrapolation_order+1
         wf_history%store_wf=.TRUE.
-        IF(.NOT.nometric) wf_history%store_overlap=.TRUE.
+        IF(.NOT.has_unit_metric) wf_history%store_overlap=.TRUE.
      CASE(wfi_frozen_method_nr)
         wf_history%memory_depth=1
         wf_history%store_frozen_density=.TRUE.
      CASE (wfi_aspc_nr)
        wf_history%memory_depth = my_extrapolation_order + 2
        wf_history%store_wf = .TRUE.
-       IF(.NOT.nometric) wf_history%store_overlap = .TRUE.
+       IF(.NOT.has_unit_metric) wf_history%store_overlap = .TRUE.
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&

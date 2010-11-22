@@ -261,6 +261,7 @@ MODULE qs_environment_types
 !>                       and the local parts of the xc terms
 !> \param hartree_local contains the 1, 2 and 3 centers coulomb terms
 !> \param requires_mo_derivs logical, true if dE/dC is required (e.g. OT)
+!> \param has_unit_metric logical, true if the S matrix is considered unity for the SCF
 !> \param mo_derivs the actual derivatives of the total energy wrt to MO coeffs (divided by 2*f_i)
 !> \param neighbor_list_id the current version of the neighbor_list
 !> \param xas_env temporary information for xas calculation
@@ -298,6 +299,7 @@ MODULE qs_environment_types
     LOGICAL :: use_ref_cell
     LOGICAL :: qmmm, qmmm_periodic
     LOGICAL :: requires_mo_derivs
+    LOGICAL :: has_unit_metric
     LOGICAL :: use_harris
     LOGICAL :: run_rtp
     INTEGER :: nelectron_total
@@ -419,7 +421,7 @@ CONTAINS
        vppl, rho_core, ks_env, ks_qmmm_env, wf_history,scf_env,use_harris, id_nr,local_particles,&
        local_molecules, distribution_2d,molecule_kind_set,molecule_set,subsys,oce,rho_atom_set,&
        task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
-       rho0_s_rs,rho0_s_gs,requires_mo_derivs,mo_derivs,&
+       rho0_s_rs,rho0_s_gs,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, tddfpt_control,nelectron_total,nelectron_spin,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,results,&
@@ -508,7 +510,8 @@ CONTAINS
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rho0_s_rs, rho0_s_gs
-    LOGICAL, OPTIONAL                        :: requires_mo_derivs
+    LOGICAL, OPTIONAL                        :: has_unit_metric, &
+                                                requires_mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -639,6 +642,7 @@ CONTAINS
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
     IF (PRESENT(oce)) oce =>  qs_env%oce
     IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
+    IF (PRESENT(has_unit_metric)) has_unit_metric = qs_env%has_unit_metric
     IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
     IF (PRESENT(mo_derivs_aux_fit)) mo_derivs_aux_fit => qs_env%mo_derivs_aux_fit
     IF (PRESENT(mo_loc_history)) mo_loc_history => qs_env%mo_loc_history
@@ -828,6 +832,7 @@ CONTAINS
     qs_env%qmmm=.FALSE.
     qs_env%qmmm_periodic=.FALSE.
     qs_env%requires_mo_derivs=.FALSE.
+    qs_env%has_unit_metric=.FALSE.
     qs_env%use_harris=.FALSE.
     qs_env%target_time = globenv%cp2k_target_time
     qs_env%start_time = globenv%cp2k_start_time
@@ -857,7 +862,7 @@ CONTAINS
        rho_aux_fit,rho_buffer,rho_xc,kinetic,scf_control,rel_control,qs_charges,vppl,rho_core,ks_env,& 
        ks_qmmm_env,wf_history,scf_env,use_harris,task_list,task_list_aux_fit,task_list_soft,&
        distribution_2d,input, subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
-       rhoz_set,rhoz_tot,ecoul_1c,requires_mo_derivs,mo_derivs,&
+       rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history, nelectron_total, nelectron_spin,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
        outer_scf_history,outer_scf_ihistory,ep_qs_env,x_data,et_coupling,dftb_potential,&
@@ -928,7 +933,8 @@ CONTAINS
     REAL(dp), OPTIONAL                       :: rhoz_tot
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
-    LOGICAL, OPTIONAL                        :: requires_mo_derivs
+    LOGICAL, OPTIONAL                        :: has_unit_metric, &
+                                                requires_mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mo_derivs
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1041,6 +1047,7 @@ CONTAINS
     IF (PRESENT(outer_scf_history)) qs_env%outer_scf_history=>outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) qs_env%outer_scf_ihistory=outer_scf_ihistory
     IF (PRESENT(requires_mo_derivs)) qs_env%requires_mo_derivs=requires_mo_derivs
+    IF (PRESENT(has_unit_metric)) qs_env%has_unit_metric=has_unit_metric
     IF (PRESENT(mo_derivs)) qs_env%mo_derivs=>mo_derivs
     IF (PRESENT(mo_derivs_aux_fit)) qs_env%mo_derivs_aux_fit=>mo_derivs_aux_fit
     IF (PRESENT(mo_loc_history)) qs_env%mo_loc_history=>mo_loc_history
@@ -1681,7 +1688,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, my_n_col
-    LOGICAL                                  :: failure, ortho_basis, &
+    LOGICAL                                  :: failure, has_unit_metric, &
                                                 ortho_contains_cholesky, &
                                                 smearing_is_used
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1717,22 +1724,14 @@ CONTAINS
           ortho_contains_cholesky=.FALSE.
        END IF
 
-       ortho_basis = .FALSE.
-       IF (qs_env%dft_control%qs_control%semi_empirical) THEN
-          IF (qs_env%dft_control%qs_control%se_control%orthogonal_basis) &
-               ortho_basis = .TRUE.
-       END IF
-       IF (qs_env%dft_control%qs_control%dftb) THEN
-          IF (qs_env%dft_control%qs_control%dftb_control%orthogonal_basis) &
-               ortho_basis = .TRUE.
-       END IF
+       CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
        smearing_is_used = .FALSE.
        IF (qs_env%dft_control%smear) THEN
            smearing_is_used = .TRUE.
        END IF
 
 
-       IF (ortho_basis) THEN
+       IF (has_unit_metric) THEN
           CALL make_basis_simple(v_matrix,my_n_col,error=error)
        ELSE IF (smearing_is_used) THEN
           CALL make_basis_lowdin(vmatrix=v_matrix,ncol=my_n_col,&
