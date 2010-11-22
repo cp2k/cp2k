@@ -129,7 +129,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_et, my_calc_forces
+    LOGICAL                                  :: do_et
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -138,8 +138,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    my_calc_forces = .FALSE.
-    IF( PRESENT( calc_forces ) ) my_calc_forces = calc_forces
     para_env=>qs_env%para_env
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
