@@ -405,7 +405,13 @@ CONTAINS
     !
     ! Count the maximum possible multiplies per row for on-the-fly
     ! filtering.
-    IF (otf_filtering) THEN
+    IF (.NOT.otf_filtering) THEN
+       ALLOCATE(left_norms(0),right_norms(0),left_block_epss(0), stat=stat)
+       CALL dbcsr_assert (stat, "EQ", 0,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Could not allocate memory",&
+            __LINE__, error=error)
+    ELSE
        IF (careful_mod) THEN
           CALL dbcsr_assert ("NOT", left_set%mats(1, 1)%m%bcsc,&
                dbcsr_warning_level, dbcsr_unimplemented_error_nr, routineN,&
@@ -1332,11 +1338,9 @@ CONTAINS
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha
     REAL(KIND=dp), INTENT(INOUT)             :: t_all, t_dgemm
-    REAL(kind=sp), DIMENSION(:), &
-      INTENT(in), OPTIONAL                   :: left_norms, right_norms
+    REAL(kind=sp), DIMENSION(:), INTENT(in)  :: left_norms, right_norms
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
-    REAL(kind=sp), DIMENSION(:), &
-      INTENT(in), OPTIONAL                   :: k_block_epss
+    REAL(kind=sp), DIMENSION(:), INTENT(in)  :: k_block_epss
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_nn_mult_lin', &
@@ -1406,8 +1410,6 @@ CONTAINS
        !WRITE(*,*)routineN//" Retaining sparsity!"
        keep_sparsity = retain_sparsity
     END IF
-    !otf_filtering = present (left_norms) .and. present (right_norms)&
-    !     .and. present (k_block_epss)
     otf_filtering = PRESENT (eps)
     product_is_symmetric = product%symmetry
     ithread = 0 ; nthreads = 1
