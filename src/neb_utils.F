@@ -16,8 +16,6 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_utils
-  USE band_replica_utils,              ONLY: dot_product_band,&
-                                             neb_replica_distance
   USE bibliography,                    ONLY: E2002,&
                                              Elber1987,&
                                              Jonsson1998,&
@@ -49,8 +47,8 @@ MODULE neb_utils
   USE geo_opt,                         ONLY: cp_geo_opt
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       band_diis_opt, do_b_neb, do_ci_neb, do_d_neb, do_eb, do_it_neb, do_sm, &
-       pot_neb_fe, pot_neb_full, pot_neb_me
+       band_diis_opt, do_b_neb, do_band_cartesian, do_ci_neb, do_d_neb, &
+       do_eb, do_it_neb, do_sm, pot_neb_fe, pot_neb_full, pot_neb_me
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -59,6 +57,7 @@ MODULE neb_utils
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE mathlib,                         ONLY: matvec_3x3
   USE md_run,                          ONLY: qs_mol_dyn
   USE neb_io,                          ONLY: dump_replica_coordinates,&
                                              handle_band_file_names
@@ -69,6 +68,7 @@ MODULE neb_utils
   USE replica_types,                   ONLY: rep_env_calc_e_f,&
                                              rep_env_sync,&
                                              replica_env_type
+  USE rmsd,                            ONLY: rmsd3
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -78,26 +78,64 @@ MODULE neb_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_utils'
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
-  PUBLIC :: build_replica_coords,&
+  PUBLIC :: neb_replica_distance,&
+            build_replica_coords,&
             neb_calc_energy_forces,&
             get_tangent,&
             get_neb_force,&
+            reorient_images,&
+            reparametrize_images,&
             check_convergence
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Computes the distance between two replica
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
+  SUBROUTINE neb_replica_distance(particle_set, coords, i0, i, distance, iw, rotate, error)
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(neb_var_type), POINTER              :: coords
+    INTEGER, INTENT(IN)                      :: i0, i
+    REAL(KIND=dp), INTENT(OUT)               :: distance
+    INTEGER, INTENT(IN)                      :: iw
+    LOGICAL, INTENT(IN), OPTIONAL            :: rotate
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'neb_replica_distance', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_rotate
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       my_rotate = .FALSE.
+       IF (PRESENT(rotate)) my_rotate=rotate
+       ! The rotation of the replica is enabled exclusively when working in
+       ! cartesian coordinates
+       IF (my_rotate.AND.(coords%in_use==do_band_cartesian)) THEN
+          CPPostcondition(PRESENT(particle_set),cp_failure_level,routineP,error,failure)
+          CALL rmsd3(particle_set, coords%xyz(:,i), coords%xyz(:,i0), iw,&
+                     rotate=my_rotate, error=error)
+       END IF
+       distance = SQRT(DOT_PRODUCT(coords%wrk(:,i)-coords%wrk(:,i0),&
+                                   coords%wrk(:,i)-coords%wrk(:,i0)))
+    END IF
+  END SUBROUTINE neb_replica_distance
 
 ! *****************************************************************************
 !> \brief Constructs or Read the coordinates for all replica
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE build_replica_coords(neb_section, particle_set,&
-       coords, vels, neb_env, ndim, iw, globenv, para_env, error)
+       coords, vels, neb_env, iw, globenv, para_env, error)
     TYPE(section_vals_type), POINTER         :: neb_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(neb_var_type), POINTER              :: coords, vels
     TYPE(neb_type), POINTER                  :: neb_env
-    INTEGER, INTENT(IN)                      :: ndim, iw
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -753,7 +791,7 @@ CPSourceFileRef,&
        CALL cite_reference(Jonsson1998)
        wrk = (coords%wrk(:,i+1)-2.0_dp*coords%wrk(:,i)+coords%wrk(:,i-1))
        tmp = neb_env%k * DOT_PRODUCT(wrk,tangent)
-       wrk = forces%wrk(:,i)-DOT_PRODUCT_BAND(neb_env,i,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
+       wrk = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
        forces%wrk(:,i) = wrk + tmp * tangent
     CASE(do_it_neb)
        ! Improved tangent NEB
@@ -763,7 +801,7 @@ CPSourceFileRef,&
        CALL neb_replica_distance(coords=coords,i0=i-1,i=i,distance=distance2,iw=iw,&
             rotate=.FALSE.,error=error)
        tmp = neb_env%k * (distance1-distance2)
-       wrk = forces%wrk(:,i)-DOT_PRODUCT_BAND(neb_env,i,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
+       wrk = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
        forces%wrk(:,i) = wrk + tmp * tangent       
     CASE(do_ci_neb)
        ! Climbing Image NEB
@@ -772,7 +810,7 @@ CPSourceFileRef,&
           CALL get_neb_force(neb_env, tangent, coords, i, forces, do_it_neb, Mmatrix, iw, error)
        ELSE
           wrk = forces%wrk(:,i) 
-          tmp = -2.0_dp*DOT_PRODUCT_BAND(neb_env,i,wrk,tangent,Mmatrix,error=error)
+          tmp = -2.0_dp*dot_product_band(neb_env,wrk,tangent,Mmatrix,error=error)
           forces%wrk(:,i) = wrk + tmp * tangent
        END IF
     CASE(do_d_neb)
@@ -780,7 +818,7 @@ CPSourceFileRef,&
        CALL cite_reference(Wales2004)
        ALLOCATE(dtmp1(nsize_wrk),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       dtmp1       = forces%wrk(:,i)-DOT_PRODUCT_BAND(neb_env,i,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
+       dtmp1       = forces%wrk(:,i)-dot_product_band(neb_env,forces%wrk(:,i),tangent,Mmatrix,error)*tangent
        forces%wrk(:,i) = dtmp1
        dtmp1 = dtmp1 / SQRT(DOT_PRODUCT(dtmp1,dtmp1))
        ! Project out only the spring component interfering with the 
@@ -794,6 +832,167 @@ CPSourceFileRef,&
     DEALLOCATE(wrk,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE get_neb_force
+
+! *****************************************************************************
+!> \brief  Handles the dot_product when using colvar.. in this case
+!>         the scalar product needs to take into account the metric
+!>         tensor
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
+  FUNCTION dot_product_band(neb_env, array1, array2, array3, error) RESULT(value)
+    TYPE(neb_type), POINTER                  :: neb_env
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: array1, array2
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: array3
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: value
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dot_product_band', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nsize_int
+    LOGICAL                                  :: check, failure
+
+    failure = .FALSE.
+    IF (neb_env%use_colvar) THEN
+       nsize_int = neb_env%nsize_int
+       check =((SIZE(array1)/=SIZE(array2)).OR.&
+               (SIZE(array1)/=nsize_int).OR.&
+               (SIZE(array3)/=nsize_int*nsize_int))
+       ! This condition should always be satisfied..
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+       value = DOT_PRODUCT(MATMUL(RESHAPE(array3,(/nsize_int,nsize_int/)),array1),array2)
+    ELSE
+       value = DOT_PRODUCT(array1,array2)
+    END IF
+  END FUNCTION dot_product_band
+
+! *****************************************************************************
+!> \brief Reorient iteratively all images of the NEB chain in order to
+!>      have always the smaller RMSD between two following images
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
+  SUBROUTINE reorient_images(rotate_frames, particle_set, coords, vels, iw,&
+       distances, number_of_replica, error)
+    LOGICAL, INTENT(IN)                      :: rotate_frames
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(neb_var_type), POINTER              :: coords, vels
+    INTEGER, INTENT(IN)                      :: iw
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: distances
+    INTEGER, INTENT(IN)                      :: number_of_replica
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'reorient_images', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, k, kind
+    LOGICAL                                  :: check, failure
+    REAL(KIND=dp)                            :: xtmp
+    REAL(KIND=dp), DIMENSION(3)              :: tmp
+    REAL(KIND=dp), DIMENSION(3, 3)           :: rot
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       rot      = 0.0_dp
+       rot(1,1) = 1.0_dp
+       rot(2,2) = 1.0_dp
+       rot(3,3) = 1.0_dp
+       DO i = 2, number_of_replica
+          ! The rotation of the replica is enabled exclusively when working in
+          ! cartesian coordinates
+          IF (rotate_frames.AND.(coords%in_use==do_band_cartesian)) THEN
+             CALL rmsd3(particle_set, coords%xyz(:,i), coords%xyz(:,i-1), iw,&
+                  rotate=.TRUE., rot=rot, error=error)
+             ! Rotate velocities
+             DO k = 1, SIZE(vels%xyz,1)/3
+                kind = (k-1)*3
+                tmp  = vels%xyz(kind+1:kind+3,i)
+                CALL matvec_3x3(vels%xyz(kind+1:kind+3,i),TRANSPOSE(rot),tmp)
+             END DO
+           END IF
+          IF (PRESENT(distances)) THEN
+             check = SIZE(distances)==(number_of_replica-1)
+             CPPostcondition(check,cp_failure_level,routineP,error,failure)
+             xtmp=DOT_PRODUCT(coords%wrk(:,i)-coords%wrk(:,i-1),&
+                              coords%wrk(:,i)-coords%wrk(:,i-1))
+             distances(i-1)=SQRT(xtmp)
+          END IF
+       END DO
+    END IF
+  END SUBROUTINE reorient_images
+
+! *****************************************************************************
+!> \brief Reparametrization of the replica for String Method with splines
+!> \author Teodoro Laino - Rodolphe Vuilleumier 09.2008
+! *****************************************************************************
+  SUBROUTINE reparametrize_images(reparametrize_frames, spline_order, smoothing,&
+       coords, sline, distances, error)
+
+    LOGICAL, INTENT(IN)                      :: reparametrize_frames
+    INTEGER, INTENT(IN)                      :: spline_order
+    REAL(KIND=dp), INTENT(IN)                :: smoothing
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, sline
+    REAL(KIND=dp), DIMENSION(:)              :: distances
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'reparametrize_images', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: avg_distance, xtmp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tmp_coords
+
+    failure = .FALSE.
+    IF (reparametrize_frames) THEN
+       ALLOCATE(tmp_coords(SIZE(coords,1),SIZE(coords,2)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       tmp_coords = coords
+       ! Smoothing
+       DO i = 2, SIZE(coords,2)-1
+          coords(:,i) = tmp_coords(:,i)*(1.0_dp-2.0_dp*smoothing) + &
+               tmp_coords(:,i-1)*smoothing + tmp_coords(:,i+1)*smoothing
+       END DO
+       sline = coords - tmp_coords + sline
+       tmp_coords =  coords
+       ! Reparametrization
+       SELECT CASE(spline_order)
+       CASE(1)
+          ! Compute distances
+          DO i = 2, SIZE(coords,2)
+             xtmp = DOT_PRODUCT(coords(:,i)-coords(:,i-1),coords(:,i)-coords(:,i-1))
+             distances(i-1) = SQRT(xtmp)
+          END DO
+          avg_distance = SUM(distances)/REAL(SIZE(coords,2)-1,KIND=dp)
+          ! Redistribute frames
+          DO i = 2, SIZE(coords,2)-1
+             xtmp  = 0.0_dp
+             DO j = 1, SIZE(coords,2)-1
+                xtmp = xtmp + distances(j)
+                IF (xtmp>avg_distance*REAL(i-1,KIND=dp)) THEN
+                   xtmp = (xtmp - avg_distance*REAL(i-1,KIND=dp))/distances(j)
+                   coords(:,i) = (1.0_dp-xtmp)*tmp_coords(:,j+1) + xtmp*tmp_coords(:,j)
+                   EXIT
+                END IF
+             END DO
+          END DO
+          ! Re-compute distances
+          DO i = 2, SIZE(coords,2)
+             xtmp = DOT_PRODUCT(coords(:,i)-coords(:,i-1),coords(:,i)-coords(:,i-1))
+             distances(i-1) = SQRT(xtmp)
+          END DO
+       CASE DEFAULT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="String Method: Spline order greater than 1 not implemented.", &
+               error=error, error_level=cp_warning_level)
+       END SELECT
+       sline = coords - tmp_coords + sline
+       DEALLOCATE(tmp_coords,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE reparametrize_images
 
 ! *****************************************************************************
 !> \brief Checks for convergence criteria during a NEB run

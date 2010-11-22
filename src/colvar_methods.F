@@ -2859,8 +2859,7 @@ CPSourceFileRef)
        DO jj=1,n_atoms_to_a
           j=colvar%coord_param%i_at_to(jj)
           CALL get_coordinates(colvar, j, xpj, my_particles)       
-          ! define coordination of atom A with itself to be 0. 
-          ! The derivative for rij=0 (in case i/=j) is provided as a limit
+          ! define coordination of atom A with itself to be 0. also fixes rij==0 for the force calculation
           IF (i.EQ.j) CYCLE
           ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
           ss=ss-NINT(ss)

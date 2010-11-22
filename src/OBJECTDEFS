@@ -37,8 +37,6 @@ OBJECTS_GENERIC =\
  atom_utils.o\
  atom_xc.o\
  averages_types.o\
- band_replica_methods.o\
- band_replica_utils.o\
  barostat_types.o\
  barostat_utils.o\
  basis_set_types.o\
@@ -613,8 +611,6 @@ OBJECTS_GENERIC =\
  simpar_methods.o\
  soft_basis_set.o\
  spherical_harmonics.o\
- spline_env_replica_types.o\
- spline_env_replica_methods.o\
  splines_methods.o\
  splines_types.o\
  spme.o\
