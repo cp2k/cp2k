@@ -431,7 +431,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error=error)
     data_type_m = dbcsr_get_data_type (matrix)
     do_scale = PRESENT (scale)
     IF (do_scale) THEN
@@ -526,7 +526,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Invalid data type",__LINE__,error)
     END SELECT
-    CALL dbcsr_error_stop (error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error=error)
   END SUBROUTINE dbcsr_put_block_area
 
 
