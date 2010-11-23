@@ -1273,6 +1273,7 @@ CONTAINS
     CALL cp_error_init (error)
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
+    tr=.FALSE.
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1297,6 +1298,7 @@ CONTAINS
     CALL cp_error_init (error)
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
+    tr=.FALSE.
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1321,6 +1323,7 @@ CONTAINS
     CALL cp_error_init (error)
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
+    tr=.FALSE.
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1345,6 +1348,7 @@ CONTAINS
     CALL cp_error_init (error)
     buffers = matrix%buffers
     CALL cluster_buffer_flush (buffers, error=error)
+    tr=.FALSE.
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
 
@@ -1364,6 +1368,7 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
+    tr=.FALSE.
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
 
@@ -1383,6 +1388,7 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
+    tr=.FALSE.
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
 
@@ -1402,6 +1408,7 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
+    tr=.FALSE.
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
 
@@ -1421,6 +1428,7 @@ CONTAINS
 
     CALL cp_error_init (error)
     CALL cluster_buffer_flush (matrix%buffers, error=error)
+    tr=.FALSE.
     CALL dbcsr_get_block(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
 
