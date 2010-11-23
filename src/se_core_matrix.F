@@ -51,6 +51,8 @@ MODULE se_core_matrix
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
@@ -76,8 +78,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_se_core_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, i, iatom, icol, icor, ikind, inode, irow, &
-      istat, itype, iw, j, jatom, jkind, natom, natorb_a, nkind
+    INTEGER :: atom_a, atom_b, handle, i, iatom, icol, icor, ikind, inode, &
+      irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure, found, &
                                                 use_virial
@@ -110,6 +112,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(semi_empirical_type), POINTER       :: se_kind_a
     TYPE(virial_type), POINTER               :: virial
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -346,6 +350,8 @@ CONTAINS
      END IF
 
      CALL cp_dbcsr_deallocate_matrix(diagmat_h,error=error)
+
+     CALL timestop(handle)
 
   END SUBROUTINE build_se_core_matrix
 
