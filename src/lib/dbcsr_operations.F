@@ -36,9 +36,9 @@ MODULE dbcsr_operations
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_type, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, dbcsr_get_data, &
-       dbcsr_get_data_p, dbcsr_scalar, dbcsr_scalar_are_equal, &
-       dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_one, &
-       dbcsr_scalar_zero, dbcsr_type_1d_to_2d
+       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, &
+       dbcsr_scalar_get_type, dbcsr_scalar_one, dbcsr_scalar_zero, &
+       dbcsr_type_1d_to_2d
   USE dbcsr_data_operations,           ONLY: dbcsr_data_convert,&
                                              dbcsr_data_copyall
   USE dbcsr_dist_operations,           ONLY: checker_square_proc,&
@@ -48,6 +48,7 @@ MODULE dbcsr_operations
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling
   USE dbcsr_index_operations,          ONLY: dbcsr_expand_row_index,&
+                                             dbcsr_index_checksum,&
                                              dbcsr_index_compact,&
                                              dbcsr_make_index_canonical,&
                                              dbcsr_make_index_local_row,&
@@ -71,8 +72,8 @@ MODULE dbcsr_operations
                                              mp_send,&
                                              mp_sum
   USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_destroy, &
-       dbcsr_destroy_array, dbcsr_destroy_image_dist, dbcsr_distribution, &
+       dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_destroy_array, &
+       dbcsr_destroy_image_dist, dbcsr_distribution, &
        dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
        dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
        dbcsr_distribution_mp, dbcsr_distribution_new, &
@@ -3674,7 +3675,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Sums blocks in a replicated dbcsr matrix.
+!> \brief Sums blocks in a replicated dbcsr matrix, which has the same structure on all ranks.
 !> \param[in,out] matrix      dbcsr matrix to operate on
 ! *****************************************************************************
   SUBROUTINE dbcsr_sum_replicated (matrix, error)
@@ -3685,17 +3686,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: comm, error_handler, &
-                                                max_data_size, &
-                                                max_index_size, mynode, &
-                                                numnodes, p
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: send_index
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: all_sizes
-    INTEGER, DIMENSION(2)                    :: my_sizes
-    INTEGER, DIMENSION(:), POINTER           :: recv_index
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: send_dp
-    REAL(kind=dp), DIMENSION(:), POINTER     :: recv_dp
+                                                index_checksum, mynode, &
+                                                numnodes
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_checksums
     TYPE(dbcsr_mp_obj)                       :: mp
-    TYPE(dbcsr_obj)                          :: recv_matrix
 
 !   ---------------------------------------------------------------------------
 
@@ -3705,44 +3699,30 @@ CONTAINS
     comm = dbcsr_mp_group (mp)
     numnodes = dbcsr_mp_numnodes (mp)
     mynode = dbcsr_mp_mynode (mp)
-    ! Count data sizes
-    my_sizes(1) = SIZE (matrix%m%index)
-    recv_dp => dbcsr_get_data_p (matrix%m%data_area, 0.0_dp)
-    my_sizes(2) = SIZE (recv_dp)
-    ! Allocate receive buffers
-    ALLOCATE (all_sizes (2, 0:numnodes-1))
-    CALL mp_allgather (my_sizes, all_sizes, comm)
-    max_index_size = MAXVAL (all_sizes(1,:))
-    max_data_size = MAXVAL (all_sizes(2,:))
-    CALL dbcsr_init (recv_matrix)
-    CALL dbcsr_create(recv_matrix, "Temporary receiving buffer",&
-         dbcsr_distribution(matrix), dbcsr_get_matrix_type(matrix),&
-         dbcsr_row_block_sizes(matrix), dbcsr_col_block_sizes(matrix),&
-         0, 0, dbcsr_get_data_type(matrix), error=error)
-    CALL ensure_array_size (recv_matrix%m%index, ub=max_index_size, error=error)
-    CALL dbcsr_data_ensure_size (recv_matrix%m%data_area, max_data_size, error=error)
-    ! Setup data to be sent.
-    ALLOCATE (send_dp(my_sizes(2)))
-    send_dp(:) = recv_dp(:)
-    ALLOCATE (send_index(my_sizes(1)))
-    send_index(:) = matrix%m%index(:)
-    ! Broadcasts a matrix and every processor sums it. Inefficient and
-    ! slow, but it gets the job done with little memory use.
-    DO p = 0, numnodes-1
-       IF (p .EQ. mynode) THEN
-          CALL mp_bcast (send_index, p, comm)
-          CALL mp_bcast (send_dp, p, comm)
-       ELSE
-          recv_index => recv_matrix%m%index(1:all_sizes(1,p))
-          recv_dp => pointer_view ( dbcsr_get_data_p (&
-               recv_matrix%m%data_area, 0.0_dp), 1, all_sizes(2,p))
-          CALL mp_bcast (recv_index, p, comm)
-          CALL mp_bcast (recv_dp, p, comm)
-          CALL dbcsr_repoint_index(recv_matrix%m)
-          CALL dbcsr_add (matrix, recv_matrix, 1.0_dp, 1.0_dp, error=error)
-        ENDIF
-    ENDDO
-    CALL dbcsr_destroy (recv_matrix, error=error,force=.TRUE.)
+    !
+    ALLOCATE(all_checksums(numnodes))
+    CALL dbcsr_index_checksum (matrix, index_checksum, error)
+    CALL mp_allgather (index_checksum, all_checksums, comm)
+    !
+    CALL dbcsr_assert (ALL (all_checksums .EQ. index_checksum),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Replicated matrices do not all have the same index structure.",&
+         __LINE__, error=error)
+    !
+    SELECT CASE (dbcsr_data_get_type(matrix%m%data_area))
+    CASE (dbcsr_type_real_4)
+       CALL mp_sum (matrix%m%data_area%d%r_sp, comm)
+    CASE (dbcsr_type_real_8)
+       CALL mp_sum (matrix%m%data_area%d%r_dp, comm)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_sum (matrix%m%data_area%d%c_sp, comm)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_sum (matrix%m%data_area%d%c_dp, comm)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__, error=error)
+    END SELECT
+    !
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_sum_replicated
 

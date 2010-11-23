@@ -72,7 +72,7 @@ MODULE dbcsr_util
   ! math routines
   PUBLIC :: gcd, lcm, ceil_log2
   ! utility routines
-  PUBLIC :: sort
+  PUBLIC :: sort, joaat_hash
 
   INTERFACE swap
      MODULE PROCEDURE iswap, bswap
@@ -1308,5 +1308,42 @@ CONTAINS
     END IF
     GO TO 1
   END SUBROUTINE sort_i8
+
+! *****************************************************************************
+!> \brief generates the hash of a string and the index in the table
+!> \param key a string of any length
+!> \note
+!>       http://en.wikipedia.org/wiki/Hash_table
+!>       http://www.burtleburtle.net/bob/hash/doobs.html
+!>       However, since fortran doesn't have an unsigned 4 byte int 
+!>       we compute it using an integer with the appropriate range 
+!>       we return already the index in the table as a final result
+!> \par History
+!>       09.2006 created [Joost VandeVondele]
+!>       2010-11-23 copied from CP2K and converted to take integers
+! *****************************************************************************
+  FUNCTION joaat_hash(key) RESULT(hash_index)
+    INTEGER, DIMENSION(:), INTENT(IN)        :: key
+    INTEGER                                  :: hash_index
+
+    INTEGER(KIND=int_8), PARAMETER           :: b32 = 2_int_8**32-1_int_8
+
+    INTEGER                                  :: i, j
+    INTEGER(KIND=int_8)                      :: byte, hash
+
+    hash=0_int_8
+    DO i=1,SIZE(key)
+       DO j = 0, 3
+          byte = IAND (ISHFT (key(i), -j*8), 255)
+          hash=IAND(hash+byte                           ,b32)
+          hash=IAND(     hash+IAND(ISHFT(hash,10),b32)  ,b32)
+          hash=IAND(IEOR(hash,IAND(ISHFT(hash,-6),b32)) ,b32)
+       ENDDO
+    ENDDO
+    hash=IAND(     hash+IAND(ISHFT(hash,  3),b32)  ,b32)
+    hash=IAND(IEOR(hash,IAND(ISHFT(hash,-11),b32)) ,b32)
+    hash=IAND(     hash+IAND(ISHFT(hash, 15),b32)  ,b32)
+    hash_index = hash
+  END FUNCTION joaat_hash
 
 END MODULE dbcsr_util

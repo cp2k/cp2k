@@ -40,6 +40,7 @@ MODULE dbcsr_index_operations
        dbcsr_slot_nblks, dbcsr_slot_nfullcols_local, dbcsr_slot_nze, &
        dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_type
   USE dbcsr_util,                      ONLY: dbcsr_set_debug,&
+                                             joaat_hash,&
                                              sort,&
                                              swap
 
@@ -69,6 +70,7 @@ MODULE dbcsr_index_operations
             dbcsr_count_row_index, dbcsr_build_row_index,&
             dbcsr_index_prune_deleted,&
             dbcsr_index_compact
+  PUBLIC :: dbcsr_index_checksum
   ! Index array manipulation
   PUBLIC :: dbcsr_addto_index_array, dbcsr_clearfrom_index_array,&
             dbcsr_repoint_index
@@ -1521,5 +1523,31 @@ CONTAINS
     ENDIF
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_index_compact
+
+! *****************************************************************************
+!> \brief Calculates the checksum of an index.
+!> \param[in] matrix           matrix for which to make canonical index
+!> \param[in,out] error        error
+! *****************************************************************************
+  SUBROUTINE dbcsr_index_checksum(matrix, checksum, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER, INTENT(OUT)                     :: checksum
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_index_checksum', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    !
+    checksum = joaat_hash ( (/ joaat_hash (matrix%m%row_p),&
+                               joaat_hash (matrix%m%col_i),&
+                               joaat_hash (matrix%m%blk_p) /) )
+    !
+    CALL dbcsr_error_stop (error_handle, error)
+  END SUBROUTINE dbcsr_index_checksum
 
 END MODULE dbcsr_index_operations
