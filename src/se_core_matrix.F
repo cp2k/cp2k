@@ -167,7 +167,8 @@ CONTAINS
        delta = dft_control%qs_control%se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
-       ALLOCATE(diagmat_p)!sm->dbcsr
+       ALLOCATE(diagmat_p,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL cp_dbcsr_init (diagmat_p, error=error)
        CALL cp_dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p, error=error)
        CALL cp_dbcsr_replicate_all(diagmat_p,error=error)
@@ -175,13 +176,15 @@ CONTAINS
 
      ! Allocate the core Hamiltonian matrix
      CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,error=error)
-     ALLOCATE(matrix_h(1)%matrix)
+     ALLOCATE(matrix_h(1)%matrix,STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      CALL cp_dbcsr_init(matrix_h(1)%matrix, error=error)
      CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX",error=error)
      CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp,error=error)
 
      ! Allocate a diagonal block matrix
-     ALLOCATE(diagmat_h)!sm->dbcsr
+     ALLOCATE(diagmat_h,STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      CALL cp_dbcsr_init(diagmat_h, error=error)
      CALL cp_dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h, error=error)
      CALL cp_dbcsr_set(diagmat_h, 0.0_dp, error=error)
@@ -195,7 +198,11 @@ CONTAINS
 
      nkind = SIZE(atomic_kind_set)
 
-     ALLOCATE (se_defined(nkind),hmt(16,nkind),umt(16,nkind),STAT=istat)
+     ALLOCATE (se_defined(nkind),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE (hmt(16,nkind),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE (umt(16,nkind),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      econst   = 0.0_dp
      DO ikind=1,nkind
@@ -345,7 +352,8 @@ CONTAINS
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
        END IF
-       DEALLOCATE(atom_of_kind)
+       DEALLOCATE(atom_of_kind,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL cp_dbcsr_deallocate_matrix(diagmat_p,error=error)
      END IF
 
