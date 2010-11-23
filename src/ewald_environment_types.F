@@ -303,10 +303,12 @@ CONTAINS
        IF (ewald_env%ref_count<1) THEN
           CALL cp_para_env_release ( ewald_env%para_env, error )
           CALL section_vals_release(ewald_env%poisson_section,error=error)
-          DEALLOCATE(ewald_env%interaction_cutoffs, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          IF (ASSOCIATED(ewald_env%interaction_cutoffs)) THEN
+             DEALLOCATE(ewald_env%interaction_cutoffs, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
           DEALLOCATE (  ewald_env, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
     END IF
     NULLIFY(ewald_env)
