@@ -15,7 +15,7 @@ CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 LIB1      = cp2k_base_lib
 LIB2      = cp2k_fft_lib
-LIB3      = dbcsr
+LIB3      = cp2k_dbcsr_lib
 LIBCP2K   = cp2k_lib
 export VERSION=sopt
 export WHAT   =_progr
@@ -31,7 +31,7 @@ PRETTYOBJDIR = $(CP2KHOME)/obj/prettified
 TOOLDIR      = $(OBJDIR)/tools
 TOOLSRC      = $(CP2KHOME)/tools
 SRCDIR       = $(CP2KHOME)/src
-SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools
+SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(SRCDIR)/dbcsr_lib:$(SRCDIR)/fft_lib:$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
@@ -41,7 +41,9 @@ EXEDIR       = $(MAINEXEDIR)/$(ARCH)
 LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
 OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
-LIBOBJECTDEFS= $(SRCDIR)/lib/OBJECTDEFS
+LIB1_OBJECTDEFS= $(SRCDIR)/lib/OBJECTDEFS
+LIB2_OBJECTDEFS= $(SRCDIR)/dbcsr_lib/OBJECTDEFS
+LIB3_OBJECTDEFS= $(SRCDIR)/fft_lib/OBJECTDEFS
 LIBNVOBJECTDEFS= $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
@@ -72,6 +74,8 @@ CLEAN_TARGETS = $(addsuffix /clean ,$(VERSION_TARGETS)) $(addsuffix /realclean ,
 build: dirs deptool
 	$(MAKE) -C $(SRCDIR) -f $(MAKEFILE) all.dep
 	$(MAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) lib.dep
+	$(MAKE) -C $(SRCDIR)/dbcsr_lib -f $(MAKEFILE) dbcsr.dep
+	$(MAKE) -C $(SRCDIR)/fft_lib -f $(MAKEFILE) fft.dep
 	$(MAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
 fes: dirs deptool
@@ -114,12 +118,14 @@ $(CLEAN_TARGETS):
 
 $(ALL_TARGETS) $(LIB_TARGETS):
 	$(MAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
+
 #
 # here we try to include all the objects that might need considering
 #
-
 include $(OBJECTDEFS)
-include $(LIBOBJECTDEFS)
+include $(LIB1_OBJECTDEFS)
+include $(LIB2_OBJECTDEFS)
+include $(LIB3_OBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
 include $(LIBNVOBJECTDEFS)
@@ -194,8 +200,14 @@ else
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
 endif
 
-lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)  $(LIB3_OBJECTS:.o=.F)
+lib.dep: $(LIB1_OBJECTS:.o=.F)
 	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/lib.dep || ( rm -f $(OBJDIR)/$(VERSION)/lib.dep ; exit 1 )
+
+fft.dep: $(LIB2_OBJECTS:.o=.F)
+	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/fft.dep || ( rm -f $(OBJDIR)/$(VERSION)/fft.dep ; exit 1 )
+
+dbcsr.dep: $(LIB3_OBJECTS:.o=.F)
+	$(TOOLDIR)/makedepf90 $(MODSTRING)  -free $^ > $(OBJDIR)/$(VERSION)/dbcsr.dep || ( rm -f $(OBJDIR)/$(VERSION)/dbcsr.dep ; exit 1 )
 
 # this is kind of a hack, fes depends on files in other directories, hence the -I and the -b.
 fes.dep: $(FESOBJS:.o=.F) 
@@ -355,7 +367,9 @@ doxygen/clean:
 doxygen: doxygen/clean
 	@mkdir -p $(DOXYGENDIR)
 	{ cd $(SRCDIR) ; cp *.f90 *.h $(DOXYGENDIR) ; for f in $(OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
-	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) $(LIB2_OBJECTS:.o=) $(LIB3_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/fft_lib ; for f in $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/dbcsr_lib ; for f in $(LIB3_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
 	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 
 # an additional dependency of the CVS entries in the source directory
