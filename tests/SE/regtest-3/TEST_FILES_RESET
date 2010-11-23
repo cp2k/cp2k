@@ -319,3 +319,23 @@ N3_rp_md.inp
 N3-rp_colvar.inp
 N3_dp_md.inp
 N3_rp_dp_md.inp
+# numerics with refactoring the mopac guess 
+N3-rp_colvar.inp
+# numerics with refactoring the mopac guess 
+Periclase.inp
+# numerics with refactoring the mopac guess 
+SiO2.inp
+# numerics with refactoring the mopac guess 
+H2O-4.inp
+# numerics with refactoring the mopac guess 
+LiH.inp
+# numerics with refactoring the mopac guess 
+SiO2_lr_quad.inp
+# numerics with refactoring the mopac guess 
+Co_complex.inp
+# numerics with refactoring the mopac guess 
+N3_rp_md.inp
+# numerics with refactoring the mopac guess 
+N3_dp_md.inp
+# numerics with refactoring the mopac guess 
+N3_rp_dp_md.inp

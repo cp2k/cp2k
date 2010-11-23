@@ -407,3 +407,7 @@ Pt-cis-2xpet3Cl2-si.inp
 ZrF2-PM6.inp
 #  
 H2O-32.inp
+# numerics with refactoring the mopac guess 
+hcl_ot.inp
+# numerics with refactoring the mopac guess 
+ZrF2-PM6.inp

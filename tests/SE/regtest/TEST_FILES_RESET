@@ -636,3 +636,21 @@ st.inp
 h2op_2.inp
 #  
 h2po4.inp
+# numerics with refactoring the mopac guess 
+st.inp
+# numerics with refactoring the mopac guess 
+h2op_2.inp
+# numerics with refactoring the mopac guess 
+h2po4.inp
+# numerics with refactoring the mopac guess 
+b2h6_pm6.inp
+# numerics with refactoring the mopac guess 
+dimer.inp
+# numerics with refactoring the mopac guess 
+dimer2.inp
+# numerics with refactoring the mopac guess 
+dimer3.inp
+# numerics with refactoring the mopac guess 
+dimer4.inp
+# numerics with refactoring the mopac guess 
+ice-scp-ewald.inp

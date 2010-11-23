@@ -167,3 +167,5 @@ Si_tersoff_qmmm.inp
 Si_tersoff_qmmm.inp
 #  
 Si_tersoff_qmmm.inp
+# numerics with refactoring the mopac guess 
+Si_tersoff_qmmm.inp

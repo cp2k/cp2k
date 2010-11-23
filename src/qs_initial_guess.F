@@ -24,9 +24,9 @@ MODULE qs_initial_guess
        cp_dbcsr_get_diag, cp_dbcsr_get_num_blocks, cp_dbcsr_get_occupation, &
        cp_dbcsr_init, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullrows_total, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+       cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_verify_matrix
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_from_fm,&
@@ -40,6 +40,7 @@ MODULE qs_initial_guess
        cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dbcsr_methods,                   ONLY: dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
                                              dbcsr_distribution_row_dist,&
@@ -94,7 +95,7 @@ MODULE qs_initial_guess
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_initial_guess'
 
-  PUBLIC ::  calculate_first_density_matrix, calculate_atomic_block_dm
+  PUBLIC ::  calculate_first_density_matrix, calculate_atomic_block_dm, calculate_mopac_dm
 
   TYPE atom_matrix_type
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: mat
@@ -124,26 +125,20 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, filename
     INTEGER :: atom_a, blk, density_guess, group, handle, homo, i, iatom, &
-      icol, id_nr, ikind, irow, iseed(4), iset, isgf, isgfa, ishell, ispin, &
-      istart_col, istart_row, istat, j, la, last_read, maxl, maxll, n, &
-      n_cols, n_rows, nao, natom, natoms, natoms_tmp, ncount, nelectron, nmo, &
-      nmo_tmp, not_read, nset, nsgf, nspin, nvec, output_unit, qs_env_id, &
-      size_atomic_kind_set, z
+      icol, id_nr, ikind, irow, iseed(4), ispin, istart_col, istart_row, &
+      istat, j, last_read, n, n_cols, n_rows, nao, natom, natoms, natoms_tmp, &
+      nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, output_unit, &
+      qs_env_id, size_atomic_kind_set, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_of, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, &
-                                                nelec_kind, nshell, sort_kind
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
+                                                nelec_kind, sort_kind
     LOGICAL                                  :: do_std_diag, exist, failure, &
                                                 has_unit_metric, ofgpw, scp
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
-    REAL(KIND=dp)                            :: checksum, eps, maxocc, &
-                                                my_sum, nelec, occ, paa, &
-                                                scale, total_rho, trps1, &
-                                                trps2, yy, zeff
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
+    REAL(KIND=dp)                            :: checksum, eps, maxocc, occ, &
+                                                scale, total_rho, trps1, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
-    TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(atom_matrix_type), DIMENSION(:), &
       POINTER                                :: pmat
@@ -162,7 +157,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -175,15 +169,13 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     failure = .FALSE.
-    NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
-         gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
-         ortho,work2,work1,mo_array,s_sparse,scf_control, &
-         dft_control, p_rmpv,&
-         ortho,work2,work1,mo_array,s_sparse,scf_control, &
-         dft_control,h_core_sparse)
+    NULLIFY(atomic_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &
+         particle_set, ortho, work2, work1, mo_array, s_sparse, &
+         scf_control, dft_control, p_rmpv, ortho, work2, work1, mo_array, &
+         s_sparse, scf_control, dft_control, h_core_sparse)
     NULLIFY(dft_section, input, subsys_section)
     NULLIFY(moa,mob)
-    NULLIFY (atom_list,elec_conf,first_sgfa,l,last_sgfa,nshell,scp_env)
+    NULLIFY (atom_list, elec_conf, scp_env)
     edftb = 0.0_dp
 
     CALL timeset(routineN,handle)
@@ -807,221 +799,12 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
     ELSE IF (density_guess == mopac_guess) THEN
 
-       group = qs_env%para_env%group
-       natom = SIZE(particle_set)
-       ALLOCATE (first_sgf(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
-       CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,error=error)
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
-       ALLOCATE (econf(0:maxl),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
-       CALL get_mo_set(mo_array(1)%mo_set,nao=nao)
-       ALLOCATE (pdiag(nao),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       pdiag(:) = 0.0_dp
-       
-       ALLOCATE (sdiag(nao),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       sdiag(:) = 0.0_dp
-       IF (has_unit_metric) THEN
-          sdiag(:) = 1.0_dp
-       ELSE
-          CALL cp_dbcsr_get_diag(s_sparse(1)%matrix, sdiag, error=error)
-          CALL mp_sum(sdiag,group)
-       END IF
-
        DO ispin=1,nspin
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                          maxocc=maxocc,&
-                          nelectron=nelectron)
-          
-          ncount   = 0
-          trps1    = 0.0_dp
-          trps2    = 0.0_dp
-          pdiag(:) = 0.0_dp
-          
-          IF (nelectron /= 0) THEN
-             DO ikind=1,SIZE(atomic_kind_set)
-                atomic_kind => atomic_kind_set(ikind)
-          
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                     natom=natom,&
-                                     atom_list=atom_list,&
-                                     all_potential=all_potential,&
-                                     gth_potential=gth_potential,&
-                                     orb_basis_set=orb_basis_set)
 
-                IF ( dft_control%qs_control%dftb ) THEN
-                   CALL get_dftb_atom_param(dftb_parameter=atomic_kind%dftb_parameter,&
-                        lmax=maxll,occupation=edftb)
-                   maxll = MIN(maxll,maxl)
-                   econf(0:maxl)=edftb(0:maxl)
-                ELSEIF (ASSOCIATED(all_potential)) THEN
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf, nsgf=nsgf, z=z, zeff=zeff)
-                   maxll = MIN(SIZE(elec_conf) - 1,maxl)
-                   econf(:) = 0.0_dp
-                   econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
-                ELSE IF (ASSOCIATED(gth_potential)) THEN
-                   CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf, nsgf=nsgf, z=z, zeff=zeff)
-                   maxll = MIN(SIZE(elec_conf) - 1,maxl)
-                   econf(:) = 0.0_dp
-                   econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
-                ELSE
-                   CYCLE
-                END IF
-          
-                ! MOPAC TYEP GUESS
-                IF (dft_control%qs_control%dftb) THEN
-                   DO iatom=1,natom
-                      atom_a = atom_list(iatom)
-                      isgfa=first_sgf(atom_a)
-                      DO la=0,maxll
-                         SELECT CASE (la)
-                         CASE (0)
-                            pdiag(isgfa) = econf(0)
-                         CASE (1)
-                            pdiag(isgfa+1) = econf(1)/3._dp
-                            pdiag(isgfa+2) = econf(1)/3._dp
-                            pdiag(isgfa+3) = econf(1)/3._dp
-                         CASE (2)
-                            pdiag(isgfa+4) = econf(2)/5._dp
-                            pdiag(isgfa+5) = econf(2)/5._dp
-                            pdiag(isgfa+6) = econf(2)/5._dp
-                            pdiag(isgfa+7) = econf(2)/5._dp
-                            pdiag(isgfa+8) = econf(2)/5._dp
-                         CASE (3)
-                            pdiag(isgfa+ 9) = econf(3)/7._dp
-                            pdiag(isgfa+10) = econf(3)/7._dp
-                            pdiag(isgfa+11) = econf(3)/7._dp
-                            pdiag(isgfa+12) = econf(3)/7._dp
-                            pdiag(isgfa+13) = econf(3)/7._dp
-                            pdiag(isgfa+14) = econf(3)/7._dp
-                            pdiag(isgfa+15) = econf(3)/7._dp
-                         CASE DEFAULT
-                            CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                         END SELECT
-                      END DO
-                   END DO
-                ELSEIF (dft_control%qs_control%semi_empirical) THEN
-                  yy = REAL(dft_control%charge,KIND=dp)/REAL(nao,KIND=dp)
-                  DO iatom=1,natom
-                    atom_a = atom_list(iatom)
-                    isgfa=first_sgf(atom_a)
-                    SELECT CASE (nsgf)
-                    CASE (1) ! s-basis
-                      pdiag(isgfa   ) = (zeff         - yy)*0.5_dp*maxocc
-                    CASE (4) ! sp-basis
-                      IF (z == 1 ) THEN
-                        ! special case: hydrogen with sp basis
-                        pdiag(isgfa   ) = (zeff         - yy)*0.5_dp*maxocc
-                        pdiag(isgfa+ 1) = 0._dp
-                        pdiag(isgfa+ 2) = 0._dp
-                        pdiag(isgfa+ 3) = 0._dp
-                      ELSE
-                        pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                        pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                        pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                        pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                      END IF
-                    CASE (9) ! spd-basis
-                      IF (z < 21 .OR. z > 30 .AND. z < 39 .OR. z > 48 .AND. z < 57) THEN
-                         !   Main Group Element:  The "d" shell is formally empty.
-                         pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                         pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                         pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                         pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
-                         pdiag(isgfa+ 4) = (             - yy)*0.5_dp*maxocc
-                         pdiag(isgfa+ 5) = (             - yy)*0.5_dp*maxocc
-                         pdiag(isgfa+ 6) = (             - yy)*0.5_dp*maxocc
-                         pdiag(isgfa+ 7) = (             - yy)*0.5_dp*maxocc
-                         pdiag(isgfa+ 8) = (             - yy)*0.5_dp*maxocc
-                      ELSE IF (z < 99) THEN
-                         my_sum = zeff - 9.0_dp*yy
-                         !   First, put 2 electrons in the 's' shell
-                         pdiag(isgfa   ) = (MAX(0.0_dp, MIN(my_sum, 2.0_dp)))*0.5_dp*maxocc
-                         my_sum = my_sum - 2.0_dp
-                         IF (my_sum > 0.0_dp) THEN
-                            !   Now put as many electrons as possible into the 'd' shell
-                            pdiag(isgfa+ 4) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            pdiag(isgfa+ 5) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            pdiag(isgfa+ 6) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            pdiag(isgfa+ 7) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            pdiag(isgfa+ 8) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
-                            my_sum = MAX(0.0_dp, my_sum-10.0_dp)
-                            !   Put the remaining electrons in the 'p' shell
-                            pdiag(isgfa+ 1) = (my_sum/3.0_dp)*0.5_dp*maxocc
-                            pdiag(isgfa+ 2) = (my_sum/3.0_dp)*0.5_dp*maxocc
-                            pdiag(isgfa+ 3) = (my_sum/3.0_dp)*0.5_dp*maxocc
-                         END IF
-                      END IF
-                    CASE DEFAULT
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                    END SELECT
-                  END DO
-                ELSE
-                  CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                         nset=nset,&
-                                         nshell=nshell,&
-                                         l=l,&
-                                         first_sgf=first_sgfa,&
-                                         last_sgf=last_sgfa)
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
-                  DO iset=1,nset
-                     DO ishell=1,nshell(iset)
-                        la = l(ishell,iset)
-                        nelec = maxocc*REAL(2*la + 1,dp)
-                        IF (econf(la) > 0.0_dp) THEN
-                           IF (econf(la) >= nelec) THEN
-                              paa = maxocc
-                              econf(la) = econf(la) - nelec
-                           ELSE
-                              paa = maxocc*econf(la)/nelec
-                              econf(la) = 0.0_dp
-                              ncount = ncount + NINT(nelec/maxocc)
-                           END IF
-                           DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
-                              DO iatom=1,natom
-                                 atom_a = atom_list(iatom)
-                                 isgf = first_sgf(atom_a) + isgfa - 1
-                                 pdiag(isgf) = paa
-                                 IF (paa == maxocc) THEN
-                                    trps1 = trps1 + paa*sdiag(isgf)
-                                 ELSE
-                                    trps2 = trps2 + paa*sdiag(isgf)
-                                 END IF
-                              END DO
-                           END DO
-                        END IF
-                     END DO ! ishell
-                  END DO ! iset
-                END IF
-             END DO ! ikind
-          
-             IF (trps2 == 0.0_dp) THEN
-                DO isgf=1,nao
-                   IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
-                END DO
-             ELSE
-                scale = (REAL(nelectron,dp) - trps1)/trps2
-                DO isgf=1,nao
-                   IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
-                END DO
-             END IF
-          END IF
-
-          ! if we have many added MOS, the atomic guess as we have it now seriously breaks down (more than usual that is)
-          ! i.e. a number of states are being projected on the null space of the density matrix, which causes failure on reortho
-          ! as temporary fix (to be removed when we have a real atomic guess), we just shift the diagonal a tiny bit.
-          ! a better initial guess for a finite temperature would take the atomic orbital energies into account, and would do some finite
-          ! temperature approach. This hack can be removed as soon as we have real atomic wavefunctions and energies here.
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,nmo=nmo)
-          IF (COUNT(pdiag.NE.0.0_dp)<nmo .AND. scf_control%use_ot) THEN
-             pdiag=pdiag+0.01_dp
-          ENDIF
-
-          CALL cp_dbcsr_set_diag(p_rmpv(ispin)%matrix, pdiag, error=error)
+          CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, qs_env%dft_control,&
+                                  particle_set, atomic_kind_set, ispin, nspin, nelectron,  qs_env%para_env, error)
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -1056,7 +839,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
                                     smear=qs_env%scf_control%smear,&
                                     error=error)
-CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+             CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b,error=error)
 
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                            p_rmpv(ispin)%matrix,&
@@ -1064,18 +847,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           END IF
        END DO
 
-       DEALLOCATE (econf,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
-       DEALLOCATE (first_sgf,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
-       DEALLOCATE (pdiag,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
-       DEALLOCATE (sdiag,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       
     ELSE IF (density_guess == densities_guess) THEN
        
        ! Collocation of the density into the PW-grid
@@ -1234,5 +1005,261 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     CALL timestop(handle)
 
   END SUBROUTINE calculate_atomic_block_dm
+
+! *****************************************************************************
+!> \brief returns a block diagonal density matrix. Blocks correspond to the mopac initial guess.
+! *****************************************************************************
+  SUBROUTINE calculate_mopac_dm(matrix_p,matrix_s, dft_control, particle_set, atomic_kind_set, &
+                                       ispin, nspin, nelectron_spin, para_env, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: ispin, nspin, nelectron_spin
+    TYPE(cp_para_env_type)                   :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mopac_dm', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, group, iatom, ikind, iset, isgf, isgfa, ishell, istat, &
+      la, maxl, maxll, nao, natom, ncount, nset, nsgf, z
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
+    LOGICAL                                  :: failure, has_unit_metric
+    REAL(KIND=dp)                            :: maxocc, my_sum, nelec, paa, &
+                                                scale, trps1, trps2, yy, zeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
+    REAL(KIND=dp), DIMENSION(0:3)            :: edftb
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+
+    group = para_env%group
+    natom = SIZE(particle_set)
+    nao = cp_dbcsr_nfullrows_total(matrix_p)
+    IF (nspin==1) THEN
+       maxocc=2.0_dp
+    ELSE
+       maxocc=1.0_dp
+    ENDIF
+
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,error=error)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
+
+    ALLOCATE (econf(0:maxl),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (pdiag(nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    pdiag(:) = 0.0_dp
+
+    ALLOCATE (sdiag(nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    sdiag(:) = 0.0_dp
+    IF (has_unit_metric) THEN
+       sdiag(:) = 1.0_dp
+    ELSE
+       CALL cp_dbcsr_get_diag(matrix_s, sdiag, error=error)
+       CALL mp_sum(sdiag,group)
+    END IF
+
+    ncount   = 0
+    trps1    = 0.0_dp
+    trps2    = 0.0_dp
+    pdiag(:) = 0.0_dp
+    
+    IF (nelectron_spin /= 0) THEN
+       DO ikind=1,SIZE(atomic_kind_set)
+          atomic_kind => atomic_kind_set(ikind)
+    
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               natom=natom,&
+                               atom_list=atom_list,&
+                               all_potential=all_potential,&
+                               gth_potential=gth_potential,&
+                               orb_basis_set=orb_basis_set)
+
+          IF ( dft_control%qs_control%dftb ) THEN
+             CALL get_dftb_atom_param(dftb_parameter=atomic_kind%dftb_parameter,&
+                  lmax=maxll,occupation=edftb)
+             maxll = MIN(maxll,maxl)
+             econf(0:maxl)=edftb(0:maxl)
+          ELSEIF (ASSOCIATED(all_potential)) THEN
+             CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf, nsgf=nsgf, z=z, zeff=zeff)
+             maxll = MIN(SIZE(elec_conf) - 1,maxl)
+             econf(:) = 0.0_dp
+             econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
+          ELSE IF (ASSOCIATED(gth_potential)) THEN
+             CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf, nsgf=nsgf, z=z, zeff=zeff)
+             maxll = MIN(SIZE(elec_conf) - 1,maxl)
+             econf(:) = 0.0_dp
+             econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
+          ELSE
+             CYCLE
+          END IF
+    
+          ! MOPAC TYEP GUESS
+          IF (dft_control%qs_control%dftb) THEN
+             DO iatom=1,natom
+                atom_a = atom_list(iatom)
+                isgfa=first_sgf(atom_a)
+                DO la=0,maxll
+                   SELECT CASE (la)
+                   CASE (0)
+                      pdiag(isgfa) = econf(0)
+                   CASE (1)
+                      pdiag(isgfa+1) = econf(1)/3._dp
+                      pdiag(isgfa+2) = econf(1)/3._dp
+                      pdiag(isgfa+3) = econf(1)/3._dp
+                   CASE (2)
+                      pdiag(isgfa+4) = econf(2)/5._dp
+                      pdiag(isgfa+5) = econf(2)/5._dp
+                      pdiag(isgfa+6) = econf(2)/5._dp
+                      pdiag(isgfa+7) = econf(2)/5._dp
+                      pdiag(isgfa+8) = econf(2)/5._dp
+                   CASE (3)
+                      pdiag(isgfa+ 9) = econf(3)/7._dp
+                      pdiag(isgfa+10) = econf(3)/7._dp
+                      pdiag(isgfa+11) = econf(3)/7._dp
+                      pdiag(isgfa+12) = econf(3)/7._dp
+                      pdiag(isgfa+13) = econf(3)/7._dp
+                      pdiag(isgfa+14) = econf(3)/7._dp
+                      pdiag(isgfa+15) = econf(3)/7._dp
+                   CASE DEFAULT
+                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                   END SELECT
+                END DO
+             END DO
+          ELSEIF (dft_control%qs_control%semi_empirical) THEN
+            yy = REAL(dft_control%charge,KIND=dp)/REAL(nao,KIND=dp)
+            DO iatom=1,natom
+              atom_a = atom_list(iatom)
+              isgfa=first_sgf(atom_a)
+              SELECT CASE (nsgf)
+              CASE (1) ! s-basis
+                pdiag(isgfa   ) = (zeff         - yy)*0.5_dp*maxocc
+              CASE (4) ! sp-basis
+                IF (z == 1 ) THEN
+                  ! special case: hydrogen with sp basis
+                  pdiag(isgfa   ) = (zeff         - yy)*0.5_dp*maxocc
+                  pdiag(isgfa+ 1) = 0._dp
+                  pdiag(isgfa+ 2) = 0._dp
+                  pdiag(isgfa+ 3) = 0._dp
+                ELSE
+                  pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                  pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                  pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                  pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                END IF
+              CASE (9) ! spd-basis
+                IF (z < 21 .OR. z > 30 .AND. z < 39 .OR. z > 48 .AND. z < 57) THEN
+                   !   Main Group Element:  The "d" shell is formally empty.
+                   pdiag(isgfa   ) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                   pdiag(isgfa+ 1) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                   pdiag(isgfa+ 2) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                   pdiag(isgfa+ 3) = (zeff*0.25_dp - yy)*0.5_dp*maxocc
+                   pdiag(isgfa+ 4) = (             - yy)*0.5_dp*maxocc
+                   pdiag(isgfa+ 5) = (             - yy)*0.5_dp*maxocc
+                   pdiag(isgfa+ 6) = (             - yy)*0.5_dp*maxocc
+                   pdiag(isgfa+ 7) = (             - yy)*0.5_dp*maxocc
+                   pdiag(isgfa+ 8) = (             - yy)*0.5_dp*maxocc
+                ELSE IF (z < 99) THEN
+                   my_sum = zeff - 9.0_dp*yy
+                   !   First, put 2 electrons in the 's' shell
+                   pdiag(isgfa   ) = (MAX(0.0_dp, MIN(my_sum, 2.0_dp)))*0.5_dp*maxocc
+                   my_sum = my_sum - 2.0_dp
+                   IF (my_sum > 0.0_dp) THEN
+                      !   Now put as many electrons as possible into the 'd' shell
+                      pdiag(isgfa+ 4) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                      pdiag(isgfa+ 5) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                      pdiag(isgfa+ 6) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                      pdiag(isgfa+ 7) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                      pdiag(isgfa+ 8) = (MAX(0.0_dp, MIN(my_sum*0.2_dp, 2.0_dp)))*0.5_dp*maxocc
+                      my_sum = MAX(0.0_dp, my_sum-10.0_dp)
+                      !   Put the remaining electrons in the 'p' shell
+                      pdiag(isgfa+ 1) = (my_sum/3.0_dp)*0.5_dp*maxocc
+                      pdiag(isgfa+ 2) = (my_sum/3.0_dp)*0.5_dp*maxocc
+                      pdiag(isgfa+ 3) = (my_sum/3.0_dp)*0.5_dp*maxocc
+                   END IF
+                END IF
+              CASE DEFAULT
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+              END SELECT
+            END DO
+          ELSE
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   nset=nset,&
+                                   nshell=nshell,&
+                                   l=l,&
+                                   first_sgf=first_sgfa,&
+                                   last_sgf=last_sgfa)
+
+            DO iset=1,nset
+               DO ishell=1,nshell(iset)
+                  la = l(ishell,iset)
+                  nelec = maxocc*REAL(2*la + 1,dp)
+                  IF (econf(la) > 0.0_dp) THEN
+                     IF (econf(la) >= nelec) THEN
+                        paa = maxocc
+                        econf(la) = econf(la) - nelec
+                     ELSE
+                        paa = maxocc*econf(la)/nelec
+                        econf(la) = 0.0_dp
+                        ncount = ncount + NINT(nelec/maxocc)
+                     END IF
+                     DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
+                        DO iatom=1,natom
+                           atom_a = atom_list(iatom)
+                           isgf = first_sgf(atom_a) + isgfa - 1
+                           pdiag(isgf) = paa
+                           IF (paa == maxocc) THEN
+                              trps1 = trps1 + paa*sdiag(isgf)
+                           ELSE
+                              trps2 = trps2 + paa*sdiag(isgf)
+                           END IF
+                        END DO
+                     END DO
+                  END IF
+               END DO ! ishell
+            END DO ! iset
+          END IF
+       END DO ! ikind
+    
+       IF (trps2 == 0.0_dp) THEN
+          DO isgf=1,nao
+             IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
+          END DO
+       ELSE
+          scale = (REAL(nelectron_spin,dp) - trps1)/trps2
+          DO isgf=1,nao
+             IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
+          END DO
+       END IF
+    END IF
+
+    CALL cp_dbcsr_set_diag(matrix_p, pdiag, error=error)
+
+    DEALLOCATE (econf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    
+    DEALLOCATE (first_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    
+    DEALLOCATE (pdiag,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    
+    DEALLOCATE (sdiag,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE calculate_mopac_dm
 
 END MODULE qs_initial_guess
