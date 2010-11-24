@@ -127,7 +127,8 @@ MODULE molecule_types_new
             deallocate_molecule_set,&
             get_molecule,&
             set_molecule,&
-            set_molecule_set
+            set_molecule_set,& 
+            molecule_of_atom
 
 CONTAINS
 
@@ -422,5 +423,31 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_molecule_set
+
+! *****************************************************************************
+!> \brief   finds for each atom the molecule it belongs to
+! *****************************************************************************
+  SUBROUTINE molecule_of_atom(molecule_set,atom_to_mol,error)
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: atom_to_mol
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'molecule_of_atom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, iatom, imol, &
+                                                last_atom
+    TYPE(molecule_type), POINTER             :: molecule
+
+    DO imol = 1,SIZE(molecule_set)
+       molecule => molecule_set(imol)
+       CALL get_molecule ( molecule=molecule, first_atom = first_atom, last_atom = last_atom )
+       DO iatom = first_atom, last_atom
+          atom_to_mol(iatom)=imol
+       ENDDO  ! iatom
+    END DO  ! imol
+
+  END SUBROUTINE molecule_of_atom
 
 END MODULE molecule_types_new
