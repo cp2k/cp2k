@@ -75,6 +75,7 @@ END FUNCTION m_cputime
   FUNCTION m_memory()
 
       INTEGER(KIND=int_8)                      :: m_memory
+      INTEGER(KIND=int_8)                      :: m1,m2,m3
 
       !
       ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize 
@@ -105,10 +106,20 @@ END FUNCTION m_cputime
       ENDDO
 999   CLOSE(121245)
       DATA(I:80)=""
-      READ(DATA,*,IOSTAT=iostat) m_memory
+      ! m1 = total
+      ! m2 = resident
+      ! m3 = shared
+      READ(DATA,*,IOSTAT=iostat) m1,m2,m3
       IF (iostat.NE.0) THEN
          m_memory=0
       ELSE
+         m_memory=m1
+#if defined(__STATM_TOTAL)
+         m_memory=m1
+#endif
+#if defined(__STATM_RESIDENT)
+         m_memory=m2
+#endif
          m_memory=m_memory*getpagesize()
       ENDIF
 #endif
