@@ -1271,6 +1271,8 @@ CONTAINS
     CALL dbcsr_data_release (buffer)
     CALL dbcsr_data_clear_pointer (mat_tmp)
     CALL dbcsr_data_release (mat_tmp)
+    CALL dbcsr_error_stop(error_handler, error)
+
    END SUBROUTINE dbcsr_scale_mat_any
 
 
