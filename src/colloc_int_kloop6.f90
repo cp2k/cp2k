@@ -103,7 +103,8 @@
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
 #else
                 IF ( PRESENT ( lgrid ) ) THEN
-                  ig = lgrid%ldim * ithread + ii * ndim(2) * ndim(1) + ij * ndim(2) + ik + 1
+                  ig = lgrid%ldim * ithread + ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
+                       ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
                   lgrid%r(ig)=lgrid%r(ig) + p_v*res_k
                 ELSE
                   grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
@@ -172,7 +173,8 @@
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
 #else
                 IF ( PRESENT ( lgrid ) ) THEN
-                  ig = lgrid%ldim * ithread + ii * ndim(2) * ndim(1) + ij * ndim(2) + ik + 1
+                  ig = lgrid%ldim * ithread + ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
+                       ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
                   lgrid%r(ig)=lgrid%r(ig) + p_v*res_k
                 ELSE
                   grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
@@ -237,7 +239,8 @@
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
 #else
                 IF ( PRESENT ( lgrid ) ) THEN
-                  ig = lgrid%ldim * ithread + ii * ndim(2) * ndim(1) + ij * ndim(2) + ik + 1
+                  ig = lgrid%ldim * ithread + ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
+                       ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
                   lgrid%r(ig)=lgrid%r(ig) + p_v*res_k
                 ELSE
                   grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
@@ -304,7 +307,8 @@
                 grid(ii+ij+ik+1) = grid(ii+ij+ik+1) + p_v*res_k
 #else
                 IF ( PRESENT ( lgrid ) ) THEN
-                  ig = lgrid%ldim * ithread + ii * ndim(2) * ndim(1) + ij * ndim(2) + ik + 1
+                  ig = lgrid%ldim * ithread + ii * (l_bounds(2,2)-l_bounds(1,2)+1) * (l_bounds(2,1)-l_bounds(1,1)+1) + &
+                       ij * (l_bounds(2,2)-l_bounds(1,2)+1) + ik + 1
                   lgrid%r(ig)=lgrid%r(ig) + p_v*res_k
                 ELSE
                   grid(ik,ij,ii) = grid(ik,ij,ii) + p_v*res_k
