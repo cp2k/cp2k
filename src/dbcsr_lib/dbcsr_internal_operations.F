@@ -19,13 +19,14 @@ MODULE dbcsr_internal_operations
                                              array_release
   USE dbcsr_block_access,              ONLY: dbcsr_put_block,&
                                              dbcsr_reserve_blocks
-  USE dbcsr_block_operations,          ONLY: dbcsr_block_norm_frob
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_data_set_pointer, &
-       dbcsr_data_set_size_referenced, dbcsr_scalar_are_equal, &
-       dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_scalar_zero
+       dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, &
+       dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z, &
+       dbcsr_scalar_are_equal, dbcsr_scalar_negative, dbcsr_scalar_one, &
+       dbcsr_scalar_zero
   USE dbcsr_dist_operations,           ONLY: checker_tr,&
                                              get_global_bins,&
                                              get_local_bins
@@ -106,6 +107,13 @@ MODULE dbcsr_internal_operations
 #else
   LOGICAL, PARAMETER                   :: internal_gemm = .FALSE.
 #endif
+
+#if defined(__HAS_NO_OMP_3)
+#define __COLLAPSE2
+#else
+#define __COLLAPSE2 collapse(2)
+#endif
+
 
 
   PUBLIC :: dbcsr_mult_m_e_e
@@ -2425,6 +2433,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Calculates per-block norms.
+!>
+!> Rewritten to be very low-level.
 !> \param[in,out] matrix     DBCSR matrix for which to calculate norms
 !> \param[in] norms          Block norms
 !> \param[in,out] error      error
@@ -2438,11 +2448,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: data_type
-    INTEGER                                  :: blk, col, error_handle, row
-    LOGICAL                                  :: tr
-    REAL(kind=sp)                            :: norm
-    TYPE(dbcsr_data_obj)                     :: data_block
-    TYPE(dbcsr_iterator)                     :: iter
+    INTEGER                                  :: error_handle, nrows, row
+    INTEGER, DIMENSION(1), TARGET            :: tmp
+    INTEGER, DIMENSION(:), POINTER           :: local_rows
 
 !   ---------------------------------------------------------------------------
 
@@ -2452,28 +2460,55 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "The matrix must be valid.", __LINE__, error)
     data_type = dbcsr_get_data_type (matrix)
-    !$omp parallel default (none) &
-    !$omp          private (iter, data_block, row, col, tr, blk, norm) &
-    !$omp          shared (data_type, matrix, norms, error)
-    CALL dbcsr_data_init (data_block)
-    CALL dbcsr_data_new (data_block, data_type)
-    CALL dbcsr_iterator_start(iter, matrix, shared=.TRUE., read_only=.TRUE.)
-    DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_block, tr, blk)
-       CALL dbcsr_block_norm_frob(data_block, norm, error=error)
-       norms(blk) = norm
-    ENDDO
-    CALL dbcsr_iterator_stop(iter)
-    CALL dbcsr_data_clear_pointer (data_block)
-    CALL dbcsr_data_release (data_block)
-    !$omp end parallel
+    IF (matrix%m%local_indexing) THEN
+       CALL dbcsr_assert (array_exists (matrix%m%local_rows),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Global row mapping should exist", __LINE__, error=error)
+       local_rows => array_data (matrix%m%local_rows)
+       nrows = SIZE(local_rows)
+    ELSE
+       local_rows => tmp ! Have something valid to point to
+       nrows = matrix%m%nblkrows_total
+    ENDIF
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       CALL calc_norms_s(norms, nrows,&
+            matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
+            array_data (matrix%m%row_blk_size),&
+            array_data (matrix%m%col_blk_size),&
+            dbcsr_get_data_p_s (matrix%m%data_area),&
+            local=matrix%m%local_indexing,&
+            local2global=local_rows)
+    CASE (dbcsr_type_real_8)
+       CALL calc_norms_d(norms, nrows,&
+            matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
+            array_data (matrix%m%row_blk_size),&
+            array_data (matrix%m%col_blk_size),&
+            dbcsr_get_data_p_d (matrix%m%data_area),&
+            local=matrix%m%local_indexing,&
+            local2global=local_rows)
+    CASE (dbcsr_type_complex_4)
+       CALL calc_norms_c(norms, nrows,&
+            matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
+            array_data (matrix%m%row_blk_size),&
+            array_data (matrix%m%col_blk_size),&
+            dbcsr_get_data_p_c (matrix%m%data_area),&
+            local=matrix%m%local_indexing,&
+            local2global=local_rows)
+    CASE (dbcsr_type_complex_8)
+       CALL calc_norms_z(norms, nrows,&
+            matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
+            array_data (matrix%m%row_blk_size),&
+            array_data (matrix%m%col_blk_size),&
+            dbcsr_get_data_p_z (matrix%m%data_area),&
+            local=matrix%m%local_indexing,&
+            local2global=local_rows)
+       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
+            routineN, "Invalid data type.",__LINE__,error)
+    END SELECT
     !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE calculate_norms
-
-
-
-
 
 
 #include "dbcsr_internal_operations_d.F"
