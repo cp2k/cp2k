@@ -803,7 +803,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
-          CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, qs_env%dft_control,&
+          CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, has_unit_metric, qs_env%dft_control,&
                                   particle_set, atomic_kind_set, ispin, nspin, nelectron,  qs_env%para_env, error)
 
           ! The orbital transformation method (OT) requires not only an
@@ -1009,9 +1009,11 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 ! *****************************************************************************
 !> \brief returns a block diagonal density matrix. Blocks correspond to the mopac initial guess.
 ! *****************************************************************************
-  SUBROUTINE calculate_mopac_dm(matrix_p,matrix_s, dft_control, particle_set, atomic_kind_set, &
-                                       ispin, nspin, nelectron_spin, para_env, error)
+  SUBROUTINE calculate_mopac_dm(matrix_p,matrix_s, has_unit_metric, &
+                                dft_control, particle_set, atomic_kind_set, &
+                                ispin, nspin, nelectron_spin, para_env, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
+    LOGICAL                                  :: has_unit_metric
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1029,7 +1031,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
-    LOGICAL                                  :: failure, has_unit_metric
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxocc, my_sum, nelec, paa, &
                                                 scale, trps1, trps2, yy, zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
