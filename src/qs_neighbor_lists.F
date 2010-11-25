@@ -47,7 +47,8 @@ MODULE qs_neighbor_lists
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp,&
+                                             int_8
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE molecule_types_new,              ONLY: molecule_type
@@ -1214,8 +1215,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: full_output = .FALSE.
 
-    INTEGER :: group, handle, ikind, inode, ipe, jkind, mype, n, nblock_max, &
-      nblock_sum, nelement_max, nelement_sum, nkind, nnode, npe, stat, tmp(2)
+    INTEGER                                  :: group, handle, ikind, inode, &
+                                                ipe, jkind, mype, n, nkind, &
+                                                nnode, npe, stat
+    INTEGER(int_8)                           :: nblock_max, nblock_sum, &
+                                                nelement_max, nelement_sum, &
+                                                tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement, nnsgf
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1263,8 +1268,8 @@ CONTAINS
        CALL mp_sum(nblock,group)
        CALL mp_sum(nelement,group)
 
-       nblock_sum = SUM(nblock)
-       nelement_sum = SUM(nelement)
+       nblock_sum = SUM(INT(nblock,KIND=int_8))
+       nelement_sum = SUM(INT(nelement,KIND=int_8))
     ELSE
        nblock_sum = nblock(mype)
        nblock_max = nblock(mype)
