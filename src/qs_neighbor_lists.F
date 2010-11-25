@@ -489,15 +489,20 @@ CONTAINS
     CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
     CALL build_neighbor_lists(sab_orb,particle_set,atom2d,cell,pair_radius,&
                               mic=mic,subcells=subcells,molecular=molecule_only,name="sab_orb",error=error)
+    CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
+    CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
+         "/SAB_ORB","sab_orb","ORBITAL ORBITAL",error)
+
     ! Build orbital-orbital list containing all the pairs, to be used with
     ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap
     ! might be not optimal. It should be verified for each operator.
-    CALL build_neighbor_lists(sab_all,particle_set,atom2d,cell,pair_radius,&
-         mic=mic,symmetric=.FALSE.,subcells=subcells,molecular=molecule_only,name="sab_all",error=error)
-    CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
-    CALL set_qs_env(qs_env=qs_env,sab_all=sab_all,error=error)
-    CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
-         "/SAB_ORB","sab_orb","ORBITAL ORBITAL",error)
+    ! right now only used for linear response (e.g. nmr). Should be computed more sparingly
+    IF (.NOT. (nddo .OR. dftb)) THEN
+       CALL build_neighbor_lists(sab_all,particle_set,atom2d,cell,pair_radius,&
+            mic=mic,symmetric=.FALSE.,subcells=subcells,molecular=molecule_only,name="sab_all",error=error)
+       CALL set_qs_env(qs_env=qs_env,sab_all=sab_all,error=error)
+    ENDIF
+
     ! Build the core-core overlap neighbor lists
     CALL pair_radius_setup(core_present,core_present,core_radius,core_radius,pair_radius,error)
     CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,mic=mic,subcells=subcells,&
@@ -563,7 +568,7 @@ CONTAINS
     END IF
 
     ! Build orbital-ERFC potential list
-    IF (all_potential_present) THEN
+    IF (all_potential_present .AND. .NOT. (nddo .OR. dftb)) THEN
        CALL pair_radius_setup(orb_present,all_present,orb_radius,all_pot_rad,pair_radius,error)
        CALL build_neighbor_lists(sac_ae,particle_set,atom2d,cell,pair_radius,&
             subcells=subcells,operator_type="ABC",name="sac_ae",error=error)
