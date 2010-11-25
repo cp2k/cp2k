@@ -504,12 +504,15 @@ CONTAINS
     ENDIF
 
     ! Build the core-core overlap neighbor lists
-    CALL pair_radius_setup(core_present,core_present,core_radius,core_radius,pair_radius,error)
-    CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,mic=mic,subcells=subcells,&
-                              operator_type="PP",name="sab_core",error=error)
-    CALL set_qs_env(qs_env=qs_env,sab_core=sab_core,error=error)
-    CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
-         "/SAB_CORE","sab_core","CORE CORE",error)
+    IF (.NOT. (nddo .OR. dftb)) THEN
+       CALL pair_radius_setup(core_present,core_present,core_radius,core_radius,pair_radius,error)
+       CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,mic=mic,subcells=subcells,&
+                                 operator_type="PP",name="sab_core",error=error)
+       CALL set_qs_env(qs_env=qs_env,sab_core=sab_core,error=error)
+       CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
+            "/SAB_CORE","sab_core","CORE CORE",error)
+    ENDIF
+       
 
     IF( qs_env%dft_control%do_admm ) THEN
        CALL pair_radius_setup(aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,pair_radius,error)
