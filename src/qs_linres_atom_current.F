@@ -135,7 +135,7 @@ CONTAINS
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
+      DIMENSION(:), POINTER                  :: sab_all
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(rho_atom_coeff), DIMENSION(:), &
@@ -145,7 +145,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     failure =.FALSE.
-    NULLIFY(atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_orb,&
+    NULLIFY(atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_all,&
          &  jrho1_atom_set,oce,a_block,b_block,c_block,&
          &  d_block,jp_RARnu,jp2_RARnu,C_coeff_hh_a,C_coeff_hh_b,C_coeff_ss_a,&
          &  C_coeff_ss_b,para_env,zero_coeff,tmp_coeff)
@@ -154,7 +154,7 @@ CONTAINS
          &          atomic_kind_set=atomic_kind_set,&
          &          dft_control=dft_control,&
          &          oce=oce,&
-         &          sab_all=sab_orb,&
+         &          sab_all=sab_all,&
          &          para_env=para_env,&
          &          error=error)
 
@@ -241,7 +241,7 @@ CONTAINS
         NULLIFY(basis_set_list(ikind)%gto_basis_set)
       END IF
     END DO
-    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    CALL neighbor_list_iterator_create(nl_iterator,sab_all)
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
                               iatom=iatom,jatom=jatom,cell=cell_b,r=rab)

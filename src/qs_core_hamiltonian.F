@@ -400,7 +400,7 @@ CONTAINS
       END IF
     END IF
 
-    ! *** compute the nucelar attraction contribution to the core hamiltonian ***
+    ! *** compute the nuclear attraction contribution to the core hamiltonian ***
     IF (all_potential_present) THEN
       CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
                     atomic_kind_set, particle_set, sab_orb, sac_ae, error)

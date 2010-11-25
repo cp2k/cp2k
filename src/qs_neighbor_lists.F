@@ -488,12 +488,12 @@ CONTAINS
     ! Build the orbital-orbital overlap neighbor lists
     CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
     CALL build_neighbor_lists(sab_orb,particle_set,atom2d,cell,pair_radius,&
-                              mic=mic,subcells=subcells,molecular=molecule_only,error=error)
+                              mic=mic,subcells=subcells,molecular=molecule_only,name="sab_orb",error=error)
     ! Build orbital-orbital list containing all the pairs, to be used with
     ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap
     ! might be not optimal. It should be verified for each operator.
     CALL build_neighbor_lists(sab_all,particle_set,atom2d,cell,pair_radius,&
-         mic=mic,symmetric=.FALSE.,subcells=subcells,molecular=molecule_only,error=error)
+         mic=mic,symmetric=.FALSE.,subcells=subcells,molecular=molecule_only,name="sab_all",error=error)
     CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
     CALL set_qs_env(qs_env=qs_env,sab_all=sab_all,error=error)
     CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,neighbor_list_section,&
@@ -501,7 +501,7 @@ CONTAINS
     ! Build the core-core overlap neighbor lists
     CALL pair_radius_setup(core_present,core_present,core_radius,core_radius,pair_radius,error)
     CALL build_neighbor_lists(sab_core,particle_set,atom2d,cell,pair_radius,mic=mic,subcells=subcells,&
-                              operator_type="PP",error=error)
+                              operator_type="PP",name="sab_core",error=error)
     CALL set_qs_env(qs_env=qs_env,sab_core=sab_core,error=error)
     CALL write_neighbor_lists(sab_core,particle_set,cell,para_env,neighbor_list_section,&
          "/SAB_CORE","sab_core","CORE CORE",error)
@@ -509,14 +509,14 @@ CONTAINS
     IF( qs_env%dft_control%do_admm ) THEN
        CALL pair_radius_setup(aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,pair_radius,error)
        CALL build_neighbor_lists(sab_aux_fit,particle_set,atom2d,cell,pair_radius,&
-                                 mic=mic,molecular=molecule_only,subcells=subcells,error=error)
+                                 mic=mic,molecular=molecule_only,subcells=subcells,name="sab_aux_fit",error=error)
        CALL build_neighbor_lists(sab_aux_fit_asymm,particle_set,atom2d,cell,pair_radius,&
                                  mic=mic,symmetric=.FALSE.,molecular=molecule_only,subcells=subcells,&
-                                 error=error)
+                                 name="sab_aux_fit_asymm",error=error)
        CALL pair_radius_setup(aux_fit_present,orb_present,aux_fit_radius,orb_radius,pair_radius,error)
        CALL build_neighbor_lists(sab_aux_fit_vs_orb,particle_set,atom2d,cell,pair_radius,&
                                  mic=mic,symmetric=.FALSE.,molecular=molecule_only,subcells=subcells,&
-                                 error=error)
+                                 name="sab_aux_fit_vs_orb",error=error)
 
        CALL set_qs_env(qs_env=qs_env,sab_aux_fit=sab_aux_fit,error=error)
        CALL set_qs_env(qs_env=qs_env,sab_aux_fit_vs_orb=sab_aux_fit_vs_orb,error=error)
@@ -533,7 +533,7 @@ CONTAINS
        IF (ANY(ppl_present)) THEN
           CALL pair_radius_setup(orb_present,ppl_present,orb_radius,ppl_radius,pair_radius,error)
           CALL build_neighbor_lists(sac_ppl,particle_set,atom2d,cell,pair_radius,&
-               subcells=subcells,operator_type="ABC",error=error)
+               subcells=subcells,operator_type="ABC",name="sac_ppl",error=error)
           CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl,error=error)
           CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,neighbor_list_section,&
                "/SAC_PPL","sac_ppl","ORBITAL GTH-PPL",error)
@@ -542,7 +542,7 @@ CONTAINS
        IF (ANY(ppnl_present)) THEN
           CALL pair_radius_setup(orb_present,ppnl_present,orb_radius,ppnl_radius,pair_radius,error)
           CALL build_neighbor_lists(sap_ppnl,particle_set,atom2d,cell,pair_radius,&
-               subcells=subcells,operator_type="ABBA",error=error)
+               subcells=subcells,operator_type="ABBA",name="sap_ppnl",error=error)
           CALL set_qs_env(qs_env=qs_env,sap_ppnl=sap_ppnl,error=error)
           CALL write_neighbor_lists(sap_ppnl,particle_set,cell,para_env,neighbor_list_section,&
                "/SAP_PPNL","sap_ppnl","ORBITAL GTH-PPNL",error)
@@ -555,7 +555,7 @@ CONTAINS
        IF (ANY(oce_present)) THEN
           CALL pair_radius_setup(orb_present,oce_present,orb_radius,oce_radius,pair_radius,error)
           CALL build_neighbor_lists(sap_oce,particle_set,atom2d,cell,pair_radius,&
-               subcells=subcells,operator_type="ABBA",error=error)
+               subcells=subcells,operator_type="ABBA",name="sap_oce",error=error)
           CALL set_qs_env(qs_env=qs_env,sap_oce=sap_oce,error=error)
           CALL write_neighbor_lists(sap_oce,particle_set,cell,para_env,neighbor_list_section,&
                "/SAP_OCE","sap_oce","ORBITAL(A) PAW-PRJ",error)
@@ -566,7 +566,7 @@ CONTAINS
     IF (all_potential_present) THEN
        CALL pair_radius_setup(orb_present,all_present,orb_radius,all_pot_rad,pair_radius,error)
        CALL build_neighbor_lists(sac_ae,particle_set,atom2d,cell,pair_radius,&
-            subcells=subcells,operator_type="ABC",error=error)
+            subcells=subcells,operator_type="ABC",name="sac_ae",error=error)
        CALL set_qs_env(qs_env=qs_env,sac_ae=sac_ae,error=error)
        CALL write_neighbor_lists(sac_ae,particle_set,cell,para_env,neighbor_list_section,&
                "/SAC_AE","sac_ae","ORBITAL ERFC POTENTIAL",error)
@@ -581,10 +581,10 @@ CONTAINS
        IF (qs_env%dft_control%qs_control%se_control%do_ewald_gks)  THEN
          ! Use MIC for the periodic code of GKS
          CALL build_neighbor_lists(sab_se,particle_set,atom2d,cell,pair_radius,mic=mic,&
-              subcells=subcells,error=error)
+              subcells=subcells,name="sab_se",error=error)
        ELSE
          CALL build_neighbor_lists(sab_se,particle_set,atom2d,cell,pair_radius,&
-              subcells=subcells,error=error)
+              subcells=subcells,name="sab_se",error=error)
        END IF
        CALL set_qs_env(qs_env=qs_env,sab_se=sab_se,error=error)
        CALL write_neighbor_lists(sab_se,particle_set,cell,para_env,neighbor_list_section,&
@@ -596,7 +596,7 @@ CONTAINS
           c_radius = qs_env%dft_control%qs_control%se_control%cutoff_lrc
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_lrc,particle_set,atom2d,cell,pair_radius,&
-               subcells=subcells,error=error)
+               subcells=subcells,name="sab_lrc",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_lrc=sab_lrc,error=error)
           CALL write_neighbor_lists(sab_lrc,particle_set,cell,para_env,neighbor_list_section,&
                "/SAB_LRC","sab_lrc","SE LONG-RANGE CORRECTION",error)       
@@ -611,7 +611,7 @@ CONTAINS
           c_radius = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
           CALL pair_radius_setup(orb_present,orb_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_tbe,particle_set,atom2d,cell,pair_radius,mic=.TRUE.,&
-               subcells=subcells,error=error)
+               subcells=subcells,name="sab_tbe",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_tbe=sab_tbe,error=error)
        END IF
 
@@ -626,7 +626,7 @@ CONTAINS
           default_present=.TRUE.
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_vdw,particle_set,atom2d,cell,pair_radius,&
-               subcells=subcells,error=error)
+               subcells=subcells,name="sab_vdw",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
        END IF
 
@@ -639,7 +639,7 @@ CONTAINS
           default_present=.TRUE. !include all atoms in vdW (even without basis)
           CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
           CALL build_neighbor_lists(sab_vdw,particle_set,atom2d,cell,pair_radius,&
-               subcells=subcells,operator_type="PP",error=error)
+               subcells=subcells,operator_type="PP",name="sab_vdw",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_vdw=sab_vdw,error=error)
 
           IF ( TRIM(dispersion_env%pp_type) == "DFTD3" ) THEN
@@ -651,7 +651,7 @@ CONTAINS
              END DO
              CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
              CALL build_neighbor_lists(sab_cn,particle_set,atom2d,cell,pair_radius,&
-                  subcells=subcells,operator_type="PP",error=error)
+                  subcells=subcells,operator_type="PP",name="sab_cn",error=error)
              CALL set_qs_env(qs_env=qs_env,sab_cn=sab_cn,error=error)
           END IF
        END IF
@@ -663,7 +663,8 @@ CONTAINS
        IF ( qs_env%dft_control%scp_control%dispersion ) THEN
           c_radius(:) = 10.45_dp ! hard wired for now
           CALL pair_radius_setup(aux_present,aux_present,c_radius,c_radius,pair_radius,error)
-          CALL build_neighbor_lists(sab_scp,particle_set,atom2d,cell,pair_radius,subcells=subcells,error=error)
+          CALL build_neighbor_lists(sab_scp,particle_set,atom2d,cell,pair_radius,subcells=subcells,&
+                                    name="sab_scp",error=error)
           CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
           CALL write_neighbor_lists(sab_scp,particle_set,cell,para_env,neighbor_list_section,&
                "/SAB_SCP","sab_scp","SCP DISPERSION PAIR POTENTIAL",error)
@@ -751,7 +752,7 @@ CONTAINS
 !> \version 2.0
 ! *****************************************************************************
   SUBROUTINE build_neighbor_lists(ab_list,particle_set,atom,cell,pair_radius,subcells,&
-                                  mic,symmetric,molecular,operator_type,error)
+                                  mic,symmetric,molecular,operator_type,name,error)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab_list
@@ -764,6 +765,7 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: subcells
     LOGICAL, INTENT(IN), OPTIONAL            :: mic, symmetric, molecular
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: operator_type
+    CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists', &
@@ -792,7 +794,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    CALL timeset(routineN,handle)
+    CALL timeset(routineN//"_"//TRIM(name),handle)
     failure = .FALSE.
 
     ! input options

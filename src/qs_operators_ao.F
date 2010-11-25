@@ -470,7 +470,7 @@ CONTAINS
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
+      DIMENSION(:), POINTER                  :: sab_all
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
@@ -478,7 +478,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(cell,sab_orb,atomic_kind_set,particle_set,para_env)
+    NULLIFY(cell,sab_all,atomic_kind_set,particle_set,para_env)
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
@@ -488,8 +488,7 @@ CONTAINS
                     particle_set=particle_set,&
                     neighbor_list_id=neighbor_list_id,&
                     para_env=para_env,&
-                    sab_all=sab_orb,&
-                    !sab_orb=sab_orb,&
+                    sab_all=sab_all,&
                     cell=cell,&
                     distribution_2d=distribution_2d,&
                     error=error)
@@ -524,7 +523,7 @@ CONTAINS
         NULLIFY(basis_set_list(ikind)%gto_basis_set)
       END IF
     END DO
-    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    CALL neighbor_list_iterator_create(nl_iterator,sab_all)
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
                               iatom=iatom,jatom=jatom,r=rab)
@@ -1441,7 +1440,7 @@ CONTAINS
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
+      DIMENSION(:), POINTER                  :: sab_all
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
@@ -1457,7 +1456,7 @@ CONTAINS
 
     NULLIFY (atomic_kind, atomic_kind_set)
     NULLIFY (cell, particle_set, orb_basis_set)
-    NULLIFY (sab_orb)
+    NULLIFY (sab_all)
     NULLIFY (difmab, mab, mab_tmp)
     NULLIFY (op_dip, op_dip_der, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
@@ -1465,7 +1464,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
-         sab_all=sab_orb,error=error)
+         sab_all=sab_all,error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -1522,7 +1521,7 @@ CONTAINS
         NULLIFY(basis_set_list(ikind)%gto_basis_set)
       END IF
     END DO
-    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    CALL neighbor_list_iterator_create(nl_iterator,sab_all)
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
                               iatom=iatom,jatom=jatom,r=rab)
