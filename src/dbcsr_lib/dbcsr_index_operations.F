@@ -1288,7 +1288,8 @@ CONTAINS
                    merge_from_whom = 1
                 ELSE
                    ! Hmmm, nothing to merge...
-                   !WRITE(*,*)"Error: Ran out of data to merge"
+                   merge_from_whom = 0
+                   !WRITE(*,*)"Ran out of data to merge"
                 ENDIF
              ENDIF
              SELECT CASE (merge_from_whom)
@@ -1313,7 +1314,7 @@ CONTAINS
                 IF (multidata) new_blk_p(new_blk) = old_blk_d(old_blk)
                 old_blk = old_blk + 1
              CASE DEFAULT
-                !WRITE(*,*)"Error: Nothing to merge"
+                !WRITE(*,*)"Nothing to merge"
              END SELECT
              new_blk = new_blk + 1
           ENDDO
