@@ -808,3 +808,5 @@ He2_none_full_inverse.inp
 sic_ddapc_rt.inp
 # reset after merge of qs refactoring branch merge 
 He2_none_full_single.inp
+# bug fix in et_coupling.F (computation of Wda)
+H2-diffBECKE-ET_coupling.inp
