@@ -73,14 +73,19 @@ MODULE pint_io
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_centroids', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: n_ids = 2, pos_id = 1, &
+                                                vel_id = 2
 
-    CHARACTER(len=default_string_length)     :: ext, form, &
-                                                my_middle_name,&
+    CHARACTER(len=default_string_length)     :: ext, form, my_middle_name, &
                                                 unit_str
-    INTEGER                                  :: handle, handle1, iat, ib, idim, idir, &
-                                                ierr, outformat, unit_nr, should_output
+    CHARACTER(len=default_string_length), &
+      DIMENSION(2)                           :: content_id, middle_name, &
+                                                sect_path, title
+    INTEGER                                  :: handle, handle1, iat, ib, id, &
+                                                idim, idir, ierr, outformat, &
+                                                should_output, unit_nr
     LOGICAL                                  :: failure, new_file
-    REAL(kind=dp)                            :: nb, ss, ss2, vv, unit_conv
+    REAL(kind=dp)                            :: nb, ss, unit_conv, vv
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
@@ -88,12 +93,6 @@ MODULE pint_io
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: print_key
-
-    INTEGER, PARAMETER :: pos_id = 1
-    INTEGER, PARAMETER :: vel_id = 2
-    INTEGER, PARAMETER :: n_ids = 2
-    INTEGER :: id
-    CHARACTER(len=default_string_length), DIMENSION(2):: sect_path, middle_name, content_id, title
 
     CALL timeset(routineN,handle1)
 
@@ -236,12 +235,18 @@ MODULE pint_io
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_trajectory', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: n_ids = 2, pos_id = 1, &
+                                                vel_id = 2
 
     CHARACTER(len=default_string_length)     :: ext, form, ib_str, &
                                                 my_middle_name, title, &
                                                 unit_str
-    INTEGER                                  :: handle, handle1, iat, ib, idim, idir, &
-                                                ierr, outformat, unit_nr, should_output
+    CHARACTER(len=default_string_length), &
+      DIMENSION(2)                           :: content_id, middle_name, &
+                                                sect_path
+    INTEGER                                  :: handle, handle1, iat, ib, id, &
+                                                idim, idir, ierr, outformat, &
+                                                should_output, unit_nr
     LOGICAL                                  :: failure, new_file
     REAL(kind=dp)                            :: unit_conv
     TYPE(cell_type), POINTER                 :: cell
@@ -251,12 +256,6 @@ MODULE pint_io
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: print_key
-
-    INTEGER, PARAMETER :: pos_id = 1
-    INTEGER, PARAMETER :: vel_id = 2
-    INTEGER, PARAMETER :: n_ids = 2
-    INTEGER :: id
-    CHARACTER(len=default_string_length), DIMENSION(2):: sect_path, middle_name, content_id
 
     CALL timeset(routineN,handle1)
 

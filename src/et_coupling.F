@@ -76,8 +76,7 @@ CONTAINS
                                                 nao, ncol_local, nmo, &
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    REAL(KIND=dp)                            :: Sda, strength, Waa, &
-                                                Wbb, Wda
+    REAL(KIND=dp)                            :: Sda, strength, Waa, Wbb, Wda
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: a, b, S_det
     REAL(KIND=dp), DIMENSION(2)              :: eigenv
     REAL(KIND=dp), DIMENSION(2, 2)           :: S_mat, tmp_mat, U, W_mat
