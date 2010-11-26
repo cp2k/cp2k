@@ -76,7 +76,7 @@ CONTAINS
                                                 nao, ncol_local, nmo, &
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    REAL(KIND=dp)                            :: Sda, strength, tttt, Waa, &
+    REAL(KIND=dp)                            :: Sda, strength, Waa, &
                                                 Wbb, Wda
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: a, b, S_det
     REAL(KIND=dp), DIMENSION(2)              :: eigenv
@@ -180,8 +180,7 @@ CONTAINS
 
     DO j=1,ncol_local
        DO k=1,nrow_local       
-          tttt=(-1.0_dp)**MOD(row_indices(k)+col_indices(j),2)
-          b(i)=b(i)+rest_MO(2)%matrix%local_data(k,j)*inverse_mat%local_data(k,j)*tttt
+          b(i)=b(i)+rest_MO(2)%matrix%local_data(k,j)*inverse_mat%local_data(k,j)
        END DO
     END DO
 
@@ -189,8 +188,7 @@ CONTAINS
     a(i)=0.0_dp
     DO j=1,ncol_local
        DO k=1,nrow_local
-          tttt=(-1.0_dp)**MOD(row_indices(k)+col_indices(j),2)
-          a(i)=a(i)+rest_MO(1)%matrix%local_data(k,j)*Tinverse%local_data(k,j)*tttt
+          a(i)=a(i)+rest_MO(1)%matrix%local_data(k,j)*Tinverse%local_data(k,j)
        END DO
     END DO
     IF((my_id==do_spin_density).AND.i==2)THEN
