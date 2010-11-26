@@ -40,8 +40,7 @@ MODULE cp_dbcsr_interface
   USE dbcsr_block_access,              ONLY: dbcsr_get_block,&
                                              dbcsr_get_block_p,&
                                              dbcsr_put_block,&
-                                             dbcsr_reserve_block2d,&
-                                             dbcsr_reserve_blocks
+                                             dbcsr_reserve_block2d
   USE dbcsr_block_buffers,             ONLY: dbcsr_buffers_init,&
                                              dbcsr_buffers_new
   USE dbcsr_block_operations,          ONLY: dbcsr_block_partial_copy,&
@@ -189,7 +188,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_valid_index
   PUBLIC :: cp_dbcsr_get_data_type
   PUBLIC :: cp_dbcsr_reserve_block2d
-  PUBLIC :: cp_dbcsr_reserve_blocks
   PUBLIC :: cp_dbcsr_complete_redistribute
   PUBLIC :: cp_dbcsr_gershgorin_norm
   PUBLIC :: cp_dbcsr_frobenius_norm
@@ -496,24 +494,6 @@ CONTAINS
          transposed, existed)
 
   END SUBROUTINE cp_dbcsr_reserve_block2d_c
-
-  SUBROUTINE cp_dbcsr_reserve_blocks(matrix, rows, cols, blk_pointers, error)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    INTEGER, DIMENSION(:), INTENT(IN)        :: rows, cols
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: blk_pointers
-    TYPE(cp_error_type)                      :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_blocks', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL cluster_buffer_flush (matrix%buffers, error=error)
-    CALL dbcsr_reserve_blocks(matrix%matrix, rows, cols, blk_pointers,&
-         dbcsr_error)
-  END SUBROUTINE cp_dbcsr_reserve_blocks
-
 
   PURE FUNCTION cp_dbcsr_get_data_type (matrix) RESULT (data_type)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix

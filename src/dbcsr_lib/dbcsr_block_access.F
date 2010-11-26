@@ -51,7 +51,6 @@ MODULE dbcsr_block_access
                                              dbcsr_clearfrom_index_array,&
                                              dbcsr_expand_row_index,&
                                              dbcsr_make_dbcsr_index,&
-                                             dbcsr_sort_indices,&
                                              merge_index_arrays
   USE dbcsr_kinds,                     ONLY: real_4,&
                                              real_8
@@ -561,8 +560,7 @@ CONTAINS
     INTEGER :: blk, blk_p, data_size_new, data_size_old, error_handler, &
       nblkrows, nblks_actual_added, nblks_added, nblks_new, nblks_old, &
       new_data_sizes, nze
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: add_blkp, add_cols, add_rows, &
-                                                added_sizes, new_blk_p, &
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: added_sizes, new_blk_p, &
                                                 new_col_i, new_row_i, &
                                                 old_row_i
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: added_blk_info
@@ -585,20 +583,7 @@ CONTAINS
        ! Get current data size
        data_size_old = dbcsr_get_data_size_referenced (matrix)
     ENDIF
-    !> Ensures that the rows and columns are sorted.
     nblks_added = SIZE(rows)
-    ALLOCATE (add_rows (nblks_added))
-    add_rows(:) = rows(:)
-    ALLOCATE (add_cols (nblks_added))
-    add_cols(:) = columns(:)
-    IF (PRESENT(blk_pointers)) THEN
-       ALLOCATE (add_blkp (nblks_added))
-       add_blkp(:) = blk_pointers(:)
-       CALL dbcsr_sort_indices (nblks_added, add_rows, add_cols,&
-            blk_p = add_blkp)
-    ELSE
-       CALL dbcsr_sort_indices (nblks_added, add_rows, add_cols)
-    ENDIF
     nblks_old = dbcsr_get_num_blocks (matrix)
     nblkrows = dbcsr_nblkrows_total(matrix)
     CALL dbcsr_assert (SIZE(rows) .GT. 0, "IMP",&
@@ -617,17 +602,14 @@ CONTAINS
     ALLOCATE (added_sizes (nblks_added))
     DO blk = 1, nblks_added
        IF (PRESENT (blk_pointers)) THEN
-          blk_p = add_blkp(blk)
+          blk_p = blk_pointers(blk)
        ENDIF
-       added_blk_info(1:3,blk) = (/ add_rows(blk), add_cols(blk), blk_p /)
-       nze = dbcsr_blk_row_size (matrix, add_rows(blk)) &
-            * dbcsr_blk_column_size (matrix, add_cols(blk))
+       added_blk_info(1:3,blk) = (/ rows(blk), columns(blk), blk_p /)
+       nze = dbcsr_blk_row_size (matrix, rows(blk)) &
+            * dbcsr_blk_column_size (matrix, columns(blk))
        added_sizes(blk) = nze
        blk_p = blk_p + nze
     ENDDO
-    DEALLOCATE (add_rows)
-    DEALLOCATE (add_cols)
-    IF (PRESENT (blk_pointers)) DEALLOCATE (add_blkp)
     !
     nblks_new = nblks_old + nblks_added ! Possibly high estimate
     ALLOCATE (new_row_i (nblks_new))
