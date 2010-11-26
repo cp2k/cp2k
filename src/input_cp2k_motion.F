@@ -2542,12 +2542,22 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"CENTROIDS",&
-            description="Controls the output of the centroids", &
+       CALL cp_print_key_section_create(print_key,"CENTROID_POS",&
+            description="Controls the output of the centroid's position", &
             unit_str="angstrom",&
             print_level=low_print_level,common_iter_levels=1,error=error)
        CALL add_format_keyword(keyword, print_key, &
-            description="Output file format for the trajectory of centroids",&
+            description="Output file format for the positions of centroid",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CENTROID_VEL",&
+            description="Controls the output of the centroid's velocity", &
+            unit_str="bohr*au_t^-1",&
+            print_level=low_print_level,common_iter_levels=1,error=error)
+       CALL add_format_keyword(keyword, print_key, &
+            description="Output file format for the velocity of centroid",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)

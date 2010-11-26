@@ -40,6 +40,8 @@ MODULE pint_io
                                              e_kin_virial_id,&
                                              e_potential_id,&
                                              pint_env_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -58,56 +60,91 @@ MODULE pint_io
   CONTAINS
 
   ! ***************************************************************************
-  !> \brief Writes out the trajectory of the centroids (and their spread)
+  !> \brief Write out the trajectory of the centroid (positions and velocities)
   !> \author fawzi
-  !> \param pint_env path integral environment
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
   !> \par History
   !>      various bug fixes - hforbert
+  !>      2010-11-25 rewritten, added support for velocity printing,
+  !>                 calc of the stddev of the beads turned off [lwalewski]
   ! ***************************************************************************
   SUBROUTINE pint_write_centroids(pint_env,error)
-
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_write_centroids', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: ext, form, my_middle_name, &
-                                                title, unit_str
-    INTEGER                                  :: handle, iat, ib, idim, idir, &
-                                                ierr, outformat, unit_nr
-    LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: nb, ss, ss2, unit_conv
+    CHARACTER(len=default_string_length)     :: ext, form, &
+                                                my_middle_name,&
+                                                unit_str
+    INTEGER                                  :: handle, handle1, iat, ib, idim, idir, &
+                                                ierr, outformat, unit_nr, should_output
+    LOGICAL                                  :: failure, new_file
+    REAL(kind=dp)                            :: nb, ss, ss2, vv, unit_conv
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type)                      :: my_error
+    TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: print_key
 
+    INTEGER, PARAMETER :: pos_id = 1
+    INTEGER, PARAMETER :: vel_id = 2
+    INTEGER, PARAMETER :: n_ids = 2
+    INTEGER :: id
+    CHARACTER(len=default_string_length), DIMENSION(2):: sect_path, middle_name, content_id, title
+
+    CALL timeset(routineN,handle1)
+
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF ( failure ) RETURN
+    IF (failure) THEN
+      CALL timestop(handle1)
+      RETURN
+    END IF
 
-    NULLIFY(print_key,logger,f_env,cell,subsys)
-    print_key => section_vals_get_subs_vals(pint_env%input, &
-      "MOTION%PINT%PRINT%CENTROIDS", error=error)
+    sect_path(pos_id) = "MOTION%PINT%PRINT%CENTROID_POS"
+    sect_path(vel_id) = "MOTION%PINT%PRINT%CENTROID_VEL"
+    middle_name(pos_id) = "centroid-pos"
+    middle_name(vel_id) = "centroid-vel"
+    content_id(pos_id) = "POS"
+    content_id(vel_id) = "VEL"
+    WRITE(UNIT=title(pos_id),FMT="(A,I8,A,F20.10)")&
+          " i =",pint_env%iter,&
+          ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
+    WRITE(UNIT=title(vel_id),FMT="(A,I8,A,F20.10,A,F20.10)")&
+          " i =",pint_env%iter,&
+          ", E_trm =",pint_env%energy(e_kin_thermo_id),&
+          ", E_vir =",pint_env%energy(e_kin_virial_id)
+
+    NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    IF ( BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&
-      basis_section=print_key,error=error),cp_p_file) ) THEN
 
-      ! Gather units of measure for output (if available)
+    CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
+
+    ! iterate over the properties that we know how to print
+    ! (currently positions and velocities)
+    DO id = 1, n_ids
+
+      print_key => section_vals_get_subs_vals(pint_env%input,&
+                   TRIM(sect_path(id)), error=error)
+
+      should_output = cp_print_key_should_output(&
+                      iteration_info=logger%iter_info,&
+                      basis_section=print_key, error=error)
+      IF ( .NOT. BTEST(should_output,cp_p_file) ) CONTINUE
+
+      ! get units of measure for output (if available)
       CALL section_vals_val_get(print_key,"UNIT",&
            c_val=unit_str,error=error)
       unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
-      ! Get the format for output
+      ! get the format for output
       CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,&
            error=error)
+
       SELECT CASE(outformat)
         CASE (dump_dcd)
            form="UNFORMATTED"
@@ -121,69 +158,77 @@ MODULE pint_io
         CASE default
            CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
       END SELECT
-      my_middle_name="centroid"
 
-      unit_nr=cp_print_key_unit_nr(logger, print_key, &
-              middle_name=TRIM(my_middle_name), extension=TRIM(ext), &
-              local=.FALSE., file_form=form, error=error)
-
-      ! cp_print_key_unit_nr returns -1 on nodes other than logger%para_env%ionode
-      IF (unit_nr>0) THEN
-
-        ! FIXME!!!!
-        ! This call should be splitted in one for position and in one for velocities
-        ! at the moment it will print only positions. Please, fix it if really used..
-
+      NULLIFY(f_env,cell,subsys)
         CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-             f_env=f_env,new_error=my_error, failure=failure, handle=handle)
-        CALL force_env_get(force_env=f_env%force_env,cell=cell,subsys=subsys,error=my_error)
-        CALL cp_subsys_get(subsys,particles=particles,error=my_error)
+           f_env=f_env,new_error=new_error, failure=failure, handle=handle)
+      CALL force_env_get(force_env=f_env%force_env,&
+           cell=cell, subsys=subsys, error=new_error)
+      CALL cp_subsys_get(subsys,particles=particles,&
+           error=new_error)
 
+      ! calculate and copy the requested property
+      ! to the particles structure
         nb=REAL(pint_env%p,dp)
         idim=0
         DO iat=1,pint_env%ndim/3
           DO idir=1,3
             idim=idim+1
-            ss=0._dp
-            ss2=0._dp
+          ss=0.0_dp
+          vv=0.0_dp
+!          ss2=0.0_dp
             DO ib=1,pint_env%p
               ss=ss+pint_env%x(ib,idim)
-              ss2=ss2+pint_env%x(ib,idim)**2
+            vv=vv+pint_env%v(ib,idim)
+!            ss2=ss2+pint_env%x(ib,idim)**2
             END DO
             particles%els(iat)%r(idir)=ss/nb
-            particles%els(iat)%v(idir)=SQRT(ss2/nb-(ss/nb)**2)
+          particles%els(iat)%v(idir)=vv/nb
+!          particles%els(iat)%v(idir)=SQRT(ss2/nb-(ss/nb)**2)
           END DO
         END DO
 
-        IF (outformat == dump_xmol) THEN
-          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                " i =",pint_env%iter,&
-                ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
-        END IF
+      ! set up the output unit number and file name
+      ! for the current property
+      my_middle_name = TRIM(middle_name(id))
+      unit_nr = cp_print_key_unit_nr(logger=logger, &
+                basis_section=print_key, print_key_path="", &
+                extension=TRIM(ext), middle_name=TRIM(my_middle_name), &
+                local=.FALSE., file_form=form, is_new_file=new_file, &
+                error=new_error)
 
-        CALL write_particle_coordinates(particles%els,&
-             iunit=unit_nr, output_format=outformat, content="POS",&
-             title=title, cell=cell, unit_conv=unit_conv, error=error)
-        CALL m_flush(unit_nr)
+      ! actually perform the i/o - on the ionode only
+      IF (unit_nr>0) THEN
 
-        CALL f_env_rm_defaults(f_env,my_error,ierr,handle)
-        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+        CALL write_particle_coordinates( &
+             particles%els, &
+             iunit=unit_nr, &
+             output_format=outformat, &
+             content=content_id(id), &
+             title=title(id), &
+             cell=cell, &
+             unit_conv=unit_conv, &
+             error=error)
 
-      END IF
+        CALL cp_print_key_finished_output(unit_nr,logger,&
+             print_key, "", local=.FALSE., error=new_error)
 
-      CALL cp_print_key_finished_output( unit_nr, logger, print_key, &
-           error=error )
     END IF
 
+      CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
+      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+
+    END DO
+
+    CALL timestop(handle1)
     RETURN
   END SUBROUTINE pint_write_centroids
 
   ! ***************************************************************************
-  !> \brief writes out the trajectory of the beads
-  !> \param pint_env path integral environment
-  !> \param error variable to control error logging, stopping,...
-  !>        see module cp_error_handling
+  !> \brief  Write out the trajectory of the beads (positions and velocities)
   !> \author hforbert
+  !> \par    History
+  !>         2010-11-25 added support for velocity printing [lwalewski]
   ! ***************************************************************************
   SUBROUTINE pint_write_trajectory(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
@@ -195,8 +240,8 @@ MODULE pint_io
     CHARACTER(len=default_string_length)     :: ext, form, ib_str, &
                                                 my_middle_name, title, &
                                                 unit_str
-    INTEGER                                  :: handle, iat, ib, idim, idir, &
-                                                ierr, outformat, unit_nr
+    INTEGER                                  :: handle, handle1, iat, ib, idim, idir, &
+                                                ierr, outformat, unit_nr, should_output
     LOGICAL                                  :: failure, new_file
     REAL(kind=dp)                            :: unit_conv
     TYPE(cell_type), POINTER                 :: cell
@@ -207,24 +252,52 @@ MODULE pint_io
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure=.FALSE.
+    INTEGER, PARAMETER :: pos_id = 1
+    INTEGER, PARAMETER :: vel_id = 2
+    INTEGER, PARAMETER :: n_ids = 2
+    INTEGER :: id
+    CHARACTER(len=default_string_length), DIMENSION(2):: sect_path, middle_name, content_id
 
-    NULLIFY(f_env,cell,subsys)
+    CALL timeset(routineN,handle1)
+
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
+    IF (failure) THEN
+      CALL timestop(handle1)
+      RETURN
+    END IF
+
+    sect_path(pos_id) = "MOTION%PRINT%TRAJECTORY"
+    sect_path(vel_id) = "MOTION%PRINT%VELOCITIES"
+    middle_name(pos_id) = "pos-"
+    middle_name(vel_id) = "vel-"
+    content_id(pos_id) = "POS"
+    content_id(vel_id) = "VEL"
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+
      CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
-     IF (pint_env%replicas%para_env%ionode) THEN
+
+    ! iterate over the properties that we know how to print
+    ! (currently positions and velocities)
+    DO id = 1, n_ids
 
         print_key => section_vals_get_subs_vals(pint_env%input,&
-           "MOTION%PRINT%TRAJECTORY", error=error)
+                   TRIM(sect_path(id)), error=error)
 
-        ! Gather units of measure for output (if available)
+      should_output = cp_print_key_should_output(&
+                      iteration_info=logger%iter_info,&
+                      basis_section=print_key, error=error)
+      IF ( .NOT. BTEST(should_output,cp_p_file) ) CONTINUE
+
+      ! get units of measure for output (if available)
         CALL section_vals_val_get(print_key,"UNIT",&
            c_val=unit_str,error=error)
         unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
 
-        ! Get the format for output
+      ! get the format for output
         CALL section_vals_val_get(print_key,"FORMAT",i_val=outformat,&
            error=error)
 
@@ -242,31 +315,19 @@ MODULE pint_io
            CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
         END SELECT
 
+      NULLIFY(f_env,cell,subsys)
         CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
              f_env=f_env,new_error=new_error, failure=failure, handle=handle)
-        logger => cp_error_get_logger(error)
-        IF (BTEST(cp_print_key_should_output(iteration_info=logger%iter_info,&
-             basis_section=print_key, error=new_error),cp_p_file)) THEN
-
-           ! iterate over beads
-           DO ib=1,pint_env%p
-
-              ib_str = ""
-              WRITE(ib_str,*) ib
-              my_middle_name = "pos-" // TRIM(ADJUSTL(ib_str))
-
-              unit_nr=cp_print_key_unit_nr(logger=logger, &
-                     basis_section=print_key, print_key_path="", &
-                     extension=TRIM(ext), middle_name=TRIM(my_middle_name), &
-                     local=.FALSE., file_form=form, is_new_file=new_file, &
-                     error=new_error)
-
-              IF (unit_nr>0) THEN
                  CALL force_env_get(force_env=f_env%force_env,&
                       cell=cell, subsys=subsys, error=new_error)
                  CALL cp_subsys_get(subsys,particles=particles,&
                       error=new_error)
 
+      ! iterate over beads
+      DO ib = 1, pint_env%p
+
+        ! copy the requested property of the current bead
+        ! to the particles structure
                  idim=0
                  DO iat=1,pint_env%ndim/3
                     DO idir=1,3
@@ -276,26 +337,50 @@ MODULE pint_io
                     END DO
                  END DO
 
+        ! set up the output unit number and file name
+        ! for the current property and bead
+        ib_str = ""
+        WRITE(ib_str,*) ib
+        my_middle_name = TRIM(middle_name(id)) // TRIM(ADJUSTL(ib_str))
+        unit_nr = cp_print_key_unit_nr(logger=logger, &
+                  basis_section=print_key, print_key_path="", &
+                  extension=TRIM(ext), middle_name=TRIM(my_middle_name), &
+                  local=.FALSE., file_form=form, is_new_file=new_file, &
+                  error=new_error)
+
+        ! actually perform the i/o - on the ionode only
+        IF (unit_nr>0) THEN
+
                 IF (outformat == dump_xmol) THEN
-                   WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+            WRITE(UNIT=title,FMT="(A,I8,A,F20.10)")&
                         " i =",pint_env%iter,&
                        ", E =",pint_env%e_pot_bead(ib)
                 END IF
 
-!TODO/FIXME separate printkey for velocities? since both is not
-! possible in one file atm it seems
-                 CALL write_particle_coordinates(particles%els, &
-                      iunit=unit_nr, output_format=outformat, content="POS", &
-                      title=title, cell=cell, unit_conv=unit_conv, error=error)
+          CALL write_particle_coordinates( &
+               particles%els, &
+               iunit=unit_nr, &
+               output_format=outformat, &
+               content=content_id(id), &
+               title=title, &
+               cell=cell, &
+               unit_conv=unit_conv, &
+               error=error)
+
                  CALL cp_print_key_finished_output(unit_nr,logger,&
-                      print_key,"", local=.FALSE., error=new_error)
+               print_key, "", local=.FALSE., error=new_error)
+
               END IF
+
            END DO
-        END IF
+
         CALL f_env_rm_defaults(f_env,new_error,ierr,handle)
         CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-     END IF
-    END IF
+
+    END DO
+
+    CALL timestop(handle1)
+    RETURN
   END SUBROUTINE pint_write_trajectory
 
   ! ***************************************************************************
