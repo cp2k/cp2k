@@ -206,7 +206,7 @@ CONTAINS
                  IF ( .NOT. ASSOCIATED(neighbor_list) ) THEN
                     neighbor_list => first_list(nl(il)%neighbor_list_set)
                  ELSE
-                    neighbor_list => next_neighbor_list(neighbor_list)
+                    neighbor_list => neighbor_list%next_neighbor_list
                  END IF
                  CALL get_neighbor_list(neighbor_list=neighbor_list,atom=iatom)
                  list_search(il)%atom_list(ilist) = iatom
@@ -359,7 +359,7 @@ CONTAINS
     IF(iterator%inode < iterator%nnode) THEN
       ! we can be sure that there is another node in this list
       iterator%inode = iterator%inode + 1
-      iterator%neighbor_node => next_neighbor_node(iterator%neighbor_node)
+      iterator%neighbor_node => iterator%neighbor_node%next_neighbor_node
     ELSE
       iab = MAX(iterator%ikind + iterator%nkind*(iterator%jkind - 1),0)
       kindloop : DO ! look for the next list with nnode /= 0
@@ -367,7 +367,7 @@ CONTAINS
             IF(iterator%ilist >= iterator%nlist) EXIT listloop
             iterator%ilist = iterator%ilist + 1
             IF(ASSOCIATED(iterator%neighbor_list)) THEN
-               iterator%neighbor_list => next_neighbor_list(iterator%neighbor_list)
+               iterator%neighbor_list => iterator%neighbor_list%next_neighbor_list
             ELSE
                iterator%neighbor_list => first_list(nl(iab)%neighbor_list_set)
             END IF
@@ -448,7 +448,7 @@ CONTAINS
        ELSEIF (iterator%inode > 0) THEN
           ! we can be sure that there is another node in this list
           iterator%inode = iterator%inode + 1
-          iterator%neighbor_node => next_neighbor_node(iterator%neighbor_node)
+          iterator%neighbor_node => iterator%neighbor_node%next_neighbor_node
        ELSE
           STOP "wrong"
        END IF
@@ -989,31 +989,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_neighbor_list_set
-
-! *****************************************************************************
-!> \brief   Return the pointer to the next neighbor list.
-!> \author  MK
-!> \date    13.09.2000
-!> \version 1.0
-! *****************************************************************************
- FUNCTION next_neighbor_list(neighbor_list) RESULT (next_list)
-    TYPE(neighbor_list_type), POINTER        :: neighbor_list, next_list
-
-    next_list => neighbor_list%next_neighbor_list
-
-  END FUNCTION next_neighbor_list
-
-! *****************************************************************************
-!> \brief   Return the pointer to the next neighbor node.
-!> \author  MK
-!> \date    23.06.2000
-!> \version 1.0
-! *****************************************************************************
-  FUNCTION next_neighbor_node(neighbor_node) RESULT(next_node)
-    TYPE(neighbor_node_type), POINTER        :: neighbor_node, next_node
-
-    next_node => neighbor_node%next_neighbor_node
-
-  END FUNCTION next_neighbor_node
 
 END MODULE qs_neighbor_list_types
