@@ -374,6 +374,7 @@ CONTAINS
         ALLOCATE(pab(max_maxco,max_maxco),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      END IF
+     NULLIFY(p_block)
  
      ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
