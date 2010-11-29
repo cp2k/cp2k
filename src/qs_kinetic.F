@@ -171,7 +171,7 @@ CONTAINS
 
      CPPrecondition(PRESENT(basis_set_id),cp_failure_level,routineP,error,failure)
  
-     NULLIFY ( atomic_kind_set,particle_set,distribution_2d,para_env )
+     NULLIFY ( atomic_kind_set,particle_set,distribution_2d,para_env, p_block )
      CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
                      neighbor_list_id=neighbor_list_id,distribution_2d=distribution_2d,&
                      para_env=para_env,error=error)
