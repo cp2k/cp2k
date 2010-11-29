@@ -304,7 +304,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: message
-    CHARACTER(LEN=default_string_length)     :: file_name
+    CHARACTER(LEN=default_string_length)     :: file_name, tmp
     INTEGER                                  :: jx, mfac, nx, unit_number
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: diffmax, dx2, e, e_spline, x, &
@@ -400,8 +400,9 @@ CPSourceFileRef,&
        dx2 = (hicut - locut)/REAL(nx+1,KIND=dp)
        x2  = locut + dx2
        file_name = ""
+       tmp=ADJUSTL(cp_to_string(n))
        WRITE (UNIT=file_name,FMT="(A,I0,A)")&
-         "SPLINE_"//TRIM(ADJUSTL(cp_to_string(n)))//"_"//&
+         "SPLINE_"//TRIM(tmp)//"_"//&
          TRIM(ADJUSTL(atomic_kind_set(i)%name))//"_"//&
          TRIM(ADJUSTL(atomic_kind_set(j)%name))
        CALL open_file(file_name=file_name,&
