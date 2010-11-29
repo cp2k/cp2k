@@ -29,7 +29,7 @@ MODULE qs_overlap
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_add_block_node,&
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_alloc_block_from_nbl,&
                                              cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_dist2d_to_dist
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_p_type,&
@@ -267,11 +267,11 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         CALL cp_dbcsr_init(matrix_s(1)%matrix,error=error)
         CALL cp_dbcsr_create(matrix=matrix_s(1)%matrix, &
-             name=TRIM(matrix_name), &
+             name=TRIM(mname), &
              dist=dbcsr_dist, matrix_type=symmetry_string,&
              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-             nblks=0, nze=0, mutable_work=.TRUE., &
-             error=error)
+             nblks=0, nze=0, error=error)
+        CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(1)%matrix,sab_nl,error)
 
         DO i=2,maxder
           IF (do_symmetric) THEN
@@ -285,7 +285,7 @@ CONTAINS
              symmetry_string = dbcsr_type_no_symmetry
           END IF
           cgfsym = cgf_symbol(1,indco(1:3,i))
-          name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE "//TRIM(matrix_name)//&
+          name = TRIM(cgfsym(4:))//" DERIVATIVE OF THE "//TRIM(mname)//&
                  " W.R.T. THE NUCLEAR COORDINATES"
           CALL compress(name)
           CALL uppercase(name)
@@ -296,8 +296,8 @@ CONTAINS
                name=TRIM(name), &
                dist=dbcsr_dist, matrix_type=symmetry_string,&
                row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-               nblks=0, nze=0, mutable_work=.TRUE., &
-               error=error)
+               nblks=0, nze=0, error=error)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i)%matrix,sab_nl,error)
         END DO
 
         CALL cp_dbcsr_distribution_release (dbcsr_dist)
@@ -470,8 +470,9 @@ CONTAINS
           IF (allocate_matrix) THEN
              DO i=1,SIZE(matrix_s)
                NULLIFY (sint(i)%block)
-               CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
-                    block_row=irow,block_col=icol,BLOCK=sint(i)%block,error=error)
+               CALL cp_dbcsr_get_block_p(matrix=matrix_s(i)%matrix,&
+                    row=irow,col=icol,BLOCK=sint(i)%block,found=found)
+                    CPPostcondition(found,cp_failure_level,routineP,error,failure)
              END DO
           END IF
           IF (do_forces) THEN

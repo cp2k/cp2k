@@ -194,8 +194,7 @@ CONTAINS
                     dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                     row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
                     col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
-                    nblks=0, nze=0,mutable_work=.TRUE.,&
-                    error=error)
+                    nblks=0, nze=0, error=error)
                CALL cp_dbcsr_finalize(rho%rho_ao(i)%matrix,error=error)
                CALL cp_dbcsr_alloc_block_from_nbl(rho%rho_ao(i)%matrix,sab_orb,error=error)
                CALL cp_dbcsr_set(rho%rho_ao(i)%matrix,0.0_dp,error=error)

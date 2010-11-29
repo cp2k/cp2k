@@ -2346,10 +2346,8 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
                dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix),&
                col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix),&
-               nblks=0, nze=0, mutable_work=.TRUE.,&
-               error=error)
+               nblks=0, nze=0, error=error)
           CALL cp_dbcsr_finalize(matrix_ks(ispin)%matrix,error=error)
-          ! for hfx we need to allocate the blocks
           CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(ispin)%matrix,qs_env%sab_orb,error=error)
           CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
        ENDDO
@@ -2374,10 +2372,8 @@ SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,do_xas_tp,error)
                  dist=cp_dbcsr_distribution(qs_env%matrix_s_aux_fit(1)%matrix), matrix_type=dbcsr_type_symmetric, &
                  row_blk_size=cp_dbcsr_row_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
                  col_blk_size=cp_dbcsr_col_block_sizes(qs_env%matrix_s_aux_fit(1)%matrix),&
-                 nblks=0, nze=0, mutable_work=.TRUE., &
-                 error=error)
+                 nblks=0, nze=0, error=error)
             CALL cp_dbcsr_finalize(matrix_ks_aux_fit(ispin)%matrix,error=error)
-            ! for hfx we need to allocate the blocks
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,qs_env%sab_aux_fit,&
                  error=error)
             CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
