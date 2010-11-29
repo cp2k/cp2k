@@ -583,14 +583,17 @@ CONTAINS
           ! First we calculate the sparsities
           size8 = INT(dbcsr_nfullrows_local (left_set%mats(1,1)), KIND=int_8)&
                 * INT(dbcsr_nfullcols_local (left_set%mats(1,1)), KIND=int_8)
+          size8 = MAX(1_int_8,size8)
           left_fill = REAL(left_max_nze, KIND=real_8)*REAL(left_col_nimages, KIND=real_8) &
                      / REAL(size8, KIND=real_8)
           size8 = INT(dbcsr_nfullrows_local (right_set%mats(1,1)), KIND=int_8)&
                 * INT(dbcsr_nfullcols_local (right_set%mats(1,1)), KIND=int_8)
+          size8 = MAX(1_int_8,size8)
           right_fill = REAL(right_max_nze,KIND=real_8)*REAL(right_row_nimages, KIND=real_8) &
                      / REAL(size8, KIND=real_8)
           size8 = INT(dbcsr_nfullrows_local (product_matrix), KIND=int_8)&
                 * INT(dbcsr_nfullcols_local (product_matrix), KIND=int_8)
+          size8 = MAX(1_int_8,size8)
           IF (dbg .AND. mynode .EQ. 0) THEN
              WRITE(*,'(1X,A,2(1X,F12.3))')routineN//" fill orig =",&
                   left_fill, right_fill
@@ -1495,11 +1498,11 @@ CONTAINS
     IF (left%nblks .GT. 0 .AND. right%nblks .GT. 0) THEN
        !
     left_fill = 2.0_real_8 * REAL(left%nblks,real_8) &
-         / (REAL(left%nblkrows_local,real_8)&
-            * REAL(left%nblkcols_local,real_8))
+         / (REAL(MAX(1,left%nblkrows_local),real_8)&
+            * REAL(MAX(1,left%nblkcols_local),real_8))
     right_fill = 2.0_real_8 * REAL(right%nblks,real_8) &
-         / (REAL(right%nblkrows_local,real_8)&
-            * REAL(right%nblkcols_local,real_8))
+         / (REAL(MAX(1,right%nblkrows_local),real_8)&
+            * REAL(MAX(1,right%nblkcols_local),real_8))
     CALL crop_0_1 (left_fill)
     CALL crop_0_1 (right_fill)
     ! a simple heuristic to estimate the size of the product matrix.
