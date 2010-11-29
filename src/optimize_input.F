@@ -478,7 +478,7 @@ CONTAINS
     ! trajectory
     n_frames=0
     n_frames_current=0
-    NULLIFY(local_parser)
+    NULLIFY(local_parser,pos_traj,energy_traj,force_traj)
     filename=oi_env%fm_env%ref_traj_file_name
     CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
             "The reference trajectory file name is empty"//&
