@@ -31,8 +31,8 @@ MODULE cp_dbcsr_operations
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, cp_dbcsr_norm, &
        cp_dbcsr_put_block, cp_dbcsr_release, cp_dbcsr_reserve_block2d, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_valid_index, &
-       cp_dbcsr_verify_matrix, cp_dbcsr_work_create
+       cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_scale, &
+       cp_dbcsr_valid_index, cp_dbcsr_verify_matrix, cp_dbcsr_work_create
   USE cp_dbcsr_types,                  ONLY: cp_dbcsr_iterator,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
@@ -282,7 +282,6 @@ CONTAINS
     LOGICAL                                  :: failure, new_atom_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: block
 
     CALL timeset(routineN,handle)
 
@@ -291,6 +290,10 @@ CONTAINS
     symmetry = cp_dbcsr_get_matrix_type(matrix)
 
     CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
+
+    CALL cp_dbcsr_finalize (matrix, error=error)
+    ALLOCATE (rows(1), cols(1))
+    blk_cnt = 0
 
     CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
@@ -303,12 +306,22 @@ CONTAINS
           new_atom_b = .FALSE.
           CYCLE
        END IF
-       NULLIFY(block)
+       IF (blk_cnt+1 .GT. SIZE(rows)) THEN
+          ALLOCATE (tmp (blk_cnt))
+          tmp(:) = rows(:)
+          DEALLOCATE (rows)
+          ALLOCATE (rows((blk_cnt+1)*2))
+          rows(1:blk_cnt) = tmp(1:blk_cnt)
+          tmp(:) = cols(:)
+          DEALLOCATE (cols)
+          ALLOCATE (cols((blk_cnt+1)*2))
+          cols(1:blk_cnt) = tmp(1:blk_cnt)
+          DEALLOCATE (tmp)
+       ENDIF
+       blk_cnt = blk_cnt+1
        IF(symmetry==dbcsr_type_no_symmetry) THEN
-          CALL cp_dbcsr_add_block_node(matrix=matrix,&
-               block_row=iatom,&
-               block_col=jatom,&
-               block=block,error=error)
+          rows(blk_cnt) = iatom
+          cols(blk_cnt) = jatom
        ELSE
           IF(iatom<=jatom) THEN
              irow = iatom
@@ -317,17 +330,18 @@ CONTAINS
              irow = jatom
              icol = iatom
           END IF
-          CALL cp_dbcsr_add_block_node(matrix=matrix,&
-               block_row=irow,&
-               block_col=icol,&
-               block=block,error=error)
+          rows(blk_cnt) = irow
+          cols(blk_cnt) = icol
        END IF
-
-       block(:,:) = 0.0_dp
 
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
+    !
+    CALL cp_dbcsr_reserve_blocks (matrix, rows(1:blk_cnt), cols(1:blk_cnt),&
+         error=error)
+    DEALLOCATE (rows)
+    DEALLOCATE (cols)
     CALL cp_dbcsr_finalize( matrix, error=error )
 
     CALL timestop(handle)
