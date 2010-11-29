@@ -170,6 +170,7 @@ CONTAINS
     REAL(KIND=dp)                            :: app, asp, ass
     REAL(KIND=dp), DIMENSION(9, 9)           :: a_scp
     REAL(KIND=dp), POINTER                   :: ascp_diag( : ), block( :, : )
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: tmp
     TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -291,9 +292,12 @@ CONTAINS
     CALL cp_dbcsr_get_info ( pscp, nfullrows_total=nrow )
 
     ALLOCATE (ascp_diag(nrow),STAT=stat)
+    ALLOCATE (tmp(nrow),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_get_diag( pscp, ascp_diag, error=error )
+    CALL cp_dbcsr_get_diag( pscp, tmp, error=error )
+    ascp_diag=tmp
     CALL set_scp_env ( scp_env=scp_env, ascp_diag=ascp_diag, error = error )
+     
 
     CALL cp_dbcsr_set(pscp,0.0_dp,error=error)
     ALLOCATE(ks_scp)
