@@ -160,6 +160,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     para_env=>qs_env%para_env
+    NULLIFY(matrix_w)
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
                     distribution_2d=distribution_2d, error=error)
