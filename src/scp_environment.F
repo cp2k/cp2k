@@ -192,7 +192,7 @@ CONTAINS
     NULLIFY ( para_env )
     NULLIFY ( atomic_kind_set, atomic_kind )
     NULLIFY ( distribution_2d )
-    NULLIFY ( pscp, ks_scp, block, ascp_diag, se_kind, ascp_diag, atom_list )
+    NULLIFY ( pscp, ks_scp, block, ascp_diag, se_kind, atom_list )
 
     CALL get_qs_env (qs_env, para_env = para_env, &
                      atomic_kind_set = atomic_kind_set, &
