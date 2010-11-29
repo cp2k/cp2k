@@ -2156,11 +2156,7 @@ END SUBROUTINE make_full_all_ortho
          cp_dbcsr_col_block_sizes(mat_t), cp_dbcsr_get_num_blocks(mat_t), cp_dbcsr_get_data_size(mat_t),&
          cp_dbcsr_get_data_type(mat_t), cp_dbcsr_uses_special_memory(mat_t), error=error)
     CALL cp_dbcsr_finalize(prcnd, error=error)
-    !CALL cp_dbcsr_work_create(prcnd,work_mutable=.TRUE.,&
-    !     nblks_guess=mat_t%m%nblks,sizedata_guess=mat_t%m%nze,&
-    !     error=error)
 
-    !
     ! some variables
     s = 1.0_dp ! s > 0
 
